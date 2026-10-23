@@ -39,8 +39,8 @@ SMALL_CONFIG = {
         {"type": "noise", "stack": [{"wavelength": 20, "amplitude": 0.5, "octaves": 3}]},
         {
             "type": "craters",
-            "min_diameter": 3,
-            "max_diameter": 15,
+            "min_diameter_m": 3,
+            "max_diameter_m": 15,
             "density": copy.deepcopy(LUNAR_DENSITY),
             "ages": copy.deepcopy(LUNAR_AGES),
         },
@@ -48,8 +48,8 @@ SMALL_CONFIG = {
             "type": "boulders",
             "coverage": 0.1,
             "sizes": {"type": "golombek_rapp"},
-            "min_diameter": 0.5,
-            "max_diameter": 2,
+            "min_diameter_m": 0.5,
+            "max_diameter_m": 2,
         },
     ],
     "outputs": [

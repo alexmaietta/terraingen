@@ -36,8 +36,8 @@
                 "equilibrium": "trask",
                 "chronology": "neukum"
             },
-            "min_diameter": 3,
-            "max_diameter": 120,
+            "min_diameter_m": 3,
+            "max_diameter_m": 120,
             "degradation": {
                 "type": "diffusion",
                 "diffusivity": "matched"

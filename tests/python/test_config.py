@@ -225,7 +225,7 @@ def test_production_surfaces_round_trip_and_validate(production, chronology):
     }
     config = terraingen.TerrainGenConfig.from_dict(
         crater_config(
-            density={"type": "minimum", "distributions": [density, {"type": "trask"}]}, min_diameter=20
+            density={"type": "minimum", "distributions": [density, {"type": "trask"}]}, min_diameter_m=20
         )
     )
     assert terraingen.parse_config(terraingen.config_to_json(config)) == config

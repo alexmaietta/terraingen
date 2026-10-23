@@ -1,6 +1,7 @@
 #include "terraingen/layers/boulders/boulder_options.h"
 
 #include "terraingen/layers/boulders/boulder_abundance.h"
+#include "terraingen/layers/source_resolved.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
@@ -298,5 +299,6 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     ValidateBoulderVentifacts(options.ventifacts);
     ValidateResolutionFade(options.fade);
     ValidateBoulderRendering(options.rendering);
+    ValidateSourceResolvesPixels(options.sourceResolvesPixels);
 }
 }  // namespace terraingen

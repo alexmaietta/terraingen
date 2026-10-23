@@ -7,6 +7,7 @@
 #include "terraingen/config/fields/common.h"
 #include "terraingen/config/fields/sources.h"
 
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -60,6 +61,8 @@ template <typename... Ts>
 void CheckRanges(std::variant<Ts...>& value, const std::string& path, std::string_view unit,
                  const FieldRange& range);
 void CheckRanges(UpsamplingSpec& value, const std::string& path, std::string_view unit,
+                 const FieldRange& range);
+void CheckRanges(std::array<double, 2>& value, const std::string& path, std::string_view unit,
                  const FieldRange& range);
 /// @}
 
@@ -118,6 +121,13 @@ template <typename... Ts>
 void CheckRanges(std::variant<Ts...>& value, const std::string& path, std::string_view unit,
                  const FieldRange& range) {
     std::visit([&](auto& alternative) { CheckRanges(alternative, path, unit, range); }, value);
+}
+
+inline void CheckRanges(std::array<double, 2>& value, const std::string& path,
+                        std::string_view unit, const FieldRange& range) {
+    for (std::size_t i = 0; i < value.size(); ++i) {
+        CheckRange(value[i], range, unit, Element(path, i));
+    }
 }
 
 inline void CheckRanges(UpsamplingSpec& value, const std::string& path, std::string_view /*unit*/,

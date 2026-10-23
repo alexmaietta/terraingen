@@ -19,8 +19,8 @@
             "sizes": {
                 "type": "golombek_rapp"
             },
-            "min_diameter": 0.1,
-            "max_diameter": 1.5,
+            "min_diameter_m": 0.1,
+            "max_diameter_m": 1.5,
             "relief": "shape",
             "ventifacts": {
                 "share": 0.39,

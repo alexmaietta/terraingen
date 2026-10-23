@@ -51,7 +51,7 @@ const char* TypeGlyph(std::string_view root, std::string_view type) {
         {"noise", "\xee\x88\xb1"},       {"craters", "\xee\x8d\x85"},
         {"boulders", "\xee\x89\x82"},    {"roughness", "\xee\x90\x92"},
         {"bedforms", "\xee\x86\xb0"},    {"scale", "\xee\x8b\xac"},
-        {"clamp", "\xee\x85\x8b"},       {"region", "\xee\x82\xac"},
+        {"clamp", "\xee\x85\x8b"},       {"masked", "\xee\x82\xac"},
         {"secondaries", "\xee\x81\xb6"},
     };
     for (const Entry& entry : kGlyphs) {

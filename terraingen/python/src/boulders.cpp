@@ -343,8 +343,12 @@ void BindLayer(nb::module_& m) {
         "Boulders drawn into the heights, the largest optionally placed as 3D boulder models; "
         "`craters` supplies the craters that throw ejecta boulders.");
     layer
-        .def(nb::init<BoulderLayerOptions, std::shared_ptr<CraterLayer>, Surface>(),
-             "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(), "surface"_a = Surface{})
+        .def(nb::init<BoulderLayerOptions, std::shared_ptr<CraterLayer>, Surface,
+                      std::shared_ptr<const Source>>(),
+             "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(), "surface"_a = Surface{},
+             "source"_a = nb::none(),
+             "With a `source`, generated boulders at least `options.source_resolves_px` of its "
+             "cells across are dropped.")
         .def_static("manual", &BoulderLayer::Manual, "boulders"_a,
                     "options"_a = BoulderLayerOptions{}, "surface"_a = Surface{},
                     "A layer of only `boulders` (ManualBoulder), posed and drawn as `options` "

@@ -15,6 +15,7 @@
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
+#include "terraingen/sources/source.h"
 #include "terraingen/util/lru_cache.h"
 
 #include <array>
@@ -82,16 +83,19 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// @param craters The crater layer whose craters throw blocks; may be null without ejecta or
     /// without `generateRandom`.
     /// @param surface The crater layer's surface.
+    /// @param source The source the terrain's heights come from, which with
+    /// `options.sourceResolvesPixels` holds the boulders it resolves; null for none.
     /// @throws std::invalid_argument for invalid options, ejecta of random boulders without
     /// `craters`, or a crater layer on another surface.
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
-                 Surface surface = {});
+                 Surface surface = {}, std::shared_ptr<const Source> source = nullptr);
 
     /// Boulders whose ejecta come from every one of `craters`, each crater's blocks worn by its
     /// own layer's degradation; overlapping ejecta take the largest share as within one layer.
     /// @throws std::invalid_argument as the single-layer constructor, or for a null layer.
     BoulderLayer(BoulderLayerOptions options,
-                 std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface);
+                 std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface,
+                 std::shared_ptr<const Source> source = nullptr);
 
     /// The boulders centred in `region` (surface coordinates) or reaching it with their radius or
     /// fillet, in a fixed order.

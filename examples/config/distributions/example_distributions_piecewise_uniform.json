@@ -39,7 +39,7 @@
                 "type": "uniform",
                 "lifetime_gyr": 1.0
             },
-            "min_diameter": 0.5
+            "min_diameter_m": 0.5
         }
     ],
     "outputs": [

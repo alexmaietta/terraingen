@@ -25,7 +25,6 @@
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/degradation/diffusivities.h"
 #include "terraingen/layers/craters/degradation/freshness.h"
-#include "terraingen/layers/craters/generation/resolved_limit.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/noise_relief.h"
@@ -353,6 +352,61 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
         spec);
 }
 
+/// A source in place of another, the same but for its resolution, which is infinite everywhere:
+/// synthetic heights hold no measured features.
+class UnmeasuredSource final : public Source {
+  public:
+    using Source::Fill;
+
+    explicit UnmeasuredSource(std::shared_ptr<const Source> source) : source_(std::move(source)) {}
+
+    RasterGrid Grid() const override {
+        return source_->Grid();
+    }
+    Vec2d ReferencePoint() const override {
+        return source_->ReferencePoint();
+    }
+    GeoKeys Keys() const override {
+        return source_->Keys();
+    }
+    void Fill(Raster<float>& heights, double spacing) const override {
+        source_->Fill(heights, spacing);
+    }
+    float HeightAt(double x, double y, double spacing) const override {
+        return source_->HeightAt(x, y, spacing);
+    }
+
+  private:
+    std::shared_ptr<const Source> source_;
+};
+
+/// The source whose resolution layers read for what it already holds (`sourceResolvesPixels`):
+/// `built` itself for a raster, null for a synthetic source, and for a chain the chain with its
+/// synthetic sources resolving nothing, or null when all of them are synthetic.
+/// @param built The source `BuildSource` built from `spec`.
+std::shared_ptr<const Source> MeasuredSource(const SourceSpec& spec,
+                                             const std::shared_ptr<const Source>& built) {
+    using Result = std::shared_ptr<const Source>;
+    return std::visit(
+        Overloaded{
+            [&](const RasterSourceSpec&) -> Result { return built; },
+            [](const SyntheticSourceSpec&) -> Result { return nullptr; },
+            [&](const ChainSourceSpec& s) -> Result {
+                const auto& members = static_cast<const SourceChain&>(*built).Sources();
+                std::vector<Result> sources;
+                bool measured = false;
+                for (std::size_t n = 0; n < s.sources.size(); ++n) {
+                    Result member = MeasuredSource(s.sources[n], members[n]);
+                    measured = measured || member != nullptr;
+                    sources.push_back(member ? std::move(member)
+                                             : std::make_shared<UnmeasuredSource>(members[n]));
+                }
+                return measured ? std::make_shared<SourceChain>(std::move(sources)) : nullptr;
+            },
+        },
+        spec);
+}
+
 /// The point noise is measured from: the source's reference point, or the origin without one.
 Vec2d ReferencePoint(const TerrainGenerator& generator) {
     return generator.source ? generator.source->ReferencePoint() : Vec2d{};
@@ -369,35 +423,18 @@ struct LayerInputs {
     const Surface& surface;
     /// The source the configuration gives; null without one.
     const std::shared_ptr<const Source>& source;
+    /// The source's measured data that layers leave out what it resolves of
+    /// (`MeasuredSource`); null for none.
+    const std::shared_ptr<const Source>& measured;
     /// The secondaries later layers throw from a crater layer built with these inputs.
     std::vector<SecondaryCraterOptions> thrown{};
 };
 
-/// The completeness of a crater layer's generation: its catalog's limit, the base's unresolved
-/// limit, the minimum of the two when both are set, or null for neither. Without a base the
-/// unresolved limit is infinite everywhere and so left out.
-/// @param source The base; null without one.
-std::shared_ptr<const SurfaceField> BuildCompleteness(const CraterLayerSpec& craters,
-                                                      const std::string& path,
-                                                      const std::filesystem::path& directory,
-                                                      const std::shared_ptr<const Source>& source,
-                                                      const Surface& surface) {
-    std::shared_ptr<const SurfaceField> catalog;
-    if (craters.completeness) {
-        catalog = config::BuildField(*craters.completeness, Child(path, "completeness"), directory);
-    }
-    if (!craters.unresolvedPixelsAcross || !source) {
-        return catalog;
-    }
-    const auto unresolved = At(Child(path, "unresolved_pixels_across"), [&] {
-        return UnresolvedCraterLimit(source, *craters.unresolvedPixelsAcross, surface);
-    });
-    return catalog ? std::make_shared<const MinimumField>(catalog, unresolved) : unresolved;
-}
-
+/// @param measured The source whose resolved craters are left out (`MeasuredSource`); null for
+/// none.
 LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& path,
                           const Surface& surface, const std::filesystem::path& directory,
-                          const std::shared_ptr<const Source>& source,
+                          const std::shared_ptr<const Source>& measured,
                           std::vector<SecondaryCraterOptions> thrown) {
     CraterLayerOptions options;
     options.secondaries = std::move(thrown);
@@ -417,10 +454,15 @@ LayerPtr BuildCraterLayer(const CraterLayerSpec& craters, const std::string& pat
         options.densityMap =
             config::BuildDensityMap(*craters.densityMap, Child(path, "density_map"), directory);
     }
-    options.generation.completeness = BuildCompleteness(craters, path, directory, source, surface);
+    if (craters.completeness) {
+        options.generation.completeness =
+            config::BuildField(*craters.completeness, Child(path, "completeness"), directory);
+    }
+    options.sourceResolvesPixels = craters.sourceResolvesPixels;
     CraterModels models = BuildCraterModels(craters, path);
-    return At(path,
-              [&] { return std::make_shared<CraterLayer>(std::move(models), std::move(options)); });
+    return At(path, [&] {
+        return std::make_shared<CraterLayer>(std::move(models), std::move(options), measured);
+    });
 }
 
 /// The options of a spectral continuation layer, fitted to the base wherever the spec gives no
@@ -461,11 +503,13 @@ BaseRoughness BaseRoughnessAt(const LayerInputs& context, const Surface& surface
 }
 
 LayerPtr BuildSecondaryLayer(const SecondaryLayerSpec& spec,
-                             const std::shared_ptr<const CraterLayer>& primaries) {
+                             const std::shared_ptr<const CraterLayer>& primaries,
+                             const std::shared_ptr<const Source>& measured) {
     const CraterShapeModels models{
         primaries->Models().profile,
         std::make_shared<NoDegradation>(BuildMorphometry(spec.morphometry), spec.depthRatio)};
-    return std::make_shared<SecondaryCraterLayer>(primaries, models, spec.secondaries);
+    return std::make_shared<SecondaryCraterLayer>(primaries, models, spec.secondaries,
+                                                  CraterApplyOptions{}, measured);
 }
 
 LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerInputs& context) {
@@ -477,10 +521,13 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                     return s.estimateFromBase ? s.EstimatedParams(BaseRoughnessAt(context, surface))
                                               : s.Params();
                 });
-                return std::make_shared<NoiseRelief>(params, context.referencePoint, surface);
+                return At(path, [&] {
+                    return std::make_shared<NoiseRelief>(params, context.referencePoint, surface,
+                                                         context.measured, s.sourceResolvesPixels);
+                });
             },
             [&](const CraterLayerSpec& s) -> LayerPtr {
-                return BuildCraterLayer(s, path, surface, context.directory, context.source,
+                return BuildCraterLayer(s, path, surface, context.directory, context.measured,
                                         context.thrown);
             },
             [&](const BoulderLayerSpec& s) -> LayerPtr {
@@ -490,7 +537,7 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                 return std::make_shared<BoulderLayer>(
                     std::move(options),
                     throws ? context.craters : std::vector<std::shared_ptr<const CraterLayer>>{},
-                    surface);
+                    surface, context.measured);
             },
             [&](const RoughnessLayerSpec& s) -> LayerPtr {
                 const RoughnessOptions options = At(path, [&] {
@@ -501,7 +548,7 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                 return std::make_shared<RoughnessLayer>(options, surface);
             },
             [&](const DuneLayerSpec& s) -> LayerPtr {
-                return std::make_shared<DuneLayer>(s.dunes, surface);
+                return std::make_shared<DuneLayer>(s.dunes, surface, context.measured);
             },
             [&](const PavementLayerSpec& s) -> LayerPtr {
                 return std::make_shared<PavementLayer>(s.pavement, surface);
@@ -516,7 +563,7 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
                 return std::make_shared<SandFillLayer>(s.sandFill, surface);
             },
             [&](const BedformLayerSpec& s) -> LayerPtr {
-                return std::make_shared<BedformLayer>(s.bedforms, surface);
+                return std::make_shared<BedformLayer>(s.bedforms, surface, context.measured);
             },
             [&](const SpectralContinuationLayerSpec& s) -> LayerPtr {
                 return std::make_shared<SpectralContinuationLayer>(
@@ -528,13 +575,13 @@ LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerI
             [&](const ClampLayerSpec& s) -> LayerPtr {
                 return std::make_shared<ClampLayer>(s.min, s.max);
             },
-            [&](const RegionLayerSpec& s) -> LayerPtr {
-                return std::make_shared<RegionLayer>(
+            [&](const MaskedLayerSpec& s) -> LayerPtr {
+                return std::make_shared<MaskedLayer>(
                     BuildLayer(*s.layer, Child(path, "layer"), context), BuildRegionShape(s.shape),
                     s.feather, s.blend, surface);
             },
             [&](const SecondaryLayerSpec& s) -> LayerPtr {
-                return BuildSecondaryLayer(s, context.craters.back());
+                return BuildSecondaryLayer(s, context.craters.back(), context.measured);
             },
         },
         spec);
@@ -565,16 +612,14 @@ TerrainGenerator BuildValidGenerator(const TerrainGenConfig& config,
                            ? BuildSource(*config.source, directory, generator.surface, "source")
                            : std::make_shared<SyntheticSource>();
     const std::shared_ptr<const Source> given = config.source ? generator.source : nullptr;
+    const std::shared_ptr<const Source> measured =
+        config.source ? MeasuredSource(*config.source, generator.source) : nullptr;
     std::vector<std::shared_ptr<const CraterLayer>> craters;
     std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        const LayerInputs context{ReferencePoint(generator),
-                                  directory,
-                                  craters,
-                                  boulders,
-                                  generator.surface,
-                                  given,
-                                  ThrownSecondaries(config.layers, i)};
+        const LayerInputs context{
+            ReferencePoint(generator), directory, craters,  boulders,
+            generator.surface,         given,     measured, ThrownSecondaries(config.layers, i)};
         generator.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
             craters.push_back(std::static_pointer_cast<const CraterLayer>(generator.layers.back()));

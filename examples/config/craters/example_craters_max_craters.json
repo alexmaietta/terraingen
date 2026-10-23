@@ -36,8 +36,8 @@
                 "equilibrium": "trask",
                 "chronology": "neukum"
             },
-            "min_diameter": 4,
-            "max_diameter": 300,
+            "min_diameter_m": 4,
+            "max_diameter_m": 300,
             "max_craters": 200
         }
     ],

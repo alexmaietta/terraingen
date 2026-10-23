@@ -36,10 +36,13 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
   public:
     /// @param primaries The layer whose craters throw secondaries.
     /// @param apply How secondaries are applied; without a datum.
+    /// @param source The source the terrain's heights come from, which with
+    /// `options.sourceResolvesPixels` holds the secondaries it resolves; null for none.
     /// @throws std::invalid_argument for a null layer or model, invalid options, or apply options
     /// with a datum.
     SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries, CraterShapeModels models,
-                         SecondaryCraterOptions options, CraterApplyOptions apply = {});
+                         SecondaryCraterOptions options, CraterApplyOptions apply = {},
+                         std::shared_ptr<const Source> source = nullptr);
 
     /// The largest secondary the layer places, in metres.
     double MaxFeatureDiameter() const;
@@ -69,6 +72,12 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
         return options_;
     }
 
+    /// The size in meters from which the source holds the secondaries at each point; null for
+    /// none.
+    const SurfaceField* ResolvedLimit() const {
+        return limit_.get();
+    }
+
   protected:
     /// Applies the secondaries reaching the samples.
     /// @throws std::invalid_argument if more than `maxExpected` secondaries are expected.
@@ -79,6 +88,7 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
     CraterShapeModels models_;
     SecondaryCraterOptions options_;
     CraterApplyOptions apply_;
+    std::shared_ptr<const SurfaceField> limit_;
 };
 
 }  // namespace terraingen

@@ -13,7 +13,7 @@
             ]
         },
         {
-            "type": "region",
+            "type": "masked",
             "shape": {
                 "type": "circle",
                 "x": 0,
@@ -28,7 +28,7 @@
             }
         },
         {
-            "type": "region",
+            "type": "masked",
             "shape": {
                 "type": "rectangle",
                 "min_x": -1026,
@@ -61,12 +61,12 @@
                     "equilibrium": "trask",
                     "chronology": "neukum"
                 },
-                "min_diameter": 10,
-                "max_diameter": 200
+                "min_diameter_m": 10,
+                "max_diameter_m": 200
             }
         },
         {
-            "type": "region",
+            "type": "masked",
             "shape": {
                 "type": "rectangle",
                 "min_x": 0,
@@ -99,8 +99,8 @@
                     "equilibrium": "trask",
                     "chronology": "neukum"
                 },
-                "min_diameter": 10,
-                "max_diameter": 200
+                "min_diameter_m": 10,
+                "max_diameter_m": 200
             }
         }
     ],

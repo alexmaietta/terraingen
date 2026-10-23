@@ -102,6 +102,19 @@ void Read(const Json& json, const std::string& path, int& value) {
     value = static_cast<int>(number);
 }
 
+void Read(const Json& json, const std::string& path, std::array<double, 2>& value) {
+    if (!json.is_array() || json.size() != 2) {
+        Fail(path, std::string("expected a list of two numbers, not ") +
+                       (json.is_array() ? "a list of " + std::to_string(json.size())
+                                        : std::string(json.type_name())));
+    }
+    std::array<double, 2> pair{};
+    for (std::size_t i = 0; i < 2; ++i) {
+        Read(json[i], Element(path, i), pair[i]);
+    }
+    value = pair;
+}
+
 void Read(const Json& json, const std::string& path, UpsamplingSpec& value) {
     UpsamplingSpec spec;
     if (json.is_string()) {
@@ -228,7 +241,7 @@ std::string LayerType(const LayerSpec& layer) {
         [](const auto& spec) {
             using Spec = std::decay_t<decltype(spec)>;
             std::string type(config::SpecName<Spec>::kName);
-            if constexpr (std::is_same_v<Spec, RegionLayerSpec>) {
+            if constexpr (std::is_same_v<Spec, MaskedLayerSpec>) {
                 type += " (" + LayerType(*spec.layer) + ")";
             }
             return type;

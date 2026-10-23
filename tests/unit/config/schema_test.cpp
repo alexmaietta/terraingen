@@ -433,9 +433,9 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
         parses({{"layers", Json::array({boulders})}}, "boulder_sizes");
     }
     for (const Json& entry : models["region_shape"]) {
-        Json region = layerOf("region");
-        region["shape"] = entry;
-        parses({{"layers", Json::array({region})}}, "region_shape");
+        Json masked = layerOf("masked");
+        masked["shape"] = entry;
+        parses({{"layers", Json::array({masked})}}, "region_shape");
     }
     Json noise = layerOf("noise");
     noise["stack"] = Json::array({models["noise_layer"]});
@@ -519,7 +519,7 @@ TEST(ConfigSchema, GivesASphereOnlyARadiusInMetres) {
     EXPECT_EQ(sphere["fields"][0]["unit"], "m");
 }
 
-TEST(ConfigSchema, GivesGeoTiffReadsACropAndCraterLayersAnUnresolvedLimit) {
+TEST(ConfigSchema, GivesGeoTiffReadsACropAndLayersASourceResolvedLimit) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
     const SchemaJson base = FieldOf(schema["root"], "source")["schema"];
     ASSERT_EQ(base["kind"], "optional");
@@ -560,10 +560,25 @@ TEST(ConfigSchema, GivesGeoTiffReadsACropAndCraterLayersAnUnresolvedLimit) {
     EXPECT_EQ(FieldOf(synthetic, "stack")["schema"],
               FieldOf(AlternativeOf(choice, "noise"), "stack")["schema"])
         << "the synthetic source shares the noise layer's stack";
-    const SchemaJson limit = FieldOf(AlternativeOf(choice, "craters"), "unresolved_pixels_across");
-    EXPECT_TRUE(limit["default"].is_null());
+    const SchemaJson limit = FieldOf(AlternativeOf(choice, "craters"), "source_resolves_px");
+    EXPECT_EQ(limit["default"], 4.0);
+    EXPECT_EQ(limit["unit"], "px");
     EXPECT_EQ(limit["minimum"], 0.0);
     EXPECT_EQ(limit["exclusive_minimum"], true);
+    for (const char* layer : {"secondaries", "dunes", "bedforms"}) {
+        EXPECT_EQ(FieldOf(AlternativeOf(choice, layer), "source_resolves_px")["default"], 4.0)
+            << layer;
+    }
+    for (const char* layer : {"boulders", "noise"}) {
+        EXPECT_TRUE(
+            FieldOf(AlternativeOf(choice, layer), "source_resolves_px")["default"].is_null())
+            << layer;
+    }
+    const SchemaJson fade = FieldOf(AlternativeOf(choice, "boulders"), "fade_px");
+    EXPECT_EQ(fade["schema"]["kind"], "array");
+    EXPECT_EQ(fade["schema"]["length"], 2);
+    EXPECT_EQ(fade["default"], SchemaJson::array({2.0, 4.0}));
+    EXPECT_EQ(fade["unit"], "px");
 }
 
 TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
@@ -583,15 +598,15 @@ TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
     EXPECT_EQ(ages, (std::vector<std::string>{"uniform", "fresh", "steady_state", "freshness"}));
 }
 
-TEST(LayerType, NamesALayerAsItsJsonTypeAndARegionByTheLayerInside) {
+TEST(LayerType, NamesALayerAsItsJsonTypeAndAMaskedLayerByTheLayerInside) {
     EXPECT_EQ(terraingen::LayerType(terraingen::CraterLayerSpec{}), "craters");
     EXPECT_EQ(terraingen::LayerType(terraingen::SandFillLayerSpec{}), "sand_fill");
     EXPECT_EQ(terraingen::LayerType(terraingen::SpectralContinuationLayerSpec{}),
               "spectral_continuation");
-    terraingen::RegionLayerSpec region;
-    region.layer = terraingen::BoulderLayerSpec{};
-    EXPECT_EQ(terraingen::LayerType(region), "region (boulders)");
-    terraingen::RegionLayerSpec nested;
-    nested.layer = region;
-    EXPECT_EQ(terraingen::LayerType(nested), "region (region (boulders))");
+    terraingen::MaskedLayerSpec masked;
+    masked.layer = terraingen::BoulderLayerSpec{};
+    EXPECT_EQ(terraingen::LayerType(masked), "masked (boulders)");
+    terraingen::MaskedLayerSpec nested;
+    nested.layer = masked;
+    EXPECT_EQ(terraingen::LayerType(nested), "masked (masked (boulders))");
 }

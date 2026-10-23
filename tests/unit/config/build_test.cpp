@@ -491,7 +491,7 @@ TEST(BuildGenerator, BuildsEveryLayerKindInOrder) {
     config.layers.push_back(terraingen::BedformLayerSpec{});
     config.layers.push_back(terraingen::ScaleLayerSpec{2.0, 1.0});
     config.layers.push_back(terraingen::ClampLayerSpec{0.0, 1.0});
-    config.layers.push_back(terraingen::RegionLayerSpec{terraingen::CircleRegionSpec{0, 0, 10}});
+    config.layers.push_back(terraingen::MaskedLayerSpec{terraingen::CircleRegionSpec{0, 0, 10}});
     config.layers.push_back(terraingen::DuneLayerSpec{terraingen::MarsBarchans()});
     const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     ASSERT_EQ(terrain.layers.size(), 10u);
@@ -504,7 +504,7 @@ TEST(BuildGenerator, BuildsEveryLayerKindInOrder) {
     EXPECT_NE(dynamic_cast<const terraingen::BedformLayer*>(terrain.layers[5].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::ScaleLayer*>(terrain.layers[6].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::ClampLayer*>(terrain.layers[7].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::RegionLayer*>(terrain.layers[8].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::MaskedLayer*>(terrain.layers[8].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::DuneLayer*>(terrain.layers[9].get()), nullptr);
     TerrainGenConfig narrow;
     narrow.outputs = {
@@ -669,12 +669,12 @@ TEST(BuildGenerator, GivesCraterLayersTheSecondariesThrownFromThem) {
 
 TEST(LayerKinds, CountFindAndIndexLayersOfAKind) {
     using terraingen::BoulderLayerSpec;
+    using terraingen::MaskedLayerSpec;
     using terraingen::NoiseLayerSpec;
-    using terraingen::RegionLayerSpec;
     namespace config = terraingen::config;
     const std::vector<terraingen::LayerSpec> layers{
         NoiseLayerSpec{}, CraterLayerSpec{}, BoulderLayerSpec{}, CraterLayerSpec{},
-        RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 0.0, {}, CraterLayerSpec{}}};
+        MaskedLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 0.0, {}, CraterLayerSpec{}}};
     EXPECT_TRUE((config::HoldsAny<NoiseLayerSpec, BoulderLayerSpec>(layers[2])));
     EXPECT_FALSE((config::HoldsAny<NoiseLayerSpec, BoulderLayerSpec>(layers[1])));
     EXPECT_EQ(config::CountLayers<CraterLayerSpec>(layers), 2u) << "not the one in a region";
@@ -863,11 +863,12 @@ TEST(BuildGenerator, ReportsACropThatIsInvertedNotFiniteOrOffTheFile) {
     }
 }
 
-TEST(BuildGenerator, GeneratesOnlyTheCratersTheDemDoesNotResolve) {
+TEST(BuildGenerator, GeneratesOnlyTheCratersTheDemDoesNotResolveByDefault) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_unresolved");
-    const TerrainGenConfig every = FlatDemCraters(folder, "flat.tif");
-    TerrainGenConfig limited = every;
-    std::get<CraterLayerSpec>(limited.layers.at(0)).unresolvedPixelsAcross = 4.0;
+    const TerrainGenConfig limited = FlatDemCraters(folder, "flat.tif");
+    ASSERT_EQ(std::get<CraterLayerSpec>(limited.layers.at(0)).sourceResolvesPixels, 4.0);
+    TerrainGenConfig every = limited;
+    std::get<CraterLayerSpec>(every.layers.at(0)).sourceResolvesPixels.reset();
     const terraingen::Bounds2d region{20.0, 20.0, 300.0, 300.0};
     const terraingen::CraterList all =
         CratersIn(terraingen::BuildGenerator(every, folder), 0, region);
@@ -900,7 +901,6 @@ TEST(BuildGenerator, TakesTheLesserOfTheCatalogAndUnresolvedLimits) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_unresolved_catalog");
     TerrainGenConfig config = FlatDemCraters(folder, "flat.tif");
     auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
-    craters.unresolvedPixelsAcross = 4.0;
     craters.completeness = ConstantField(50.0);
     const auto completeness = [&](const TerrainGenConfig& built) {
         const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(built, folder);
@@ -923,9 +923,9 @@ TEST(BuildGenerator, TakesTheLesserOfTheCatalogAndUnresolvedLimits) {
     }
 }
 
-TEST(BuildGenerator, IgnoresTheUnresolvedLimitWithoutABase) {
+TEST(BuildGenerator, IgnoresTheSourceResolvedLimitOnASyntheticSource) {
     TerrainGenConfig config = Small();
-    Craters(config).unresolvedPixelsAcross = 4.0;
+    Craters(config).sourceResolvesPixels = 4.0;
     const auto completeness = [](const TerrainGenConfig& built) {
         const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(built);
         return dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(1))
@@ -933,15 +933,80 @@ TEST(BuildGenerator, IgnoresTheUnresolvedLimitWithoutABase) {
             .generation.completeness;
     };
     EXPECT_EQ(completeness(config), nullptr);
+    terraingen::SyntheticSourceSpec posts;
+    posts.pixelSize = 5.0;
+    config.source = posts;
+    EXPECT_EQ(completeness(config), nullptr) << "synthetic posts are not measured data";
     Craters(config).completeness = ConstantField(30.0);
     ASSERT_NE(completeness(config), nullptr);
     EXPECT_EQ(completeness(config)->ValueAt(0.0, 0.0), 30.0);
 }
 
-TEST(BuildGenerator, ReportsAnUnresolvedLimitThatIsNotPositiveAndFinite) {
+TEST(BuildGenerator, GivesEachRasterOfAChainItsOwnSourceResolvedLimit) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_resolved_chain");
+    const TerrainGenConfig fine = FlatDemCraters(folder, "fine.tif");
+    terraingen::Raster<float> coarse(20, 20, 1.0f);
+    coarse.SetTransform(terraingen::GeoTransform::NorthUp(-500.0, 500.0, 50.0));
+    terraingen::WriteGeoTiff(folder / "coarse.tif", coarse, terraingen::testing::Keys());
+    terraingen::SyntheticSourceSpec synthetic;
+    synthetic.pixelSize = 1.0;
+    TerrainGenConfig config = fine;
+    config.source = terraingen::ChainSourceSpec{
+        {*fine.source, terraingen::RasterSourceSpec{"coarse.tif"}, synthetic}};
+    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config, folder);
+    const auto limit = dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(0))
+                           .Options()
+                           .generation.completeness;
+    ASSERT_NE(limit, nullptr);
+    EXPECT_EQ(limit->ValueAt(100.0, 100.0), 20.0) << "4 cells of 5 m";
+    EXPECT_EQ(limit->ValueAt(-300.0, -300.0), 200.0) << "4 cells of 50 m";
+    EXPECT_EQ(limit->ValueAt(900.0, 900.0), std::numeric_limits<double>::infinity())
+        << "only the synthetic source there";
+    config.source = terraingen::ChainSourceSpec{{synthetic}};
+    config.outputs.clear();
+    EXPECT_EQ(dynamic_cast<const terraingen::CraterLayer&>(
+                  *terraingen::BuildGenerator(config, folder).layers.at(0))
+                  .Options()
+                  .generation.completeness,
+              nullptr);
+}
+
+TEST(BuildGenerator, LeavesOutWhatTheRasterResolvesInEveryLayerKind) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_resolved_layers");
+    const TerrainGenConfig base = FlatDemCraters(folder, "flat.tif");
+    TerrainGenConfig config = base;
+    terraingen::DuneLayerSpec dunes;
+    dunes.dunes.shape = terraingen::DuneShape::Transverse;
+    dunes.dunes.wavelength = 25.0;
+    dunes.dunes.height = 1.0;
+    terraingen::BedformLayerSpec bedforms;
+    bedforms.bedforms.wavelength = 25.0;
+    bedforms.bedforms.cover = 0.9;
+    terraingen::NoiseLayerSpec noise;
+    noise.stack[0].layer.fractal.wavelength = 40.0f;
+    noise.sourceResolvesPixels = 4.0;
+    config.layers = {dunes, bedforms, noise};
+    TerrainGenConfig unset = config;
+    std::get<terraingen::DuneLayerSpec>(unset.layers[0]).dunes.sourceResolvesPixels.reset();
+    std::get<terraingen::BedformLayerSpec>(unset.layers[1]).bedforms.sourceResolvesPixels.reset();
+    std::get<terraingen::NoiseLayerSpec>(unset.layers[2]).sourceResolvesPixels.reset();
+    const terraingen::TerrainGenerator limited = terraingen::BuildGenerator(config, folder);
+    const terraingen::TerrainGenerator every = terraingen::BuildGenerator(unset, folder);
+    for (std::size_t i = 0; i < 3; ++i) {
+        bool differs = false;
+        for (double x = 1.0; x < 300.0; x += 3.7) {
+            const float held = limited.layers[i]->ApplyAt(0.0f, x, 150.0, {0.5});
+            EXPECT_EQ(held, 0.0f) << i << " at " << x << ": 25 m and 40 m are over 20 m";
+            differs = differs || every.layers[i]->ApplyAt(0.0f, x, 150.0, {0.5}) != held;
+        }
+        EXPECT_TRUE(differs) << i;
+    }
+}
+
+TEST(BuildGenerator, ReportsASourceResolvedLimitThatIsNotPositiveAndFinite) {
     for (const double pixels : {0.0, -2.0, std::numeric_limits<double>::infinity()}) {
         TerrainGenConfig config = Small();
-        Craters(config).unresolvedPixelsAcross = pixels;
-        EXPECT_EQ(BuildErrorPath(config, {}), "layers[1].unresolved_pixels_across") << pixels;
+        Craters(config).sourceResolvesPixels = pixels;
+        EXPECT_EQ(BuildErrorPath(config, {}), "layers[1].source_resolves_px") << pixels;
     }
 }

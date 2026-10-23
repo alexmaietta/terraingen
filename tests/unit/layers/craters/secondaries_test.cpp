@@ -532,3 +532,72 @@ TEST(CraterLayer, TakesTheSecondariesItThrowsOutOfATotalMap) {
     options.generation.maxCraters = 10;
     EXPECT_THROW(CraterLayer(primaries->Models(), options), std::invalid_argument);
 }
+
+TEST(SecondaryCraterLayer, LeavesOutTheSecondariesTheSourceResolves) {
+    terraingen::Raster<float> heights(200, 400, 0.0f);
+    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 20000.0, 100.0));
+    const auto dem = std::make_shared<terraingen::RasterSource>(heights);
+    const auto primaries = Primaries({0.0, 0.0, 2000.0, 0.0, 9u, true});
+    SecondaryCraterOptions options = Options();
+    options.sourceResolvesPixels = 0.3;
+    const terraingen::Bounds2d region{-20000.0, -20000.0, 20000.0, 20000.0};
+    const CraterList all = SecondaryCraterLayer(primaries, Models(), options).Secondaries(region);
+    const CraterList kept =
+        SecondaryCraterLayer(primaries, Models(), options, {}, dem).Secondaries(region);
+    std::multiset<double> expected;
+    std::size_t resolved = 0;
+    for (std::size_t n = 0; n < all.Size(); ++n) {
+        const Crater crater = all.At(n);
+        if (crater.x >= 0.0 && crater.diameter >= 30.0) {
+            ++resolved;
+        } else {
+            expected.insert(crater.diameter);
+        }
+    }
+    ASSERT_GT(resolved, 0u);
+    std::multiset<double> got;
+    for (std::size_t n = 0; n < kept.Size(); ++n) {
+        got.insert(kept.At(n).diameter);
+    }
+    EXPECT_EQ(got, expected) << "30 m from 0.3 cells of 100 m, only on the DEM";
+    options.sourceResolvesPixels.reset();
+    EXPECT_EQ(
+        SecondaryCraterLayer(primaries, Models(), options, {}, dem).Secondaries(region).Size(),
+        all.Size());
+    options.sourceResolvesPixels = -1.0;
+    EXPECT_THROW(SecondaryCraterLayer(primaries, Models(), options), std::invalid_argument);
+}
+
+TEST(CraterLayer, DropsTheCratersTheSourceResolvesWithTheCatalog) {
+    terraingen::Raster<float> heights(64, 64, 0.0f);
+    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 320.0, 5.0));
+    const auto dem = std::make_shared<terraingen::RasterSource>(heights);
+    const auto models = Primaries({0.0, 0.0, 10.0, 0.0, 1u, true})->Models();
+    CraterLayerOptions options;
+    options.generation.dMin = 6.0;
+    options.generation.dMax = 60.0;
+    const CraterLayer free(models, options);
+    EXPECT_EQ(
+        CraterLayer(models, options, dem).Options().generation.completeness->ValueAt(5.0, 5.0),
+        20.0);
+    options.generation.completeness = std::make_shared<terraingen::ConstantField>(12.0);
+    const CraterLayer both(models, options, dem);
+    EXPECT_EQ(both.Options().generation.completeness->ValueAt(5.0, 5.0), 12.0);
+    EXPECT_EQ(both.Options().generation.completeness->ValueAt(-500.0, 5.0), 12.0);
+    options.sourceResolvesPixels.reset();
+    EXPECT_EQ(
+        CraterLayer(models, options, dem).Options().generation.completeness->ValueAt(5.0, 5.0),
+        12.0);
+    const terraingen::Bounds2d region{20.0, 20.0, 300.0, 300.0};
+    options.generation.completeness = nullptr;
+    options.sourceResolvesPixels = 4.0;
+    const CraterList kept = CraterLayer(models, options, dem).Craters(region, 0.0);
+    ASSERT_GT(kept.Size(), 0u);
+    ASSERT_GT(free.Craters(region, 0.0).Size(), kept.Size());
+    for (std::size_t n = 0; n < kept.Size(); ++n) {
+        const Crater crater = kept.At(n);
+        const bool onDem =
+            crater.x >= 0.0 && crater.x < 320.0 && crater.y >= 0.0 && crater.y < 320.0;
+        EXPECT_TRUE(!onDem || crater.diameter < 20.0) << n;
+    }
+}

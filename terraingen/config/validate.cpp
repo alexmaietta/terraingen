@@ -11,6 +11,7 @@
 #include "terraingen/distribution/neukum.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/shaping/explicit_state.h"
+#include "terraingen/layers/source_resolved.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
@@ -149,17 +150,17 @@ void CheckDiffusivity(const DegradationSpec& degradation, const std::string& pat
 }
 
 /// Adds the craters a generating layer is expected to make over each extent to `context`.
-/// @throws ConfigError at the layer's "min_diameter" for more than the generation limit.
+/// @throws ConfigError at the layer's "min_diameter_m" for more than the generation limit.
 void AddExpectedCraters(const CraterLayerSpec& craters, const CraterModels& models,
                         const std::string& path, LayerChecks& context) {
-    const std::string minPath = Child(path, "min_diameter");
+    const std::string minPath = Child(path, "min_diameter_m");
     context.expectedCraters.resize(context.extents.size(), 0.0);
     for (std::size_t i = 0; i < context.extents.size(); ++i) {
         const double expected = At(minPath, [&] {
             return models.density->ExpectedCount(context.extents[i].area, craters.minDiameter,
                                                  craters.maxDiameter);
         });
-        CheckExpectedCount(expected, "craters", "raise min_diameter or set max_craters", minPath);
+        CheckExpectedCount(expected, "craters", "raise min_diameter_m or set max_craters", minPath);
         context.expectedCraters[i] += expected;
     }
 }
@@ -206,7 +207,14 @@ void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
     }
 }
 
+/// @throws ConfigError at the layer's "source_resolves_px" for a set value that is not positive
+/// and finite.
+void CheckSourceResolves(const std::optional<double>& pixels, const std::string& path) {
+    At(Child(path, "source_resolves_px"), [&] { ValidateSourceResolvesPixels(pixels); });
+}
+
 void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, LayerChecks& context) {
+    CheckSourceResolves(craters.sourceResolvesPixels, path);
     CheckManualCraters(craters.manual, Child(path, "manual"));
     At(Child(path, "spacing"), [&] { ValidateCraterSpacing(craters.spacing); });
     At(Child(path, "apply"), [&] { ValidateCraterApplyOptions(craters.apply); });
@@ -223,9 +231,9 @@ void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, Lay
         return;
     }
     if (!(craters.maxDiameter > craters.minDiameter)) {
-        throw ConfigError(Child(path, "max_diameter"), "must exceed min_diameter");
+        throw ConfigError(Child(path, "max_diameter_m"), "must exceed min_diameter_m");
     }
-    CheckModelRange(craters, models, Child(path, "min_diameter"));
+    CheckModelRange(craters, models, Child(path, "min_diameter_m"));
     AddExpectedCraters(craters, models, path, context);
 }
 
@@ -281,6 +289,7 @@ void CheckManualBoulders(const std::vector<ManualBoulder>& manual, const std::st
 }
 
 void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, LayerChecks& context) {
+    CheckSourceResolves(spec.boulders.sourceResolvesPixels, path);
     CheckManualBoulders(spec.manual, Child(path, "manual"));
     const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path, context.directory);
     CheckBoulderMaps(boulders, path);
@@ -297,7 +306,7 @@ void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, Layer
     }
     At(path, [&] { ValidateBoulderLayerOptions(boulders); });
     if (boulders.ejecta.MinCraterDiameter() > 0.0 && !context.craters) {
-        throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter"),
+        throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter_m"),
                           "ejecta need a crater layer before this one");
     }
     const BoulderSizes& sizes = boulders.sizes;
@@ -311,8 +320,8 @@ void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, Layer
         }
         const double expected =
             BoulderCandidates(boulders)->ExpectedCount(extent.area, minDiameter, sizes.maxDiameter);
-        CheckExpectedCount(expected, "candidate boulders", "raise min_diameter or lower coverage",
-                           Child(path, "min_diameter"));
+        CheckExpectedCount(expected, "candidate boulders", "raise min_diameter_m or lower coverage",
+                           Child(path, "min_diameter_m"));
     }
 }
 
@@ -325,6 +334,7 @@ void CheckLayerSpec(const SecondaryLayerSpec& layer, const std::string& path,
         throw ConfigError(Child(path, "onset_count"),
                           "required: the sources give secondary sizes, not their number");
     }
+    CheckSourceResolves(layer.secondaries.sourceResolvesPixels, path);
     At(path, [&] { ValidateSecondaryCraterOptions(layer.secondaries); });
 }
 
@@ -341,6 +351,7 @@ void CheckEstimateBase(bool estimate, const std::string& path, const LayerChecks
 void CheckLayerSpec(const NoiseLayerSpec& noise, const std::string& path, LayerChecks& context) {
     CheckNoiseStack(noise.stack, Child(path, "stack"), false);
     CheckEstimateBase(noise.estimateFromBase, path, context);
+    CheckSourceResolves(noise.sourceResolvesPixels, path);
 }
 
 void CheckLayerSpec(const SandShadowLayerSpec& layer, const std::string& path,
@@ -358,6 +369,7 @@ void CheckLayerSpec(const RoughnessLayerSpec& layer, const std::string& path,
 }
 
 void CheckLayerSpec(const DuneLayerSpec& layer, const std::string& path, LayerChecks&) {
+    CheckSourceResolves(layer.dunes.sourceResolvesPixels, path);
     At(path, [&] { ValidateDuneOptions(layer.dunes); });
 }
 
@@ -374,6 +386,7 @@ void CheckLayerSpec(const SandFillLayerSpec& layer, const std::string& path, Lay
 }
 
 void CheckLayerSpec(const BedformLayerSpec& layer, const std::string& path, LayerChecks&) {
+    CheckSourceResolves(layer.bedforms.sourceResolvesPixels, path);
     At(path, [&] { ValidateBedformOptions(layer.bedforms); });
 }
 
@@ -457,7 +470,7 @@ void CheckLayerSpec(const SpectralContinuationLayerSpec& layer, const std::strin
     });
 }
 
-void CheckLayerSpec(const RegionLayerSpec& layer, const std::string& path, LayerChecks& context) {
+void CheckLayerSpec(const MaskedLayerSpec& layer, const std::string& path, LayerChecks& context) {
     At(Child(path, "shape"), [&] { ValidateRegionShape(BuildRegionShape(layer.shape)); });
     const bool empty = std::visit(
         Overloaded{
@@ -470,7 +483,7 @@ void CheckLayerSpec(const RegionLayerSpec& layer, const std::string& path, Layer
                           "required: the shape has no area; give the rectangle's bounds or the "
                           "circle's radius");
     }
-    // Crater layers inside a region count for neither later layers nor the summary.
+    // Crater layers inside a masked layer count for neither later layers nor the summary.
     LayerChecks inner = context;
     CheckLayer(*layer.layer, Child(path, "layer"), inner);
 }

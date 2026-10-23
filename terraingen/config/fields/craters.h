@@ -13,10 +13,10 @@ namespace terraingen::config {
 
 template <typename IO> void Fields(IO& io, Crater& crater) {
     io("x", crater.x,
-       "Centre along x in the surface's coordinates; the longitude in degrees on a sphere.");
+       "Center along x in the surface's coordinates; the longitude in degrees on a sphere.");
     io("y", crater.y,
-       "Centre along y in the surface's coordinates; the latitude in degrees on a sphere.");
-    io("diameter", crater.diameter, "Rim-to-rim diameter, in metres.", "m", Above(0.0));
+       "Center along y in the surface's coordinates; the latitude in degrees on a sphere.");
+    io("diameter", crater.diameter, "Rim-to-rim diameter, in meters.", "m", Above(0.0));
     io("age_gyr", crater.ageGyr,
        "Age in Gyr; older craters are more degraded under a degradation model and are applied "
        "earlier in oldest-first order.",
@@ -24,11 +24,11 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
     io("id", crater.id,
        "Stable ID that seeds the crater's outline; 0 derives one from its position and diameter.");
     NanField(io, "depth", crater.depth,
-             "Rim-to-floor depth in metres, in place of the one the degradation model and age "
+             "Rim-to-floor depth in meters, in place of the one the degradation model and age "
              "give; unset keeps the model's.",
              "m", Above(0.0));
     NanField(io, "rim_height", crater.rimHeight,
-             "Height of the rim crest above the surface the crater formed on, in metres; needs a "
+             "Height of the rim crest above the surface the crater formed on, in meters; needs a "
              "depth. Unset lowers the fresh rim in proportion to the depth.",
              "m", AtLeast(0.0));
 }
@@ -39,7 +39,7 @@ template <typename IO> void Fields(IO& io, CraterSpacing& spacing) {
        "and be kept apart.",
        "", AtLeast(1.0));
     io("separation", spacing.separation,
-       "Least distance between the centres of similar-size craters, in larger diameters; 0 "
+       "Least distance between the centers of similar-size craters, in larger diameters; 0 "
        "disables spacing.",
        "", AtLeast(0.0));
 }
@@ -57,10 +57,10 @@ template <typename IO> void Fields(IO& io, ResolutionFade& fade) {
 
 template <typename IO> void Fields(IO& io, CraterBlend& blend) {
     io("start_radii", blend.startRadii,
-       "Distance from the centre, in crater radii, up to which the interior is fully replaced.", "",
+       "Distance from the center, in crater radii, up to which the interior is fully replaced.", "",
        AtLeast(0.0));
     io("end_radii", blend.endRadii,
-       "Distance from the centre, in crater radii, from which the surrounding terrain is draped "
+       "Distance from the center, in crater radii, from which the surrounding terrain is draped "
        "unchanged.",
        "", Above(0.0));
     io("shape", blend.shape, "Curve of the transition from the replaced interior to the exterior.");
@@ -144,10 +144,10 @@ template <typename IO> void RadialMarkFields(IO& io, CraterIrregularity& irregul
        "narrower marks.",
        "", Between(3.0, 1024.0));
     io("marks_inner_radii", irregularity.marksInnerRadii,
-       "Distance from the centre, in crater radii, where the marks reach full strength.", "",
+       "Distance from the center, in crater radii, where the marks reach full strength.", "",
        Inside(0.0, 1.0));
     io("marks_outer_radii", irregularity.marksOuterRadii,
-       "Distance from the centre, in crater radii, where the marks start to fade; at most 1 minus "
+       "Distance from the center, in crater radii, where the marks start to fade; at most 1 minus "
        "marks_fade_radii.",
        "", Inside(0.0, 1.0));
     io("marks_fade_radii", irregularity.marksFadeRadii,
@@ -239,7 +239,7 @@ template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
        "them the same on any slope.");
     io("seed", slope.seed, "Varies how far each crater's floor is offset.");
     io("floor_offset", slope.floorOffset,
-       "How far the deepest point lies downslope of the centre, in diameters, drawn per crater; "
+       "How far the deepest point lies downslope of the center, in diameters, drawn per crater; "
        "below 0.23.");
     io("upslope_rim", slope.upslopeRim,
        "Share of the raised rim and ejecta kept straight upslope, from 0 to 1; the rest returns "
@@ -262,7 +262,9 @@ template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
 template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("order", apply.order,
        "Order in which overlapping craters are applied; later craters overprint earlier ones.");
-    io("fade", apply.fade, "How craters too small to resolve at the sample spacing fade out.");
+    FadePixelFields(io, apply.fade,
+                    "How craters too small to resolve fade out, by output samples (pixels) across "
+                    "their diameter: absent up to the first count, whole from the second.");
     io("datum", apply.datum,
        "Reference surface each crater's interior is cut relative to, fitted to the ground beneath "
        "it; none adds craters onto the terrain everywhere.");
@@ -311,11 +313,11 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
        "area.");
     io("ages", craters.ages,
        "How generated craters are given ages, which the degradation model wears them down by.");
-    io("min_diameter", craters.minDiameter,
-       "Smallest crater generated, in metres; lower values add many more small craters.", "m",
+    io("min_diameter_m", craters.minDiameter,
+       "Smallest crater generated, in meters; lower values add many more small craters.", "m",
        Above(0.0));
-    io("max_diameter", craters.maxDiameter,
-       "Largest crater generated, in metres; above the smallest.", "m", Above(0.0));
+    io("max_diameter_m", craters.maxDiameter,
+       "Largest crater generated, in meters; above the smallest.", "m", Above(0.0));
     io("spacing", craters.spacing,
        "Keeps craters of similar size apart by removing conflicting ones, which lowers the density "
        "below the model's.");
@@ -335,15 +337,12 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
        "Map that sets the crater density point by point, scaling the density's size distribution "
        "to what it measures; unset keeps the density the same everywhere.");
     io("completeness", craters.completeness,
-       "Where the manual craters are a complete catalog: the diameter in metres from which they "
+       "Where the manual craters are a complete catalog: the diameter in meters from which they "
        "stand in for generated craters, infinite or no value where there is no catalog. Unset "
        "keeps every generated crater.");
-    io("unresolved_pixels_across", craters.unresolvedPixelsAcross,
-       "Generates only the craters the base's measured data does not already hold: drops "
-       "generated craters at least this many of the base's cells across where it has data, the "
-       "smaller of this and completeness when both are set. Without a base, or where it has no "
-       "measured data, every generated crater is kept. Unset keeps every generated crater.",
-       "", Above(0.0));
+    SourceResolvesField(io, craters.sourceResolvesPixels,
+                        "craters (the smaller of this and completeness when both are set)",
+                        "diameter");
 }
 
 template <typename IO> void Fields(IO& io, RayLayout& layout) {
@@ -351,7 +350,7 @@ template <typename IO> void Fields(IO& io, RayLayout& layout) {
        "Seed of the rays' directions; layers with the same layout share the same rays.");
     io("count", layout.count, "Number of rays of a crater, drawn per crater and rounded; 0 to 64.");
     io("width_deg", layout.widthDegrees,
-       "Angle in degrees a ray spans 2 radii from the centre, drawn per ray, within (0, 180).");
+       "Angle in degrees a ray spans 2 radii from the center, drawn per ray, within (0, 180).");
 }
 
 template <typename IO> void Fields(IO& io, SecondaryRays& rays) {
@@ -404,18 +403,19 @@ template <typename IO> void Fields(IO& io, SecondaryCraterOptions& o) {
        "Cumulative size slope of the secondaries, their number falling as d^-slope; higher values "
        "give relatively more small secondaries.",
        "", Above(0.0));
-    io("min_diameter", o.minDiameter, "Smallest secondary generated, in metres.", "m", Above(0.0));
-    OptionalBound(io, "max_diameter", o.maxDiameter,
-                  "Largest secondary generated, in metres; unset has no limit beyond Singer et "
+    io("min_diameter_m", o.minDiameter, "Smallest secondary generated, in meters.", "m",
+       Above(0.0));
+    OptionalBound(io, "max_diameter_m", o.maxDiameter,
+                  "Largest secondary generated, in meters; unset has no limit beyond Singer et "
                   "al.'s largest secondary at each range.",
                   "m", std::numeric_limits<double>::infinity(), Above(0.0));
     io("outer_range", o.outerRange,
-       "How far secondaries reach, in primary diameters from its centre; unset uses the longest "
+       "How far secondaries reach, in primary diameters from its center; unset uses the longest "
        "typical ray of Elliott et al. (2018).",
        "", Above(0.0));
     SelectionKeys primaryKeys;
-    primaryKeys.minDiameter = "min_primary_diameter";
-    primaryKeys.maxDiameter = "max_primary_diameter";
+    primaryKeys.minDiameter = "min_primary_diameter_m";
+    primaryKeys.maxDiameter = "max_primary_diameter_m";
     SelectionFields(
         io, o.selection, "primary craters that throw secondaries",
         "Lets manual primary craters throw secondaries too; otherwise only generated ones do.",
@@ -426,6 +426,7 @@ template <typename IO> void Fields(IO& io, SecondaryCraterOptions& o) {
        "", Above(0.0));
     io("rays", o.rays, "Secondaries gathered into rays and clumped along them; off by default.");
     io("shapes", o.shapes, "Secondaries stretched toward their primary; round by default.");
+    SourceResolvesField(io, o.sourceResolvesPixels, "secondaries", "diameter");
 }
 
 template <> struct SpecName<SecondaryLayerSpec> {

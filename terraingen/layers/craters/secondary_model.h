@@ -104,6 +104,10 @@ struct SecondaryCraterOptions {
     double maxExpected = 5e7;
     SecondaryRays rays{};      ///< Rays and clusters; off by default.
     SecondaryShapes shapes{};  ///< Elongation toward the primary; round by default.
+    /// Source cells across from which the source's measured data already holds a secondary: with
+    /// a source given to the layer, secondaries at least that many of its cells across where they
+    /// land are left out (`SourceResolvedLimit`). Unset, or without a source, keeps every one.
+    std::optional<double> sourceResolvesPixels = 4.0;
 
     /// Memberwise equality.
     bool operator==(const SecondaryCraterOptions& other) const {
@@ -112,7 +116,8 @@ struct SecondaryCraterOptions {
                minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
                outerRange == other.outerRange && selection == other.selection &&
                cellSizeFactor == other.cellSizeFactor && maxExpected == other.maxExpected &&
-               rays == other.rays && shapes == other.shapes;
+               rays == other.rays && shapes == other.shapes &&
+               sourceResolvesPixels == other.sourceResolvesPixels;
     }
     bool operator!=(const SecondaryCraterOptions& other) const {
         return !(*this == other);

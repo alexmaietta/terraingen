@@ -9,6 +9,7 @@
 
 #include "terraingen/util/geometry.h"
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <limits>
@@ -209,6 +210,47 @@ void NanField(IO& io, std::string_view key, double& value, std::string_view desc
                   range);
 }
 
+/// Whether `IO` has `io.FadePixels(key, fade, description)` taking a fade's start and end sample
+/// counts as one pair, such as the Python bindings.
+template <typename IO, typename Fade, typename = void>
+struct TakesFadePixelsTrait : std::false_type {};
+template <typename IO, typename Fade>
+struct TakesFadePixelsTrait<IO, Fade,
+                            std::void_t<decltype(std::declval<IO&>().FadePixels(
+                                std::string_view{}, std::declval<Fade&>(), std::string_view{}))>>
+    : std::true_type {};
+template <typename IO, typename Fade>
+inline constexpr bool TakesFadePixels = TakesFadePixelsTrait<IO, Fade>::value;
+
+/// The fields of a resolution fade (`ResolutionFade`) as "fade_px", its start and end sample
+/// counts as a list of two in output samples (pixels), and "fade_shape", the curve between them.
+/// @param description What the counts mean for the layer's features.
+template <typename IO, typename Fade>
+void FadePixelFields(IO& io, Fade& fade, std::string_view description) {
+    if constexpr (TakesFadePixels<IO, Fade>) {
+        io.FadePixels("fade_px", fade, description);
+    } else {
+        std::array<double, 2> pixels{fade.startSamples, fade.endSamples};
+        io("fade_px", pixels, description, "px", AtLeast(0.0));
+        fade.startSamples = pixels[0];
+        fade.endSamples = pixels[1];
+    }
+    io("fade_shape", fade.shape, "Curve of the fade between the two sample counts of fade_px.");
+}
+
+/// The field "source_resolves_px": source cells across from which the source's measured data
+/// already holds the layer's `features`, measured by their `size`, so only smaller ones are added.
+template <typename IO>
+void SourceResolvesField(IO& io, std::optional<double>& pixels, std::string_view features,
+                         std::string_view size) {
+    io("source_resolves_px", pixels,
+       "Source cells across from which the source's data already holds the " +
+           std::string(features) + ", by their " + std::string(size) +
+           ": only smaller ones are added, each raster of a chain giving its own limit. "
+           "Ignored on synthetic sources and where no raster has data; null adds them all.",
+       "px", Above(0.0));
+}
+
 /// The keys of a crater selection's fields.
 struct SelectionKeys {
     std::string_view minDiameter = "min_diameter";
@@ -233,10 +275,10 @@ void SelectionFields(IO& io, Selection& selection, std::string_view craters,
         }
     }
     const std::string of = ", of " + std::string(craters);
-    io(keys.minDiameter, selection.minDiameter, "Smallest diameter, in metres" + of + ".", "m",
+    io(keys.minDiameter, selection.minDiameter, "Smallest diameter, in meters" + of + ".", "m",
        AtLeast(0.0));
     OptionalBound(io, keys.maxDiameter, selection.maxDiameter,
-                  "Largest diameter, in metres" + of + "; unset has no upper limit.", "m",
+                  "Largest diameter, in meters" + of + "; unset has no upper limit.", "m",
                   std::numeric_limits<double>::infinity(), AtLeast(0.0));
     io(keys.minAge, selection.minAgeGyr, "Youngest age, in Gyr" + of + ".", "Gyr", AtLeast(0.0));
     OptionalBound(io, keys.maxAge, selection.maxAgeGyr,
@@ -274,7 +316,7 @@ void AnchorFields(IO& io, Anchor& anchor, std::string_view what,
 }
 
 /// The fields of an exposure field a layer reads on the ground beneath it, and the spacing in
-/// metres it reads the ground at.
+/// meters it reads the ground at.
 /// @param exposureHelp The description of the exposure field.
 /// @param prefix The exposure's key, to which "_spacing" is added for the spacing's.
 template <typename IO, typename Exposure>
@@ -282,7 +324,7 @@ void ExposureFields(IO& io, Exposure& exposure, double& spacing, std::string_vie
                     std::string_view prefix = "exposure") {
     io(std::string(prefix), exposure, exposureHelp);
     io(std::string(prefix) + "_spacing", spacing,
-       "Spacing in metres the ground is read at for the exposure field.", "m", Above(0.0));
+       "Spacing in meters the ground is read at for the exposure field.", "m", Above(0.0));
 }
 
 /// The description of an output file's path: `file`, such as "GeoTIFF file to write", and where

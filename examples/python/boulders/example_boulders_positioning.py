@@ -40,25 +40,25 @@ class Example(_common.Example):
                 generate_random=False, generation=terraingen.CraterGenerationOptions(manual=[young])
             ),
         )
-        base = dict(coverage=0.03, min_diameter=0.2, max_diameter=3.0, seed=1)
+        base = dict(coverage=0.03, min_diameter_m=0.2, max_diameter_m=3.0, seed=1)
         variants = {
             "uniform": terraingen.BoulderLayerOptions(**base),
             "patches": terraingen.BoulderLayerOptions(
-                **base, patches=terraingen.BoulderPatches(spread=4.0, size=12.0)
+                **base, patches=terraingen.BoulderPatches(spread=4.0, size_m=12.0)
             ),
             "crater ejecta": terraingen.BoulderLayerOptions(
-                **base, ejecta=terraingen.BoulderEjecta(min_crater_diameter=5.0, coverage=0.25, reach=3.0)
+                **base, ejecta=terraingen.BoulderEjecta(min_crater_diameter_m=5.0, coverage=0.25, reach=3.0)
             ),
             "tall, unburied, leaning boulders": terraingen.BoulderLayerOptions(
                 **base,
-                ejecta=terraingen.BoulderEjecta(min_crater_diameter=5.0, coverage=0.25, reach=3.0),
+                ejecta=terraingen.BoulderEjecta(min_crater_diameter_m=5.0, coverage=0.25, reach=3.0),
                 min_height_ratio=0.7,
                 max_height_ratio=1.0,
                 min_burial=0.0,
                 max_burial=0.05,
                 max_lean_deg=35.0,
                 relief=terraingen.BoulderRelief.SHAPE,
-                models=terraingen.BoulderModelThreshold(min_diameter=0.8),
+                models=terraingen.BoulderModelThreshold(min_diameter_m=0.8),
             ),
         }
         self.heights, self.boulders, self.abundance = {}, {}, []

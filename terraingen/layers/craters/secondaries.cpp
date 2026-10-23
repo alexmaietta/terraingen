@@ -1,6 +1,7 @@
 #include "terraingen/layers/craters/secondaries.h"
 
 #include "terraingen/layers/fade.h"
+#include "terraingen/layers/source_resolved.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
@@ -141,8 +142,8 @@ class Scatter {
   public:
     Scatter(const SecondaryCraterLayer& layer, const Surface& surface, const Bounds2d& region,
             const Bounds2d& wanted, double reachRadii, double skipBelow)
-        : options_(layer.Options()), surface_(surface), region_(region), wanted_(wanted),
-          reachRadii_(reachRadii), skipBelow_(skipBelow),
+        : options_(layer.Options()), limit_(layer.ResolvedLimit()), surface_(surface),
+          region_(region), wanted_(wanted), reachRadii_(reachRadii), skipBelow_(skipBelow),
           maxStretch_(SecondaryStretch(layer.Options().shapes)) {}
 
     /// Draws the secondaries `crater` throws, if it is a selected primary.
@@ -283,7 +284,8 @@ class Scatter {
             surface_.Locate({crater.x, crater.y}, {range * std::cos(candidate.azimuth),
                                                    range * std::sin(candidate.azimuth)});
         const double margin = 0.5 * reachRadii_ * maxStretch_ * candidate.size;
-        if (!surface_.Contains(surface_.Expand(region_, margin), at)) {
+        if (!surface_.Contains(surface_.Expand(region_, margin), at) ||
+            InSource(limit_, candidate.size, at.x, at.y)) {
             return;
         }
         const std::uint64_t secondary =
@@ -302,6 +304,7 @@ class Scatter {
     }
 
     const SecondaryCraterOptions& options_;
+    const SurfaceField* limit_;
     const Surface& surface_;
     const Bounds2d& region_;
     const Bounds2d& wanted_;
@@ -317,7 +320,8 @@ class Scatter {
 
 SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
                                            CraterShapeModels models, SecondaryCraterOptions options,
-                                           CraterApplyOptions apply)
+                                           CraterApplyOptions apply,
+                                           std::shared_ptr<const Source> source)
     : primaries_(std::move(primaries)), models_(std::move(models)), options_(options),
       apply_(apply) {
     if (!primaries_ || !models_.profile || !models_.degradation) {
@@ -329,6 +333,7 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
         throw std::invalid_argument("Secondary craters are additive; datums are not supported");
     }
     apply_.surface = primaries_->Options().surface;
+    limit_ = LayerResolvedLimit(source, options_.sourceResolvesPixels, apply_.surface);
 }
 
 double SecondaryCraterLayer::OuterRange(double diameter) const {

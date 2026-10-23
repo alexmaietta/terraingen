@@ -31,8 +31,8 @@
             "sizes": {
                 "type": "golombek_rapp"
             },
-            "min_diameter": 0.3,
-            "max_diameter": 3,
+            "min_diameter_m": 0.3,
+            "max_diameter_m": 3,
             "exposure": {
                 "reach": 8.0
             },

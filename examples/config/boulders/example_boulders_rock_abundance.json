@@ -19,14 +19,14 @@
             "sizes": {
                 "type": "golombek_rapp"
             },
-            "min_diameter": 0.2,
-            "max_diameter": 3,
+            "min_diameter_m": 0.2,
+            "max_diameter_m": 3,
             "density_map": {
                 "field": {
                     "value": 0.01
                 },
                 "measure": "areal_fraction",
-                "min_diameter": 1
+                "min_diameter_m": 1
             },
             "manual": [
                 {

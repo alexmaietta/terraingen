@@ -289,13 +289,13 @@ class OutputGenerator {
     LayerTimer layerTimer_;
 };
 
-/// The top-level "seed" of each layer that has one, in order, a region's from its inner layer.
+/// The top-level "seed" of each layer that has one, in order, a masked layer's from inside.
 std::vector<std::uint32_t> LayerSeeds(const TerrainGenConfig& config) {
     const nlohmann::json json = nlohmann::json::parse(ConfigToJson(config, -1));
     std::vector<std::uint32_t> seeds;
     for (const nlohmann::json& entry : json.at("layers")) {
         const nlohmann::json* layer = &entry;
-        while (layer->value("type", std::string{}) == "region" && layer->contains("layer")) {
+        while (layer->value("type", std::string{}) == "masked" && layer->contains("layer")) {
             layer = &layer->at("layer");
         }
         const auto seed = layer->find("seed");

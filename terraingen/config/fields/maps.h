@@ -10,7 +10,7 @@ namespace terraingen::config {
 template <typename IO> void Fields(IO& io, FieldSpec& field) {
     io("path", field.path,
        "GeoTIFF read in the surface's coordinates, relative to the configuration's folder: "
-       "metres on a plane, longitude and latitude in degrees on a sphere. Empty uses value.");
+       "meters on a plane, longitude and latitude in degrees on a sphere. Empty uses value.");
     io("value", field.value, "The field everywhere when no path is given.");
     io("band", field.band, "Band of the GeoTIFF read, from 0.");
     io("method", field.method,
@@ -29,13 +29,13 @@ template <typename IO> void Fields(IO& io, FieldSpec& field) {
 template <typename IO> void Fields(IO& io, DensityMapSpec& map) {
     io("field", map.field, "The map.");
     io("measure", map.measure, "What the map's values measure.");
-    io("min_diameter", map.minDiameter,
-       "Smallest diameter the map measures, in metres; positive for a count or areal fraction.",
+    io("min_diameter_m", map.minDiameter,
+       "Smallest diameter the map measures, in meters; positive for a count or areal fraction.",
        "m");
-    io("max_diameter", map.maxDiameter,
-       "Largest diameter the map measures, in metres, exclusive; unset for no limit.", "m");
+    io("max_diameter_m", map.maxDiameter,
+       "Largest diameter the map measures, in meters, exclusive; unset for no limit.", "m");
     io("area_unit", map.areaUnit,
-       "Square metres per area unit of a count: 1 for per m^2, 1e6 for per km^2.", "m^2",
+       "Square meters per area unit of a count: 1 for per m^2, 1e6 for per km^2.", "m^2",
        Above(0.0));
     io("total", map.total,
        "The map counts every feature of its kind, including the secondaries thrown from a crater "
@@ -46,8 +46,8 @@ template <typename IO> void Fields(IO& io, DensityMapSpec& map) {
 template <typename IO> void Fields(IO& io, SizeSlopeMapSpec& map) {
     io("field", map.field, "The map.");
     io("measure", map.measure, "What the map's values measure.");
-    io("reference_diameter", map.referenceDiameter,
-       "Diameter D0 in metres where the local power law meets the layer's own count, as N(>=D) = "
+    io("reference_diameter_m", map.referenceDiameter,
+       "Diameter D0 in meters where the local power law meets the layer's own count, as N(>=D) = "
        "N(>=D0) (D / D0)^-alpha; for a mean diameter map, the smallest diameter averaged.",
        "m", Above(0.0));
     io("min_exponent", map.minExponent,

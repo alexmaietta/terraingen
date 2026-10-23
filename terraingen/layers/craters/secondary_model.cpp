@@ -1,6 +1,7 @@
 #include "terraingen/layers/craters/secondary_model.h"
 
 #include "terraingen/layers/fade.h"
+#include "terraingen/layers/source_resolved.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/random/streams.h"
 #include "terraingen/util/checks.h"
@@ -113,6 +114,7 @@ void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options) {
         throw std::invalid_argument("Secondary shapes need a share in [0, 1] and a bounded "
                                     "ellipticity of at least 1");
     }
+    ValidateSourceResolvesPixels(options.sourceResolvesPixels);
 }
 
 double SecondaryOuterRange(double diameter, const SecondaryCraterOptions& options) {

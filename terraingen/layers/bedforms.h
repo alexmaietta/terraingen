@@ -7,9 +7,12 @@
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/sources/field.h"
+#include "terraingen/sources/source.h"
 #include "terraingen/util/cells.h"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 
 namespace terraingen {
@@ -33,6 +36,10 @@ struct BedformOptions {
     double exposureSpacing = 1.0;  ///< Spacing the ground is read at for the exposure field (m).
     /// How bedforms too fine for the spacing fade out, by samples per wavelength.
     ResolutionFade fade{};
+    /// Source cells across from which the source's measured data already holds the bedforms: with
+    /// a source given to the layer, they are left out where `wavelength` is at least that many of
+    /// its cells (`SourceResolvedLimit`). Unset, or without a source, adds them everywhere.
+    std::optional<double> sourceResolvesPixels = 4.0;
 
     bool operator==(const BedformOptions& other) const {
         return wavelength == other.wavelength && height == other.height &&
@@ -40,7 +47,7 @@ struct BedformOptions {
                leeFraction == other.leeFraction && sinuosity == other.sinuosity &&
                cover == other.cover && fieldSize == other.fieldSize && seed == other.seed &&
                exposure == other.exposure && exposureSpacing == other.exposureSpacing &&
-               fade == other.fade;
+               fade == other.fade && sourceResolvesPixels == other.sourceResolvesPixels;
     }
     bool operator!=(const BedformOptions& other) const {
         return !(*this == other);
@@ -71,8 +78,11 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     /// On a sphere, fields are drawn in `CubeSphereCells`, shaped in their centres' local frames,
     /// with the azimuth counter-clockwise from local east. Applying the layer with the exposure
     /// field enabled needs `context.ground`.
+    /// @param source The source the terrain's heights come from, which with
+    /// `options.sourceResolvesPixels` holds the bedforms it resolves; null for none.
     /// @throws std::invalid_argument as `ValidateBedformOptions`.
-    explicit BedformLayer(BedformOptions options, Surface surface = {});
+    explicit BedformLayer(BedformOptions options, Surface surface = {},
+                          std::shared_ptr<const Source> source = nullptr);
 
     /// How fully world (x, y) lies in a field, in [0, 1]; independent of the spacing.
     /// @param ground Read by the exposure field; may be null without one.
@@ -108,6 +118,7 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
                   const Ground* ground) const;
 
     BedformOptions options_;
+    std::shared_ptr<const SurfaceField> limit_;  ///< `SourceResolvedLimit`; null for none.
     double cell_ = 1.0;
     double density_ = 0.0;
     std::uint32_t wanderSeed_ = 0;  ///< Seed of the crest wander noise.

@@ -1,6 +1,7 @@
 #include "terraingen/layers/dunes.h"
 
 #include "terraingen/layers/lattice.h"
+#include "terraingen/layers/source_resolved.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/bits.h"
@@ -9,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -226,6 +228,7 @@ void ValidateDuneOptions(const DuneOptions& options) {
     ValidateDuneRipples(options.ripples);
     ValidateResolutionFade(options.fade);
     ValidateDuneGrainflows(options.grainflows);
+    ValidateSourceResolvesPixels(options.sourceResolvesPixels);
 }
 
 DuneRipples MarsDuneRipples() {
@@ -281,9 +284,10 @@ DuneOptions MarsTransverseDunes() {
     return dunes;
 }
 
-DuneLayer::DuneLayer(DuneOptions options, Surface surface)
+DuneLayer::DuneLayer(DuneOptions options, Surface surface, std::shared_ptr<const Source> source)
     : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
     ValidateDuneOptions(options_);
+    limit_ = LayerResolvedLimit(source, options_.sourceResolvesPixels, surface);
     wind_ = {std::cos(options_.windAzimuth), std::sin(options_.windAzimuth)};
     const double widest = options_.width * (1.0 + options_.widthSpread);
     rings_ = static_cast<std::int64_t>(std::ceil(Reach(widest, options_) / options_.spacing));
@@ -606,15 +610,19 @@ float DuneLayer::HeightAt(float height, double x, double y, double spacing,
     }
     const bool isolated = options_.shape == DuneShape::Barchan || options_.shape == DuneShape::Dome;
     const double size = isolated ? options_.width : options_.wavelength;
-    const double duneWeight = ResolutionWeight(size, spacing, options_.fade);
+    const double resolved =
+        limit_ ? limit_->ValueAt(x, y) : std::numeric_limits<double>::infinity();
+    const auto weight = [&](double feature, const ResolutionFade& fade) {
+        return feature >= resolved ? 0.0 : ResolutionWeight(feature, spacing, fade);
+    };
+    const double duneWeight = weight(size, options_.fade);
     const DuneRipples& ripples = options_.ripples;
     const double rippleWeight = ripples.wavelength > 0.0 && ripples.height > 0.0
-                                    ? ResolutionWeight(ripples.wavelength, spacing, ripples.fade)
+                                    ? weight(ripples.wavelength, ripples.fade)
                                     : 0.0;
     const DuneGrainflows& flows = options_.grainflows;
-    const double flowWeight = flows.cover > 0.0 && flows.thickness > 0.0
-                                  ? ResolutionWeight(flows.minLobeWidth, spacing, flows.fade)
-                                  : 0.0;
+    const double flowWeight =
+        flows.cover > 0.0 && flows.thickness > 0.0 ? weight(flows.minLobeWidth, flows.fade) : 0.0;
     if (duneWeight <= 0.0 && rippleWeight <= 0.0 && flowWeight <= 0.0) {
         return height;
     }

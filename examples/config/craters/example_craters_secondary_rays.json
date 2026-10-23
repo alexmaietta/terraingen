@@ -17,7 +17,7 @@
             "type": "secondaries",
             "seed": 4,
             "onset_count": 150,
-            "min_diameter": 32,
+            "min_diameter_m": 32,
             "rays": {
                 "enabled": true,
                 "layout": {

@@ -189,19 +189,19 @@ const PathCase kPathCases[] = {
     {"ZeroNoiseOctaves", [](TerrainGenConfig& c) { Craters(c).apply.noise.octaves = 0; },
      "layers[1].apply.noise.octaves"},
     {"ZeroMinDiameter", [](TerrainGenConfig& c) { Craters(c).minDiameter = 0.0; },
-     "layers[1].min_diameter"},
+     "layers[1].min_diameter_m"},
     {"MaxBelowMin", [](TerrainGenConfig& c) { Craters(c).maxDiameter = 5.0; },
-     "layers[1].max_diameter"},
+     "layers[1].max_diameter_m"},
     {"InfiniteMax", [](TerrainGenConfig& c) { Craters(c).maxDiameter = kInfinity; },
-     "layers[1].max_diameter"},
+     "layers[1].max_diameter_m"},
     {"TooManyCraters", [](TerrainGenConfig& c) { Craters(c).minDiameter = 2.0; },
-     "layers[1].min_diameter"},
+     "layers[1].min_diameter_m"},
     {"TooManyTraskCraters",
      [](TerrainGenConfig& c) {
          Craters(c).density = terraingen::TraskSpec{};
          Craters(c).minDiameter = 0.001;
      },
-     "layers[1].min_diameter"},
+     "layers[1].min_diameter_m"},
     {"NegativeManualDiameter",
      [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, -1.0, 0.0}}; },
      "layers[1].manual[0].diameter"},
@@ -235,7 +235,7 @@ const PathCase kPathCases[] = {
          Craters(c).generateRandom = false;
          Craters(c).minDiameter = -1.0;
      },
-     "layers[1].min_diameter"},
+     "layers[1].min_diameter_m"},
     {"CraterListWithoutPath",
      [](TerrainGenConfig& c) {
          c.outputs = {terraingen::CraterListOutput{
@@ -520,16 +520,50 @@ const PathCase kPathCases[] = {
          c.layers.push_back(noise);
      },
      "layers[2].estimate_from_base"},
-    {"UnresolvedLimitWithoutABase",
-     [](TerrainGenConfig& c) { Craters(c).unresolvedPixelsAcross = 4.0; }, "valid"},
-    {"ZeroUnresolvedLimit", [](TerrainGenConfig& c) { Craters(c).unresolvedPixelsAcross = 0.0; },
-     "layers[1].unresolved_pixels_across"},
-    {"NegativeUnresolvedLimit",
-     [](TerrainGenConfig& c) { Craters(c).unresolvedPixelsAcross = -3.0; },
-     "layers[1].unresolved_pixels_across"},
-    {"InfiniteUnresolvedLimit",
-     [](TerrainGenConfig& c) { Craters(c).unresolvedPixelsAcross = kInfinity; },
-     "layers[1].unresolved_pixels_across"},
+    {"SourceResolvedLimitWithoutABase",
+     [](TerrainGenConfig& c) { Craters(c).sourceResolvesPixels = 4.0; }, "valid"},
+    {"ZeroSourceResolvedLimit", [](TerrainGenConfig& c) { Craters(c).sourceResolvesPixels = 0.0; },
+     "layers[1].source_resolves_px"},
+    {"NegativeSourceResolvedLimit",
+     [](TerrainGenConfig& c) { Craters(c).sourceResolvesPixels = -3.0; },
+     "layers[1].source_resolves_px"},
+    {"InfiniteSourceResolvedLimit",
+     [](TerrainGenConfig& c) { Craters(c).sourceResolvesPixels = kInfinity; },
+     "layers[1].source_resolves_px"},
+    {"ZeroNoiseSourceResolvedLimit",
+     [](TerrainGenConfig& c) {
+         std::get<terraingen::NoiseLayerSpec>(c.layers[0]).sourceResolvesPixels = 0.0;
+     },
+     "layers[0].source_resolves_px"},
+    {"ZeroDuneSourceResolvedLimit",
+     [](TerrainGenConfig& c) {
+         terraingen::DuneLayerSpec dunes;
+         dunes.dunes.sourceResolvesPixels = 0.0;
+         c.layers.push_back(dunes);
+     },
+     "layers[2].source_resolves_px"},
+    {"ZeroBedformSourceResolvedLimit",
+     [](TerrainGenConfig& c) {
+         terraingen::BedformLayerSpec bedforms;
+         bedforms.bedforms.sourceResolvesPixels = 0.0;
+         c.layers.push_back(bedforms);
+     },
+     "layers[2].source_resolves_px"},
+    {"ZeroBoulderSourceResolvedLimit",
+     [](TerrainGenConfig& c) {
+         terraingen::BoulderLayerSpec boulders;
+         boulders.boulders.sourceResolvesPixels = 0.0;
+         c.layers.push_back(boulders);
+     },
+     "layers[2].source_resolves_px"},
+    {"ZeroSecondarySourceResolvedLimit",
+     [](TerrainGenConfig& c) {
+         terraingen::SecondaryLayerSpec secondaries;
+         secondaries.secondaries.onsetCount = 1.0;
+         secondaries.secondaries.sourceResolvesPixels = 0.0;
+         c.layers.push_back(secondaries);
+     },
+     "layers[2].source_resolves_px"},
 };
 
 class ValidateConfigPaths : public ::testing::TestWithParam<PathCase> {};
@@ -592,7 +626,7 @@ TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
 
     config.layers.push_back(Craters(config));
     EXPECT_DOUBLE_EQ(*ValidateConfig(config).expectedCraters, 2.0 * expected);
-    config.layers.push_back(terraingen::RegionLayerSpec{
+    config.layers.push_back(terraingen::MaskedLayerSpec{
         terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, Craters(config)});
     EXPECT_DOUBLE_EQ(*ValidateConfig(config).expectedCraters, 2.0 * expected)
         << "crater layers inside regions are not counted";
@@ -653,7 +687,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
                   boulders.boulders.ejecta.minCraterDiameter = 10.0;
                   c.layers.insert(c.layers.begin() + 1, boulders);
               }),
-              "layers[1].ejecta.min_crater_diameter");
+              "layers[1].ejecta.min_crater_diameter_m");
     EXPECT_EQ(ErrorPath([](TerrainGenConfig& c) {
                   Region(c) = terraingen::testing::GridRegion{60000, 60000, 0.1};
                   terraingen::BoulderLayerSpec boulders;
@@ -661,7 +695,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
                   boulders.boulders.sizes.coverage = 0.5;
                   c.layers = {boulders};
               }),
-              "layers[0].min_diameter");
+              "layers[0].min_diameter_m");
 }
 
 TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
@@ -799,7 +833,7 @@ TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
         terraingen::ValidateConfig(config);
         ADD_FAILURE() << "validated";
     } catch (const terraingen::ConfigError& error) {
-        EXPECT_EQ(error.Path(), "layers[1].min_diameter");
+        EXPECT_EQ(error.Path(), "layers[1].min_diameter_m");
         EXPECT_NE(std::string(error.what()).find("2.5 m"), std::string::npos) << error.what();
     }
     Craters(config).minDiameter = 2.5;
@@ -817,31 +851,31 @@ TEST(ValidateConfig, ReportsBedformProblemsByPath) {
 
 TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
     using terraingen::ClampLayerSpec;
-    using terraingen::RegionLayerSpec;
+    using terraingen::MaskedLayerSpec;
     const auto with = [](terraingen::LayerSpec layer) {
         return ErrorPath([&](TerrainGenConfig& c) { c.layers.push_back(layer); });
     };
     EXPECT_EQ(with(terraingen::ScaleLayerSpec{2.0, 1.0}), "valid");
     EXPECT_EQ(with(ClampLayerSpec{2.0, 1.0}), "layers[2]");
-    EXPECT_EQ(with(RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, -1.0}}),
+    EXPECT_EQ(with(MaskedLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, -1.0}}),
               "layers[2].shape.radius");
-    EXPECT_EQ(with(RegionLayerSpec{terraingen::RectangleRegionSpec{1.0, 0.0, 0.0, 1.0}}),
+    EXPECT_EQ(with(MaskedLayerSpec{terraingen::RectangleRegionSpec{1.0, 0.0, 0.0, 1.0}}),
               "layers[2].shape");
-    EXPECT_EQ(with(RegionLayerSpec{}), "layers[2].shape") << "the default shape has no area";
-    EXPECT_EQ(with(RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 0.0}, 5.0}),
+    EXPECT_EQ(with(MaskedLayerSpec{}), "layers[2].shape") << "the default shape has no area";
+    EXPECT_EQ(with(MaskedLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 0.0}, 5.0}),
               "layers[2].shape");
-    EXPECT_EQ(with(RegionLayerSpec{terraingen::RectangleRegionSpec{0.0, 0.0, 4.0, 4.0}}), "valid");
-    EXPECT_EQ(with(RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, -1.0}),
+    EXPECT_EQ(with(MaskedLayerSpec{terraingen::RectangleRegionSpec{0.0, 0.0, 4.0, 4.0}}), "valid");
+    EXPECT_EQ(with(MaskedLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, -1.0}),
               "layers[2].feather");
-    EXPECT_EQ(with(RegionLayerSpec{
+    EXPECT_EQ(with(MaskedLayerSpec{
                   terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, ClampLayerSpec{2.0, 1.0}}),
               "layers[2].layer");
     TerrainGenConfig small = Small();
-    EXPECT_EQ(with(RegionLayerSpec{
+    EXPECT_EQ(with(MaskedLayerSpec{
                   terraingen::CircleRegionSpec{0.0, 0.0, 10.0},
                   1.0,
                   {},
-                  RegionLayerSpec{
+                  MaskedLayerSpec{
                       terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, Craters(small)}}),
               "valid");
     terraingen::BoulderLayerSpec boulders;
@@ -849,13 +883,13 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
     EXPECT_EQ(
         ErrorPath([&](TerrainGenConfig& c) {
             c.layers = {
-                RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, Craters(c)},
+                MaskedLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, Craters(c)},
                 boulders};
         }),
-        "layers[1].ejecta.min_crater_diameter")
+        "layers[1].ejecta.min_crater_diameter_m")
         << "crater layers inside regions do not count for ejecta";
     EXPECT_EQ(ErrorPath([&](TerrainGenConfig& c) {
-                  c.layers.push_back(RegionLayerSpec{
+                  c.layers.push_back(MaskedLayerSpec{
                       terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, boulders});
               }),
               "valid")

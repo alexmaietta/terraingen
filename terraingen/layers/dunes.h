@@ -7,9 +7,13 @@
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/sources/field.h"
+#include "terraingen/sources/source.h"
 #include "terraingen/util/geometry.h"
 
 #include <cstdint>
+#include <memory>
+#include <optional>
 
 namespace terraingen {
 
@@ -129,6 +133,12 @@ struct DuneOptions {
         fade{};  ///< How dunes too fine for the spacing fade out, by samples across them.
     DuneRipples ripples{};
     DuneGrainflows grainflows{};  ///< Avalanches on the slip faces; none by default.
+    /// Source cells across from which the source's measured data already holds a dune: with a
+    /// source given to the layer, the dunes are left out where their size (`width` of barchans
+    /// and domes, `wavelength` of crests) is at least that many of its cells, as are ripples by
+    /// their wavelength and grainflows by their narrowest lobe (`SourceResolvedLimit`). Unset, or
+    /// without a source, adds them everywhere.
+    std::optional<double> sourceResolvesPixels = 4.0;
 
     bool operator==(const DuneOptions& other) const {
         return shape == other.shape && windAzimuth == other.windAzimuth &&
@@ -142,7 +152,8 @@ struct DuneOptions {
                height == other.height && sinuosity == other.sinuosity && defects == other.defects &&
                defectDensity == other.defectDensity && flankSlope == other.flankSlope &&
                seed == other.seed && anchor == other.anchor && fade == other.fade &&
-               ripples == other.ripples && grainflows == other.grainflows;
+               ripples == other.ripples && grainflows == other.grainflows &&
+               sourceResolvesPixels == other.sourceResolvesPixels;
     }
     bool operator!=(const DuneOptions& other) const {
         return !(*this == other);
@@ -190,8 +201,11 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, dunes are laid out in the tangent frame of `options.anchor`, with the azimuth
     /// counter-clockwise from local east.
+    /// @param source The source the terrain's heights come from, which with
+    /// `options.sourceResolvesPixels` holds the dunes it resolves; null for none.
     /// @throws std::invalid_argument as `ValidateDuneOptions`.
-    explicit DuneLayer(DuneOptions options, Surface surface = {});
+    explicit DuneLayer(DuneOptions options, Surface surface = {},
+                       std::shared_ptr<const Source> source = nullptr);
 
     /// The dunes' height at world (x, y), without ripples (m).
     double DuneHeightAt(double x, double y) const;
@@ -252,6 +266,7 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     void AddGrainflow(double& relief, RandomStream& random, double s, double n) const;
 
     DuneOptions options_;
+    std::shared_ptr<const SurfaceField> limit_;  ///< `SourceResolvedLimit`; null for none.
     AnchoredPlane plane_;
     Vec2d wind_{1.0, 0.0};
     std::int64_t rings_ = 1;

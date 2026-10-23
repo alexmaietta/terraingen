@@ -10,6 +10,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -107,6 +108,8 @@ void Read(const Json& json, const std::string& path, float& value);
 void Read(const Json& json, const std::string& path, bool& value);
 void Read(const Json& json, const std::string& path, std::string& value);
 void Read(const Json& json, const std::string& path, int& value);
+/// A pair of numbers, such as a fade's start and end sample counts, from a list of exactly two.
+void Read(const Json& json, const std::string& path, std::array<double, 2>& value);
 /// An upsampling, from a name alone or an object with a "type": a kernel's object has no other
 /// key, diamond_square's has its fields, and another type's keys are kept as its settings.
 void Read(const Json& json, const std::string& path, UpsamplingSpec& value);
@@ -264,6 +267,9 @@ inline Json ToJson(int value, bool /*compact*/ = false) {
 }
 inline Json ToJson(const std::string& value, bool /*compact*/ = false) {
     return value;
+}
+inline Json ToJson(const std::array<double, 2>& value, bool /*compact*/ = false) {
+    return Json::array({value[0], value[1]});
 }
 template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int> = 0>
 Json ToJson(T value, bool /*compact*/ = false) {

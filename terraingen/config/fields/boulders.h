@@ -56,8 +56,8 @@ template <typename IO> void Fields(IO& io, BoulderPatches& patches) {
        "Boulder abundance varies from 1 / spread to spread times its mean, at least 1; 1 is the "
        "same everywhere.",
        "", AtLeast(1.0));
-    io("size", patches.size,
-       "Typical width of a patch of richer or poorer boulder cover, in metres.", "m", Above(0.0));
+    io("size_m", patches.size,
+       "Typical width of a patch of richer or poorer boulder cover, in meters.", "m", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, BoulderFillet& fillet) {
@@ -95,12 +95,12 @@ template <typename IO> void Fields(IO& io, BoulderVentifacts& ventifacts) {
 }
 
 template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
-    io("min_crater_diameter", ejecta.minCraterDiameter,
-       "Smallest crater, in metres, that throws blocks out; 0 with no regolith thickness disables "
+    io("min_crater_diameter_m", ejecta.minCraterDiameter,
+       "Smallest crater, in meters, that throws blocks out; 0 with no regolith thickness disables "
        "crater blocks.",
        "m", AtLeast(0.0));
-    io("regolith_thickness", ejecta.regolithThickness,
-       "Regolith thickness in metres: craters smaller than it over the excavation depth ratio dig "
+    io("regolith_thickness_m", ejecta.regolithThickness,
+       "Regolith thickness in meters: craters smaller than it over the excavation depth ratio dig "
        "no boulder and throw no blocks. Unset ignores the regolith.",
        "m", Above(0.0));
     io("excavation_depth_ratio", ejecta.excavationDepthRatio,
@@ -113,9 +113,9 @@ template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
        "default needs them.",
        "", Inside(0.0, 1.0));
     io("profile", ejecta.profile,
-       "How the share of a crater's blocks falls off with distance from its centre.");
+       "How the share of a crater's blocks falls off with distance from its center.");
     io("reach", ejecta.reach,
-       "Distance from the crater's centre, in crater radii, beyond which it adds no blocks; over "
+       "Distance from the crater's center, in crater radii, beyond which it adds no blocks; over "
        "1.",
        "", Above(1.0));
     io("decay_radii", ejecta.decayRadii,
@@ -146,7 +146,7 @@ template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
 
 template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
     io("reach", exposure.reach,
-       "Distance in metres around a point at which its surroundings are read, to tell rises from "
+       "Distance in meters around a point at which its surroundings are read, to tell rises from "
        "lows.",
        "m", Above(0.0));
     io("rise_soil", exposure.riseSoil,
@@ -164,35 +164,35 @@ template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
        "from 0 to below 1, and 0 for none.",
        "", FromBelow(0.0, 1.0));
     io("floor_patch", exposure.floorPatch,
-       "Width of the bedrock patches on level ground, in metres.", "m", Above(0.0));
+       "Width of the bedrock patches on level ground, in meters.", "m", Above(0.0));
     io("seed", exposure.seed, "Seed of the bedrock patches on level ground.");
 }
 
 template <typename IO> void Fields(IO& io, BoulderModelThreshold& models) {
-    io("min_diameter", models.minDiameter,
-       "Boulders at least this many metres across become 3D models; unset applies no diameter "
+    io("min_diameter_m", models.minDiameter,
+       "Boulders at least this many meters across become 3D models; unset applies no diameter "
        "threshold.",
        "m", Above(0.0));
-    io("min_samples", models.minSamples,
+    io("min_px", models.minSamples,
        "Boulders spanning at least this many samples at the spacing evaluated become 3D models, so "
        "finer levels of detail make more of them; unset applies no such threshold.",
-       "", Above(0.0));
-    io("max_diameter", models.maxDiameter,
-       "Boulders this many metres across or wider are not models, keeping a band of sizes as "
+       "px", Above(0.0));
+    io("max_diameter_m", models.maxDiameter,
+       "Boulders this many meters across or wider are not models, keeping a band of sizes as "
        "models; unset applies no upper limit.",
        "m", Above(0.0));
-    io("max_samples", models.maxSamples,
+    io("max_px", models.maxSamples,
        "Boulders spanning this many samples or more are not models; unset applies no such limit.",
-       "", Above(0.0));
+       "px", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, BoulderReliefRange& range) {
-    io("min_diameter", range.minDiameter,
-       "Smallest boulder drawn into the heights, in metres; smaller ones stay in the lists only, "
+    io("min_diameter_m", range.minDiameter,
+       "Smallest boulder drawn into the heights, in meters; smaller ones stay in the lists only, "
        "for the renderer's surface detail.",
        "m", AtLeast(0.0));
-    io("max_diameter", range.maxDiameter,
-       "Boulders this many metres across or wider are not drawn into the heights; unset applies no "
+    io("max_diameter_m", range.maxDiameter,
+       "Boulders this many meters across or wider are not drawn into the heights; unset applies no "
        "upper limit.",
        "m", Above(0.0));
     io("models", range.models,
@@ -204,19 +204,19 @@ template <typename IO> void Fields(IO& io, BoulderClusters& clusters) {
        "Share of the boulders between craters gathered in clusters, from 0 to 1; 0 leaves them "
        "scattered.",
        "", UnitInterval());
-    io("spacing", clusters.spacing,
-       "Typical distance between cluster centres, in metres; with thomas, one centre per spacing "
+    io("spacing_m", clusters.spacing,
+       "Typical distance between cluster centers, in meters; with thomas, one center per spacing "
        "squared on average.",
        "m", Above(0.0));
-    io("radius", clusters.radius,
-       "Gaussian radius of a cluster, in metres; below the spacing with nearest, at most twice it "
+    io("radius_m", clusters.radius,
+       "Gaussian radius of a cluster, in meters; below the spacing with nearest, at most twice it "
        "with thomas.",
        "m", Above(0.0));
-    io("model", clusters.model, "How cluster centres are laid out and their clusters combine.");
+    io("model", clusters.model, "How cluster centers are laid out and their clusters combine.");
 }
 
 template <typename IO> void Fields(IO& io, BoulderFragmentation& fragmentation) {
-    io("min_diameter", fragmentation.minDiameter, "Smallest boulder that breaks, in metres.", "m",
+    io("min_diameter_m", fragmentation.minDiameter, "Smallest boulder that breaks, in meters.", "m",
        Above(0.0));
     io("split_wear", fragmentation.splitWear,
        "Wear from 0 (fresh) to 1 from which boulders split into pieces that still fit; 1 breaks "
@@ -333,19 +333,19 @@ template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderLayerOptions& 
        "golombek_rapp sizes use it, so any other value than the default needs them.",
        "", FromBelow(0.0, 1.0));
     io("qa", sizes.qConstant,
-       "Constant term of the Golombek-Rapp q = qa + qb / k, per metre; a larger q leaves fewer "
+       "Constant term of the Golombek-Rapp q = qa + qb / k, per meter; a larger q leaves fewer "
        "large boulders. Only golombek_rapp sizes or ejecta sizes use it, so any other value than "
        "the default needs them.",
        "1/m");
     io("qb", sizes.qCoverageCoefficient,
-       "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per metre; used as "
+       "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per meter; used as "
        "qa is.",
        "1/m");
-    io("min_diameter", sizes.minDiameter,
-       "Smallest boulder generated, in metres; lower values add many more small boulders.", "m",
+    io("min_diameter_m", sizes.minDiameter,
+       "Smallest boulder generated, in meters; lower values add many more small boulders.", "m",
        Above(0.0));
-    io("max_diameter", sizes.maxDiameter,
-       "Largest boulder generated, in metres, exclusive; above the smallest.", "m", Above(0.0));
+    io("max_diameter_m", sizes.maxDiameter,
+       "Largest boulder generated, in meters, exclusive; above the smallest.", "m", Above(0.0));
 }
 
 /// The fields of the sizes of a boulder layer's boulders between craters.
@@ -364,7 +364,7 @@ template <typename IO> void BoulderGatheringFields(IO& io, BoulderLayerOptions& 
     io("patches", boulders.patches,
        "Patches of richer and poorer boulder cover across the ground.");
     io("clusters", boulders.clusters,
-       "Clusters of the boulders between craters around scattered centres; off unless share is "
+       "Clusters of the boulders between craters around scattered centers; off unless share is "
        "set.");
     io("ejecta", boulders.ejecta,
        "Blocks thrown out by craters of every top-level crater layer before this one that dug into "
@@ -391,8 +391,8 @@ template <typename IO> void BoulderBedrockFields(IO& io, BoulderBedrock& bedrock
        "Boulder abundance on bedrock over that on soil, and in between in proportion; used with "
        "the exposure field.",
        "", Above(0.0));
-    io("bedrock_mean_size", bedrock.meanSize,
-       "With a density map, the side in metres of the squares bedrock is held to the map's mean "
+    io("bedrock_mean_size_m", bedrock.meanSize,
+       "With a density map, the side in meters of the squares bedrock is held to the map's mean "
        "over, so it gathers boulders without adding any; a GeoTIFF map uses its own cells.",
        "m", Above(0.0));
 }
@@ -429,17 +429,17 @@ template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
     io("follow_slope", pose.followSlope,
        "Settles each boulder on the slope of the ground beneath it before its tilt.");
     io("settle", pose.settle,
-       "Tips each boulder model over until it rests stably on a face, its centre of mass over "
+       "Tips each boulder model over until it rests stably on a face, its center of mass over "
        "what it stands on, rather than balanced on an edge or corner.");
     RadianField(io, "max_slope_deg", pose.maxSlope,
                 "Steepest ground, across a boulder's diameter, that boulders stay on, in degrees; "
                 "steeper ground has none, models and drawn boulders alike. Unset keeps boulders "
                 "on any slope.",
                 Inside(0.0, 90.0));
-    io("roll_distance", pose.rollDistance,
+    io("roll_distance_m", pose.rollDistance,
        "With max_slope_deg, boulders on steeper ground roll down it and rest where it is gentle "
        "enough, gathering at the foot of slopes; those that would roll farther than this many "
-       "metres are left out. Unset leaves out every boulder on steeper ground.",
+       "meters are left out. Unset leaves out every boulder on steeper ground.",
        "m", Above(0.0));
     io("burial_by_wear", pose.burialByWear,
        "How far wear sets burial, from 0 to 1: blocks of fresh craters sit near the smallest "
@@ -468,23 +468,23 @@ template <typename IO> void BoulderRenderingFields(IO& io, BoulderRendering& ren
        "Which boulders become 3D models of their own rather than relief in the heights; neither "
        "threshold set means no models.");
     io("relief_range", rendering.reliefRange,
-       "Which boulders are drawn into the heights by diameter: none below min_diameter or from "
-       "max_diameter, and models only when asked.");
+       "Which boulders are drawn into the heights by diameter: none below min_diameter_m or "
+       "from max_diameter_m, and models only when asked.");
     io("shapes", rendering.shapes,
        "The boulders' 3D boulder shapes, used by shape relief and by models.");
 }
 
 template <typename IO> void Fields(IO& io, ManualBoulder& boulder) {
     io("x", boulder.x,
-       "Centre along x in the surface's coordinates; the longitude in degrees on a sphere.");
+       "Center along x in the surface's coordinates; the longitude in degrees on a sphere.");
     io("y", boulder.y,
-       "Centre along y in the surface's coordinates; the latitude in degrees on a sphere.");
-    io("diameter", boulder.diameter, "Length of the long axis, in metres.", "m", Above(0.0));
+       "Center along y in the surface's coordinates; the latitude in degrees on a sphere.");
+    io("diameter", boulder.diameter, "Length of the long axis, in meters.", "m", Above(0.0));
     io("id", boulder.id,
        "Stable ID that seeds what is drawn for the boulder; 0 derives one from its position and "
        "diameter.");
     NanField(io, "height", boulder.height,
-             "Vertical extent in metres, buried part included; unset draws it from the height "
+             "Vertical extent in meters, buried part included; unset draws it from the height "
              "ratios.",
              "m", Above(0.0));
     NanField(io, "burial", boulder.burial,
@@ -531,7 +531,7 @@ template <typename IO> void BoulderInputFields(IO& io, BoulderLayerSpec& spec) {
        "Catalog or hand-placed boulders placed as given and never thinned or left out; fields "
        "left unset are drawn as for generated boulders. Boulders fixing any field never break.");
     io("completeness", spec.completeness,
-       "Where the manual boulders are a complete catalog: the diameter in metres from which they "
+       "Where the manual boulders are a complete catalog: the diameter in meters from which they "
        "stand in for generated boulders, infinite or no value where there is no catalog. Unset "
        "keeps every generated boulder.");
 }
@@ -541,16 +541,19 @@ template <typename IO> void BoulderSharingFields(IO& io, BoulderLayerOptions& bo
     io("shape_prototypes", boulders.rendering.shapePrototypes,
        "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
        "boulder a shape of its own.");
-    io("ground_spacing", boulders.groundSpacing,
-       "Spacing in metres at which the layer reads the ground beneath it, for the exposure field, "
+    io("ground_spacing_m", boulders.groundSpacing,
+       "Spacing in meters at which the layer reads the ground beneath it, for the exposure field, "
        "placement, settling, slopes and breaking; fixed so that which boulders exist does not "
        "depend on the level of detail.",
        "m", Above(0.0));
-    io("fade", boulders.fade,
-       "Which boulders are drawn into the heightmap by their size in pixels of the evaluation "
-       "grid: start_samples is the smallest drawn (2 by default, the fewest that resolve a "
-       "boulder) and end_samples the size from which they are drawn in full. Smaller boulders "
-       "exist only in the boulder lists and 3D models.");
+    FadePixelFields(io, boulders.fade,
+                    "Which boulders are drawn into the heightmap by their size in output samples "
+                    "(pixels): the first count is the smallest drawn (2 by default, the fewest "
+                    "that resolve a boulder) and the second the size from which they are drawn in "
+                    "full. Smaller boulders exist only in the boulder lists and 3D models.");
+    SourceResolvesField(io, boulders.sourceResolvesPixels,
+                        "boulders (the smaller of this and completeness when both are set)",
+                        "diameter");
 }
 
 /// The fields of a boulder layer's library options: its spec's without the size models, maps,

@@ -26,8 +26,8 @@
                 "type": "uniform",
                 "lifetime_gyr": 3.0
             },
-            "min_diameter": 15,
-            "max_diameter": 150
+            "min_diameter_m": 15,
+            "max_diameter_m": 150
         },
         {
             "type": "bedforms",

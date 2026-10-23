@@ -63,13 +63,13 @@ TEST(PlacedCraters, ListsEachCraterLayerInOrderWithItsAttributes) {
 
 TEST(PlacedCraters, KeepsOnlyTheCratersARegionHolds) {
     TerrainGenerator terrain = Flat();
-    terrain.layers = {std::make_shared<terraingen::RegionLayer>(
+    terrain.layers = {std::make_shared<terraingen::MaskedLayer>(
         ManualCraters({{0.0, 0.0}, {16.0, 0.0}, {30.0, 20.0}}),
         RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 12.0)};
     const auto placed = terraingen::PlacedCraters(terrain, terrain.source->Grid());
     ASSERT_EQ(placed.craters.Size(), 2u) << "the crater 11 m off is inside a 12 m feather";
     EXPECT_EQ(placed.craters.At(1).x, 16.0);
-    terrain.layers = {std::make_shared<terraingen::RegionLayer>(
+    terrain.layers = {std::make_shared<terraingen::MaskedLayer>(
         ManualCraters({{0.0, 0.0}}), RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}))};
     EXPECT_TRUE(terraingen::PlacedCraters(terrain, terrain.source->Grid()).craters.Empty());
 }
@@ -214,7 +214,7 @@ TEST(PlacedCraters, FollowTheResolutionOfEachMemberOfASourceChain) {
 
 TEST(PlacedBoulders, KeepsOnlyTheBouldersARegionHolds) {
     TerrainGenerator terrain = Flat();
-    terrain.layers = {std::make_shared<terraingen::RegionLayer>(
+    terrain.layers = {std::make_shared<terraingen::MaskedLayer>(
         std::make_shared<terraingen::BoulderLayer>(Models()),
         RegionShape::Circle({0.0, 0.0}, 35.0))};
     const auto placed = terraingen::PlacedBoulders(terrain, terrain.source->Grid());

@@ -21,8 +21,8 @@
             "ages": {
                 "type": "fresh"
             },
-            "min_diameter": 2,
-            "max_diameter": 40
+            "min_diameter_m": 2,
+            "max_diameter_m": 40
         },
         {
             "type": "boulders",
@@ -31,10 +31,10 @@
             "sizes": {
                 "type": "golombek_rapp"
             },
-            "min_diameter": 0.05,
-            "max_diameter": 1.5,
+            "min_diameter_m": 0.05,
+            "max_diameter_m": 1.5,
             "ejecta": {
-                "min_crater_diameter": 10,
+                "min_crater_diameter_m": 10,
                 "coverage": 0.05,
                 "reach": 3
             }

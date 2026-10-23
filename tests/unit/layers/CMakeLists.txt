@@ -12,8 +12,9 @@ terraingen_add_test_suite(
     lattice_test.cpp
     layer_test.cpp
     noise_relief_test.cpp
+    masked_test.cpp
     pavement_test.cpp
-    region_test.cpp
+    source_resolved_test.cpp
     roughness_test.cpp
     roughness_estimate_test.cpp
     evaluation_cache_test.cpp

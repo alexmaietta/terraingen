@@ -115,7 +115,7 @@ TEST(SphereLayers, ExposureReadsTheSurroundingsInMetres) {
 
 TEST(SphereLayers, RegionsMeasureMetres) {
     const auto inner = std::make_shared<terraingen::ScaleLayer>(1.0, 5.0);
-    const terraingen::RegionLayer circle(inner,
+    const terraingen::MaskedLayer circle(inner,
                                          terraingen::RegionShape::Circle({-40.0, 45.0}, 1000.0),
                                          200.0, terraingen::BlendShape::Linear, kSphere);
     const auto at = [&](double metres) {
@@ -126,7 +126,7 @@ TEST(SphereLayers, RegionsMeasureMetres) {
     EXPECT_NEAR(at(1100.0), 2.5f, 1e-3f);
     EXPECT_FLOAT_EQ(at(1300.0), 0.0f);
     CheckGridAndPoints(circle, Geographic(-40.05, 45.05, 25.0, 40), 25.0);
-    const terraingen::RegionLayer box(inner,
+    const terraingen::MaskedLayer box(inner,
                                       terraingen::RegionShape::Rectangle({179.0, 0.0, 181.0, 1.0}),
                                       100.0, terraingen::BlendShape::Linear, kSphere);
     EXPECT_FLOAT_EQ(box.ApplyAt(0.0f, -179.5, 0.5, {1.0}), 5.0f);

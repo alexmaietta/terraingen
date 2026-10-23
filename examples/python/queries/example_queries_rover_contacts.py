@@ -45,7 +45,7 @@ def build_terrain():
     generation = terraingen.CraterGenerationOptions(d_min=2.5, d_max=40.0)
     craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=6, generation=generation))
     boulders = terraingen.BoulderLayer(
-        terraingen.BoulderLayerOptions(seed=6, coverage=0.06, min_diameter=0.1, max_diameter=1.0), craters
+        terraingen.BoulderLayerOptions(seed=6, coverage=0.06, min_diameter_m=0.1, max_diameter_m=1.0), craters
     )
     noise = terraingen.NoiseRelief(
         [terraingen.NoiseLayer(terraingen.FractalParams(seed=6, wavelength=50.0, amplitude=1.0))]

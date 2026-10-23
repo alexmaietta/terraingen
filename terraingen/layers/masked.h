@@ -1,5 +1,5 @@
 /// @file
-/// @brief `RegionLayer`, another layer applied only inside a rectangle or circle.
+/// @brief `MaskedLayer`, another layer applied only inside a rectangle or circle.
 #pragma once
 
 #include "terraingen/layers/boulders/boulder_placer.h"
@@ -22,20 +22,20 @@ struct RegionShape {
 
     Kind kind = Kind::Rectangle;  ///< Which of the fields below apply.
     Bounds2d rectangle{};         ///< For `Rectangle`; a longitude-latitude box on a sphere.
-    Vec2d centre{};               ///< For `Circle`; longitude and latitude on a sphere.
-    double radius = 0.0;          ///< For `Circle`, in metres.
+    Vec2d center{};               ///< For `Circle`; longitude and latitude on a sphere.
+    double radius = 0.0;          ///< For `Circle`, in meters.
 
     /// A rectangular region of `bounds` (surface coordinates).
     static RegionShape Rectangle(const Bounds2d& bounds) {
         return {Kind::Rectangle, bounds, {}, 0.0};
     }
-    /// A circular region around `centre` (surface coordinates).
-    /// @param radius In metres.
-    static RegionShape Circle(Vec2d centre, double radius) {
-        return {Kind::Circle, {}, centre, radius};
+    /// A circular region around `center` (surface coordinates).
+    /// @param radius In meters.
+    static RegionShape Circle(Vec2d center, double radius) {
+        return {Kind::Circle, {}, center, radius};
     }
 
-    /// How far surface (x, y) lies outside the shape, in metres; 0 inside.
+    /// How far surface (x, y) lies outside the shape, in meters; 0 inside.
     ///
     /// On a sphere a rectangle's distance is measured in the point's local frame, east shortened
     /// by the cosine of latitude, an approximation for feathers small against the body.
@@ -47,7 +47,7 @@ struct RegionShape {
     bool operator==(const RegionShape& other) const {
         return kind == other.kind && rectangle.minX == other.rectangle.minX &&
                rectangle.minY == other.rectangle.minY && rectangle.maxX == other.rectangle.maxX &&
-               rectangle.maxY == other.rectangle.maxY && centre == other.centre &&
+               rectangle.maxY == other.rectangle.maxY && center == other.center &&
                radius == other.radius;
     }
     bool operator!=(const RegionShape& other) const {
@@ -61,16 +61,16 @@ struct RegionShape {
 void ValidateRegionShape(const RegionShape& shape);
 
 /// Another layer applied only inside a region, blended back to the unchanged height over
-/// `feather` metres outside it.
+/// `feather` meters outside it.
 ///
 /// The inner layer sees the same context and, on grids, is applied only to the cells near the
-/// region. Of its features, those centred within the region or its feather (`Holds`) belong to it.
-class RegionLayer final : public Layer, public CraterPlacer, public BoulderPlacer {
+/// region. Of its features, those centered within the region or its feather (`Holds`) belong to it.
+class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlacer {
   public:
-    /// @param feather Width of the blend outside the region, in metres; non-negative.
+    /// @param feather Width of the blend outside the region, in meters; non-negative.
     /// @throws std::invalid_argument for a null `inner`, an invalid `shape`, or a negative or
     /// non-finite `feather`.
-    RegionLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather = 0.0,
+    MaskedLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather = 0.0,
                 BlendShape blend = BlendShape::Smoothstep, Surface surface = {});
 
     /// The inner layer's weight at surface (x, y): 1 inside the shape, 0 from `feather` outside
@@ -82,7 +82,7 @@ class RegionLayer final : public Layer, public CraterPlacer, public BoulderPlace
         return *inner_;
     }
 
-    /// Whether a feature centred at (x, y) belongs to the region: within it or its feather.
+    /// Whether a feature centered at (x, y) belongs to the region: within it or its feather.
     bool Holds(double x, double y) const;
 
     /// The part of `grid` the inner layer is applied to, the cells near the region; nothing when no

@@ -1,6 +1,6 @@
 """Regions: different layers in different parts of the terrain.
 
-`RegionLayer` applies a layer only inside a rectangle or circle, fading it out over `feather`
+`MaskedLayer` applies a layer only inside a rectangle or circle, fading it out over `feather`
 metres outside. Here a circular mare is flattened and lowered (a `ScaleLayer` in a circle), the
 west half is an old, heavily cratered surface and the east half a younger one. Prints each region's
 crater count and writes the heights and a hillshade.
@@ -49,13 +49,13 @@ class Example(_common.Example):
                 )
             ]
         )
-        self.mare = terraingen.RegionLayer(
+        self.mare = terraingen.MaskedLayer(
             terraingen.ScaleLayer(0.2, -15.0), terraingen.RegionShape.circle(0.0, 0.0, 600.0), feather=150.0
         )
-        west = terraingen.RegionLayer(
+        west = terraingen.MaskedLayer(
             craters(3.9, 9), terraingen.RegionShape.rectangle(-HALF, -HALF, 0.0, HALF), feather=200.0
         )
-        east = terraingen.RegionLayer(
+        east = terraingen.MaskedLayer(
             craters(1.0, 10), terraingen.RegionShape.rectangle(0.0, -HALF, HALF, HALF), feather=200.0
         )
         terrain = terraingen.TerrainGenerator(

@@ -136,7 +136,7 @@ TerrainGenConfig Everything() {
     terraingen::FieldSpec craterCompleteness;
     craterCompleteness.value = 1500.0;
     craters.completeness = craterCompleteness;
-    craters.unresolvedPixelsAcross = 4.0;
+    craters.sourceResolvesPixels = 3.0;
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders = terraingen::BoulderLayerOptions{};
     terraingen::BoulderLayerOptions& options = boulders.boulders;
@@ -275,12 +275,12 @@ TerrainGenConfig Everything() {
         terraingen::SpectralContinuationLayerSpec{
             2.0, 2.8, 0.15, {3.0, 40.0}, 0.1, 0.5, 9u, {1.5, 5.0, terraingen::BlendShape::Linear}},
         terraingen::SpectralContinuationLayerSpec{},
-        terraingen::RegionLayerSpec{terraingen::CircleRegionSpec{3.0, -4.0, 50.0}, 7.5,
+        terraingen::MaskedLayerSpec{terraingen::CircleRegionSpec{3.0, -4.0, 50.0}, 7.5,
                                     terraingen::BlendShape::Gaussian, craters},
-        terraingen::RegionLayerSpec{
+        terraingen::MaskedLayerSpec{
             terraingen::RectangleRegionSpec{-1.0, -2.0, 3.0, 4.0}, 0.0,
             terraingen::BlendShape::Linear,
-            terraingen::RegionLayerSpec{{}, 1.0, {}, terraingen::ClampLayerSpec{0.0, 1.0}}}};
+            terraingen::MaskedLayerSpec{{}, 1.0, {}, terraingen::ClampLayerSpec{0.0, 1.0}}}};
     const terraingen::OutputAreaSpec region =
         terraingen::testing::GridRegion{33, 21, 0.5, 30.0, -45.0};
     terraingen::OutputAreaSpec corners;
@@ -346,23 +346,23 @@ TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheBase) {
     EXPECT_FALSE(std::get<terraingen::RoughnessLayerSpec>(plain.layers[0]).estimateFromBase);
 }
 
-TEST(ConfigJson, ReadsGeoTiffCropsAndUnresolvedCraterLimits) {
+TEST(ConfigJson, ReadsGeoTiffCropsAndSourceResolvedLimits) {
     const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1,
         "source": {"type": "raster", "path": "dem.tif",
                    "crop": {"min_x": 1000, "min_y": 1900, "max_x": 1100.5, "max_y": 1950},
                    "effective_pixel_size_m": 20},
-        "layers": [{"type": "craters", "unresolved_pixels_across": 3.5}]})");
+        "layers": [{"type": "craters", "source_resolves_px": 3.5}]})");
     const auto& raster = std::get<terraingen::RasterSourceSpec>(*config.source);
     EXPECT_EQ(raster.read.crop, (terraingen::Bounds2d{1000.0, 1900.0, 1100.5, 1950.0}));
     EXPECT_EQ(raster.read.effectivePixelSize, 20.0);
     EXPECT_EQ(raster.upsampling, terraingen::UpsamplingSpec{}) << "cubic by default";
-    EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).unresolvedPixelsAcross, 3.5);
+    EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).sourceResolvesPixels, 3.5);
     EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     const TerrainGenConfig unset = ParseConfig(R"({"schema_version": 1,
         "source": {"type": "raster", "path": "dem.tif"}, "layers": [{"type": "craters"}]})");
     EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.source).read.crop);
     EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.source).read.effectivePixelSize);
-    EXPECT_FALSE(std::get<CraterLayerSpec>(unset.layers.at(0)).unresolvedPixelsAcross);
+    EXPECT_EQ(std::get<CraterLayerSpec>(unset.layers.at(0)).sourceResolvesPixels, 4.0);
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
         "path": "dem.tif", "crop": {"min_x": 0, "west": 1}}})"),
               "source.crop.west");

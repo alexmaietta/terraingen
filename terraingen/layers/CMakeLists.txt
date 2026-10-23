@@ -11,12 +11,13 @@ terraingen_add_library(
     layer.cpp
     material.cpp
     noise_relief.cpp
+    masked.cpp
     pavement.cpp
-    region.cpp
     roughness.cpp
     roughness_estimate.cpp
     sand_fill.cpp
     sand_shadow.cpp
+    source_resolved.cpp
     spectral_continuation.cpp
     strata.cpp
     sample_block.cpp

@@ -1,4 +1,4 @@
-#include "terraingen/layers/region.h"
+#include "terraingen/layers/masked.h"
 
 #include "terraingen/terraingen.h"
 
@@ -11,7 +11,7 @@
 
 using terraingen::Bounds2d;
 using terraingen::GeoTransform;
-using terraingen::RegionLayer;
+using terraingen::MaskedLayer;
 using terraingen::RegionShape;
 
 namespace {
@@ -67,9 +67,9 @@ TEST(RegionShape, MeasuresDistancesOutsideRectanglesAndCircles) {
                  std::invalid_argument);
 }
 
-TEST(RegionLayer, WeighsTheInnerLayerFullyInsideAndFeathersOut) {
+TEST(MaskedLayer, WeighsTheInnerLayerFullyInsideAndFeathersOut) {
     const auto inner = std::make_shared<terraingen::ScaleLayer>(1.0, 10.0);
-    const RegionLayer layer(inner, RegionShape::Rectangle({-10.0, -5.0, 10.0, 5.0}), 4.0);
+    const MaskedLayer layer(inner, RegionShape::Rectangle({-10.0, -5.0, 10.0, 5.0}), 4.0);
     EXPECT_EQ(layer.Weight(0.0, 0.0), 1.0);
     EXPECT_EQ(layer.Weight(10.0, 0.0), 1.0);
     EXPECT_DOUBLE_EQ(layer.Weight(12.0, 0.0), 0.5);
@@ -78,18 +78,18 @@ TEST(RegionLayer, WeighsTheInnerLayerFullyInsideAndFeathersOut) {
     EXPECT_EQ(layer.ApplyAt(1.0f, 12.0, 0.0, {0.5}), 6.0f);
     EXPECT_EQ(layer.ApplyAt(1.0f, 30.0, 0.0, {0.5}), 1.0f);
     EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), 0.0, 0.0, {0.5})));
-    const RegionLayer hard(inner, RegionShape::Circle({0.0, 0.0}, 3.0));
+    const MaskedLayer hard(inner, RegionShape::Circle({0.0, 0.0}, 3.0));
     EXPECT_EQ(hard.Weight(3.0, 0.0), 1.0);
     EXPECT_EQ(hard.Weight(3.001, 0.0), 0.0);
     EXPECT_EQ(&layer.Inner(), inner.get());
 }
 
-TEST(RegionLayer, GivesGridsThePointQueriesBitsAndLeavesTheRestAlone) {
+TEST(MaskedLayer, GivesGridsThePointQueriesBitsAndLeavesTheRestAlone) {
     for (const auto& inner : std::initializer_list<std::shared_ptr<const terraingen::Layer>>{
              std::make_shared<terraingen::ClampLayer>(std::nullopt, 0.0),
              std::make_shared<terraingen::RoughnessLayer>(terraingen::RoughnessOptions{}),
              ManualCraters()}) {
-        const RegionLayer layer(inner, RegionShape::Circle({3.0, 1.0}, 12.0), 5.0,
+        const MaskedLayer layer(inner, RegionShape::Circle({3.0, 1.0}, 12.0), 5.0,
                                 terraingen::BlendShape::Linear);
         const auto before = Slope();
         auto after = before;
@@ -97,11 +97,11 @@ TEST(RegionLayer, GivesGridsThePointQueriesBitsAndLeavesTheRestAlone) {
         std::size_t changed = 0;
         for (std::size_t row = 0; row < after.Height(); ++row) {
             for (std::size_t col = 0; col < after.Width(); ++col) {
-                const auto centre = after.CellCenter(col, row);
+                const auto center = after.CellCenter(col, row);
                 ASSERT_EQ(after(col, row),
-                          layer.ApplyAt(before(col, row), centre.x, centre.y, {0.5}))
+                          layer.ApplyAt(before(col, row), center.x, center.y, {0.5}))
                     << col << ", " << row;
-                if (layer.Weight(centre.x, centre.y) == 0.0) {
+                if (layer.Weight(center.x, center.y) == 0.0) {
                     ASSERT_EQ(after(col, row), before(col, row));
                 }
                 changed += after(col, row) != before(col, row) ? 1u : 0u;
@@ -111,8 +111,8 @@ TEST(RegionLayer, GivesGridsThePointQueriesBitsAndLeavesTheRestAlone) {
     }
 }
 
-TEST(RegionLayer, HoldsTheFeaturesCentredInTheRegionOrItsFeather) {
-    const RegionLayer layer(ManualCraters(), RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 2.0);
+TEST(MaskedLayer, HoldsTheFeaturesCenteredInTheRegionOrItsFeather) {
+    const MaskedLayer layer(ManualCraters(), RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 2.0);
     EXPECT_TRUE(layer.Holds(0.0, 0.0));
     EXPECT_TRUE(layer.Holds(6.5, 0.0)) << "inside the feather";
     EXPECT_FALSE(layer.Holds(7.5, 0.0));
@@ -124,18 +124,18 @@ TEST(RegionLayer, HoldsTheFeaturesCentredInTheRegionOrItsFeather) {
     EXPECT_GE(bounds.maxX, 7.0);
     EXPECT_LT(inner->width, grid.width) << "only the cells near the region";
     EXPECT_EQ(inner->transform.pixelWidth, grid.transform.pixelWidth);
-    const RegionLayer away(ManualCraters(), RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}));
+    const MaskedLayer away(ManualCraters(), RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}));
     EXPECT_FALSE(away.InnerGrid(grid).has_value());
 }
 
-TEST(RegionLayer, SkipsTheInnerLayerAwayFromTheRegion) {
+TEST(MaskedLayer, SkipsTheInnerLayerAwayFromTheRegion) {
     auto calls = std::make_shared<std::atomic<int>>(0);
     const auto inner =
         std::make_shared<terraingen::FunctionLayer>([calls](double, double, double, double height) {
             ++*calls;
             return height + 1.0;
         });
-    const RegionLayer away(inner, RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}), 5.0);
+    const MaskedLayer away(inner, RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}), 5.0);
     auto heights = Slope();
     const auto before = heights;
     away.Apply(heights, {});
@@ -145,7 +145,7 @@ TEST(RegionLayer, SkipsTheInnerLayerAwayFromTheRegion) {
     for (std::size_t i = 0; i < heights.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], before.Values()[i]);
     }
-    const RegionLayer small(inner, RegionShape::Rectangle({0.0, 0.0, 2.0, 2.0}));
+    const MaskedLayer small(inner, RegionShape::Rectangle({0.0, 0.0, 2.0, 2.0}));
     heights.SetNoData(-9999.0f);
     const auto hole = heights.Transform().WorldToPixel(1.0, 1.0);
     auto& missing = heights(static_cast<std::size_t>(hole.x), static_cast<std::size_t>(hole.y));
@@ -156,10 +156,10 @@ TEST(RegionLayer, SkipsTheInnerLayerAwayFromTheRegion) {
     EXPECT_GE(*calls, 15) << "16 cells in the region, one without data";
 }
 
-TEST(RegionLayer, RejectsInvalidSettings) {
+TEST(MaskedLayer, RejectsInvalidSettings) {
     const auto inner = std::make_shared<terraingen::ScaleLayer>(2.0);
-    EXPECT_THROW(RegionLayer(nullptr, RegionShape{}), std::invalid_argument);
-    EXPECT_THROW(RegionLayer(inner, RegionShape::Circle({0.0, 0.0}, -2.0)), std::invalid_argument);
-    EXPECT_THROW(RegionLayer(inner, RegionShape{}, -1.0), std::invalid_argument);
-    EXPECT_THROW(RegionLayer(inner, RegionShape{}, std::nan("")), std::invalid_argument);
+    EXPECT_THROW(MaskedLayer(nullptr, RegionShape{}), std::invalid_argument);
+    EXPECT_THROW(MaskedLayer(inner, RegionShape::Circle({0.0, 0.0}, -2.0)), std::invalid_argument);
+    EXPECT_THROW(MaskedLayer(inner, RegionShape{}, -1.0), std::invalid_argument);
+    EXPECT_THROW(MaskedLayer(inner, RegionShape{}, std::nan("")), std::invalid_argument);
 }

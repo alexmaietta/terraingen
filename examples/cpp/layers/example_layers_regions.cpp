@@ -1,4 +1,4 @@
-/// Regions: different layers in different parts of the terrain. A `RegionLayer` applies a layer
+/// Regions: different layers in different parts of the terrain. A `MaskedLayer` applies a layer
 /// only inside a rectangle or circle, faded out over `feather` metres outside it. A circular mare
 /// is flattened and lowered, the west half is an old, heavily cratered surface and the east half a
 /// younger one. Writes the heights.
@@ -53,7 +53,7 @@ class LayersRegions : public terraingen::examples::Example {
         fbm.fractal.wavelength = 1200.0f;
         fbm.fractal.amplitude = 25.0f;
         fbm.fractal.octaves = 6;
-        mare_ = std::make_shared<terraingen::RegionLayer>(
+        mare_ = std::make_shared<terraingen::MaskedLayer>(
             std::make_shared<terraingen::ScaleLayer>(0.2, -15.0),
             terraingen::RegionShape::Circle({0.0, 0.0}, 600.0), 150.0);
 
@@ -62,10 +62,10 @@ class LayersRegions : public terraingen::examples::Example {
         terrain.layers = {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
             mare_,
-            std::make_shared<terraingen::RegionLayer>(
+            std::make_shared<terraingen::MaskedLayer>(
                 Craters(3.9, 9), terraingen::RegionShape::Rectangle({-kHalf, -kHalf, 0.0, kHalf}),
                 200.0),
-            std::make_shared<terraingen::RegionLayer>(
+            std::make_shared<terraingen::MaskedLayer>(
                 Craters(1.0, 10), terraingen::RegionShape::Rectangle({0.0, -kHalf, kHalf, kHalf}),
                 200.0)};
         evaluated_ = terraingen::Evaluate(terrain);
@@ -109,7 +109,7 @@ class LayersRegions : public terraingen::examples::Example {
     }
 
   private:
-    std::shared_ptr<terraingen::RegionLayer> mare_;
+    std::shared_ptr<terraingen::MaskedLayer> mare_;
     terraingen::Raster<float> evaluated_;
     terraingen::CraterFeatures craters_;
 };

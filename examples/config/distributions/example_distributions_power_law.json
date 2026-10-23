@@ -20,8 +20,8 @@
                 "coefficient": 0.05,
                 "exponent": 2.0
             },
-            "min_diameter": 8,
-            "max_diameter": 300
+            "min_diameter_m": 8,
+            "max_diameter_m": 300
         }
     ],
     "outputs": [

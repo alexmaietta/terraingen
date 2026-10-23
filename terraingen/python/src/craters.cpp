@@ -14,6 +14,7 @@
 #include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/craters/shaping/datum.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
+#include "terraingen/layers/source_resolved.h"
 
 #include <cstdint>
 #include <limits>
@@ -233,9 +234,16 @@ void BindGenerationOptions(nb::module_& m) {
     m.def("unresolved_crater_limit", &UnresolvedCraterLimit, "source"_a, "pixels_across"_a,
           "surface"_a = Surface{},
           "A field of the diameter (m) from which `source` resolves craters: `pixels_across` "
-          "times `source.resolution_at(x, y)`, converted to metres on `surface`; infinity where "
+          "times `source.resolution_at(x, y)`, converted to meters on `surface`; infinity where "
           "it resolves nothing. Set `completeness` to it so generated craters leave the DEM's "
           "own to it.");
+    m.def("source_resolved_limit", &SourceResolvedLimit, "source"_a, "pixels_across"_a,
+          "surface"_a = Surface{},
+          "A field of the feature size (m) from which `source` holds a layer's features: "
+          "`pixels_across` times `source.resolution_at(x, y)`, converted to meters on `surface`; "
+          "infinity where it resolves nothing.");
+    m.def("validate_source_resolves_px", &ValidateSourceResolvesPixels, "pixels_across"_a,
+          kValidateDoc);
 }
 
 void BindGeneration(nb::module_& m) {
@@ -427,7 +435,10 @@ void BindLayerOptions(nb::module_& m) {
         .def_rw("apply", &CraterLayerOptions::apply)
         .def_rw("density_map", &CraterLayerOptions::densityMap)
         .def_rw("secondaries", &CraterLayerOptions::secondaries,
-                "The secondaries layers throw from these craters, taken out of a total map.");
+                "The secondaries layers throw from these craters, taken out of a total map.")
+        .def_rw("source_resolves_px", &CraterLayerOptions::sourceResolvesPixels,
+                "Source cells across from which a layer's source holds a crater, so generated "
+                "craters that large are dropped; None keeps every one. Unit: px.");
 }
 
 nb::dict CraterLayerTable(const CraterLayer& layer, const Bounds2d& region, double spacing) {
@@ -445,8 +456,10 @@ void BindCraterLayer(nb::module_& m) {
         m, "CraterLayer",
         "Craters drawn from `models.density` and shaped by its profile and degradation, plus any "
         "manual craters, applied to the terrain.")
-        .def(nb::init<CraterModels, CraterLayerOptions>(), "models"_a,
-             "options"_a = CraterLayerOptions{})
+        .def(nb::init<CraterModels, CraterLayerOptions, std::shared_ptr<const Source>>(),
+             "models"_a, "options"_a = CraterLayerOptions{}, "source"_a = nb::none(),
+             "With a `source`, generated craters at least `options.source_resolves_px` of its "
+             "cells across are dropped.")
         .def_static(
             "manual",
             [](CraterModels models, const std::vector<Crater>& craters, CraterApplyOptions apply,
@@ -520,12 +533,15 @@ void BindSecondaries(nb::module_& m) {
             "__init__",
             [](SecondaryCraterLayer* self, std::shared_ptr<CraterLayer> primaries,
                std::shared_ptr<CraterProfile> profile,
-               std::shared_ptr<DegradationModel> degradation, SecondaryCraterOptions options) {
+               std::shared_ptr<DegradationModel> degradation, SecondaryCraterOptions options,
+               std::shared_ptr<const Source> source) {
                 new (self) SecondaryCraterLayer(std::move(primaries),
                                                 {std::move(profile), std::move(degradation)},
-                                                std::move(options));
+                                                std::move(options), {}, std::move(source));
             },
-            "primaries"_a, "profile"_a, "degradation"_a, "options"_a)
+            "primaries"_a, "profile"_a, "degradation"_a, "options"_a, "source"_a = nb::none(),
+            "With a `source`, secondaries at least `options.source_resolves_px` of its cells "
+            "across are left out.")
         .def(
             "secondaries",
             [](const SecondaryCraterLayer& layer, const Bounds2d& region, double spacing) {

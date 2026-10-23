@@ -7,6 +7,9 @@
 #include "terraingen/config/fields/enums.h"
 #include "terraingen/config/fields/fields.h"
 
+#include <nanobind/stl/array.h>
+
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
@@ -130,6 +133,26 @@ template <typename T> class OptionsBinder {
                                                    : std::numeric_limits<double>::quiet_NaN();
             },
             FieldDoc(description, "deg").c_str());
+    }
+
+    /// Binds the start and end sample counts of the resolution fade `fade` as the property `key`,
+    /// a pair in output samples (pixels), as the configuration gives them.
+    template <typename Fade>
+    void FadePixels(std::string_view key, Fade& fade, std::string_view description) {
+        const std::size_t offset = Offset(key, fade);
+        Add(key);
+        cls_.def_prop_rw(
+            names_->back().c_str(),
+            [offset](const T& self) {
+                const Fade& value = At<Fade>(self, offset);
+                return std::array<double, 2>{value.startSamples, value.endSamples};
+            },
+            [offset](T& self, std::array<double, 2> pixels) {
+                Fade& value = At<Fade>(self, offset);
+                value.startSamples = pixels[0];
+                value.endSamples = pixels[1];
+            },
+            FieldDoc(description, "px").c_str());
     }
 
     /// Binds `group` as the property `name`, or returns false to have its fields bound one by one

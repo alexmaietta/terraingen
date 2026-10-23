@@ -10,15 +10,15 @@
 
 namespace terraingen {
 
-/// The diameter in metres from which `source` resolves craters at each point: `pixelsAcross`
-/// times `Source::ResolutionAt` there, converted from the source's coordinates to metres with
-/// `Surface::UnitLength`; infinity where the source resolves nothing, as over synthetic or flat
-/// sources.
+/// The diameter in meters from which `source` resolves craters at each point
+/// (`SourceResolvedLimit`): `pixelsAcross` times `Source::ResolutionAt` there, converted from the
+/// source's coordinates to meters with `Surface::UnitLength`; infinity where the source resolves
+/// nothing, as over synthetic or flat sources.
 ///
 /// A DEM already holds the craters at least `pixelsAcross` of its cells across, so set
 /// `CraterGenerationOptions::completeness` to this field to generate only the smaller ones
-/// (`MinimumField` with a catalog's own limit). The field's `Max` is infinity, a bound valid for
-/// any source.
+/// (`MinimumField` with a catalog's own limit), as `CraterLayerOptions::sourceResolvesPixels`
+/// does with a source. The field's `Max` is infinity, a bound valid for any source.
 /// @param pixelsAcross The number of cells across from which the data resolves a crater, the
 /// caller's choice; positive and finite.
 /// @param surface What the source's coordinates lie on: on a body they are degrees.

@@ -82,7 +82,7 @@ std::string ConfigSchema(int indent = 2);
 /// The format a list file's path implies: JSON for a .json path, else CSV.
 ListFormat InferListFormat(std::string_view path);
 
-/// A layer's JSON "type", with the type of the layer inside for a region: "region (boulders)".
+/// A layer's JSON "type", with the inner layer's type for a masked one: "masked (boulders)".
 std::string LayerType(const LayerSpec& layer);
 
 }  // namespace terraingen

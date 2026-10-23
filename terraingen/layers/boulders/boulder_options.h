@@ -440,6 +440,11 @@ struct BoulderLayerOptions {
     /// at least this large centred there are dropped, so the catalog stands in for them. Infinite
     /// or NaN where there is no catalog; unset keeps every generated boulder.
     std::shared_ptr<const SurfaceField> completeness{};
+    /// Source cells across from which the source's measured data already holds a boulder: with a
+    /// source given to the layer, generated boulders at least that many of its cells across are
+    /// dropped (`SourceResolvedLimit`), the minimum with `completeness` when both are set. Unset,
+    /// or without a source, keeps every generated boulder.
+    std::optional<double> sourceResolvesPixels{};
 
     bool operator==(const BoulderLayerOptions& other) const {
         return generateRandom == other.generateRandom && sizes == other.sizes &&
@@ -450,7 +455,8 @@ struct BoulderLayerOptions {
                fade == other.fade && groundSpacing == other.groundSpacing &&
                cacheBoulders == other.cacheBoulders && densityMap == other.densityMap &&
                slopeMap == other.slopeMap && manual == other.manual &&
-               completeness == other.completeness;
+               completeness == other.completeness &&
+               sourceResolvesPixels == other.sourceResolvesPixels;
     }
     bool operator!=(const BoulderLayerOptions& other) const {
         return !(*this == other);

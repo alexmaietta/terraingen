@@ -21,7 +21,7 @@ TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
     secondaries.secondaries.maxDiameter = 80.0;
     config.layers = {CraterLayerSpec{}, secondaries};
     const std::string json = ConfigToJson(config);
-    EXPECT_NE(json.find("\"max_diameter\": 80.0"), std::string::npos) << json;
+    EXPECT_NE(json.find("\"max_diameter_m\": 80.0"), std::string::npos) << json;
     EXPECT_NE(json.find("\"max_age_gyr\": null"), std::string::npos) << json;
     EXPECT_NE(json.find("\"min\": null"), std::string::npos) << "an unbounded distribution";
     const TerrainGenConfig parsed = ParseConfig(
@@ -63,7 +63,8 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
 
 TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {
     const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
-        {"type": "boulders", "coverage": 0.04, "relief": "none", "ejecta": {"min_crater_diameter": 20},
+        {"type": "boulders", "coverage": 0.04, "relief": "none",
+         "ejecta": {"min_crater_diameter_m": 20},
          "exposure": {"reach": 6}},
         {"type": "boulders", "exposure": null}]})");
     ASSERT_EQ(config.layers.size(), 2u);
@@ -90,32 +91,123 @@ TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {
         "layers[0].exposure.x");
 }
 
-TEST(ConfigJson, ReadsTransformsAndNestedRegions) {
+TEST(ConfigJson, ReadsTransformsAndNestedMaskedLayers) {
     const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
         {"type": "scale", "scale": 2},
         {"type": "clamp", "min": -1},
-        {"type": "region", "shape": {"type": "circle", "radius": 30}, "feather": 5,
-         "layer": {"type": "region", "shape": {"type": "rectangle", "max_x": 1, "max_y": 2},
+        {"type": "masked", "shape": {"type": "circle", "radius": 30}, "feather": 5,
+         "layer": {"type": "masked", "shape": {"type": "rectangle", "max_x": 1, "max_y": 2},
                    "layer": {"type": "clamp", "max": 0}}}]})");
     ASSERT_EQ(config.layers.size(), 3u);
     EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(config.layers[0]),
               (terraingen::ScaleLayerSpec{2.0, 0.0}));
     EXPECT_EQ(std::get<terraingen::ClampLayerSpec>(config.layers[1]),
               (terraingen::ClampLayerSpec{-1.0, std::nullopt}));
-    const auto& outer = std::get<terraingen::RegionLayerSpec>(config.layers[2]);
+    const auto& outer = std::get<terraingen::MaskedLayerSpec>(config.layers[2]);
     EXPECT_EQ(outer.shape,
               (terraingen::RegionShapeSpec{terraingen::CircleRegionSpec{0.0, 0.0, 30.0}}));
     EXPECT_EQ(outer.feather, 5.0);
     EXPECT_EQ(outer.blend, terraingen::BlendShape::Smoothstep);
-    const auto& inner = std::get<terraingen::RegionLayerSpec>(*outer.layer);
+    const auto& inner = std::get<terraingen::MaskedLayerSpec>(*outer.layer);
     EXPECT_EQ(std::get<terraingen::RectangleRegionSpec>(inner.shape).maxY, 2.0);
     EXPECT_EQ(std::get<terraingen::ClampLayerSpec>(*inner.layer).max, 0.0);
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [
-        {"type": "region", "layer": {"type": "clamp", "mid": 0}}]})"),
+        {"type": "masked", "layer": {"type": "clamp", "mid": 0}}]})"),
               "layers[0].layer.mid");
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [
-        {"type": "region", "shape": {"type": "polygon"}}]})"),
+        {"type": "masked", "shape": {"type": "polygon"}}]})"),
               "layers[0].shape.type");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [
+        {"type": "region", "layer": {"type": "clamp"}}]})"),
+              "layers[0].type")
+        << "the old name is rejected";
+}
+
+TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
+        {"type": "craters", "min_diameter_m": 3, "max_diameter_m": 90,
+         "apply": {"fade_px": [1.5, 6], "fade_shape": "linear"},
+         "density_map": {"min_diameter_m": 2, "max_diameter_m": 50},
+         "source_resolves_px": null},
+        {"type": "secondaries", "onset_count": 3, "min_diameter_m": 0.5, "max_diameter_m": 20,
+         "min_primary_diameter_m": 100, "max_primary_diameter_m": 900, "source_resolves_px": 6},
+        {"type": "boulders", "min_diameter_m": 0.2, "max_diameter_m": 4, "fade_px": [1, 3],
+         "ground_spacing_m": 0.5, "bedrock_mean_size_m": 30, "roll_distance_m": 8,
+         "patches": {"size_m": 40}, "clusters": {"spacing_m": 30, "radius_m": 5},
+         "ejecta": {"min_crater_diameter_m": 15, "regolith_thickness_m": 4},
+         "fragmentation": {"min_diameter_m": 1.5},
+         "models": {"min_diameter_m": 1, "max_diameter_m": 3, "min_px": 4, "max_px": 40},
+         "relief_range": {"min_diameter_m": 0.1, "max_diameter_m": 2},
+         "slope_map": {"reference_diameter_m": 2}, "source_resolves_px": 5},
+        {"type": "noise", "source_resolves_px": 8},
+        {"type": "dunes", "source_resolves_px": null},
+        {"type": "bedforms", "source_resolves_px": 2}]})");
+    const auto& craters = std::get<CraterLayerSpec>(config.layers[0]);
+    EXPECT_EQ(craters.minDiameter, 3.0);
+    EXPECT_EQ(craters.maxDiameter, 90.0);
+    EXPECT_EQ(craters.apply.fade.startSamples, 1.5);
+    EXPECT_EQ(craters.apply.fade.endSamples, 6.0);
+    EXPECT_EQ(craters.apply.fade.shape, terraingen::BlendShape::Linear);
+    EXPECT_EQ(craters.densityMap->minDiameter, 2.0);
+    EXPECT_EQ(craters.densityMap->maxDiameter, 50.0);
+    EXPECT_FALSE(craters.sourceResolvesPixels) << "null holds none";
+    const auto& secondaries = std::get<terraingen::SecondaryLayerSpec>(config.layers[1]);
+    EXPECT_EQ(secondaries.secondaries.minDiameter, 0.5);
+    EXPECT_EQ(secondaries.secondaries.maxDiameter, 20.0);
+    EXPECT_EQ(secondaries.secondaries.selection.minDiameter, 100.0);
+    EXPECT_EQ(secondaries.secondaries.selection.maxDiameter, 900.0);
+    EXPECT_EQ(secondaries.secondaries.sourceResolvesPixels, 6.0);
+    const auto& spec = std::get<terraingen::BoulderLayerSpec>(config.layers[2]);
+    const terraingen::BoulderLayerOptions& boulders = spec.boulders;
+    EXPECT_EQ(boulders.sizes.minDiameter, 0.2);
+    EXPECT_EQ(boulders.sizes.maxDiameter, 4.0);
+    EXPECT_EQ(boulders.fade.startSamples, 1.0);
+    EXPECT_EQ(boulders.fade.endSamples, 3.0);
+    EXPECT_EQ(boulders.groundSpacing, 0.5);
+    EXPECT_EQ(boulders.bedrock.meanSize, 30.0);
+    EXPECT_EQ(boulders.pose.rollDistance, 8.0);
+    EXPECT_EQ(boulders.patches.size, 40.0);
+    EXPECT_EQ(boulders.clusters.spacing, 30.0);
+    EXPECT_EQ(boulders.clusters.radius, 5.0);
+    EXPECT_EQ(boulders.ejecta.minCraterDiameter, 15.0);
+    EXPECT_EQ(boulders.ejecta.regolithThickness, 4.0);
+    EXPECT_EQ(boulders.fragmentation.minDiameter, 1.5);
+    EXPECT_EQ(boulders.rendering.models.minDiameter, 1.0);
+    EXPECT_EQ(boulders.rendering.models.maxDiameter, 3.0);
+    EXPECT_EQ(boulders.rendering.models.minSamples, 4.0);
+    EXPECT_EQ(boulders.rendering.models.maxSamples, 40.0);
+    EXPECT_EQ(boulders.rendering.reliefRange.minDiameter, 0.1);
+    EXPECT_EQ(boulders.rendering.reliefRange.maxDiameter, 2.0);
+    EXPECT_EQ(spec.slopeMap->referenceDiameter, 2.0);
+    EXPECT_EQ(boulders.sourceResolvesPixels, 5.0);
+    EXPECT_EQ(std::get<terraingen::NoiseLayerSpec>(config.layers[3]).sourceResolvesPixels, 8.0);
+    EXPECT_FALSE(std::get<terraingen::DuneLayerSpec>(config.layers[4]).dunes.sourceResolvesPixels);
+    EXPECT_EQ(
+        std::get<terraingen::BedformLayerSpec>(config.layers[5]).bedforms.sourceResolvesPixels,
+        2.0);
+    EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
+}
+
+TEST(ConfigJson, RejectsTheOldSizeAndFadeKeys) {
+    for (const char* layer :
+         {R"({"type": "craters", "min_diameter": 3})", R"({"type": "craters", "max_diameter": 3})",
+          R"({"type": "craters", "unresolved_pixels_across": 4})",
+          R"({"type": "boulders", "min_diameter": 0.5})",
+          R"({"type": "boulders", "ground_spacing": 0.5})",
+          R"({"type": "boulders", "fade": {"start_samples": 1}})",
+          R"({"type": "secondaries", "min_primary_diameter": 10})"}) {
+        const std::string text = std::string(R"({"schema_version": 1, "layers": [)") + layer + "]}";
+        EXPECT_EQ(ParseErrorPath(text).rfind("layers[0].", 0), 0u) << layer;
+    }
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [
+        {"type": "craters", "apply": {"fade": {"start_samples": 1}}}]})"),
+              "layers[0].apply.fade");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [
+        {"type": "boulders", "fade_px": [1, 2, 3]}]})"),
+              "layers[0].fade_px");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [
+        {"type": "boulders", "fade_px": [1, "a"]}]})"),
+              "layers[0].fade_px[1]");
 }
 
 TEST(ConfigJson, InfersTheListFormatFromTheExtension) {

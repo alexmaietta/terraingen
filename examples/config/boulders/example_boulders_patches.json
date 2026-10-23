@@ -19,11 +19,11 @@
             "sizes": {
                 "type": "golombek_rapp"
             },
-            "min_diameter": 0.2,
-            "max_diameter": 3,
+            "min_diameter_m": 0.2,
+            "max_diameter_m": 3,
             "patches": {
                 "spread": 4.0,
-                "size": 15.0
+                "size_m": 15.0
             }
         }
     ],

@@ -1,6 +1,7 @@
 #include "terraingen/layers/bedforms.h"
 
 #include "terraingen/layers/lattice.h"
+#include "terraingen/layers/source_resolved.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/cell_loops.h"
@@ -54,6 +55,7 @@ void ValidateBedformOptions(const BedformOptions& options) {
         ValidateExposureParams(*options.exposure);
     }
     ValidateResolutionFade(options.fade);
+    ValidateSourceResolvesPixels(options.sourceResolvesPixels);
 }
 
 BedformOptions MarsLargeRipples() {
@@ -79,9 +81,11 @@ BedformOptions MarsTransverseAeolianRidges() {
     return ridges;
 }
 
-BedformLayer::BedformLayer(BedformOptions options, Surface surface)
+BedformLayer::BedformLayer(BedformOptions options, Surface surface,
+                           std::shared_ptr<const Source> source)
     : FormulaLayer(surface), options_(options) {
     ValidateBedformOptions(options_);
+    limit_ = LayerResolvedLimit(source, options_.sourceResolvesPixels, surface);
     cell_ = options_.fieldSize / (kRadiusMin + kRadiusMax);
     const double meanArea = kPi * (std::pow(kRadiusMax, 3.0) - std::pow(kRadiusMin, 3.0)) /
                             (3.0 * (kRadiusMax - kRadiusMin));
@@ -177,7 +181,9 @@ double BedformLayer::CoverAt(double x, double y, const Ground* ground) const {
 
 float BedformLayer::HeightAt(float height, double x, double y, double spacing,
                              const Ground* ground) const {
-    const double weight = ResolutionWeight(options_.wavelength, spacing, options_.fade);
+    const double weight = InSource(limit_.get(), options_.wavelength, x, y)
+                              ? 0.0
+                              : ResolutionWeight(options_.wavelength, spacing, options_.fade);
     if (weight <= 0.0) {
         return height;
     }

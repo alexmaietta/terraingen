@@ -142,7 +142,7 @@ TEST(CheckConfigRanges, ChecksInsideRegionsAndTheBody) {
     config.body = terraingen::ShapeModelSurfaceSpec{"a.icq", terraingen::kMaxCubeFaceCells + 1};
     EXPECT_EQ(RangeErrorPath(config), "body.q");
     config = TerrainGenConfig{};
-    terraingen::RegionLayerSpec region;
+    terraingen::MaskedLayerSpec region;
     terraingen::RoughnessLayerSpec roughness;
     roughness.roughness.baseline = 0.0;
     region.layer = roughness;

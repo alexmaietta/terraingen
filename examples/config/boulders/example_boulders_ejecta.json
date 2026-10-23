@@ -31,10 +31,10 @@
             "sizes": {
                 "type": "golombek_rapp"
             },
-            "min_diameter": 0.2,
-            "max_diameter": 3,
+            "min_diameter_m": 0.2,
+            "max_diameter_m": 3,
             "ejecta": {
-                "min_crater_diameter": 5.0,
+                "min_crater_diameter_m": 5.0,
                 "coverage": 0.25,
                 "reach": 3.0
             }

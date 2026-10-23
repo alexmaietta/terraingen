@@ -169,7 +169,7 @@ TEST(GenerateFromConfig, AddsRoughnessAsTheLibraryDoes) {
 
 TEST(GenerateFromConfig, AppliesTransformsAndRegionsAsTheLibraryDoes) {
     TerrainGenConfig config = Small();
-    const terraingen::RegionLayerSpec region{terraingen::CircleRegionSpec{10.0, -5.0, 20.0}, 6.0,
+    const terraingen::MaskedLayerSpec region{terraingen::CircleRegionSpec{10.0, -5.0, 20.0}, 6.0,
                                              terraingen::BlendShape::Linear,
                                              terraingen::ClampLayerSpec{std::nullopt, 0.0}};
     config.layers.push_back(terraingen::ScaleLayerSpec{2.0, 1.0});
@@ -179,7 +179,7 @@ TEST(GenerateFromConfig, AppliesTransformsAndRegionsAsTheLibraryDoes) {
     terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     ASSERT_EQ(terrain.layers.size(), 4u);
     terrain.layers[2] = std::make_shared<terraingen::ScaleLayer>(2.0, 1.0);
-    terrain.layers[3] = std::make_shared<terraingen::RegionLayer>(
+    terrain.layers[3] = std::make_shared<terraingen::MaskedLayer>(
         std::make_shared<terraingen::ClampLayer>(std::nullopt, 0.0),
         terraingen::RegionShape::Circle({10.0, -5.0}, 20.0), 6.0, terraingen::BlendShape::Linear);
     ExpectSameRaster(
@@ -938,7 +938,7 @@ TEST(GenerateFromConfig, ReportsOnlyWithAReportOutputAndPlacesNoFeaturesForIt) {
     const GridRegion wide{33, 25, 4.0};
     CraterLayerSpec inner = Craters(config);
     inner.seed = 5;
-    config.layers.push_back(terraingen::RegionLayerSpec{
+    config.layers.push_back(terraingen::MaskedLayerSpec{
         terraingen::CircleRegionSpec{0.0, 0.0, 20.0}, 0.0, terraingen::BlendShape::Linear, inner});
     config.outputs.push_back(terraingen::testing::Heightmap("", wide));
     config.outputs.push_back(CraterListOutput{{"", ListFormat::Csv, GridRegion{40, 40, 1.0}}});
@@ -957,7 +957,8 @@ TEST(GenerateFromConfig, ReportsOnlyWithAReportOutputAndPlacesNoFeaturesForIt) {
     }
     EXPECT_FALSE(generated.grids[0].craters);
     ASSERT_EQ(report.layers.size(), 3u);
-    EXPECT_EQ(report.layers[2].type, "region (craters)");
-    EXPECT_EQ(report.seeds, (std::vector<std::uint32_t>{1u, 5u})) << "a region's from its layer";
+    EXPECT_EQ(report.layers[2].type, "masked (craters)");
+    EXPECT_EQ(report.seeds, (std::vector<std::uint32_t>{1u, 5u}))
+        << "a masked layer's from its layer";
     EXPECT_EQ(report.threads, 1u);
 }

@@ -14,6 +14,7 @@
 #include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/sources/source.h"
 
 #include <cstdint>
 #include <limits>
@@ -65,6 +66,11 @@ struct CraterLayerOptions {
     /// them, follow the map alone; with spacing they also take precedence over smaller craters, so
     /// the throwers never depend on what they throw at. Not with `generation.maxCraters`.
     std::vector<SecondaryCraterOptions> secondaries{};
+    /// Source cells across from which the source's measured data already holds a crater: with a
+    /// source given to the layer, generated craters at least that many of its cells across are
+    /// dropped (`SourceResolvedLimit`), the minimum with `generation.completeness` when both are
+    /// set. Unset, or without a source, keeps every generated crater.
+    std::optional<double> sourceResolvesPixels = 4.0;
 };
 
 /// Craters generated over the grid being evaluated (`GenerateCraters`) and applied to it
@@ -75,8 +81,11 @@ struct CraterLayerOptions {
 class CraterLayer final : public Layer, public CraterPlacer {
   public:
     /// @param models None may be null.
+    /// @param source The source the terrain's heights come from, which with
+    /// `options.sourceResolvesPixels` holds the craters it resolves; null for none.
     /// @throws std::invalid_argument for a missing model or invalid options.
-    CraterLayer(CraterModels models, CraterLayerOptions options);
+    CraterLayer(CraterModels models, CraterLayerOptions options,
+                std::shared_ptr<const Source> source = nullptr);
 
     /// A layer of only `craters`, shaped by `models` and `apply`: `generateRandom` off, so no
     /// random craters; the density is kept but not drawn from.

@@ -139,6 +139,13 @@ template <> struct Describer<bool> {
     }
 };
 
+template <> struct Describer<std::array<double, 2>> {
+    static Json Describe(SchemaBuilder& /*builder*/) {
+        return Json{
+            {"kind", "array"}, {"of", Json{{"kind", "number"}}}, {"default", 0.0}, {"length", 2}};
+    }
+};
+
 template <> struct Describer<std::string> {
     static Json Describe(SchemaBuilder& /*builder*/) {
         return Json{{"kind", "string"}};

@@ -46,8 +46,8 @@
                 "equilibrium": "trask",
                 "chronology": "neukum"
             },
-            "min_diameter": 1000,
-            "max_diameter": 30000
+            "min_diameter_m": 1000,
+            "max_diameter_m": 30000
         }
     ],
     "outputs": [

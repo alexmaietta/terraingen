@@ -48,8 +48,8 @@ class Example(_common.Example):
             terraingen.BoulderLayerOptions(
                 seed=3,
                 coverage=0.02,
-                min_diameter=0.3,
-                max_diameter=3.0,
+                min_diameter_m=0.3,
+                max_diameter_m=3.0,
                 exposure=exposure,
                 bedrock_abundance=4.0,
             )

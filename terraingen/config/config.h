@@ -25,8 +25,8 @@
 #include "terraingen/layers/craters/shaping/apply.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/dunes.h"
+#include "terraingen/layers/masked.h"
 #include "terraingen/layers/pavement.h"
-#include "terraingen/layers/region.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/roughness_estimate.h"
 #include "terraingen/layers/sand_fill.h"
@@ -98,7 +98,7 @@ RoughnessOptions DefaultRoughness();
 /// height keeps the 0.1 height-to-wavelength ratio of `MarsDuneRipples`.
 BedformOptions DefaultBedforms();
 
-/// Dunes by default: barchans 50 m wide, about 30 to a square kilometre, as in the barchan field
+/// Dunes by default: barchans 50 m wide, about 30 to a square kilometer, as in the barchan field
 /// of La Pampa de la Joya, with domes below its 15 m elementary dune size (Elbelrhiti et al. 2008,
 /// https://arxiv.org/abs/cond-mat/0609120); a lattice of 129 m cells half of which hold a dune.
 DuneOptions DefaultDunes();
@@ -211,9 +211,9 @@ struct FieldSpec {
 struct DensityMapSpec {
     FieldSpec field{};
     DensityMeasure measure = DensityMeasure::Scale;
-    double minDiameter = 0.0;             ///< Metres.
-    std::optional<double> maxDiameter{};  ///< Metres; unset for no upper limit.
-    double areaUnit = 1.0;                ///< Square metres per map area unit.
+    double minDiameter = 0.0;             ///< Meters.
+    std::optional<double> maxDiameter{};  ///< Meters; unset for no upper limit.
+    double areaUnit = 1.0;                ///< Square meters per map area unit.
     bool total = true;
 
     bool operator==(const DensityMapSpec& other) const {
@@ -230,7 +230,7 @@ struct DensityMapSpec {
 struct SizeSlopeMapSpec {
     FieldSpec field{};
     SizeSlopeMeasure measure = SizeSlopeMeasure::Exponent;
-    double referenceDiameter = 1.0;  ///< Metres.
+    double referenceDiameter = 1.0;  ///< Meters.
     double minExponent = 1.0;
     double maxExponent = 6.0;
 
@@ -269,6 +269,10 @@ struct NoiseLayerSpec {
     /// Whether unset Hurst exponents and amplitudes come from the base (`EstimatedParams` of
     /// `EstimateSourceRoughness`); needs a base.
     bool estimateFromBase = false;
+    /// Source cells across from which the source's measured data holds a noise layer: each layer
+    /// whose wavelength, its longest, is at least that many source cells at a point is left out
+    /// there (`NoiseRelief`). Ignored on a synthetic source; unset adds every layer everywhere.
+    std::optional<double> sourceResolvesPixels{};
 
     /// The stack as terrain parameters, with each layer's Hurst exponent applied.
     SyntheticTerrainParams Params() const;
@@ -280,14 +284,15 @@ struct NoiseLayerSpec {
     SyntheticTerrainParams EstimatedParams(const BaseRoughness& base) const;
 
     bool operator==(const NoiseLayerSpec& other) const {
-        return stack == other.stack && estimateFromBase == other.estimateFromBase;
+        return stack == other.stack && estimateFromBase == other.estimateFromBase &&
+               sourceResolvesPixels == other.sourceResolvesPixels;
     }
     bool operator!=(const NoiseLayerSpec& other) const {
         return !(*this == other);
     }
 };
 
-/// Density "power_law": `PowerLawSfd`, N per m^2 with D in metres.
+/// Density "power_law": `PowerLawSfd`, N per m^2 with D in meters.
 struct PowerLawSpec {
     double coefficient = 0.1;
     double exponent = 2.0;
@@ -312,8 +317,8 @@ struct PiecewisePowerLawSpec {
 struct TabulatedSpec {
     std::vector<double> diameters;
     std::vector<double> cumulative;
-    double diameterUnit = 1.0;  ///< Metres per table diameter unit; 1000 for km.
-    double areaUnit = 1.0;      ///< Square metres per table area unit; 1e6 for km^2.
+    double diameterUnit = 1.0;  ///< Meters per table diameter unit; 1000 for km.
+    double areaUnit = 1.0;      ///< Square meters per table area unit; 1e6 for km^2.
     bool operator==(const TabulatedSpec& other) const {
         return diameters == other.diameters && cumulative == other.cumulative &&
                diameterUnit == other.diameterUnit && areaUnit == other.areaUnit;
@@ -573,10 +578,10 @@ struct CraterLayerSpec {
     DensitySpec density{MinimumSpec{{ProductionSurfaceSpec{}, HartmannSpec{}}}};
     /// By default steady-state ages on that surface, matching the density.
     AgesSpec ages{SteadyStateAgesSpec{}};
-    /// Metres; by default 2.5, where the extended Neukum production function the default density
+    /// Meters; by default 2.5, where the extended Neukum production function the default density
     /// and ages use begins.
     double minDiameter = 2.5;
-    double maxDiameter = 250.0;  ///< Metres.
+    double maxDiameter = 250.0;  ///< Meters.
     CraterSpacing spacing{};
     std::size_t maxCraters = 0;  ///< Keep at most this many generated craters; 0 keeps all.
     /// Manual craters, in the surface's coordinates; parsing sets their `manual` flag.
@@ -589,11 +594,11 @@ struct CraterLayerSpec {
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `CraterLayerOptions::densityMap`.
     /// Gives `generation.completeness`: where `manual` is a complete catalog, from which diameter.
     std::optional<FieldSpec> completeness{};
-    /// Cells of the base across from which its measured data resolves a crater, positive: gives
-    /// `generation.completeness` as `UnresolvedCraterLimit` of the base, the minimum with
-    /// `completeness` when both are set. Without a base, or where the base has no measured data,
-    /// the limit is infinite and keeps every generated crater.
-    std::optional<double> unresolvedPixelsAcross{};
+    /// Gives `CraterLayerOptions::sourceResolvesPixels`: source cells across from which the
+    /// source's measured data holds a crater, so only smaller craters are generated there, the
+    /// minimum with `completeness` when both are set. Ignored on a synthetic source and where the
+    /// source has no measured data; unset generates every crater.
+    std::optional<double> sourceResolvesPixels = 4.0;
 
     bool operator==(const CraterLayerSpec& other) const {
         return morphometry == other.morphometry && generateRandom == other.generateRandom &&
@@ -603,7 +608,7 @@ struct CraterLayerSpec {
                manual == other.manual && profile == other.profile &&
                degradation == other.degradation && apply == other.apply &&
                densityMap == other.densityMap && completeness == other.completeness &&
-               unresolvedPixelsAcross == other.unresolvedPixelsAcross;
+               sourceResolvesPixels == other.sourceResolvesPixels;
     }
     bool operator!=(const CraterLayerSpec& other) const {
         return !(*this == other);
@@ -818,11 +823,11 @@ struct SecondaryLayerSpec {
 /// spectrum (`SpectralContinuationLayer`), fitted to the base (`EstimatePowerLawSpectrum`) on its
 /// own grid wherever the slope or amplitude is not given.
 struct SpectralContinuationLayerSpec {
-    std::optional<double> pixelSize{};  ///< Metres; unset for the base's cell size.
+    std::optional<double> pixelSize{};  ///< Meters; unset for the base's cell size.
     std::optional<double> slope{};      ///< Spectral slope beta; unset to fit from the base.
-    std::optional<double> octaveRms{};  ///< Metres; unset to fit from the base.
+    std::optional<double> octaveRms{};  ///< Meters; unset to fit from the base.
     SpectrumFitBand fit{};              ///< Wavelengths the base's spectrum is fitted over.
-    double minWavelength = 0.05;        ///< Metres.
+    double minWavelength = 0.05;        ///< Meters.
     double taperOctaves = 1.0;
     std::uint32_t seed = 1;
     ResolutionFade fade{};
@@ -841,7 +846,7 @@ struct SpectralContinuationLayerSpec {
 /// Layer "scale": height * `scale` + `offset` (`ScaleLayer`).
 struct ScaleLayerSpec {
     double scale = 1.0;
-    double offset = 0.0;  ///< Metres.
+    double offset = 0.0;  ///< Meters.
 
     bool operator==(const ScaleLayerSpec& other) const {
         return scale == other.scale && offset == other.offset;
@@ -853,8 +858,8 @@ struct ScaleLayerSpec {
 
 /// Layer "clamp": heights clamped to [`min`, `max`], either optional (`ClampLayer`).
 struct ClampLayerSpec {
-    std::optional<double> min;  ///< Metres; unset for no lower bound.
-    std::optional<double> max;  ///< Metres; unset for no upper bound.
+    std::optional<double> min;  ///< Meters; unset for no lower bound.
+    std::optional<double> max;  ///< Meters; unset for no upper bound.
 
     bool operator==(const ClampLayerSpec& other) const {
         return min == other.min && max == other.max;
@@ -877,11 +882,11 @@ struct RectangleRegionSpec {
         return !(*this == other);
     }
 };
-/// Region shape "circle": centred on (`x`, `y`) in surface coordinates.
+/// Region shape "circle": centered on (`x`, `y`) in surface coordinates.
 struct CircleRegionSpec {
     double x = 0.0;
     double y = 0.0;
-    double radius = 0.0;  ///< Metres.
+    double radius = 0.0;  ///< Meters.
     bool operator==(const CircleRegionSpec& other) const {
         return x == other.x && y == other.y && radius == other.radius;
     }
@@ -943,28 +948,28 @@ template <typename T> class Boxed {
     std::unique_ptr<T> value_;
 };
 
-struct RegionLayerSpec;
+struct MaskedLayerSpec;
 
 /// A layer, named in JSON by its "type".
 using LayerSpec =
     std::variant<NoiseLayerSpec, CraterLayerSpec, BoulderLayerSpec, RoughnessLayerSpec,
-                 BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, RegionLayerSpec,
+                 BedformLayerSpec, ScaleLayerSpec, ClampLayerSpec, MaskedLayerSpec,
                  SecondaryLayerSpec, DuneLayerSpec, SandFillLayerSpec, PavementLayerSpec,
                  StrataLayerSpec, SandShadowLayerSpec, SpectralContinuationLayerSpec>;
 
-/// Layer "region": `layer` applied only inside `shape` (`RegionLayer`). Boulder ejecta do
-/// not see crater layers inside regions.
-struct RegionLayerSpec {
+/// Layer "masked": `layer` applied only inside `shape` (`MaskedLayer`). Boulder ejecta do
+/// not see crater layers inside masked layers.
+struct MaskedLayerSpec {
     RegionShapeSpec shape{};
-    double feather = 0.0;  ///< Metres outside the shape over which the layer fades out.
+    double feather = 0.0;  ///< Meters outside the shape over which the layer fades out.
     BlendShape blend = BlendShape::Smoothstep;
     Boxed<LayerSpec> layer{};
 
-    bool operator==(const RegionLayerSpec& other) const {
+    bool operator==(const MaskedLayerSpec& other) const {
         return shape == other.shape && feather == other.feather && blend == other.blend &&
                layer == other.layer;
     }
-    bool operator!=(const RegionLayerSpec& other) const {
+    bool operator!=(const MaskedLayerSpec& other) const {
         return !(*this == other);
     }
 };

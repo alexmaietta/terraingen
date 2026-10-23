@@ -1,4 +1,4 @@
-#include "terraingen/layers/region.h"
+#include "terraingen/layers/masked.h"
 
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/checks.h"
@@ -69,7 +69,7 @@ double RegionShape::DistanceOutside(double x, double y, const Surface& surface) 
     };
     if (surface.IsBody()) {
         if (kind == Kind::Circle) {
-            return std::fmax(0.0, surface.Distance(centre, {x, y}) - radius);
+            return std::fmax(0.0, surface.Distance(center, {x, y}) - radius);
         }
         const double cosLat = std::cos(y * kDegree);
         double best = std::numeric_limits<double>::infinity();
@@ -79,23 +79,23 @@ double RegionShape::DistanceOutside(double x, double y, const Surface& surface) 
         return best;
     }
     if (kind == Kind::Circle) {
-        return std::fmax(0.0, std::hypot(x - centre.x, y - centre.y) - radius);
+        return std::fmax(0.0, std::hypot(x - center.x, y - center.y) - radius);
     }
     return outside(x, 1.0);
 }
 
 Bounds2d RegionShape::Bounds(const Surface& surface) const {
     if (kind == Kind::Circle) {
-        return surface.Expand({centre.x, centre.y, centre.x, centre.y}, radius);
+        return surface.Expand({center.x, center.y, center.x, center.y}, radius);
     }
     return rectangle;
 }
 
 void ValidateRegionShape(const RegionShape& shape) {
     if (shape.kind == RegionShape::Kind::Circle) {
-        if (!(std::isfinite(shape.centre.x) && std::isfinite(shape.centre.y) &&
+        if (!(std::isfinite(shape.center.x) && std::isfinite(shape.center.y) &&
               IsNonNegative(shape.radius))) {
-            throw std::invalid_argument("A circular region needs a finite centre and radius >= 0");
+            throw std::invalid_argument("A circular region needs a finite center and radius >= 0");
         }
         return;
     }
@@ -106,17 +106,17 @@ void ValidateRegionShape(const RegionShape& shape) {
     }
 }
 
-RegionLayer::RegionLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather,
+MaskedLayer::MaskedLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather,
                          BlendShape blend, Surface surface)
     : inner_(std::move(inner)), shape_(shape), feather_(feather), blend_(blend), surface_(surface) {
     if (!inner_) {
-        throw std::invalid_argument("A region layer needs a layer to apply");
+        throw std::invalid_argument("A masked layer needs a layer to apply");
     }
     ValidateRegionShape(shape_);
-    RequireNonNegative(feather_, "Region feather");
+    RequireNonNegative(feather_, "Masked layer feather");
 }
 
-double RegionLayer::Weight(double x, double y) const {
+double MaskedLayer::Weight(double x, double y) const {
     const double distance = shape_.DistanceOutside(x, y, surface_);
     if (distance <= 0.0) {
         return 1.0;
@@ -127,16 +127,16 @@ double RegionLayer::Weight(double x, double y) const {
     return Falloff(distance, 0.0, feather_, blend_);
 }
 
-bool RegionLayer::Holds(double x, double y) const {
+bool MaskedLayer::Holds(double x, double y) const {
     return shape_.DistanceOutside(x, y, surface_) <= feather_;
 }
 
-PixelWindow RegionLayer::InnerWindow(const RasterGrid& grid) const {
+PixelWindow MaskedLayer::InnerWindow(const RasterGrid& grid) const {
     const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
     return MergeWindows(PixelWindowsIn(grid, reach, surface_));
 }
 
-std::optional<RasterGrid> RegionLayer::InnerGrid(const RasterGrid& grid) const {
+std::optional<RasterGrid> MaskedLayer::InnerGrid(const RasterGrid& grid) const {
     const PixelWindow window = InnerWindow(grid);
     if (window.Empty()) {
         return std::nullopt;
@@ -149,7 +149,7 @@ std::optional<RasterGrid> RegionLayer::InnerGrid(const RasterGrid& grid) const {
     return RasterGrid{window.colEnd - window.colBegin, window.rowEnd - window.rowBegin, transform};
 }
 
-CraterFeatures RegionLayer::CratersOver(const RasterGrid& grid, double spacing) const {
+CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) const {
     const auto* placer = dynamic_cast<const CraterPlacer*>(inner_.get());
     const std::optional<RasterGrid> inner = InnerGrid(grid);
     CraterFeatures held;
@@ -167,7 +167,7 @@ CraterFeatures RegionLayer::CratersOver(const RasterGrid& grid, double spacing) 
     return held;
 }
 
-BoulderFeatures RegionLayer::BouldersOver(const RasterGrid& grid, double spacing,
+BoulderFeatures MaskedLayer::BouldersOver(const RasterGrid& grid, double spacing,
                                           const Ground* ground) const {
     const auto* placer = dynamic_cast<const BoulderPlacer*>(inner_.get());
     const std::optional<RasterGrid> inner = InnerGrid(grid);
@@ -183,7 +183,7 @@ BoulderFeatures RegionLayer::BouldersOver(const RasterGrid& grid, double spacing
     return held;
 }
 
-void RegionLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
+void MaskedLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     if (Raster<float>* grid = samples.Grid()) {
         ApplyToGrid(*grid, context);
     } else {
@@ -191,7 +191,7 @@ void RegionLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     }
 }
 
-void RegionLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& context) const {
+void MaskedLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& context) const {
     std::vector<std::size_t> indices;
     std::vector<Vec2d> positions;
     std::vector<float> heights;
@@ -214,7 +214,7 @@ void RegionLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& contex
     }
 }
 
-void RegionLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context) const {
+void MaskedLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context) const {
     const PixelWindow window = InnerWindow(RasterGrid::FromRaster(heights));
     if (window.Empty()) {
         return;
@@ -228,8 +228,8 @@ void RegionLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& contex
             if (heights.IsNoData(cell)) {
                 continue;
             }
-            const Vec2d centre = heights.CellCenter(col, row);
-            const double weight = Weight(centre.x, centre.y);
+            const Vec2d center = heights.CellCenter(col, row);
+            const double weight = Weight(center.x, center.y);
             if (weight > 0.0) {
                 cell = Blend(cell, inner(col - window.colBegin, r), weight);
             }

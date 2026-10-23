@@ -19,10 +19,10 @@
             "sizes": {
                 "type": "golombek_rapp"
             },
-            "min_diameter": 0.2,
-            "max_diameter": 3,
+            "min_diameter_m": 0.2,
+            "max_diameter_m": 3,
             "models": {
-                "min_diameter": 0.6
+                "min_diameter_m": 0.6
             }
         }
     ],

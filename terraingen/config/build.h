@@ -6,7 +6,7 @@
 #include "terraingen/config/config.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/craters/crater_layer.h"
-#include "terraingen/layers/region.h"
+#include "terraingen/layers/masked.h"
 #include "terraingen/pipeline/generator.h"
 
 #include <algorithm>

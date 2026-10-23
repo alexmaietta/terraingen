@@ -17,7 +17,7 @@
             "type": "secondaries",
             "seed": 4,
             "onset_count": 20,
-            "min_diameter": 30
+            "min_diameter_m": 30
         }
     ],
     "outputs": [

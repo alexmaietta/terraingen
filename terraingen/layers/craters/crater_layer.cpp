@@ -3,6 +3,7 @@
 #include "terraingen/distribution/summed.h"
 #include "terraingen/layers/bisection.h"
 #include "terraingen/layers/craters/generation/spacing.h"
+#include "terraingen/layers/source_resolved.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
 
@@ -23,7 +24,8 @@ constexpr double kLargestThrower = 5e5;
 
 }  // namespace
 
-CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
+CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
+                         std::shared_ptr<const Source> source)
     : models_(std::move(models)), options_(std::move(options)) {
     if (!models_.density || !models_.ages || !models_.degradation || !models_.profile) {
         throw std::invalid_argument(
@@ -31,6 +33,12 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options)
     }
     ValidateCraterSpacing(options_.generation.spacing);
     ValidateCraterApplyOptions(options_.apply);
+    ValidateSourceResolvesPixels(options_.sourceResolvesPixels);
+    if (auto limit = LayerResolvedLimit(source, options_.sourceResolvesPixels, options_.surface)) {
+        std::shared_ptr<const SurfaceField>& completeness = options_.generation.completeness;
+        completeness = completeness ? std::make_shared<const MinimumField>(completeness, limit)
+                                    : std::move(limit);
+    }
     options_.generation.marginRadii = CraterReachRadii(*models_.profile, options_.apply) *
                                       MaxOutlineScale(options_.apply.irregularity);
     options_.generation.surface = options_.surface;

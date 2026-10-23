@@ -20,12 +20,12 @@
                 "coefficient": 0.01,
                 "exponent": 2.5
             },
-            "min_diameter": 0.2,
-            "max_diameter": 3,
+            "min_diameter_m": 0.2,
+            "max_diameter_m": 3,
             "clusters": {
                 "share": 1.0,
-                "spacing": 5.0,
-                "radius": 1.5,
+                "spacing_m": 5.0,
+                "radius_m": 1.5,
                 "model": "thomas"
             }
         }

@@ -18,8 +18,8 @@
             "density": {
                 "type": "trask"
             },
-            "min_diameter": 8,
-            "max_diameter": 300,
+            "min_diameter_m": 8,
+            "max_diameter_m": 300,
             "manual": [
                 {
                     "x": -150,
@@ -42,7 +42,7 @@
                     "value": 2000
                 },
                 "measure": "count",
-                "min_diameter": 10,
+                "min_diameter_m": 10,
                 "area_unit": 1000000
             }
         }

@@ -59,8 +59,8 @@ def test_noise_relief_needs_a_layer():
         terraingen.NoiseRelief([])
 
 
-def test_region_layer_feathers_its_inner_layer():
-    region = terraingen.RegionLayer(
+def test_masked_layer_feathers_its_inner_layer():
+    region = terraingen.MaskedLayer(
         terraingen.ScaleLayer(1.0, 5.0), terraingen.RegionShape.circle(0.0, 0.0, 10.0), feather=5.0
     )
     heights = terraingen.evaluate(
@@ -70,9 +70,25 @@ def test_region_layer_feathers_its_inner_layer():
     assert region.weight(0.0, 0.0) == 1.0 and region.weight(30.0, 0.0) == 0.0
 
 
-def test_region_layer_keeps_its_inner_layer():
-    region = terraingen.RegionLayer(terraingen.ScaleLayer(2.0), terraingen.RegionShape.circle(0.0, 0.0, 5.0))
+def test_masked_layer_keeps_its_inner_layer():
+    region = terraingen.MaskedLayer(terraingen.ScaleLayer(2.0), terraingen.RegionShape.circle(0.0, 0.0, 5.0))
     assert isinstance(region.inner, terraingen.ScaleLayer)
+    assert not hasattr(terraingen, "RegionLayer")
+    config = terraingen.TerrainGenConfig.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [
+                {
+                    "type": "masked",
+                    "shape": {"type": "circle", "radius": 5},
+                    "layer": {"type": "scale", "scale": 2},
+                }
+            ],
+        }
+    )
+    assert config.to_dict()["layers"][0]["type"] == "masked"
+    with pytest.raises(terraingen.ConfigError):
+        terraingen.TerrainGenConfig.from_dict({"schema_version": 1, "layers": [{"type": "region"}]})
 
 
 def test_rectangle_distance_outside():
@@ -224,7 +240,7 @@ def test_base_layer_without_overrides_raises(paraboloid):
 
 def test_region_weight_on_a_sphere_uses_degrees():
     moon = terraingen.Surface.sphere(1737400.0)
-    region = terraingen.RegionLayer(
+    region = terraingen.MaskedLayer(
         terraingen.ScaleLayer(1.0, 100.0), terraingen.RegionShape.circle(23.47, 0.67, 1.0), surface=moon
     )
     assert region.weight(23.47, 0.67) == 1.0
@@ -388,7 +404,7 @@ def test_strata_terrace_hills_into_benches_and_cliffs():
 
 def test_sand_shadows_trail_boulders_and_boulders_are_rock():
     boulders = terraingen.BoulderLayer(
-        terraingen.BoulderLayerOptions(coverage=0.05, min_diameter=1.0, max_diameter=2.0)
+        terraingen.BoulderLayerOptions(coverage=0.05, min_diameter_m=1.0, max_diameter_m=2.0)
     )
     table = boulders.boulders((-50.0, -50.0, 50.0, 50.0))
     x, y, d = table["x"][0], table["y"][0], table["diameter"][0]
@@ -415,7 +431,7 @@ def test_ventifacts_plane_the_windward_side_of_boulders():
     ventifacts = terraingen.BoulderVentifacts(share=1.0, wind_azimuth_deg=0.0)
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(
-            coverage=0.05, min_diameter=1.0, max_diameter=2.0, ventifacts=ventifacts
+            coverage=0.05, min_diameter_m=1.0, max_diameter_m=2.0, ventifacts=ventifacts
         )
     )
     table = boulders.boulders((-50.0, -50.0, 50.0, 50.0))
@@ -596,3 +612,38 @@ def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path)
     with pytest.raises(terraingen.ConfigError) as error:
         without_base.validate()
     assert error.value.path == "layers[0].estimate_from_base"
+
+
+def test_layers_leave_out_what_the_source_resolves():
+    dem = terraingen.RasterSource(
+        np.zeros((20, 20), dtype=np.float32), terraingen.GeoTransform.north_up(0.0, 2000.0, 100.0)
+    )
+    assert terraingen.source_resolved_limit(dem, 4.0).value_at(50.0, 50.0) == 400.0
+    dunes = terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE)
+    assert dunes.source_resolves_px == 4.0
+    held = terraingen.DuneLayer(dunes, source=dem)
+    free = terraingen.DuneLayer(dunes)
+    context = terraingen.LayerContext(spacing=1.0)
+    xs = np.arange(10.0, 1000.0, 37.0)
+    assert all(held.apply_at(0.0, x, 700.0, context) == 0.0 for x in xs), "550 m dunes over 400 m"
+    assert any(free.apply_at(0.0, x, 700.0, context) != 0.0 for x in xs)
+    dunes.source_resolves_px = None
+    assert terraingen.DuneLayer(dunes, source=dem).apply_at(0.0, 400.0, 700.0, context) == free.apply_at(
+        0.0, 400.0, 700.0, context
+    )
+    assert terraingen.BedformOptions().source_resolves_px == 4.0
+    assert terraingen.BoulderLayerOptions().source_resolves_px is None
+    assert terraingen.SecondaryCraterOptions().source_resolves_px == 4.0
+    assert terraingen.CraterLayerOptions().source_resolves_px == 4.0
+    big = terraingen.NoiseLayer()
+    big.fractal.wavelength = 1000.0
+    noise = terraingen.NoiseRelief([big], source=dem, source_resolves_px=4.0)
+    assert noise.source_resolves_px == 4.0
+    assert noise.apply_at(0.0, 300.0, 300.0, context) == 0.0
+    assert terraingen.NoiseRelief([big], source=dem).apply_at(0.0, 300.0, 300.0, context) != 0.0
+    apply = terraingen.CraterApplyOptions(fade_px=(1.0, 3.0))
+    assert apply.fade_px == [1.0, 3.0] and not hasattr(apply, "fade")
+    config = terraingen.TerrainGenConfig.from_dict(
+        {"schema_version": 1, "layers": [{"type": "craters", "source_resolves_px": None}]}
+    )
+    assert config.to_dict()["layers"][0]["source_resolves_px"] is None

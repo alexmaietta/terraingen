@@ -3,6 +3,7 @@
 #include "terraingen/layers/boulders/boulder_clusters.h"
 
 #include "terraingen/layers/craters/ages/age_model.h"
+#include "terraingen/layers/source_resolved.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/stream.h"
@@ -147,14 +148,15 @@ double ShapeReach(const TriangleMesh& placed, double cx, double cy) {
 }  // namespace
 
 BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters,
-                           Surface surface)
+                           Surface surface, std::shared_ptr<const Source> source)
     : BoulderLayer(std::move(options),
                    craters ? std::vector<std::shared_ptr<const CraterLayer>>{std::move(craters)}
                            : std::vector<std::shared_ptr<const CraterLayer>>{},
-                   surface) {}
+                   surface, std::move(source)) {}
 
 BoulderLayer::BoulderLayer(BoulderLayerOptions options,
-                           std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface)
+                           std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface,
+                           std::shared_ptr<const Source> source)
     : options_(std::move(options)), craters_(std::move(craters)), surface_(surface) {
     for (const auto& layer : craters_) {
         if (!layer) {
@@ -166,6 +168,11 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options,
         }
     }
     ValidateBoulderLayerOptions(options_);
+    if (auto limit = LayerResolvedLimit(source, options_.sourceResolvesPixels, surface_)) {
+        std::shared_ptr<const SurfaceField>& completeness = options_.completeness;
+        completeness = completeness ? std::make_shared<const MinimumField>(completeness, limit)
+                                    : std::move(limit);
+    }
     for (const ManualBoulder& boulder : options_.manual) {
         if (boulder.FixesAny()) {
             fixed_.emplace(ManualBoulderId(boulder), boulder);

@@ -51,7 +51,7 @@ const char* const kConfig = R"({
   "schema_version": 1,
   "layers": [
     {"type": "noise", "stack": [{"wavelength": 60, "amplitude": 3, "octaves": 3}]},
-    {"type": "craters", "min_diameter": 6, "max_diameter": 40,
+    {"type": "craters", "min_diameter_m": 6, "max_diameter_m": 40,
      "density": {"type": "minimum", "distributions": [
          {"type": "production_surface", "production": "extended_neukum", "chronology": "neukum",
           "age_gyr": 3.5},

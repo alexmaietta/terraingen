@@ -358,7 +358,7 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
             ),
         ),
     )
-    options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter=20.0)
+    options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter_m=20.0)
     secondaries = terraingen.SecondaryCraterLayer(
         primary,
         terraingen.FassettThomsonProfile(),
@@ -373,7 +373,7 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
     rayed = terraingen.SecondaryCraterOptions(
         seed=4,
         onset_count=20.0,
-        min_diameter=20.0,
+        min_diameter_m=20.0,
         rays=terraingen.SecondaryRays(enabled=True, layout=layout),
         shapes=terraingen.SecondaryShapes(elongated_share=1.0),
     )
@@ -393,7 +393,7 @@ def full_apply_options():
         datum=terraingen.CraterDatum.MEAN_HEIGHT,
         interior_replacement=0.5,
         blend=terraingen.CraterBlend(start_radii=0.7, end_radii=1.3, shape=terraingen.BlendShape.LINEAR),
-        fade=terraingen.ResolutionFade(start_samples=1.0, end_samples=2.0),
+        fade_px=(1.0, 2.0),
         irregularity=terraingen.CraterIrregularity(
             enabled=True,
             roughness=terraingen.ValueDistribution(terraingen.ValueDistribution.Kind.UNIFORM, 0.02, 0.05),

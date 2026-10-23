@@ -12,12 +12,12 @@
             "sizes": {
                 "type": "golombek_rapp"
             },
-            "min_diameter": 0.1,
-            "max_diameter": 2.5,
+            "min_diameter_m": 0.1,
+            "max_diameter_m": 2.5,
             "clusters": {
                 "share": 0.6,
-                "spacing": 12,
-                "radius": 2
+                "spacing_m": 12,
+                "radius_m": 2
             },
             "burial_by_wear": 0.8,
             "fillet": {
@@ -25,16 +25,16 @@
                 "width_ratio": 0.3
             },
             "fragmentation": {
-                "min_diameter": 0.8,
+                "min_diameter_m": 0.8,
                 "split_wear": 0.4,
                 "rubble_wear": 0.8
             },
             "relief": "shape",
             "relief_range": {
-                "min_diameter": 0.08
+                "min_diameter_m": 0.08
             },
             "models": {
-                "min_diameter": 0.4
+                "min_diameter_m": 0.4
             }
         }
     ],
