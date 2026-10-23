@@ -41,6 +41,18 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         }
     }
 
+    /// The value held for a key, marked most recently used; null when it is not held.
+    std::shared_ptr<const Value> Find(const Key& key) {
+        Shard& shard = shards_[Hash{}(key) % kShards];
+        const std::lock_guard lock(shard.mutex);
+        const auto found = shard.entries.find(key);
+        if (found == shard.entries.end()) {
+            return nullptr;
+        }
+        shard.recency.splice(shard.recency.begin(), shard.recency, found->second.recent);
+        return found->second.value;
+    }
+
     /// The value for a key, computed by `compute` outside the lock when it is not held.
     /// @throws Whatever `compute` throws; nothing is stored then.
     std::shared_ptr<const Value> Get(const Key& key, const std::function<Value()>& compute) {

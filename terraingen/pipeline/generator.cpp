@@ -171,17 +171,18 @@ void ValidateGenerator(const TerrainGenerator& generator) {
 }
 
 std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d> points,
-                             double spacing, unsigned threads) {
+                             double spacing, unsigned threads, EvaluationCache* cache) {
     ValidateGenerator(generator);
     RequirePositive(spacing, "Sample spacing");
     std::vector<float> heights(points.size());
-    EvaluateBatched(generator, generator.layers.size(), points, heights, spacing, threads, nullptr);
+    EvaluateBatched(generator, generator.layers.size(), points, heights, spacing, threads, cache);
     return heights;
 }
 
-float HeightAt(const TerrainGenerator& generator, double x, double y, double spacing) {
+float HeightAt(const TerrainGenerator& generator, double x, double y, double spacing,
+               EvaluationCache* cache) {
     const Vec2d point{x, y};
-    return HeightsAt(generator, {&point, 1}, spacing)[0];
+    return HeightsAt(generator, {&point, 1}, spacing, 0, cache)[0];
 }
 
 TerrainGround::TerrainGround(const TerrainGenerator& generator, std::size_t layers,

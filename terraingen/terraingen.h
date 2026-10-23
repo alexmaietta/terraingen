@@ -79,6 +79,7 @@
 #include "terraingen/layers/craters/shaping/resolved_state.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/dunes.h"
+#include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/ground.h"

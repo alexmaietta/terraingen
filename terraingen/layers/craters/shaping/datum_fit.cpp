@@ -700,4 +700,27 @@ void FitPointDatums(std::vector<PreparedCrater>& prepared, const std::vector<std
     }
 }
 
+bool UseCachedDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::size_t>& fitted,
+                     const CraterShapeModels& models, const CraterApplyOptions& options,
+                     const CraterSampling& sampling) {
+    if (sampling.cache == nullptr) {
+        return false;
+    }
+    std::vector<PreparedCrater> found;
+    for (const std::size_t k : fitted) {
+        const auto datum = sampling.cache->Find<std::optional<Plane>>(
+            sampling.owner, prepared[k].crater.id, sampling.spacing);
+        if (!datum) {
+            return false;
+        }
+        found.push_back(prepared[k]);
+        found.back().datum = *datum;
+    }
+    ShapeOnSlopes(found, sampling.ground, sampling.groundBatch, models, options);
+    for (std::size_t n = 0; n < fitted.size(); ++n) {
+        prepared[fitted[n]] = std::move(found[n]);
+    }
+    return true;
+}
+
 }  // namespace terraingen

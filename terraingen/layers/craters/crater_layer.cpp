@@ -199,10 +199,15 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     }
     const double spacing = samples.ResolvedSpacing(context.spacing, options_.surface);
     const Bounds2d bounds = samples.Bounds();
+    const CraterSampling sampling = SamplingFrom(context, spacing, this);
+    if (grid == nullptr && options_.apply.datum != CraterDatum::None && context.cache != nullptr &&
+        ApplyCratersOnCachedDatums(samples, Craters(bounds, spacing), models_.Shape(),
+                                   options_.apply, sampling)) {
+        return;
+    }
     const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
     const CraterList craters = Craters(options_.surface.Expand(bounds, margin), spacing);
-    ApplyCraters(samples, craters, models_.Shape(), options_.apply,
-                 SamplingFrom(context, spacing, this));
+    ApplyCraters(samples, craters, models_.Shape(), options_.apply, sampling);
 }
 
 CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {

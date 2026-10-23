@@ -27,4 +27,10 @@ void FitPointDatums(std::vector<PreparedCrater>& prepared, const std::vector<std
                     const CraterShapeModels& models, const CraterShapeKernel& kernel,
                     const CraterApplyOptions& options, const CraterSampling& sampling);
 
+/// Gives craters `fitted` of `prepared` their datums from `sampling.cache`, as `FitPointDatums`
+/// kept them, and their shapes on slopes; false, changing nothing, when any datum is not held.
+bool UseCachedDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::size_t>& fitted,
+                     const CraterShapeModels& models, const CraterApplyOptions& options,
+                     const CraterSampling& sampling);
+
 }  // namespace terraingen

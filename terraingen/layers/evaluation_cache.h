@@ -16,11 +16,11 @@
 namespace terraingen {
 
 /// Values that depend only on the terrain beneath a layer, such as crater datums, computed once
-/// per evaluation of points and shared by its batches; thread-safe.
+/// and shared by the batches of point queries that pass it; thread-safe.
 ///
-/// An evaluation makes one and drops it at its end, so a value never outlives the terrain it was
-/// computed for. Keys name the layer that owns the value (`owner`), a feature ID and the sample
-/// spacing.
+/// Keys name the layer that owns the value (`owner`), a feature ID and the sample spacing, so a
+/// cache belongs to one generator: keep it across repeated queries of that generator and start a
+/// new one after changing its source or layers.
 class EvaluationCache {
   public:
     /// An empty cache holding at most `capacity` values.
@@ -35,6 +35,14 @@ class EvaluationCache {
         const std::shared_ptr<const Holder> held =
             values_.Get(key, [&] { return Holder{std::make_shared<const T>(compute())}; });
         return std::static_pointer_cast<const T>(held->value);
+    }
+
+    /// The value of `owner` for feature `id` at `spacing` when held, else null.
+    template <typename T>
+    std::shared_ptr<const T> Find(const void* owner, std::uint64_t id, double spacing) {
+        const Key key{reinterpret_cast<std::uintptr_t>(owner), id, BitCast<std::uint64_t>(spacing)};
+        const std::shared_ptr<const Holder> held = values_.Find(key);
+        return held ? std::static_pointer_cast<const T>(held->value) : nullptr;
     }
 
   private:

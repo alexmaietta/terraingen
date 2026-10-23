@@ -92,6 +92,21 @@ def test_evaluate_takes_a_backend_and_cpu_is_exact(small_config):
     np.testing.assert_allclose(auto, cpu, rtol=1e-4, atol=1e-4)
 
 
+def test_point_queries_keep_crater_datums_in_an_evaluation_cache(small_config):
+    for layer in small_config["layers"]:
+        if layer["type"] == "craters":
+            layer.setdefault("apply", {})["datum"] = "plane"
+    terrain = terraingen.build_generator(terraingen.TerrainGenConfig.from_dict(small_config))
+    points = np.column_stack([np.linspace(-20.0, 20.0, 40), np.linspace(15.0, -15.0, 40)])
+    fresh = terraingen.heights_at(terrain, points, 0.5)
+    cache = terraingen.EvaluationCache()
+    np.testing.assert_array_equal(terraingen.heights_at(terrain, points, 0.5, cache=cache), fresh)
+    np.testing.assert_array_equal(terraingen.heights_at(terrain, points, 0.5, cache=cache), fresh)
+    for (x, y), height in zip(points[::7], fresh[::7], strict=True):
+        assert terraingen.height_at(terrain, x, y, 0.5, cache=cache) == height
+    assert terraingen.height_at(terrain, *points[3], 0.5, cache=terraingen.EvaluationCache(16)) == fresh[3]
+
+
 def albedo_config(small_config):
     small_config["albedo"] = terraingen.config_catalog()["albedo"]
     heightmap = small_config["outputs"][0]

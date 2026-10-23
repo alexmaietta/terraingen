@@ -80,6 +80,26 @@ void BM_HeightAtDatum(benchmark::State& state) {
 }
 BENCHMARK(BM_HeightAtDatum);
 
+/// `BM_HeightAtDatum` with one `EvaluationCache` kept across calls, as a simulation stepping over
+/// the same ground would: datums are fitted once and reused.
+void BM_HeightAtDatumCached(benchmark::State& state) {
+    static const TerrainGenerator terrain =
+        LunarMare(4096.0, 1.0, 200.0, 4000000, CraterDatum::Plane);
+    std::vector<Vec2d> points = Patch(0.0, 0.0);
+    points.resize(400);
+    EvaluationCache cache;
+    for (const Vec2d& point : points) {
+        HeightAt(terrain, point.x, point.y, 0.25, &cache);
+    }
+    for (auto _ : state) {
+        for (const Vec2d& point : points) {
+            benchmark::DoNotOptimize(HeightAt(terrain, point.x, point.y, 0.25, &cache));
+        }
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(points.size()));
+}
+BENCHMARK(BM_HeightAtDatumCached);
+
 /// Queries with no cell cache, so every point regenerates the cells around it, over the first 64
 /// points of a patch.
 void BM_HeightAtUncached(benchmark::State& state) {

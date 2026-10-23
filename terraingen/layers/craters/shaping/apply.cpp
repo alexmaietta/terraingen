@@ -256,6 +256,33 @@ void ShapePoints(SampleBlock& samples, const std::vector<ReachingCrater>& reachi
     });
 }
 
+/// Shapes the craters reaching `samples` at their points, with datums fitted, or with `cached`
+/// taken from `sampling.cache`; false, leaving the samples as they are, when a datum is not held.
+bool ApplyAtPoints(SampleBlock& samples, const CraterList& craters, const CraterShapeModels& models,
+                   const CraterApplyOptions& options, const CraterSampling& sampling, bool cached) {
+    const CraterProfile& profile = *models.profile;
+    std::vector<PreparedCrater> prepared =
+        PrepareCraters(craters, options, sampling.spacing, models, sampling.reshape);
+    const std::vector<ReachingCrater> reaching =
+        CratersReaching(samples, prepared, CraterReachRadii(profile, options), options.surface);
+    const CraterShapeKernel kernel = MakeCraterShapeKernel(profile, options);
+    std::vector<std::size_t> indices;
+    for (const ReachingCrater& crater : reaching) {
+        indices.push_back(static_cast<std::size_t>(crater.prepared - prepared.data()));
+    }
+    if (options.datum != CraterDatum::None && !reaching.empty()) {
+        if (!cached) {
+            FitPointDatums(prepared, indices, models, kernel, options, sampling);
+        } else if (!UseCachedDatums(prepared, indices, models, options, sampling)) {
+            return false;
+        }
+    }
+    const CraterKernelBatch batch =
+        MakeCraterKernelBatch(kernel, profile, prepared, indices, options);
+    ShapePoints(samples, reaching, kernel, batch, options.surface);
+    return true;
+}
+
 }  // namespace
 
 CraterSampling SamplingFrom(const LayerContext& context, double spacing, const void* owner) {
@@ -326,22 +353,22 @@ void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterS
     if (samples.Size() == 0 || craters.Empty()) {
         return;
     }
-    const CraterProfile& profile = *models.profile;
-    std::vector<PreparedCrater> prepared =
-        PrepareCraters(craters, options, sampling.spacing, models, sampling.reshape);
-    const std::vector<ReachingCrater> reaching =
-        CratersReaching(samples, prepared, CraterReachRadii(profile, options), options.surface);
-    const CraterShapeKernel kernel = MakeCraterShapeKernel(profile, options);
-    std::vector<std::size_t> indices;
-    for (const ReachingCrater& crater : reaching) {
-        indices.push_back(static_cast<std::size_t>(crater.prepared - prepared.data()));
+    ApplyAtPoints(samples, craters, models, options, sampling, false);
+}
+
+bool ApplyCratersOnCachedDatums(SampleBlock& samples, const CraterList& craters,
+                                const CraterShapeModels& models, const CraterApplyOptions& options,
+                                const CraterSampling& sampling) {
+    if (samples.Grid() != nullptr || options.datum == CraterDatum::None ||
+        sampling.cache == nullptr || !sampling.ground) {
+        return false;
     }
-    if (options.datum != CraterDatum::None && !reaching.empty()) {
-        FitPointDatums(prepared, indices, models, kernel, options, sampling);
+    ValidateCraterApplyOptions(options);
+    RequirePositive(sampling.spacing, "Sample spacing");
+    if (samples.Size() == 0 || craters.Empty()) {
+        return true;
     }
-    const CraterKernelBatch batch =
-        MakeCraterKernelBatch(kernel, profile, prepared, indices, options);
-    ShapePoints(samples, reaching, kernel, batch, options.surface);
+    return ApplyAtPoints(samples, craters, models, options, sampling, true);
 }
 
 }  // namespace terraingen

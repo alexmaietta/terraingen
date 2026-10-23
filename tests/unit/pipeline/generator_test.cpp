@@ -360,6 +360,25 @@ TEST(HeightAt, EqualsGridsForCratersCutToADatum) {
     }
 }
 
+TEST(HeightAt, EqualsGridsForCratersCutToADatumWithDatumsKeptAcrossCalls) {
+    for (const auto datum :
+         {terraingen::CraterDatum::Plane, terraingen::CraterDatum::CenterHeight}) {
+        const TerrainGenerator terrain = Datum(datum);
+        const auto grid = Evaluate(terrain);
+        terraingen::EvaluationCache cache;
+        for (std::size_t pass = 0; pass < 2; ++pass) {
+            for (std::size_t row = 1 + pass; row < grid.Height(); row += 4) {
+                for (std::size_t col = 2; col < grid.Width(); col += 3) {
+                    const auto center = grid.CellCenter(col, row);
+                    ASSERT_EQ(terraingen::HeightAt(terrain, center.x, center.y, 2.0, &cache),
+                              grid(col, row))
+                        << "pass " << pass << " at " << col << "," << row;
+                }
+            }
+        }
+    }
+}
+
 TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
     const TerrainGenerator terrain = Datum();
     const terraingen::TerrainGround source(terrain, 0);

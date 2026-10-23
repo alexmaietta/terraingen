@@ -84,4 +84,12 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
 void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterShapeModels& models,
                   const CraterApplyOptions& options = {}, const CraterSampling& sampling = {});
 
+/// `ApplyCraters` at points with a datum, taking every datum from `sampling.cache` so `craters`
+/// need only reach the points, not the craters beneath their datums; false, leaving the samples as
+/// they are, for a grid, without a datum, cache or ground, or when a datum is not held yet.
+/// @throws std::invalid_argument as `ApplyCraters`.
+bool ApplyCratersOnCachedDatums(SampleBlock& samples, const CraterList& craters,
+                                const CraterShapeModels& models, const CraterApplyOptions& options,
+                                const CraterSampling& sampling);
+
 }  // namespace terraingen

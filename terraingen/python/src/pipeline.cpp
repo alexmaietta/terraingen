@@ -10,6 +10,7 @@
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
+#include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/pipeline/body_mesh.h"
 #include "terraingen/pipeline/generator.h"
 #include "terraingen/pipeline/mesh_build.h"
@@ -34,7 +35,7 @@ std::filesystem::path Directory(const OptionalPath& directory) {
 
 /// `HeightsAt` over the rows of an (n, 2) array, as a float32 array.
 nb::object HeightsAtArray(const PyTerrainGenerator& generator, const CpuMatrix<double>& points,
-                          double spacing, unsigned threads) {
+                          double spacing, unsigned threads, EvaluationCache* cache) {
     std::vector<Vec2d> positions;
     for (const auto& row : Rows<2>(points)) {
         positions.push_back({row[0], row[1]});
@@ -42,7 +43,7 @@ nb::object HeightsAtArray(const PyTerrainGenerator& generator, const CpuMatrix<d
     std::vector<float> heights;
     {
         nb::gil_scoped_release release;
-        heights = HeightsAt(generator.Get(), positions, spacing, threads);
+        heights = HeightsAt(generator.Get(), positions, spacing, threads, cache);
     }
     return Column(std::move(heights));
 }
@@ -163,18 +164,28 @@ void BindEvaluation(nb::module_& m) {
         "`spacing` meters (0 for the grid's), on up to `threads` threads (0 for every hardware "
         "thread; the result does not depend on it), on `backend` (None for default_backend()). "
         "On Vulkan the heights match the CPU to within float rounding.");
+    nb::class_<EvaluationCache>(
+        m, "EvaluationCache",
+        "Values point queries keep between calls, such as fitted crater datums: pass one to "
+        "repeated `height_at` and `heights_at` calls of a generator so they are computed once. A "
+        "cache belongs to one generator; start a new one after changing its source or layers.")
+        .def(nb::init<std::size_t>(), "capacity"_a = std::size_t{1} << 20U,
+             "A cache holding at most `capacity` values.");
     m.def(
         "height_at",
-        [](const PyTerrainGenerator& generator, double x, double y, double spacing) {
-            return HeightAt(generator.Get(), x, y, spacing);
-        },
-        "generator"_a, "x"_a, "y"_a, "spacing"_a, nb::call_guard<nb::gil_scoped_release>(),
+        [](const PyTerrainGenerator& generator, double x, double y, double spacing,
+           EvaluationCache* cache) { return HeightAt(generator.Get(), x, y, spacing, cache); },
+        "generator"_a, "x"_a, "y"_a, "spacing"_a, "cache"_a = nb::none(),
+        nb::call_guard<nb::gil_scoped_release>(),
         "The generator's height at (x, y) sampled every `spacing` meters; equal to the cell "
-        "centered there of `evaluate`.");
+        "centered there of `evaluate`. `cache`, an EvaluationCache, keeps values such as crater "
+        "datums for later calls.");
     m.def("heights_at", &HeightsAtArray, "generator"_a, "points"_a, "spacing"_a, "threads"_a = 0,
+          "cache"_a = nb::none(),
           "The generator's heights at `points`, an array of shape (n, 2) in surface coordinates, "
           "sampled every `spacing` meters, as a float32 array; each equals `height_at` there. "
-          "Batches of points are much faster than one call per point.");
+          "Batches of points are much faster than one call per point. `cache`, an "
+          "EvaluationCache, keeps values such as crater datums for later calls.");
     m.def(
         "fill_heights",
         [](const PyTerrainGenerator& generator, const RasterGrid& grid, CpuOutMatrix<float> heights,
