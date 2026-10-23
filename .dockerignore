@@ -3,8 +3,6 @@ build/
 build-*/
 assets/
 demos/
-docs/_build/
-docs/_doxygen/
 dist/
 site/
 .venv/
@@ -19,5 +17,4 @@ validation/
 TODO.md
 ARCHITECTURE.md
 SCIENCE.md
-DESIGN.md
 CMakeUserPresets.json
