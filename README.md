@@ -31,13 +31,13 @@ TerrainGen can:
 
 We also provide:
 
-- A modular C++ library with Python bindings and minimal dependencies.
+- A C++17 library with Python bindings and minimal dependencies.
 - Smart and tested defaults for various surface features.
 - A command-line interface that generates terrain from JSON configuration files.
 - A GUI for editing configurations and viewing the results in 3D.
 - Examples in C++, Python and JSON.
 - A standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
-- Example integrations with third-party tools such as Project Chrono, IsaacLab, and Newton.
+- Example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
 
 For more information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
 
@@ -134,7 +134,7 @@ int main() {
 
 ### Examples
 
-[examples/](examples/) has the same terrains as JSON configurations, C++ programs and Python scripts, covering basic terrains, craters, boulders, albedo, planets, DEM detail and tiles:
+[examples/](examples/) has the same terrains as JSON configurations, C++ programs and Python scripts, covering basic terrains, craters, boulders, albedo, planets, and DEM detail:
 
 ```sh
 terraingen examples/config/craters/example_craters_simple.json
