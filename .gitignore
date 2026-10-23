@@ -3,6 +3,7 @@ site/
 .mkdoxy/
 build/
 build-*/
+_build/
 
 CMakeUserPresets.json
 
