@@ -77,12 +77,12 @@ TEST(Cli, PrintsHelpAndVersion) {
     EXPECT_NE(help.out.find("-h, --help"), std::string::npos);
 }
 
-TEST(Cli, PrintsTheConfigCatalog) {
+TEST(Cli, PrintsTheConfigSchema) {
     const Result schema = Cli({"schema"});
     ASSERT_EQ(schema.code, kExitSuccess);
-    const nlohmann::json catalog = nlohmann::json::parse(schema.out);
-    EXPECT_TRUE(catalog.contains("layers"));
-    EXPECT_TRUE(catalog["models"].contains("density"));
+    const nlohmann::json parsed = nlohmann::json::parse(schema.out);
+    EXPECT_TRUE(parsed.contains("root"));
+    EXPECT_TRUE(parsed.contains("definitions"));
     EXPECT_EQ(Cli({"schema", "extra"}).code, kExitUsage);
 }
 

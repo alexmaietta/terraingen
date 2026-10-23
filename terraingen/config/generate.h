@@ -4,11 +4,11 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/config/config.h"
-#include "terraingen/config/report.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/mesh.h"
-#include "terraingen/pipeline/features.h"
+#include "terraingen/pipeline/feature_lists.h"
 #include "terraingen/pipeline/generator.h"
+#include "terraingen/pipeline/report.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
@@ -55,12 +55,8 @@ struct GeneratedOutputs {
     GeoKeys geoKeys{};
     double seconds = 0.0;            ///< Wall-clock time the outputs took to generate.
     Backend backend = Backend::Cpu;  ///< Where the heights were evaluated: `Cpu` or a GPU backend.
-    /// The report, for a configuration with a report output: a `GridReport` per grid with
-    /// heights, with the craters and boulders listed over it only where a list or boulder models
-    /// output asked for them (none are placed for the report alone), and the first top-level crater
-    /// layer's density as the crater target; per-layer timings over every evaluation; the backend,
-    /// threads, the top-level "seed" of each layer that has one (a region's from its inner
-    /// layer), `seconds` and version.
+    /// The report, for a configuration with a report output; craters and boulders are reported
+    /// only over grids a list or boulder models output placed them on.
     std::optional<TerrainReport> report{};
 
     /// The only grid.
@@ -90,36 +86,6 @@ GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& config,
 
 /// One line describing a generated terrain, such as "Generated a WxH terrain in S s".
 std::string Summary(const GeneratedOutputs& generated);
-
-/// Writes craters as CSV (columns x, y, diameter, age_gyr, id, manual) or as JSON
-/// ({"craters": [{"x": ..., "y": ..., ...}]}), with doubles written exactly. With an attributes
-/// entry for every crater, each also gets floor_depth, rim_height, depth_ratio, freshness and
-/// complex.
-/// @throws std::invalid_argument for `attributes` that are neither empty nor one per crater.
-/// @throws std::runtime_error if the file cannot be written.
-void WriteCraterList(const CraterList& craters, const std::filesystem::path& path,
-                     ListFormat format, const std::vector<CraterAttributes>& attributes = {});
-
-/// Writes boulders as CSV (columns x, y, ground, diameter, height, burial, yaw_deg, lean_deg, id,
-/// model, wear, parent, piece, rest, tilt_deg and tilt_azimuth_deg, angles in degrees) or as JSON
-/// ({"boulders": [...]}) with the same keys, doubles written exactly and an unknown ground left
-/// empty (CSV) or null (JSON).
-/// @throws std::runtime_error if the file cannot be written.
-void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesystem::path& path,
-                      ListFormat format);
-
-/// Writes boulder models as a scene (`WriteScene`): each shape once with crease normals and its
-/// material, drawn once per boulder (glTF), one object per boulder (OBJ) or one merged mesh
-/// (STL). On a sphere the world is the east-north-up frame of `site` on the datum sphere
-/// (`PlacementAtSite`), so coordinates stay small; `WriteOutputs` uses the grid's center.
-/// @param creaseAngle Angle in degrees, from 0 to 180, above which normals are split.
-/// @param instanced Whether shared shapes are written once and drawn per boulder; otherwise each
-/// boulder is written as its own mesh, already placed, for tools without instancing.
-/// @throws std::invalid_argument for no boulders, an angle outside [0, 180] or as `WriteScene`.
-/// @throws std::runtime_error if the file cannot be written.
-void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
-                        const std::filesystem::path& path, double creaseAngle = 60.0,
-                        const Surface& surface = {}, const Vec2d& site = {}, bool instanced = true);
 
 /// Writes each output of a configuration that has a path from what `GenerateFromConfig`
 /// returned, computing nothing, and returns the paths written: rasters with `generated.geoKeys`,

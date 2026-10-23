@@ -9,7 +9,6 @@
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
 #include "terraingen/pipeline/body_mesh.h"
-#include "terraingen/pipeline/features.h"
 #include "terraingen/pipeline/generator.h"
 #include "terraingen/pipeline/mesh_build.h"
 
@@ -342,19 +341,6 @@ void BindConfigQueries(nb::class_<TerrainGenConfig>& config) {
             "directory"_a = nb::none(),
             "The Surface the configuration's terrain lies on; a shape model's path resolves "
             "against `directory`.")
-        .def(
-            "source_grid",
-            [](const TerrainGenConfig& c,
-               const OptionalPath& directory) -> std::optional<RasterGrid> {
-                if (!c.source) {
-                    return std::nullopt;
-                }
-                return DescribeSource(*c.source, Directory(directory),
-                                      BuildSurface(c.body, Directory(directory)));
-            },
-            "directory"_a = nb::none(),
-            "The grid the configuration's source covers, reading only a raster's header; None "
-            "without a source or for synthetic noise, which has no bounds.")
         .def(
             "output_grids",
             [](const TerrainGenConfig& c, const OptionalPath& directory) {

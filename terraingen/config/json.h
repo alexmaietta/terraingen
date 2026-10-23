@@ -34,7 +34,7 @@ class ConfigError : public std::runtime_error {
 ///      "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 50}]},
 ///                 {"type": "craters",
 ///                  "density": {"type": "production_surface", "age_gyr": 3.5},
-///                  "rim_smoothing": {"sigma_radii": 0.05}}],
+///                  "apply": {"rim_smoothing": {"sigma_radii": 0.05}}}],
 ///      "outputs": [{"type": "heightmap", "path": "terrain.tif",
 ///                   "pixel_size_m": 2,
 ///                   "extent_m": {"center": [0, 0], "size": [1026, 1026]}}]}

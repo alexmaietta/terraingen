@@ -51,7 +51,7 @@ GuiArgs ParseGuiArgs(const std::vector<std::string>& args);
 ///   NAME (one of `kBackendNames`; by default `DefaultBackend()`) is where the heights are
 ///   evaluated;
 /// - `validate CONFIG` checks CONFIG without generating and reports its grid and expected craters;
-/// - `schema` prints every configuration type with its defaults (`ConfigCatalog`);
+/// - `schema` prints the structure of a configuration for editors (`ConfigSchema`);
 /// - `backends` prints each backend with its device or why it is unavailable, then the default;
 /// - `[PATH] --gui [--threads N] [--backend NAME]`, `--gui` anywhere, opens the GUI (`RunGui`) on
 ///   PATH or the starter terrain, generating on NAME as above;

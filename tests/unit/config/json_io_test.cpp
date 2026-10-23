@@ -1,4 +1,5 @@
 #include "configs.h"
+#include "terraingen/config/fields/json_io.h"
 #include "terraingen/layers/bedforms.h"
 
 #include <gtest/gtest.h>
@@ -22,6 +23,7 @@ using terraingen::LoadConfig;
 using terraingen::ParseConfig;
 using terraingen::TerrainGenConfig;
 using terraingen::testing::ParseErrorPath;
+using terraingen::testing::SpecJson;
 
 namespace {
 
@@ -48,7 +50,7 @@ TerrainGenConfig Everything() {
     terraingen::DuneOptions flowing = terraingen::MarsTransverseDunes();
     flowing.grainflows = terraingen::MarsDuneGrainflows();
     terraingen::NoiseLayerSpec noise;
-    terraingen::NoiseLayerConfig second;
+    terraingen::NoiseStackLayerSpec second;
     second.layer.blend = terraingen::LayerBlend::Mask;
     second.layer.fractal.basis = terraingen::NoiseBasis::WorleyF2MinusF1;
     second.layer.fractal.type = terraingen::FractalType::Ridged;
@@ -56,7 +58,7 @@ TerrainGenConfig Everything() {
     second.layer.warpAmplitude = 12.5f;
     second.hurst = 0.8f;
     noise.stack.push_back(second);
-    noise.estimateFromBase = true;
+    noise.estimateFromSource = true;
     CraterLayerSpec craters;
     craters.generateRandom = false;
     craters.morphometry = terraingen::CraterMorphometryFit::Mars;
@@ -246,7 +248,7 @@ TerrainGenConfig Everything() {
     roughness.roughness.minWavelength = 0.005;
     roughness.roughness.seed = 9;
     roughness.roughness.fade = {1.5, 5.0};
-    roughness.estimateFromBase = true;
+    roughness.estimateFromSource = true;
     config.layers = {
         noise,
         craters,
@@ -332,18 +334,18 @@ TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheBase) {
         "layers": [{"type": "roughness", "estimate_from_base": true, "hurst": 0.7},
                    {"type": "noise", "estimate_from_base": true, "stack": [{"wavelength": 4}]}]})");
     const auto& roughness = std::get<terraingen::RoughnessLayerSpec>(config.layers[0]);
-    EXPECT_TRUE(roughness.estimateFromBase);
+    EXPECT_TRUE(roughness.estimateFromSource);
     EXPECT_EQ(roughness.hurst, 0.7);
     EXPECT_FALSE(roughness.rmsSlope);
     const auto& noise = std::get<terraingen::NoiseLayerSpec>(config.layers[1]);
-    EXPECT_TRUE(noise.estimateFromBase);
+    EXPECT_TRUE(noise.estimateFromSource);
     EXPECT_FALSE(noise.stack[0].amplitude);
     const std::string json = ConfigToJson(config);
     EXPECT_NE(json.find("\"rms_slope\": null"), std::string::npos) << json;
     EXPECT_EQ(ParseConfig(json), config);
     const TerrainGenConfig plain =
         ParseConfig(R"({"schema_version": 1, "layers": [{"type": "roughness"}]})");
-    EXPECT_FALSE(std::get<terraingen::RoughnessLayerSpec>(plain.layers[0]).estimateFromBase);
+    EXPECT_FALSE(std::get<terraingen::RoughnessLayerSpec>(plain.layers[0]).estimateFromSource);
 }
 
 TEST(ConfigJson, ReadsGeoTiffCropsAndSourceResolvedLimits) {
@@ -355,7 +357,8 @@ TEST(ConfigJson, ReadsGeoTiffCropsAndSourceResolvedLimits) {
     const auto& raster = std::get<terraingen::RasterSourceSpec>(*config.source);
     EXPECT_EQ(raster.read.crop, (terraingen::Bounds2d{1000.0, 1900.0, 1100.5, 1950.0}));
     EXPECT_EQ(raster.read.effectivePixelSize, 20.0);
-    EXPECT_EQ(raster.upsampling, terraingen::UpsamplingSpec{}) << "cubic by default";
+    EXPECT_EQ(SpecJson(raster.upsampling), SpecJson(terraingen::UpsamplingSpec{}))
+        << "cubic by default";
     EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).sourceResolvesPixels, 3.5);
     EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     const TerrainGenConfig unset = ParseConfig(R"({"schema_version": 1,
@@ -473,7 +476,7 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
     named.type = "my_upsampler";
     terraingen::SyntheticSourceSpec synthetic;
     synthetic.elevation = -100.0;
-    synthetic.stack = {terraingen::NoiseLayerConfig{}};
+    synthetic.stack = {terraingen::NoiseStackLayerSpec{}};
     synthetic.pixelSize = 4.0;
     synthetic.upsampling = lanczos;
     for (const terraingen::SourceSpec& source :
@@ -514,8 +517,8 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     synthetic.hue = 30.0;
     synthetic.saturation = 0.1;
     synthetic.value = 0.2;
-    synthetic.valueNoise = {terraingen::NoiseLayerConfig{{}, 0.8f, {}}};
-    synthetic.hueNoise = {terraingen::NoiseLayerConfig{}};
+    synthetic.valueNoise = {terraingen::NoiseStackLayerSpec{{}, 0.8f, {}}};
+    synthetic.hueNoise = {terraingen::NoiseStackLayerSpec{}};
     terraingen::CraterAlbedoSpec craters;
     craters.craterLayer = 1;
     craters.options.selection.maxDiameter = 5000.0;
@@ -589,8 +592,8 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
     EXPECT_EQ(ParseConfig(ConfigToJson(ellipsoid)), ellipsoid);
     const TerrainGenConfig shape = ParseConfig(R"({"schema_version": 1, "body": {
         "type": "shape_model", "path": "itokawa.icq", "q": 64, "meters_per_unit": 1000}})");
-    EXPECT_EQ(std::get<terraingen::ShapeModelSurfaceSpec>(shape.body),
-              (terraingen::ShapeModelSurfaceSpec{"itokawa.icq", 64, 1000.0}));
+    EXPECT_EQ(SpecJson(std::get<terraingen::ShapeModelSurfaceSpec>(shape.body)),
+              SpecJson(terraingen::ShapeModelSurfaceSpec{"itokawa.icq", 64, 1000.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(shape)), shape);
     EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(
         ParseConfig(R"({"schema_version": 1})").body));
@@ -606,10 +609,9 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
                     {"type": "report"}]})");
     EXPECT_EQ(std::get<terraingen::RasterSourceSpec>(*based.source).path, "dem.tif");
     EXPECT_EQ(std::get<terraingen::MeshOutput>(based.outputs.at(0)).cellsPerFace, 64u);
-    terraingen::OutputAreaSpec area;
-    area.pixelSize = 4.0;
-    area.extentM = terraingen::ExtentSpec{{30.0, -45.0}, {40.0, 80.0}, {}, {}};
-    EXPECT_EQ(std::get<terraingen::HeightmapOutput>(based.outputs.at(1)).area, area);
+    const auto& area = std::get<terraingen::HeightmapOutput>(based.outputs.at(1)).area;
+    EXPECT_EQ(area.pixelSize, 4.0);
+    EXPECT_EQ(area.extentM, (terraingen::ExtentSpec{{30.0, -45.0}, {40.0, 80.0}, {}, {}}));
     EXPECT_EQ(std::get<terraingen::ReportOutput>(based.outputs.at(2)).path, "");
     EXPECT_EQ(ParseConfig(ConfigToJson(based)), based);
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "outputs": [{"type": "heightmap",
@@ -645,11 +647,11 @@ TEST(ConfigJson, ReadsProductionSurfacesMinimumsAndSteadyStateAges) {
         {terraingen::ProductionSurfaceSpec{terraingen::ProductionFunction::Ivanov,
                                            terraingen::ChronologyModel::Ivanov, 2.5},
          terraingen::TraskSpec{}}};
-    EXPECT_EQ(craters.density, DensitySpec{expected});
+    EXPECT_EQ(SpecJson(craters.density), SpecJson(DensitySpec{expected}));
     const terraingen::SteadyStateAgesSpec ages{2.5, terraingen::ProductionFunction::Neukum,
                                                terraingen::EquilibriumModel::Hartmann,
                                                terraingen::ChronologyModel::Ivanov};
-    EXPECT_EQ(craters.ages, AgesSpec{ages});
+    EXPECT_EQ(SpecJson(craters.ages), SpecJson(AgesSpec{ages}));
     const TerrainGenConfig secondaries = ParseConfig(R"({"schema_version": 1, "layers": [
         {"type": "craters"}, {"type": "secondaries", "onset_count": 3, "morphometry": "lunar"}]})");
     EXPECT_EQ(std::get<terraingen::SecondaryLayerSpec>(secondaries.layers.at(1)).morphometry,
@@ -663,7 +665,8 @@ TEST(ConfigJson, ReadsFreshnessAgesWithTheirDistribution) {
                  "freshness": {"kind": "normal", "a": 0.35, "b": 0.1}}}]})");
     const terraingen::FreshnessAgesSpec normal{
         1.5, {terraingen::ValueDistribution::Kind::Normal, 0.35, 0.1, 0.0, 1.0}};
-    EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).ages, AgesSpec{normal});
+    EXPECT_EQ(SpecJson(std::get<CraterLayerSpec>(config.layers.at(0)).ages),
+              SpecJson(AgesSpec{normal}));
     const TerrainGenConfig shaped = ParseConfig(R"({"schema_version": 1, "layers": [{
         "type": "craters",
         "ages": {"type": "freshness",
@@ -682,11 +685,11 @@ TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {
     const auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
     const terraingen::MinimumSpec density{
         {terraingen::ProductionSurfaceSpec{}, terraingen::HartmannSpec{}}};
-    EXPECT_EQ(craters.density, DensitySpec{density});
+    EXPECT_EQ(SpecJson(craters.density), SpecJson(DensitySpec{density}));
     const terraingen::SteadyStateAgesSpec ages{3.5, terraingen::ProductionFunction::ExtendedNeukum,
                                                terraingen::EquilibriumModel::Hartmann,
                                                terraingen::ChronologyModel::Neukum};
-    EXPECT_EQ(craters.ages, AgesSpec{ages});
+    EXPECT_EQ(SpecJson(craters.ages), SpecJson(AgesSpec{ages}));
     EXPECT_TRUE(std::holds_alternative<terraingen::DiffusionDegradationSpec>(craters.degradation));
     EXPECT_TRUE(craters.apply.irregularity.enabled);
     EXPECT_EQ(craters.minDiameter, 2.5);
@@ -695,7 +698,7 @@ TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {
         "craters", "density": {"type": "production_surface"}}]})");
     const auto& production = std::get<terraingen::ProductionSurfaceSpec>(
         std::get<CraterLayerSpec>(surface.layers.at(0)).density);
-    EXPECT_EQ(production, terraingen::ProductionSurfaceSpec{});
+    EXPECT_EQ(SpecJson(production), SpecJson(terraingen::ProductionSurfaceSpec{}));
 }
 
 TEST(ConfigJson, RejectsUnknownProductionsChronologiesAndMorphometries) {
@@ -845,4 +848,22 @@ TEST(LoadConfig, ReadsFilesAndReportsUnreadableOnes) {
     EXPECT_EQ(LoadConfig(path), Everything());
     std::filesystem::remove(path);
     EXPECT_THROW(LoadConfig(path), ConfigError);
+}
+
+TEST(TypedJson, PutsTheTypeBeforeTheFields) {
+    const terraingen::config::Json fields = {{"a", 1}, {"b", "x"}};
+    const terraingen::config::Json typed = terraingen::config::TypedJson("kind", fields);
+    EXPECT_EQ(typed.dump(), R"({"type":"kind","a":1,"b":"x"})");
+}
+
+TEST(ParseConfig, ReadsTheDocumentedExample) {
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1,
+        "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 50}]},
+                   {"type": "craters",
+                    "density": {"type": "production_surface", "age_gyr": 3.5},
+                    "apply": {"rim_smoothing": {"sigma_radii": 0.05}}}],
+        "outputs": [{"type": "heightmap", "path": "terrain.tif",
+                     "pixel_size_m": 2,
+                     "extent_m": {"center": [0, 0], "size": [1026, 1026]}}]})");
+    EXPECT_EQ(config.layers.size(), 2u);
 }

@@ -1,5 +1,5 @@
-#include "terraingen/config/report.h"
 #include "terraingen/distribution/power_law.h"
+#include "terraingen/pipeline/report.h"
 #include "terraingen/util/geometry.h"
 
 #include <gtest/gtest.h>
@@ -255,9 +255,8 @@ TEST(ReportGrid, CountsBouldersModelsAndCover) {
 
 TEST(LayerTimer, SumsEachLayersTimeInSeconds) {
     LayerTimer timer{{"noise", "craters"}};
-    const auto callback = timer.Callback();
-    callback(1, 1500.0);
-    callback(1, 500.0);
+    timer.Add(1, 1500.0);
+    timer.Add(1, 500.0);
     timer.Add(0, 250.0);
     const std::vector<LayerTiming>& timings = timer.Timings();
     ASSERT_EQ(timings.size(), 2u);

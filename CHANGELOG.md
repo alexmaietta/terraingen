@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `terraingen schema` prints the configuration schema (`ConfigSchema`); the catalog of types with their defaults stays available as Python `config_catalog()`.
+- Every number in a configuration must be finite, and such errors name the number itself, such as `layers[1].manual[0].x`.
+- `terraingen/config/report.h` is now `terraingen/pipeline/report.h`; `WriteCraterList`, `WriteBoulderList`, `WriteBoulderModels` and `ListFormat` move to `terraingen/pipeline/feature_lists.h`, and `PlacedCraters` and `PlacedBoulders` to `terraingen/pipeline/generator.h` (`pipeline/features.h` is gone).
+- C++ renames: `NoiseLayerConfig` to `NoiseStackLayerSpec`, `SyntheticAlbedoSpec::Params` to `Options`, `estimateFromBase` to `estimateFromSource` (the config key stays `estimate_from_base`); `CheckConfigRanges` and `ValidateAlbedo` move into `terraingen::config`.
+- `TerrainGenConfig` compares equal when its JSON does; the nested specs no longer have `operator==`.
+
 ### Removed
 
 - APIs the library itself never used, in C++ and Python alike: `GaussianBlur` (`gaussian_blur`), `Resample` and `ResampleTo` (`resample`, `resample_to`), `SampleTruncatedPowerLaw`, `SampleExponential`, `SampleNormal` and `TabulatedDistribution`, `RandomStream::NextFloat` and `NextDoubleOpenBelow`, the mesh `Volume`, `SurfaceArea` and `Transformed` (`volume`, `surface_area`, `transformed`), `Icosphere` (`icosphere`; subdivide the icosahedron base solid onto the unit sphere instead), and the `WriteGeoTiff` overload taking band pointers.
 - C++ declarations only tests used: `ResampleWindow`, `SampleRasterWindow`, `SampleAtCenters`, `RequireIncreasing`, `ResolveThreads`, `StandardErrorLogSink`, `Variogram`, `LruCache::Capacity`, the `PixelWindowIn` overload taking a raster, `kSqrt2`, `kEulerGamma` and `TERRAINGEN_VERSION_STRING`; `KernelWeight`, `ParseGdalBandScaling`, `RotationQuaternion` and `GeoKeys::ShortKey` (now `ShortGeoKey`) moved to `detail`.
+- `DescribeSource` and Python `TerrainGenConfig.source_grid` (use `ValidateConfig(...).source`), `LayerAt` and `LayerTimer::Callback`.
 
 ## [0.2.0] - 2026-10-23
 

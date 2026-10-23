@@ -3,10 +3,11 @@
 #pragma once
 
 #include "terraingen/config/build.h"
+#include "terraingen/config/fields/json_io.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
-#include "terraingen/pipeline/features.h"
+#include "terraingen/pipeline/generator.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include <cmath>
@@ -20,6 +21,11 @@
 #include <vector>
 
 namespace terraingen::testing {
+
+/// A configuration value as compact JSON text, to compare specs by value.
+template <typename T> std::string SpecJson(const T& value) {
+    return config::ToJson(value).dump();
+}
 
 /// A grid as tests describe an output's area: `width` x `height` cells of `pixelSize` meters
 /// centered on (`centerX`, `centerY`), in degrees on a body.
@@ -172,7 +178,7 @@ inline TerrainGenConfig WithAlbedo() {
     SyntheticAlbedoSpec synthetic;
     synthetic.rgb = true;
     synthetic.saturation = 0.05;
-    synthetic.valueNoise = {NoiseLayerConfig{}};
+    synthetic.valueNoise = {NoiseStackLayerSpec{}};
     synthetic.valueNoise[0].layer.fractal.amplitude = 0.2f;
     synthetic.valueNoise[0].layer.fractal.wavelength = 40.0f;
     config.albedo = AlbedoSpec{synthetic, {CraterAlbedoSpec{}}};

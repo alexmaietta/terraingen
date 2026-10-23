@@ -1,29 +1,61 @@
 #include "terraingen/config/config.h"
 
+#include "terraingen/config/json.h"
+
 #include <gtest/gtest.h>
 
 #include <utility>
 #include <variant>
 
 using terraingen::LayerSpec;
-using terraingen::NoiseLayerConfig;
+using terraingen::NoiseStackLayerSpec;
 
-TEST(Boxed, CopiesAndComparesByValue) {
+TEST(Boxed, CopiesByValue) {
     terraingen::Boxed<LayerSpec> a = terraingen::ScaleLayerSpec{2.0, 0.0};
     terraingen::Boxed<LayerSpec> b;
     EXPECT_TRUE(std::holds_alternative<terraingen::NoiseLayerSpec>(*b));
     b = a;
-    EXPECT_EQ(a, b);
+    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*b).scale, 2.0);
     std::get<terraingen::ScaleLayerSpec>(*b).scale = 3.0;
     EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*a).scale, 2.0) << "deep copies";
-    EXPECT_FALSE(a == b);
     const terraingen::Boxed<LayerSpec> c = std::move(b);
     EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(*c).scale, 3.0);
     EXPECT_EQ(c->index(), a->index());
 }
 
-TEST(NoiseLayerConfig, DerivesTheGainFromTheHurstExponent) {
-    NoiseLayerConfig config;
+TEST(TerrainGenConfig, ComparesAsItsJson) {
+    terraingen::TerrainGenConfig a;
+    a.layers = {terraingen::ScaleLayerSpec{2.0, 0.0}};
+    terraingen::TerrainGenConfig b = a;
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
+    std::get<terraingen::ScaleLayerSpec>(b.layers[0]).offset = 1.0;
+    EXPECT_FALSE(a == b);
+    EXPECT_TRUE(a != b);
+}
+
+TEST(SpectralContinuationLayerSpec, GivesItsOptionsWithDefaultsForUnsetValues) {
+    terraingen::SpectralContinuationLayerSpec spec;
+    spec.minWavelength = 0.2;
+    spec.seed = 7;
+    const terraingen::SpectralContinuationOptions defaults;
+    terraingen::SpectralContinuationOptions options = spec.Options();
+    EXPECT_EQ(options.pixelSize, defaults.pixelSize);
+    EXPECT_EQ(options.slope, defaults.slope);
+    EXPECT_EQ(options.octaveRms, defaults.octaveRms);
+    EXPECT_EQ(options.minWavelength, 0.2);
+    EXPECT_EQ(options.seed, 7u);
+    spec.pixelSize = 3.0;
+    spec.slope = 2.5;
+    spec.octaveRms = 0.4;
+    options = spec.Options();
+    EXPECT_EQ(options.pixelSize, 3.0);
+    EXPECT_EQ(options.slope, 2.5);
+    EXPECT_EQ(options.octaveRms, 0.4);
+}
+
+TEST(NoiseStackLayerSpec, DerivesTheGainFromTheHurstExponent) {
+    NoiseStackLayerSpec config;
     config.layer.fractal.gain = 0.3f;
     EXPECT_EQ(config.Effective().fractal.gain, 0.3f);
     config.hurst = 0.6f;
@@ -33,7 +65,7 @@ TEST(NoiseLayerConfig, DerivesTheGainFromTheHurstExponent) {
 
 TEST(NoiseLayerSpec, GivesEachLayerOfTheStackWithItsHurstExponent) {
     terraingen::NoiseLayerSpec spec;
-    spec.stack.push_back(NoiseLayerConfig{{}, 0.8f, {}});
+    spec.stack.push_back(NoiseStackLayerSpec{{}, 0.8f, {}});
     const terraingen::SyntheticTerrainParams params = spec.Params();
     ASSERT_EQ(params.layers.size(), 2u);
     EXPECT_EQ(params.layers[0], spec.stack[0].layer);
@@ -55,8 +87,8 @@ terraingen::BaseRoughness Base() {
 TEST(NoiseLayerSpec, EstimatesUnsetHurstExponentsAndAmplitudesFromTheBase) {
     terraingen::NoiseLayerSpec spec;
     spec.stack[0].layer.fractal.wavelength = 4.0f;
-    spec.stack.push_back(NoiseLayerConfig{{}, 0.9f, 1.5f});
-    spec.stack.push_back(NoiseLayerConfig{});
+    spec.stack.push_back(NoiseStackLayerSpec{{}, 0.9f, 1.5f});
+    spec.stack.push_back(NoiseStackLayerSpec{});
     spec.stack[2].layer.enabled = false;
     const terraingen::SyntheticTerrainParams params = spec.EstimatedParams(Base());
     ASSERT_EQ(params.layers.size(), 3u);
@@ -66,7 +98,7 @@ TEST(NoiseLayerSpec, EstimatesUnsetHurstExponentsAndAmplitudesFromTheBase) {
     EXPECT_EQ(params.layers[1], spec.stack[1].Effective()) << "explicit values override";
     EXPECT_EQ(params.layers[2].fractal.amplitude, spec.Params().layers[2].fractal.amplitude);
 
-    NoiseLayerConfig amplitudeOnly;
+    NoiseStackLayerSpec amplitudeOnly;
     amplitudeOnly.hurst = 0.9f;
     spec.stack = {amplitudeOnly};
     terraingen::BaseRoughness continued = Base();
@@ -103,9 +135,9 @@ TEST(SyntheticAlbedoSpec, GivesTheColorAndEachNoiseStack) {
     spec.hue = 30.0;
     spec.saturation = 0.2;
     spec.value = 0.4;
-    spec.hueNoise = {NoiseLayerConfig{}};
-    spec.valueNoise = {NoiseLayerConfig{{}, 0.5f, {}}, NoiseLayerConfig{}};
-    const terraingen::SyntheticAlbedoOptions params = spec.Params();
+    spec.hueNoise = {NoiseStackLayerSpec{}};
+    spec.valueNoise = {NoiseStackLayerSpec{{}, 0.5f, {}}, NoiseStackLayerSpec{}};
+    const terraingen::SyntheticAlbedoOptions params = spec.Options();
     EXPECT_TRUE(params.rgb);
     EXPECT_EQ(params.hue, 30.0);
     EXPECT_EQ(params.saturation, 0.2);

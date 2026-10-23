@@ -374,8 +374,14 @@ std::vector<RockSource> RockSources(const PyTerrainGenerator& generator,
     const TerrainGenerator built = generator.Get();
     std::vector<RockSource> sources;
     for (const std::size_t n : layers) {
-        sources.push_back(
-            {LayerAt<BoulderLayer>(built, n, "a boulder layer"), SharedGround(built, n)});
+        if (n >= built.layers.size()) {
+            throw std::invalid_argument("The terrain has no layer " + std::to_string(n));
+        }
+        auto layer = std::dynamic_pointer_cast<const BoulderLayer>(built.layers[n]);
+        if (!layer) {
+            throw std::invalid_argument("Layer " + std::to_string(n) + " is not a boulder layer");
+        }
+        sources.push_back({std::move(layer), SharedGround(built, n)});
     }
     return sources;
 }

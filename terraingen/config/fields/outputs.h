@@ -20,11 +20,6 @@ template <typename IO> void Fields(IO& io, ExtentSpec& extent) {
     io("max", extent.max, "[x, y] of the box's upper corner, above min; give it with min.");
 }
 
-/// The description of a path that is optional: `file` is what it names.
-inline std::string OptionalOutputPathHelp(std::string_view file) {
-    return OutputPathHelp(std::string(file) + "; unset to only return the result, writing nothing");
-}
-
 /// The fields of the area an output covers: its pixel size and its extent.
 /// @param what What the pixel size is, such as "Cell size in meters of the file".
 template <typename IO> void AreaFields(IO& io, OutputAreaSpec& area, std::string_view what) {
@@ -44,7 +39,7 @@ template <typename IO> void AreaFields(IO& io, OutputAreaSpec& area, std::string
 
 /// The fields of heightmap and albedo outputs.
 template <typename IO> void GeoTiffOutputFields(IO& io, GeoTiffOutput& output) {
-    io("path", output.path, OptionalOutputPathHelp("GeoTIFF file to write"));
+    io("path", output.path, OutputPathHelp("GeoTIFF file to write"));
     AreaFields(io, output.area, "Cell size in meters of the file");
     io("compression", output.compression,
        "Compression of the file; compressed files use the floating-point predictor.");
@@ -65,7 +60,7 @@ template <typename IO> void FeatureAreaFields(IO& io, OutputAreaSpec& area) {
 
 /// The fields of crater and boulder list outputs.
 template <typename IO> void ListOutputFields(IO& io, ListOutput& output) {
-    io("path", output.path, OptionalOutputPathHelp("File to write"));
+    io("path", output.path, OutputPathHelp("File to write"));
     io("format", output.format,
        "Format of the file; when not given, .json paths are written as JSON and others as CSV.");
     FeatureAreaFields(io, output.area);
@@ -106,8 +101,7 @@ template <> struct SpecName<BoulderModelsOutput> {
         "object per boulder, or as one merged STL mesh (.stl).";
 };
 template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
-    io("path", output.path,
-       OptionalOutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
+    io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
     io("crease_angle_deg", output.creaseAngle,
        "Angle in degrees, from " + CountText(0, static_cast<std::size_t>(kMaxCreaseAngle)) +
            ": vertices are split where faces meet at more than it, giving sharp edges.",
@@ -156,7 +150,7 @@ template <> struct SpecName<MeshOutput> {
 };
 template <typename IO> void Fields(IO& io, MeshOutput& output) {
     io("path", output.path,
-       OptionalOutputPathHelp("File to write, ending in .glb, .gltf, .obj, .stl or .icq"));
+       OutputPathHelp("File to write, ending in .glb, .gltf, .obj, .stl or .icq"));
     io("cells_per_face", output.cellsPerFace,
        "Quads along each edge of the six cube faces, " + CountText(1, kMaxCubeFaceCells) +
            "; more give a finer mesh, with two triangles per quad.",
@@ -174,8 +168,7 @@ template <> struct SpecName<TerrainMeshOutput> {
         "(.glb or .gltf), OBJ (.obj) or STL (.stl), in the frame boulder models are written in.";
 };
 template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
-    io("path", output.path,
-       OptionalOutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
+    io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
     AreaFields(io, output.area, "Cell size in meters of the mesh, the spacing of its vertices");
     io("cutouts", output.cutouts,
        "Boxes in surface coordinates (meters on a plane, degrees on a body) whose quads are left "
@@ -199,7 +192,7 @@ template <> struct SpecName<ReportOutput> {
         "version.";
 };
 template <typename IO> void Fields(IO& io, ReportOutput& output) {
-    io("path", output.path, OptionalOutputPathHelp("File to write the report to"));
+    io("path", output.path, OutputPathHelp("File to write the report to"));
 }
 
 }  // namespace terraingen::config

@@ -6,8 +6,8 @@ namespace {
 
 /// Each layer of `stack` with its Hurst exponent applied, appended to `layers`.
 template <typename Layers>
-void AppendEffective(const std::vector<NoiseLayerConfig>& stack, Layers& layers) {
-    for (const NoiseLayerConfig& layer : stack) {
+void AppendEffective(const std::vector<NoiseStackLayerSpec>& stack, Layers& layers) {
+    for (const NoiseStackLayerSpec& layer : stack) {
         layers.push_back(layer.Effective());
     }
 }
@@ -50,7 +50,7 @@ DuneOptions DefaultDunes() {
     return dunes;
 }
 
-NoiseLayer NoiseLayerConfig::Effective() const {
+NoiseLayer NoiseStackLayerSpec::Effective() const {
     NoiseLayer effective = layer;
     if (hurst) {
         effective.fractal.gain = GainFromHurst(*hurst, layer.fractal.lacunarity);
@@ -61,7 +61,7 @@ NoiseLayer NoiseLayerConfig::Effective() const {
     return effective;
 }
 
-NoiseLayer NoiseLayerConfig::EffectiveRelief() const {
+NoiseLayer NoiseStackLayerSpec::EffectiveRelief() const {
     NoiseLayer effective = Effective();
     if (!amplitude) {
         effective.fractal.amplitude = kNoiseAmplitudeRatio * layer.fractal.wavelength;
@@ -69,10 +69,10 @@ NoiseLayer NoiseLayerConfig::EffectiveRelief() const {
     return effective;
 }
 
-SyntheticTerrainParams StackParams(const std::vector<NoiseLayerConfig>& stack) {
+SyntheticTerrainParams StackParams(const std::vector<NoiseStackLayerSpec>& stack) {
     SyntheticTerrainParams params;
     params.layers.clear();
-    for (const NoiseLayerConfig& layer : stack) {
+    for (const NoiseStackLayerSpec& layer : stack) {
         params.layers.push_back(layer.EffectiveRelief());
     }
     return params;
@@ -82,16 +82,16 @@ SyntheticTerrainParams NoiseLayerSpec::Params() const {
     return StackParams(stack);
 }
 
-SyntheticTerrainParams NoiseLayerSpec::EstimatedParams(const BaseRoughness& base) const {
+SyntheticTerrainParams NoiseLayerSpec::EstimatedParams(const BaseRoughness& source) const {
     SyntheticTerrainParams params;
     params.layers.clear();
-    for (NoiseLayerConfig layer : stack) {
+    for (NoiseStackLayerSpec layer : stack) {
         if (!layer.hurst) {
-            layer.hurst = static_cast<float>(base.hurst);
+            layer.hurst = static_cast<float>(source.hurst);
         }
         NoiseLayer effective = layer.EffectiveRelief();
         if (!layer.amplitude && effective.enabled) {
-            BaseRoughness continued = base;
+            BaseRoughness continued = source;
             continued.hurst = static_cast<double>(*layer.hurst);
             effective.fractal.amplitude = MatchedNoiseAmplitude(effective, continued);
         }
@@ -107,24 +107,36 @@ RoughnessOptions RoughnessLayerSpec::Options() const {
     return options;
 }
 
-RoughnessOptions RoughnessLayerSpec::EstimatedOptions(BaseRoughness base) const {
+RoughnessOptions RoughnessLayerSpec::EstimatedOptions(BaseRoughness source) const {
     RoughnessOptions options = Options();
-    base.hurst = hurst.value_or(base.hurst);
-    options.hurst = base.hurst;
-    options.rmsSlope = rmsSlope.value_or(base.RmsSlope(options.baseline));
+    source.hurst = hurst.value_or(source.hurst);
+    options.hurst = source.hurst;
+    options.rmsSlope = rmsSlope.value_or(source.RmsSlope(options.baseline));
     return options;
 }
 
-SyntheticAlbedoOptions SyntheticAlbedoSpec::Params() const {
-    SyntheticAlbedoOptions params;
-    params.rgb = rgb;
-    params.hue = hue;
-    params.saturation = saturation;
-    params.value = value;
-    AppendEffective(hueNoise, params.hueNoise);
-    AppendEffective(saturationNoise, params.saturationNoise);
-    AppendEffective(valueNoise, params.valueNoise);
-    return params;
+SyntheticAlbedoOptions SyntheticAlbedoSpec::Options() const {
+    SyntheticAlbedoOptions options;
+    options.rgb = rgb;
+    options.hue = hue;
+    options.saturation = saturation;
+    options.value = value;
+    AppendEffective(hueNoise, options.hueNoise);
+    AppendEffective(saturationNoise, options.saturationNoise);
+    AppendEffective(valueNoise, options.valueNoise);
+    return options;
+}
+
+SpectralContinuationOptions SpectralContinuationLayerSpec::Options() const {
+    SpectralContinuationOptions options;
+    options.pixelSize = pixelSize.value_or(options.pixelSize);
+    options.slope = slope.value_or(options.slope);
+    options.octaveRms = octaveRms.value_or(options.octaveRms);
+    options.minWavelength = minWavelength;
+    options.taperOctaves = taperOctaves;
+    options.seed = seed;
+    options.fade = fade;
+    return options;
 }
 
 }  // namespace terraingen

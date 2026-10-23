@@ -1,7 +1,7 @@
 #include "bindings.h"
 #include "common.h"
 
-#include "terraingen/config/report.h"
+#include "terraingen/pipeline/report.h"
 
 #include <cstdint>
 #include <string>

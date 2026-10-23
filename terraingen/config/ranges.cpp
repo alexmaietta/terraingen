@@ -2,22 +2,17 @@
 
 #include "terraingen/config/fields/fields.h"
 #include "terraingen/config/validate.h"
+#include "terraingen/util/text.h"
 
-#include <array>
 #include <cmath>
-#include <cstdio>
 
-namespace terraingen {
-
-namespace config {
+namespace terraingen::config {
 
 namespace {
 
 /// A bound as messages give it, such as 4096 or 0.5.
 std::string Bound(double value) {
-    std::array<char, 32> buffer{};
-    std::snprintf(buffer.data(), buffer.size(), "%g", value);
-    return buffer.data();
+    return FormatNumber(value, 6);
 }
 
 /// What a range with a lower bound only allows.
@@ -60,6 +55,7 @@ std::string DescribeRange(const FieldRange& range, std::string_view unit) {
 void CheckRange(double value, const FieldRange& range, std::string_view unit,
                 const std::string& path) {
     if (!range.minimum && !range.maximum) {
+        CheckFinite(value, path);
         return;
     }
     const bool aboveMinimum = !range.minimum || (range.exclusiveMinimum ? value > *range.minimum
@@ -78,12 +74,10 @@ void CheckRange(double value, const FieldRange& range, std::string_view unit,
     throw ConfigError(path, "must " + allowed + ", got " + Bound(value));
 }
 
-}  // namespace config
-
 void CheckConfigRanges(const TerrainGenConfig& config) {
     TerrainGenConfig copy = config;
-    config::RangeChecker checker("");
-    config::Fields(checker, copy);
+    RangeChecker checker("");
+    Fields(checker, copy);
 }
 
-}  // namespace terraingen
+}  // namespace terraingen::config

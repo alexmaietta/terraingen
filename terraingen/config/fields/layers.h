@@ -11,7 +11,7 @@
 
 namespace terraingen::config {
 
-template <typename IO> void Fields(IO& io, NoiseLayerConfig& config) {
+template <typename IO> void Fields(IO& io, NoiseStackLayerSpec& config) {
     NoiseLayer& layer = config.layer;
     FractalParams& fractal = layer.fractal;
     io("enabled", layer.enabled, "Includes this layer in the stack; disabled layers are skipped.");
@@ -61,7 +61,7 @@ template <> struct SpecName<NoiseLayerSpec> {
 };
 template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer) {
     io("stack", layer.stack, NoiseStackHelp(1));
-    io("estimate_from_base", layer.estimateFromBase,
+    io("estimate_from_base", layer.estimateFromSource,
        "Continues the base's roughness into the noise: each layer's unset hurst becomes the "
        "Hurst exponent of the base's variogram at its native cell size, and each unset "
        "amplitude gives the layer the RMS height difference that variogram extrapolates to at "
@@ -120,7 +120,7 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
     io("hurst", spec.hurst,
        std::string(kRoughnessHurstHelp) + " Unset is 0.8, or with estimate_from_base the base's.",
        "", AboveUpTo(0.0, 1.0));
-    io("estimate_from_base", spec.estimateFromBase,
+    io("estimate_from_base", spec.estimateFromSource,
        "Continues the base's roughness below its resolution: fits the Hurst exponent and RMS "
        "height difference to the base's variogram at lags of 1 to 8 native cells, over up to "
        "512 cells about its center, and extrapolates the RMS slope to the baseline. Set "

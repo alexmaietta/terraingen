@@ -1,16 +1,11 @@
-add_library(nlohmann_json INTERFACE)
-target_include_directories(nlohmann_json SYSTEM INTERFACE "${PROJECT_SOURCE_DIR}/third_party")
-
 terraingen_add_library(
     config
     SOURCES
     build.cpp
     config.cpp
-    feature_lists.cpp
     generate.cpp
     json.cpp
     ranges.cpp
-    report.cpp
     schema.cpp
     validate.cpp
     PUBLIC

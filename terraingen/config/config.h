@@ -34,6 +34,7 @@
 #include "terraingen/layers/spectral_continuation.h"
 #include "terraingen/layers/strata.h"
 #include "terraingen/noise/noise_layers.h"
+#include "terraingen/pipeline/feature_lists.h"
 #include "terraingen/pipeline/materials.h"
 #include "terraingen/random/value_distribution.h"
 #include "terraingen/raster/geotiff/geotiff.h"
@@ -66,45 +67,35 @@ inline constexpr std::size_t kMaxConfigGridSize = 65536;
 /// Largest number of cells along a cube face edge of a body mesh or a shape model's radial grid.
 inline constexpr std::size_t kMaxCubeFaceCells = 4096;
 
-/// Largest crease angle of boulder models, in degrees.
-inline constexpr double kMaxCreaseAngle = 180.0;
-
 /// What GeoTIFF output tile sides, in pixels, must be a multiple of.
 inline constexpr std::uint32_t kTileSizeMultiple = 16;
 
-/// Amplitude over wavelength of a terrain noise layer whose amplitude is unset. With it the
-/// default 1 km layer has a median slope of 6.4 deg at a 16 m baseline, near the lunar highland
-/// median of 7.5 deg at 17 m (Rosenburg et al. 2011, Table 1,
-/// https://doi.org/10.1029/2010JE003716), whatever wavelength is chosen.
+/// Amplitude over wavelength of a terrain noise layer whose amplitude is unset, near the lunar
+/// highland median slope (Rosenburg et al. 2011, https://doi.org/10.1029/2010JE003716).
 inline constexpr float kNoiseAmplitudeRatio = 0.1f;
 
-/// Crater shaping by default: irregular outlines on, their elongated share of 5.4% the lunar one
-/// of Bottke et al. (2000, https://doi.org/10.1006/icar.1999.6323).
+/// Crater shaping by default: irregular outlines on (Bottke et al. 2000,
+/// https://doi.org/10.1006/icar.1999.6323).
 CraterApplyOptions DefaultCraterApply();
 
-/// Boulders by default: up to the largest block of the nominal NASA SP-8023 intercrater curve,
-/// about 5.9 m, within the largest rocks NAC images resolve at lunar landing sites, 3 to 19 m
-/// (Li et al. 2017, Table 2, https://doi.org/10.1016/j.pss.2017.08.008).
+/// Boulders by default: up to the largest block of the nominal NASA SP-8023 intercrater curve
+/// (Li et al. 2017, https://doi.org/10.1016/j.pss.2017.08.008).
 BoulderLayerOptions DefaultBoulders();
 
-/// Roughness by default: octaves up to 16 m, the relief below the 17 m shortest baseline of the
-/// LOLA slope statistics the noise layer is matched to (Rosenburg et al. 2011,
+/// Roughness by default: octaves up to 16 m, below the LOLA slope baselines (Rosenburg et al. 2011,
 /// https://doi.org/10.1029/2010JE003716).
 RoughnessOptions DefaultRoughness();
 
-/// Bedforms by default: large wind ripples 4 m apart and 0.4 m high, within the 1 to 5 m
-/// wavelengths of large martian ripples that mantle martian dunes ubiquitously (Lapotre et al.
-/// 2016, https://doi.org/10.1126/science.aaf3206), so the cover is the layer's most, 0.9; the
-/// height keeps the 0.1 height-to-wavelength ratio of `MarsDuneRipples`.
+/// Bedforms by default: large wind ripples 4 m apart and 0.4 m high (Lapotre et al. 2016,
+/// https://doi.org/10.1126/science.aaf3206).
 BedformOptions DefaultBedforms();
 
-/// Dunes by default: barchans 50 m wide, about 30 to a square kilometer, as in the barchan field
-/// of La Pampa de la Joya, with domes below its 15 m elementary dune size (Elbelrhiti et al. 2008,
-/// https://arxiv.org/abs/cond-mat/0609120); a lattice of 129 m cells half of which hold a dune.
+/// Dunes by default: barchans 50 m wide in a lattice of 129 m cells half of which hold a dune
+/// (Elbelrhiti et al. 2008, https://arxiv.org/abs/cond-mat/0609120).
 DuneOptions DefaultDunes();
 
 /// One noise layer, its octave gain optionally derived from a Hurst exponent.
-struct NoiseLayerConfig {
+struct NoiseStackLayerSpec {
     NoiseLayer layer{};
     /// When set, the octave gain comes from it (`GainFromHurst`) instead of `layer.fractal.gain`.
     std::optional<float> hurst;
@@ -117,13 +108,6 @@ struct NoiseLayerConfig {
     /// `Effective` with an unset amplitude `kNoiseAmplitudeRatio` times the wavelength, as terrain
     /// noise layers take it.
     NoiseLayer EffectiveRelief() const;
-
-    bool operator==(const NoiseLayerConfig& other) const {
-        return layer == other.layer && hurst == other.hurst && amplitude == other.amplitude;
-    }
-    bool operator!=(const NoiseLayerConfig& other) const {
-        return !(*this == other);
-    }
 };
 
 /// How a source's posts become heights between them and at sample spacings finer than them
@@ -135,14 +119,6 @@ struct UpsamplingSpec {
     DiamondSquareOptions diamondSquare{};  ///< The settings of "diamond_square"; meters.
     /// A registered type's settings, a JSON object as text without the "type"; empty for none.
     std::string settings{};
-
-    bool operator==(const UpsamplingSpec& other) const {
-        return type == other.type && diamondSquare == other.diamondSquare &&
-               settings == other.settings;
-    }
-    bool operator!=(const UpsamplingSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Source "raster": a heightmap read from a GeoTIFF, in its own projected coordinates
@@ -155,35 +131,20 @@ struct RasterSourceSpec {
     /// upsampler is unused, `upsampling` gives it.
     GeoTiffSourceOptions read{};
     UpsamplingSpec upsampling{};
-
-    bool operator==(const RasterSourceSpec& other) const {
-        return path == other.path && read == other.read && upsampling == other.upsampling;
-    }
-    bool operator!=(const RasterSourceSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// The terrain parameters of a stack of noise layers: each layer's Hurst exponent applied and an
 /// unset amplitude `kNoiseAmplitudeRatio` times its wavelength
-/// (`NoiseLayerConfig::EffectiveRelief`).
-SyntheticTerrainParams StackParams(const std::vector<NoiseLayerConfig>& stack);
+/// (`NoiseStackLayerSpec::EffectiveRelief`).
+SyntheticTerrainParams StackParams(const std::vector<NoiseStackLayerSpec>& stack);
 
 /// Source "synthetic": `elevation` plus a stack of noise layers (`SyntheticSource`), evaluated at
 /// every point, or with `pixelSize` sampled at posts that `upsampling` refines (cubic unset).
 struct SyntheticSourceSpec {
     double elevation = 0.0;                      ///< Meters.
-    std::vector<NoiseLayerConfig> stack{};       ///< 0 to `kMaxNoiseLayers` layers; none is flat.
+    std::vector<NoiseStackLayerSpec> stack{};    ///< 0 to `kMaxNoiseLayers` layers; none is flat.
     std::optional<double> pixelSize{};           ///< Meters between posts; unset for none.
     std::optional<UpsamplingSpec> upsampling{};  ///< Needs `pixelSize`.
-
-    bool operator==(const SyntheticSourceSpec& other) const {
-        return elevation == other.elevation && stack == other.stack &&
-               pixelSize == other.pixelSize && upsampling == other.upsampling;
-    }
-    bool operator!=(const SyntheticSourceSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// A scalar field over the surface (`SurfaceField`): a constant `value`, or a GeoTIFF band read
@@ -196,15 +157,6 @@ struct FieldSpec {
     double scale = 1.0;                ///< Multiplies every cell.
     std::optional<double> fallback{};  ///< Where the GeoTIFF has no value; unset leaves none.
     bool periodicLongitude = false;    ///< The GeoTIFF's x is longitude repeating every 360 deg.
-
-    bool operator==(const FieldSpec& other) const {
-        return path == other.path && value == other.value && band == other.band &&
-               method == other.method && scale == other.scale && fallback == other.fallback &&
-               periodicLongitude == other.periodicLongitude;
-    }
-    bool operator!=(const FieldSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// A density map (`DensityMap`) of a crater or boulder population.
@@ -215,15 +167,6 @@ struct DensityMapSpec {
     std::optional<double> maxDiameter{};  ///< Meters; unset for no upper limit.
     double areaUnit = 1.0;                ///< Square meters per map area unit.
     bool total = true;
-
-    bool operator==(const DensityMapSpec& other) const {
-        return field == other.field && measure == other.measure &&
-               minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
-               areaUnit == other.areaUnit && total == other.total;
-    }
-    bool operator!=(const DensityMapSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// A size slope map (`SizeSlopeMap`) of a boulder population.
@@ -233,15 +176,6 @@ struct SizeSlopeMapSpec {
     double referenceDiameter = 1.0;  ///< Meters.
     double minExponent = 1.0;
     double maxExponent = 6.0;
-
-    bool operator==(const SizeSlopeMapSpec& other) const {
-        return field == other.field && measure == other.measure &&
-               referenceDiameter == other.referenceDiameter && minExponent == other.minExponent &&
-               maxExponent == other.maxExponent;
-    }
-    bool operator!=(const SizeSlopeMapSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 struct ChainSourceSpec;
@@ -253,22 +187,15 @@ using SourceSpec = std::variant<RasterSourceSpec, ChainSourceSpec, SyntheticSour
 /// data (`SourceChain`); its grid is the first source's.
 struct ChainSourceSpec {
     std::vector<SourceSpec> sources;
-
-    bool operator==(const ChainSourceSpec& other) const {
-        return sources == other.sources;
-    }
-    bool operator!=(const ChainSourceSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "noise": a stack of 1 to `kMaxNoiseLayers` noise layers added to the terrain
 /// (`NoiseRelief`), measured from the source's reference point.
 struct NoiseLayerSpec {
-    std::vector<NoiseLayerConfig> stack{NoiseLayerConfig{}};
-    /// Whether unset Hurst exponents and amplitudes come from the base (`EstimatedParams` of
-    /// `EstimateSourceRoughness`); needs a base.
-    bool estimateFromBase = false;
+    std::vector<NoiseStackLayerSpec> stack{NoiseStackLayerSpec{}};
+    /// Whether unset Hurst exponents and amplitudes come from the source (`EstimatedParams` of
+    /// `EstimateSourceRoughness`); needs a source.
+    bool estimateFromSource = false;
     /// Source cells across from which the source's measured data holds a noise layer: each layer
     /// whose wavelength, its longest, is at least that many source cells at a point is left out
     /// there (`NoiseRelief`). Ignored on a synthetic source; unset adds every layer everywhere.
@@ -277,41 +204,21 @@ struct NoiseLayerSpec {
     /// The stack as terrain parameters, with each layer's Hurst exponent applied.
     SyntheticTerrainParams Params() const;
 
-    /// `Params` with each layer's unset Hurst exponent `base.hurst` and unset amplitude the one
-    /// that continues `base` at the layer's Hurst exponent to a lag of its wavelength
+    /// `Params` with each layer's unset Hurst exponent `source.hurst` and unset amplitude the one
+    /// that continues `source` at the layer's Hurst exponent to a lag of its wavelength
     /// (`MatchedNoiseAmplitude`).
     /// @throws std::invalid_argument as `MatchedNoiseAmplitude`.
-    SyntheticTerrainParams EstimatedParams(const BaseRoughness& base) const;
-
-    bool operator==(const NoiseLayerSpec& other) const {
-        return stack == other.stack && estimateFromBase == other.estimateFromBase &&
-               sourceResolvesPixels == other.sourceResolvesPixels;
-    }
-    bool operator!=(const NoiseLayerSpec& other) const {
-        return !(*this == other);
-    }
+    SyntheticTerrainParams EstimatedParams(const BaseRoughness& source) const;
 };
 
 /// Density "power_law": `PowerLawSfd`, N per m^2 with D in meters.
 struct PowerLawSpec {
     double coefficient = 0.1;
     double exponent = 2.0;
-    bool operator==(const PowerLawSpec& other) const {
-        return coefficient == other.coefficient && exponent == other.exponent;
-    }
-    bool operator!=(const PowerLawSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Density "piecewise_power_law": `PiecewisePowerLawSfd`.
 struct PiecewisePowerLawSpec {
     std::vector<PowerLawSegment> segments{PowerLawSegment{}};
-    bool operator==(const PiecewisePowerLawSpec& other) const {
-        return segments == other.segments;
-    }
-    bool operator!=(const PiecewisePowerLawSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Density "tabulated": `TabulatedSfd` from (D, N(>=D)) rows.
 struct TabulatedSpec {
@@ -319,62 +226,22 @@ struct TabulatedSpec {
     std::vector<double> cumulative;
     double diameterUnit = 1.0;  ///< Meters per table diameter unit; 1000 for km.
     double areaUnit = 1.0;      ///< Square meters per table area unit; 1e6 for km^2.
-    bool operator==(const TabulatedSpec& other) const {
-        return diameters == other.diameters && cumulative == other.cumulative &&
-               diameterUnit == other.diameterUnit && areaUnit == other.areaUnit;
-    }
-    bool operator!=(const TabulatedSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Density "piecewise_uniform": `PiecewiseUniformSfd`, bands with diameters spread uniformly.
 struct PiecewiseUniformSpec {
     std::vector<UniformBand> bands{UniformBand{}};
     double total = 0.0;  ///< Per m^2 across all bands, shared by `density`; 0 for as given.
-    bool operator==(const PiecewiseUniformSpec& other) const {
-        return bands == other.bands && total == other.total;
-    }
-    bool operator!=(const PiecewiseUniformSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Crater density "trask": `TraskEquilibrium`.
-struct TraskSpec {
-    bool operator==(const TraskSpec& /*other*/) const {
-        return true;
-    }
-    bool operator!=(const TraskSpec& other) const {
-        return !(*this == other);
-    }
-};
+struct TraskSpec {};
 /// Crater density "hartmann": `HartmannEquilibrium`.
-struct HartmannSpec {
-    bool operator==(const HartmannSpec& /*other*/) const {
-        return true;
-    }
-    bool operator!=(const HartmannSpec& other) const {
-        return !(*this == other);
-    }
-};
+struct HartmannSpec {};
 /// Crater density "moore": `MooreDistribution(terrain)`.
 struct MooreSpec {
     MooreTerrain terrain = MooreTerrain::RoughMare;
-    bool operator==(const MooreSpec& other) const {
-        return terrain == other.terrain;
-    }
-    bool operator!=(const MooreSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Crater density "viper": `ViperSpecification`.
-struct ViperSpec {
-    bool operator==(const ViperSpec& /*other*/) const {
-        return true;
-    }
-    bool operator!=(const ViperSpec& other) const {
-        return !(*this == other);
-    }
-};
+struct ViperSpec {};
 /// A published crater production function, a `ProductionRate`.
 enum class ProductionFunction {
     Neukum,          ///< "neukum": `NeukumProductionFunction`, 10 m to 300 km.
@@ -392,13 +259,6 @@ struct ProductionSurfaceSpec {
     ProductionFunction production = ProductionFunction::ExtendedNeukum;
     ChronologyModel chronology = ChronologyModel::Neukum;
     double ageGyr = 3.5;
-    bool operator==(const ProductionSurfaceSpec& other) const {
-        return production == other.production && chronology == other.chronology &&
-               ageGyr == other.ageGyr;
-    }
-    bool operator!=(const ProductionSurfaceSpec& other) const {
-        return !(*this == other);
-    }
 };
 struct MinimumSpec;
 /// A crater density, named in JSON by its "type".
@@ -409,32 +269,13 @@ using DensitySpec =
 /// such as a production surface capped by an equilibrium.
 struct MinimumSpec {
     std::vector<DensitySpec> distributions;
-    bool operator==(const MinimumSpec& other) const {
-        return distributions == other.distributions;
-    }
-    bool operator!=(const MinimumSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Crater ages "fresh": `FreshAges`.
-struct FreshAgesSpec {
-    bool operator==(const FreshAgesSpec& /*other*/) const {
-        return true;
-    }
-    bool operator!=(const FreshAgesSpec& other) const {
-        return !(*this == other);
-    }
-};
+struct FreshAgesSpec {};
 /// Crater ages "uniform": `UniformAges(lifetimeGyr)`.
 struct UniformAgesSpec {
     double lifetimeGyr = 1.0;
-    bool operator==(const UniformAgesSpec& other) const {
-        return lifetimeGyr == other.lifetimeGyr;
-    }
-    bool operator!=(const UniformAgesSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Equilibrium densities for `SteadyStateAgesSpec`.
 enum class EquilibriumModel { Trask, Hartmann };
@@ -445,24 +286,11 @@ struct SteadyStateAgesSpec {
     ProductionFunction production = ProductionFunction::ExtendedNeukum;
     EquilibriumModel equilibrium = EquilibriumModel::Hartmann;
     ChronologyModel chronology = ChronologyModel::Neukum;
-    bool operator==(const SteadyStateAgesSpec& other) const {
-        return ageGyr == other.ageGyr && production == other.production &&
-               equilibrium == other.equilibrium && chronology == other.chronology;
-    }
-    bool operator!=(const SteadyStateAgesSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Crater ages "freshness": `FreshnessAges(freshness, lifetimeGyr)`.
 struct FreshnessAgesSpec {
     double lifetimeGyr = 1.0;
     ValueDistribution freshness{ValueDistribution::Kind::Uniform, 0.0, 1.0, 0.0, 1.0};
-    bool operator==(const FreshnessAgesSpec& other) const {
-        return lifetimeGyr == other.lifetimeGyr && freshness == other.freshness;
-    }
-    bool operator!=(const FreshnessAgesSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// A crater age model, named in JSON by its "type".
 using AgesSpec =
@@ -471,29 +299,14 @@ using AgesSpec =
 /// Degradation "none": `NoDegradation`, optionally with a fixed depth-to-diameter ratio.
 struct NoDegradationSpec {
     std::optional<double> depthRatio;
-    bool operator==(const NoDegradationSpec& other) const {
-        return depthRatio == other.depthRatio;
-    }
-    bool operator!=(const NoDegradationSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Degradation "freshness": `FreshnessDegradation`.
 struct FreshnessDegradationSpec {
     double cutoffDepthRatio = 0.04;
-    bool operator==(const FreshnessDegradationSpec& other) const {
-        return cutoffDepthRatio == other.cutoffDepthRatio;
-    }
-    bool operator!=(const FreshnessDegradationSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Where "diffusion" degradation takes its diffusion ages from.
 enum class DiffusivityModel {
-    /// "matched": with steady-state ages, `EquilibriumDiffusionAges`, which wears each crater of
-    /// the layer's profile to Fassett et al.'s (2022) visibility cutoff, d/D 0.04, at the end of
-    /// its equilibrium lifetime, as they derive the diffusivity; `Fassett2022Hartmann` for other
-    /// ages.
+    /// "matched": `EquilibriumDiffusionAges` with steady-state ages, else `Fassett2022Hartmann`.
     Matched,
     Fassett2022Hartmann,  ///< "fassett_2022_hartmann": `Fassett2022HartmannDiffusivity`.
     Fassett2022Trask,     ///< "fassett_2022_trask": `Fassett2022TraskDiffusivity`.
@@ -509,13 +322,6 @@ struct DiffusionDegradationSpec {
     DiffusivityModel diffusivity = DiffusivityModel::Matched;
     PowerLawDiffusivity powerLaw{};  ///< Used when `diffusivity` is `PowerLaw`.
     double reachRadii = 3.0;         ///< How far the diffused profile reaches, in crater radii.
-    bool operator==(const DiffusionDegradationSpec& other) const {
-        return diffusivity == other.diffusivity && powerLaw == other.powerLaw &&
-               reachRadii == other.reachRadii;
-    }
-    bool operator!=(const DiffusionDegradationSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// A degradation model, named in JSON by its "type".
 using DegradationSpec =
@@ -524,22 +330,9 @@ using DegradationSpec =
 /// Crater profile "fassett_thomson": `FassettThomsonProfile(rim)`.
 struct FassettThomsonSpec {
     FassettThomsonRim rim = FassettThomsonRim::Original;
-    bool operator==(const FassettThomsonSpec& other) const {
-        return rim == other.rim;
-    }
-    bool operator!=(const FassettThomsonSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Crater profile "martin_parkes_dunstan": `MartinParkesDunstanProfile`.
-struct MartinParkesDunstanSpec {
-    bool operator==(const MartinParkesDunstanSpec& /*other*/) const {
-        return true;
-    }
-    bool operator!=(const MartinParkesDunstanSpec& other) const {
-        return !(*this == other);
-    }
-};
+struct MartinParkesDunstanSpec {};
 /// A simple crater profile, named in JSON by its "type".
 using SimpleProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec>;
 /// Crater profile "complex": `simple` below the simple-to-complex transition of the layer's
@@ -547,12 +340,6 @@ using SimpleProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSp
 /// (`ComplexCraterProfile` with `LunarComplexCraterShape` or `MarsComplexCraterShape`).
 struct ComplexProfileSpec {
     SimpleProfileSpec simple{MartinParkesDunstanSpec{}};
-    bool operator==(const ComplexProfileSpec& other) const {
-        return simple == other.simple;
-    }
-    bool operator!=(const ComplexProfileSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// A crater profile, named in JSON by its "type".
 using ProfileSpec = std::variant<FassettThomsonSpec, MartinParkesDunstanSpec, ComplexProfileSpec>;
@@ -570,16 +357,12 @@ struct CraterLayerSpec {
     /// Draws random craters from `density`; off places only the `manual` craters.
     bool generateRandom = true;
     std::uint32_t seed = 1;
-    /// By default a 3.5 Gyr extended Neukum production surface up to Hartmann (1984) equilibrium,
-    /// as the DSNE (SLS-SPEC-159 Rev. I, 3.4.1.1) builds its 3.5 Ga mare density but with the lower
-    /// of the two equilibria that small-crater counts fall between (Fassett 2022, eq. 3 and
-    /// section 3, https://doi.org/10.1029/2022JE007510): below Trask, the DSNE's upper limit, at
-    /// every diameter under about 1.7 km.
+    /// By default a 3.5 Gyr extended Neukum production surface capped by Hartmann equilibrium
+    /// (Fassett 2022, https://doi.org/10.1029/2022JE007510).
     DensitySpec density{MinimumSpec{{ProductionSurfaceSpec{}, HartmannSpec{}}}};
     /// By default steady-state ages on that surface, matching the density.
     AgesSpec ages{SteadyStateAgesSpec{}};
-    /// Meters; by default 2.5, where the extended Neukum production function the default density
-    /// and ages use begins.
+    /// Meters; by default 2.5, where the extended Neukum production function begins.
     double minDiameter = 2.5;
     double maxDiameter = 250.0;  ///< Meters.
     CraterSpacing spacing{};
@@ -587,8 +370,7 @@ struct CraterLayerSpec {
     /// Manual craters, in the surface's coordinates; parsing sets their `manual` flag.
     std::vector<Crater> manual{};
     ProfileSpec profile{MartinParkesDunstanSpec{}};
-    /// By default diffusion matched to those ages: about a quarter of the craters keep 3/4 of
-    /// their fresh depth, as in Moore's steady state, and none wear past the visibility cutoff.
+    /// By default diffusion matched to those ages.
     DegradationSpec degradation{DiffusionDegradationSpec{}};
     CraterApplyOptions apply{DefaultCraterApply()};
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `CraterLayerOptions::densityMap`.
@@ -599,60 +381,21 @@ struct CraterLayerSpec {
     /// minimum with `completeness` when both are set. Ignored on a synthetic source and where the
     /// source has no measured data; unset generates every crater.
     std::optional<double> sourceResolvesPixels = 4.0;
-
-    bool operator==(const CraterLayerSpec& other) const {
-        return morphometry == other.morphometry && generateRandom == other.generateRandom &&
-               seed == other.seed && density == other.density && ages == other.ages &&
-               minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
-               spacing == other.spacing && maxCraters == other.maxCraters &&
-               manual == other.manual && profile == other.profile &&
-               degradation == other.degradation && apply == other.apply &&
-               densityMap == other.densityMap && completeness == other.completeness &&
-               sourceResolvesPixels == other.sourceResolvesPixels;
-    }
-    bool operator!=(const CraterLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Boulder sizes "golombek_rapp": the layer's coverage, qa and qb.
-struct GolombekRappBouldersSpec {
-    bool operator==(const GolombekRappBouldersSpec& /*other*/) const {
-        return true;
-    }
-    bool operator!=(const GolombekRappBouldersSpec& other) const {
-        return !(*this == other);
-    }
-};
+struct GolombekRappBouldersSpec {};
 /// Boulder sizes "sp8023_intercrater": `Sp8023IntercraterBlocks(curve)`.
 struct Sp8023IntercraterBouldersSpec {
     SpecificationCurve curve = SpecificationCurve::Nominal;
-    bool operator==(const Sp8023IntercraterBouldersSpec& other) const {
-        return curve == other.curve;
-    }
-    bool operator!=(const Sp8023IntercraterBouldersSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Boulder sizes "sp8023_crater": `Sp8023CraterBlocks(curve)`.
 struct Sp8023CraterBouldersSpec {
     SpecificationCurve curve = SpecificationCurve::Nominal;
-    bool operator==(const Sp8023CraterBouldersSpec& other) const {
-        return curve == other.curve;
-    }
-    bool operator!=(const Sp8023CraterBouldersSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Boulder sizes "synthterrain": `SynthterrainBoulderDistribution(model)`.
 struct SynthterrainBouldersSpec {
     SynthterrainBoulders model = SynthterrainBoulders::InterCrater;
-    bool operator==(const SynthterrainBouldersSpec& other) const {
-        return model == other.model;
-    }
-    bool operator!=(const SynthterrainBouldersSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// A boulder size distribution, named in JSON by its "type"; "power_law",
 /// "piecewise_power_law", "tabulated" and "piecewise_uniform" are as for crater densities.
@@ -667,10 +410,8 @@ using BoulderSizesSpec =
 /// when crater blocks are enabled. `boulders.cacheBoulders` is not part of the configuration.
 struct BoulderLayerSpec {
     BoulderLayerOptions boulders{DefaultBoulders()};
-    /// Gives `boulders.sizes.distribution`. By default the nominal NASA SP-8023 intercrater blocks
-    /// (Figure 7), whose rocks of 1 m and more cover 0.4% of the ground: between the lunar mean of
-    /// 0.3% and the maria mean of 0.5% from Diviner (SLS-SPEC-159 Rev. I, 3.4.1.4). The DSNE's
-    /// Surveyor 1 design case, 0.234 D^-2.11 per 100 m^2, is a 91st-percentile site (0.8%).
+    /// Gives `boulders.sizes.distribution`; by default the nominal NASA SP-8023 intercrater blocks
+    /// (SLS-SPEC-159 Rev. I, 3.4.1.4).
     BoulderSizesSpec sizes{Sp8023IntercraterBouldersSpec{SpecificationCurve::Nominal}};
     /// Gives `boulders.ejecta.distribution`; unset follows `sizes`.
     std::optional<BoulderSizesSpec> ejectaSizes{};
@@ -683,122 +424,61 @@ struct BoulderLayerSpec {
     /// Catalog or hand-placed boulders in the surface's coordinates, as `boulders.manual`.
     std::vector<ManualBoulder> manual{};
     std::optional<FieldSpec> completeness{};  ///< Gives `boulders.completeness`.
-
-    bool operator==(const BoulderLayerSpec& other) const {
-        return boulders == other.boulders && sizes == other.sizes &&
-               ejectaSizes == other.ejectaSizes && extrapolate == other.extrapolate &&
-               shapeFiles == other.shapeFiles && densityMap == other.densityMap &&
-               slopeMap == other.slopeMap && manual == other.manual &&
-               completeness == other.completeness;
-    }
-    bool operator!=(const BoulderLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "roughness": fine roughness of a given RMS slope (`RoughnessLayer`), or of the RMS slope
-/// and Hurst exponent the base's variogram continues to (`EstimateSourceRoughness`).
+/// and Hurst exponent the source's variogram continues to (`EstimateSourceRoughness`).
 struct RoughnessLayerSpec {
     /// The roughness; its `rmsSlope` and `hurst` stand in for those below when they are unset and
     /// nothing is estimated.
     RoughnessOptions roughness{DefaultRoughness()};
     std::optional<double> rmsSlope{};  ///< Rise over run; unset for the default or the estimate.
     std::optional<double> hurst{};     ///< Unset for the default or the estimate.
-    /// Whether unset `rmsSlope` and `hurst` come from the base (`EstimatedOptions` of
-    /// `EstimateSourceRoughness`); needs a base.
-    bool estimateFromBase = false;
+    /// Whether unset `rmsSlope` and `hurst` come from the source (`EstimatedOptions` of
+    /// `EstimateSourceRoughness`); needs a source.
+    bool estimateFromSource = false;
 
     /// `roughness` with `rmsSlope` and `hurst` in place where set.
     RoughnessOptions Options() const;
 
-    /// `Options` with an unset `hurst` `base.hurst` and an unset `rmsSlope` the RMS slope over
-    /// the baseline that continues `base` at the Hurst exponent (`BaseRoughness::RmsSlope`).
-    RoughnessOptions EstimatedOptions(BaseRoughness base) const;
-
-    bool operator==(const RoughnessLayerSpec& other) const {
-        return roughness == other.roughness && rmsSlope == other.rmsSlope && hurst == other.hurst &&
-               estimateFromBase == other.estimateFromBase;
-    }
-    bool operator!=(const RoughnessLayerSpec& other) const {
-        return !(*this == other);
-    }
+    /// `Options` with an unset `hurst` `source.hurst` and an unset `rmsSlope` the RMS slope over
+    /// the baseline that continues `source` at the Hurst exponent (`BaseRoughness::RmsSlope`).
+    RoughnessOptions EstimatedOptions(BaseRoughness source) const;
 };
 
 /// Layer "bedforms": fields of wind-blown ripples or dunes (`BedformLayer`); angles in
 /// radians.
 struct BedformLayerSpec {
     BedformOptions bedforms{DefaultBedforms()};
-
-    bool operator==(const BedformLayerSpec& other) const {
-        return bedforms == other.bedforms;
-    }
-    bool operator!=(const BedformLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "dunes": barchans, domes or crest-line dunes with ripples on them (`DuneLayer`); angles
 /// in radians.
 struct DuneLayerSpec {
     DuneOptions dunes{DefaultDunes()};
-
-    bool operator==(const DuneLayerSpec& other) const {
-        return dunes == other.dunes;
-    }
-    bool operator!=(const DuneLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "pavement": fractured bedrock plates parted by cracks or ridges (`PavementLayer`);
 /// angles in radians.
 struct PavementLayerSpec {
     PavementOptions pavement{};
-
-    bool operator==(const PavementLayerSpec& other) const {
-        return pavement == other.pavement;
-    }
-    bool operator!=(const PavementLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "strata": the ground beneath terraced into beds of benches and cliffs (`StrataLayer`);
 /// angles in radians.
 struct StrataLayerSpec {
     StrataOptions strata{};
-
-    bool operator==(const StrataLayerSpec& other) const {
-        return strata == other.strata;
-    }
-    bool operator!=(const StrataLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "sand_shadow": sand tails in the lee of the boulders of the nearest boulder layer before
 /// it (`SandShadowLayer`); angles in radians.
 struct SandShadowLayerSpec {
     SandShadowOptions shadows{};
-
-    bool operator==(const SandShadowLayerSpec& other) const {
-        return shadows == other.shadows;
-    }
-    bool operator!=(const SandShadowLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "sand_fill": sand pooled in the lows of the ground beneath it (`SandFillLayer`).
 struct SandFillLayerSpec {
     SandFillOptions sandFill{};
-
-    bool operator==(const SandFillLayerSpec& other) const {
-        return sandFill == other.sandFill;
-    }
-    bool operator!=(const SandFillLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "secondaries": secondary craters around the craters of the last crater layer
@@ -809,64 +489,35 @@ struct SecondaryLayerSpec {
     /// Depth-to-diameter ratio.
     double depthRatio = 0.11;
     CraterMorphometryFit morphometry = CraterMorphometryFit::Lunar;
-
-    bool operator==(const SecondaryLayerSpec& other) const {
-        return secondaries == other.secondaries && depthRatio == other.depthRatio &&
-               morphometry == other.morphometry;
-    }
-    bool operator!=(const SecondaryLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
-/// Layer "spectral_continuation": detail below the base's resolution continuing its power-law
-/// spectrum (`SpectralContinuationLayer`), fitted to the base (`EstimatePowerLawSpectrum`) on its
+/// Layer "spectral_continuation": detail below the source's resolution continuing its power-law
+/// spectrum (`SpectralContinuationLayer`), fitted to the source (`EstimatePowerLawSpectrum`) on its
 /// own grid wherever the slope or amplitude is not given.
 struct SpectralContinuationLayerSpec {
-    std::optional<double> pixelSize{};  ///< Meters; unset for the base's cell size.
-    std::optional<double> slope{};      ///< Spectral slope beta; unset to fit from the base.
-    std::optional<double> octaveRms{};  ///< Meters; unset to fit from the base.
-    SpectrumFitBand fit{};              ///< Wavelengths the base's spectrum is fitted over.
+    std::optional<double> pixelSize{};  ///< Meters; unset for the source's cell size.
+    std::optional<double> slope{};      ///< Spectral slope beta; unset to fit from the source.
+    std::optional<double> octaveRms{};  ///< Meters; unset to fit from the source.
+    SpectrumFitBand fit{};              ///< Wavelengths the source's spectrum is fitted over.
     double minWavelength = 0.05;        ///< Meters.
     double taperOctaves = 1.0;
     std::uint32_t seed = 1;
     ResolutionFade fade{};
 
-    bool operator==(const SpectralContinuationLayerSpec& other) const {
-        return pixelSize == other.pixelSize && slope == other.slope &&
-               octaveRms == other.octaveRms && fit == other.fit &&
-               minWavelength == other.minWavelength && taperOctaves == other.taperOctaves &&
-               seed == other.seed && fade == other.fade;
-    }
-    bool operator!=(const SpectralContinuationLayerSpec& other) const {
-        return !(*this == other);
-    }
+    /// The layer's options, the defaults in place of an unset pixel size, slope and amplitude.
+    SpectralContinuationOptions Options() const;
 };
 
 /// Layer "scale": height * `scale` + `offset` (`ScaleLayer`).
 struct ScaleLayerSpec {
     double scale = 1.0;
     double offset = 0.0;  ///< Meters.
-
-    bool operator==(const ScaleLayerSpec& other) const {
-        return scale == other.scale && offset == other.offset;
-    }
-    bool operator!=(const ScaleLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Layer "clamp": heights clamped to [`min`, `max`], either optional (`ClampLayer`).
 struct ClampLayerSpec {
     std::optional<double> min;  ///< Meters; unset for no lower bound.
     std::optional<double> max;  ///< Meters; unset for no upper bound.
-
-    bool operator==(const ClampLayerSpec& other) const {
-        return min == other.min && max == other.max;
-    }
-    bool operator!=(const ClampLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Region shape "rectangle": [`minX`, `maxX`] x [`minY`, `maxY`] in surface coordinates.
@@ -875,30 +526,18 @@ struct RectangleRegionSpec {
     double minY = 0.0;
     double maxX = 0.0;
     double maxY = 0.0;
-    bool operator==(const RectangleRegionSpec& other) const {
-        return minX == other.minX && minY == other.minY && maxX == other.maxX && maxY == other.maxY;
-    }
-    bool operator!=(const RectangleRegionSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// Region shape "circle": centered on (`x`, `y`) in surface coordinates.
 struct CircleRegionSpec {
     double x = 0.0;
     double y = 0.0;
     double radius = 0.0;  ///< Meters.
-    bool operator==(const CircleRegionSpec& other) const {
-        return x == other.x && y == other.y && radius == other.radius;
-    }
-    bool operator!=(const CircleRegionSpec& other) const {
-        return !(*this == other);
-    }
 };
 /// A region shape, named in JSON by its "type".
 using RegionShapeSpec = std::variant<RectangleRegionSpec, CircleRegionSpec>;
 
-/// A value held by pointer, so that a spec can hold the variant it belongs to; it is copied
-/// and compared by value.
+/// A value held by pointer, so that a spec can hold the variant it belongs to; it is copied by
+/// value.
 template <typename T> class Boxed {
   public:
     /// A default-constructed value.
@@ -937,13 +576,6 @@ template <typename T> class Boxed {
         return value_.get();
     }
 
-    friend bool operator==(const Boxed& a, const Boxed& b) {
-        return *a.value_ == *b.value_;
-    }
-    friend bool operator!=(const Boxed& a, const Boxed& b) {
-        return !(a == b);
-    }
-
   private:
     std::unique_ptr<T> value_;
 };
@@ -964,18 +596,7 @@ struct MaskedLayerSpec {
     double feather = 0.0;  ///< Meters outside the shape over which the layer fades out.
     BlendShape blend = BlendShape::Smoothstep;
     Boxed<LayerSpec> layer{};
-
-    bool operator==(const MaskedLayerSpec& other) const {
-        return shape == other.shape && feather == other.feather && blend == other.blend &&
-               layer == other.layer;
-    }
-    bool operator!=(const MaskedLayerSpec& other) const {
-        return !(*this == other);
-    }
 };
-
-/// Formats for crater and boulder lists.
-enum class ListFormat { Csv, Json };
 
 /// A box in surface coordinates, given by its `center` and `size` or by its `min` and `max`
 /// corners, each an [x, y] pair; a pair left empty is unset. Surface coordinates are meters on a
@@ -994,26 +615,12 @@ struct ExtentSpec {
     }
 };
 
-/// The area an output covers and its resolution (`config::OutputGrid`).
-///
-/// The output's grid is its extent snapped outward to whole square cells of `pixelSize`: the grid
-/// starts at the extent's min corner, takes ceil(extent / cell) cells along each axis (sizes within
-/// 1e-6 of a cell of a whole number are not grown), and samples at the cells' centers. Without an
-/// extent it covers a bounded source's grid (its crop when cropped), and without a pixel size it
-/// takes the source's cell size; with neither it is the source's grid itself.
+/// The area an output covers and its resolution, snapped to a grid by `config::OutputGrid`.
 struct OutputAreaSpec {
     /// Cell size in meters; on a body, meters along a meridian, the same in degrees of longitude.
     std::optional<double> pixelSize{};
     std::optional<ExtentSpec> extentM{};    ///< The extent on a plane, in meters.
     std::optional<ExtentSpec> extentDeg{};  ///< The extent on a body, in degrees.
-
-    bool operator==(const OutputAreaSpec& other) const {
-        return pixelSize == other.pixelSize && extentM == other.extentM &&
-               extentDeg == other.extentDeg;
-    }
-    bool operator!=(const OutputAreaSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// A list file to write; the format follows the extension (.json or else CSV) unless given.
@@ -1024,12 +631,6 @@ struct ListOutput {
     std::string path;  ///< The file to write; empty to only return the list.
     ListFormat format = ListFormat::Csv;
     OutputAreaSpec area{};
-    bool operator==(const ListOutput& other) const {
-        return path == other.path && format == other.format && area == other.area;
-    }
-    bool operator!=(const ListOutput& other) const {
-        return !(*this == other);
-    }
 };
 
 /// A float32 GeoTIFF file to write over `area`, with the source's projection.
@@ -1038,13 +639,6 @@ struct GeoTiffOutput {
     TiffCompression compression = TiffCompression::Lzw;  ///< None, Lzw or Deflate.
     std::uint32_t tileSize = 256;                        ///< Pixels per tile side.
     OutputAreaSpec area{};
-    bool operator==(const GeoTiffOutput& other) const {
-        return path == other.path && compression == other.compression &&
-               tileSize == other.tileSize && area == other.area;
-    }
-    bool operator!=(const GeoTiffOutput& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Output "crater_list": writes the generated and manual craters.
@@ -1064,13 +658,6 @@ struct BoulderModelsOutput {
     double creaseAngle = 60.0;  ///< Degrees between faces above which vertices are split.
     OutputAreaSpec area{};      ///< As `ListOutput::area`.
     bool instanced = true;      ///< Shared shapes written once and drawn per boulder.
-    bool operator==(const BoulderModelsOutput& other) const {
-        return path == other.path && creaseAngle == other.creaseAngle && area == other.area &&
-               instanced == other.instanced;
-    }
-    bool operator!=(const BoulderModelsOutput& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Output "albedo": writes the albedo (`TerrainGenConfig::albedo`) with one band, or three
@@ -1083,12 +670,6 @@ struct MeshOutput {
     std::string path;                 ///< The file to write; empty to only return the mesh.
     std::size_t cellsPerFace = 128;   ///< Quads along each edge of the six cube faces.
     std::optional<double> spacing{};  ///< Sample spacing in meters; unset for a quad's side.
-    bool operator==(const MeshOutput& other) const {
-        return path == other.path && cellsPerFace == other.cellsPerFace && spacing == other.spacing;
-    }
-    bool operator!=(const MeshOutput& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Output "terrain_mesh": the heights over `area` as a mesh (`BuildMesh`) with smooth normals, in
@@ -1105,13 +686,6 @@ struct TerrainMeshOutput {
     /// [longitude, latitude] in degrees of the frame's site on a body (`BuildMesh`); empty for the
     /// grid's center.
     std::vector<double> siteDeg{};
-    bool operator==(const TerrainMeshOutput& other) const {
-        return path == other.path && area == other.area && cutouts == other.cutouts &&
-               skirt == other.skirt && siteDeg == other.siteDeg;
-    }
-    bool operator!=(const TerrainMeshOutput& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Output "materials": the share of each material class (`TerrainGenConfig::materials`), one band
@@ -1125,12 +699,6 @@ struct PhotometryOutput : GeoTiffOutput {};
 /// written as JSON (`ReportToJson`).
 struct ReportOutput {
     std::string path;  ///< The file to write; empty to only return the report.
-    bool operator==(const ReportOutput& other) const {
-        return path == other.path;
-    }
-    bool operator!=(const ReportOutput& other) const {
-        return !(*this == other);
-    }
 };
 
 /// An output, named in JSON by its "type".
@@ -1139,28 +707,19 @@ using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOu
                                 MaterialsOutput, PhotometryOutput, ReportOutput>;
 
 /// Albedo source "synthetic": `SyntheticAlbedo`, a base color with a noise stack per
-/// channel (each 0 to `kMaxNoiseLayers` layers), measured from the base's reference
+/// channel (each 0 to `kMaxNoiseLayers` layers), measured from the source's reference
 /// point.
 struct SyntheticAlbedoSpec {
     bool rgb = false;
     double hue = 0.0;
     double saturation = 0.0;
     double value = kDefaultSyntheticAlbedoValue;
-    std::vector<NoiseLayerConfig> hueNoise;
-    std::vector<NoiseLayerConfig> saturationNoise;
-    std::vector<NoiseLayerConfig> valueNoise;
+    std::vector<NoiseStackLayerSpec> hueNoise;
+    std::vector<NoiseStackLayerSpec> saturationNoise;
+    std::vector<NoiseStackLayerSpec> valueNoise;
 
-    /// The albedo parameters, with each noise layer's Hurst exponent applied.
-    SyntheticAlbedoOptions Params() const;
-
-    bool operator==(const SyntheticAlbedoSpec& other) const {
-        return rgb == other.rgb && hue == other.hue && saturation == other.saturation &&
-               value == other.value && hueNoise == other.hueNoise &&
-               saturationNoise == other.saturationNoise && valueNoise == other.valueNoise;
-    }
-    bool operator!=(const SyntheticAlbedoSpec& other) const {
-        return !(*this == other);
-    }
+    /// The albedo options, with each noise layer's Hurst exponent applied.
+    SyntheticAlbedoOptions Options() const;
 };
 
 /// Albedo source "raster": `RasterAlbedo` from one or three bands of a GeoTIFF in the
@@ -1174,14 +733,6 @@ struct RasterAlbedoSpec {
     std::optional<double> scale{};
     std::optional<double> offset{};
     RasterAlbedoOptions options{};
-
-    bool operator==(const RasterAlbedoSpec& other) const {
-        return path == other.path && bands == other.bands && scale == other.scale &&
-               offset == other.offset && options == other.options;
-    }
-    bool operator!=(const RasterAlbedoSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// An albedo source, named in JSON by its "type".
@@ -1193,37 +744,16 @@ struct CraterAlbedoSpec {
     /// Index of the top-level crater layer, from 0; unset for every crater layer.
     std::optional<std::size_t> craterLayer;
     CraterAlbedoOptions options{};
-
-    bool operator==(const CraterAlbedoSpec& other) const {
-        return craterLayer == other.craterLayer && options == other.options;
-    }
-    bool operator!=(const CraterAlbedoSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Albedo layer "splotches": `SplotchAlbedo`, the marks of secondary impacts over the terrain.
 struct SplotchAlbedoSpec {
     SplotchAlbedoOptions options{};
-
-    bool operator==(const SplotchAlbedoSpec& other) const {
-        return options == other.options;
-    }
-    bool operator!=(const SplotchAlbedoSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Albedo layer "blast_zones": `BlastZoneAlbedo`, the zones landers' engines scoured.
 struct BlastZoneAlbedoSpec {
     std::vector<BlastZone> zones;
-
-    bool operator==(const BlastZoneAlbedoSpec& other) const {
-        return zones == other.zones;
-    }
-    bool operator!=(const BlastZoneAlbedoSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Albedo layer "rocks": `RockAlbedo`, the rock of the terrain's boulder layers, each read on the
@@ -1232,25 +762,11 @@ struct RockAlbedoSpec {
     /// Index of the top-level boulder layer, from 0; unset for every top-level boulder layer.
     std::optional<std::size_t> boulderLayer;
     RockAlbedoOptions options{};
-
-    bool operator==(const RockAlbedoSpec& other) const {
-        return boulderLayer == other.boulderLayer && options == other.options;
-    }
-    bool operator!=(const RockAlbedoSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Albedo layer "slopes": `SlopeAlbedo`, steep ground kept fresh by mass wasting.
 struct SlopeAlbedoSpec {
     SlopeAlbedoOptions options{};
-
-    bool operator==(const SlopeAlbedoSpec& other) const {
-        return options == other.options;
-    }
-    bool operator!=(const SlopeAlbedoSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// An albedo layer, named in JSON by its "type".
@@ -1262,35 +778,15 @@ using AlbedoLayerSpec = std::variant<CraterAlbedoSpec, SplotchAlbedoSpec, BlastZ
 struct AlbedoSpec {
     AlbedoSourceSpec source{};
     std::vector<AlbedoLayerSpec> layers;
-
-    bool operator==(const AlbedoSpec& other) const {
-        return source == other.source && layers == other.layers;
-    }
-    bool operator!=(const AlbedoSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Body "plane": a projected frame in meters, the default.
-struct PlaneSurfaceSpec {
-    bool operator==(const PlaneSurfaceSpec& /*other*/) const {
-        return true;
-    }
-    bool operator!=(const PlaneSurfaceSpec& other) const {
-        return !(*this == other);
-    }
-};
+struct PlaneSurfaceSpec {};
 
 /// Body "sphere": a body such as a planet or moon (`Surface`); grids and positions are
 /// longitude and latitude in degrees, and features are generated over the whole body.
 struct SphereSurfaceSpec {
     double radius = 0.0;  ///< Meters; must be given.
-    bool operator==(const SphereSurfaceSpec& other) const {
-        return radius == other.radius;
-    }
-    bool operator!=(const SphereSurfaceSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Body "ellipsoid": a body shaped as a triaxial ellipsoid (`Surface::Ellipsoid`), with
@@ -1298,12 +794,6 @@ struct SphereSurfaceSpec {
 /// center.
 struct EllipsoidSurfaceSpec {
     std::vector<double> radii;  ///< Semi-axes a, b, c in meters along x, y and z; exactly three.
-    bool operator==(const EllipsoidSurfaceSpec& other) const {
-        return radii == other.radii;
-    }
-    bool operator!=(const EllipsoidSurfaceSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Body "shape_model": a star-shaped body from a shape model file (`Surface::ShapeModel`), an
@@ -1315,12 +805,6 @@ struct ShapeModelSurfaceSpec {
     std::optional<std::size_t> q{};
     /// Meters per file unit; unset is 1000 for an ICQ model (kilometers) and 1 for a mesh.
     std::optional<double> metersPerUnit{};
-    bool operator==(const ShapeModelSurfaceSpec& other) const {
-        return path == other.path && q == other.q && metersPerUnit == other.metersPerUnit;
-    }
-    bool operator!=(const ShapeModelSurfaceSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// The body a terrain lies on, a plane or a whole body, named in JSON by its "type".
@@ -1337,26 +821,12 @@ enum class PhotometryReference {
 struct PhotometrySpec {
     PhotometryReference reference = PhotometryReference::None;
     MaterialPhotometry classes{};  ///< Parameters given per class, over the reference's.
-
-    bool operator==(const PhotometrySpec& other) const {
-        return reference == other.reference && classes == other.classes;
-    }
-    bool operator!=(const PhotometrySpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// The material map (`MaterialsAt`), read by "materials" and "photometry" outputs.
 struct MaterialsSpec {
     MaterialOptions options{};
     PhotometrySpec photometry{};
-
-    bool operator==(const MaterialsSpec& other) const {
-        return options == other.options && photometry == other.photometry;
-    }
-    bool operator!=(const MaterialsSpec& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Everything needed to generate a terrain: the body it lies on, optionally its source of heights,
@@ -1371,15 +841,12 @@ struct TerrainGenConfig {
     std::vector<OutputSpec> outputs;
     std::optional<AlbedoSpec> albedo;        ///< None by default.
     std::optional<MaterialsSpec> materials;  ///< None by default.
-
-    bool operator==(const TerrainGenConfig& other) const {
-        return schemaVersion == other.schemaVersion && body == other.body &&
-               source == other.source && layers == other.layers && outputs == other.outputs &&
-               albedo == other.albedo && materials == other.materials;
-    }
-    bool operator!=(const TerrainGenConfig& other) const {
-        return !(*this == other);
-    }
 };
+
+/// Whether two configurations are the same, as their JSON is (`ConfigToJson`).
+bool operator==(const TerrainGenConfig& a, const TerrainGenConfig& b);
+
+/// Whether two configurations differ, as their JSON does (`ConfigToJson`).
+bool operator!=(const TerrainGenConfig& a, const TerrainGenConfig& b);
 
 }  // namespace terraingen

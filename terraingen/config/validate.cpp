@@ -6,12 +6,10 @@
 #include "terraingen/config/build.h"
 #include "terraingen/config/fields/checks.h"
 #include "terraingen/config/fields/common.h"
+#include "terraingen/config/fields/materials.h"
 #include "terraingen/config/generate.h"
-#include "terraingen/distribution/ivanov.h"
-#include "terraingen/distribution/neukum.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/shaping/explicit_state.h"
-#include "terraingen/layers/source_resolved.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
@@ -20,11 +18,10 @@
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/sources/upsampling.h"
 #include "terraingen/util/overloaded.h"
+#include "terraingen/util/text.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <cstdio>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -42,7 +39,6 @@ using config::At;
 using config::AtFile;
 using config::BuildBoulderOptions;
 using config::BuildRegionShape;
-using config::CheckFinite;
 using config::CheckNonEmpty;
 using config::Child;
 using config::Element;
@@ -74,18 +70,14 @@ void CheckExpectedCount(double expected, std::string_view items, std::string_vie
 
 /// @throws ConfigError for a stack of more than `kMaxNoiseLayers` layers, or none unless
 /// `allowEmpty`, or an invalid layer.
-void CheckNoiseStack(const std::vector<NoiseLayerConfig>& layers, const std::string& path,
+void CheckNoiseStack(const std::vector<NoiseStackLayerSpec>& layers, const std::string& path,
                      bool allowEmpty) {
     const std::size_t fewest = allowEmpty ? 0 : 1;
     if (layers.size() < fewest || layers.size() > kMaxNoiseLayers) {
         throw ConfigError(path, "needs " + config::CountText(fewest, kMaxNoiseLayers) + " layers");
     }
     for (std::size_t i = 0; i < layers.size(); ++i) {
-        const std::string layer = Element(path, i);
-        if (layers[i].hurst) {
-            CheckFinite(static_cast<double>(*layers[i].hurst), Child(layer, "hurst"));
-        }
-        At(layer, [&] { ValidateNoiseLayer(layers[i].Effective()); });
+        At(Element(path, i), [&] { ValidateNoiseLayer(layers[i].Effective()); });
     }
 }
 
@@ -111,22 +103,11 @@ struct LayerChecks {
 
 void CheckLayer(const LayerSpec& spec, const std::string& path, LayerChecks& context);
 
+/// @throws ConfigError at a manual crater with a rim height but no depth.
 void CheckManualCraters(const std::vector<Crater>& manual, const std::string& path) {
     for (std::size_t n = 0; n < manual.size(); ++n) {
-        const Crater& crater = manual[n];
-        const std::string at = Element(path, n);
-        if (!(std::isfinite(crater.x) && std::isfinite(crater.y))) {
-            throw ConfigError(at, "position must be finite");
-        }
-        if (!(std::isnan(crater.depth) || (std::isfinite(crater.depth) && crater.depth > 0.0))) {
-            throw ConfigError(Child(at, "depth"), "must be positive");
-        }
-        if (!(std::isnan(crater.rimHeight) ||
-              (std::isfinite(crater.rimHeight) && crater.rimHeight >= 0.0))) {
-            throw ConfigError(Child(at, "rim_height"), "must not be negative");
-        }
-        if (std::isnan(crater.depth) && !std::isnan(crater.rimHeight)) {
-            throw ConfigError(Child(at, "rim_height"), "needs a depth");
+        if (std::isnan(manual[n].depth) && !std::isnan(manual[n].rimHeight)) {
+            throw ConfigError(Child(Element(path, n), "rim_height"), "needs a depth");
         }
     }
 }
@@ -168,22 +149,7 @@ void AddExpectedCraters(const CraterLayerSpec& craters, const CraterModels& mode
 
 /// A length as messages give it, such as 2.5.
 std::string Meters(double value) {
-    std::array<char, 32> buffer{};
-    std::snprintf(buffer.data(), buffer.size(), "%g", value);
-    return buffer.data();
-}
-
-/// The diameters a production function is defined over.
-DiameterRange ProductionRange(ProductionFunction production) {
-    switch (production) {
-    case ProductionFunction::Neukum:
-        return NeukumProductionFunction().ValidRange();
-    case ProductionFunction::Ivanov:
-        return IvanovMarsProductionFunction().ValidRange();
-    case ProductionFunction::ExtendedNeukum:
-        break;
-    }
-    return ExtendedNeukumProductionFunction().ValidRange();
+    return FormatNumber(value, 6);
 }
 
 /// @throws ConfigError at `path` when the density or the ages of a generating layer are not
@@ -200,7 +166,7 @@ void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
             "the density or ages are not defined at " + Meters(craters.minDiameter) + " m";
         if (const auto* steady = std::get_if<SteadyStateAgesSpec>(&craters.ages)) {
             message += "; steady-state ages need the production function's diameters, from " +
-                       Meters(ProductionRange(steady->production).min) + " m";
+                       Meters(config::BuildProduction(steady->production)->ValidRange().min) + " m";
         } else if (density.min > 0.0) {
             message += "; the density starts at " + Meters(density.min) + " m";
         }
@@ -208,14 +174,7 @@ void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
     }
 }
 
-/// @throws ConfigError at the layer's "source_resolves_px" for a set value that is not positive
-/// and finite.
-void CheckSourceResolves(const std::optional<double>& pixels, const std::string& path) {
-    At(Child(path, "source_resolves_px"), [&] { ValidateSourceResolvesPixels(pixels); });
-}
-
 void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, LayerChecks& context) {
-    CheckSourceResolves(craters.sourceResolvesPixels, path);
     CheckManualCraters(craters.manual, Child(path, "manual"));
     At(Child(path, "spacing"), [&] { ValidateCraterSpacing(craters.spacing); });
     At(Child(path, "apply"), [&] { ValidateCraterApplyOptions(craters.apply); });
@@ -238,7 +197,8 @@ void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, Lay
     AddExpectedCraters(craters, models, path, context);
 }
 
-/// @throws ConfigError at a boulder layer's "density_map" or "slope_map" for an invalid map.
+/// @throws ConfigError at a boulder layer's "density_map" or "slope_map" for an invalid map; the
+/// layer's own check repeats this, but reports it at the layer.
 void CheckBoulderMaps(const BoulderLayerOptions& boulders, const std::string& path) {
     if (boulders.densityMap) {
         At(Child(path, "density_map"), [&] { ValidateDensityMap(*boulders.densityMap); });
@@ -290,7 +250,6 @@ void CheckManualBoulders(const std::vector<ManualBoulder>& manual, const std::st
 }
 
 void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, LayerChecks& context) {
-    CheckSourceResolves(spec.boulders.sourceResolvesPixels, path);
     CheckManualBoulders(spec.manual, Child(path, "manual"));
     const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path, context.directory);
     CheckBoulderMaps(boulders, path);
@@ -335,13 +294,12 @@ void CheckLayerSpec(const SecondaryLayerSpec& layer, const std::string& path,
         throw ConfigError(Child(path, "onset_count"),
                           "required: the sources give secondary sizes, not their number");
     }
-    CheckSourceResolves(layer.secondaries.sourceResolvesPixels, path);
     At(path, [&] { ValidateSecondaryCraterOptions(layer.secondaries); });
 }
 
 /// Requires a source with posts for a layer at `path` that estimates its settings from it.
 /// @throws ConfigError at the layer's "estimate_from_base" without one.
-void CheckEstimateBase(bool estimate, const std::string& path, const LayerChecks& context) {
+void CheckEstimateSource(bool estimate, const std::string& path, const LayerChecks& context) {
     if (estimate && !context.posts) {
         throw ConfigError(Child(path, "estimate_from_base"),
                           "needs a source with posts to estimate from, a raster or synthetic noise "
@@ -351,8 +309,7 @@ void CheckEstimateBase(bool estimate, const std::string& path, const LayerChecks
 
 void CheckLayerSpec(const NoiseLayerSpec& noise, const std::string& path, LayerChecks& context) {
     CheckNoiseStack(noise.stack, Child(path, "stack"), false);
-    CheckEstimateBase(noise.estimateFromBase, path, context);
-    CheckSourceResolves(noise.sourceResolvesPixels, path);
+    CheckEstimateSource(noise.estimateFromSource, path, context);
 }
 
 void CheckLayerSpec(const SandShadowLayerSpec& layer, const std::string& path,
@@ -366,11 +323,10 @@ void CheckLayerSpec(const SandShadowLayerSpec& layer, const std::string& path,
 void CheckLayerSpec(const RoughnessLayerSpec& layer, const std::string& path,
                     LayerChecks& context) {
     At(path, [&] { ValidateRoughnessOptions(layer.Options()); });
-    CheckEstimateBase(layer.estimateFromBase, path, context);
+    CheckEstimateSource(layer.estimateFromSource, path, context);
 }
 
 void CheckLayerSpec(const DuneLayerSpec& layer, const std::string& path, LayerChecks&) {
-    CheckSourceResolves(layer.dunes.sourceResolvesPixels, path);
     At(path, [&] { ValidateDuneOptions(layer.dunes); });
 }
 
@@ -387,7 +343,6 @@ void CheckLayerSpec(const SandFillLayerSpec& layer, const std::string& path, Lay
 }
 
 void CheckLayerSpec(const BedformLayerSpec& layer, const std::string& path, LayerChecks&) {
-    CheckSourceResolves(layer.bedforms.sourceResolvesPixels, path);
     At(path, [&] { ValidateBedformOptions(layer.bedforms); });
 }
 
@@ -399,7 +354,15 @@ void CheckLayerSpec(const ClampLayerSpec& layer, const std::string& path, LayerC
     At(path, [&] { ClampLayer(layer.min, layer.max); });
 }
 
-/// Checks a GeoTIFF a base or layer at `path` reads: a path to a readable file with the band, in
+/// @throws ConfigError at `path` for a band the GeoTIFF `info` describes does not have.
+void CheckBand(std::size_t band, const GeoTiffInfo& info, const std::string& path) {
+    if (band >= info.bands) {
+        throw ConfigError(path, "the file has " + std::to_string(info.bands) +
+                                    (info.bands == 1 ? " band" : " bands"));
+    }
+}
+
+/// Checks a GeoTIFF a source at `path` reads: a path to a readable file with the band, in
 /// coordinates that suit the surface, and returns its header.
 /// @throws ConfigError at the spec's "path" or "band" otherwise.
 GeoTiffInfo CheckGeoTiffRead(const std::string& file, std::size_t band, const std::string& path,
@@ -408,10 +371,7 @@ GeoTiffInfo CheckGeoTiffRead(const std::string& file, std::size_t band, const st
     CheckNonEmpty(file, filePath);
     const GeoTiffInfo info =
         AtFile(filePath, [&] { return ReadGeoTiffInfo(Resolve(file, directory)); });
-    if (band >= info.bands) {
-        throw ConfigError(Child(path, "band"), "the file has " + std::to_string(info.bands) +
-                                                   (info.bands == 1 ? " band" : " bands"));
-    }
+    CheckBand(band, info, Child(path, "band"));
     if (info.geoKeys.IsGeographic() && !surface.IsBody()) {
         throw ConfigError(filePath,
                           "the raster's CRS is geographic (degrees); craters are sized in "
@@ -427,18 +387,13 @@ GeoTiffInfo CheckGeoTiffRead(const std::string& file, std::size_t band, const st
 
 /// The cells of `lattice`, the grid a GeoTIFF read at `path` gives over the whole file, that the
 /// read's `crop` meets; the whole lattice without a crop.
-/// @throws ConfigError under the read's "crop" for a crop that is not finite, is empty or misses
-/// the file.
+/// @throws ConfigError under the read's "crop" for a crop that is empty or misses the file.
 RasterGrid CheckGeoTiffCrop(const std::optional<Bounds2d>& crop, const RasterGrid& lattice,
                             const std::string& path) {
     if (!crop) {
         return lattice;
     }
     const std::string at = Child(path, "crop");
-    CheckFinite(crop->minX, Child(at, "min_x"));
-    CheckFinite(crop->minY, Child(at, "min_y"));
-    CheckFinite(crop->maxX, Child(at, "max_x"));
-    CheckFinite(crop->maxY, Child(at, "max_y"));
     if (!(crop->maxX > crop->minX)) {
         throw ConfigError(Child(at, "max_x"), "must exceed min_x");
     }
@@ -460,14 +415,7 @@ void CheckLayerSpec(const SpectralContinuationLayerSpec& layer, const std::strin
     }
     At(path, [&] {
         ValidateSpectrumFitBand(layer.fit);
-        SpectralContinuationOptions options;
-        options.pixelSize = layer.pixelSize.value_or(options.pixelSize);
-        options.slope = layer.slope.value_or(options.slope);
-        options.octaveRms = layer.octaveRms.value_or(options.octaveRms);
-        options.minWavelength = layer.minWavelength;
-        options.taperOctaves = layer.taperOctaves;
-        options.fade = layer.fade;
-        ValidateSpectralContinuationOptions(options);
+        ValidateSpectralContinuationOptions(layer.Options());
     });
 }
 
@@ -493,9 +441,14 @@ void CheckLayer(const LayerSpec& spec, const std::string& path, LayerChecks& con
     std::visit([&](const auto& layer) { CheckLayerSpec(layer, path, context); }, spec);
 }
 
-std::optional<RasterGrid> DescribeSourceAt(const SourceSpec& source,
-                                           const std::filesystem::path& directory,
-                                           const std::string& path, const Surface& surface);
+/// The grid a source at `path` covers, reading only the header of a raster's file; a chain's is
+/// its first source's, and synthetic noise has none. Also checks the sources' upsampling and
+/// synthetic stacks.
+/// @throws ConfigError under `path` for an unreadable raster, invalid grid parameters, an unknown
+/// upsampling type or invalid settings.
+std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
+                                         const std::filesystem::path& directory,
+                                         const std::string& path, const Surface& surface);
 
 std::optional<RasterGrid> DescribeChain(const ChainSourceSpec& chain,
                                         const std::filesystem::path& directory,
@@ -507,7 +460,7 @@ std::optional<RasterGrid> DescribeChain(const ChainSourceSpec& chain,
     std::optional<RasterGrid> grid;
     for (std::size_t n = 0; n < chain.sources.size(); ++n) {
         const std::optional<RasterGrid> described =
-            DescribeSourceAt(chain.sources[n], directory, Element(sources, n), surface);
+            DescribeSource(chain.sources[n], directory, Element(sources, n), surface);
         if (n == 0) {
             grid = described;
         }
@@ -566,9 +519,9 @@ RasterGrid DescribeRaster(const RasterSourceSpec& raster, const std::filesystem:
     return grid;
 }
 
-std::optional<RasterGrid> DescribeSourceAt(const SourceSpec& source,
-                                           const std::filesystem::path& directory,
-                                           const std::string& path, const Surface& surface) {
+std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
+                                         const std::filesystem::path& directory,
+                                         const std::string& path, const Surface& surface) {
     return std::visit(
         Overloaded{
             [&](const RasterSourceSpec& s) -> std::optional<RasterGrid> {
@@ -599,14 +552,11 @@ bool HasPosts(const SourceSpec& source) {
 /// Rows of a whole-body list's grid above which its spacing is too fine.
 constexpr double kMaxWholeBodyRows = 1e9;
 
-/// Checks an [x, y] pair at `path`: empty for unset, or two finite numbers.
+/// Checks an [x, y] pair at `path`: empty for unset, or two numbers.
 /// @throws ConfigError at `path` otherwise.
 void CheckPair(const std::vector<double>& pair, const std::string& path) {
     if (!pair.empty() && pair.size() != 2) {
         throw ConfigError(path, "needs two numbers, [x, y]");
-    }
-    for (const double value : pair) {
-        CheckFinite(value, path);
     }
 }
 
@@ -633,24 +583,46 @@ Bounds2d CheckExtent(const ExtentSpec& extent, const std::string& path) {
         if (!(extent.max[0] > extent.min[0] && extent.max[1] > extent.min[1])) {
             throw ConfigError(Child(path, "max"), "must lie above min along x and y");
         }
-    } else {
-        if (extent.center.empty() || extent.size.empty()) {
-            throw ConfigError(Child(path, extent.center.empty() ? "center" : "size"),
-                              "required with " +
-                                  std::string(extent.center.empty() ? "size" : "center"));
-        }
-        if (!(extent.size[0] > 0.0 && extent.size[1] > 0.0)) {
-            throw ConfigError(Child(path, "size"), "must be positive");
-        }
+    } else if (extent.center.empty() || extent.size.empty()) {
+        throw ConfigError(Child(path, extent.center.empty() ? "center" : "size"),
+                          "required with " +
+                              std::string(extent.center.empty() ? "size" : "center"));
     }
     return *config::ExtentBox(extent);
 }
 
-/// The number `cells`, written whole.
-std::string CellText(double cells) {
-    std::array<char, 32> text{};
-    std::snprintf(text.data(), text.size(), "%.0f", cells);
-    return text.data();
+/// @throws ConfigError at an area's extent in the other unit: meters on a body, degrees on a plane.
+void CheckExtentUnit(const OutputAreaSpec& area, const std::string& path, bool body) {
+    if (body ? area.extentM : area.extentDeg) {
+        throw ConfigError(Child(path, body ? "extent_m" : "extent_deg"),
+                          body ? "on a body give extent_deg, in degrees of longitude and latitude"
+                               : "only on a body; give extent_m, in meters, on a plane");
+    }
+}
+
+/// Checks the grid `cells` snaps to: at most `kMaxConfigGridSize` cells a side and, on a body,
+/// within the latitudes and one turn of longitude.
+/// @throws ConfigError at `sizePath` for a grid too large or small, or at `extentPath` off the
+/// body.
+void CheckAreaGrid(const config::AreaCells& cells, const std::string& sizePath,
+                   const std::string& extentPath, bool body) {
+    const double columns = config::SnappedCells(cells.box.maxX - cells.box.minX, cells.cell);
+    const double rows = config::SnappedCells(cells.box.maxY - cells.box.minY, cells.cell);
+    const auto limit = static_cast<double>(kMaxConfigGridSize);
+    if (columns > limit || rows > limit) {
+        throw ConfigError(sizePath, "gives " + FormatNumber(columns, 17) + "x" +
+                                        FormatNumber(rows, 17) + " cells; each side must be " +
+                                        config::CountText(kMinConfigGridSize, kMaxConfigGridSize));
+    }
+    const RasterGrid grid = config::SnappedGrid(cells.box, cells.cell);
+    CheckGridSize(grid.width, grid.height, sizePath);
+    const Bounds2d bounds = grid.Bounds();
+    const double slack = config::kExtentSnapTolerance * cells.cell;
+    if (body && !(bounds.minY >= -90.0 - slack && bounds.maxY <= 90.0 + slack &&
+                  bounds.maxX - bounds.minX <= 360.0 + slack)) {
+        throw ConfigError(extentPath,
+                          "the grid must lie within latitudes -90 to 90 and one turn of longitude");
+    }
 }
 
 /// Checks an output's area at `path`: its extent, pixel size and the grid they give.
@@ -659,58 +631,34 @@ std::string CellText(double cells) {
 /// extent or pixel size without a bounded source, a grid of too many cells or off the body, or a
 /// pixel size too fine to list the whole body.
 void CheckOutputArea(const OutputAreaSpec& area, const std::string& path, bool listed,
-                     const std::optional<RasterGrid>& base, const Surface& surface) {
+                     const std::optional<RasterGrid>& source, const Surface& surface) {
     const bool body = surface.IsBody();
-    const std::string extentKey = body ? "extent_deg" : "extent_m";
-    const std::string pixelKey = Child(path, "pixel_size_m");
-    if (body ? area.extentM : area.extentDeg) {
-        throw ConfigError(Child(path, body ? "extent_m" : "extent_deg"),
-                          body ? "on a body give extent_deg, in degrees of longitude and latitude"
-                               : "only on a body; give extent_m, in meters, on a plane");
-    }
+    CheckExtentUnit(area, path, body);
+    const std::string extentPath = Child(path, body ? "extent_deg" : "extent_m");
+    const std::string pixelPath = Child(path, "pixel_size_m");
     const std::optional<ExtentSpec>& extent = config::SurfaceExtent(area, surface);
-    std::optional<Bounds2d> box;
     if (extent) {
-        box = CheckExtent(*extent, Child(path, extentKey));
+        CheckExtent(*extent, extentPath);
     }
-    if (listed && body && !base && !extent && area.pixelSize) {
+    if (listed && body && !source && !extent && area.pixelSize) {
         if (180.0 * surface.UnitLength() / *area.pixelSize > kMaxWholeBodyRows) {
-            throw ConfigError(pixelKey, "is too fine to list features over the body");
+            throw ConfigError(pixelPath, "is too fine to list features over the body");
         }
         return;
     }
-    if (!box && !base) {
-        throw ConfigError(Child(path, extentKey),
+    if (!extent && !source) {
+        throw ConfigError(extentPath,
                           listed && body
                               ? "required without a raster or chain source, or give pixel_size_m "
                                 "alone to list the whole body"
                               : "required without a raster or chain source: the area to cover");
     }
-    if (!area.pixelSize && !base) {
-        throw ConfigError(pixelKey, "required without a raster or chain source");
+    if (!area.pixelSize && !source) {
+        throw ConfigError(pixelPath, "required without a raster or chain source");
     }
-    if (!box && !area.pixelSize) {
-        return;
-    }
-    const Bounds2d covered = box ? *box : base->Bounds();
-    const double cell = area.pixelSize ? *area.pixelSize / surface.UnitLength() : base->PixelSize();
-    const double columns = config::SnappedCells(covered.maxX - covered.minX, cell);
-    const double rows = config::SnappedCells(covered.maxY - covered.minY, cell);
-    const std::string sizePath = area.pixelSize ? pixelKey : Child(path, extentKey);
-    const auto limit = static_cast<double>(kMaxConfigGridSize);
-    if (columns > limit || rows > limit) {
-        throw ConfigError(sizePath, "gives " + CellText(columns) + "x" + CellText(rows) +
-                                        " cells; each side must be " +
-                                        config::CountText(kMinConfigGridSize, kMaxConfigGridSize));
-    }
-    const RasterGrid grid = config::SnappedGrid(covered, cell);
-    CheckGridSize(grid.width, grid.height, sizePath);
-    const Bounds2d bounds = grid.Bounds();
-    const double slack = config::kExtentSnapTolerance * cell;
-    if (body && !(bounds.minY >= -90.0 - slack && bounds.maxY <= 90.0 + slack &&
-                  bounds.maxX - bounds.minX <= 360.0 + slack)) {
-        throw ConfigError(Child(path, extentKey),
-                          "the grid must lie within latitudes -90 to 90 and one turn of longitude");
+    if (extent || area.pixelSize) {
+        CheckAreaGrid(*config::CoveredCells(area, source, surface),
+                      area.pixelSize ? pixelPath : extentPath, extentPath, body);
     }
 }
 
@@ -718,14 +666,14 @@ void CheckOutputArea(const OutputAreaSpec& area, const std::string& path, bool l
 /// without an area, a body mesh or a report.
 /// @throws ConfigError as `CheckOutputArea`.
 std::optional<RasterGrid> CheckOutputGrid(const OutputSpec& output, const std::string& path,
-                                          const std::optional<RasterGrid>& base,
+                                          const std::optional<RasterGrid>& source,
                                           const Surface& surface) {
     const OutputAreaSpec* area = config::OutputArea(output);
     if (!area) {
         return std::nullopt;
     }
-    CheckOutputArea(*area, path, config::ListsFeatures(output), base, surface);
-    return config::OutputGrid(output, base, surface);
+    CheckOutputArea(*area, path, config::ListsFeatures(output), source, surface);
+    return config::OutputGrid(output, source, surface);
 }
 
 /// What outputs are checked against.
@@ -812,11 +760,6 @@ void CheckOutput(const TerrainMeshOutput& output, const std::string& path,
 void CheckOutput(const ReportOutput& /*output*/, const std::string& /*path*/, const OutputChecks&) {
 }
 
-/// Whether an output's body mesh is an ICQ shape model rather than a mesh.
-bool WritesIcq(const MeshOutput& output) {
-    return IsIcqPath(output.path);
-}
-
 /// Checks that outputs sharing one result agree on it: body meshes of one kind (mesh or ICQ) on
 /// their cells and spacing, and terrain meshes over one grid on their cutouts, skirt and site.
 /// @throws ConfigError at the first output that disagrees with an earlier one.
@@ -826,7 +769,7 @@ void CheckSharedResults(const TerrainGenConfig& config, const ConfigSummary& sum
         for (std::size_t j = 0; j < i; ++j) {
             const auto* mesh = std::get_if<MeshOutput>(&config.outputs[i]);
             const auto* earlier = std::get_if<MeshOutput>(&config.outputs[j]);
-            if (mesh && earlier && WritesIcq(*mesh) == WritesIcq(*earlier) &&
+            if (mesh && earlier && IsIcqPath(mesh->path) == IsIcqPath(earlier->path) &&
                 (mesh->cellsPerFace != earlier->cellsPerFace ||
                  mesh->spacing != earlier->spacing)) {
                 throw ConfigError(path, "body meshes share one result: give the same "
@@ -890,24 +833,23 @@ void CheckLayers(const TerrainGenConfig& config, const std::vector<Extent>& exte
     }
 }
 
-/// The material classes, with their names, a configuration's surface can have.
-std::vector<std::pair<MaterialClass, const char*>>
-PresentMaterials(const TerrainGenConfig& config) {
+/// The material classes a configuration's surface can have.
+std::vector<MaterialClass> PresentMaterials(const TerrainGenConfig& config) {
     const MaterialsSpec& materials = *config.materials;
-    std::vector<std::pair<MaterialClass, const char*>> present{{MaterialClass::Soil, "soil"}};
+    std::vector<MaterialClass> present{MaterialClass::Soil};
     if (materials.options.exposure ||
         config::HasLayer<PavementLayerSpec, StrataLayerSpec>(config.layers)) {
-        present.emplace_back(MaterialClass::Bedrock, "bedrock");
+        present.push_back(MaterialClass::Bedrock);
     }
     if (materials.options.dustCover > 0.0) {
-        present.emplace_back(MaterialClass::Dust, "dust");
+        present.push_back(MaterialClass::Dust);
     }
     if (config::HasLayer<DuneLayerSpec, BedformLayerSpec, SandFillLayerSpec, SandShadowLayerSpec>(
             config.layers)) {
-        present.emplace_back(MaterialClass::Sand, "sand");
+        present.push_back(MaterialClass::Sand);
     }
     if (config::HasLayer<BoulderLayerSpec>(config.layers)) {
-        present.emplace_back(MaterialClass::Rock, "rock");
+        present.push_back(MaterialClass::Rock);
     }
     return present;
 }
@@ -922,9 +864,10 @@ void CheckMaterials(const TerrainGenConfig& config) {
     if (!config::HasOutput<PhotometryOutput>(config.outputs)) {
         return;
     }
-    for (const auto& [material, name] : PresentMaterials(config)) {
-        if (!photometry[static_cast<std::size_t>(material)]) {
-            throw ConfigError(Child("materials.photometry", name),
+    for (const MaterialClass material : PresentMaterials(config)) {
+        const auto index = static_cast<std::size_t>(material);
+        if (!photometry[index]) {
+            throw ConfigError(Child("materials.photometry", config::kMaterialClassKeys[index]),
                               "required by the photometry output: the surface has some");
         }
     }
@@ -942,7 +885,7 @@ void CheckAlbedoSource(const SyntheticAlbedoSpec& spec, const std::filesystem::p
     CheckNoiseStack(spec.hueNoise, Child(path, "hue_noise_deg"), true);
     CheckNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"), true);
     CheckNoiseStack(spec.valueNoise, Child(path, "value_noise"), true);
-    At(path, [&] { ValidateSyntheticAlbedoOptions(spec.Params()); });
+    At(path, [&] { ValidateSyntheticAlbedoOptions(spec.Options()); });
 }
 
 void CheckAlbedoSource(const RasterAlbedoSpec& spec, const std::filesystem::path& directory,
@@ -956,17 +899,10 @@ void CheckAlbedoSource(const RasterAlbedoSpec& spec, const std::filesystem::path
     const GeoTiffInfo info =
         AtFile(file, [&] { return ReadGeoTiffInfo(Resolve(spec.path, directory)); });
     for (const std::size_t band : spec.bands) {
-        if (band >= info.bands) {
-            throw ConfigError(bands, "the file has " + std::to_string(info.bands) +
-                                         (info.bands == 1 ? " band" : " bands"));
-        }
+        CheckBand(band, info, bands);
     }
     if (info.transform.IsRotated()) {
         throw ConfigError(file, "rotated albedo maps are not supported");
-    }
-    if ((spec.scale && !std::isfinite(*spec.scale)) ||
-        (spec.offset && !std::isfinite(*spec.offset))) {
-        throw ConfigError(Child(path, "scale"), "the scale and offset must be finite");
     }
     At(Child(path, "detail"), [&] { ValidateAlbedoDetail(spec.options.detail); });
 }
@@ -1019,18 +955,14 @@ void CheckAlbedoLayer(const SlopeAlbedoSpec& slopes, const std::string& path, co
 
 }  // namespace
 
-std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
-                                         const std::filesystem::path& directory,
-                                         const Surface& surface) {
-    return DescribeSourceAt(source, directory, "source", surface);
-}
+namespace config {
 
 void ValidateAlbedo(const TerrainGenConfig& config, const std::filesystem::path& directory) {
     const AlbedoSpec& albedo = *config.albedo;
     std::visit([&](const auto& source) { CheckAlbedoSource(source, directory, "albedo.source"); },
                albedo.source);
-    const AlbedoChecks context{config::CountLayers<CraterLayerSpec>(config.layers),
-                               config::CountLayers<BoulderLayerSpec>(config.layers)};
+    const AlbedoChecks context{CountLayers<CraterLayerSpec>(config.layers),
+                               CountLayers<BoulderLayerSpec>(config.layers)};
     for (std::size_t i = 0; i < albedo.layers.size(); ++i) {
         const std::string path = Element("albedo.layers", i);
         std::visit([&](const auto& layer) { CheckAlbedoLayer(layer, path, context); },
@@ -1038,19 +970,21 @@ void ValidateAlbedo(const TerrainGenConfig& config, const std::filesystem::path&
     }
 }
 
+}  // namespace config
+
 ConfigSummary ValidateConfig(const TerrainGenConfig& config,
                              const std::filesystem::path& directory) {
-    CheckConfigRanges(config);
+    config::CheckConfigRanges(config);
     CheckBody(config.body, "body");
     ConfigSummary summary;
     const Surface surface = BuildSurface(config.body, directory);
     if (config.source) {
-        summary.source = DescribeSource(*config.source, directory, surface);
+        summary.source = DescribeSource(*config.source, directory, "source", surface);
     }
     const std::vector<Extent> extents = CheckOutputs(config, surface, summary);
     CheckLayers(config, extents, directory, surface, summary);
     if (config.albedo) {
-        ValidateAlbedo(config, directory);
+        config::ValidateAlbedo(config, directory);
     }
     if (config.materials) {
         CheckMaterials(config);

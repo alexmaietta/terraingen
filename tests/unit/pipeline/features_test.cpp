@@ -1,4 +1,4 @@
-#include "terraingen/pipeline/features.h"
+#include "terraingen/pipeline/generator.h"
 
 #include "terraingen/terraingen.h"
 #include "tests/unit/pipeline/terrains.h"

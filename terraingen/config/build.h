@@ -42,7 +42,7 @@ TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
                                 const std::filesystem::path& directory = {});
 
 /// The albedo `config.albedo` describes for `generator`, whose top-level crater layers crater
-/// albedo layers read. Checks the albedo with `ValidateAlbedo` first.
+/// albedo layers read. Checks the albedo with `config::ValidateAlbedo` first.
 /// @param generator The generator `BuildGenerator` built from `config`.
 /// @param directory Folder relative input paths resolve against.
 /// @throws ConfigError if the albedo is invalid or the configuration has none.
@@ -89,6 +89,13 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec);
 /// replaced by any it gives.
 MaterialPhotometry BuildPhotometry(const PhotometrySpec& spec);
 
+/// The crater production function a configuration names.
+std::shared_ptr<const SizeFrequencyDistribution> BuildProduction(ProductionFunction production);
+
+/// `BuildAlbedo` for a configuration `ValidateConfig` has already checked.
+Albedo BuildValidAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
+                        const std::filesystem::path& directory);
+
 /// Fraction of a cell an extent may exceed a whole number of cells by without gaining a cell.
 inline constexpr double kExtentSnapTolerance = 1e-6;
 
@@ -120,17 +127,31 @@ bool ListsFeatures(const OutputSpec& output);
 /// @param spacing In meters; positive.
 RasterGrid WholeBodyGrid(const Surface& surface, double spacing);
 
-/// The grid an output covers, unchecked: its extent (or else `base`'s, the source's grid) snapped
-/// outward to cells of its pixel size (or else `base`'s cell size) by `SnappedGrid`, or `base`
-/// itself when it gives neither. A feature list without an extent or `base` on a body covers the
-/// whole body at its pixel size (`WholeBodyGrid`). None for an output without an area, or for one
-/// without a grid to cover, which `ValidateConfig` rejects.
+/// The box an output area covers and the side of its square cells, in the surface's units.
+struct AreaCells {
+    Bounds2d box{};
+    double cell = 0.0;
+};
+
+/// What an area covers, unchecked: its extent, or else `source`'s bounds, in cells of its pixel
+/// size, or else of `source`'s cell size. None when the area and `source` leave either unknown.
+/// @param source The source's grid; none without a raster or chain source.
+std::optional<AreaCells> CoveredCells(const OutputAreaSpec& area,
+                                      const std::optional<RasterGrid>& source,
+                                      const Surface& surface);
+
+/// The grid an output covers, unchecked: its `CoveredCells` snapped outward by `SnappedGrid`, or
+/// `source` itself when the area gives neither an extent nor a pixel size. A feature list without
+/// an extent or `source` on a body covers the whole body at its pixel size (`WholeBodyGrid`). None
+/// for an output without an area, or for one without a grid to cover, which `ValidateConfig`
+/// rejects.
 std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
-                                     const std::optional<RasterGrid>& base, const Surface& surface);
+                                     const std::optional<RasterGrid>& source,
+                                     const Surface& surface);
 
 /// The sample spacing in meters an output lists features at: its pixel size for a list over the
 /// whole body, otherwise 0 for its grid's own.
-double OutputSpacing(const OutputSpec& output, const std::optional<RasterGrid>& base,
+double OutputSpacing(const OutputSpec& output, const std::optional<RasterGrid>& source,
                      const Surface& surface);
 
 /// Whether a variant, such as a layer or an output, holds one of the alternatives `Kinds`.
@@ -138,19 +159,20 @@ template <typename... Kinds, typename... Ts> bool HoldsAny(const std::variant<Ts
     return (std::holds_alternative<Kinds>(value) || ...);
 }
 
-/// The number of `layers` of the kinds `Kinds`; layers inside regions do not count.
+/// The number of `layers` of the kinds `Kinds`; layers inside masked layers do not count.
 template <typename... Kinds> std::size_t CountLayers(const std::vector<LayerSpec>& layers) {
     return static_cast<std::size_t>(
         std::count_if(layers.begin(), layers.end(),
                       [](const LayerSpec& layer) { return HoldsAny<Kinds...>(layer); }));
 }
 
-/// Whether any of `layers` is of the kinds `Kinds`; layers inside regions do not count.
+/// Whether any of `layers` is of the kinds `Kinds`; layers inside masked layers do not count.
 template <typename... Kinds> bool HasLayer(const std::vector<LayerSpec>& layers) {
     return CountLayers<Kinds...>(layers) > 0;
 }
 
-/// The indices of the `layers` of the kinds `Kinds`, in order; layers inside regions do not count.
+/// The indices of the `layers` of the kinds `Kinds`, in order; layers inside masked layers do
+/// not count.
 template <typename... Kinds>
 std::vector<std::size_t> LayerIndices(const std::vector<LayerSpec>& layers) {
     std::vector<std::size_t> indices;

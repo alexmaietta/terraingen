@@ -12,7 +12,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <limits>
 #include <string>
 #include <vector>
@@ -80,9 +79,6 @@ class LayerTimer {
     /// Adds `milliseconds` to layer `layer`'s time, as `EvaluationOptions::onLayer` reports it.
     /// @throws std::out_of_range for a layer the timer has no type for.
     void Add(std::size_t layer, double milliseconds);
-
-    /// A callback for `EvaluationOptions::onLayer` that calls `Add`; the timer must outlive it.
-    std::function<void(std::size_t layer, double milliseconds)> Callback();
 
     /// Each layer's type and summed time, in order.
     const std::vector<LayerTiming>& Timings() const {

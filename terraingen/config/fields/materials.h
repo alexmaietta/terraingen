@@ -6,6 +6,11 @@
 #include "terraingen/config/fields/boulders.h"
 #include "terraingen/config/fields/common.h"
 
+#include <array>
+#include <cstddef>
+#include <string>
+#include <string_view>
+
 namespace terraingen::config {
 
 template <typename IO> void Fields(IO& io, HapkeParameters& hapke) {
@@ -19,20 +24,19 @@ template <typename IO> void Fields(IO& io, HapkeParameters& hapke) {
        "deg", FromBelow(0.0, 90.0));
 }
 
+/// The JSON key of each material class, in `MaterialClass` order.
+inline constexpr std::array<std::string_view, kMaterialClasses> kMaterialClassKeys{
+    "soil", "sand", "dust", "bedrock", "rock"};
+
 template <typename IO> void Fields(IO& io, PhotometrySpec& photometry) {
     io("reference", photometry.reference,
        "Published Hapke parameters to start from; each class given below replaces its own.");
-    MaterialPhotometry& classes = photometry.classes;
-    io("soil", classes[static_cast<std::size_t>(MaterialClass::Soil)],
-       "Hapke parameters of soil; unset keeps the reference's.");
-    io("sand", classes[static_cast<std::size_t>(MaterialClass::Sand)],
-       "Hapke parameters of sand; unset keeps the reference's.");
-    io("dust", classes[static_cast<std::size_t>(MaterialClass::Dust)],
-       "Hapke parameters of dust; unset keeps the reference's.");
-    io("bedrock", classes[static_cast<std::size_t>(MaterialClass::Bedrock)],
-       "Hapke parameters of bedrock; unset keeps the reference's.");
-    io("rock", classes[static_cast<std::size_t>(MaterialClass::Rock)],
-       "Hapke parameters of rocks and boulders; unset keeps the reference's.");
+    constexpr auto kRock = static_cast<std::size_t>(MaterialClass::Rock);
+    for (std::size_t k = 0; k < kMaterialClasses; ++k) {
+        const std::string_view what = k == kRock ? "rocks and boulders" : kMaterialClassKeys[k];
+        io(kMaterialClassKeys[k], photometry.classes[k],
+           "Hapke parameters of " + std::string(what) + "; unset keeps the reference's.");
+    }
 }
 
 template <typename IO> void Fields(IO& io, MaterialOptions& options) {

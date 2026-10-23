@@ -3,6 +3,8 @@
 /// points.
 #pragma once
 
+#include "terraingen/layers/boulders/boulder_placer.h"
+#include "terraingen/layers/craters/crater_placer.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
@@ -24,7 +26,7 @@ namespace terraingen {
 /// each of `layers` in order.
 ///
 /// Every part is a pure function of where it is evaluated, so a generator can be evaluated over any
-/// grid, such as a tile, at any sample spacing. On a body, grids are in longitude and latitude and
+/// grid at any sample spacing. On a body, grids are in longitude and latitude and
 /// spacings in meters (`RasterGrid::Spacing`), which reach the source in its units, divided by
 /// `Surface::UnitLength`. The layers must be built for `surface`.
 struct TerrainGenerator {
@@ -80,23 +82,6 @@ class TerrainGround final : public Ground {
 /// it outlives `generator`; the copy shares its source and layers.
 /// @throws std::invalid_argument if `generator` has fewer layers.
 std::shared_ptr<const Ground> SharedGround(const TerrainGenerator& generator, std::size_t layers);
-
-/// Layer `index` of `generator`, which must be a `T`.
-/// @param what What a `T` is, for the error message, such as "a boulder layer".
-/// @throws std::invalid_argument if `generator` has no layer `index` or it is not a `T`.
-template <typename T>
-std::shared_ptr<const T> LayerAt(const TerrainGenerator& generator, std::size_t index,
-                                 std::string_view what) {
-    if (index >= generator.layers.size()) {
-        throw std::invalid_argument("The terrain has no layer " + std::to_string(index));
-    }
-    auto layer = std::dynamic_pointer_cast<const T>(generator.layers[index]);
-    if (!layer) {
-        throw std::invalid_argument("Layer " + std::to_string(index) + " is not " +
-                                    std::string(what));
-    }
-    return layer;
-}
 
 /// Calls `visit(layer, index)` for each layer of `generator` that is a `T`, in order, with `index`
 /// its position in `generator.layers`.
@@ -156,5 +141,16 @@ std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d
 /// The height of a generator at one point, as `HeightsAt`.
 /// @throws std::invalid_argument as `HeightsAt`.
 float HeightAt(const TerrainGenerator& generator, double x, double y, double spacing);
+
+/// The craters a terrain's layers apply over `grid`: `PlacedCraters` of its layers.
+/// @param spacing The sample spacing in meters, finer than the grid's or not; 0 for the grid's.
+CraterFeatures PlacedCraters(const TerrainGenerator& generator, const RasterGrid& grid,
+                             double spacing = 0.0);
+
+/// The boulders a terrain's `BoulderPlacer` layers place over `grid`, each read on the ground
+/// beneath its layer, and the boulder models among them.
+/// @param spacing The sample spacing in meters, finer than the grid's or not; 0 for the grid's.
+BoulderFeatures PlacedBoulders(const TerrainGenerator& generator, const RasterGrid& grid,
+                               double spacing = 0.0);
 
 }  // namespace terraingen

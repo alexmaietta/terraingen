@@ -14,6 +14,7 @@ using terraingen::ListFormat;
 using terraingen::ParseConfig;
 using terraingen::TerrainGenConfig;
 using terraingen::testing::ParseErrorPath;
+using terraingen::testing::SpecJson;
 
 TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
     TerrainGenConfig config;
@@ -99,13 +100,13 @@ TEST(ConfigJson, ReadsTransformsAndNestedMaskedLayers) {
          "layer": {"type": "masked", "shape": {"type": "rectangle", "max_x": 1, "max_y": 2},
                    "layer": {"type": "clamp", "max": 0}}}]})");
     ASSERT_EQ(config.layers.size(), 3u);
-    EXPECT_EQ(std::get<terraingen::ScaleLayerSpec>(config.layers[0]),
-              (terraingen::ScaleLayerSpec{2.0, 0.0}));
-    EXPECT_EQ(std::get<terraingen::ClampLayerSpec>(config.layers[1]),
-              (terraingen::ClampLayerSpec{-1.0, std::nullopt}));
+    EXPECT_EQ(SpecJson(std::get<terraingen::ScaleLayerSpec>(config.layers[0])),
+              SpecJson(terraingen::ScaleLayerSpec{2.0, 0.0}));
+    EXPECT_EQ(SpecJson(std::get<terraingen::ClampLayerSpec>(config.layers[1])),
+              SpecJson(terraingen::ClampLayerSpec{-1.0, std::nullopt}));
     const auto& outer = std::get<terraingen::MaskedLayerSpec>(config.layers[2]);
-    EXPECT_EQ(outer.shape,
-              (terraingen::RegionShapeSpec{terraingen::CircleRegionSpec{0.0, 0.0, 30.0}}));
+    EXPECT_EQ(SpecJson(outer.shape),
+              SpecJson(terraingen::RegionShapeSpec{terraingen::CircleRegionSpec{0.0, 0.0, 30.0}}));
     EXPECT_EQ(outer.feather, 5.0);
     EXPECT_EQ(outer.blend, terraingen::BlendShape::Smoothstep);
     const auto& inner = std::get<terraingen::MaskedLayerSpec>(*outer.layer);

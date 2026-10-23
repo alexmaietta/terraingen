@@ -44,6 +44,9 @@ inline std::string FieldDoc(std::string_view description, std::string_view unit)
 /// when unset), and a group of fields the configuration writes flat as one attribute.
 template <typename T> class OptionsBinder {
   public:
+    /// Takes the fields the configuration writes in another form through its hooks (`BindsNative`).
+    static constexpr bool kBindsNative = true;
+
     explicit OptionsBinder(nb::class_<T>& cls) : cls_(cls) {}
 
     /// Binds `member` as the property `key`.

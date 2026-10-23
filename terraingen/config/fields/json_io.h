@@ -353,17 +353,14 @@ template <typename T> Json ToJson(const std::vector<T>& value, bool compact) {
     return json;
 }
 
+/// An object with the "type" `type` followed by the keys of the object `fields`.
+Json TypedJson(std::string_view type, const Json& fields);
+
 template <typename... Ts> Json ToJson(const std::variant<Ts...>& value, bool compact) {
     return std::visit(
         [compact](const auto& spec) {
             using Spec = std::decay_t<decltype(spec)>;
-            Json json = Json::object();
-            json["type"] = std::string(SpecName<Spec>::kName);
-            const Json fields = ToJson(spec, compact);
-            for (const auto& item : fields.items()) {
-                json[item.key()] = item.value();
-            }
-            return json;
+            return TypedJson(SpecName<Spec>::kName, ToJson(spec, compact));
         },
         value);
 }

@@ -320,7 +320,7 @@ TEST(GenerateFromConfig, LoadsResamplesAndDetailsARasterSource) {
 
     RasterSpec(config).upsampling = {};
     config.outputs = outputs;
-    terraingen::NoiseLayerConfig detail;
+    terraingen::NoiseStackLayerSpec detail;
     detail.layer.fractal.wavelength = 20.0f;
     detail.amplitude = 1.5f;
     terraingen::NoiseLayerSpec detailLayer;
@@ -397,7 +397,7 @@ TEST(GenerateFromConfig, EvaluatesTheAlbedoAsTheLibraryDoes) {
     ASSERT_TRUE(craters);
     const auto& synthetic = std::get<terraingen::SyntheticAlbedoSpec>(config.albedo->source);
     const terraingen::Albedo albedo{
-        std::make_shared<terraingen::SyntheticAlbedo>(synthetic.Params(), terraingen::Vec2d{}),
+        std::make_shared<terraingen::SyntheticAlbedo>(synthetic.Options(), terraingen::Vec2d{}),
         {std::make_shared<terraingen::CraterAlbedo>(craters)}};
     const auto grid = terraingen::RasterGrid::FromRaster(HeightsOf(generated));
     const auto expected = terraingen::EvaluateAlbedo(albedo, grid, {grid.PixelSize()});
@@ -514,7 +514,7 @@ TEST(GenerateFromConfig, GeneratesASyntheticSourceOverEachOutputsRegion) {
     TerrainGenConfig config;
     terraingen::SyntheticSourceSpec synthetic;
     synthetic.elevation = 4.0;
-    terraingen::NoiseLayerConfig layer;
+    terraingen::NoiseStackLayerSpec layer;
     layer.layer.fractal.wavelength = 120.0f;
     synthetic.stack = {layer};
     config.source = synthetic;
@@ -602,6 +602,22 @@ terraingen::ExtentSpec Corners(double minX, double minY, double maxX, double max
 }
 
 }  // namespace
+
+TEST(CoveredCells, TakesTheExtentAndPixelSizeOrElseTheSources) {
+    using terraingen::config::CoveredCells;
+    const terraingen::RasterGrid source{20, 10, terraingen::GeoTransform::NorthUp(0.0, 50.0, 5.0)};
+    const auto given =
+        CoveredCells(AreaHeightmap(Corners(1.0, 2.0, 7.0, 8.0), 3.0).area, source, {});
+    ASSERT_TRUE(given.has_value());
+    EXPECT_EQ(given->box, (terraingen::Bounds2d{1.0, 2.0, 7.0, 8.0}));
+    EXPECT_EQ(given->cell, 3.0);
+    const auto inherited = CoveredCells(AreaHeightmap(std::nullopt, std::nullopt).area, source, {});
+    ASSERT_TRUE(inherited.has_value());
+    EXPECT_EQ(inherited->box, source.Bounds());
+    EXPECT_EQ(inherited->cell, 5.0);
+    EXPECT_FALSE(CoveredCells(AreaHeightmap(std::nullopt, 3.0).area, std::nullopt, {}).has_value())
+        << "no box without an extent or a source";
+}
 
 TEST(OutputGrid, SnapsTheExtentOutwardToWholeCellsFromItsMinCorner) {
     using terraingen::GeoTransform;
@@ -803,11 +819,11 @@ namespace {
 TerrainGenConfig EstimatingDem(const GridRegion& region) {
     TerrainGenConfig config = RasterConfig("dem.tif");
     terraingen::RoughnessLayerSpec roughness;
-    roughness.estimateFromBase = true;
+    roughness.estimateFromSource = true;
     roughness.roughness.maxWavelength = 4.0;
     roughness.roughness.minWavelength = 0.5;
     terraingen::NoiseLayerSpec noise;
-    noise.estimateFromBase = true;
+    noise.estimateFromSource = true;
     noise.stack[0].layer.fractal.wavelength = 5.0f;
     noise.stack[0].layer.fractal.octaves = 3;
     config.layers = {noise, roughness};
@@ -828,18 +844,18 @@ TEST(GenerateFromConfig, EstimatesRoughnessAndNoiseFromTheBaseAlikeForGridsTiles
     const terraingen::RasterSource base(dem);
     const terraingen::BaseRoughness expected = terraingen::EstimateSourceRoughness(base);
     const auto roughness =
-        terraingen::LayerAt<terraingen::RoughnessLayer>(generated.generator, 1, "roughness");
+        std::dynamic_pointer_cast<const terraingen::RoughnessLayer>(generated.generator.layers[1]);
     EXPECT_DOUBLE_EQ(roughness->Options().hurst, expected.hurst);
     EXPECT_DOUBLE_EQ(roughness->Options().rmsSlope, expected.RmsSlope(0.25));
-    EXPECT_EQ(roughness->Options(),
-              terraingen::LayerAt<terraingen::RoughnessLayer>(shifted.generator, 1, "roughness")
-                  ->Options());
+    EXPECT_EQ(roughness->Options(), std::dynamic_pointer_cast<const terraingen::RoughnessLayer>(
+                                        shifted.generator.layers[1])
+                                        ->Options());
     const auto noise =
-        terraingen::LayerAt<terraingen::NoiseRelief>(generated.generator, 0, "noise");
+        std::dynamic_pointer_cast<const terraingen::NoiseRelief>(generated.generator.layers[0]);
     EXPECT_GT(noise->Params().layers[0].fractal.amplitude, 0.0f);
-    EXPECT_EQ(
-        noise->Params(),
-        terraingen::LayerAt<terraingen::NoiseRelief>(shifted.generator, 0, "noise")->Params());
+    EXPECT_EQ(noise->Params(),
+              std::dynamic_pointer_cast<const terraingen::NoiseRelief>(shifted.generator.layers[0])
+                  ->Params());
 
     const terraingen::Raster<float>& grid = generated.grids[0].heights;
     const terraingen::RasterGrid lattice = terraingen::RasterGrid::FromRaster(grid);

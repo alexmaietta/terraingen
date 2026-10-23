@@ -150,26 +150,23 @@ void Read(const Json& json, const std::string& path, UpsamplingSpec& value) {
     value = std::move(spec);
 }
 
+Json TypedJson(std::string_view type, const Json& fields) {
+    Json json = Json::object();
+    json["type"] = std::string(type);
+    for (const auto& item : fields.items()) {
+        json[item.key()] = item.value();
+    }
+    return json;
+}
+
 Json ToJson(const UpsamplingSpec& value, bool compact) {
     if (value.type == "diamond_square") {
-        Json json = Json::object();
-        json["type"] = value.type;
-        const Json fields = FieldsJson(value.diamondSquare, false, compact);
-        for (const auto& item : fields.items()) {
-            json[item.key()] = item.value();
-        }
-        return json;
+        return TypedJson(value.type, FieldsJson(value.diamondSquare, false, compact));
     }
     if (value.settings.empty()) {
         return value.type;
     }
-    Json json = Json::object();
-    json["type"] = value.type;
-    const Json settings = Json::parse(value.settings);
-    for (const auto& item : settings.items()) {
-        json[item.key()] = item.value();
-    }
-    return json;
+    return TypedJson(value.type, Json::parse(value.settings));
 }
 
 namespace {
@@ -227,6 +224,14 @@ TerrainGenConfig LoadConfig(const std::filesystem::path& path) {
 
 std::string ConfigToJson(const TerrainGenConfig& terrainConfig, int indent) {
     return config::FieldsJson(terrainConfig, true, true).dump(indent) + "\n";
+}
+
+bool operator==(const TerrainGenConfig& a, const TerrainGenConfig& b) {
+    return config::FieldsJson(a) == config::FieldsJson(b);
+}
+
+bool operator!=(const TerrainGenConfig& a, const TerrainGenConfig& b) {
+    return !(a == b);
 }
 
 ListFormat InferListFormat(std::string_view path) {

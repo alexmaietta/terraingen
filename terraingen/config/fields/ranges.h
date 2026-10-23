@@ -23,7 +23,7 @@ namespace terraingen::config {
 /// @param unit The unit symbol given after the bounds, or empty.
 std::string DescribeRange(const FieldRange& range, std::string_view unit = {});
 
-/// Checks a number against its field's range; a bounded range also needs it finite.
+/// Checks that a number is finite and within its field's range.
 /// @param unit The field's unit symbol, for the message, or empty.
 /// @throws ConfigError at `path`, such as "must be positive, got -2", otherwise.
 void CheckRange(double value, const FieldRange& range, std::string_view unit,

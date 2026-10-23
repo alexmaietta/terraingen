@@ -180,7 +180,7 @@ TEST(ValidateConfig, ReportsRasterAlbedoProblemsByPath) {
     EXPECT_EQ(rejected({"map.tif", {0}, {}, {}, {}}), "valid");
     EXPECT_EQ(rejected({"map.tif", {1}, {}, {}, {}}), "albedo.source.bands");
     EXPECT_EQ(rejected({"map.tif", {0}, NAN, {}, {}}), "albedo.source.scale");
-    EXPECT_EQ(rejected({"map.tif", {0}, {}, NAN, {}}), "albedo.source.scale");
+    EXPECT_EQ(rejected({"map.tif", {0}, {}, NAN, {}}), "albedo.source.offset");
     terraingen::RasterAlbedoSpec detail{"map.tif", {0}, {}, {}, {}};
     detail.options.detail.octaves = 0;
     EXPECT_EQ(rejected(detail), "albedo.source.detail.octaves");
@@ -205,7 +205,7 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
     EXPECT_EQ(error([](TerrainGenConfig& c) {
                   Region(c).extentDeg->center = {std::numeric_limits<double>::quiet_NaN(), 0.0};
               }),
-              "outputs[0].extent_deg.center");
+              "outputs[0].extent_deg.center[0]");
     EXPECT_EQ(error([](TerrainGenConfig& c) { Region(c).extentDeg->size = {361.0, 1.0}; }),
               "outputs[0].pixel_size_m")
         << "too many cells before off the body";
@@ -234,7 +234,7 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
             "valid");
         EXPECT_EQ(error([basis](TerrainGenConfig& c) {
                       terraingen::SyntheticAlbedoSpec synthetic;
-                      synthetic.valueNoise = {terraingen::NoiseLayerConfig{}};
+                      synthetic.valueNoise = {terraingen::NoiseStackLayerSpec{}};
                       synthetic.valueNoise[0].layer.fractal.basis = basis;
                       c.albedo = terraingen::AlbedoSpec{synthetic, {}};
                   }),
@@ -272,11 +272,11 @@ TEST(ValidateConfig, ReportsMeshProblemsByPath) {
     EXPECT_EQ(ValidationErrorPath(twice), "outputs[3]") << "body meshes share one result";
 }
 
-TEST(DescribeSource, ReadsTheRasterHeader) {
+TEST(ValidateConfig, ReadsTheRasterSourcesHeader) {
     const auto folder = TempPath("terraingen_describe");
     terraingen::testing::WriteDem(folder, "dem.tif");
     TerrainGenConfig config = terraingen::testing::RasterConfig("dem.tif");
-    const terraingen::RasterGrid grid = terraingen::DescribeSource(*config.source, folder).value();
+    const terraingen::RasterGrid grid = terraingen::ValidateConfig(config, folder).source.value();
     EXPECT_EQ(grid.width, 40u);
     EXPECT_EQ(grid.height, 30u);
     EXPECT_EQ(grid.transform, terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 5.0));
@@ -288,7 +288,7 @@ TEST(DescribeSource, ReadsTheRasterHeader) {
     EXPECT_EQ(bounds.minY, 1850.0);
     EXPECT_EQ(bounds.maxY, 2000.0);
     terraingen::testing::RasterSpec(config).upsampling.type = "lanczos3";
-    EXPECT_EQ(terraingen::DescribeSource(*config.source, folder), grid)
+    EXPECT_EQ(terraingen::ValidateConfig(config, folder).source, grid)
         << "upsampling leaves the grid alone";
 }
 

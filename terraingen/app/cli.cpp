@@ -1,7 +1,6 @@
 #include "terraingen/app/cli.h"
 
 #include "terraingen/app/gui/run.h"
-#include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
@@ -285,7 +284,7 @@ std::string Usage() {
            "                         Generate the terrain the JSON file CONFIG describes\n"
            "  terraingen validate CONFIG\n"
            "                         Check CONFIG without generating\n"
-           "  terraingen schema      Print every configuration type with its defaults\n"
+           "  terraingen schema      Print the configuration schema, for editors\n"
            "  terraingen backends    Show where terrains can be evaluated here, and the default\n"
            "  terraingen [PATH] --gui [--threads N] [--backend " +
            backends +
@@ -325,7 +324,7 @@ int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
             if (args.size() != 1) {
                 throw std::invalid_argument("schema takes no arguments");
             }
-            out << ConfigCatalog();
+            out << ConfigSchema();
             return kExitSuccess;
         }
         if (first == "backends") {

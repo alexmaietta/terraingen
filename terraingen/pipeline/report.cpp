@@ -1,4 +1,4 @@
-#include "terraingen/config/report.h"
+#include "terraingen/pipeline/report.h"
 
 #include "terraingen/util/bits.h"
 #include "terraingen/util/geometry.h"
@@ -242,10 +242,6 @@ LayerTimer::LayerTimer(std::vector<std::string> types) {
 
 void LayerTimer::Add(std::size_t layer, double milliseconds) {
     timings_.at(layer).seconds += milliseconds / 1000.0;
-}
-
-std::function<void(std::size_t layer, double milliseconds)> LayerTimer::Callback() {
-    return [this](std::size_t layer, double milliseconds) { Add(layer, milliseconds); };
 }
 
 GridReport ReportGrid(const Raster<float>& heights, const Surface& surface,

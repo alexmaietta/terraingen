@@ -39,7 +39,7 @@ template <typename Check> std::string Message(Check check) {
 /// The path of the ConfigError `CheckConfigRanges` throws for `config`, or "valid".
 std::string RangeErrorPath(const TerrainGenConfig& config) {
     try {
-        terraingen::CheckConfigRanges(config);
+        terraingen::config::CheckConfigRanges(config);
     } catch (const ConfigError& error) {
         return error.Path();
     }
@@ -82,11 +82,13 @@ TEST(CheckRange, PassesValuesInsideTheRange) {
     EXPECT_NO_THROW(config::CheckRange(1.0, config::Above(0.0), "", "a"));
     EXPECT_NO_THROW(config::CheckRange(0.0, AtLeast(0.0), "", "a"));
     EXPECT_NO_THROW(config::CheckRange(180.0, Between(0.0, 180.0), "deg", "a"));
-    EXPECT_NO_THROW(config::CheckRange(kNaN, {}, "", "a")) << "an unbounded field takes anything";
-    EXPECT_NO_THROW(config::CheckRange(-kInfinity, {}, "", "a"));
+    EXPECT_NO_THROW(config::CheckRange(-1e300, {}, "", "a"))
+        << "an unbounded field takes any finite number";
 }
 
 TEST(CheckRange, ReportsValuesOutsideTheRangeAtTheirPath) {
+    EXPECT_EQ(Message([] { config::CheckRange(kNaN, {}, "", "a"); }), "a: must be finite");
+    EXPECT_EQ(Message([] { config::CheckRange(-kInfinity, {}, "", "a"); }), "a: must be finite");
     EXPECT_EQ(Message([] { config::CheckRange(0.0, config::Above(0.0), "m", "a.b"); }),
               "a.b: must be positive, got 0");
     EXPECT_EQ(Message([] { config::CheckRange(-1.0, AtLeast(0.0), "", "c"); }),
@@ -133,6 +135,18 @@ TEST(CheckConfigRanges, ReportsTheFirstNumberOutOfRangeByItsPath) {
     config = terraingen::testing::Small();
     terraingen::testing::Noise(config).stack[0].layer.fractal.octaves = 0;
     EXPECT_EQ(RangeErrorPath(config), "layers[0].stack[0].octaves");
+}
+
+TEST(CheckConfigRanges, RejectsNumbersThatAreNotFiniteInFieldsWithoutARange) {
+    TerrainGenConfig config = terraingen::testing::Small();
+    terraingen::testing::Noise(config).stack[0].hurst = static_cast<float>(kNaN);
+    EXPECT_EQ(RangeErrorPath(config), "layers[0].stack[0].hurst");
+    config = terraingen::testing::Small();
+    terraingen::ScaleLayerSpec scale;
+    scale.offset = kInfinity;
+    config.layers.push_back(scale);
+    EXPECT_EQ(Message([&] { config::CheckConfigRanges(config); }),
+              "layers[2].offset: must be finite");
 }
 
 TEST(CheckConfigRanges, ChecksInsideRegionsAndTheBody) {

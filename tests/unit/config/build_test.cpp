@@ -815,7 +815,7 @@ TEST(BuildGenerator, BuildsASyntheticSourceOrAFlatOneWithoutASource) {
 
     terraingen::SyntheticSourceSpec synthetic;
     synthetic.elevation = -20.0;
-    synthetic.stack = {terraingen::NoiseLayerConfig{}};
+    synthetic.stack = {terraingen::NoiseStackLayerSpec{}};
     synthetic.pixelSize = 16.0;
     terraingen::UpsamplingSpec bilinear;
     bilinear.type = "bilinear";

@@ -1,5 +1,5 @@
-#include "terraingen/config/build.h"
-#include "terraingen/config/generate.h"
+#include "terraingen/pipeline/feature_lists.h"
+
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/overloaded.h"

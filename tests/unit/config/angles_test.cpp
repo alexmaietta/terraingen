@@ -34,7 +34,7 @@ std::string OneLayer(const std::string& layer) {
 /// The message reading `json` throws, or "valid".
 std::string ReadError(const std::string& json) {
     try {
-        terraingen::CheckConfigRanges(ParseConfig(json));
+        terraingen::config::CheckConfigRanges(ParseConfig(json));
     } catch (const ConfigError& error) {
         return error.what();
     }

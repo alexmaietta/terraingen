@@ -82,7 +82,7 @@ const PathCase kPathCases[] = {
      [](TerrainGenConfig& c) {
          Region(c).extentM->center = {std::numeric_limits<double>::infinity(), 0.0};
      },
-     "outputs[0].extent_m.center"},
+     "outputs[0].extent_m.center[0]"},
     {"CornersAreValid",
      [](TerrainGenConfig& c) {
          Region(c).extentM = terraingen::ExtentSpec{{}, {}, {-65.0, -49.0}, {65.0, 49.0}};
@@ -209,7 +209,7 @@ const PathCase kPathCases[] = {
      "layers[1].manual[0].age_gyr"},
     {"InfiniteManualPosition",
      [](TerrainGenConfig& c) { Craters(c).manual = {{kInfinity, 0.0, 5.0, 0.0}}; },
-     "layers[1].manual[0]"},
+     "layers[1].manual[0].x"},
     {"ManualDepth",
      [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, 0.2}}; },
      "valid"},
@@ -323,7 +323,7 @@ const PathCase kPathCases[] = {
     {"SyntheticSourceIsValid",
      [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
-         synthetic.stack = {terraingen::NoiseLayerConfig{}};
+         synthetic.stack = {terraingen::NoiseStackLayerSpec{}};
          c.source = synthetic;
      },
      "valid"},
@@ -356,7 +356,7 @@ const PathCase kPathCases[] = {
     {"SyntheticStackTooLong",
      [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
-         synthetic.stack.assign(terraingen::kMaxNoiseLayers + 1, terraingen::NoiseLayerConfig{});
+         synthetic.stack.assign(terraingen::kMaxNoiseLayers + 1, terraingen::NoiseStackLayerSpec{});
          c.source = synthetic;
      },
      "source.stack"},
@@ -370,10 +370,10 @@ const PathCase kPathCases[] = {
     {"EstimateFromNoiseWithoutPosts",
      [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
-         synthetic.stack = {terraingen::NoiseLayerConfig{}};
+         synthetic.stack = {terraingen::NoiseStackLayerSpec{}};
          c.source = synthetic;
          terraingen::RoughnessLayerSpec roughness;
-         roughness.estimateFromBase = true;
+         roughness.estimateFromSource = true;
          c.layers.push_back(roughness);
      },
      "layers[2].estimate_from_base"},
@@ -509,14 +509,14 @@ const PathCase kPathCases[] = {
     {"RoughnessEstimateWithoutABase",
      [](TerrainGenConfig& c) {
          terraingen::RoughnessLayerSpec roughness;
-         roughness.estimateFromBase = true;
+         roughness.estimateFromSource = true;
          c.layers.push_back(roughness);
      },
      "layers[2].estimate_from_base"},
     {"NoiseEstimateWithoutABase",
      [](TerrainGenConfig& c) {
          terraingen::NoiseLayerSpec noise;
-         noise.estimateFromBase = true;
+         noise.estimateFromSource = true;
          c.layers.push_back(noise);
      },
      "layers[2].estimate_from_base"},
@@ -720,7 +720,7 @@ TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
     EXPECT_EQ(withManual([](Manual& m) { m[0].height = 0.0; }), "layers[2].manual[0].height");
     EXPECT_EQ(withManual([](Manual& m) { m[0].wear = 1.5; }), "layers[2].manual[0].wear");
     EXPECT_EQ(withManual([](Manual& m) { m[0].diameter = -1.0; }), "layers[2].manual[0].diameter");
-    EXPECT_EQ(withManual([](Manual& m) { m[1].yaw = kInfinity; }), "layers[2].manual[1]");
+    EXPECT_EQ(withManual([](Manual& m) { m[1].yaw = kInfinity; }), "layers[2].manual[1].yaw_deg");
     EXPECT_EQ(withManual([](Manual& m) { m[1] = m[0]; }), "layers[2].manual[1]")
         << "two boulders with one ID";
     EXPECT_EQ(withManual([](Manual& m) {
@@ -957,7 +957,7 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
               }),
               "albedo.source.hue_noise_deg");
     EXPECT_EQ(error([&](TerrainGenConfig& c) {
-                  synthetic(c).saturationNoise = {terraingen::NoiseLayerConfig{}};
+                  synthetic(c).saturationNoise = {terraingen::NoiseStackLayerSpec{}};
                   synthetic(c).saturationNoise[0].layer.fractal.octaves = 0;
               }),
               "albedo.source.saturation_noise[0].octaves");
@@ -1108,13 +1108,15 @@ TEST(ValidateConfig, MeasuresARasterSourcesGridOverItsCrop) {
     RasterSpec(config).read.crop = window;
     EXPECT_EQ(ValidationErrorPath(config, folder), "valid");
     const std::optional<terraingen::RasterGrid> grid =
-        terraingen::DescribeSource(*config.source, folder);
+        terraingen::ValidateConfig(config, folder).source;
     ASSERT_TRUE(grid.has_value());
     terraingen::GeoTiffSourceOptions read = RasterSpec(config).read;
     EXPECT_EQ(*grid, terraingen::GeoTiffSource(folder / "dem.tif", read).Grid());
     EXPECT_LT(grid->width, 10u);
     RasterSpec(config).read.crop = terraingen::Bounds2d{1051.0, 1901.0, 1052.0, 1902.0};
     EXPECT_EQ(ValidationErrorPath(config, folder), "source.crop") << "a single cell";
-    EXPECT_FALSE(terraingen::DescribeSource(terraingen::SyntheticSourceSpec{}).has_value())
+    TerrainGenConfig synthetic;
+    synthetic.source = terraingen::SyntheticSourceSpec{};
+    EXPECT_FALSE(terraingen::ValidateConfig(synthetic).source.has_value())
         << "synthetic noise has no grid";
 }

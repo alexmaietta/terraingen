@@ -5,6 +5,8 @@ terraingen_add_test_suite(
     generator_test.cpp
     materials_test.cpp
     mesh_build_test.cpp
+    report_test.cpp
     terrain_windows_test.cpp
     LIBRARIES
-    terraingen::pipeline)
+    terraingen::pipeline
+    nlohmann_json)

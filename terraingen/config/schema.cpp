@@ -242,7 +242,7 @@ std::string ConfigCatalog(int indent) {
     config::CatalogWriter writer(json);
     config::Fields(writer, defaults);
     Json models = Json::object();
-    models["noise_layer"] = config::ToJson(NoiseLayerConfig{});
+    models["noise_layer"] = config::ToJson(NoiseStackLayerSpec{});
     models["density"] = Alternatives<DensitySpec>();
     models["ages"] = Alternatives<AgesSpec>();
     models["degradation"] = Alternatives<DegradationSpec>();

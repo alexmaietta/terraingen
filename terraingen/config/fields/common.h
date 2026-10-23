@@ -2,9 +2,10 @@
 /// @brief What every configuration field list shares.
 ///
 /// Each configuration struct has a `Fields(IO& io, Struct& value)` that calls
-/// `io(key, member, description, unit)` for each JSON key in order; the same list is read, written
-/// and described (`ConfigSchema`) by passing a different `IO` (`Reader`, `Writer` or a schema
-/// writer). Each alternative of a variant also has a `SpecName` next to its `Fields`.
+/// `io(key, member, description, unit, range)` for each JSON key in order; the same list is read,
+/// written, range checked and described (`ConfigSchema`) by passing a different `IO` (`Reader`,
+/// `Writer`, `RangeChecker` or a schema writer). Each alternative of a variant also has a
+/// `SpecName` next to its `Fields`.
 #pragma once
 
 #include "terraingen/util/geometry.h"
@@ -74,32 +75,19 @@ inline std::string CountText(std::size_t lowest, std::size_t highest) {
     return std::to_string(lowest) + " to " + std::to_string(highest);
 }
 
-/// Whether `IO` has `io.Bound(key, bound, description, unit, unset, range)`.
-template <typename IO, typename = void> struct TakesBoundsTrait : std::false_type {};
+/// Whether `IO` declares `static constexpr bool kBindsNative = true`.
+template <typename IO, typename = void> struct BindsNativeTrait : std::false_type {};
 template <typename IO>
-struct TakesBoundsTrait<IO, std::void_t<decltype(std::declval<IO&>().Bound(
-                                std::string_view{}, std::declval<double&>(), std::string_view{},
-                                std::string_view{}, 0.0, FieldRange{}))>> : std::true_type {};
+struct BindsNativeTrait<IO, std::enable_if_t<IO::kBindsNative>> : std::true_type {};
 
-/// An `IO` that takes an optional bound as the bound itself, through
-/// `io.Bound(key, bound, description, unit, unset, range)`, such as the Python bindings.
-template <typename IO> inline constexpr bool TakesBounds = TakesBoundsTrait<IO>::value;
-
-/// Whether `IO` has `io.Group(name, group, description)` returning bool.
-template <typename IO, typename Group, typename = void>
-struct TakesGroupsTrait : std::false_type {};
-template <typename IO, typename Group>
-struct TakesGroupsTrait<IO, Group,
-                        std::void_t<decltype(std::declval<IO&>().Group(
-                            std::string_view{}, std::declval<Group&>(), std::string_view{}))>>
-    : std::is_same<decltype(std::declval<IO&>().Group(std::string_view{}, std::declval<Group&>(),
-                                                      std::string_view{})),
-                   bool> {};
-
-/// An `IO` that may take a group of fields written flat as one value of the group's type,
-/// through `io.Group(name, group, description)`, which returns false to have them visited flat.
-template <typename IO, typename Group>
-inline constexpr bool TakesGroups = TakesGroupsTrait<IO, Group>::value;
+/// An `IO`, such as the Python bindings, that takes values the configuration writes in another
+/// form as they are stored, through hooks: `io.Bound(key, bound, description, unit, unset, range)`
+/// for a bound unset when infinite, `io.Radians(key, radians, description, range)` for an angle
+/// (also optional), `io.NanRadians(...)` for an angle unset when NaN,
+/// `io.FadePixels(key, fade, description)` for a resolution fade, and
+/// `io.Group(name, group, description)` for a group of fields written flat, which returns false to
+/// have them visited flat.
+template <typename IO> inline constexpr bool BindsNative = BindsNativeTrait<IO>::value;
 
 /// Reads or writes a bound that is unset when infinite, as an optional field.
 /// @param unit The bound's unit symbol, or empty.
@@ -109,7 +97,7 @@ void OptionalBound(IO& io, std::string_view key, double& bound, std::string_view
                    std::string_view unit = {},
                    double unset = std::numeric_limits<double>::infinity(),
                    const FieldRange& range = {}) {
-    if constexpr (TakesBounds<IO>) {
+    if constexpr (BindsNative<IO>) {
         io.Bound(key, bound, description, unit, unset, range);
         return;
     }
@@ -130,22 +118,12 @@ inline double RadiansFromDegrees(double degrees) {
     return degrees * kDegree;
 }
 
-/// Whether an `IO` takes an angle stored in radians as the radians themselves, through
-/// `io.Radians(key, radians, description, range)`, such as the Python bindings.
-template <typename IO, typename = void> struct TakesRadiansTrait : std::false_type {};
-template <typename IO>
-struct TakesRadiansTrait<
-    IO, std::void_t<decltype(std::declval<IO&>().Radians(
-            std::string_view{}, std::declval<double&>(), std::string_view{}, FieldRange{}))>>
-    : std::true_type {};
-template <typename IO> inline constexpr bool TakesRadians = TakesRadiansTrait<IO>::value;
-
 /// Reads or writes an angle stored in radians as degrees, the unit "deg": its key ends in "_deg"
 /// and `range` is in degrees. Unchanged degrees leave the radians exactly as they were.
 template <typename IO>
 void RadianField(IO& io, std::string_view key, double& radians, std::string_view description,
                  const FieldRange& range = {}) {
-    if constexpr (TakesRadians<IO>) {
+    if constexpr (BindsNative<IO>) {
         io.Radians(key, radians, description, range);
     } else {
         const double shown = DegreesFromRadians(radians);
@@ -161,7 +139,7 @@ void RadianField(IO& io, std::string_view key, double& radians, std::string_view
 template <typename IO>
 void RadianField(IO& io, std::string_view key, std::optional<double>& radians,
                  std::string_view description, const FieldRange& range = {}) {
-    if constexpr (TakesRadians<IO>) {
+    if constexpr (BindsNative<IO>) {
         io.Radians(key, radians, description, range);
     } else {
         std::optional<double> shown;
@@ -176,21 +154,11 @@ void RadianField(IO& io, std::string_view key, std::optional<double>& radians,
     }
 }
 
-/// Whether an `IO` takes an angle stored in radians and unset when NaN as the radians themselves,
-/// through `io.NanRadians(key, radians, description, range)`, such as the Python bindings.
-template <typename IO, typename = void> struct TakesNanRadiansTrait : std::false_type {};
-template <typename IO>
-struct TakesNanRadiansTrait<
-    IO, std::void_t<decltype(std::declval<IO&>().NanRadians(
-            std::string_view{}, std::declval<double&>(), std::string_view{}, FieldRange{}))>>
-    : std::true_type {};
-template <typename IO> inline constexpr bool TakesNanRadians = TakesNanRadiansTrait<IO>::value;
-
 /// `RadianField` for an angle unset when NaN, as an optional field in degrees.
 template <typename IO>
 void NanRadianField(IO& io, std::string_view key, double& radians, std::string_view description,
                     const FieldRange& range = {}) {
-    if constexpr (TakesNanRadians<IO>) {
+    if constexpr (BindsNative<IO>) {
         io.NanRadians(key, radians, description, range);
     } else {
         std::optional<double> value;
@@ -210,24 +178,12 @@ void NanField(IO& io, std::string_view key, double& value, std::string_view desc
                   range);
 }
 
-/// Whether `IO` has `io.FadePixels(key, fade, description)` taking a fade's start and end sample
-/// counts as one pair, such as the Python bindings.
-template <typename IO, typename Fade, typename = void>
-struct TakesFadePixelsTrait : std::false_type {};
-template <typename IO, typename Fade>
-struct TakesFadePixelsTrait<IO, Fade,
-                            std::void_t<decltype(std::declval<IO&>().FadePixels(
-                                std::string_view{}, std::declval<Fade&>(), std::string_view{}))>>
-    : std::true_type {};
-template <typename IO, typename Fade>
-inline constexpr bool TakesFadePixels = TakesFadePixelsTrait<IO, Fade>::value;
-
 /// The fields of a resolution fade (`ResolutionFade`) as "fade_px", its start and end sample
 /// counts as a list of two in output samples (pixels), and "fade_shape", the curve between them.
 /// @param description What the counts mean for the layer's features.
 template <typename IO, typename Fade>
 void FadePixelFields(IO& io, Fade& fade, std::string_view description) {
-    if constexpr (TakesFadePixels<IO, Fade>) {
+    if constexpr (BindsNative<IO>) {
         io.FadePixels("fade_px", fade, description);
     } else {
         std::array<double, 2> pixels{fade.startSamples, fade.endSamples};
@@ -267,7 +223,7 @@ struct SelectionKeys {
 template <typename IO, typename Selection>
 void SelectionFields(IO& io, Selection& selection, std::string_view craters,
                      std::string_view manualHelp, const SelectionKeys& keys = {}) {
-    if constexpr (TakesGroups<IO, Selection>) {
+    if constexpr (BindsNative<IO>) {
         if (io.Group("selection", selection,
                      "The selection of " + std::string(craters) +
                          ": their diameters and ages, and whether manual craters count.")) {
@@ -301,7 +257,7 @@ inline std::string WindAzimuthHelp(std::string_view wind, std::string_view effec
 template <typename IO, typename Anchor>
 void AnchorFields(IO& io, Anchor& anchor, std::string_view what,
                   std::string_view prefix = "anchor") {
-    if constexpr (TakesGroups<IO, Anchor>) {
+    if constexpr (BindsNative<IO>) {
         if (io.Group(prefix, anchor,
                      "On a body, the longitude and latitude in degrees of the point whose tangent "
                      "frame " +
@@ -327,11 +283,12 @@ void ExposureFields(IO& io, Exposure& exposure, double& spacing, std::string_vie
        "Spacing in meters the ground is read at for the exposure field.", "m", Above(0.0));
 }
 
-/// The description of an output file's path: `file`, such as "GeoTIFF file to write", and where
-/// relative paths resolve.
+/// The description of an output file's path: `file`, such as "GeoTIFF file to write", that it may
+/// be left unset, and where relative paths resolve.
 inline std::string OutputPathHelp(std::string_view file) {
-    return std::string(file) + "; relative paths resolve against the output folder (the CLI's "
-                               "--output-dir), else the configuration's folder.";
+    return std::string(file) +
+           "; unset to only return the result, writing nothing; relative paths resolve against the "
+           "output folder (the CLI's --output-dir), else the configuration's folder.";
 }
 
 /// The description of an input file's path: `file`, such as "GeoTIFF to read the heights from",

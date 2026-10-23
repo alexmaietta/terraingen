@@ -46,16 +46,6 @@ TEST(ForEachLayer, VisitsTheLayersOfOneTypeInOrderWithTheirIndices) {
     EXPECT_EQ(craters, 1u);
 }
 
-TEST(LayerAt, GivesALayerOfTheTypeAskedFor) {
-    const TerrainGenerator terrain = Rolling();
-    const auto noise = terraingen::LayerAt<terraingen::NoiseRelief>(terrain, 0, "a noise layer");
-    EXPECT_EQ(noise.get(), terrain.layers[0].get());
-    EXPECT_THROW(terraingen::LayerAt<terraingen::NoiseRelief>(terrain, 1, "a noise layer"),
-                 std::invalid_argument);
-    EXPECT_THROW(terraingen::LayerAt<terraingen::NoiseRelief>(terrain, 2, "a noise layer"),
-                 std::invalid_argument);
-}
-
 TEST(Evaluate, RunsTheSourceThenLayersOverTheSourcesGrid) {
     const TerrainGenerator terrain = Rolling();
     const auto whole = Evaluate(terrain);

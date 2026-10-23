@@ -11,7 +11,6 @@ terraingen_add_test_suite(
     json_io_test.cpp
     json_parse_errors_test.cpp
     json_read_test.cpp
-    report_test.cpp
     schema_test.cpp
     validate_config_test.cpp
     validate_sources_test.cpp

@@ -49,7 +49,7 @@ def test_config_on_a_sphere_describes_its_grids():
             ],
         }
     )
-    assert config.body().is_body and config.source_grid() is None
+    assert config.body().is_body
     site, mesh, whole, report = config.output_grids()
     cell = 100 / (1737400 * np.pi / 180)
     assert (site.width, site.height) == (int(np.ceil(0.05 / cell)), int(np.ceil(0.025 / cell)))
@@ -111,7 +111,6 @@ def test_missing_source_files_fail_validation():
 def test_a_synthetic_source_has_no_grid_and_upsamples_only_posts():
     synthetic = {"type": "synthetic", "elevation_m": 3, "stack": [{"wavelength": 40}]}
     config = terraingen.TerrainGenConfig.from_dict({"schema_version": 1, "source": synthetic})
-    assert config.source_grid() is None
     config.validate()
     synthetic["upsampling"] = "bilinear"
     with pytest.raises(terraingen.ConfigError) as unposted:
