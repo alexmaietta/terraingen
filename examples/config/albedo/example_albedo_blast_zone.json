@@ -51,19 +51,31 @@
         {
             "type": "heightmap",
             "path": "example_albedo_blast_zone_heights.tif",
-            "region": {
-                "width": 1201,
-                "height": 1201,
-                "pixel_size": 0.5
+            "pixel_size_m": 0.5,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    600.5,
+                    600.5
+                ]
             }
         },
         {
             "type": "albedo",
             "path": "example_albedo_blast_zone_albedo.tif",
-            "region": {
-                "width": 1201,
-                "height": 1201,
-                "pixel_size": 0.5
+            "pixel_size_m": 0.5,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    600.5,
+                    600.5
+                ]
             }
         }
     ],

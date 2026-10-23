@@ -37,28 +37,46 @@
         {
             "type": "heightmap",
             "path": "example_planets_mars_strata.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 1
+            "pixel_size_m": 1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    257,
+                    257
+                ]
             }
         },
         {
             "type": "materials",
             "path": "example_planets_mars_strata_materials.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 1
+            "pixel_size_m": 1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    257,
+                    257
+                ]
             }
         },
         {
             "type": "photometry",
             "path": "example_planets_mars_strata_photometry.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 1
+            "pixel_size_m": 1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    257,
+                    257
+                ]
             }
         }
     ]

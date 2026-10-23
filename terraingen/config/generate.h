@@ -4,6 +4,8 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/config/config.h"
+#include "terraingen/mesh/io/icq.h"
+#include "terraingen/mesh/mesh.h"
 #include "terraingen/pipeline/features.h"
 #include "terraingen/pipeline/generator.h"
 #include "terraingen/raster/geotiff/geotiff.h"
@@ -19,37 +21,53 @@
 
 namespace terraingen {
 
-/// A terrain's heights, and its albedo bands, evaluated over one grid.
+/// What a configuration's outputs ask for over one grid, each computed once and shared by every
+/// output over the grid. What no output asks for stays empty.
 struct GeneratedGrid {
-    Raster<float> heights{};  ///< The heights over the grid.
-    /// The albedo bands; empty unless an albedo output covers the grid.
-    std::vector<Raster<float>> albedo{};
-    /// The share of each material class, one raster per `MaterialClass`; empty unless a materials
-    /// or photometry output covers the grid.
+    RasterGrid grid{};        ///< The grid the outputs cover (`config::OutputGrid`).
+    Raster<float> heights{};  ///< Heights in meters, for raster and terrain mesh outputs.
+    std::vector<Raster<float>> albedo{};  ///< The albedo bands, for albedo outputs.
+    /// The share of each material class, one raster per `MaterialClass`, for materials and
+    /// photometry outputs.
     std::vector<Raster<float>> materials{};
+    /// The Hapke parameters the materials mix to (`EvaluatePhotometry`), for photometry outputs.
+    std::vector<Raster<float>> photometry{};
+    /// The craters placed over the grid (`PlacedCraters`), for crater lists.
+    std::optional<CraterFeatures> craters{};
+    /// The boulders placed over the grid (`PlacedBoulders`), for boulder lists and models.
+    std::optional<BoulderFeatures> boulders{};
+    /// The heights as a mesh (`BuildMesh`), for terrain mesh outputs.
+    std::optional<TriangleMesh> mesh{};
 };
 
-/// What a configuration generates: its generator and the grids its outputs cover.
+/// What a configuration's outputs ask for: its generator, what each grid they cover holds and the
+/// whole body's mesh.
 struct GeneratedOutputs {
-    /// The generator built from the configuration, to list its features from.
+    /// The generator built from the configuration, to evaluate or list features from further.
     TerrainGenerator generator;
-    /// One per distinct grid a heightmap, albedo, terrain mesh or material output covers, in output
-    /// order.
+    /// One per distinct grid an output covers, in output order.
     std::vector<GeneratedGrid> grids{};
-    /// The projection of a raster base, or geographic keys on a body without one.
+    std::optional<TriangleMesh> bodyMesh{};  ///< The whole body (`BodyMesh`), for mesh outputs.
+    /// The whole body as an ICQ shape model (`BodyIcq`), for mesh outputs to .icq paths.
+    std::optional<IcqModel> bodyIcq{};
+    /// The projection of a raster source, or geographic keys on a body without one.
     GeoKeys geoKeys{};
-    double seconds = 0.0;            ///< Wall-clock time the heights and albedo took to evaluate.
+    double seconds = 0.0;            ///< Wall-clock time the outputs took to generate.
     Backend backend = Backend::Cpu;  ///< Where the heights were evaluated: `Cpu` or a GPU backend.
 
-    /// The generated grid whose heights cover `grid`, or null.
+    /// The only grid.
+    /// @throws std::runtime_error when the outputs cover no grid or several.
+    const GeneratedGrid& Grid() const;
+    /// The generated grid over `grid`, or null.
     const GeneratedGrid* Find(const RasterGrid& grid) const;
-    /// The generated grid whose heights cover `grid`, or null.
+    /// The generated grid over `grid`, or null.
     GeneratedGrid* Find(const RasterGrid& grid);
 };
 
-/// Generates the terrain a configuration describes over each grid its heightmap, albedo and
-/// terrain mesh outputs cover: `BuildGenerator`, then `Evaluate`, and `BuildAlbedo` and
-/// `EvaluateAlbedo` for albedo outputs.
+/// Generates everything a configuration's outputs ask for, each computed once: `BuildGenerator`,
+/// then over each distinct grid the outputs cover its heights (`Evaluate`), albedo, materials and
+/// photometry, terrain mesh, and the craters and boulders placed there, and the whole body's mesh.
+/// Nothing is written (`WriteOutputs`).
 /// @param directory Folder relative input paths resolve against.
 /// @param threads Threads to use, 0 for every hardware thread; the result does not depend on it.
 /// @param backend Where the heights are evaluated; empty for `DefaultBackend()`.
@@ -84,7 +102,7 @@ void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesyste
 /// Writes boulder models as a scene (`WriteScene`): each shape once with crease normals and its
 /// material, drawn once per boulder (glTF), one object per boulder (OBJ) or one merged mesh
 /// (STL). On a sphere the world is the east-north-up frame of `site` on the datum sphere
-/// (`PlacementAtSite`), so coordinates stay small; `WriteOutputs` uses the grid's centre.
+/// (`PlacementAtSite`), so coordinates stay small; `WriteOutputs` uses the grid's center.
 /// @param creaseAngle Angle in degrees, from 0 to 180, above which normals are split.
 /// @param instanced Whether shared shapes are written once and drawn per boulder; otherwise each
 /// boulder is written as its own mesh, already placed, for tools without instancing.
@@ -94,13 +112,13 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
                         const std::filesystem::path& path, double creaseAngle = 60.0,
                         const Surface& surface = {}, const Vec2d& site = {}, bool instanced = true);
 
-/// Writes a configuration's outputs and returns the paths written: heightmaps and albedos
-/// with `generated.geoKeys`, terrain meshes, crater and boulder lists, boulder models and meshes,
-/// each over the grid it covers (`config::OutputGrid`).
+/// Writes each output of a configuration that has a path from what `GenerateFromConfig`
+/// returned, computing nothing, and returns the paths written: rasters with `generated.geoKeys`,
+/// meshes, crater and boulder lists and boulder models, each from the grid it covers
+/// (`config::OutputGrid`). Outputs without a path, and reports, are not written.
 /// @param generated What `GenerateFromConfig` generated from `config`.
 /// @param directory Folder relative output paths resolve against.
-/// @throws std::runtime_error if an output cannot be written, or `generated` lacks the grid or
-/// albedo it needs.
+/// @throws std::runtime_error if an output cannot be written, or `generated` lacks what it needs.
 std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& config,
                                                 const GeneratedOutputs& generated,
                                                 const std::filesystem::path& directory);

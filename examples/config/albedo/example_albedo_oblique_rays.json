@@ -86,19 +86,31 @@
         {
             "type": "heightmap",
             "path": "example_albedo_oblique_rays.tif",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 8
+            "pixel_size_m": 8,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    4104,
+                    4104
+                ]
             }
         },
         {
             "type": "albedo",
             "path": "example_albedo_oblique_rays_albedo.tif",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 8
+            "pixel_size_m": 8,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    4104,
+                    4104
+                ]
             }
         }
     ]

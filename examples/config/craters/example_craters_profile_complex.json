@@ -51,19 +51,31 @@
         {
             "type": "heightmap",
             "path": "example_craters_profile_complex.tif",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 200
+            "pixel_size_m": 200,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    102600,
+                    102600
+                ]
             }
         },
         {
             "type": "crater_list",
             "path": "example_craters_profile_complex.csv",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 200
+            "pixel_size_m": 200,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    102600,
+                    102600
+                ]
             }
         }
     ]

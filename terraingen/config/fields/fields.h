@@ -25,13 +25,14 @@ template <typename IO> void Fields(IO& io, TerrainGenConfig& config) {
     io("source", config.source,
        "Where the heights come from: a GeoTIFF, a chain of sources, or synthetic noise, and how "
        "its posts are upsampled to finer spacings. A raster's grid is what outputs cover unless "
-       "they give a region; unset is flat at the body's datum, 0 m, everywhere.");
+       "they give an extent and pixel size; unset is flat at the body's datum, 0 m, everywhere.");
     io("layers", config.layers,
        "Relief and features added to the source's heights, applied in order: noise, craters, "
        "boulders and more.");
     io("outputs", config.outputs,
-       "Files written after generation, each over its own region or the whole body: heightmaps, "
-       "crater and boulder lists, boulder models, albedo and meshes.");
+       "What to produce, at what resolution and where, each over its own extent or the whole "
+       "body: heightmaps, crater and boulder lists, boulder models, albedo, meshes and reports. "
+       "Each is returned, and written to its path when it has one.");
     io("albedo", config.albedo,
        "The terrain's albedo: a source and the layers that change it, written by albedo outputs; "
        "none when unset.");

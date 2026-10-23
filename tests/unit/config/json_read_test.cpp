@@ -44,11 +44,13 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
         "schema_version": 1,
         "layers": [{"type": "noise", "stack": [{"octaves": 3, "hurst": 0.7}]},
                    {"type": "craters", "density": {"type": "trask"}}],
-        "outputs": [{"type": "heightmap", "path": "h.tif", "region": {"width": 64}}]
+        "outputs": [{"type": "heightmap", "path": "h.tif", "extent_m": {"size": [64, 32]}}]
     })");
-    const auto& region = *std::get<terraingen::HeightmapOutput>(partial.outputs.at(0)).region;
-    EXPECT_EQ(region.width, 64u);
-    EXPECT_EQ(region.height, 1025u);
+    const auto& area = std::get<terraingen::HeightmapOutput>(partial.outputs.at(0)).area;
+    EXPECT_EQ(area.extentM->size, (std::vector<double>{64.0, 32.0}));
+    EXPECT_TRUE(area.extentM->center.empty());
+    EXPECT_FALSE(area.pixelSize);
+    EXPECT_FALSE(area.extentDeg);
     ASSERT_EQ(partial.layers.size(), 2u);
     const auto& noise = std::get<terraingen::NoiseLayerSpec>(partial.layers[0]);
     EXPECT_EQ(noise.stack.at(0).layer.fractal.octaves, 3);

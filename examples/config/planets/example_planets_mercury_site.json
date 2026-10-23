@@ -40,12 +40,16 @@
         {
             "type": "heightmap",
             "path": "example_planets_mercury_site.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 200,
-                "centre_x": -30.0,
-                "centre_y": 10.0
+            "pixel_size_m": 200,
+            "extent_deg": {
+                "center": [
+                    -30.0,
+                    10.0
+                ],
+                "size": [
+                    1.2,
+                    1.2
+                ]
             }
         }
     ]

@@ -7,11 +7,13 @@
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <string>
+#include <variant>
 
 using terraingen::CraterListOutput;
 using terraingen::GenerateFromConfig;
@@ -51,7 +53,7 @@ TEST(WriteOutputs, ResolvesRelativePathsAndCreatesFolders) {
 
 TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     TerrainGenConfig config = Small();
-    const terraingen::GridRegionSpec region{200, 200, 0.5};
+    const terraingen::testing::GridRegion region{200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
@@ -86,16 +88,26 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     EXPECT_EQ(ReadText(written[2]).substr(0, 4), "glTF");
     EXPECT_EQ(ReadText(written[3]).substr(0, 10), "TerrainGen") << "a binary STL";
 
-    const auto generations = [&](const TerrainGenConfig& outputs) {
+    ASSERT_EQ(terrain.grids.size(), 1u);
+    ASSERT_TRUE(terrain.Grid().boulders);
+    EXPECT_EQ(terrain.Grid().boulders->boulders.size(),
+              BouldersOf(terrain, region).boulders.size());
+    EXPECT_TRUE(terrain.Grid().heights.Empty()) << "lists and models evaluate no heights";
+
+    const auto placements = [&](const TerrainGenConfig& outputs) {
         const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
-        WriteOutputs(outputs, terrain, directory);
+        GenerateFromConfig(outputs);
         return capture.Matching("boulders", terraingen::LogLevel::Debug).size();
     };
     TerrainGenConfig one = config;
     one.outputs.resize(1);
-    EXPECT_GT(generations(one), 0u);
-    EXPECT_EQ(generations(config), generations(one))
-        << "the outputs over one region share the boulders placed for the first";
+    EXPECT_GT(placements(one), 0u);
+    EXPECT_EQ(placements(config), placements(one))
+        << "the outputs over one grid share the boulders placed for the first";
+    const terraingen::testing::LogCapture writing(terraingen::LogLevel::Debug);
+    WriteOutputs(config, terrain, directory);
+    EXPECT_TRUE(writing.Matching("boulders", terraingen::LogLevel::Debug).empty())
+        << "writing places no boulders";
 
     terraingen::BoulderLayerSpec none;
     none.boulders.sizes.minDiameter = 0.5;
@@ -165,9 +177,9 @@ TEST(WriteOutputs, WritesARasterAlbedoUpscaledWithTheSourceProjection) {
 TEST(WriteOutputs, WritesGeographicRastersAndListsOnASphere) {
     TerrainGenConfig config = terraingen::testing::OnASphere();
     config.albedo = terraingen::AlbedoSpec{terraingen::SyntheticAlbedoSpec{}, {}};
-    const terraingen::GridRegionSpec region = Region(config);
+    const terraingen::OutputAreaSpec region = Region(config);
     config.outputs = {
-        terraingen::testing::Heightmap("height.tif", region),
+        terraingen::HeightmapOutput{"height.tif", terraingen::TiffCompression::Lzw, 256, region},
         terraingen::AlbedoOutput{{"albedo.tif", terraingen::TiffCompression::Lzw, 256, region}},
         CraterListOutput{{"craters.csv", ListFormat::Csv, region}}};
     const auto generated = GenerateFromConfig(config, {}, 2);
@@ -184,7 +196,7 @@ TEST(WriteOutputs, WritesGeographicRastersAndListsOnASphere) {
 TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
-    const terraingen::GridRegionSpec region{160, 160, 0.25, -30.0, 60.0};
+    const terraingen::testing::GridRegion region{160, 160, 0.25, -30.0, 60.0};
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
@@ -192,7 +204,8 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     boulders.boulders.sizes.maxDiameter = 3.0;
     boulders.boulders.rendering.models.minDiameter = 1.0;
     config.layers = {boulders};
-    config.outputs = {terraingen::BoulderModelsOutput{"boulders.stl", 35.0, region}};
+    config.outputs = {terraingen::BoulderModelsOutput{
+        "boulders.stl", 35.0, region.Area(terraingen::Surface::Sphere(1737400.0))}};
     const auto terrain = GenerateFromConfig(config);
     ASSERT_FALSE(BouldersOf(terrain, region).models.empty());
     const auto directory = TempPath("terraingen_sphere_boulders");
@@ -213,15 +226,22 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
 TEST(WriteOutputs, WritesWholeBodyMeshes) {
     TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
-    config.outputs = {terraingen::MeshOutput{"body.glb", 6, std::nullopt},
+    config.outputs = {terraingen::MeshOutput{"body.glb", 4, 20000.0},
                       terraingen::MeshOutput{"body.stl", 4, 20000.0}};
     const auto terrain = GenerateFromConfig(config);
+    ASSERT_TRUE(terrain.bodyMesh);
+    EXPECT_FALSE(terrain.bodyIcq);
+    EXPECT_EQ(terrain.bodyMesh->triangles.size(),
+              terraingen::BodyMesh(terrain.generator, 4, 20000.0).triangles.size());
+    EXPECT_TRUE(terrain.grids.empty());
     const auto directory = TempPath("terraingen_body_mesh");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, terrain, directory);
     ASSERT_EQ(written.size(), 2u);
     EXPECT_GT(std::filesystem::file_size(written[0]), 1000u);
     EXPECT_GT(std::filesystem::file_size(written[1]), 1000u);
+    const auto read = terraingen::ReadMesh(written[1]);
+    EXPECT_EQ(read.mesh.triangles.size(), terrain.bodyMesh->triangles.size());
 }
 
 TEST(WriteOutputs, WritesEllipsoidBodiesAsIcqShapeModels) {
@@ -230,6 +250,8 @@ TEST(WriteOutputs, WritesEllipsoidBodiesAsIcqShapeModels) {
     config.outputs = {terraingen::MeshOutput{"body.icq", 8, std::nullopt}};
     EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "valid");
     const auto terrain = GenerateFromConfig(config);
+    ASSERT_TRUE(terrain.bodyIcq);
+    EXPECT_FALSE(terrain.bodyMesh);
     const auto directory = TempPath("terraingen_body_icq");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, terrain, directory);
@@ -249,7 +271,7 @@ TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
         directory / "rock.obj",
         {terraingen::Scaled(cube, {1.0, 0.7, 0.5}), {}, {"basalt", {0.2, 0.2, 0.2}}});
     TerrainGenConfig config = Small();
-    const terraingen::GridRegionSpec region{120, 100, 0.5};
+    const terraingen::testing::GridRegion region{120, 100, 0.5};
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
@@ -296,7 +318,9 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
     craters.maxDiameter = 20000.0;
     craters.density = terraingen::testing::LunarDensitySpec();
     config.layers = {craters};
-    config.outputs = {CraterListOutput{{"craters.csv", ListFormat::Csv, {}, 500.0}}};
+    terraingen::OutputAreaSpec whole;
+    whole.pixelSize = 500.0;
+    config.outputs = {CraterListOutput{{"craters.csv", ListFormat::Csv, whole}}};
     const auto generated = GenerateFromConfig(config);
     const auto directory = TempPath("terraingen_whole_body_list");
     std::filesystem::remove_all(directory);
@@ -310,7 +334,65 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
         << "the heightmap's grid was not generated";
     other.outputs = {terraingen::MeshOutput{"m.glb"}};
     other.body = config.body;
-    EXPECT_NO_THROW(WriteOutputs(other, generated, directory));
+    EXPECT_THROW(WriteOutputs(other, generated, directory), std::runtime_error)
+        << "no body mesh was generated";
+    other.outputs = {terraingen::MeshOutput{""}};
+    EXPECT_TRUE(WriteOutputs(other, generated, directory).empty()) << "nothing to write";
+}
+
+TEST(WriteOutputs, WritesExactlyWhatGenerateFromConfigReturned) {
+    TerrainGenConfig config = terraingen::testing::WithAlbedo();
+    config.outputs.push_back(CraterListOutput{{"craters.json", ListFormat::Json, SmallRegion()}});
+    config.outputs.push_back(terraingen::TerrainMeshOutput{"terrain.obj", SmallRegion()});
+    terraingen::GeneratedOutputs generated = GenerateFromConfig(config);
+    ASSERT_EQ(generated.grids.size(), 1u) << "every output covers one grid";
+    terraingen::GeneratedGrid& grid = generated.grids[0];
+    for (float& height : grid.heights.Values()) {
+        height = 7.0f;
+    }
+    grid.albedo[0].Values()[0] = 0.25f;
+    grid.craters->craters = terraingen::CraterList{};
+    grid.craters->attributes.clear();
+    grid.mesh->triangles.resize(1);
+    const auto directory = TempPath("terraingen_exactly_returned");
+    std::filesystem::remove_all(directory);
+    const auto written = WriteOutputs(config, generated, directory);
+    ASSERT_EQ(written.size(), 4u);
+    ExpectSameRaster(terraingen::ReadGeoTiff(written[0]).raster, grid.heights);
+    EXPECT_EQ(terraingen::ReadGeoTiff(written[1]).raster.Values()[0], 0.25f);
+    EXPECT_EQ(nlohmann::json::parse(ReadText(written[2]))["craters"].size(), 0u);
+    EXPECT_EQ(terraingen::ReadMesh(written[3]).mesh.triangles.size(), 1u);
+}
+
+TEST(WriteOutputs, ReturnsOutputsWithoutPathsAndWritesNothingForThem) {
+    TerrainGenConfig config = terraingen::testing::WithAlbedo();
+    for (terraingen::OutputSpec& output : config.outputs) {
+        std::visit([](auto& o) { o.path.clear(); }, output);
+    }
+    config.outputs.push_back(CraterListOutput{{"", ListFormat::Csv, SmallRegion()}});
+    config.outputs.push_back(terraingen::TerrainMeshOutput{"", SmallRegion()});
+    config.outputs.push_back(terraingen::ReportOutput{});
+    EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "valid");
+    const auto generated = GenerateFromConfig(config);
+    ASSERT_EQ(generated.grids.size(), 1u);
+    const terraingen::GeneratedGrid& grid = generated.Grid();
+    EXPECT_EQ(grid.grid, SmallRegion().Grid());
+    EXPECT_EQ(grid.heights.Width(), 65u);
+    EXPECT_EQ(grid.albedo.size(), 3u);
+    ASSERT_TRUE(grid.craters);
+    EXPECT_EQ(grid.craters->craters.Ids(), CratersOf(generated, SmallRegion()).craters.Ids());
+    ASSERT_TRUE(grid.mesh);
+    EXPECT_EQ(grid.mesh->positions.size(), 65u * 49u);
+    EXPECT_FALSE(grid.boulders) << "no output asked for boulders";
+    EXPECT_TRUE(grid.materials.empty());
+    const auto directory = TempPath("terraingen_in_memory");
+    std::filesystem::remove_all(directory);
+    EXPECT_TRUE(WriteOutputs(config, generated, directory).empty());
+    EXPECT_FALSE(std::filesystem::exists(directory)) << "not even the folder";
+
+    config.outputs.back() = terraingen::ReportOutput{"report.json"};
+    EXPECT_TRUE(WriteOutputs(config, generated, directory).empty())
+        << "reports are parsed and checked but not produced yet";
 }
 
 TEST(WriteOutputs, WritesMaterialsAndTheirPhotometry) {
@@ -327,6 +409,7 @@ TEST(WriteOutputs, WritesMaterialsAndTheirPhotometry) {
     const auto generated = GenerateFromConfig(config);
     ASSERT_EQ(generated.grids.size(), 1u) << "one grid for heights, materials and photometry";
     ASSERT_EQ(generated.grids[0].materials.size(), terraingen::kMaterialClasses);
+    ASSERT_EQ(generated.grids[0].photometry.size(), 4u);
     const auto directory = TempPath("terraingen_materials");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, generated, directory);

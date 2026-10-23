@@ -33,21 +33,31 @@
         {
             "type": "heightmap",
             "path": "example_craters_secondary_rays.tif",
-            "region": {
-                "width": 1537,
-                "height": 1537,
-                "pixel_size": 24,
-                "centre_x": 18000
+            "pixel_size_m": 24,
+            "extent_m": {
+                "center": [
+                    18000,
+                    0
+                ],
+                "size": [
+                    36888,
+                    36888
+                ]
             }
         },
         {
             "type": "albedo",
             "path": "example_craters_secondary_rays_albedo.tif",
-            "region": {
-                "width": 1537,
-                "height": 1537,
-                "pixel_size": 24,
-                "centre_x": 18000
+            "pixel_size_m": 24,
+            "extent_m": {
+                "center": [
+                    18000,
+                    0
+                ],
+                "size": [
+                    36888,
+                    36888
+                ]
             }
         }
     ],

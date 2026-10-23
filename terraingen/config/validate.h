@@ -18,7 +18,8 @@ struct ConfigSummary {
     /// The source's grid; none without a source or for one without bounds, such as synthetic
     /// noise.
     std::optional<RasterGrid> source;
-    /// The grid each output covers (`config::OutputGrid`), in order; none for a mesh.
+    /// The grid each output covers (`config::OutputGrid`), in order; none for a body mesh or a
+    /// report.
     std::vector<std::optional<RasterGrid>> outputGrids;
     /// Craters the top-level crater layers are expected to generate over the output grid with the
     /// most; unset when none generate or no output covers a grid.

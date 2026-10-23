@@ -31,19 +31,31 @@
         {
             "type": "heightmap",
             "path": "example_boulders_patches.tif",
-            "region": {
-                "width": 401,
-                "height": 401,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    40.1,
+                    40.1
+                ]
             }
         },
         {
             "type": "boulder_list",
             "path": "example_boulders_patches_boulders.csv",
-            "region": {
-                "width": 401,
-                "height": 401,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    40.1,
+                    40.1
+                ]
             }
         }
     ]

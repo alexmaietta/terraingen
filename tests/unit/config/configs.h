@@ -21,6 +21,41 @@
 
 namespace terraingen::testing {
 
+/// A grid as tests describe an output's area: `width` x `height` cells of `pixelSize` meters
+/// centered on (`centerX`, `centerY`), in degrees on a body.
+struct GridRegion {
+    std::size_t width = 1025;
+    std::size_t height = 1025;
+    double pixelSize = 1.0;
+    double centerX = 0.0;
+    double centerY = 0.0;
+
+    /// The area covering the grid on `surface`: its pixel size, and its extent by center and
+    /// size, in meters or in degrees on a body.
+    OutputAreaSpec Area(const Surface& surface = {}) const {
+        const double cell = pixelSize / surface.UnitLength();
+        ExtentSpec extent;
+        extent.center = {centerX, centerY};
+        extent.size = {static_cast<double>(width) * cell, static_cast<double>(height) * cell};
+        OutputAreaSpec area;
+        area.pixelSize = pixelSize;
+        (surface.IsBody() ? area.extentDeg : area.extentM) = extent;
+        return area;
+    }
+
+    /// The area on a plane, so a region can be given wherever an area is expected.
+    operator OutputAreaSpec() const {  // NOLINT(google-explicit-constructor)
+        return Area();
+    }
+
+    /// The grid an output over the region covers on `surface` (`config::OutputGrid`).
+    RasterGrid Grid(const Surface& surface = {}) const {
+        HeightmapOutput output;
+        output.area = Area(surface);
+        return *config::OutputGrid(output, std::nullopt, surface);
+    }
+};
+
 /// The heights generated over the first grid.
 inline const Raster<float>& HeightsOf(const GeneratedOutputs& generated) {
     return generated.grids.at(0).heights;
@@ -33,45 +68,46 @@ inline const std::vector<Raster<float>>& AlbedoOf(const GeneratedOutputs& genera
 
 /// The craters the generator's layers apply over the first grid.
 inline CraterFeatures CratersOf(const GeneratedOutputs& generated) {
-    return PlacedCraters(generated.generator, RasterGrid::FromRaster(HeightsOf(generated)));
+    return PlacedCraters(generated.generator, generated.grids.at(0).grid);
 }
 
 /// The boulders the generator's layers place over the first grid, and the models among them.
 inline BoulderFeatures BouldersOf(const GeneratedOutputs& generated) {
-    return PlacedBoulders(generated.generator, RasterGrid::FromRaster(HeightsOf(generated)));
+    return PlacedBoulders(generated.generator, generated.grids.at(0).grid);
 }
 
 /// The craters the generator's layers apply over `region`.
-inline CraterFeatures CratersOf(const GeneratedOutputs& generated, const GridRegionSpec& region) {
-    return PlacedCraters(generated.generator,
-                         config::RegionGrid(region, generated.generator.surface));
+inline CraterFeatures CratersOf(const GeneratedOutputs& generated, const GridRegion& region) {
+    return PlacedCraters(generated.generator, region.Grid(generated.generator.surface));
 }
 
 /// The boulders the generator's layers place over `region`.
-inline BoulderFeatures BouldersOf(const GeneratedOutputs& generated, const GridRegionSpec& region) {
-    return PlacedBoulders(generated.generator,
-                          config::RegionGrid(region, generated.generator.surface));
+inline BoulderFeatures BouldersOf(const GeneratedOutputs& generated, const GridRegion& region) {
+    return PlacedBoulders(generated.generator, region.Grid(generated.generator.surface));
 }
 
 /// The region of `Small`'s heightmap: 65 x 49 cells of 2 m.
-inline GridRegionSpec SmallRegion() {
+inline GridRegion SmallRegion() {
     return {65, 49, 2.0};
 }
 
-/// A heightmap output to `path` over `region`.
+/// A heightmap output to `path` over `region` on `surface`, or over the source's grid without one.
 inline HeightmapOutput Heightmap(const std::string& path,
-                                 std::optional<GridRegionSpec> region = SmallRegion()) {
+                                 std::optional<GridRegion> region = SmallRegion(),
+                                 const Surface& surface = {}) {
     HeightmapOutput output;
     output.path = path;
-    output.region = region;
+    if (region) {
+        output.area = region->Area(surface);
+    }
     return output;
 }
 
-/// @brief The region of a configuration's first output, a heightmap with a region.
+/// @brief The area of a configuration's first output, a heightmap.
 /// @param config A configuration such as `Small`.
-/// @return Its region spec.
-inline GridRegionSpec& Region(TerrainGenConfig& config) {
-    return *std::get<HeightmapOutput>(config.outputs.at(0)).region;
+/// @return Its area spec.
+inline OutputAreaSpec& Region(TerrainGenConfig& config) {
+    return std::get<HeightmapOutput>(config.outputs.at(0)).area;
 }
 
 /// @brief The noise layer of a `Small` configuration.
@@ -142,7 +178,7 @@ inline TerrainGenConfig WithAlbedo() {
     config.albedo = AlbedoSpec{synthetic, {CraterAlbedoSpec{}}};
     AlbedoOutput output;
     output.path = "albedo.tif";
-    output.region = SmallRegion();
+    output.area = SmallRegion();
     config.outputs.push_back(output);
     return config;
 }
@@ -152,9 +188,7 @@ inline TerrainGenConfig WithAlbedo() {
 inline TerrainGenConfig OnASphere() {
     TerrainGenConfig config = Small();
     config.body = SphereSurfaceSpec{1737400.0};
-    Region(config).centreX = 30.0;
-    Region(config).centreY = -45.0;
-    Region(config).pixelSize = 4.0;
+    Region(config) = GridRegion{65, 49, 4.0, 30.0, -45.0}.Area(Surface::Sphere(1737400.0));
     return config;
 }
 

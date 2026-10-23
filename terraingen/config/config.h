@@ -972,56 +972,70 @@ struct RegionLayerSpec {
 /// Formats for crater and boulder lists.
 enum class ListFormat { Csv, Json };
 
-/// The north-up grid of square cells an output covers: `width` x `height` cells of `pixelSize`
-/// centred on (`centreX`, `centreY`).
-///
-/// On a body the centre is a longitude and latitude, and cells are `pixelSize` metres along a
-/// meridian, the same in degrees of longitude.
-struct GridRegionSpec {
-    std::size_t width = 1025;   ///< Cells.
-    std::size_t height = 1025;  ///< Cells.
-    double pixelSize = 1.0;     ///< Metres.
-    double centreX = 0.0;       ///< Centre in surface coordinates.
-    double centreY = 0.0;       ///< Centre in surface coordinates.
+/// A box in surface coordinates, given by its `center` and `size` or by its `min` and `max`
+/// corners, each an [x, y] pair; a pair left empty is unset. Surface coordinates are meters on a
+/// plane, and longitude and latitude in degrees on a body.
+struct ExtentSpec {
+    std::vector<double> center{};  ///< [x, y] of the box's center.
+    std::vector<double> size{};    ///< [width, height], both positive.
+    std::vector<double> min{};     ///< [x, y] of the lower corner.
+    std::vector<double> max{};     ///< [x, y] of the upper corner, above `min` along both axes.
 
-    bool operator==(const GridRegionSpec& other) const {
-        return width == other.width && height == other.height && pixelSize == other.pixelSize &&
-               centreX == other.centreX && centreY == other.centreY;
+    bool operator==(const ExtentSpec& other) const {
+        return center == other.center && size == other.size && min == other.min && max == other.max;
     }
-    bool operator!=(const GridRegionSpec& other) const {
+    bool operator!=(const ExtentSpec& other) const {
+        return !(*this == other);
+    }
+};
+
+/// The area an output covers and its resolution (`config::OutputGrid`).
+///
+/// The output's grid is its extent snapped outward to whole square cells of `pixelSize`: the grid
+/// starts at the extent's min corner, takes ceil(extent / cell) cells along each axis (sizes within
+/// 1e-6 of a cell of a whole number are not grown), and samples at the cells' centers. Without an
+/// extent it covers a bounded source's grid (its crop when cropped), and without a pixel size it
+/// takes the source's cell size; with neither it is the source's grid itself.
+struct OutputAreaSpec {
+    /// Cell size in meters; on a body, meters along a meridian, the same in degrees of longitude.
+    std::optional<double> pixelSize{};
+    std::optional<ExtentSpec> extentM{};    ///< The extent on a plane, in meters.
+    std::optional<ExtentSpec> extentDeg{};  ///< The extent on a body, in degrees.
+
+    bool operator==(const OutputAreaSpec& other) const {
+        return pixelSize == other.pixelSize && extentM == other.extentM &&
+               extentDeg == other.extentDeg;
+    }
+    bool operator!=(const OutputAreaSpec& other) const {
         return !(*this == other);
     }
 };
 
 /// A list file to write; the format follows the extension (.json or else CSV) unless given.
 ///
-/// The list covers `region`, or the base's grid without one, or else the whole body on a body.
+/// The list covers `area`, or the source's grid without an extent, or else the whole body on a
+/// body; features are listed as a heightmap of `area.pixelSize` applies them.
 struct ListOutput {
-    std::string path;
+    std::string path;  ///< The file to write; empty to only return the list.
     ListFormat format = ListFormat::Csv;
-    std::optional<GridRegionSpec> region{};
-    /// Sample spacing in metres the features are listed at, as a heightmap of that pixel size
-    /// applies them; unset for the grid's. A whole-body list needs it.
-    std::optional<double> spacing{};
+    OutputAreaSpec area{};
     bool operator==(const ListOutput& other) const {
-        return path == other.path && format == other.format && region == other.region &&
-               spacing == other.spacing;
+        return path == other.path && format == other.format && area == other.area;
     }
     bool operator!=(const ListOutput& other) const {
         return !(*this == other);
     }
 };
 
-/// A float32 GeoTIFF file to write over `region`, or the base's grid without one, with the base's
-/// projection.
+/// A float32 GeoTIFF file to write over `area`, with the source's projection.
 struct GeoTiffOutput {
-    std::string path;
+    std::string path;  ///< The file to write; empty to only return the rasters.
     TiffCompression compression = TiffCompression::Lzw;  ///< None, Lzw or Deflate.
     std::uint32_t tileSize = 256;                        ///< Pixels per tile side.
-    std::optional<GridRegionSpec> region{};
+    OutputAreaSpec area{};
     bool operator==(const GeoTiffOutput& other) const {
         return path == other.path && compression == other.compression &&
-               tileSize == other.tileSize && region == other.region;
+               tileSize == other.tileSize && area == other.area;
     }
     bool operator!=(const GeoTiffOutput& other) const {
         return !(*this == other);
@@ -1039,16 +1053,15 @@ struct BoulderListOutput : ListOutput {};
 
 /// Output "boulder_models": writes the boulders placed as 3D models
 /// (`BoulderModelThreshold`) on the ground beneath them, as `WriteBoulderModels` does, over the
-/// grid a list would cover.
+/// area a list would cover.
 struct BoulderModelsOutput {
-    std::string path;
+    std::string path;           ///< The file to write; empty to only return the models.
     double creaseAngle = 60.0;  ///< Degrees between faces above which vertices are split.
-    std::optional<GridRegionSpec> region{};
-    std::optional<double> spacing{};  ///< As `ListOutput::spacing`.
-    bool instanced = true;            ///< Shared shapes written once and drawn per boulder.
+    OutputAreaSpec area{};      ///< As `ListOutput::area`.
+    bool instanced = true;      ///< Shared shapes written once and drawn per boulder.
     bool operator==(const BoulderModelsOutput& other) const {
-        return path == other.path && creaseAngle == other.creaseAngle && region == other.region &&
-               spacing == other.spacing && instanced == other.instanced;
+        return path == other.path && creaseAngle == other.creaseAngle && area == other.area &&
+               instanced == other.instanced;
     }
     bool operator!=(const BoulderModelsOutput& other) const {
         return !(*this == other);
@@ -1062,7 +1075,7 @@ struct AlbedoOutput : GeoTiffOutput {};
 /// Output "mesh": the whole body, as a mesh (`BodyMesh`) with smooth normals in any format
 /// `WriteMesh` writes, or as an ICQ shape model (`BodyIcq`) for an .icq path.
 struct MeshOutput {
-    std::string path;
+    std::string path;                 ///< The file to write; empty to only return the mesh.
     std::size_t cellsPerFace = 128;   ///< Quads along each edge of the six cube faces.
     std::optional<double> spacing{};  ///< Sample spacing in metres; unset for a quad's side.
     bool operator==(const MeshOutput& other) const {
@@ -1073,25 +1086,23 @@ struct MeshOutput {
     }
 };
 
-/// Output "terrain_mesh": the heights over `region`, or the base's grid without one, as a mesh
-/// (`BuildMesh`) with smooth normals, in any format `WriteMesh` writes and in the frame boulder
-/// models are written in.
+/// Output "terrain_mesh": the heights over `area` as a mesh (`BuildMesh`) with smooth normals, in
+/// any format `WriteMesh` writes and in the frame boulder models are written in.
 struct TerrainMeshOutput {
-    std::string path;
-    std::optional<GridRegionSpec> region{};
-    /// Rectangles in surface coordinates whose quads are left out, such as where a finer mesh
-    /// covers the ground; a quad is left out when all four corners lie in one.
-    std::vector<RectangleRegionSpec> cutouts{};
-    /// Depth in metres of the skirt hung below every boundary edge, inner ones included, to hide
+    std::string path;  ///< The file to write; empty to only return the mesh.
+    OutputAreaSpec area{};
+    /// Boxes in surface coordinates whose quads are left out, such as where a finer mesh covers
+    /// the ground; a quad is left out when all four corners lie in one.
+    std::vector<ExtentSpec> cutouts{};
+    /// Depth in meters of the skirt hung below every boundary edge, inner ones included, to hide
     /// gaps between meshes; 0 for none.
     double skirt = 0.0;
-    /// Surface coordinates of the frame's site on a body (`BuildMesh`); unset for the grid's
-    /// centre.
-    std::optional<double> siteX{};
-    std::optional<double> siteY{};  ///< As `siteX`.
+    /// [longitude, latitude] in degrees of the frame's site on a body (`BuildMesh`); empty for the
+    /// grid's center.
+    std::vector<double> siteDeg{};
     bool operator==(const TerrainMeshOutput& other) const {
-        return path == other.path && region == other.region && cutouts == other.cutouts &&
-               skirt == other.skirt && siteX == other.siteX && siteY == other.siteY;
+        return path == other.path && area == other.area && cutouts == other.cutouts &&
+               skirt == other.skirt && siteDeg == other.siteDeg;
     }
     bool operator!=(const TerrainMeshOutput& other) const {
         return !(*this == other);
@@ -1105,10 +1116,22 @@ struct MaterialsOutput : GeoTiffOutput {};
 /// Output "photometry": the Hapke albedo, b, c and roughness the materials mix to, in four bands.
 struct PhotometryOutput : GeoTiffOutput {};
 
+/// Output "report": a report of what the configuration generates. Parsed and checked; nothing is
+/// produced for it yet.
+struct ReportOutput {
+    std::string path;  ///< The file to write; empty to only return the report.
+    bool operator==(const ReportOutput& other) const {
+        return path == other.path;
+    }
+    bool operator!=(const ReportOutput& other) const {
+        return !(*this == other);
+    }
+};
+
 /// An output, named in JSON by its "type".
-using OutputSpec =
-    std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput, BoulderModelsOutput,
-                 AlbedoOutput, MeshOutput, TerrainMeshOutput, MaterialsOutput, PhotometryOutput>;
+using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOutput,
+                                BoulderModelsOutput, AlbedoOutput, MeshOutput, TerrainMeshOutput,
+                                MaterialsOutput, PhotometryOutput, ReportOutput>;
 
 /// Albedo source "synthetic": `SyntheticAlbedo`, a base colour with a noise stack per
 /// channel (each 0 to `kMaxNoiseLayers` layers), measured from the base's reference

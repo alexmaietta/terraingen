@@ -13,6 +13,7 @@
 #include <ernie/app/icons.h>
 #include <imgui.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <exception>
@@ -62,10 +63,16 @@ constexpr const char* kStarterConfig = R"({
         {
             "type": "heightmap",
             "path": "terrain.tif",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 2
+            "pixel_size_m": 2,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    1026,
+                    1026
+                ]
             }
         }
     ]
@@ -152,12 +159,15 @@ struct GuiApp::State {
         try {
             const Generated done = generation.get();
             const GeneratedOutputs& t = done.outputs;
-            if (t.grids.empty()) {
+            const auto withHeights =
+                std::find_if(t.grids.begin(), t.grids.end(),
+                             [](const GeneratedGrid& grid) { return !grid.heights.Empty(); });
+            if (withHeights == t.grids.end()) {
                 Report(ernie::app::LogLevel::Warning,
                        "Nothing to show: no heightmap, albedo or terrain mesh output");
                 return;
             }
-            const GeneratedGrid& shown = t.grids.front();
+            const GeneratedGrid& shown = *withHeights;
             ShowTerrain(scene, shown.heights, t.geoKeys.IsGeographic(),
                         shown.albedo.empty() ? nullptr : &shown.albedo.front());
             std::ostringstream text;

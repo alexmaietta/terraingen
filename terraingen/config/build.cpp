@@ -789,12 +789,48 @@ DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
     return map;
 }
 
-RasterGrid RegionGrid(const GridRegionSpec& region, const Surface& surface) {
-    const double cell = region.pixelSize / surface.UnitLength();
-    const double halfX = 0.5 * static_cast<double>(region.width) * cell;
-    const double halfY = 0.5 * static_cast<double>(region.height) * cell;
-    return {region.width, region.height,
-            GeoTransform::NorthUp(region.centreX - halfX, region.centreY + halfY, cell)};
+std::optional<Bounds2d> ExtentBox(const ExtentSpec& extent) {
+    if (extent.min.size() == 2 && extent.max.size() == 2) {
+        return Bounds2d{extent.min[0], extent.min[1], extent.max[0], extent.max[1]};
+    }
+    if (extent.center.size() == 2 && extent.size.size() == 2) {
+        const double halfX = 0.5 * extent.size[0];
+        const double halfY = 0.5 * extent.size[1];
+        return Bounds2d{extent.center[0] - halfX, extent.center[1] - halfY,
+                        extent.center[0] + halfX, extent.center[1] + halfY};
+    }
+    return std::nullopt;
+}
+
+double SnappedCells(double span, double cell) {
+    return std::max(1.0, std::ceil(span / cell - kExtentSnapTolerance));
+}
+
+RasterGrid SnappedGrid(const Bounds2d& box, double cell) {
+    const double columns = SnappedCells(box.maxX - box.minX, cell);
+    const double rows = SnappedCells(box.maxY - box.minY, cell);
+    return {static_cast<std::size_t>(columns), static_cast<std::size_t>(rows),
+            GeoTransform::NorthUp(box.minX, box.minY + rows * cell, cell)};
+}
+
+const OutputAreaSpec* OutputArea(const OutputSpec& output) {
+    return std::visit(Overloaded{
+                          [](const GeoTiffOutput& o) { return &o.area; },
+                          [](const ListOutput& o) { return &o.area; },
+                          [](const BoulderModelsOutput& o) { return &o.area; },
+                          [](const TerrainMeshOutput& o) { return &o.area; },
+                          [](const MeshOutput&) -> const OutputAreaSpec* { return nullptr; },
+                          [](const ReportOutput&) -> const OutputAreaSpec* { return nullptr; },
+                      },
+                      output);
+}
+
+const std::optional<ExtentSpec>& SurfaceExtent(const OutputAreaSpec& area, const Surface& surface) {
+    return surface.IsBody() ? area.extentDeg : area.extentM;
+}
+
+bool ListsFeatures(const OutputSpec& output) {
+    return HoldsAny<CraterListOutput, BoulderListOutput, BoulderModelsOutput>(output);
 }
 
 RasterGrid WholeBodyGrid(const Surface& surface, double spacing) {
@@ -803,38 +839,47 @@ RasterGrid WholeBodyGrid(const Surface& surface, double spacing) {
     return {2 * rows, rows, GeoTransform::NorthUp(-180.0, 90.0, 180.0 / static_cast<double>(rows))};
 }
 
+namespace {
+
+/// Whether an output is a feature list over the whole body: a list on a body without an extent or
+/// a source's grid, with a pixel size.
+bool ListsWholeBody(const OutputSpec& output, const std::optional<RasterGrid>& base,
+                    const Surface& surface) {
+    const OutputAreaSpec* area = OutputArea(output);
+    return ListsFeatures(output) && surface.IsBody() && !base && area->pixelSize &&
+           !SurfaceExtent(*area, surface);
+}
+
+}  // namespace
+
 std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
                                      const std::optional<RasterGrid>& base,
                                      const Surface& surface) {
-    const auto covered = [&](const std::optional<GridRegionSpec>& region) {
-        return region ? std::optional<RasterGrid>(RegionGrid(*region, surface)) : base;
-    };
-    const auto listed = [&](const auto& list) -> std::optional<RasterGrid> {
-        if (list.region || base || !surface.IsBody() || !list.spacing) {
-            return covered(list.region);
-        }
-        return WholeBodyGrid(surface, *list.spacing);
-    };
-    return std::visit(
-        Overloaded{
-            [&](const GeoTiffOutput& o) { return covered(o.region); },
-            [&](const TerrainMeshOutput& o) { return covered(o.region); },
-            [&](const ListOutput& o) { return listed(o); },
-            [&](const BoulderModelsOutput& o) { return listed(o); },
-            [](const MeshOutput&) -> std::optional<RasterGrid> { return std::nullopt; },
-        },
-        output);
+    const OutputAreaSpec* area = OutputArea(output);
+    if (!area) {
+        return std::nullopt;
+    }
+    if (ListsWholeBody(output, base, surface)) {
+        return WholeBodyGrid(surface, *area->pixelSize);
+    }
+    const std::optional<ExtentSpec>& extent = SurfaceExtent(*area, surface);
+    if (!extent && !area->pixelSize) {
+        return base;
+    }
+    const std::optional<Bounds2d> box =
+        extent ? ExtentBox(*extent)
+               : (base ? std::optional<Bounds2d>(base->Bounds()) : std::nullopt);
+    const double cell = area->pixelSize ? *area->pixelSize / surface.UnitLength()
+                                        : (base ? base->PixelSize() : 0.0);
+    if (!box || !(cell > 0.0)) {
+        return std::nullopt;
+    }
+    return SnappedGrid(*box, cell);
 }
 
-double OutputSpacing(const OutputSpec& output) {
-    return std::visit(
-        [](const auto& o) {
-            if constexpr (FeatureOutput<std::decay_t<decltype(o)>>) {
-                return o.spacing.value_or(0.0);
-            }
-            return 0.0;
-        },
-        output);
+double OutputSpacing(const OutputSpec& output, const std::optional<RasterGrid>& base,
+                     const Surface& surface) {
+    return ListsWholeBody(output, base, surface) ? *OutputArea(output)->pixelSize : 0.0;
 }
 
 MaterialPhotometry BuildPhotometry(const PhotometrySpec& spec) {

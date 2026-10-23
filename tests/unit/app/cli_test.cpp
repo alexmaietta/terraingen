@@ -59,8 +59,10 @@ const char* const kConfig = R"({
      "ages": {"type": "steady_state", "age_gyr": 3.5, "production": "extended_neukum",
               "equilibrium": "trask", "chronology": "neukum"}}
   ],
-  "outputs": [{"type": "heightmap", "path": "heights.tif", "region": {"width": 65, "height": 49}},
-              {"type": "crater_list", "path": "craters.csv", "region": {"width": 65, "height": 49}}]
+  "outputs": [{"type": "heightmap", "path": "heights.tif", "pixel_size_m": 1,
+               "extent_m": {"center": [0, 0], "size": [65, 49]}},
+              {"type": "crater_list", "path": "craters.csv", "pixel_size_m": 1,
+               "extent_m": {"min": [-32.5, -24.5], "max": [32.5, 24.5]}}]
 })";
 
 }  // namespace
@@ -258,6 +260,19 @@ TEST(Cli, GeneratesAConfigsOutputsIntoTheChosenFolder) {
     const auto heightValues = heights.Values();
     EXPECT_TRUE(std::equal(otherValues.begin(), otherValues.end(), heightValues.begin(),
                            heightValues.end()));
+
+    std::string unwritten = kConfig;
+    const std::string last = R"("max": [32.5, 24.5]}})";
+    unwritten.replace(unwritten.find(last), last.size(),
+                      last + R"(, {"type": "terrain_mesh", "pixel_size_m": 1,
+                       "extent_m": {"center": [0, 0], "size": [65, 49]}},
+                      {"type": "report", "path": "report.json"})");
+    const auto pathless = Directory("generate_pathless");
+    const Result some = Cli({Write(pathless / "terrain.json", unwritten).string()});
+    ASSERT_EQ(some.code, kExitSuccess) << some.err;
+    EXPECT_NE(some.out.find("Wrote 2 files to "), std::string::npos)
+        << "a mesh without a path and a report are not written: " << some.out;
+    EXPECT_FALSE(std::filesystem::exists(pathless / "report.json"));
 }
 
 TEST(Cli, ReportsConfigAndOutputErrorsWhenGenerating) {

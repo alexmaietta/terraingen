@@ -30,7 +30,8 @@ LUNAR_AGES = {
     "chronology": "neukum",
 }
 
-SMALL_REGION = {"width": 81, "height": 65, "pixel_size": 0.5}
+SMALL_AREA = {"pixel_size_m": 0.5, "extent_m": {"center": [0, 0], "size": [40.5, 32.5]}}
+"""81 x 65 cells of 0.5 m centered on the origin."""
 
 SMALL_CONFIG = {
     "schema_version": 1,
@@ -52,8 +53,8 @@ SMALL_CONFIG = {
         },
     ],
     "outputs": [
-        {"type": "heightmap", "path": "heights.tif", "region": SMALL_REGION},
-        {"type": "crater_list", "path": "craters.csv", "region": SMALL_REGION},
+        {"type": "heightmap", "path": "heights.tif", **SMALL_AREA},
+        {"type": "crater_list", "path": "craters.csv", **SMALL_AREA},
     ],
 }
 

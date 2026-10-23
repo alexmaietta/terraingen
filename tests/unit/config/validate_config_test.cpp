@@ -41,11 +41,53 @@ struct PathCase {
 
 const PathCase kPathCases[] = {
     {"Unchanged", [](TerrainGenConfig&) {}, "valid"},
-    {"NarrowGrid", [](TerrainGenConfig& c) { Region(c).width = 1; }, "outputs[0].region.width"},
-    {"TallGrid", [](TerrainGenConfig& c) { Region(c).height = 100000; },
-     "outputs[0].region.height"},
+    {"NarrowGrid", [](TerrainGenConfig& c) { Region(c).extentM->size = {1.0, 98.0}; },
+     "outputs[0].pixel_size_m"},
+    {"TallGrid", [](TerrainGenConfig& c) { Region(c).extentM->size = {130.0, 1e7}; },
+     "outputs[0].pixel_size_m"},
     {"ZeroPixelSize", [](TerrainGenConfig& c) { Region(c).pixelSize = 0.0; },
-     "outputs[0].region.pixel_size"},
+     "outputs[0].pixel_size_m"},
+    {"NoPixelSizeWithoutSource", [](TerrainGenConfig& c) { Region(c).pixelSize.reset(); },
+     "outputs[0].pixel_size_m"},
+    {"NoExtentWithoutSource", [](TerrainGenConfig& c) { Region(c).extentM.reset(); },
+     "outputs[0].extent_m"},
+    {"DegreesOnAPlane",
+     [](TerrainGenConfig& c) {
+         Region(c).extentDeg = terraingen::ExtentSpec{{0.0, 0.0}, {1.0, 1.0}, {}, {}};
+     },
+     "outputs[0].extent_deg"},
+    {"EmptyExtent", [](TerrainGenConfig& c) { Region(c).extentM = terraingen::ExtentSpec{}; },
+     "outputs[0].extent_m"},
+    {"CenterWithoutSize", [](TerrainGenConfig& c) { Region(c).extentM->size.clear(); },
+     "outputs[0].extent_m.size"},
+    {"CenterAndCorners",
+     [](TerrainGenConfig& c) {
+         Region(c).extentM->min = {0.0, 0.0};
+         Region(c).extentM->max = {1.0, 1.0};
+     },
+     "outputs[0].extent_m"},
+    {"MaxWithoutMin",
+     [](TerrainGenConfig& c) {
+         Region(c).extentM = terraingen::ExtentSpec{{}, {}, {}, {4.0, 4.0}};
+     },
+     "outputs[0].extent_m.min"},
+    {"ExtentMaxBelowMin",
+     [](TerrainGenConfig& c) {
+         Region(c).extentM = terraingen::ExtentSpec{{}, {}, {0.0, 0.0}, {40.0, -40.0}};
+     },
+     "outputs[0].extent_m.max"},
+    {"OneNumberCenter", [](TerrainGenConfig& c) { Region(c).extentM->center = {1.0}; },
+     "outputs[0].extent_m.center"},
+    {"InfiniteCenter",
+     [](TerrainGenConfig& c) {
+         Region(c).extentM->center = {std::numeric_limits<double>::infinity(), 0.0};
+     },
+     "outputs[0].extent_m.center"},
+    {"CornersAreValid",
+     [](TerrainGenConfig& c) {
+         Region(c).extentM = terraingen::ExtentSpec{{}, {}, {-65.0, -49.0}, {65.0, 49.0}};
+     },
+     "valid"},
     {"EmptyNoiseStack", [](TerrainGenConfig& c) { Noise(c).stack.clear(); }, "layers[0].stack"},
     {"NoOctaves", [](TerrainGenConfig& c) { Noise(c).stack[0].layer.fractal.octaves = 0; },
      "layers[0].stack[0].octaves"},
@@ -53,8 +95,50 @@ const PathCase kPathCases[] = {
      [](TerrainGenConfig& c) { Noise(c).stack[0].hurst = std::numeric_limits<float>::infinity(); },
      "layers[0].stack[0].hurst"},
     {"HeightmapWithoutPath",
-     [](TerrainGenConfig& c) { c.outputs = {terraingen::testing::Heightmap("")}; },
-     "outputs[0].path"},
+     [](TerrainGenConfig& c) { c.outputs = {terraingen::testing::Heightmap("")}; }, "valid"},
+    {"MeshesWithoutPaths",
+     [](TerrainGenConfig& c) {
+         c.outputs = {
+             terraingen::TerrainMeshOutput{"", terraingen::testing::SmallRegion()},
+             terraingen::BoulderModelsOutput{"", 35.0, terraingen::testing::SmallRegion()}};
+     },
+     "valid"},
+    {"ReportWithoutPath",
+     [](TerrainGenConfig& c) { c.outputs.push_back(terraingen::ReportOutput{}); }, "valid"},
+    {"ReportWithPath",
+     [](TerrainGenConfig& c) { c.outputs.push_back(terraingen::ReportOutput{"r.json"}); }, "valid"},
+    {"TerrainMeshCutoutWithoutMax",
+     [](TerrainGenConfig& c) {
+         terraingen::TerrainMeshOutput mesh{"t.glb", terraingen::testing::SmallRegion()};
+         mesh.cutouts = {terraingen::ExtentSpec{{}, {}, {0.0, 0.0}, {}}};
+         c.outputs = {mesh};
+     },
+     "outputs[0].cutouts[0].max"},
+    {"TerrainMeshSiteOnAPlane",
+     [](TerrainGenConfig& c) {
+         terraingen::TerrainMeshOutput mesh{"t.glb", terraingen::testing::SmallRegion()};
+         mesh.siteDeg = {1.0, 2.0};
+         c.outputs = {mesh};
+     },
+     "outputs[0].site_deg"},
+    {"TerrainMeshesDisagreeOverOneGrid",
+     [](TerrainGenConfig& c) {
+         terraingen::TerrainMeshOutput mesh{"t.glb", terraingen::testing::SmallRegion()};
+         c.outputs = {mesh};
+         mesh.path = "t.obj";
+         mesh.skirt = 2.0;
+         c.outputs.push_back(mesh);
+     },
+     "outputs[1]"},
+    {"TerrainMeshesOverTwoGrids",
+     [](TerrainGenConfig& c) {
+         terraingen::TerrainMeshOutput mesh{"t.glb", terraingen::testing::SmallRegion()};
+         c.outputs = {mesh};
+         mesh.area = terraingen::testing::GridRegion{65, 49, 4.0};
+         mesh.skirt = 2.0;
+         c.outputs.push_back(mesh);
+     },
+     "valid"},
     {"PackBitsHeightmap",
      [](TerrainGenConfig& c) {
          c.outputs = {terraingen::HeightmapOutput{"a.tif", terraingen::TiffCompression::PackBits,
@@ -153,9 +237,14 @@ const PathCase kPathCases[] = {
      },
      "layers[1].min_diameter"},
     {"CraterListWithoutPath",
-     [](TerrainGenConfig& c) { c.outputs = {terraingen::CraterListOutput{}}; }, "outputs[0].path"},
-    {"BoulderListWithoutPath",
-     [](TerrainGenConfig& c) { c.outputs = {terraingen::BoulderListOutput{}}; }, "outputs[0].path"},
+     [](TerrainGenConfig& c) {
+         c.outputs = {terraingen::CraterListOutput{
+             {"", terraingen::ListFormat::Csv, terraingen::testing::SmallRegion()}}};
+     },
+     "valid"},
+    {"BoulderListWithoutExtent",
+     [](TerrainGenConfig& c) { c.outputs = {terraingen::BoulderListOutput{}}; },
+     "outputs[0].extent_m"},
     {"BoulderModelsAsObj",
      [](TerrainGenConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.fbx"}}; },
      "outputs[0].path"},
@@ -566,7 +655,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
               }),
               "layers[1].ejecta.min_crater_diameter");
     EXPECT_EQ(ErrorPath([](TerrainGenConfig& c) {
-                  Region(c) = {60000, 60000, 0.1};
+                  Region(c) = terraingen::testing::GridRegion{60000, 60000, 0.1};
                   terraingen::BoulderLayerSpec boulders;
                   boulders.sizes = terraingen::GolombekRappBouldersSpec{};
                   boulders.boulders.sizes.coverage = 0.5;
@@ -609,7 +698,7 @@ TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
 
 TEST(ValidateConfig, ReportsBoulderSizeProblemsByPath) {
     TerrainGenConfig config = Small();
-    Region(config).pixelSize = 0.5;
+    Region(config) = terraingen::testing::GridRegion{65, 49, 0.5};
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.ejecta.minCraterDiameter = 8.0;
@@ -690,7 +779,7 @@ TEST(ValidateConfig, NamesGolombekRappSizesForACoverage) {
     const TerrainGenConfig config = terraingen::ParseConfig(R"({"schema_version": 1,
         "layers": [{"type": "boulders", "coverage": 0.05}],
         "outputs": [{"type": "heightmap", "path": "a.tif",
-                     "region": {"width": 33, "height": 33, "pixel_size": 1}}]})");
+                     "pixel_size_m": 1, "extent_m": {"min": [0, 0], "max": [33, 33]}}]})");
     try {
         ValidateConfig(config);
         ADD_FAILURE() << "validated";
@@ -899,8 +988,12 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
                   c.outputs = {terraingen::AlbedoOutput{"a.tif"}};
               }),
               "outputs[0]");
-    EXPECT_EQ(error([](TerrainGenConfig& c) { c.outputs = {terraingen::AlbedoOutput{}}; }),
-              "outputs[0].path");
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
+                  c.outputs = {terraingen::AlbedoOutput{{"", terraingen::TiffCompression::Lzw, 256,
+                                                         terraingen::testing::SmallRegion()}}};
+              }),
+              "valid")
+        << "returned, not written";
     EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.outputs = {
                       terraingen::AlbedoOutput{"a.tif", terraingen::TiffCompression::PackBits}};

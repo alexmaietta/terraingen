@@ -30,37 +30,61 @@
         {
             "type": "terrain_mesh",
             "path": "example_boulders_scene_terrain.obj",
-            "region": {
-                "width": 201,
-                "height": 201,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    20.1,
+                    20.1
+                ]
             }
         },
         {
             "type": "boulder_models",
             "path": "example_boulders_scene_boulders.obj",
-            "region": {
-                "width": 201,
-                "height": 201,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    20.1,
+                    20.1
+                ]
             }
         },
         {
             "type": "terrain_mesh",
             "path": "example_boulders_scene_terrain.glb",
-            "region": {
-                "width": 201,
-                "height": 201,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    20.1,
+                    20.1
+                ]
             }
         },
         {
             "type": "boulder_models",
             "path": "example_boulders_scene_boulders.glb",
-            "region": {
-                "width": 201,
-                "height": 201,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    20.1,
+                    20.1
+                ]
             }
         }
     ]

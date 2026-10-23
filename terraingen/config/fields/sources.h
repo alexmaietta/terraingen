@@ -159,7 +159,7 @@ template <> struct SpecName<SyntheticSourceSpec> {
     static constexpr std::string_view kName = "synthetic";
     static constexpr std::string_view kDescription =
         "Heights generated from a stack of fractal noise layers over an unbounded plane or the "
-        "whole body; outputs give their own regions.";
+        "whole body; outputs give their own extents and pixel sizes.";
 };
 template <typename IO> void Fields(IO& io, SyntheticSourceSpec& source) {
     io("elevation_m", source.elevation, "Height in meters added everywhere.", "m");

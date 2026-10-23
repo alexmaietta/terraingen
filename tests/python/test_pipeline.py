@@ -11,7 +11,12 @@ SPHERE_CONFIG = {
     "schema_version": 1,
     "body": {"type": "sphere", "radius": 1737400},
     "outputs": [
-        {"type": "heightmap", "path": "h.tif", "region": {"width": 17, "height": 17, "pixel_size": 100}}
+        {
+            "type": "heightmap",
+            "path": "h.tif",
+            "pixel_size_m": 100,
+            "extent_deg": {"center": [0, 0], "size": [0.05, 0.05]},
+        }
     ],
     "layers": [{"type": "noise", "stack": [{"wavelength": 2000, "amplitude": 10}]}],
     "albedo": {"source": {"type": "synthetic", "value": 0.12}},
@@ -87,10 +92,9 @@ def test_evaluate_takes_a_backend_and_cpu_is_exact(small_config):
 
 def albedo_config(small_config):
     small_config["albedo"] = terraingen.config_catalog()["albedo"]
-    region = small_config["outputs"][0]["region"]
-    small_config["outputs"] = small_config["outputs"] + [
-        {"type": "albedo", "path": "albedo.tif", "region": region}
-    ]
+    heightmap = small_config["outputs"][0]
+    area = {key: heightmap[key] for key in ("pixel_size_m", "extent_m")}
+    small_config["outputs"] = small_config["outputs"] + [{"type": "albedo", "path": "albedo.tif", **area}]
     return terraingen.TerrainGenConfig.from_dict(small_config)
 
 
@@ -106,6 +110,40 @@ def test_write_outputs_writes_every_output(tmp_path, small_config):
     assert all(isinstance(path, pathlib.Path) for path in written)
     assert sorted(path.name for path in written) == ["albedo.tif", "craters.csv", "heights.tif"]
     assert (tmp_path / "craters.csv").read_text().startswith("x,y,diameter")
+
+
+def test_generate_from_config_returns_each_output_once_per_grid(tmp_path, small_config):
+    area = {key: small_config["outputs"][0][key] for key in ("pixel_size_m", "extent_m")}
+    small_config["outputs"] = [
+        {"type": "heightmap", **area},
+        {"type": "crater_list", **area},
+        {"type": "boulder_list", **area},
+        {"type": "terrain_mesh", **area},
+        {"type": "report"},
+    ]
+    config = terraingen.TerrainGenConfig.from_dict(small_config)
+    outputs = terraingen.generate_from_config(config)
+    assert len(outputs.grids) == 1
+    grid = outputs.grid()
+    assert outputs.find(grid.grid) is not None and outputs.body_mesh is None
+    expected = config.output_grids()[0]
+    assert (grid.grid.width, grid.grid.height, grid.grid.bounds) == (81, 65, expected.bounds)
+    heights = grid.heights.values
+    heights[0, 0] = 1234.0
+    assert outputs.grid().heights.values[0, 0] == 1234.0, "a view of the result, not a copy"
+    assert np.array_equal(grid.craters.table["id"], outputs.placed_craters().table["id"])
+    assert len(grid.boulders.boulders) == len(outputs.placed_boulders().boulders)
+    assert grid.mesh.positions.shape == (65 * 81, 3)
+    assert grid.albedo == [] and grid.materials == [] and grid.photometry == []
+    assert terraingen.write_outputs(config, outputs, tmp_path) == []
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_generate_from_config_needs_an_extent_without_a_raster_source(small_config):
+    del small_config["outputs"][0]["extent_m"]
+    with pytest.raises(terraingen.ConfigError) as missing:
+        terraingen.generate_from_config(terraingen.TerrainGenConfig.from_dict(small_config))
+    assert missing.value.path == "outputs[0].extent_m"
 
 
 def test_build_generator_keeps_the_surface_and_layers():

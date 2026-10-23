@@ -48,19 +48,31 @@
         {
             "type": "heightmap",
             "path": "example_craters_spacing.tif",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 2
+            "pixel_size_m": 2,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    1026,
+                    1026
+                ]
             }
         },
         {
             "type": "crater_list",
             "path": "example_craters_spacing.csv",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 2
+            "pixel_size_m": 2,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    1026,
+                    1026
+                ]
             }
         }
     ]

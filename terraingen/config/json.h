@@ -36,7 +36,8 @@ class ConfigError : public std::runtime_error {
 ///                  "density": {"type": "production_surface", "age_gyr": 3.5},
 ///                  "rim_smoothing": {"sigma_radii": 0.05}}],
 ///      "outputs": [{"type": "heightmap", "path": "terrain.tif",
-///                   "region": {"width": 513, "height": 513, "pixel_size": 2}}]}
+///                   "pixel_size_m": 2,
+///                   "extent_m": {"center": [0, 0], "size": [1026, 1026]}}]}
 ///
 /// Keys are snake_case versions of the C++ fields; bodies, sources, layers, outputs and models are
 /// objects with a "type". Omitted keys take their defaults and omitted lists are empty.

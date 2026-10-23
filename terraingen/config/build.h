@@ -89,34 +89,49 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec);
 /// replaced by any it gives.
 MaterialPhotometry BuildPhotometry(const PhotometrySpec& spec);
 
-/// Whether `T` has members `region` and `spacing`.
-template <typename T, typename = void> struct FeatureOutputTrait : std::false_type {};
-template <typename T>
-struct FeatureOutputTrait<T, std::void_t<decltype(std::declval<const T&>().region),
-                                         decltype(std::declval<const T&>().spacing)>>
-    : std::true_type {};
+/// Fraction of a cell an extent may exceed a whole number of cells by without gaining a cell.
+inline constexpr double kExtentSnapTolerance = 1e-6;
 
-/// An output that lists features over a region at a sample spacing: a list or boulder models.
-template <typename T> inline constexpr bool FeatureOutput = FeatureOutputTrait<T>::value;
+/// The box an extent describes, unchecked: its `min` and `max` corners, or else `center` -
+/// `size` / 2 to `center` + `size` / 2. None when neither pair has two numbers each.
+std::optional<Bounds2d> ExtentBox(const ExtentSpec& extent);
 
-/// The grid a region describes on `surface`, unchecked; on a body its cells are `pixelSize` metres
-/// along a meridian.
-RasterGrid RegionGrid(const GridRegionSpec& region, const Surface& surface);
+/// The cells of side `cell` that cover `span` snapped outward: ceil(`span` / `cell` -
+/// `kExtentSnapTolerance`), at least 1, as a double so callers can check it before converting.
+double SnappedCells(double span, double cell);
+
+/// The north-up grid of square cells of side `cell` covering `box`, snapped outward to whole cells:
+/// it starts at the box's min corner, its cells number `SnappedCells` along each axis, and it is
+/// sampled at the cells' centers, so its max corner lies at or beyond the box's. Unchecked.
+/// @param cell In the box's units: meters on a plane, degrees on a body.
+RasterGrid SnappedGrid(const Bounds2d& box, double cell);
+
+/// The area an output covers, or null for one without an area, a body mesh or a report.
+const OutputAreaSpec* OutputArea(const OutputSpec& output);
+
+/// The extent an area gives on `surface`: `extentDeg` on a body, `extentM` on a plane.
+const std::optional<ExtentSpec>& SurfaceExtent(const OutputAreaSpec& area, const Surface& surface);
+
+/// Whether an output lists features: a crater or boulder list, or boulder models.
+bool ListsFeatures(const OutputSpec& output);
 
 /// The whole of a body in longitude and latitude, in square cells of at most `spacing` metres
 /// along a meridian, for listing features over it.
 /// @param spacing In metres; positive.
 RasterGrid WholeBodyGrid(const Surface& surface, double spacing);
 
-/// The grid an output covers: its region, or else `base`, the base's grid; for a list or boulder
-/// models without either on a body, the whole body at its spacing. None for a mesh, or for an
-/// output without a grid to cover, which `ValidateConfig` rejects.
+/// The grid an output covers, unchecked: its extent (or else `base`'s, the source's grid) snapped
+/// outward to cells of its pixel size (or else `base`'s cell size) by `SnappedGrid`, or `base`
+/// itself when it gives neither. A feature list without an extent or `base` on a body covers the
+/// whole body at its pixel size (`WholeBodyGrid`). None for an output without an area, or for one
+/// without a grid to cover, which `ValidateConfig` rejects.
 std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
                                      const std::optional<RasterGrid>& base, const Surface& surface);
 
-/// The sample spacing in metres an output lists features at; 0 for its grid's, and for outputs
-/// that list none.
-double OutputSpacing(const OutputSpec& output);
+/// The sample spacing in meters an output lists features at: its pixel size for a list over the
+/// whole body, otherwise 0 for its grid's own.
+double OutputSpacing(const OutputSpec& output, const std::optional<RasterGrid>& base,
+                     const Surface& surface);
 
 /// Whether a variant, such as a layer or an output, holds one of the alternatives `Kinds`.
 template <typename... Kinds, typename... Ts> bool HoldsAny(const std::variant<Ts...>& value) {

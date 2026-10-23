@@ -461,7 +461,8 @@ TEST(Resolve, ResolvesRelativePathsAgainstAFolder) {
 
 TEST(BuildGenerator, BoulderEjectaComeFromEveryCraterLayerBefore) {
     TerrainGenConfig config;
-    config.outputs = {terraingen::testing::Heightmap("e.tif", terraingen::GridRegionSpec{65, 65})};
+    config.outputs = {
+        terraingen::testing::Heightmap("e.tif", terraingen::testing::GridRegion{65, 65})};
     CraterLayerSpec first;
     first.generateRandom = false;
     first.ages = terraingen::FreshAgesSpec{};
@@ -506,7 +507,8 @@ TEST(BuildGenerator, BuildsEveryLayerKindInOrder) {
     EXPECT_NE(dynamic_cast<const terraingen::RegionLayer*>(terrain.layers[8].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::DuneLayer*>(terrain.layers[9].get()), nullptr);
     TerrainGenConfig narrow;
-    narrow.outputs = {terraingen::testing::Heightmap("n.tif", terraingen::GridRegionSpec{1})};
+    narrow.outputs = {
+        terraingen::testing::Heightmap("n.tif", terraingen::testing::GridRegion{1, 1})};
     EXPECT_THROW(terraingen::BuildGenerator(narrow), ConfigError);
 }
 
@@ -686,18 +688,29 @@ TEST(LayerKinds, CountFindAndIndexLayersOfAKind) {
     EXPECT_FALSE(config::HasOutput<terraingen::PhotometryOutput>(outputs));
 }
 
-TEST(OutputSpacing, IsAFeatureOutputsSpacingOrZero) {
+TEST(OutputSpacing, IsTheSpacingOfAWholeBodyListOrZero) {
+    using terraingen::config::OutputSpacing;
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const terraingen::Surface plane{};
+    const std::optional<terraingen::RasterGrid> none;
     terraingen::CraterListOutput list;
-    EXPECT_EQ(terraingen::config::OutputSpacing(list), 0.0);
-    list.spacing = 2.5;
-    EXPECT_EQ(terraingen::config::OutputSpacing(list), 2.5);
+    EXPECT_EQ(OutputSpacing(list, none, moon), 0.0);
+    list.area.pixelSize = 2500.0;
+    EXPECT_EQ(OutputSpacing(list, none, moon), 2500.0) << "the whole body at its pixel size";
+    EXPECT_EQ(OutputSpacing(list, none, plane), 0.0) << "a plane has no whole body";
+    const terraingen::RasterGrid base{4, 4, terraingen::GeoTransform::NorthUp(0.0, 4.0, 1.0)};
+    EXPECT_EQ(OutputSpacing(list, base, moon), 0.0) << "the source's grid at its own spacing";
+    list.area.extentDeg = terraingen::ExtentSpec{{0.0, 0.0}, {1.0, 1.0}, {}, {}};
+    EXPECT_EQ(OutputSpacing(list, none, moon), 0.0) << "an extent's grid at its own spacing";
     terraingen::BoulderModelsOutput models;
-    models.spacing = 0.5;
-    EXPECT_EQ(terraingen::config::OutputSpacing(models), 0.5);
-    EXPECT_EQ(terraingen::config::OutputSpacing(terraingen::HeightmapOutput{}), 0.0);
+    models.area.pixelSize = 500.0;
+    EXPECT_EQ(OutputSpacing(models, none, moon), 500.0);
+    terraingen::HeightmapOutput heightmap;
+    heightmap.area.pixelSize = 500.0;
+    EXPECT_EQ(OutputSpacing(heightmap, none, moon), 0.0) << "a heightmap lists no features";
     terraingen::MeshOutput mesh;
     mesh.spacing = 9.0;
-    EXPECT_EQ(terraingen::config::OutputSpacing(mesh), 0.0) << "a mesh lists no features";
+    EXPECT_EQ(OutputSpacing(mesh, none, moon), 0.0) << "a mesh lists no features";
 }
 
 TEST(InferListFormat, FollowsTheJsonExtension) {

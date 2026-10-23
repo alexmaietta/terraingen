@@ -54,19 +54,31 @@
         {
             "type": "heightmap",
             "path": "example_boulders_layer.tif",
-            "region": {
-                "width": 601,
-                "height": 601,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    60.1,
+                    60.1
+                ]
             }
         },
         {
             "type": "boulder_list",
             "path": "example_boulders_layer.csv",
-            "region": {
-                "width": 601,
-                "height": 601,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    60.1,
+                    60.1
+                ]
             }
         }
     ]

@@ -537,21 +537,6 @@ void CheckSyntheticSource(const SyntheticSourceSpec& synthetic, const std::strin
     }
 }
 
-RasterGrid DescribeRegion(const GridRegionSpec& region, const std::string& path,
-                          const Surface& surface) {
-    if (!(std::isfinite(region.centreX) && std::isfinite(region.centreY))) {
-        throw ConfigError(Child(path, "centre_x"), "the centre must be finite");
-    }
-    const double cell = region.pixelSize / surface.UnitLength();
-    if (surface.IsBody() &&
-        !(std::fabs(region.centreY) + 0.5 * cell * static_cast<double>(region.height) <= 90.0 &&
-          cell * static_cast<double>(region.width) <= 360.0)) {
-        throw ConfigError(Child(path, "height"),
-                          "the grid must lie within latitudes -90 to 90 and one turn of longitude");
-    }
-    return config::RegionGrid(region, surface);
-}
-
 RasterGrid DescribeRaster(const RasterSourceSpec& raster, const std::filesystem::path& directory,
                           const std::string& path, const Surface& surface) {
     const GeoTiffInfo info =
@@ -600,51 +585,133 @@ bool HasPosts(const SourceSpec& source) {
 /// Rows of a whole-body list's grid above which its spacing is too fine.
 constexpr double kMaxWholeBodyRows = 1e9;
 
-/// Whether `T` has a member `region`.
-template <typename T, typename = void> struct HasRegion : std::false_type {};
-template <typename T>
-struct HasRegion<T, std::void_t<decltype(std::declval<const T&>().region)>> : std::true_type {};
-
-/// Checks the region of an output at `path` and, for a feature output, its spacing.
-/// @throws ConfigError for an invalid region, or a spacing too fine to list the whole body.
-template <typename Output>
-void CheckOutputExtent(const Output& output, const std::string& path,
-                       const std::optional<RasterGrid>& base, const Surface& surface) {
-    if constexpr (HasRegion<Output>::value) {
-        if (output.region) {
-            DescribeRegion(*output.region, Child(path, "region"), surface);
-        }
+/// Checks an [x, y] pair at `path`: empty for unset, or two finite numbers.
+/// @throws ConfigError at `path` otherwise.
+void CheckPair(const std::vector<double>& pair, const std::string& path) {
+    if (!pair.empty() && pair.size() != 2) {
+        throw ConfigError(path, "needs two numbers, [x, y]");
     }
-    if constexpr (config::FeatureOutput<Output>) {
-        if (output.spacing && !output.region && !base && surface.IsBody() &&
-            180.0 * surface.UnitLength() / *output.spacing > kMaxWholeBodyRows) {
-            throw ConfigError(Child(path, "spacing"), "is too fine to list features over the body");
-        }
+    for (const double value : pair) {
+        CheckFinite(value, path);
     }
 }
 
-/// The grid the output at `path` covers (`OutputGrid`), its region and spacing checked; none for a
-/// mesh.
-/// @throws ConfigError for an invalid region or spacing, or an output with no grid to cover.
+/// Checks an extent at `path` and returns its box (`ExtentBox`).
+/// @throws ConfigError at `path` or below it for an incomplete, mixed or empty box.
+Bounds2d CheckExtent(const ExtentSpec& extent, const std::string& path) {
+    CheckPair(extent.center, Child(path, "center"));
+    CheckPair(extent.size, Child(path, "size"));
+    CheckPair(extent.min, Child(path, "min"));
+    CheckPair(extent.max, Child(path, "max"));
+    const bool corners = !extent.min.empty() || !extent.max.empty();
+    const bool centered = !extent.center.empty() || !extent.size.empty();
+    if (corners && centered) {
+        throw ConfigError(path, "give center and size, or min and max, not both");
+    }
+    if (!corners && !centered) {
+        throw ConfigError(path, "needs center and size, or min and max");
+    }
+    if (corners) {
+        if (extent.min.empty() || extent.max.empty()) {
+            throw ConfigError(Child(path, extent.min.empty() ? "min" : "max"),
+                              "required with " + std::string(extent.min.empty() ? "max" : "min"));
+        }
+        if (!(extent.max[0] > extent.min[0] && extent.max[1] > extent.min[1])) {
+            throw ConfigError(Child(path, "max"), "must lie above min along x and y");
+        }
+    } else {
+        if (extent.center.empty() || extent.size.empty()) {
+            throw ConfigError(Child(path, extent.center.empty() ? "center" : "size"),
+                              "required with " +
+                                  std::string(extent.center.empty() ? "size" : "center"));
+        }
+        if (!(extent.size[0] > 0.0 && extent.size[1] > 0.0)) {
+            throw ConfigError(Child(path, "size"), "must be positive");
+        }
+    }
+    return *config::ExtentBox(extent);
+}
+
+/// The number `cells`, written whole.
+std::string CellText(double cells) {
+    std::array<char, 32> text{};
+    std::snprintf(text.data(), text.size(), "%.0f", cells);
+    return text.data();
+}
+
+/// Checks an output's area at `path`: its extent, pixel size and the grid they give.
+/// @param listed Whether the output lists features, which may cover the whole body.
+/// @throws ConfigError below `path` for an extent of the wrong unit or an invalid one, a missing
+/// extent or pixel size without a bounded source, a grid of too many cells or off the body, or a
+/// pixel size too fine to list the whole body.
+void CheckOutputArea(const OutputAreaSpec& area, const std::string& path, bool listed,
+                     const std::optional<RasterGrid>& base, const Surface& surface) {
+    const bool body = surface.IsBody();
+    const std::string extentKey = body ? "extent_deg" : "extent_m";
+    const std::string pixelKey = Child(path, "pixel_size_m");
+    if (body ? area.extentM : area.extentDeg) {
+        throw ConfigError(Child(path, body ? "extent_m" : "extent_deg"),
+                          body ? "on a body give extent_deg, in degrees of longitude and latitude"
+                               : "only on a body; give extent_m, in meters, on a plane");
+    }
+    const std::optional<ExtentSpec>& extent = config::SurfaceExtent(area, surface);
+    std::optional<Bounds2d> box;
+    if (extent) {
+        box = CheckExtent(*extent, Child(path, extentKey));
+    }
+    if (listed && body && !base && !extent && area.pixelSize) {
+        if (180.0 * surface.UnitLength() / *area.pixelSize > kMaxWholeBodyRows) {
+            throw ConfigError(pixelKey, "is too fine to list features over the body");
+        }
+        return;
+    }
+    if (!box && !base) {
+        throw ConfigError(Child(path, extentKey),
+                          listed && body
+                              ? "required without a raster or chain source, or give pixel_size_m "
+                                "alone to list the whole body"
+                              : "required without a raster or chain source: the area to cover");
+    }
+    if (!area.pixelSize && !base) {
+        throw ConfigError(pixelKey, "required without a raster or chain source");
+    }
+    if (!box && !area.pixelSize) {
+        return;
+    }
+    const Bounds2d covered = box ? *box : base->Bounds();
+    const double cell = area.pixelSize ? *area.pixelSize / surface.UnitLength() : base->PixelSize();
+    const double columns = config::SnappedCells(covered.maxX - covered.minX, cell);
+    const double rows = config::SnappedCells(covered.maxY - covered.minY, cell);
+    const std::string sizePath = area.pixelSize ? pixelKey : Child(path, extentKey);
+    const auto limit = static_cast<double>(kMaxConfigGridSize);
+    if (columns > limit || rows > limit) {
+        throw ConfigError(sizePath, "gives " + CellText(columns) + "x" + CellText(rows) +
+                                        " cells; each side must be " +
+                                        config::CountText(kMinConfigGridSize, kMaxConfigGridSize));
+    }
+    const RasterGrid grid = config::SnappedGrid(covered, cell);
+    CheckGridSize(grid.width, grid.height, sizePath);
+    const Bounds2d bounds = grid.Bounds();
+    const double slack = config::kExtentSnapTolerance * cell;
+    if (body && !(bounds.minY >= -90.0 - slack && bounds.maxY <= 90.0 + slack &&
+                  bounds.maxX - bounds.minX <= 360.0 + slack)) {
+        throw ConfigError(Child(path, extentKey),
+                          "the grid must lie within latitudes -90 to 90 and one turn of longitude");
+    }
+}
+
+/// The grid the output at `path` covers (`OutputGrid`), its area checked; none for an output
+/// without an area, a body mesh or a report.
+/// @throws ConfigError as `CheckOutputArea`.
 std::optional<RasterGrid> CheckOutputGrid(const OutputSpec& output, const std::string& path,
                                           const std::optional<RasterGrid>& base,
                                           const Surface& surface) {
-    if (std::holds_alternative<MeshOutput>(output)) {
+    const OutputAreaSpec* area = config::OutputArea(output);
+    if (!area) {
         return std::nullopt;
     }
-    std::visit([&](const auto& o) { CheckOutputExtent(o, path, base, surface); }, output);
-    std::optional<RasterGrid> grid = config::OutputGrid(output, base, surface);
-    if (!grid) {
-        const bool listed =
-            config::HoldsAny<CraterListOutput, BoulderListOutput, BoulderModelsOutput>(output);
-        throw ConfigError(Child(path, "region"),
-                          listed && surface.IsBody()
-                              ? "required without a raster source, or a spacing to list the whole "
-                                "body"
-                              : "required without a raster source: the grid of square cells to "
-                                "cover");
-    }
-    return grid;
+    CheckOutputArea(*area, path, config::ListsFeatures(output), base, surface);
+    return config::OutputGrid(output, base, surface);
 }
 
 /// What outputs are checked against.
@@ -661,7 +728,6 @@ void CheckMeshFile(const std::string& file, const std::string& path) {
 }
 
 void CheckGeoTiffOutput(const GeoTiffOutput& output, const std::string& path) {
-    CheckNonEmpty(output.path, Child(path, "path"));
     if (output.compression == TiffCompression::PackBits) {
         throw ConfigError(Child(path, "compression"),
                           "packbits is read-only; use none, lzw or deflate");
@@ -696,12 +762,12 @@ void CheckOutput(const Output& output, const std::string& path, const OutputChec
     CheckGeoTiffOutput(output, path);
 }
 
-void CheckOutput(const ListOutput& output, const std::string& path, const OutputChecks&) {
-    CheckNonEmpty(output.path, Child(path, "path"));
-}
+void CheckOutput(const ListOutput& /*output*/, const std::string& /*path*/, const OutputChecks&) {}
 
 void CheckOutput(const BoulderModelsOutput& output, const std::string& path, const OutputChecks&) {
-    CheckMeshFile(output.path, Child(path, "path"));
+    if (!output.path.empty()) {
+        CheckMeshFile(output.path, Child(path, "path"));
+    }
 }
 
 void CheckOutput(const MeshOutput& output, const std::string& path, const OutputChecks& context) {
@@ -709,13 +775,61 @@ void CheckOutput(const MeshOutput& output, const std::string& path, const Output
         throw ConfigError(path, "a mesh needs a whole body: a sphere, ellipsoid or shape model; "
                                 "use terrain_mesh on a plane");
     }
-    if (!IsIcqPath(output.path)) {
+    if (!output.path.empty() && !IsIcqPath(output.path)) {
         CheckMeshFile(output.path, Child(path, "path"));
     }
 }
 
-void CheckOutput(const TerrainMeshOutput& output, const std::string& path, const OutputChecks&) {
-    CheckMeshFile(output.path, Child(path, "path"));
+void CheckOutput(const TerrainMeshOutput& output, const std::string& path,
+                 const OutputChecks& context) {
+    if (!output.path.empty()) {
+        CheckMeshFile(output.path, Child(path, "path"));
+    }
+    for (std::size_t c = 0; c < output.cutouts.size(); ++c) {
+        CheckExtent(output.cutouts[c], Element(Child(path, "cutouts"), c));
+    }
+    const std::string site = Child(path, "site_deg");
+    CheckPair(output.siteDeg, site);
+    if (!output.siteDeg.empty() && !context.body) {
+        throw ConfigError(site, "only on a body, where the mesh's frame is centered on the site");
+    }
+}
+
+void CheckOutput(const ReportOutput& /*output*/, const std::string& /*path*/, const OutputChecks&) {
+}
+
+/// Whether an output's body mesh is an ICQ shape model rather than a mesh.
+bool WritesIcq(const MeshOutput& output) {
+    return IsIcqPath(output.path);
+}
+
+/// Checks that outputs sharing one result agree on it: body meshes of one kind (mesh or ICQ) on
+/// their cells and spacing, and terrain meshes over one grid on their cutouts, skirt and site.
+/// @throws ConfigError at the first output that disagrees with an earlier one.
+void CheckSharedResults(const TerrainGenConfig& config, const ConfigSummary& summary) {
+    for (std::size_t i = 0; i < config.outputs.size(); ++i) {
+        const std::string path = Element("outputs", i);
+        for (std::size_t j = 0; j < i; ++j) {
+            const auto* mesh = std::get_if<MeshOutput>(&config.outputs[i]);
+            const auto* earlier = std::get_if<MeshOutput>(&config.outputs[j]);
+            if (mesh && earlier && WritesIcq(*mesh) == WritesIcq(*earlier) &&
+                (mesh->cellsPerFace != earlier->cellsPerFace ||
+                 mesh->spacing != earlier->spacing)) {
+                throw ConfigError(path, "body meshes share one result: give the same "
+                                        "cells_per_face and spacing as " +
+                                            Element("outputs", j));
+            }
+            const auto* terrain = std::get_if<TerrainMeshOutput>(&config.outputs[i]);
+            const auto* before = std::get_if<TerrainMeshOutput>(&config.outputs[j]);
+            if (terrain && before && summary.outputGrids[i] == summary.outputGrids[j] &&
+                (terrain->cutouts != before->cutouts || terrain->skirt != before->skirt ||
+                 terrain->siteDeg != before->siteDeg)) {
+                throw ConfigError(path, "terrain meshes over one grid share one result: give the "
+                                        "same cutouts, skirt_m and site_deg as " +
+                                            Element("outputs", j));
+            }
+        }
+    }
 }
 
 /// Checks each output and its grid, records the grids in `summary` and returns where each output
@@ -734,14 +848,14 @@ std::vector<Extent> CheckOutputs(const TerrainGenConfig& config, const Surface& 
             CheckOutputGrid(output, path, summary.source, surface);
         summary.outputGrids.push_back(grid);
         if (grid) {
-            const bool listed =
-                config::HoldsAny<CraterListOutput, BoulderListOutput, BoulderModelsOutput>(output);
-            const double spacing =
-                listed ? ListedSpacing(*grid, config::OutputSpacing(output), surface)
-                       : std::fmax(config::OutputSpacing(output), grid->Spacing(surface));
+            const bool listed = config::ListsFeatures(output);
+            const double requested = config::OutputSpacing(output, summary.source, surface);
+            const double spacing = listed ? ListedSpacing(*grid, requested, surface)
+                                          : std::fmax(requested, grid->Spacing(surface));
             extents.push_back({grid->SurfaceArea(surface), spacing, listed});
         }
     }
+    CheckSharedResults(config, summary);
     return extents;
 }
 

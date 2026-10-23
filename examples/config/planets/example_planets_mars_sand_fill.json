@@ -40,28 +40,46 @@
         {
             "type": "heightmap",
             "path": "example_planets_mars_sand_fill.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 0.25
+            "pixel_size_m": 0.25,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    64.25,
+                    64.25
+                ]
             }
         },
         {
             "type": "materials",
             "path": "example_planets_mars_sand_fill_materials.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 0.25
+            "pixel_size_m": 0.25,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    64.25,
+                    64.25
+                ]
             }
         },
         {
             "type": "photometry",
             "path": "example_planets_mars_sand_fill_photometry.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 0.25
+            "pixel_size_m": 0.25,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    64.25,
+                    64.25
+                ]
             }
         }
     ]

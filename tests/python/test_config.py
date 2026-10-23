@@ -32,32 +32,45 @@ def test_default_config_has_only_a_schema_version():
 
 
 def test_config_on_a_sphere_describes_its_grids():
-    region = {"width": 17, "height": 9, "pixel_size": 100}
     config = terraingen.TerrainGenConfig.from_dict(
         {
             "schema_version": 1,
             "body": {"type": "sphere", "radius": 1737400},
             "outputs": [
-                {"type": "heightmap", "path": "h.tif", "region": region},
+                {
+                    "type": "heightmap",
+                    "path": "h.tif",
+                    "pixel_size_m": 100,
+                    "extent_deg": {"min": [10, 20], "max": [10.05, 20.025]},
+                },
                 {"type": "mesh", "path": "moon.glb", "cells_per_face": 4},
-                {"type": "crater_list", "path": "c.csv", "spacing": 50000},
+                {"type": "crater_list", "path": "c.csv", "pixel_size_m": 50000},
+                {"type": "report"},
             ],
         }
     )
     assert config.body().is_body and config.source_grid() is None
-    site, mesh, whole = config.output_grids()
-    assert (site.width, site.height) == (17, 9)
-    assert mesh is None
+    site, mesh, whole, report = config.output_grids()
+    cell = 100 / (1737400 * np.pi / 180)
+    assert (site.width, site.height) == (int(np.ceil(0.05 / cell)), int(np.ceil(0.025 / cell)))
+    assert site.bounds[0] == 10.0 and site.bounds[1] == 20.0
+    assert mesh is None and report is None
     assert whole.bounds == pytest.approx((-180.0, -90.0, 180.0, 90.0))
 
 
-def test_a_config_without_a_base_or_region_cannot_write_a_heightmap():
+def test_a_config_without_a_source_or_extent_cannot_write_a_heightmap():
     config = terraingen.TerrainGenConfig.from_dict(
-        {"schema_version": 1, "outputs": [{"type": "heightmap", "path": "h.tif"}]}
+        {"schema_version": 1, "outputs": [{"type": "heightmap", "path": "h.tif", "pixel_size_m": 1}]}
     )
     with pytest.raises(terraingen.ConfigError) as missing:
         config.validate()
-    assert missing.value.path == "outputs[0].region"
+    assert missing.value.path == "outputs[0].extent_m"
+    config = terraingen.TerrainGenConfig.from_dict(
+        {"schema_version": 1, "outputs": [{"type": "heightmap", "extent_m": {"min": [0, 0], "max": [4, 4]}}]}
+    )
+    with pytest.raises(terraingen.ConfigError) as missing:
+        config.validate()
+    assert missing.value.path == "outputs[0].pixel_size_m"
 
 
 def test_unknown_keys_name_their_path():
@@ -177,10 +190,11 @@ def test_schema_describes_fields_with_units_and_choices():
     assert root["source"]["schema"]["kind"] == "optional"
     outputs = schema["definitions"][root["outputs"]["schema"]["of"]["ref"]]
     heightmap = next(a for a in outputs["alternatives"] if a["type"] == "heightmap")
-    region = next(f for f in heightmap["fields"] if f["name"] == "region")
-    grid = schema["definitions"][region["schema"]["of"]["ref"]]
-    pixel_size = next(f for f in grid["fields"] if f["name"] == "pixel_size")
-    assert pixel_size["unit"] == "m" and pixel_size["default"] == 1.0
+    fields = {f["name"]: f for f in heightmap["fields"]}
+    assert fields["pixel_size_m"]["unit"] == "m" and fields["pixel_size_m"]["default"] is None
+    extent = schema["definitions"][fields["extent_m"]["schema"]["of"]["ref"]]
+    assert [f["name"] for f in extent["fields"]] == ["center", "size", "min", "max"]
+    assert "report" in [a["type"] for a in outputs["alternatives"]]
 
 
 def test_catalog_lists_every_type():

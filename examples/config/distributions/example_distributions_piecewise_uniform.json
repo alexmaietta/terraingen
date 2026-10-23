@@ -46,19 +46,31 @@
         {
             "type": "heightmap",
             "path": "example_distributions_piecewise_uniform.tif",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    51.3,
+                    51.3
+                ]
             }
         },
         {
             "type": "crater_list",
             "path": "example_distributions_piecewise_uniform.csv",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 0.1
+            "pixel_size_m": 0.1,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    51.3,
+                    51.3
+                ]
             }
         }
     ]

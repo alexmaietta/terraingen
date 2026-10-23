@@ -32,19 +32,31 @@
         {
             "type": "heightmap",
             "path": "example_boulders_exposure.tif",
-            "region": {
-                "width": 401,
-                "height": 401,
-                "pixel_size": 0.25
+            "pixel_size_m": 0.25,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    100.25,
+                    100.25
+                ]
             }
         },
         {
             "type": "boulder_list",
             "path": "example_boulders_exposure.csv",
-            "region": {
-                "width": 401,
-                "height": 401,
-                "pixel_size": 0.25
+            "pixel_size_m": 0.25,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    100.25,
+                    100.25
+                ]
             }
         }
     ]

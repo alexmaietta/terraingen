@@ -108,10 +108,16 @@
         {
             "type": "heightmap",
             "path": "example_layers_regions.tif",
-            "region": {
-                "width": 513,
-                "height": 513,
-                "pixel_size": 4
+            "pixel_size_m": 4,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    2052,
+                    2052
+                ]
             }
         }
     ]

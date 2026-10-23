@@ -48,28 +48,46 @@
         {
             "type": "heightmap",
             "path": "example_boulders_manual.tif",
-            "region": {
-                "width": 801,
-                "height": 801,
-                "pixel_size": 0.05
+            "pixel_size_m": 0.05,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    40.05,
+                    40.05
+                ]
             }
         },
         {
             "type": "boulder_list",
             "path": "example_boulders_manual.csv",
-            "region": {
-                "width": 801,
-                "height": 801,
-                "pixel_size": 0.05
+            "pixel_size_m": 0.05,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    40.05,
+                    40.05
+                ]
             }
         },
         {
             "type": "boulder_models",
             "path": "example_boulders_manual.glb",
-            "region": {
-                "width": 801,
-                "height": 801,
-                "pixel_size": 0.05
+            "pixel_size_m": 0.05,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    40.05,
+                    40.05
+                ]
             }
         }
     ]

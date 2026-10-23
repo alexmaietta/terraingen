@@ -112,21 +112,21 @@ TEST(CheckRanges, WalksOptionalsListsAndStructs) {
     std::vector<double> radii{1.0, -2.0};
     EXPECT_EQ(Message([&] { config::CheckRanges(radii, "radii", "m", config::Above(0.0)); }),
               "radii[1]: must be positive, got -2");
-    terraingen::GridRegionSpec region;
-    region.pixelSize = -1.0;
-    EXPECT_EQ(Message([&] { config::CheckRanges(region, "region", {}, {}); }),
-              "region.pixel_size: must be positive, got -1");
-    region.pixelSize = 1.0;
-    region.width = 1;
-    EXPECT_EQ(Message([&] { config::CheckRanges(region, "region", {}, {}); }),
-              "region.width: must be from 2 to 65536, got 1");
+    terraingen::HeightmapOutput output;
+    output.area.pixelSize = -1.0;
+    EXPECT_EQ(Message([&] { config::CheckRanges(output, "output", {}, {}); }),
+              "output.pixel_size_m: must be positive, got -1");
+    output.area.pixelSize = 1.0;
+    output.area.extentM = terraingen::ExtentSpec{{0.0, 0.0}, {4.0, -4.0}, {}, {}};
+    EXPECT_EQ(Message([&] { config::CheckRanges(output, "output", {}, {}); }),
+              "output.extent_m.size[1]: must be positive, got -4");
 }
 
 TEST(CheckConfigRanges, ReportsTheFirstNumberOutOfRangeByItsPath) {
     TerrainGenConfig config = terraingen::testing::Small();
     EXPECT_EQ(RangeErrorPath(config), "valid");
-    terraingen::testing::Region(config).height = terraingen::kMaxConfigGridSize + 1;
-    EXPECT_EQ(RangeErrorPath(config), "outputs[0].region.height");
+    terraingen::testing::Region(config).pixelSize = 0.0;
+    EXPECT_EQ(RangeErrorPath(config), "outputs[0].pixel_size_m");
     config = terraingen::testing::Small();
     terraingen::testing::Craters(config).spacing.diameterRatio = 0.5;
     EXPECT_EQ(RangeErrorPath(config), "layers[1].spacing.diameter_ratio");

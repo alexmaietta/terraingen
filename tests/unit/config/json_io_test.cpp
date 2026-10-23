@@ -281,20 +281,31 @@ TerrainGenConfig Everything() {
             terraingen::RectangleRegionSpec{-1.0, -2.0, 3.0, 4.0}, 0.0,
             terraingen::BlendShape::Linear,
             terraingen::RegionLayerSpec{{}, 1.0, {}, terraingen::ClampLayerSpec{0.0, 1.0}}}};
-    const terraingen::GridRegionSpec region{33, 21, 0.5, 30.0, -45.0};
+    const terraingen::OutputAreaSpec region =
+        terraingen::testing::GridRegion{33, 21, 0.5, 30.0, -45.0};
+    terraingen::OutputAreaSpec corners;
+    corners.pixelSize = 4.0;
+    corners.extentDeg = terraingen::ExtentSpec{{}, {}, {10.0, -20.0}, {11.0, -19.0}};
+    terraingen::OutputAreaSpec whole;
+    whole.pixelSize = 100.0;
     config.outputs = {
-        CraterListOutput{"out/craters.json", ListFormat::Json, region, 4.0},
-        CraterListOutput{"craters.txt", ListFormat::Csv, {}, 100.0},
+        CraterListOutput{"out/craters.json", ListFormat::Json, corners},
+        CraterListOutput{"craters.txt", ListFormat::Csv, whole},
+        CraterListOutput{"", ListFormat::Csv, region},
         terraingen::HeightmapOutput{"dem.tif", terraingen::TiffCompression::Deflate, 512, region},
         terraingen::BoulderListOutput{"boulders.json", ListFormat::Json, region},
-        terraingen::BoulderModelsOutput{"boulders.glb", 20.0, region, 2.0},
+        terraingen::BoulderModelsOutput{"boulders.glb", 20.0, corners},
         terraingen::MeshOutput{"body.icq", 64, 300.0},
         terraingen::TerrainMeshOutput{"site.glb", region},
-        terraingen::TerrainMeshOutput{
-            "holed.obj", region, {{-1.0, -2.0, 3.0, 4.0}}, 2.5, 30.0, -45.0},
+        terraingen::TerrainMeshOutput{"holed.obj",
+                                      region,
+                                      {terraingen::ExtentSpec{{}, {}, {-1.0, -2.0}, {3.0, 4.0}}},
+                                      2.5,
+                                      {30.0, -45.0}},
         terraingen::MaterialsOutput{
             {"materials.tif", terraingen::TiffCompression::Deflate, 64, region}},
-        terraingen::PhotometryOutput{{"hapke.tif", terraingen::TiffCompression::Lzw, 256, region}}};
+        terraingen::PhotometryOutput{{"hapke.tif", terraingen::TiffCompression::Lzw, 256, region}},
+        terraingen::ReportOutput{"report.json"}};
     terraingen::MaterialsSpec materials;
     materials.options.exposure->reach = 20.0;
     materials.options.dustCover = 0.25;
@@ -590,14 +601,27 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
     const TerrainGenConfig based = ParseConfig(R"({"schema_version": 1,
         "source": {"type": "raster", "path": "dem.tif"},
         "outputs": [{"type": "mesh", "path": "m.glb", "cells_per_face": 64},
-                    {"type": "heightmap", "path": "h.tif",
-                     "region": {"width": 10, "height": 20, "pixel_size": 4,
-                                "centre_x": 30, "centre_y": -45}}]})");
+                    {"type": "heightmap", "path": "h.tif", "pixel_size_m": 4,
+                     "extent_m": {"center": [30, -45], "size": [40, 80]}},
+                    {"type": "report"}]})");
     EXPECT_EQ(std::get<terraingen::RasterSourceSpec>(*based.source).path, "dem.tif");
     EXPECT_EQ(std::get<terraingen::MeshOutput>(based.outputs.at(0)).cellsPerFace, 64u);
-    EXPECT_EQ(std::get<terraingen::HeightmapOutput>(based.outputs.at(1)).region,
-              (terraingen::GridRegionSpec{10, 20, 4.0, 30.0, -45.0}));
+    terraingen::OutputAreaSpec area;
+    area.pixelSize = 4.0;
+    area.extentM = terraingen::ExtentSpec{{30.0, -45.0}, {40.0, 80.0}, {}, {}};
+    EXPECT_EQ(std::get<terraingen::HeightmapOutput>(based.outputs.at(1)).area, area);
+    EXPECT_EQ(std::get<terraingen::ReportOutput>(based.outputs.at(2)).path, "");
     EXPECT_EQ(ParseConfig(ConfigToJson(based)), based);
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "outputs": [{"type": "heightmap",
+        "region": {"width": 10}}]})"),
+              "outputs[0].region")
+        << "regions were replaced by pixel_size_m and extent_m";
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "outputs": [{"type": "crater_list",
+        "spacing": 2}]})"),
+              "outputs[0].spacing");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "outputs": [{"type": "heightmap",
+        "extent_m": {"center": [0, 0], "radius": 3}}]})"),
+              "outputs[0].extent_m.radius");
     for (const char* removed : {R"({"schema_version": 1, "surface": {"type": "plane"}})",
                                 R"({"schema_version": 1, "base": {"type": "raster"}})",
                                 R"({"schema_version": 1, "source": {"type": "flat"}})",

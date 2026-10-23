@@ -82,23 +82,31 @@
         {
             "type": "heightmap",
             "path": "example_albedo_moon_site_heights.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 200,
-                "centre_x": 23.47,
-                "centre_y": 0.67
+            "pixel_size_m": 200,
+            "extent_deg": {
+                "center": [
+                    23.47,
+                    0.67
+                ],
+                "size": [
+                    1.7,
+                    1.7
+                ]
             }
         },
         {
             "type": "albedo",
             "path": "example_albedo_moon_site.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 200,
-                "centre_x": 23.47,
-                "centre_y": 0.67
+            "pixel_size_m": 200,
+            "extent_deg": {
+                "center": [
+                    23.47,
+                    0.67
+                ],
+                "size": [
+                    1.7,
+                    1.7
+                ]
             }
         }
     ]

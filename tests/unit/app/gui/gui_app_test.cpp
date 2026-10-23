@@ -23,7 +23,7 @@ using terraingen::gui::kTerrainPrim;
 const char* const kConfig = R"({
     "schema_version": 1,
     "outputs": [{"type": "heightmap", "path": "terrain.tif",
-                 "region": {"width": 65, "height": 33, "pixel_size": 2}}],
+                 "pixel_size_m": 2, "extent_m": {"center": [0, 0], "size": [130, 66]}}],
     "layers": [{"type": "noise", "stack": [{"wavelength": 40, "amplitude": 3, "octaves": 3}]}]
 })";
 
@@ -111,14 +111,14 @@ TEST(GuiApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
     std::ofstream(dir / "terrain.json") << kConfig;
     GuiApp app({dir / "terrain.json", 1, true});
     Settle(app);
-    EXPECT_EQ(app.ConfigDocument()["outputs"][0]["region"]["width"], 65);
+    EXPECT_EQ(app.ConfigDocument()["outputs"][0]["extent_m"]["size"][0], 130);
     EXPECT_TRUE(app.ConfigParseError().empty());
 
     app.SetLive(true);
     EXPECT_TRUE(app.Live());
     app.EditConfig(
-        [](nlohmann::ordered_json& config) { config["outputs"][0]["region"]["width"] = 33; });
-    EXPECT_NE(app.ConfigText().find("\"width\": 33"), std::string::npos) << "the text follows";
+        [](nlohmann::ordered_json& config) { config["outputs"][0]["extent_m"]["size"][0] = 66; });
+    EXPECT_NE(app.ConfigText().find("66,\n"), std::string::npos) << "the text follows";
     EXPECT_LT(app.ConfigText().find("\"outputs\""), app.ConfigText().find("\"layers\""))
         << "an edit keeps the file's key order";
     const auto give_up = std::chrono::steady_clock::now() + std::chrono::minutes(1);
@@ -132,7 +132,7 @@ TEST(GuiApp, LiveEditsRegenerateAndBadJsonKeepsTheLastDocument) {
 
     app.SetConfigText("{ \"outputs\": ");
     EXPECT_FALSE(app.ConfigParseError().empty());
-    EXPECT_EQ(app.ConfigDocument()["outputs"][0]["region"]["width"], 33)
+    EXPECT_EQ(app.ConfigDocument()["outputs"][0]["extent_m"]["size"][0], 66)
         << "the last good document stays";
     app.SetLive(false);
     app.Step();

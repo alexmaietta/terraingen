@@ -95,7 +95,8 @@ TEST(ValidateConfig, ReportsChainProblemsByPath) {
     EXPECT_EQ(error({{raster("dem.tif"), raster("dem.tif")}}), "valid");
     EXPECT_EQ(error({{raster("dem.tif"), terraingen::SyntheticSourceSpec{}}}), "valid")
         << "a DEM over a flat datum";
-    EXPECT_EQ(error({{terraingen::SyntheticSourceSpec{}, raster("dem.tif")}}), "outputs[0].region")
+    EXPECT_EQ(error({{terraingen::SyntheticSourceSpec{}, raster("dem.tif")}}),
+              "outputs[0].extent_m")
         << "a chain without bounds has no grid to cover";
     EXPECT_EQ(error({}), "source.sources");
     EXPECT_EQ(error({{raster("dem.tif"), raster("missing.tif")}}), "source.sources[1].path");
@@ -120,27 +121,49 @@ TEST(ValidateConfig, ReportsOutputGridProblemsByPath) {
         c.source = terraingen::RasterSourceSpec{"dem.tif"};
     };
     const terraingen::OutputSpec heightmap = terraingen::testing::Heightmap("h.tif", std::nullopt);
-    EXPECT_EQ(error(heightmap, unchanged), "outputs[0].region");
-    EXPECT_EQ(error(heightmap, moon), "outputs[0].region");
-    EXPECT_EQ(error(heightmap, dem), "valid") << "the base's grid";
+    EXPECT_EQ(error(heightmap, unchanged), "outputs[0].extent_m");
+    EXPECT_EQ(error(heightmap, moon), "outputs[0].extent_deg");
+    EXPECT_EQ(error(heightmap, dem), "valid") << "the source's grid";
+    terraingen::HeightmapOutput finer;
+    finer.area.pixelSize = 2.0;
+    EXPECT_EQ(error(finer, dem), "valid") << "the source's extent at 2 m";
+    EXPECT_EQ(error(finer, unchanged), "outputs[0].extent_m") << "synthetic noise has no extent";
+    terraingen::HeightmapOutput boxed;
+    boxed.area.extentM = terraingen::ExtentSpec{{}, {}, {1010.0, 1900.0}, {1050.0, 1950.0}};
+    EXPECT_EQ(error(boxed, dem), "valid") << "an extent at the source's 5 m";
+    EXPECT_EQ(error(boxed, unchanged), "outputs[0].pixel_size_m") << "nor a cell size";
     EXPECT_EQ(error(terraingen::testing::Heightmap("h.tif", {{0, 4, 1.0}}), unchanged),
-              "outputs[0].region.width");
+              "outputs[0].extent_m.size[0]");
     EXPECT_EQ(error(terraingen::testing::Heightmap("h.tif", {{4, 4, -1.0}}), unchanged),
-              "outputs[0].region.pixel_size");
-    EXPECT_EQ(error(terraingen::TerrainMeshOutput{"t.glb"}, unchanged), "outputs[0].region");
+              "outputs[0].pixel_size_m");
+    EXPECT_EQ(error(terraingen::TerrainMeshOutput{"t.glb"}, unchanged), "outputs[0].extent_m");
+    EXPECT_EQ(error(terraingen::testing::Heightmap("h.tif"), moon), "outputs[0].extent_m")
+        << "a body takes extent_deg";
+
+    terraingen::OutputAreaSpec offBody =
+        terraingen::testing::GridRegion{65, 49, 4.0, 0.0, 89.999}.Area(
+            terraingen::Surface::Sphere(1737400.0));
+    EXPECT_EQ(error(terraingen::HeightmapOutput{"h.tif", {}, 256, offBody}, moon),
+              "outputs[0].extent_deg")
+        << "past the pole";
 
     const terraingen::OutputSpec list = terraingen::CraterListOutput{{"c.csv"}};
-    EXPECT_EQ(error(list, unchanged), "outputs[0].region");
-    EXPECT_EQ(error(list, moon), "outputs[0].region") << "the whole body needs a spacing";
+    EXPECT_EQ(error(list, unchanged), "outputs[0].extent_m");
+    EXPECT_EQ(error(list, moon), "outputs[0].extent_deg") << "the whole body needs a pixel size";
     EXPECT_EQ(error(list, dem), "valid");
-    const terraingen::OutputSpec whole = terraingen::CraterListOutput{{"c.csv", {}, {}, 1000.0}};
+    terraingen::OutputAreaSpec wholeArea;
+    wholeArea.pixelSize = 1000.0;
+    const terraingen::OutputSpec whole = terraingen::CraterListOutput{{"c.csv", {}, wholeArea}};
     EXPECT_EQ(error(whole, moon), "valid");
-    EXPECT_EQ(error(whole, unchanged), "outputs[0].region") << "a plane has no whole body";
-    EXPECT_EQ(error(terraingen::CraterListOutput{{"c.csv", {}, {}, -1.0}}, moon),
-              "outputs[0].spacing");
-    EXPECT_EQ(error(terraingen::CraterListOutput{{"c.csv", {}, {}, 1e-9}}, moon),
-              "outputs[0].spacing");
-    EXPECT_EQ(error(terraingen::BoulderModelsOutput{"b.glb", 35.0, {}, 1000.0}, moon), "valid");
+    EXPECT_EQ(error(whole, unchanged), "outputs[0].extent_m") << "a plane has no whole body";
+    wholeArea.pixelSize = -1.0;
+    EXPECT_EQ(error(terraingen::CraterListOutput{{"c.csv", {}, wholeArea}}, moon),
+              "outputs[0].pixel_size_m");
+    wholeArea.pixelSize = 1e-9;
+    EXPECT_EQ(error(terraingen::CraterListOutput{{"c.csv", {}, wholeArea}}, moon),
+              "outputs[0].pixel_size_m");
+    wholeArea.pixelSize = 1000.0;
+    EXPECT_EQ(error(terraingen::BoulderModelsOutput{"b.glb", 35.0, wholeArea}, moon), "valid");
 }
 
 TEST(ValidateConfig, ReportsRasterAlbedoProblemsByPath) {
@@ -177,12 +200,32 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
     EXPECT_EQ(error([](TerrainGenConfig&) {}), "valid");
     EXPECT_EQ(error([](TerrainGenConfig& c) { c.body = terraingen::SphereSurfaceSpec{}; }),
               "body.radius");
-    EXPECT_EQ(error([](TerrainGenConfig& c) { Region(c).centreY = 89.999; }),
-              "outputs[0].region.height");
+    EXPECT_EQ(error([](TerrainGenConfig& c) { Region(c).extentDeg->center = {30.0, 89.999}; }),
+              "outputs[0].extent_deg");
     EXPECT_EQ(error([](TerrainGenConfig& c) {
-                  Region(c).centreX = std::numeric_limits<double>::quiet_NaN();
+                  Region(c).extentDeg->center = {std::numeric_limits<double>::quiet_NaN(), 0.0};
               }),
-              "outputs[0].region.centre_x");
+              "outputs[0].extent_deg.center");
+    EXPECT_EQ(error([](TerrainGenConfig& c) { Region(c).extentDeg->size = {361.0, 1.0}; }),
+              "outputs[0].pixel_size_m")
+        << "too many cells before off the body";
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
+                  Region(c).pixelSize = 5000.0;
+                  Region(c).extentDeg->size = {361.0, 1.0};
+              }),
+              "outputs[0].extent_deg")
+        << "more than one turn of longitude";
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
+                  Region(c).extentM = Region(c).extentDeg;
+                  Region(c).extentDeg.reset();
+              }),
+              "outputs[0].extent_m");
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
+                  terraingen::TerrainMeshOutput mesh{"t.glb", Region(c)};
+                  mesh.siteDeg = {30.0, -45.0};
+                  c.outputs.push_back(mesh);
+              }),
+              "valid");
     for (std::uint32_t b = 0; b < terraingen::kNoiseBasisCount; ++b) {
         const auto basis = static_cast<terraingen::NoiseBasis>(b);
         SCOPED_TRACE(b);
@@ -198,8 +241,7 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
                   "valid");
     }
     EXPECT_EQ(error([](TerrainGenConfig& c) {
-                  c.outputs.push_back(
-                      terraingen::BoulderModelsOutput{"b.glb", 35.0, Region(c), std::nullopt});
+                  c.outputs.push_back(terraingen::BoulderModelsOutput{"b.glb", 35.0, Region(c)});
               }),
               "valid");
 }
@@ -218,6 +260,16 @@ TEST(ValidateConfig, ReportsMeshProblemsByPath) {
     EXPECT_EQ(error([](auto&, auto& o) { o.path = "m.fbx"; }), "outputs[0].path");
     EXPECT_EQ(error([](auto&, auto& o) { o.cellsPerFace = 0; }), "outputs[0].cells_per_face");
     EXPECT_EQ(error([](auto&, auto& o) { o.spacing = -1.0; }), "outputs[0].spacing");
+    EXPECT_EQ(error([](auto&, auto& o) { o.path.clear(); }), "valid") << "returned, not written";
+
+    TerrainGenConfig twice;
+    twice.body = terraingen::SphereSurfaceSpec{3389500.0};
+    twice.outputs = {terraingen::MeshOutput{"m.glb", 8, std::nullopt},
+                     terraingen::MeshOutput{"m.obj", 8, std::nullopt},
+                     terraingen::MeshOutput{"m.icq", 16, std::nullopt}};
+    EXPECT_EQ(ValidationErrorPath(twice), "valid") << "one mesh in two formats, and an ICQ model";
+    twice.outputs.push_back(terraingen::MeshOutput{"m.stl", 16, std::nullopt});
+    EXPECT_EQ(ValidationErrorPath(twice), "outputs[3]") << "body meshes share one result";
 }
 
 TEST(DescribeSource, ReadsTheRasterHeader) {

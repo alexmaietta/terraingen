@@ -348,8 +348,14 @@ TEST(ConfigSchema, SharesTheOutputPathDescriptions) {
     const SchemaJson outputs = FieldOf(schema["root"], "outputs")["schema"];
     const SchemaJson& choice = Resolve(schema, outputs["of"]);
     EXPECT_EQ(FieldOf(AlternativeOf(choice, "heightmap"), "path")["description"],
-              "GeoTIFF file to write; relative paths resolve against the output folder (the CLI's "
-              "--output-dir), else the configuration's folder.");
+              "GeoTIFF file to write; unset to only return the result, writing nothing; relative "
+              "paths resolve against the output folder (the CLI's --output-dir), else the "
+              "configuration's folder.");
+    EXPECT_EQ(FieldOf(AlternativeOf(choice, "albedo"), "extent_m"),
+              FieldOf(AlternativeOf(choice, "heightmap"), "extent_m"));
+    EXPECT_EQ(FieldOf(AlternativeOf(choice, "crater_list"), "pixel_size_m"),
+              FieldOf(AlternativeOf(choice, "boulder_models"), "pixel_size_m"));
+    EXPECT_EQ(FieldOf(AlternativeOf(choice, "report"), "path")["schema"]["kind"], "string");
     EXPECT_EQ(FieldOf(AlternativeOf(choice, "albedo"), "path"),
               FieldOf(AlternativeOf(choice, "heightmap"), "path"));
     EXPECT_EQ(FieldOf(AlternativeOf(choice, "crater_list"), "format"),

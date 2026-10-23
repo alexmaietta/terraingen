@@ -39,28 +39,46 @@
         {
             "type": "heightmap",
             "path": "example_planets_mars_ventifacts.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 0.03
+            "pixel_size_m": 0.03,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    7.71,
+                    7.71
+                ]
             }
         },
         {
             "type": "boulder_list",
             "path": "example_planets_mars_ventifacts.csv",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 0.03
+            "pixel_size_m": 0.03,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    7.71,
+                    7.71
+                ]
             }
         },
         {
             "type": "materials",
             "path": "example_planets_mars_ventifacts_materials.tif",
-            "region": {
-                "width": 257,
-                "height": 257,
-                "pixel_size": 0.03
+            "pixel_size_m": 0.03,
+            "extent_m": {
+                "center": [
+                    0,
+                    0
+                ],
+                "size": [
+                    7.71,
+                    7.71
+                ]
             }
         }
     ]

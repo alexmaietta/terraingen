@@ -402,54 +402,99 @@ RasterGrid GeneratedGridOr(const GeneratedOutputs& generated,
     if (generated.grids.empty()) {
         throw std::invalid_argument("The terrain generated no grid; give one");
     }
-    return RasterGrid::FromRaster(generated.grids.front().heights);
+    return generated.grids.front().grid;
+}
+
+/// @brief Each of `items`, a member of the object `owner`, as a list of views kept alive by it.
+template <typename T> nb::list Views(nb::handle owner, std::vector<T>& items) {
+    nb::list views;
+    for (T& item : items) {
+        views.append(nb::cast(&item, nb::rv_policy::reference_internal, owner));
+    }
+    return views;
+}
+
+/// @brief `value`, a member of the object `owner`, as a view kept alive by it, or None unset.
+template <typename T> nb::object View(nb::handle owner, std::optional<T>& value) {
+    return value ? nb::cast(&*value, nb::rv_policy::reference_internal, owner) : nb::none();
+}
+
+void BindGeneratedGrid(nb::module_& m) {
+    nb::class_<GeneratedGrid>(m, "GeneratedGrid",
+                              "What the outputs over one grid asked for, each computed once; "
+                              "what none asked for is empty or None. Every value is a view "
+                              "into the result, without a copy.")
+        .def_ro("grid", &GeneratedGrid::grid, "The RasterGrid the outputs cover.")
+        .def_prop_ro(
+            "heights", [](GeneratedGrid& g) -> Raster<float>& { return g.heights; },
+            nb::rv_policy::reference_internal,
+            "Heights in meters over the grid, for raster and terrain mesh outputs; an empty "
+            "Raster otherwise.")
+        .def_prop_ro(
+            "albedo",
+            [](nb::handle self) { return Views(self, nb::cast<GeneratedGrid&>(self).albedo); },
+            "Albedo bands, for albedo outputs.")
+        .def_prop_ro(
+            "materials",
+            [](nb::handle self) { return Views(self, nb::cast<GeneratedGrid&>(self).materials); },
+            "The share of each MaterialClass, one raster per class, for materials and "
+            "photometry outputs.")
+        .def_prop_ro(
+            "photometry",
+            [](nb::handle self) { return Views(self, nb::cast<GeneratedGrid&>(self).photometry); },
+            "The Hapke single-scattering albedo, b, c and roughness in degrees the materials mix "
+            "to, for photometry outputs.")
+        .def_prop_ro(
+            "craters",
+            [](nb::handle self) { return View(self, nb::cast<GeneratedGrid&>(self).craters); },
+            "The CraterFeatures placed over the grid, for crater lists; None otherwise.")
+        .def_prop_ro(
+            "boulders",
+            [](nb::handle self) { return View(self, nb::cast<GeneratedGrid&>(self).boulders); },
+            "The BoulderFeatures placed over the grid, for boulder lists and models; None "
+            "otherwise.")
+        .def_prop_ro(
+            "mesh", [](nb::handle self) { return View(self, nb::cast<GeneratedGrid&>(self).mesh); },
+            "The heights as a TriangleMesh, for terrain mesh outputs; None otherwise.");
 }
 
 void BindGeneratedOutputs(nb::module_& m) {
-    nb::class_<GeneratedGrid>(m, "GeneratedGrid",
-                              "A terrain's heights, and its albedo bands, over one grid.")
-        .def_prop_ro(
-            "heights", [](GeneratedGrid& g) -> Raster<float>& { return g.heights; },
-            nb::rv_policy::reference_internal, "Heights in metres over the grid.")
-        .def_prop_ro(
-            "albedo",
-            [](nb::handle self) {
-                nb::list bands;
-                for (Raster<float>& band : nb::cast<GeneratedGrid&>(self).albedo) {
-                    bands.append(nb::cast(&band, nb::rv_policy::reference_internal, self));
-                }
-                return bands;
-            },
-            "Albedo bands, empty unless an albedo output covers the grid.")
-        .def_prop_ro(
-            "materials",
-            [](nb::handle self) {
-                nb::list bands;
-                for (Raster<float>& band : nb::cast<GeneratedGrid&>(self).materials) {
-                    bands.append(nb::cast(&band, nb::rv_policy::reference_internal, self));
-                }
-                return bands;
-            },
-            "The share of each MaterialClass, one raster per class; empty unless a materials or "
-            "photometry output covers the grid.")
-        .def_prop_ro(
-            "grid", [](const GeneratedGrid& g) { return RasterGrid::FromRaster(g.heights); },
-            "The grid the heights cover.");
+    BindGeneratedGrid(m);
     nb::class_<GeneratedOutputs> generated(m, "GeneratedOutputs",
-                                           "What a configuration generates: the heights and "
-                                           "albedo over each grid its outputs cover, and the "
-                                           "craters and boulders it places on request.");
-    generated.def_prop_ro(
-        "grids",
-        [](nb::handle self) {
-            nb::list grids;
-            for (GeneratedGrid& grid : nb::cast<GeneratedOutputs&>(self).grids) {
-                grids.append(nb::cast(&grid, nb::rv_policy::reference_internal, self));
-            }
-            return grids;
-        },
-        "The GeneratedGrid of each distinct grid a heightmap, albedo or terrain mesh output "
-        "covers, in output order.");
+                                           "What a configuration's outputs ask for, each "
+                                           "computed once: a GeneratedGrid per grid they cover "
+                                           "and the whole body's mesh.");
+    generated
+        .def_prop_ro(
+            "grids",
+            [](nb::handle self) { return Views(self, nb::cast<GeneratedOutputs&>(self).grids); },
+            "The GeneratedGrid of each distinct grid an output covers, in output order.")
+        .def(
+            "grid",
+            [](nb::handle self) {
+                const GeneratedGrid& only = nb::cast<const GeneratedOutputs&>(self).Grid();
+                return nb::cast(&only, nb::rv_policy::reference_internal, self);
+            },
+            "The only GeneratedGrid. Raises RuntimeError when the outputs cover none or several.")
+        .def(
+            "find",
+            [](nb::handle self, const RasterGrid& grid) -> nb::object {
+                GeneratedGrid* found = nb::cast<GeneratedOutputs&>(self).Find(grid);
+                return found ? nb::cast(found, nb::rv_policy::reference_internal, self)
+                             : nb::none();
+            },
+            "grid"_a, "The GeneratedGrid over `grid`, or None.")
+        .def_prop_ro(
+            "body_mesh",
+            [](nb::handle self) { return View(self, nb::cast<GeneratedOutputs&>(self).bodyMesh); },
+            "The whole body as a TriangleMesh, for mesh outputs; None otherwise.")
+        .def_prop_ro(
+            "body_icq",
+            [](nb::handle self) { return View(self, nb::cast<GeneratedOutputs&>(self).bodyIcq); },
+            "The whole body as an IcqModel, for mesh outputs to .icq paths; None otherwise.")
+        .def_prop_ro(
+            "generator", [](const GeneratedOutputs& g) { return FromGenerator(g.generator); },
+            "A copy of the TerrainGenerator built from the configuration.");
     generated
         .def(
             "placed_craters",
@@ -483,10 +528,10 @@ void BindRun(nb::module_& m) {
         },
         "config"_a, "directory"_a = nb::none(), "threads"_a = 0, "backend"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
-        "Generates the terrain `config` describes over each grid its outputs cover, on up to "
+        "Generates everything `config`'s outputs ask for, each computed once, and returns it as "
+        "GeneratedOutputs without writing anything (write_outputs writes it), on up to "
         "`threads` threads (0 for every hardware thread; the result does not depend on it), "
-        "evaluating the heights on `backend` (None for default_backend()). "
-        "Relative input "
+        "evaluating the heights on `backend` (None for default_backend()). Relative input "
         "paths resolve against `directory`. Raises ConfigError for an invalid configuration.");
     m.def(
         "build_generator",
@@ -507,8 +552,9 @@ void BindRun(nb::module_& m) {
         "by `build_generator`.");
     m.def("write_outputs", &WriteOutputs, "config"_a, "generated"_a, "directory"_a,
           nb::call_guard<nb::gil_scoped_release>(),
-          "Writes `config`'s outputs from `generated`, resolving relative paths against "
-          "`directory`, and returns the paths written, as pathlib.Path.");
+          "Writes each of `config`'s outputs that has a path from `generated`, what "
+          "generate_from_config returned, computing nothing; resolves relative paths against "
+          "`directory` and returns the paths written, as pathlib.Path.");
 }
 
 }  // namespace
