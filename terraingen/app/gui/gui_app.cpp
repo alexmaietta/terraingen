@@ -94,7 +94,7 @@ void SimplifyViewer(ernie::app::Viewer& viewer) {
 
 /// What a generation hands back to the GUI's thread.
 struct Generated {
-    GeneratedTerrain terrain;
+    GeneratedOutputs outputs;
     double seconds = 0.0;
 };
 
@@ -151,7 +151,7 @@ struct GuiApp::State {
         }
         try {
             const Generated done = generation.get();
-            const GeneratedTerrain& t = done.terrain;
+            const GeneratedOutputs& t = done.outputs;
             if (t.grids.empty()) {
                 Report(ernie::app::LogLevel::Warning,
                        "Nothing to show: no heightmap, albedo or terrain mesh output");
@@ -287,13 +287,13 @@ void GuiApp::Generate() {
     }
     s.edited.reset();
     try {
-        const TerrainConfig config = ParseConfig(s.config);
+        const TerrainGenConfig config = ParseConfig(s.config);
         const std::filesystem::path directory = s.configFile.parent_path();
         const unsigned threads = s.threads;
         const std::optional<Backend> backend = s.backend;
         s.generation = std::async(std::launch::async, [config, directory, threads, backend] {
             const Stopwatch stopwatch;
-            Generated done{GenerateTerrain(config, directory, threads, backend), 0.0};
+            Generated done{GenerateFromConfig(config, directory, threads, backend), 0.0};
             done.seconds = stopwatch.Milliseconds() / 1000.0;
             return done;
         });
@@ -347,7 +347,7 @@ void GuiApp::EditConfig(const std::function<void(nlohmann::ordered_json&)>& edit
 void GuiApp::SaveConfig(const std::filesystem::path& path) {
     State& s = *state_;
     try {
-        const TerrainConfig config = ParseConfig(s.config);
+        const TerrainGenConfig config = ParseConfig(s.config);
         WriteFile(path, ConfigToJson(config, 4) + "\n");
         s.configFile = path;
         s.savedConfig = s.config;

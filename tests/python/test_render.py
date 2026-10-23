@@ -20,7 +20,7 @@ def make_raster(width=33, height=17, cell=2.0):
 
 def test_add_terrain_shares_cells_and_georeferencing():
     raster = make_raster()
-    raster.nodata = -9999.0
+    raster.no_data = -9999.0
     scene = ernie.Scene()
     prim = render.add_terrain(scene, raster, exaggeration=2.0, material="/Looks/Boulder")
     heights = scene.read(render.TERRAIN_PATH, ernie.tokens.HEIGHTS)
@@ -32,7 +32,7 @@ def test_add_terrain_shares_cells_and_georeferencing():
     assert prim.get(ernie.tokens.EXAGGERATION) == 2.0
     assert prim.get(ernie.tokens.MATERIAL_BINDING) == ernie.Path("/Looks/Boulder")
 
-    raster.nodata = None
+    raster.no_data = None
     render.add_terrain(scene, raster)
     assert scene.get(render.TERRAIN_PATH, ernie.tokens.NO_DATA) is None
 
@@ -110,7 +110,7 @@ def test_renders_a_generated_terrain_headlessly():
 def boulder_models():
     options = tg.BoulderLayerOptions(coverage=0.1, min_diameter=0.5, max_diameter=2.0, shape_prototypes=4)
     options.models = tg.BoulderModelThreshold(min_diameter=0.5)
-    terrain = tg.Terrain(None, [tg.BoulderLayer(options)])
+    terrain = tg.TerrainGenerator(None, [tg.BoulderLayer(options)])
     grid = tg.RasterGrid.centred(80, 80, 0.25)
     return tg.placed_boulders(terrain, grid, 0.25).models
 

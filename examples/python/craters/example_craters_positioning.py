@@ -60,7 +60,7 @@ class Example(_common.Example):
         self.median_gaps = {}
         self.heights = {}
         for name, generation in settings.items():
-            generation.min_diameter, generation.max_diameter = 6.0, 120.0
+            generation.d_min, generation.d_max = 6.0, 120.0
             layer = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=8, generation=generation)
             )
@@ -71,7 +71,9 @@ class Example(_common.Example):
             print(
                 f"{name:16s} {len(table['x']):5d} craters, median nearest neighbour {np.median(gaps):.2f} diameters"
             )
-            heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(513, 513, 1.0), [layer]))
+            heights = terraingen.evaluate(
+                terraingen.TerrainGenerator(terraingen.FlatSource(513, 513, 1.0), [layer])
+            )
             self.heights[name] = heights.values
             self.show(name, heights)
 

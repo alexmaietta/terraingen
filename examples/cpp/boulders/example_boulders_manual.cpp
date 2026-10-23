@@ -80,7 +80,7 @@ class BouldersManual : public terraingen::examples::Example {
         options.rendering.models.minDiameter = 0.5;
         options.manual = manual_;
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(801, 801, 0.05);
         terrain.layers.push_back(std::make_shared<terraingen::BoulderLayer>(options));
 

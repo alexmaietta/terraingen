@@ -57,7 +57,7 @@ class LayersRegions : public terraingen::examples::Example {
             std::make_shared<terraingen::ScaleLayer>(0.2, -15.0),
             terraingen::RegionShape::Circle({0.0, 0.0}, 600.0), 150.0);
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 4.0);
         terrain.layers = {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),

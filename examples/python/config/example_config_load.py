@@ -30,21 +30,21 @@ class Example(_common.Example):
 
     def generate(self):
         path = pathlib.Path(self.args.config)
-        self.config = terraingen.Config.load(path)
+        self.config = terraingen.load_config(path)
         self.config.validate(path.parent)
-        self.terrain = terraingen.generate_terrain(self.config, path.parent)
-        print(self.terrain.summary())
-        self.heights = self.terrain.grids[0].heights if self.terrain.grids else None
+        self.generated = terraingen.generate_from_config(self.config, path.parent)
+        print(self.generated.summary())
+        self.heights = self.generated.grids[0].heights if self.generated.grids else None
         self.craters = []
         if self.heights is None:
             return
-        self.craters = self.terrain.placed_craters().craters
-        boulders = self.terrain.placed_boulders().boulders
+        self.craters = self.generated.placed_craters().craters
+        boulders = self.generated.placed_boulders().boulders
         print(f"{len(self.craters)} craters and {len(boulders)} boulders over the first grid")
         self.show(path.stem, self.heights)
 
     def save(self, out):
-        for written in terraingen.write_outputs(self.config, self.terrain, out):
+        for written in terraingen.write_outputs(self.config, self.generated, out):
             print("wrote", written)
         if self.heights is not None:
             pixel = self.heights.transform.pixel_width
@@ -56,7 +56,7 @@ class Example(_common.Example):
             pathlib.Path(self.args.config).resolve()
             == _common.config_path("example_craters_simple").resolve()
         ):
-            assert len(self.terrain.grids) == 1, "example_craters_simple.json makes one grid"
+            assert len(self.generated.grids) == 1, "example_craters_simple.json makes one grid"
             assert self.heights.shape == (513, 513), "example_craters_simple.json makes 513 x 513 heights"
             assert len(self.craters) > 100, "example_craters_simple.json makes more than 100 craters"
 

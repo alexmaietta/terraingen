@@ -42,7 +42,7 @@ class CratersManual : public terraingen::examples::Example {
             manual.Append(crater);
         }
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
         terrain.layers.push_back(
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));

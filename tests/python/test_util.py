@@ -26,16 +26,17 @@ def test_version_matches_cmake(repo_root):
     expected = re.search(r'set\(TERRAINGEN_FULL_VERSION "([^"]+)"\)', cmake).group(1)
     assert terraingen.__version__ == expected
     assert (
-        ".".join(str(part) for part in terraingen.version()) == re.match(r"\d+\.\d+\.\d+", expected).group()
+        ".".join(str(part) for part in terraingen.get_version())
+        == re.match(r"\d+\.\d+\.\d+", expected).group()
     )
 
 
 def test_api_version_is_positive():
-    assert terraingen.api_version() >= 1
+    assert terraingen.get_api_version() >= 1
 
 
 def test_build_info_has_expected_fields():
-    info = terraingen.build_info()
+    info = terraingen.get_build_info()
     assert set(info) == {"git_sha", "git_dirty", "build_date"}
     assert info["git_sha"]
     assert isinstance(info["git_dirty"], bool)

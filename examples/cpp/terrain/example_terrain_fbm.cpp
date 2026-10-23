@@ -1,6 +1,6 @@
 /// A synthetic terrain from library objects: a flat source with one fBm noise layer, composed into
-/// a `Terrain`. Evaluates it over the source's grid, queries single points as a physics engine
-/// would, and writes a GeoTIFF. The same terrain as
+/// a `TerrainGenerator`. Evaluates it over the source's grid, queries single points as a physics
+/// engine would, and writes a GeoTIFF. The same terrain as
 /// examples/config/terrain/example_terrain_fbm.json.
 ///
 ///     example_terrain_fbm [--output-dir DIR] [--test]
@@ -28,7 +28,7 @@ class TerrainFbm : public terraingen::examples::Example {
         fbm.fractal.amplitude = 40.0f;
         fbm.fractal.octaves = 8;
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
         terrain.layers.push_back(
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));
@@ -39,7 +39,7 @@ class TerrainFbm : public terraingen::examples::Example {
 
         points_.clear();
         for (const auto& [x, y] : {std::pair{0.0, 0.0}, std::pair{120.5, -310.25}}) {
-            points_.push_back(static_cast<double>(terraingen::EvaluateAt(terrain, x, y, 2.0)));
+            points_.push_back(static_cast<double>(terraingen::HeightAt(terrain, x, y, 2.0)));
             Out() << "Height at (" << x << ", " << y << "): " << points_.back() << " m\n";
         }
         Show("heights", evaluated_);

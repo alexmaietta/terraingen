@@ -118,7 +118,7 @@ void BindRasterClass(nb::module_& m) {
         .def_prop_ro("values", &MakeView<NumpyView>,
                      "Writeable NumPy view of shape (height, width) that keeps the raster alive.")
         .def_prop_rw("transform", &RasterF::Transform, &RasterF::SetTransform)
-        .def_prop_rw("nodata", &RasterF::NoData, &RasterF::SetNoData)
+        .def_prop_rw("no_data", &RasterF::NoData, &RasterF::SetNoData)
         .def("cell_center", &RasterF::CellCenter, "col"_a, "row"_a,
              "World coordinates of a cell's centre.")
         .def("__repr__", [](const RasterF& r) {
@@ -234,7 +234,7 @@ void BindGeoTiffInfo(nb::module_& m) {
         .def_ro("big_endian", &GeoTiffInfo::bigEndian)
         .def_ro("transform", &GeoTiffInfo::transform)
         .def_ro("georeferenced", &GeoTiffInfo::georeferenced)
-        .def_ro("nodata", &GeoTiffInfo::noData)
+        .def_ro("no_data", &GeoTiffInfo::noData)
         .def_ro("band_scaling", &GeoTiffInfo::bandScaling)
         .def_ro("geo_keys", &GeoTiffInfo::geoKeys);
     m.def("read_geotiff_info", &ReadGeoTiffInfo, "path"_a,

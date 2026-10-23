@@ -231,7 +231,7 @@ std::string ConfigCatalog(int indent) {
     using config::Alternatives;
     using config::Json;
     Json json = Json::object();
-    TerrainConfig defaults;
+    TerrainGenConfig defaults;
     config::CatalogWriter writer(json);
     config::Fields(writer, defaults);
     Json models = Json::object();
@@ -251,7 +251,7 @@ std::string ConfigCatalog(int indent) {
 std::string ConfigSchema(int indent) {
     using config::Json;
     config::SchemaBuilder builder;
-    Json fields = config::DescribeFields<TerrainConfig>(builder);
+    Json fields = config::DescribeFields<TerrainGenConfig>(builder);
     for (Json& field : fields) {
         if (field["name"] == "schema_version") {
             field["schema"]["fixed"] = true;

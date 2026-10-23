@@ -110,7 +110,7 @@ class CratersProfiles : public terraingen::examples::Example {
         options.seed = 2;
         options.generation.dMin = 8.0;
         options.generation.dMax = 150.0;
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(257, 257, 1.0);
         terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
             terraingen::CraterModels{density, ages,

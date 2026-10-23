@@ -2,9 +2,9 @@ terraingen_add_test_suite(
     pipeline
     SOURCES
     features_test.cpp
-    height_mesh_test.cpp
+    generator_test.cpp
     materials_test.cpp
-    terrain_test.cpp
+    mesh_build_test.cpp
     terrain_windows_test.cpp
     LIBRARIES
     terraingen::pipeline)

@@ -66,7 +66,7 @@ class PlanetsMoon : public terraingen::examples::Example {
 
         const terraingen::Vec2d site{23.47, 0.67};
         const double pixel = 200.0;
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.surface = moon_;
         terrain.source = std::make_shared<terraingen::FlatSource>(
             257, 257, pixel / moon_.UnitLength(), 0.0f, site);
@@ -79,11 +79,11 @@ class PlanetsMoon : public terraingen::examples::Example {
               << ")\n";
         site_ = terraingen::Evaluate(terrain);
         craters_ = terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(site_));
-        siteHeight_ = terraingen::EvaluateAt(terrain, site.x, site.y, pixel);
+        siteHeight_ = terraingen::HeightAt(terrain, site.x, site.y, pixel);
         Out() << std::setprecision(1) << craters_.craters.Size() << " craters; height at the site "
               << siteHeight_ << " m\n";
 
-        terraingen::Terrain global = terrain;
+        terraingen::TerrainGenerator global = terrain;
         global.layers = {noise, std::make_shared<terraingen::CraterLayer>(
                                     terraingen::CraterModels{
                                         density, ages,

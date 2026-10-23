@@ -12,11 +12,11 @@ using terraingen::CraterLayerSpec;
 using terraingen::CraterListOutput;
 using terraingen::ListFormat;
 using terraingen::ParseConfig;
-using terraingen::TerrainConfig;
+using terraingen::TerrainGenConfig;
 using terraingen::testing::ParseErrorPath;
 
 TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     terraingen::SecondaryLayerSpec secondaries;
     secondaries.secondaries.maxDiameter = 80.0;
     config.layers = {CraterLayerSpec{}, secondaries};
@@ -24,7 +24,7 @@ TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
     EXPECT_NE(json.find("\"max_diameter\": 80.0"), std::string::npos) << json;
     EXPECT_NE(json.find("\"max_age_gyr\": null"), std::string::npos) << json;
     EXPECT_NE(json.find("\"min\": null"), std::string::npos) << "an unbounded distribution";
-    const TerrainConfig parsed = ParseConfig(
+    const TerrainGenConfig parsed = ParseConfig(
         R"({"schema_version": 1, "layers": [{"type": "craters", "apply": {"irregularity":
             {"max_diameter": 30, "roughness": {"min": -1, "max": null}}}}]})");
     const auto& irregularity = std::get<CraterLayerSpec>(parsed.layers[0]).apply.irregularity;
@@ -35,12 +35,12 @@ TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
 }
 
 TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
-    const TerrainConfig minimal = ParseConfig(R"({"schema_version": 1})");
+    const TerrainGenConfig minimal = ParseConfig(R"({"schema_version": 1})");
     EXPECT_FALSE(minimal.source.has_value());
     EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(minimal.body));
     EXPECT_TRUE(minimal.layers.empty());
     EXPECT_TRUE(minimal.outputs.empty());
-    const TerrainConfig partial = ParseConfig(R"({
+    const TerrainGenConfig partial = ParseConfig(R"({
         "schema_version": 1,
         "layers": [{"type": "noise", "stack": [{"octaves": 3, "hurst": 0.7}]},
                    {"type": "craters", "density": {"type": "trask"}}],
@@ -60,7 +60,7 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
 }
 
 TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
         {"type": "boulders", "coverage": 0.04, "relief": "none", "ejecta": {"min_crater_diameter": 20},
          "exposure": {"reach": 6}},
         {"type": "boulders", "exposure": null}]})");
@@ -89,7 +89,7 @@ TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {
 }
 
 TEST(ConfigJson, ReadsTransformsAndNestedRegions) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
         {"type": "scale", "scale": 2},
         {"type": "clamp", "min": -1},
         {"type": "region", "shape": {"type": "circle", "radius": 30}, "feather": 5,
@@ -117,7 +117,7 @@ TEST(ConfigJson, ReadsTransformsAndNestedRegions) {
 }
 
 TEST(ConfigJson, InfersTheListFormatFromTheExtension) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "outputs": [
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "outputs": [
         {"type": "crater_list", "path": "a.json"},
         {"type": "crater_list", "path": "b.csv"},
         {"type": "crater_list", "path": "c.json", "format": "csv"},
@@ -132,7 +132,7 @@ TEST(ConfigJson, InfersTheListFormatFromTheExtension) {
 }
 
 TEST(ConfigJson, ReadsDuneLayersByShapeAndRipples) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [
         {"type": "dunes", "shape": "barchanoid", "wavelength": 300, "height": 18,
          "anchor_x": 137.4, "anchor_y": -4.6,
          "defect_density": 0.003,

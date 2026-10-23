@@ -1,7 +1,7 @@
 """A rover's wheel contacts from point queries, as a physics engine asks for them each step.
 
 Physics engines (Chrono, for example) query the ground under each wheel every step rather than a
-whole grid. `evaluate_at(terrain, x, y, spacing)` answers one point, equal to the grid cell centred
+whole grid. `height_at(terrain, x, y, spacing)` answers one point, equal to the grid cell centred
 there, and releases the GIL, so several threads can query at once. This example drives a rover with
 four wheels across cratered, rocky ground, takes each wheel's height, and from them the body's
 height, pitch and roll; then compares one thread with four.
@@ -42,7 +42,7 @@ def build_terrain():
         terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
         terraingen.FassettThomsonProfile(),
     )
-    generation = terraingen.CraterGenerationOptions(min_diameter=2.5, max_diameter=40.0)
+    generation = terraingen.CraterGenerationOptions(d_min=2.5, d_max=40.0)
     craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=6, generation=generation))
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(seed=6, coverage=0.06, min_diameter=0.1, max_diameter=1.0), craters
@@ -50,7 +50,7 @@ def build_terrain():
     noise = terraingen.NoiseRelief(
         [terraingen.NoiseLayer(terraingen.FractalParams(seed=6, wavelength=50.0, amplitude=1.0))]
     )
-    return terraingen.Terrain(terraingen.FlatSource(64, 64, 1.0), [noise, craters, boulders])
+    return terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 1.0), [noise, craters, boulders])
 
 
 def wheel_points(x, y, heading):
@@ -69,9 +69,7 @@ class Example(_common.Example):
 
         def contacts(step):
             x, y, heading = step
-            return [
-                terraingen.evaluate_at(terrain, px, py, SPACING) for px, py in wheel_points(x, y, heading)
-            ]
+            return [terraingen.height_at(terrain, px, py, SPACING) for px, py in wheel_points(x, y, heading)]
 
         self.runs = {}
         for threads in (1, 4):

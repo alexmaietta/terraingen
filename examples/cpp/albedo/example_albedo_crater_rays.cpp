@@ -48,7 +48,7 @@ class AlbedoCraterRays : public terraingen::examples::Example {
                                      std::make_shared<terraingen::FassettThomsonProfile>()},
             craterOptions);
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 8.0);
         terrain.layers.push_back(
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));

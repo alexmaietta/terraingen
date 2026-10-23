@@ -5,7 +5,7 @@
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/config/config.h"
 #include "terraingen/pipeline/features.h"
-#include "terraingen/pipeline/terrain.h"
+#include "terraingen/pipeline/generator.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
@@ -29,9 +29,10 @@ struct GeneratedGrid {
     std::vector<Raster<float>> materials{};
 };
 
-/// A terrain generated from a configuration.
-struct GeneratedTerrain {
-    Terrain terrain;  ///< The terrain built from the configuration, to list its features from.
+/// What a configuration generates: its generator and the grids its outputs cover.
+struct GeneratedOutputs {
+    /// The generator built from the configuration, to list its features from.
+    TerrainGenerator generator;
     /// One per distinct grid a heightmap, albedo, terrain mesh or material output covers, in output
     /// order.
     std::vector<GeneratedGrid> grids{};
@@ -47,7 +48,7 @@ struct GeneratedTerrain {
 };
 
 /// Generates the terrain a configuration describes over each grid its heightmap, albedo and
-/// terrain mesh outputs cover: `BuildTerrain`, then `Evaluate`, and `BuildAlbedo` and
+/// terrain mesh outputs cover: `BuildGenerator`, then `Evaluate`, and `BuildAlbedo` and
 /// `EvaluateAlbedo` for albedo outputs.
 /// @param directory Folder relative input paths resolve against.
 /// @param threads Threads to use, 0 for every hardware thread; the result does not depend on it.
@@ -55,12 +56,13 @@ struct GeneratedTerrain {
 /// @throws ConfigError if the configuration is invalid.
 /// @throws GeoTiffError if a raster cannot be read.
 /// @throws std::runtime_error when `backend` is `Vulkan` and Vulkan is unavailable.
-GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
-                                 const std::filesystem::path& directory = {}, unsigned threads = 0,
-                                 std::optional<Backend> backend = std::nullopt);
+GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& config,
+                                    const std::filesystem::path& directory = {},
+                                    unsigned threads = 0,
+                                    std::optional<Backend> backend = std::nullopt);
 
 /// One line describing a generated terrain, such as "Generated a WxH terrain in S s".
-std::string Summary(const GeneratedTerrain& terrain);
+std::string Summary(const GeneratedOutputs& generated);
 
 /// Writes craters as CSV (columns x, y, diameter, age_gyr, id, manual) or as JSON
 /// ({"craters": [{"x": ..., "y": ..., ...}]}), with doubles written exactly. With an attributes
@@ -93,14 +95,14 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
                         const Surface& surface = {}, const Vec2d& site = {}, bool instanced = true);
 
 /// Writes a configuration's outputs and returns the paths written: heightmaps and albedos
-/// with `terrain.geoKeys`, terrain meshes, crater and boulder lists, boulder models and meshes,
+/// with `generated.geoKeys`, terrain meshes, crater and boulder lists, boulder models and meshes,
 /// each over the grid it covers (`config::OutputGrid`).
-/// @param terrain The terrain `GenerateTerrain` generated from `config`.
+/// @param generated What `GenerateFromConfig` generated from `config`.
 /// @param directory Folder relative output paths resolve against.
-/// @throws std::runtime_error if an output cannot be written, or `terrain` has not generated the
-/// grid or albedo it needs.
-std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
-                                                const GeneratedTerrain& terrain,
+/// @throws std::runtime_error if an output cannot be written, or `generated` lacks the grid or
+/// albedo it needs.
+std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& config,
+                                                const GeneratedOutputs& generated,
                                                 const std::filesystem::path& directory);
 
 }  // namespace terraingen

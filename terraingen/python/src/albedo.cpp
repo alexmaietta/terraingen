@@ -13,7 +13,7 @@
 #include "terraingen/albedo/slope_albedo.h"
 #include "terraingen/albedo/splotches.h"
 #include "terraingen/albedo/synthetic.h"
-#include "terraingen/pipeline/terrain.h"
+#include "terraingen/pipeline/generator.h"
 
 #include <stdexcept>
 #include <tuple>
@@ -253,14 +253,14 @@ void BindCraterAlbedo(nb::module_& m) {
         .def(
             "reflectance_change",
             [](const CraterAlbedo& layer, const Crater& crater, double x, double y, double spacing,
-               const PyTerrain* terrain) {
-                return WithFullGround(terrain, [&](const Ground* ground) {
+               const PyTerrainGenerator* generator) {
+                return WithFullGround(generator, [&](const Ground* ground) {
                     return layer.ReflectanceChange(crater, x, y, spacing, ground);
                 });
             },
-            "crater"_a, "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(),
+            "crater"_a, "x"_a, "y"_a, "spacing"_a, "generator"_a = nb::none(),
             "The relative reflectance change the zones of `crater` give (x, y), shadowed by "
-            "`terrain`'s heights when given.")
+            "`generator`'s heights when given.")
         .def("impact", &CraterAlbedo::Impact, "crater"_a,
              "The impact `crater` came from, drawn from its ID.")
         .def("reach", &CraterAlbedo::Reach, "crater"_a,
@@ -360,35 +360,36 @@ void BindEvaluation(nb::module_& m) {
         .def_rw("layers", &PyAlbedo::layers);
     m.def(
         "evaluate_albedo_at",
-        [](const PyAlbedo& albedo, double x, double y, double spacing, const PyTerrain* terrain) {
-            const AlbedoSample sample = WithFullGround(terrain, [&](const Ground* ground) {
+        [](const PyAlbedo& albedo, double x, double y, double spacing,
+           const PyTerrainGenerator* generator) {
+            const AlbedoSample sample = WithFullGround(generator, [&](const Ground* ground) {
                 return EvaluateAlbedoAt(albedo.Get(), x, y, AlbedoContext{spacing, 1, ground});
             });
             return Bands(sample, albedo.source ? albedo.source->Bands() : 1);
         },
-        "albedo"_a, "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(),
+        "albedo"_a, "x"_a, "y"_a, "spacing"_a, "generator"_a = nb::none(),
         "The albedo's bands at (x, y) sampled every `spacing` metres, equal to the grid cell "
-        "centred there; layers shaped by the ground read `terrain`'s heights when given.");
+        "centred there; layers shaped by the ground read `generator`'s heights when given.");
     m.def(
         "evaluate_albedo",
         [](const PyAlbedo& albedo, const RasterGrid& grid, double spacing, unsigned threads,
-           const PyTerrain* terrain) {
-            return WithFullGround(terrain, [&](const Ground* ground) {
+           const PyTerrainGenerator* generator) {
+            return WithFullGround(generator, [&](const Ground* ground) {
                 return EvaluateAlbedo(albedo.Get(), grid, AlbedoContext{spacing, threads, ground});
             });
         },
-        "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "terrain"_a = nb::none(),
+        "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "generator"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
         "The albedo's bands over `grid` (such as `RasterGrid.from_raster(heights)` or a source's "
         "`grid()`), sampled every `spacing` metres (0 for the grid's), one Raster per band; layers "
-        "shaped by the ground read `terrain`'s heights when given.");
+        "shaped by the ground read `generator`'s heights when given.");
 }
 
-/// @brief The rock of `terrain`'s boulder layers at indices `layers`, each read on the ground
+/// @brief The rock of `generator`'s boulder layers at indices `layers`, each read on the ground
 /// beneath it.
-std::vector<RockSource> RockSources(const PyTerrain& terrain,
+std::vector<RockSource> RockSources(const PyTerrainGenerator& generator,
                                     const std::vector<std::size_t>& layers) {
-    const Terrain built = terrain.Get();
+    const TerrainGenerator built = generator.Get();
     std::vector<RockSource> sources;
     for (const std::size_t n : layers) {
         sources.push_back(
@@ -408,12 +409,12 @@ void BindRocks(nb::module_& m) {
                                         "Rock of boulder layers brightening the albedo.")
         .def(
             "__init__",
-            [](RockAlbedo* self, RockAlbedoOptions options, const PyTerrain& terrain,
+            [](RockAlbedo* self, RockAlbedoOptions options, const PyTerrainGenerator& generator,
                const std::vector<std::size_t>& layers) {
-                new (self) RockAlbedo(options, RockSources(terrain, layers));
+                new (self) RockAlbedo(options, RockSources(generator, layers));
             },
-            "options"_a, "terrain"_a, "layers"_a,
-            "The rock of `terrain`'s boulder layers at indices `layers`, each read on the ground "
+            "options"_a, "generator"_a, "layers"_a,
+            "The rock of `generator`'s boulder layers at indices `layers`, each read on the ground "
             "beneath it.")
         .def(
             "share_at",
@@ -445,11 +446,12 @@ void BindSlopes(nb::module_& m) {
              "surface"_a = Surface{})
         .def(
             "slope_at",
-            [](const SlopeAlbedo& slopes, double x, double y, const PyTerrain& terrain) {
-                return WithFullGround(
-                    &terrain, [&](const Ground* ground) { return slopes.SlopeAt(x, y, *ground); });
+            [](const SlopeAlbedo& slopes, double x, double y, const PyTerrainGenerator& generator) {
+                return WithFullGround(&generator, [&](const Ground* ground) {
+                    return slopes.SlopeAt(x, y, *ground);
+                });
             },
-            "x"_a, "y"_a, "terrain"_a, "The slope in degrees at (x, y) on `terrain`.")
+            "x"_a, "y"_a, "generator"_a, "The slope in degrees at (x, y) on `generator`.")
         .def("maturity_at", &SlopeAlbedo::MaturityAt, "slope_deg"_a,
              "The OMAT of ground of `slope_deg` degrees.");
 }

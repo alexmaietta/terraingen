@@ -42,10 +42,12 @@ class Example(_common.Example):
             blend=terraingen.LayerBlend.MASK,
         )
         source = terraingen.FlatSource(513, 513, 2.0)
-        terrain = terraingen.Terrain(source, [terraingen.NoiseRelief([rolling, crests, mask])])
+        terrain = terraingen.TerrainGenerator(source, [terraingen.NoiseRelief([rolling, crests, mask])])
 
         self.heights = terraingen.evaluate(terrain)
-        self.rolling = terraingen.evaluate(terraingen.Terrain(source, [terraingen.NoiseRelief([rolling])]))
+        self.rolling = terraingen.evaluate(
+            terraingen.TerrainGenerator(source, [terraingen.NoiseRelief([rolling])])
+        )
         heights = self.heights.values
         print(f"heights from {heights.min():.2f} to {heights.max():.2f} m")
         self.show("layered", self.heights)

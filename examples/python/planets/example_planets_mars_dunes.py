@@ -33,7 +33,7 @@ class Example(_common.Example):
             f"ripples {self.options.ripples.wavelength} m apart"
         )
         self.layer = terraingen.DuneLayer(self.options)
-        terrain = terraingen.Terrain(None, [self.layer])
+        terrain = terraingen.TerrainGenerator(None, [self.layer])
         self.field = terraingen.evaluate(terrain, grid=terraingen.FlatSource(1025, 1025, FIELD_PIXEL).grid())
         row, col = np.unravel_index(np.argmax(self.field.values), self.field.values.shape)
         x, y = self.field.cell_center(int(col), int(row))

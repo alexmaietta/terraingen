@@ -49,12 +49,12 @@ class Example(_common.Example):
             terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
-        generation = terraingen.CraterGenerationOptions(min_diameter=1000.0, max_diameter=30000.0)
+        generation = terraingen.CraterGenerationOptions(d_min=1000.0, d_max=30000.0)
         craters = terraingen.CraterLayer(
             models, terraingen.CraterLayerOptions(seed=4, generation=generation, surface=self.mercury)
         )
         site = terraingen.FlatSource(257, 257, PIXEL, centre=(-30.0, 10.0), surface=self.mercury)
-        terrain = terraingen.Terrain(site, [noise, craters], surface=self.mercury)
+        terrain = terraingen.TerrainGenerator(site, [noise, craters], surface=self.mercury)
         self.heights = terraingen.evaluate(terrain)
         self.craters = terraingen.placed_craters(terrain).table
         print(f"{len(self.craters['x'])} craters of 1 to 30 km over a {257 * PIXEL / 1000:.0f} km site")

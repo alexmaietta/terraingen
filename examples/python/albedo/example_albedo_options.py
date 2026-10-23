@@ -56,7 +56,7 @@ class Example(_common.Example):
             )
         )
         coarse = terraingen.evaluate(
-            terraingen.Terrain(
+            terraingen.TerrainGenerator(
                 terraingen.FlatSource(17, 17, 128.0, elevation=0.11), [terraingen.NoiseRelief([mottling])]
             ),
             grid=coarse_grid,
@@ -88,7 +88,7 @@ class Example(_common.Example):
             terraingen.Crater(-300.0, 200.0, 200.0, age_gyr=0.002),
             terraingen.Crater(350.0, -250.0, 160.0, age_gyr=0.02),
         ]
-        generation = terraingen.CraterGenerationOptions(min_diameter=30.0, max_diameter=300.0, manual=young)
+        generation = terraingen.CraterGenerationOptions(d_min=30.0, d_max=300.0, manual=young)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=1, generation=generation))
         variants = {
             "default rays": terraingen.CraterAlbedoOptions(seed=4),

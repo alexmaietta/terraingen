@@ -22,15 +22,15 @@ namespace {
 void BindVersion(nb::module_& m) {
     m.attr("__version__") = TERRAINGEN_FULL_VERSION_STRING;
     m.def(
-        "version",
+        "get_version",
         [] {
             const Version v = GetVersion();
             return nb::make_tuple(v.major, v.minor, v.patch);
         },
         "Library version as (major, minor, patch).");
-    m.def("api_version", &GetApiVersion, "Library API version.");
+    m.def("get_api_version", &GetApiVersion, "Library API version.");
     m.def(
-        "build_info",
+        "get_build_info",
         [] {
             const BuildInfo info = GetBuildInfo();
             nb::dict d;
@@ -74,13 +74,13 @@ void BindLog(nb::module_& m) {
         "The lowest level TerrainGen currently logs.");
     m.def(
         "set_log_sink",
-        [](std::optional<nb::callable> callback) {
-            SetLogSink(callback ? PythonLogSink(std::move(*callback)) : nullptr);
+        [](std::optional<nb::callable> sink) {
+            SetLogSink(sink ? PythonLogSink(std::move(*sink)) : nullptr);
         },
-        "callback"_a.none(),
-        "Sends every log record to callback(level, category, message), or restores standard "
-        "error when callback is None. The package installs a sink that forwards to the logging "
-        "module on import. The callback runs with the GIL held, on whichever thread logged.");
+        "sink"_a.none(),
+        "Sends every log record to sink(level, category, message), or restores standard "
+        "error when sink is None. The package installs a sink that forwards to the logging "
+        "module on import. The sink runs with the GIL held, on whichever thread logged.");
 }
 
 void BindSurfacePoints(nb::class_<Surface>& surface) {
@@ -212,7 +212,7 @@ void BindCells(nb::module_& m) {
             "(area, bound): draw counts over `area` m^2 and keep a point with chance "
             "weight(point) / bound; bound 0 keeps every point.")
         .def("weight", &CubeSphereCells::Weight, "point"_a, "The area per steradian at a point.")
-        .def("cell_at", &CubeSphereCells::CellAt, "longitude"_a, "latitude"_a, "cell_size"_a,
+        .def("cell_at", &CubeSphereCells::CellAt, "lon_deg"_a, "lat_deg"_a, "cell_size"_a,
              "The cell holding a point.")
         .def("neighbours", &CubeSphereCells::Neighbours, "cell"_a, "cell_size"_a, "rings"_a = 1,
              "The cells within `rings` of `cell`, across face edges too.")

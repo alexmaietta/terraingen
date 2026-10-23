@@ -2,15 +2,17 @@
 
 namespace terraingen {
 
-CraterFeatures PlacedCraters(const Terrain& terrain, const RasterGrid& grid, double spacing) {
-    return PlacedCraters(terrain.layers, grid, ListedSpacing(grid, spacing, terrain.surface));
+CraterFeatures PlacedCraters(const TerrainGenerator& generator, const RasterGrid& grid,
+                             double spacing) {
+    return PlacedCraters(generator.layers, grid, ListedSpacing(grid, spacing, generator.surface));
 }
 
-BoulderFeatures PlacedBoulders(const Terrain& terrain, const RasterGrid& grid, double spacing) {
-    const double resolved = ListedSpacing(grid, spacing, terrain.surface);
+BoulderFeatures PlacedBoulders(const TerrainGenerator& generator, const RasterGrid& grid,
+                               double spacing) {
+    const double resolved = ListedSpacing(grid, spacing, generator.surface);
     BoulderFeatures placed;
-    ForEachLayer<BoulderPlacer>(terrain, [&](const BoulderPlacer& placer, std::size_t n) {
-        const TerrainGround ground(terrain, n);
+    ForEachLayer<BoulderPlacer>(generator, [&](const BoulderPlacer& placer, std::size_t n) {
+        const TerrainGround ground(generator, n);
         placed.Append(placer.BouldersOver(grid, resolved, &ground));
     });
     return placed;

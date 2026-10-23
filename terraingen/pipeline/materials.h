@@ -5,7 +5,7 @@
 
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/material.h"
-#include "terraingen/pipeline/terrain.h"
+#include "terraingen/pipeline/generator.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 
@@ -38,19 +38,19 @@ struct MaterialOptions {
 /// positive and finite, or invalid exposure thresholds.
 void ValidateMaterialOptions(const MaterialOptions& options);
 
-/// The material shares of `terrain` at world (x, y): soil, then bedrock where the ground beneath
+/// The material shares of `generator` at world (x, y): soil, then bedrock where the ground beneath
 /// the first `MaterialSource` layer is bare, then dust in patches, then each `MaterialSource`
 /// layer's cover in layer order, each read on the ground beneath it.
 /// @param spacing Sample spacing in metres; positive.
-/// @throws std::invalid_argument as `ValidateMaterialOptions` or `ValidateTerrain`.
-MaterialShares MaterialsAt(const Terrain& terrain, const MaterialOptions& options, double x,
-                           double y, double spacing);
+/// @throws std::invalid_argument as `ValidateMaterialOptions` or `ValidateGenerator`.
+MaterialShares MaterialsAt(const TerrainGenerator& generator, const MaterialOptions& options,
+                           double x, double y, double spacing);
 
 /// One raster per `MaterialClass` over `grid`, each cell `MaterialsAt` its centre at the grid's
 /// spacing (or `evaluation.spacing` where coarser).
 /// @throws std::invalid_argument as `MaterialsAt`.
-std::vector<Raster<float>> EvaluateMaterials(const Terrain& terrain, const MaterialOptions& options,
-                                             const RasterGrid& grid,
+std::vector<Raster<float>> EvaluateMaterials(const TerrainGenerator& generator,
+                                             const MaterialOptions& options, const RasterGrid& grid,
                                              const EvaluationOptions& evaluation = {});
 
 }  // namespace terraingen

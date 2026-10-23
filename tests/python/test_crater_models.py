@@ -44,7 +44,7 @@ def test_uniform_ages_remaining_lifetime():
 
 
 def test_freshness_ages_draw_freshness_from_a_distribution():
-    normal = terraingen.ValueDistribution(terraingen.ValueDistributionKind.NORMAL, 0.35, 0.1)
+    normal = terraingen.ValueDistribution(terraingen.ValueDistribution.Kind.NORMAL, 0.35, 0.1)
     ages = terraingen.FreshnessAges(normal, lifetime_gyr=2.0)
     assert ages.freshness.min == 0.0 and ages.freshness.max == 1.0
     assert ages.lifetime_at(5.0) == ages.lifetime_at(500.0) == 2.0
@@ -59,7 +59,7 @@ def test_freshness_ages_draw_freshness_from_a_distribution():
 
 def test_freshness_ages_take_piecewise_shapes():
     shape = terraingen.ValueDistribution(
-        terraingen.ValueDistributionKind.PIECEWISE, edges=[0.0, 0.5, 1.0], weights=[3.0, 1.0]
+        terraingen.ValueDistribution.Kind.PIECEWISE, edges=[0.0, 0.5, 1.0], weights=[3.0, 1.0]
     )
     terraingen.validate_value_distribution(shape)
     ages = terraingen.FreshnessAges(shape, 1.0)
@@ -68,7 +68,7 @@ def test_freshness_ages_take_piecewise_shapes():
     assert (freshness < 0.5).mean() == pytest.approx(0.75, abs=0.01)
     with pytest.raises(ValueError):
         terraingen.FreshnessAges(
-            terraingen.ValueDistribution(terraingen.ValueDistributionKind.PIECEWISE), 1.0
+            terraingen.ValueDistribution(terraingen.ValueDistribution.Kind.PIECEWISE), 1.0
         )
     with pytest.raises(ValueError):
         terraingen.FreshnessAges(shape, 0.0)
@@ -76,7 +76,7 @@ def test_freshness_ages_take_piecewise_shapes():
 
 def test_freshness_ages_drive_freshness_degradation():
     ages = terraingen.FreshnessAges(
-        terraingen.ValueDistribution(terraingen.ValueDistributionKind.CONSTANT, 0.25), 2.0
+        terraingen.ValueDistribution(terraingen.ValueDistribution.Kind.CONSTANT, 0.25), 2.0
     )
     degradation = terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry)
     young = degradation.state(terraingen.Crater(0.0, 0.0, 100.0, age_gyr=0.0)).current.depth_ratio
@@ -197,13 +197,13 @@ def test_python_age_model_sets_generated_ages(custom_craters, oldest_ages):
 
 
 def test_python_profile_carves_bowls_without_rims(custom_craters):
-    terrain = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [custom_craters()])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 2.0), [custom_craters()])
     heights = terraingen.evaluate(terrain, threads=4).values
     assert heights.min() < -1.0 and heights.max() == 0.0
 
 
 def test_python_models_evaluate_the_same_on_any_thread_count(custom_craters):
-    terrain = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [custom_craters()])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 2.0), [custom_craters()])
     heights = terraingen.evaluate(terrain, threads=4).values
     np.testing.assert_array_equal(terraingen.evaluate(terrain, threads=1).values, heights)
 

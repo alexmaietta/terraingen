@@ -69,7 +69,7 @@ def test_scaled_mesh_scales_its_volume(cube):
 
 
 def test_subdivision_quadruples_the_triangles(cube):
-    assert cube.subdivided(1).triangle_count == 4 * cube.triangle_count
+    assert cube.subdivide(1).triangle_count == 4 * cube.triangle_count
 
 
 def test_meshes_write_ply_and_glb_scenes(tmp_path, cube):
@@ -183,7 +183,7 @@ def test_icq_models_round_trip_and_triangulate(tmp_path):
 
 def test_body_icq_follows_an_ellipsoid():
     body = terraingen.Surface.ellipsoid(270.0, 147.0, 104.0)
-    terrain = terraingen.Terrain(terraingen.FlatSource(4, 4, 1.0, 0.0), surface=body)
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(4, 4, 1.0, 0.0), surface=body)
     model = terraingen.body_icq(terrain, 4)
     assert model.q == 4
     x = model.vertices[model.index(2, 2, 5)][0]

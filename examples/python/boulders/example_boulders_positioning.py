@@ -65,7 +65,9 @@ class Example(_common.Example):
         xs = (np.arange(SIZE) - SIZE / 2 + 0.5) * PIXEL
         for name, options in variants.items():
             boulders = terraingen.BoulderLayer(options, craters)
-            terrain = terraingen.Terrain(terraingen.FlatSource(SIZE, SIZE, PIXEL), [craters, boulders])
+            terrain = terraingen.TerrainGenerator(
+                terraingen.FlatSource(SIZE, SIZE, PIXEL), [craters, boulders]
+            )
             self.heights[name] = terraingen.evaluate(terrain)
             placed = terraingen.placed_boulders(terrain)
             print(f"{name:34s} {len(placed.boulders):5d} boulders, {len(placed.models)} boulder models")

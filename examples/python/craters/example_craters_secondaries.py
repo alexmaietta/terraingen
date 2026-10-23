@@ -60,7 +60,9 @@ class Example(_common.Example):
                 f"  {start / 1000:5.1f} km: {inside.sum():3d} secondaries, largest {largest:5.1f} m (Singer limit {limit:5.1f} m)"
             )
 
-        terrain = terraingen.Terrain(terraingen.FlatSource(1537, 1537, PIXEL), [primaries, secondaries])
+        terrain = terraingen.TerrainGenerator(
+            terraingen.FlatSource(1537, 1537, PIXEL), [primaries, secondaries]
+        )
         self.heights = terraingen.evaluate(terrain)
         self.show("heights", self.heights)
 

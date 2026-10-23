@@ -35,8 +35,8 @@ def coarse_dem():
         terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
         terraingen.FassettThomsonProfile(),
     )
-    generation = terraingen.CraterGenerationOptions(min_diameter=100.0, max_diameter=600.0)
-    terrain = terraingen.Terrain(
+    generation = terraingen.CraterGenerationOptions(d_min=100.0, d_max=600.0)
+    terrain = terraingen.TerrainGenerator(
         terraingen.FlatSource(65, 65, 16.0),
         [
             terraingen.NoiseRelief(
@@ -85,7 +85,7 @@ class Example(_common.Example):
                 models,
                 terraingen.CraterLayerOptions(
                     seed=5,
-                    generation=terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=100.0),
+                    generation=terraingen.CraterGenerationOptions(d_min=6.0, d_max=100.0),
                 ),
             )
             detail = terraingen.NoiseRelief(
@@ -95,11 +95,11 @@ class Example(_common.Example):
                     )
                 ]
             )
-            terrain = terraingen.Terrain(source, [detail, small])
+            terrain = terraingen.TerrainGenerator(source, [detail, small])
             self.heights = terraingen.evaluate(terrain, grid=grid)
             self.craters = terraingen.placed_craters(terrain, grid).table
             print(f"added {len(self.craters['x'])} craters of 6 to 100 m")
-            self.resampled = terraingen.evaluate(terraingen.Terrain(source), grid=grid)
+            self.resampled = terraingen.evaluate(terraingen.TerrainGenerator(source), grid=grid)
         self.show("heights", self.heights)
         self.show("resampled DEM", self.resampled)
 

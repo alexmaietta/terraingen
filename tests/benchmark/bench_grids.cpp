@@ -10,7 +10,7 @@ namespace {
 /// by the second (0 for every hardware thread).
 void BM_EvaluateGrid(benchmark::State& state) {
     const auto side = static_cast<double>(state.range(0));
-    const Terrain terrain = LunarMare(side, 1.0);
+    const TerrainGenerator terrain = LunarMare(side, 1.0);
     const RasterGrid grid = terrain.source->Grid();
     const EvaluationOptions options{0.0, static_cast<unsigned>(state.range(1))};
     for (auto _ : state) {
@@ -28,7 +28,7 @@ BENCHMARK(BM_EvaluateGrid)
 /// `BM_EvaluateGrid` on a lunar-sized sphere at the equator, 1 m cells along a meridian.
 void BM_EvaluateGridSphere(benchmark::State& state) {
     const auto side = static_cast<double>(state.range(0));
-    const Terrain terrain =
+    const TerrainGenerator terrain =
         LunarMare(side, 1.0, 200.0, 4000000, CraterDatum::None, Surface::Sphere(1737400.0));
     const RasterGrid grid = terrain.source->Grid();
     const EvaluationOptions options{0.0, static_cast<unsigned>(state.range(1))};
@@ -66,7 +66,7 @@ void BM_EvaluateNoiseGrid(benchmark::State& state) {
     noise.layers[2].fractal.basis = NoiseBasis::Simplex;
     noise.layers[2].fractal.wavelength = 60.0f;
     noise.layers[2].fractal.amplitude = 2.0f;
-    Terrain terrain;
+    TerrainGenerator terrain;
     terrain.source = std::make_shared<FlatSource>(cells, cells, 1.0);
     terrain.layers.push_back(std::make_shared<NoiseRelief>(noise));
     const RasterGrid grid = terrain.source->Grid();

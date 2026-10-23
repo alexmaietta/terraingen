@@ -24,7 +24,7 @@ PIXEL = 2.0
 
 def holed_dem():
     """A 2 m DEM with a missing strip and a corner of no-data."""
-    terrain = terraingen.Terrain(
+    terrain = terraingen.TerrainGenerator(
         terraingen.FlatSource(257, 257, PIXEL),
         [
             terraingen.NoiseRelief(
@@ -52,7 +52,7 @@ class Example(_common.Example):
             noise = terraingen.NoiseRelief(
                 [terraingen.NoiseLayer(terraingen.FractalParams(seed=7, wavelength=300.0, amplitude=20.0))]
             )
-            self.filled = terraingen.evaluate(terraingen.Terrain(chain, [noise]))
+            self.filled = terraingen.evaluate(terraingen.TerrainGenerator(chain, [noise]))
         print(
             f"{self.holes} cells without data in the DEM; {np.isnan(self.filled.values).sum()} after the chain"
         )

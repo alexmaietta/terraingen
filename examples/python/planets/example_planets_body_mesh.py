@@ -51,7 +51,9 @@ class Example(_common.Example):
             models,
             terraingen.CraterLayerOptions(generate_random=False, generation=generation, surface=self.moon),
         )
-        terrain = terraingen.Terrain(terraingen.FlatSource(8, 8, 1.0), [noise, craters], surface=self.moon)
+        terrain = terraingen.TerrainGenerator(
+            terraingen.FlatSource(8, 8, 1.0), [noise, craters], surface=self.moon
+        )
 
         self.mesh = terraingen.body_mesh(terrain, cells_per_face=64)
         positions, self.triangles = self.mesh.arrays

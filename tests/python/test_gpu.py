@@ -43,8 +43,8 @@ def test_resolving_cpu_gives_cpu():
 
 @pytest.mark.usefixtures("restore_backend")
 def test_evaluation_without_a_backend_follows_the_default(small_config):
-    config = terraingen.Config.from_dict(small_config)
-    terrain = terraingen.build_terrain(config)
+    config = terraingen.TerrainGenConfig.from_dict(small_config)
+    terrain = terraingen.build_generator(config)
     grid = config.output_grids()[0]
     terraingen.set_default_backend(terraingen.Backend.AUTO)
     by_default = terraingen.evaluate(terrain, grid=grid).values

@@ -55,11 +55,11 @@ class Example(_common.Example):
             )
         )
         source = terraingen.FlatSource(SIZE, SIZE, PIXEL)
-        terrain = terraingen.Terrain(source, [relief, sand, boulders])
+        terrain = terraingen.TerrainGenerator(source, [relief, sand, boulders])
         grid = source.grid()
         self.exposure_map = (
             terraingen.ExposureField(exposure)
-            .fill(terraingen.Terrain(source, [relief]), 1, grid, PIXEL)
+            .fill(terraingen.TerrainGenerator(source, [relief]), 1, grid, PIXEL)
             .values
         )
         self.heights = terraingen.evaluate(terrain)
@@ -67,7 +67,7 @@ class Example(_common.Example):
 
         self.covered = self.exposure_map < 0.5
         xs = (np.arange(SIZE) - SIZE / 2 + 0.5) * PIXEL
-        ground = terraingen.Terrain(source, [relief])
+        ground = terraingen.TerrainGenerator(source, [relief])
         self.sandy = np.array([[sand.cover_at(x, -y, ground, 1) > 0 for x in xs[::8]] for y in xs[::8]])
         rows = np.clip(((grid.transform.origin_y - self.boulders["y"]) / PIXEL).astype(int), 0, SIZE - 1)
         cols = np.clip(((self.boulders["x"] - grid.transform.origin_x) / PIXEL).astype(int), 0, SIZE - 1)

@@ -56,14 +56,14 @@ class Example(_common.Example):
                 ),
             ),
         }
-        generation = terraingen.CraterGenerationOptions(min_diameter=20.0, max_diameter=300.0)
+        generation = terraingen.CraterGenerationOptions(d_min=20.0, d_max=300.0)
         self.heights = {}
         for name, apply in options.items():
             layer = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=1, generation=generation, apply=apply)
             )
             heights = terraingen.evaluate(
-                terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [rough, layer])
+                terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, PIXEL), [rough, layer])
             ).values
             print(f"{name:20s} heights {heights.min():7.1f} to {heights.max():6.1f} m")
             self.heights[name] = heights

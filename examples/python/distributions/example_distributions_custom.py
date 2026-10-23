@@ -44,10 +44,10 @@ class Example(_common.Example):
             terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
-        generation = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=300.0)
+        generation = terraingen.CraterGenerationOptions(d_min=6.0, d_max=300.0)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=5, generation=generation))
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
-        terrain = terraingen.Terrain(
+        terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
         )
         self.heights = terraingen.evaluate(terrain)

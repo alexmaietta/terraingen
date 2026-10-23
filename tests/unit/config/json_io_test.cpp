@@ -20,14 +20,14 @@ using terraingen::DensitySpec;
 using terraingen::ListFormat;
 using terraingen::LoadConfig;
 using terraingen::ParseConfig;
-using terraingen::TerrainConfig;
+using terraingen::TerrainGenConfig;
 using terraingen::testing::ParseErrorPath;
 
 namespace {
 
 /// A configuration using a non-default alternative or value for everything.
-TerrainConfig Everything() {
-    TerrainConfig config;
+TerrainGenConfig Everything() {
+    TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{3389500.0};
     terraingen::RasterSourceSpec raster{"dem.tif"};
     raster.read.crop = terraingen::Bounds2d{-10.0, -5.0, 20.5, 15.0};
@@ -309,7 +309,7 @@ TerrainConfig Everything() {
 }  // namespace
 
 TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
-    for (const TerrainConfig& config : {TerrainConfig{}, Everything()}) {
+    for (const TerrainGenConfig& config : {TerrainGenConfig{}, Everything()}) {
         const std::string json = ConfigToJson(config);
         EXPECT_EQ(ParseConfig(json), config) << json;
         EXPECT_EQ(ConfigToJson(ParseConfig(json)), json);
@@ -317,7 +317,7 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
 }
 
 TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheBase) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1,
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1,
         "layers": [{"type": "roughness", "estimate_from_base": true, "hurst": 0.7},
                    {"type": "noise", "estimate_from_base": true, "stack": [{"wavelength": 4}]}]})");
     const auto& roughness = std::get<terraingen::RoughnessLayerSpec>(config.layers[0]);
@@ -330,13 +330,13 @@ TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheBase) {
     const std::string json = ConfigToJson(config);
     EXPECT_NE(json.find("\"rms_slope\": null"), std::string::npos) << json;
     EXPECT_EQ(ParseConfig(json), config);
-    const TerrainConfig plain =
+    const TerrainGenConfig plain =
         ParseConfig(R"({"schema_version": 1, "layers": [{"type": "roughness"}]})");
     EXPECT_FALSE(std::get<terraingen::RoughnessLayerSpec>(plain.layers[0]).estimateFromBase);
 }
 
 TEST(ConfigJson, ReadsGeoTiffCropsAndUnresolvedCraterLimits) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1,
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1,
         "source": {"type": "raster", "path": "dem.tif",
                    "crop": {"min_x": 1000, "min_y": 1900, "max_x": 1100.5, "max_y": 1950},
                    "effective_pixel_size_m": 20},
@@ -347,7 +347,7 @@ TEST(ConfigJson, ReadsGeoTiffCropsAndUnresolvedCraterLimits) {
     EXPECT_EQ(raster.upsampling, terraingen::UpsamplingSpec{}) << "cubic by default";
     EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).unresolvedPixelsAcross, 3.5);
     EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
-    const TerrainConfig unset = ParseConfig(R"({"schema_version": 1,
+    const TerrainGenConfig unset = ParseConfig(R"({"schema_version": 1,
         "source": {"type": "raster", "path": "dem.tif"}, "layers": [{"type": "craters"}]})");
     EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.source).read.crop);
     EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.source).read.effectivePixelSize);
@@ -364,7 +364,8 @@ TEST(ConfigJson, ReadsGeoTiffCropsAndUnresolvedCraterLimits) {
 }
 
 TEST(ConfigJson, ReadsAndWritesManualCraterDepthsAndRimHeights) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{"type": "craters",
+    const TerrainGenConfig config =
+        ParseConfig(R"({"schema_version": 1, "layers": [{"type": "craters",
         "manual": [{"x": 1, "y": 2, "diameter": 6, "depth": 0.9},
                    {"x": 3, "y": 4, "diameter": 6, "depth": 0.9, "rim_height": 0.2},
                    {"x": 5, "y": 6, "diameter": 6}]}]})");
@@ -386,20 +387,20 @@ TEST(ConfigJson, ReadsAndWritesManualCraterDepthsAndRimHeights) {
 }
 
 TEST(ConfigJson, WritesTheRootKeysInOrderAndNoAlbedoWhenUnset) {
-    const std::string json = ConfigToJson(TerrainConfig{});
+    const std::string json = ConfigToJson(TerrainGenConfig{});
     EXPECT_EQ(json.rfind("{\n  \"schema_version\": 1,\n  \"body\": {", 0), 0u) << json;
     EXPECT_EQ(json.find("\"source\""), std::string::npos) << json;
     EXPECT_EQ(json.find("\"albedo\""), std::string::npos) << json;
     EXPECT_EQ(json.find("\"layers\""), std::string::npos) << "empty lists are left out";
     const std::string small = ConfigToJson(terraingen::testing::Small());
     EXPECT_LT(small.find("\"layers\""), small.find("\"outputs\"")) << small;
-    TerrainConfig config;
+    TerrainGenConfig config;
     config.albedo = terraingen::AlbedoSpec{};
     EXPECT_NE(ConfigToJson(config).find("\"albedo\""), std::string::npos);
 }
 
 TEST(ConfigJson, LeavesOutListsThatAreEmptyByDefault) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     config.layers.push_back(CraterLayerSpec{});
     terraingen::NoiseLayerSpec flat;
     flat.stack.clear();
@@ -474,19 +475,19 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
                terraingen::ChainSourceSpec{}, synthetic}}},
           terraingen::SourceSpec{terraingen::SyntheticSourceSpec{}},
           terraingen::SourceSpec{synthetic}}) {
-        TerrainConfig config;
+        TerrainGenConfig config;
         config.source = source;
         EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     }
     for (const DensitySpec& density : densities) {
-        TerrainConfig config;
+        TerrainGenConfig config;
         CraterLayerSpec craters;
         craters.density = density;
         config.layers = {craters};
         EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     }
     for (const AgesSpec& spec : ages) {
-        TerrainConfig config;
+        TerrainGenConfig config;
         CraterLayerSpec craters;
         craters.ages = spec;
         craters.profile = terraingen::FassettThomsonSpec{terraingen::FassettThomsonRim::Plateau};
@@ -496,7 +497,7 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
 }
 
 TEST(ConfigJson, RoundTripsAlbedos) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     terraingen::SyntheticAlbedoSpec synthetic;
     synthetic.rgb = true;
     synthetic.hue = 30.0;
@@ -548,7 +549,7 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     config.albedo = terraingen::AlbedoSpec{raster, {}};
     EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
 
-    const TerrainConfig parsed = ParseConfig(
+    const TerrainGenConfig parsed = ParseConfig(
         R"({"schema_version": 1, "albedo": {"source": {"type": "synthetic"},
             "layers": [{"type": "craters", "min_diameter": 100, "rays": {"enabled": false}}]}})");
     ASSERT_TRUE(parsed.albedo);
@@ -566,16 +567,16 @@ TEST(ConfigJson, RoundTripsAlbedos) {
 }
 
 TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
-    const TerrainConfig parsed =
+    const TerrainGenConfig parsed =
         ParseConfig(R"({"schema_version": 1, "body": {"type": "sphere", "radius": 3389500}})");
     EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(parsed.body).radius, 3389500.0);
     EXPECT_EQ(ParseConfig(ConfigToJson(parsed)), parsed);
-    const TerrainConfig ellipsoid = ParseConfig(
+    const TerrainGenConfig ellipsoid = ParseConfig(
         R"({"schema_version": 1, "body": {"type": "ellipsoid", "radii": [270, 147, 104]}})");
     EXPECT_EQ(std::get<terraingen::EllipsoidSurfaceSpec>(ellipsoid.body).radii,
               (std::vector<double>{270.0, 147.0, 104.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(ellipsoid)), ellipsoid);
-    const TerrainConfig shape = ParseConfig(R"({"schema_version": 1, "body": {
+    const TerrainGenConfig shape = ParseConfig(R"({"schema_version": 1, "body": {
         "type": "shape_model", "path": "itokawa.icq", "q": 64, "metres_per_unit": 1000}})");
     EXPECT_EQ(std::get<terraingen::ShapeModelSurfaceSpec>(shape.body),
               (terraingen::ShapeModelSurfaceSpec{"itokawa.icq", 64, 1000.0}));
@@ -586,7 +587,7 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "body": {"type": "sphere", "body": 1}})"),
               "body.body");
 
-    const TerrainConfig based = ParseConfig(R"({"schema_version": 1,
+    const TerrainGenConfig based = ParseConfig(R"({"schema_version": 1,
         "source": {"type": "raster", "path": "dem.tif"},
         "outputs": [{"type": "mesh", "path": "m.glb", "cells_per_face": 64},
                     {"type": "heightmap", "path": "h.tif",
@@ -606,7 +607,7 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
 }
 
 TEST(ConfigJson, ReadsProductionSurfacesMinimumsAndSteadyStateAges) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{
         "type": "craters", "morphometry": "mars",
         "density": {"type": "minimum", "distributions": [
             {"type": "production_surface", "production": "ivanov", "chronology": "ivanov",
@@ -625,21 +626,21 @@ TEST(ConfigJson, ReadsProductionSurfacesMinimumsAndSteadyStateAges) {
                                                terraingen::EquilibriumModel::Hartmann,
                                                terraingen::ChronologyModel::Ivanov};
     EXPECT_EQ(craters.ages, AgesSpec{ages});
-    const TerrainConfig secondaries = ParseConfig(R"({"schema_version": 1, "layers": [
+    const TerrainGenConfig secondaries = ParseConfig(R"({"schema_version": 1, "layers": [
         {"type": "craters"}, {"type": "secondaries", "onset_count": 3, "morphometry": "lunar"}]})");
     EXPECT_EQ(std::get<terraingen::SecondaryLayerSpec>(secondaries.layers.at(1)).morphometry,
               terraingen::CraterMorphometryFit::Lunar);
 }
 
 TEST(ConfigJson, ReadsFreshnessAgesWithTheirDistribution) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{
         "type": "craters",
         "ages": {"type": "freshness", "lifetime_gyr": 1.5,
                  "freshness": {"kind": "normal", "a": 0.35, "b": 0.1}}}]})");
     const terraingen::FreshnessAgesSpec normal{
         1.5, {terraingen::ValueDistribution::Kind::Normal, 0.35, 0.1, 0.0, 1.0}};
     EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).ages, AgesSpec{normal});
-    const TerrainConfig shaped = ParseConfig(R"({"schema_version": 1, "layers": [{
+    const TerrainGenConfig shaped = ParseConfig(R"({"schema_version": 1, "layers": [{
         "type": "craters",
         "ages": {"type": "freshness",
                  "freshness": {"kind": "piecewise", "edges": [0, 0.3, 1], "weights": [2, 1]}}}]})");
@@ -652,7 +653,7 @@ TEST(ConfigJson, ReadsFreshnessAgesWithTheirDistribution) {
 }
 
 TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {
-    const TerrainConfig config =
+    const TerrainGenConfig config =
         ParseConfig(R"({"schema_version": 1, "layers": [{"type": "craters"}]})");
     const auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
     const terraingen::MinimumSpec density{
@@ -666,7 +667,7 @@ TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {
     EXPECT_TRUE(craters.apply.irregularity.enabled);
     EXPECT_EQ(craters.minDiameter, 2.5);
     EXPECT_EQ(craters.morphometry, terraingen::CraterMorphometryFit::Lunar);
-    const TerrainConfig surface = ParseConfig(R"({"schema_version": 1, "layers": [{"type":
+    const TerrainGenConfig surface = ParseConfig(R"({"schema_version": 1, "layers": [{"type":
         "craters", "density": {"type": "production_surface"}}]})");
     const auto& production = std::get<terraingen::ProductionSurfaceSpec>(
         std::get<CraterLayerSpec>(surface.layers.at(0)).density);
@@ -703,7 +704,7 @@ TEST(ConfigJson, RoundTripsDiffusionDegradation) {
                              terraingen::DiffusivityModel::FassettThomson2014,
                              terraingen::DiffusivityModel::FassettThomson2014Calibration,
                              terraingen::DiffusivityModel::PowerLaw}) {
-        TerrainConfig config;
+        TerrainGenConfig config;
         CraterLayerSpec craters;
         terraingen::DiffusionDegradationSpec diffusion;
         diffusion.diffusivity = model;
@@ -720,7 +721,7 @@ TEST(ConfigJson, RoundTripsDiffusionDegradation) {
 }
 
 TEST(ConfigJson, RoundTripsSecondaryLayers) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     terraingen::SecondaryLayerSpec secondaries;
     secondaries.secondaries.onsetCount = 12.0;
     secondaries.secondaries.maxDiameter = 80.0;
@@ -745,7 +746,7 @@ TEST(ConfigJson, RoundTripsSecondaryLayers) {
 }
 
 TEST(ConfigJson, ReadsUpsamplingAsANameOrAnObjectAndWritesItBack) {
-    const TerrainConfig config = ParseConfig(R"({"schema_version": 1,
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1,
         "source": {"type": "chain", "sources": [
             {"type": "raster", "path": "a.tif", "upsampling": "catmull_rom"},
             {"type": "raster", "path": "b.tif", "upsampling": {"type": "nearest"}},

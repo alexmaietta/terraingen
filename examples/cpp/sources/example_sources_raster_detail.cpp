@@ -49,7 +49,7 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         large.seed = 4;
         large.generation.dMin = 100.0;
         large.generation.dMax = 600.0;
-        terraingen::Terrain coarse;
+        terraingen::TerrainGenerator coarse;
         coarse.source = std::make_shared<terraingen::FlatSource>(65, 65, 16.0);
         coarse.layers = {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{broad}}),
@@ -80,7 +80,7 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         small.seed = 5;
         small.generation.dMin = 6.0;
         small.generation.dMax = 100.0;
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = chain;
         terrain.layers = {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{detail}}),

@@ -15,7 +15,7 @@
 using terraingen::Evaluate;
 using terraingen::GeoTransform;
 using terraingen::RasterGrid;
-using terraingen::Terrain;
+using terraingen::TerrainGenerator;
 using terraingen::testing::Datum;
 using terraingen::testing::ExpectSameRaster;
 using terraingen::testing::Rolling;
@@ -44,7 +44,7 @@ void ExpectSameCells(const terraingen::Raster<float>& window,
 }  // namespace
 
 TEST(Evaluate, AWindowEqualsTheSameCellsOfALargerGridWithRoundedRims) {
-    const Terrain terrain = Smoothed();
+    const TerrainGenerator terrain = Smoothed();
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-200.0, 160.0, 2.0)};
     const auto whole = Evaluate(terrain, large);
     for (const auto& [col0, row0] :
@@ -57,7 +57,7 @@ TEST(Evaluate, AWindowEqualsTheSameCellsOfALargerGridWithRoundedRims) {
 }
 
 TEST(Evaluate, CratersCutToADatumEqualALargerGridInAWindow) {
-    const Terrain terrain = Datum();
+    const TerrainGenerator terrain = Datum();
     const RasterGrid large{120, 100, GeoTransform::NorthUp(-120.0, 100.0, 2.0)};
     const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
     ExpectSameRaster(whole, Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 1}));
@@ -68,7 +68,7 @@ TEST(Evaluate, CratersCutToADatumEqualALargerGridInAWindow) {
 }
 
 TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
-    Terrain terrain = Rolling();
+    TerrainGenerator terrain = Rolling();
     const auto craters =
         std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
     ASSERT_NE(craters, nullptr);
@@ -89,7 +89,7 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
     for (std::size_t row = 3; row < large.height; row += 7) {
         for (std::size_t col = 1; col < large.width; col += 7) {
             const auto centre = whole.CellCenter(col, row);
-            ASSERT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 1.0), whole(col, row));
+            ASSERT_EQ(terraingen::HeightAt(terrain, centre.x, centre.y, 1.0), whole(col, row));
         }
     }
     ExpectSameCells(Evaluate(terrain, Window(large, 56, 68)), whole, 56, 68);
@@ -98,7 +98,7 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
 TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const double step = 4.0 / moon.UnitLength();
-    Terrain terrain;
+    TerrainGenerator terrain;
     terrain.surface = moon;
     terrain.source = std::make_shared<terraingen::FlatSource>(96, 64, step, 0.0f);
     terraingen::SyntheticTerrainParams noise;
@@ -124,7 +124,7 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{10, 10},
                                    std::pair<std::size_t, std::size_t>{50, 33}}) {
         const auto centre = whole.CellCenter(col, row);
-        EXPECT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 4.0), whole(col, row));
+        EXPECT_EQ(terraingen::HeightAt(terrain, centre.x, centre.y, 4.0), whole(col, row));
     }
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-100.0 * step, 80.0 * step, step)};
     const auto smoothed = Evaluate(terrain, large);
@@ -138,7 +138,7 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
 
 TEST(Evaluate, WholeBodyGridsAgreeAcrossTheAntimeridianAndAtThePole) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    Terrain terrain;
+    TerrainGenerator terrain;
     terrain.surface = moon;
     terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 0.0f);
     terraingen::CraterLayerOptions options;
@@ -186,7 +186,7 @@ TEST(Evaluate, WholeBodyGridsAgreeAcrossTheAntimeridianAndAtThePole) {
 
 TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    Terrain terrain;
+    TerrainGenerator terrain;
     terrain.surface = moon;
     terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 100.0f);
     terraingen::SyntheticTerrainParams noise;
@@ -204,7 +204,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
         const double r = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
         const auto point = moon.Coordinates(p);
         const double height =
-            static_cast<double>(terraingen::EvaluateAt(terrain, point.x, point.y, step));
+            static_cast<double>(terraingen::HeightAt(terrain, point.x, point.y, step));
         EXPECT_NEAR(r, 1737400.0 + height, 1e-3);
     }
     for (const auto& t : mesh.triangles) {
@@ -228,7 +228,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     }
     EXPECT_LT(nearest, 1e-3);
 
-    Terrain flat = terrain;
+    TerrainGenerator flat = terrain;
     flat.surface = {};
     EXPECT_THROW(terraingen::BodyMesh(flat, 4), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyMesh(terrain, 0), std::invalid_argument);
@@ -238,7 +238,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
 
 TEST(BodyMesh, PlacesAFlatTerrainOnItsEllipsoid) {
     const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
-    Terrain terrain;
+    TerrainGenerator terrain;
     terrain.surface = body;
     terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 0.0f);
     const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, 6, 0.0, 2);
@@ -251,7 +251,7 @@ TEST(BodyMesh, PlacesAFlatTerrainOnItsEllipsoid) {
 
 TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
     const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
-    Terrain terrain;
+    TerrainGenerator terrain;
     terrain.surface = body;
     terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 3.0f);
     const terraingen::IcqModel model = terraingen::BodyIcq(terrain, 6, 0.0, 2);
@@ -263,7 +263,7 @@ TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
                 const terraingen::Vec3d p = model.vertices[model.Index(i, j, f)];
                 const terraingen::Vec3d d = terraingen::IcqDirection(6, i, j, f);
                 const terraingen::Vec2d point = body.Coordinates(d);
-                const float height = terraingen::EvaluateAt(
+                const float height = terraingen::HeightAt(
                     terrain, point.x, point.y, body.Radius() * terraingen::kPi / 2.0 / 6.0);
                 EXPECT_NEAR(terraingen::Length(p),
                             body.RadiusAt(point) +
@@ -273,7 +273,7 @@ TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
         }
     }
     EXPECT_GT(terraingen::Volume(terraingen::IcqToMesh(model)), 0.0);
-    Terrain flat = terrain;
+    TerrainGenerator flat = terrain;
     flat.surface = {};
     EXPECT_THROW(terraingen::BodyIcq(flat, 4), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyIcq(terrain, 0), std::invalid_argument);

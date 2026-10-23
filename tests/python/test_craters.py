@@ -14,7 +14,7 @@ ALL_CRATERS = terraingen.CraterSelection(manual=True)
 def generate_lunar_craters(lunar_craters, region=REGION):
     """Fresh lunar craters 8 to 100 m across over `region`, seed 3."""
     density, _ = lunar_craters(3.5)
-    options = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=100.0)
+    options = terraingen.CraterGenerationOptions(d_min=8.0, d_max=100.0)
     return terraingen.generate_craters(
         terraingen.PlanarCells(), region, density, terraingen.FreshAges(), 3, options
     )
@@ -38,7 +38,7 @@ def layer_craters(models, **generation):
     """The crater table of a seed-2 layer over `REGION` with extra generation options."""
     options = terraingen.CraterLayerOptions(
         seed=2,
-        generation=terraingen.CraterGenerationOptions(min_diameter=10.0, max_diameter=100.0, **generation),
+        generation=terraingen.CraterGenerationOptions(d_min=10.0, d_max=100.0, **generation),
     )
     return terraingen.CraterLayer(models, options).craters(REGION)
 
@@ -396,7 +396,7 @@ def full_apply_options():
         fade=terraingen.ResolutionFade(start_samples=1.0, end_samples=2.0),
         irregularity=terraingen.CraterIrregularity(
             enabled=True,
-            roughness=terraingen.ValueDistribution(terraingen.ValueDistributionKind.UNIFORM, 0.02, 0.05),
+            roughness=terraingen.ValueDistribution(terraingen.ValueDistribution.Kind.UNIFORM, 0.02, 0.05),
             elongated_share=0.5,
         ),
     )
@@ -410,7 +410,7 @@ def test_crater_apply_options_keep_nested_settings():
 def test_crater_apply_options_give_finite_heights(lunar_models, crater_layer, noise_relief):
     layer = crater_layer(lunar_models(), 10.0, 100.0, apply=full_apply_options())
     noise = noise_relief(1, 200.0, 5.0)
-    terrain = terraingen.Terrain(terraingen.FlatSource(129, 129, 2.0), [noise, layer])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(129, 129, 2.0), [noise, layer])
     assert np.isfinite(terraingen.evaluate(terrain).values).all()
 
 
@@ -435,7 +435,7 @@ def test_validate_crater_apply_options_accepts_the_defaults():
 
 def lunar_crater_terrain(lunar_models, crater_layer, noise_relief):
     craters = crater_layer(lunar_models(), 6.0, 60.0, seed=3)
-    terrain = terraingen.Terrain(
+    terrain = terraingen.TerrainGenerator(
         terraingen.FlatSource(129, 129, 2.0), [noise_relief(1, 200.0, 10.0, octaves=5), craters]
     )
     return craters, terrain
@@ -475,14 +475,14 @@ def test_a_manual_crater_is_carved_alone():
             ),
         ),
     )
-    terrain = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [manual])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 2.0), [manual])
     table = terraingen.placed_craters(terrain).table
     assert list(table["diameter"]) == [60.0]
     assert table["manual"][0] == 1 and table["depth_ratio"][0] > 0.1
     assert terraingen.evaluate(terrain).values[32, 32] < 0
     built = terraingen.CraterLayer.manual(models, [terraingen.Crater(0.0, 0.0, 60.0, age_gyr=1.0)])
     assert not built.options.generate_random and terraingen.CraterLayerOptions().generate_random
-    rebuilt = terraingen.Terrain(terraingen.FlatSource(65, 65, 2.0), [built])
+    rebuilt = terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 2.0), [built])
     assert np.array_equal(terraingen.evaluate(rebuilt).values, terraingen.evaluate(terrain).values)
 
 

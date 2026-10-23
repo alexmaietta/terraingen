@@ -44,7 +44,7 @@ class Example(_common.Example):
                 generate_random=False, generation=terraingen.CraterGenerationOptions(manual=manual)
             ),
         )
-        terrain = terraingen.Terrain(terraingen.FlatSource(SIZE, SIZE, PIXEL), [craters])
+        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(SIZE, SIZE, PIXEL), [craters])
 
         self.heights = terraingen.evaluate(terrain)
         placed = terraingen.placed_craters(terrain)

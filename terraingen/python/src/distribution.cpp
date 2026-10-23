@@ -103,8 +103,7 @@ void BindBase(nb::module_& m) {
              "N(>= diameter) without range checks; override it in a subclass.")
         .def("incremental_at", &Py::UncheckedIncremental, "diameter"_a,
              "-dN/dD without range checks; numerical unless overridden.")
-        .def("invert_cumulative", &Py::UncheckedInverse, "target"_a, "min_diameter"_a,
-             "max_diameter"_a,
+        .def("invert_cumulative", &Py::UncheckedInverse, "target"_a, "d_min"_a, "d_max"_a,
              "The diameter between the two where N(>= D) is `target`; numerical unless "
              "overridden.")
         .def_prop_ro("kind", &Sfd::Kind)
@@ -114,10 +113,10 @@ void BindBase(nb::module_& m) {
         .def_prop_rw("allows_extrapolation", &Sfd::AllowsExtrapolation, &Sfd::SetAllowExtrapolation)
         .def("cumulative", &Sfd::Cumulative, "diameter"_a, "N(>= diameter).")
         .def("incremental", &Sfd::Incremental, "diameter"_a, "-dN/dD at `diameter`.")
-        .def("expected_count", &Sfd::ExpectedCount, "area"_a, "min_diameter"_a, "max_diameter"_a,
+        .def("expected_count", &Sfd::ExpectedCount, "area"_a, "d_min"_a, "d_max"_a,
              "Expected number over `area` square metres between the diameters.")
-        .def("sample_diameter", &Sfd::SampleDiameter, "random"_a, "min_diameter"_a,
-             "max_diameter"_a, "A diameter drawn from the distribution between the two.");
+        .def("sample_diameter", &Sfd::SampleDiameter, "random"_a, "d_min"_a, "d_max"_a,
+             "A diameter drawn from the distribution between the two.");
 }
 
 void BindPowerLaws(nb::module_& m) {

@@ -721,7 +721,7 @@ void CheckOutput(const TerrainMeshOutput& output, const std::string& path, const
 /// Checks each output and its grid, records the grids in `summary` and returns where each output
 /// with a grid evaluates the layers.
 /// @throws ConfigError under "outputs" for an invalid output.
-std::vector<Extent> CheckOutputs(const TerrainConfig& config, const Surface& surface,
+std::vector<Extent> CheckOutputs(const TerrainGenConfig& config, const Surface& surface,
                                  ConfigSummary& summary) {
     const OutputChecks checks{surface.IsBody(), config.albedo.has_value(),
                               config.materials.has_value()};
@@ -748,7 +748,7 @@ std::vector<Extent> CheckOutputs(const TerrainConfig& config, const Surface& sur
 /// Checks each layer in order over the output extents, and records in `summary` the most craters
 /// the top-level crater layers are expected to generate.
 /// @throws ConfigError under "layers" for an invalid layer.
-void CheckLayers(const TerrainConfig& config, const std::vector<Extent>& extents,
+void CheckLayers(const TerrainGenConfig& config, const std::vector<Extent>& extents,
                  const std::filesystem::path& directory, const Surface& surface,
                  ConfigSummary& summary) {
     LayerChecks layers{extents, directory, surface};
@@ -763,7 +763,8 @@ void CheckLayers(const TerrainConfig& config, const std::vector<Extent>& extents
 }
 
 /// The material classes, with their names, a configuration's surface can have.
-std::vector<std::pair<MaterialClass, const char*>> PresentMaterials(const TerrainConfig& config) {
+std::vector<std::pair<MaterialClass, const char*>>
+PresentMaterials(const TerrainGenConfig& config) {
     const MaterialsSpec& materials = *config.materials;
     std::vector<std::pair<MaterialClass, const char*>> present{{MaterialClass::Soil, "soil"}};
     if (materials.options.exposure ||
@@ -785,7 +786,7 @@ std::vector<std::pair<MaterialClass, const char*>> PresentMaterials(const Terrai
 
 /// @throws ConfigError under "materials" for invalid options or photometry, or a photometry output
 /// without parameters for a class the surface can have.
-void CheckMaterials(const TerrainConfig& config) {
+void CheckMaterials(const TerrainGenConfig& config) {
     const MaterialsSpec& materials = *config.materials;
     At("materials", [&] { ValidateMaterialOptions(materials.options); });
     const MaterialPhotometry photometry = config::BuildPhotometry(materials.photometry);
@@ -896,7 +897,7 @@ std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
     return DescribeSourceAt(source, directory, "source", surface);
 }
 
-void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& directory) {
+void ValidateAlbedo(const TerrainGenConfig& config, const std::filesystem::path& directory) {
     const AlbedoSpec& albedo = *config.albedo;
     std::visit([&](const auto& source) { CheckAlbedoSource(source, directory, "albedo.source"); },
                albedo.source);
@@ -909,7 +910,8 @@ void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& di
     }
 }
 
-ConfigSummary ValidateConfig(const TerrainConfig& config, const std::filesystem::path& directory) {
+ConfigSummary ValidateConfig(const TerrainGenConfig& config,
+                             const std::filesystem::path& directory) {
     CheckConfigRanges(config);
     CheckBody(config.body, "body");
     ConfigSummary summary;

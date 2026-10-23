@@ -173,14 +173,14 @@ int Generate(const std::vector<std::string>& args, std::ostream& out, std::ostre
     const GenerateArgs parsed = ParseGenerate(args);
     const LogLevelScope level(parsed.logLevel);
     return RunReporting(parsed.config, err, [&] {
-        const TerrainConfig config = LoadConfig(parsed.config);
+        const TerrainGenConfig config = LoadConfig(parsed.config);
         const std::filesystem::path inputs = parsed.config.parent_path();
-        const GeneratedTerrain terrain =
-            GenerateTerrain(config, inputs, parsed.threads, parsed.backend);
+        const GeneratedOutputs generated =
+            GenerateFromConfig(config, inputs, parsed.threads, parsed.backend);
         const std::filesystem::path outputs = parsed.outputDir.value_or(inputs);
         const Stopwatch stopwatch;
-        const auto written = WriteOutputs(config, terrain, outputs);
-        out << Summary(terrain) << "\n";
+        const auto written = WriteOutputs(config, generated, outputs);
+        out << Summary(generated) << "\n";
         out << "Wrote " << written.size() << (written.size() == 1 ? " file" : " files") << " to "
             << (outputs.empty() ? std::filesystem::path(".") : outputs).string() << " in "
             << FormatDuration(stopwatch.Milliseconds()) << "\n";
@@ -210,7 +210,7 @@ int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostre
     }
     const std::filesystem::path path = args[1];
     return RunReporting(path, err, [&] {
-        const TerrainConfig config = LoadConfig(path);
+        const TerrainGenConfig config = LoadConfig(path);
         const ConfigSummary summary = ValidateConfig(config, path.parent_path());
         out << path.string() << " is valid: ";
         std::vector<RasterGrid> grids;

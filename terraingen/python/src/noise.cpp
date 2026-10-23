@@ -278,7 +278,7 @@ void BindLayerEvaluation(nb::module_& m) {
 
 void BindBasisNoise3(nb::module_& m) {
     m.def(
-        "perlin_noise3",
+        "perlin_noise3_precise",
         [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
            std::uint32_t seed) {
             return Evaluate3(x, y, z, [seed](double px, double py, double pz) {
@@ -288,7 +288,7 @@ void BindBasisNoise3(nb::module_& m) {
         "x"_a, "y"_a, "z"_a, "seed"_a,
         "3D improved Perlin noise in [-1, 1] at each point, in lattice units; the cell is found in "
         "double precision, so it stays exact far from the origin.");
-    m.def("perlin_noise3", &PerlinNoise3Precise, "x"_a, "y"_a, "z"_a, "seed"_a);
+    m.def("perlin_noise3_precise", &PerlinNoise3Precise, "x"_a, "y"_a, "z"_a, "seed"_a);
     m.def(
         "value_noise3",
         [](double x, double y, double z, std::uint32_t seed) {

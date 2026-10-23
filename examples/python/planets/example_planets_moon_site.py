@@ -53,12 +53,12 @@ class Example(_common.Example):
             terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
-        generation = terraingen.CraterGenerationOptions(min_diameter=1000.0, max_diameter=30000.0)
+        generation = terraingen.CraterGenerationOptions(d_min=1000.0, d_max=30000.0)
         craters = terraingen.CraterLayer(
             models, terraingen.CraterLayerOptions(seed=3, generation=generation, surface=self.moon)
         )
         self.site = terraingen.FlatSource(257, 257, PIXEL, centre=SITE, surface=self.moon)
-        terrain = terraingen.Terrain(self.site, [noise, craters], surface=self.moon)
+        terrain = terraingen.TerrainGenerator(self.site, [noise, craters], surface=self.moon)
 
         print(
             f"Moon radius {self.moon.radius / 1000:.1f} km; {self.moon.unit_length:.1f} m per degree of latitude"
@@ -71,7 +71,7 @@ class Example(_common.Example):
         )
         self.heights = terraingen.evaluate(terrain)
         self.craters = terraingen.placed_craters(terrain).table
-        self.site_height = terraingen.evaluate_at(terrain, *SITE, PIXEL)
+        self.site_height = terraingen.height_at(terrain, *SITE, PIXEL)
         print(f"{len(self.craters['x'])} craters; height at the site {self.site_height:.1f} m")
         self.show("heights", self.heights.values, PIXEL)
 

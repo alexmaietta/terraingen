@@ -208,11 +208,11 @@ void BindSpacing(nb::module_& m) {
 void BindGenerationOptions(nb::module_& m) {
     auto options = nb::class_<CraterGenerationOptions>(
         m, "CraterGenerationOptions",
-        "Which craters are generated: diameters from `min_diameter` to `max_diameter` (m), kept "
-        "apart by `spacing`, at most `max_craters` (0 for no cap), plus `manual` ones.");
+        "Which craters are generated: diameters from `d_min` to `d_max` (m), kept apart by "
+        "`spacing`, at most `max_craters` (0 for no cap), plus `manual` ones.");
     BindKwargsInit<CraterGenerationOptions>(options);
-    options.def_rw("min_diameter", &CraterGenerationOptions::dMin)
-        .def_rw("max_diameter", &CraterGenerationOptions::dMax)
+    options.def_rw("d_min", &CraterGenerationOptions::dMin)
+        .def_rw("d_max", &CraterGenerationOptions::dMax)
         .def_rw("spacing", &CraterGenerationOptions::spacing)
         .def_rw("max_craters", &CraterGenerationOptions::maxCraters)
         .def_rw("cell_size_factor", &CraterGenerationOptions::cellSizeFactor)
@@ -246,16 +246,14 @@ void BindGeneration(nb::module_& m) {
         .def_ro("low", &CraterBand::low)
         .def_ro("high", &CraterBand::high)
         .def_ro("cell_size", &CraterBand::cellSize);
-    m.def("crater_bands", &CraterBands, "min_diameter"_a, "max_diameter"_a,
-          "cell_size_factor"_a = 16.0,
+    m.def("crater_bands", &CraterBands, "d_min"_a, "d_max"_a, "cell_size_factor"_a = 16.0,
           "The power-of-two diameter bands craters are generated in, and their cell sizes.");
     m.def("generate_craters", &GenerateCraters, "cells"_a, "region"_a, "density"_a, "ages"_a,
           "seed"_a, "options"_a, nb::call_guard<nb::gil_scoped_release>(),
           "The craters of `density` with centres in `region` (min_x, min_y, max_x, max_y), drawn "
           "per cell so any region, however tiled, holds the same craters.");
-    m.def("count_limit_diameter", &CountLimitDiameter, "density"_a, "area"_a, "count"_a,
-          "min_diameter"_a, "max_diameter"_a,
-          "The smallest diameter that keeps the expected count over `area` at `count`.");
+    m.def("count_limit_diameter", &CountLimitDiameter, "density"_a, "area"_a, "count"_a, "d_min"_a,
+          "d_max"_a, "The smallest diameter that keeps the expected count over `area` at `count`.");
     m.def("manual_crater_id", &ManualCraterId, "x"_a, "y"_a, "diameter"_a,
           "A stable ID for a hand-placed crater, hashed from its position and size.");
 }

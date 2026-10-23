@@ -22,7 +22,7 @@ using terraingen::DuneLayerSpec;
 using terraingen::kDegree;
 using terraingen::ParseConfig;
 using terraingen::StrataLayerSpec;
-using terraingen::TerrainConfig;
+using terraingen::TerrainGenConfig;
 
 namespace {
 
@@ -55,7 +55,7 @@ TEST(DegreesFromRadians, GivesTheShortestDegreesThatTurnBackIntoTheRadians) {
 }
 
 TEST(ConfigAngles, ReadDegreesIntoRadians) {
-    const TerrainConfig config = ParseConfig(OneLayer(
+    const TerrainGenConfig config = ParseConfig(OneLayer(
         R"({"type": "dunes", "wind_azimuth_deg": 90, "slip_face_angle_deg": 30, "stoss_slope_deg": 10})"));
     const auto& dunes = std::get<DuneLayerSpec>(config.layers.at(0)).dunes;
     EXPECT_EQ(dunes.windAzimuth, 90.0 * kDegree);
@@ -64,12 +64,12 @@ TEST(ConfigAngles, ReadDegreesIntoRadians) {
 }
 
 TEST(ConfigAngles, LeaveUnreadAnglesExactlyAsTheyWere) {
-    const TerrainConfig config = ParseConfig(OneLayer(R"({"type": "dunes"})"));
+    const TerrainGenConfig config = ParseConfig(OneLayer(R"({"type": "dunes"})"));
     EXPECT_EQ(std::get<DuneLayerSpec>(config.layers.at(0)).dunes, DuneLayerSpec{}.dunes);
 }
 
 TEST(ConfigAngles, WriteDegreesAndRoundTripExactly) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     StrataLayerSpec strata;
     strata.strata.dip = 0.03;
     strata.strata.dipAzimuth = 0.8;
@@ -89,12 +89,12 @@ TEST(ConfigAngles, WriteDegreesAndRoundTripExactly) {
 TEST(ConfigAngles, ReadOptionalAnglesAndUnsetThemWithNull) {
     const std::string set = OneLayer(
         R"({"type": "boulders", "ventifacts": {"second_wind_azimuth_deg": 180}, "max_slope_deg": 30})");
-    const TerrainConfig config = ParseConfig(set);
+    const TerrainGenConfig config = ParseConfig(set);
     const auto& boulders = std::get<terraingen::BoulderLayerSpec>(config.layers.at(0)).boulders;
     ASSERT_TRUE(boulders.ventifacts.secondWindAzimuth.has_value());
     EXPECT_EQ(*boulders.ventifacts.secondWindAzimuth, 180.0 * kDegree);
     EXPECT_EQ(boulders.pose.maxSlope, std::optional<double>(30.0 * kDegree));
-    const TerrainConfig unset =
+    const TerrainGenConfig unset =
         ParseConfig(OneLayer(R"({"type": "boulders", "max_slope_deg": null})"));
     EXPECT_FALSE(std::get<terraingen::BoulderLayerSpec>(unset.layers.at(0)).boulders.pose.maxSlope);
 }
@@ -144,7 +144,7 @@ TEST(ConfigAngles, AreDescribedInDegreesInTheSchema) {
 }
 
 TEST(ConfigAngles, ReadManualBoulderAnglesInDegreesAndLeaveOmittedOnesUnset) {
-    const TerrainConfig config = ParseConfig(OneLayer(
+    const TerrainGenConfig config = ParseConfig(OneLayer(
         R"({"type": "boulders", "manual": [{"x": 1, "y": 2, "diameter": 1.5, "yaw_deg": 30,
             "lean_deg": 10, "tilt_deg": 20, "tilt_azimuth_deg": -90, "burial": 0.3,
             "rest": "side", "shape_seed": 9}, {"x": 0, "y": 0, "diameter": 1, "yaw_deg": null}]})"));

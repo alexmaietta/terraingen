@@ -54,14 +54,12 @@ class Example(_common.Example):
             terraingen.FassettThomsonProfile(),
         )
         young = terraingen.Crater(23.5, 0.7, 4000.0, age_gyr=0.002)
-        generation = terraingen.CraterGenerationOptions(
-            min_diameter=1000.0, max_diameter=30000.0, manual=[young]
-        )
+        generation = terraingen.CraterGenerationOptions(d_min=1000.0, d_max=30000.0, manual=[young])
         craters = terraingen.CraterLayer(
             models, terraingen.CraterLayerOptions(seed=3, generation=generation, surface=moon)
         )
         site = terraingen.FlatSource(257, 257, PIXEL, centre=SITE, surface=moon)
-        terrain = terraingen.Terrain(site, [noise, craters], surface=moon)
+        terrain = terraingen.TerrainGenerator(site, [noise, craters], surface=moon)
 
         mottling = terraingen.NoiseLayer(
             terraingen.FractalParams(seed=2, wavelength=30000.0, amplitude=0.05, octaves=5)

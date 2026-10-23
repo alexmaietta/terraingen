@@ -88,7 +88,7 @@ class AgesModels : public terraingen::examples::Example {
         Out() << Format("%-16s %8s %8s %8s %10s\n", "ages", "10%", "50%", "90%", "relief");
         terrains_.clear();
         for (const auto& [name, ages] : models) {
-            terraingen::Terrain terrain;
+            terraingen::TerrainGenerator terrain;
             terrain.source = std::make_shared<terraingen::FlatSource>(257, 257, 2.0);
             terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
                 terraingen::CraterModels{density, ages, diffusion,

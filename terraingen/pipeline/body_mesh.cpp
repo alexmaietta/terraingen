@@ -21,9 +21,9 @@ namespace {
 /// spacing that is not negative.
 /// @param what The result, starting the messages, such as "A body mesh".
 /// @param cells The cells (or ICQ intervals) per face edge, and how they are called.
-void CheckBodyRequest(const Terrain& terrain, std::size_t cells, double spacing,
+void CheckBodyRequest(const TerrainGenerator& generator, std::size_t cells, double spacing,
                       const std::string& what, const std::string& cellsNeeded) {
-    if (!terrain.surface.IsBody()) {
+    if (!generator.surface.IsBody()) {
         throw std::invalid_argument(what + " needs a terrain on a body");
     }
     if (cells == 0) {
@@ -34,16 +34,16 @@ void CheckBodyRequest(const Terrain& terrain, std::size_t cells, double spacing,
 
 /// The body-fixed positions along `directions`: the body's radius in each direction plus the
 /// terrain's height there, on the datum where the terrain has no data.
-std::vector<Vec3d> BodyPositions(const Terrain& terrain, Span<const Vec3d> directions,
+std::vector<Vec3d> BodyPositions(const TerrainGenerator& generator, Span<const Vec3d> directions,
                                  double spacing, unsigned threads) {
     std::vector<Vec2d> points(directions.size());
     for (std::size_t k = 0; k < directions.size(); ++k) {
-        points[k] = terrain.surface.Coordinates(directions[k]);
+        points[k] = generator.surface.Coordinates(directions[k]);
     }
-    const std::vector<float> heights = EvaluatePoints(terrain, points, spacing, threads);
+    const std::vector<float> heights = HeightsAt(generator, points, spacing, threads);
     std::vector<Vec3d> positions(directions.size());
     for (std::size_t k = 0; k < directions.size(); ++k) {
-        const double r = terrain.surface.RadiusAt(points[k]) +
+        const double r = generator.surface.RadiusAt(points[k]) +
                          (std::isnan(heights[k]) ? 0.0 : static_cast<double>(heights[k]));
         positions[k] = directions[k] * r;
     }
@@ -73,12 +73,12 @@ std::vector<std::array<std::uint32_t, 3>> CubeTriangles(std::size_t cells) {
 
 }  // namespace
 
-TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing,
+TriangleMesh BodyMesh(const TerrainGenerator& generator, std::size_t cellsPerFace, double spacing,
                       unsigned threads) {
-    CheckBodyRequest(terrain, cellsPerFace, spacing, "A body mesh", "at least one cell per face");
+    CheckBodyRequest(generator, cellsPerFace, spacing, "A body mesh", "at least one cell per face");
     const double quarter = detail::kQuarter;
     const double step = 2.0 * quarter / static_cast<double>(cellsPerFace);
-    const double sampled = spacing > 0.0 ? spacing : terrain.surface.Radius() * step;
+    const double sampled = spacing > 0.0 ? spacing : generator.surface.Radius() * step;
     const std::size_t side = cellsPerFace + 1;
     std::vector<Vec3d> directions(6 * side * side);
     for (std::size_t v = 0; v < directions.size(); ++v) {
@@ -89,15 +89,16 @@ TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double s
                                                    -quarter + static_cast<double>(j) * step);
     }
     TriangleMesh mesh;
-    mesh.positions = BodyPositions(terrain, directions, sampled, threads);
+    mesh.positions = BodyPositions(generator, directions, sampled, threads);
     mesh.triangles = CubeTriangles(cellsPerFace);
     return mesh;
 }
 
-IcqModel BodyIcq(const Terrain& terrain, std::size_t q, double spacing, unsigned threads) {
-    CheckBodyRequest(terrain, q, spacing, "An ICQ model", "Q > 0");
+IcqModel BodyIcq(const TerrainGenerator& generator, std::size_t q, double spacing,
+                 unsigned threads) {
+    CheckBodyRequest(generator, q, spacing, "An ICQ model", "Q > 0");
     const double sampled =
-        spacing > 0.0 ? spacing : terrain.surface.Radius() * kPi / 2.0 / static_cast<double>(q);
+        spacing > 0.0 ? spacing : generator.surface.Radius() * kPi / 2.0 / static_cast<double>(q);
     IcqModel model;
     model.q = q;
     std::vector<Vec3d> directions(6 * (q + 1) * (q + 1));
@@ -108,7 +109,7 @@ IcqModel BodyIcq(const Terrain& terrain, std::size_t q, double spacing, unsigned
             }
         }
     }
-    model.vertices = BodyPositions(terrain, directions, sampled, threads);
+    model.vertices = BodyPositions(generator, directions, sampled, threads);
     return model;
 }
 

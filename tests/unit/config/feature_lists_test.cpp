@@ -122,7 +122,7 @@ TEST(WriteBoulderList, WritesAnglesInDegrees) {
 }
 
 TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
-    terraingen::TerrainConfig config = terraingen::testing::Small();
+    terraingen::TerrainGenConfig config = terraingen::testing::Small();
     terraingen::testing::Region(config) = {200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};
@@ -131,7 +131,8 @@ TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
     boulders.boulders.rendering.models.minDiameter = 1.5;
     boulders.boulders.rendering.shapes.subdivisions = 0;
     config.layers.push_back(boulders);
-    const auto models = terraingen::testing::BouldersOf(terraingen::GenerateTerrain(config)).models;
+    const auto models =
+        terraingen::testing::BouldersOf(terraingen::GenerateFromConfig(config)).models;
     ASSERT_FALSE(models.empty());
     const auto directory = TempPath("terraingen_boulder_models");
     std::filesystem::create_directories(directory);

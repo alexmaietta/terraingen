@@ -25,7 +25,7 @@ def synthetic_params():
 @pytest.fixture
 def coarse_dem(tmp_path, noise_relief):
     """A 33 x 33 noise DEM at 8 m written to dem.tif; returns its heights."""
-    terrain = terraingen.Terrain(terraingen.FlatSource(33, 33, 8.0), [noise_relief(3, 200.0, 20.0)])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(33, 33, 8.0), [noise_relief(3, 200.0, 20.0)])
     coarse = terraingen.evaluate(terrain)
     terraingen.write_geotiff(tmp_path / "dem.tif", coarse)
     return coarse
@@ -79,14 +79,14 @@ def test_python_source_without_its_methods_raises_type_error():
 def test_geotiff_source_upsamples_onto_finer_grids(tmp_path, coarse_dem):
     source = bilinear_source(tmp_path)
     assert source.width == 33
-    heights = terraingen.evaluate(terraingen.Terrain(source), grid=fine_grid(source)).values
+    heights = terraingen.evaluate(terraingen.TerrainGenerator(source), grid=fine_grid(source)).values
     assert heights.shape == (132, 132)
     expected = terraingen.resample(coarse_dem, 2.0, terraingen.ResampleMethod.BILINEAR).values
     np.testing.assert_allclose(heights, 2 * expected, rtol=1e-5, atol=1e-4)
 
 
 def test_geotiff_source_scales_heights(tmp_path, coarse_dem):
-    heights = terraingen.evaluate(terraingen.Terrain(bilinear_source(tmp_path))).values
+    heights = terraingen.evaluate(terraingen.TerrainGenerator(bilinear_source(tmp_path))).values
     assert np.nanmax(heights) == pytest.approx(2 * coarse_dem.values.max(), rel=1e-5)
 
 
@@ -101,7 +101,7 @@ def test_python_source_describes_its_grid(paraboloid):
 
 
 def test_python_source_fills_the_heights(paraboloid):
-    plain = terraingen.evaluate(terraingen.Terrain(paraboloid)).values
+    plain = terraingen.evaluate(terraingen.TerrainGenerator(paraboloid)).values
     assert plain[32, 32] == pytest.approx(0.0, abs=1e-6) and plain[0, 0] > 4.0
 
 
@@ -144,9 +144,9 @@ def test_synthetic_sources_evaluate_noise_or_upsample_it_from_posts():
     )
     assert noise.height_at(7.25, -3.5, 1.0) == pytest.approx(expected, rel=1e-6)
     with pytest.raises(ValueError):
-        terraingen.evaluate(terraingen.Terrain(noise))
+        terraingen.evaluate(terraingen.TerrainGenerator(noise))
     grid = terraingen.RasterGrid(16, 8, terraingen.GeoTransform.north_up(-8.0, 4.0, 1.0))
-    heights = terraingen.evaluate(terraingen.Terrain(noise), grid=grid).values
+    heights = terraingen.evaluate(terraingen.TerrainGenerator(noise), grid=grid).values
     assert heights[0, 0] == noise.height_at(-7.5, 3.5, 1.0)
     posts = terraingen.SyntheticSource(layers, pixel_size=4.0)
     assert posts.resolution_at(0.0, 0.0) == 4.0
@@ -205,7 +205,7 @@ def test_fields_can_be_written_in_python():
         def max(self):
             return 1.0
 
-    options = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=32.0)
+    options = terraingen.CraterGenerationOptions(d_min=4.0, d_max=32.0)
     east = East()
     options.keep_share = lambda crater: east.value_at(crater.x, crater.y)
     craters = terraingen.generate_craters(
@@ -223,20 +223,18 @@ def test_raster_source_matches_a_geotiff_source_of_the_same_heights(tmp_path, co
     upsampler = terraingen.DiamondSquareUpsampler(
         terraingen.DiamondSquareOptions(fractal_dimension=2.4, scale=0.5)
     )
-    from_file = terraingen.GeoTiffSource(
-        tmp_path / "dem.tif", effective_pixel_size_m=20.0, upsampler=upsampler
-    )
+    from_file = terraingen.GeoTiffSource(tmp_path / "dem.tif", effective_pixel_size=20.0, upsampler=upsampler)
     in_memory = terraingen.RasterSource(
-        coarse_dem.values, coarse_dem.transform, effective_pixel_size_m=20.0, upsampler=upsampler
+        coarse_dem.values, coarse_dem.transform, effective_pixel_size=20.0, upsampler=upsampler
     )
-    from_raster = terraingen.RasterSource(coarse_dem, effective_pixel_size_m=20.0, upsampler=upsampler)
+    from_raster = terraingen.RasterSource(coarse_dem, effective_pixel_size=20.0, upsampler=upsampler)
     grid = fine_grid(from_file)
-    expected = terraingen.evaluate(terraingen.Terrain(from_file), grid=grid).values
+    expected = terraingen.evaluate(terraingen.TerrainGenerator(from_file), grid=grid).values
     np.testing.assert_array_equal(
-        terraingen.evaluate(terraingen.Terrain(in_memory), grid=grid).values, expected
+        terraingen.evaluate(terraingen.TerrainGenerator(in_memory), grid=grid).values, expected
     )
     np.testing.assert_array_equal(
-        terraingen.evaluate(terraingen.Terrain(from_raster), grid=grid).values, expected
+        terraingen.evaluate(terraingen.TerrainGenerator(from_raster), grid=grid).values, expected
     )
     x, y = coarse_dem.cell_center(10, 12)
     assert in_memory.height_at(x + 1.3, y - 0.7, 0.5) == from_file.height_at(x + 1.3, y - 0.7, 0.5)
@@ -248,10 +246,12 @@ def test_raster_source_matches_a_geotiff_source_of_the_same_heights(tmp_path, co
 def test_raster_source_honours_nodata_and_rejects_bad_options():
     heights = np.arange(12, dtype=np.float32).reshape(3, 4)
     heights[1, 2] = -9999.0
-    source = terraingen.RasterSource(heights, terraingen.GeoTransform.north_up(0.0, 3.0, 1.0), nodata=-9999.0)
+    source = terraingen.RasterSource(
+        heights, terraingen.GeoTransform.north_up(0.0, 3.0, 1.0), no_data=-9999.0
+    )
     assert np.isnan(source.height_at(2.5, 1.5, 1.0)) and source.height_at(0.5, 2.5, 1.0) == 0.0
     with pytest.raises(ValueError):
-        terraingen.RasterSource(heights, effective_pixel_size_m=0.0)
+        terraingen.RasterSource(heights, effective_pixel_size=0.0)
 
 
 def test_geotiff_source_crop_reads_the_same_heights_over_its_grid(tmp_path, coarse_dem):
@@ -261,8 +261,10 @@ def test_geotiff_source_crop_reads_the_same_heights_over_its_grid(tmp_path, coar
     part = terraingen.GeoTiffSource(tmp_path / "dem.tif", crop=crop)
     assert (part.width, part.height) == (8, 8)
     grid = fine_grid(part)
-    expected = terraingen.evaluate(terraingen.Terrain(full), grid=grid).values
-    np.testing.assert_array_equal(terraingen.evaluate(terraingen.Terrain(part), grid=grid).values, expected)
+    expected = terraingen.evaluate(terraingen.TerrainGenerator(full), grid=grid).values
+    np.testing.assert_array_equal(
+        terraingen.evaluate(terraingen.TerrainGenerator(part), grid=grid).values, expected
+    )
     assert np.isnan(part.height_at(left + 1.0, top - 1.0, 2.0))
     with pytest.raises(ValueError):
         terraingen.GeoTiffSource(tmp_path / "dem.tif", crop=(1e7, 1e7, 1e7 + 1.0, 1e7 + 1.0))
@@ -275,7 +277,7 @@ def test_unresolved_crater_limit_drops_the_craters_a_dem_resolves():
     assert limit.value_at(0.0, 0.0) == 20.0 and limit.value_at(1e6, 0.0) == float("inf")
     both = terraingen.MinimumField(limit, terraingen.ConstantField(12.0))
     assert both.value_at(0.0, 0.0) == 12.0 and both.value_at(1e6, 0.0) == 12.0
-    options = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=40.0)
+    options = terraingen.CraterGenerationOptions(d_min=6.0, d_max=40.0)
     region = (-60.0, -60.0, 60.0, 60.0)
     density = terraingen.PowerLawSfd(0.05, 2.0)
 

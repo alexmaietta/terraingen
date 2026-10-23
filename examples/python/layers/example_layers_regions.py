@@ -36,7 +36,7 @@ def craters(age_gyr, seed):
         terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
         terraingen.FassettThomsonProfile(),
     )
-    generation = terraingen.CraterGenerationOptions(min_diameter=10.0, max_diameter=200.0)
+    generation = terraingen.CraterGenerationOptions(d_min=10.0, d_max=200.0)
     return terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=seed, generation=generation))
 
 
@@ -58,7 +58,9 @@ class Example(_common.Example):
         east = terraingen.RegionLayer(
             craters(1.0, 10), terraingen.RegionShape.rectangle(0.0, -HALF, HALF, HALF), feather=200.0
         )
-        terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, PIXEL), [relief, self.mare, west, east])
+        terrain = terraingen.TerrainGenerator(
+            terraingen.FlatSource(513, 513, PIXEL), [relief, self.mare, west, east]
+        )
         self.heights = terraingen.evaluate(terrain)
         self.craters = terraingen.placed_craters(terrain).table
 

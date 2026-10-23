@@ -46,7 +46,7 @@ class CratersSimple : public terraingen::examples::Example {
         options.generation.dMin = 8.0;
         options.generation.dMax = 300.0;
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
         terrain.layers.push_back(
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));

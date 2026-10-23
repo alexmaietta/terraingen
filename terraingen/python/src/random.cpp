@@ -75,7 +75,7 @@ void BindSamplers(nb::module_& m) {
         [](RandomStream& stream, double mean, std::optional<std::size_t> count) {
             return Sample<std::uint64_t>(count, [&] { return SamplePoisson(stream, mean); });
         },
-        "stream"_a, "mean"_a, "count"_a = nb::none(),
+        "random"_a, "mean"_a, "count"_a = nb::none(),
         "Poisson count (multiplication method below 10, Hormann's PTRS above); an array if "
         "`count` is given.");
     m.def(
@@ -85,20 +85,20 @@ void BindSamplers(nb::module_& m) {
             return Sample<double>(
                 count, [&] { return SampleTruncatedPowerLaw(stream, min, max, exponent); });
         },
-        "stream"_a, "min"_a, "max"_a, "exponent"_a, "count"_a = nb::none(),
+        "random"_a, "min"_a, "max"_a, "exponent"_a, "count"_a = nb::none(),
         "Power law on [min, max] with P(X > x) proportional to x**-exponent; max may be inf.");
     m.def(
         "sample_exponential",
         [](RandomStream& stream, double rate, std::optional<std::size_t> count) {
             return Sample<double>(count, [&] { return SampleExponential(stream, rate); });
         },
-        "stream"_a, "rate"_a, "count"_a = nb::none(), "Exponential sample with the given rate.");
+        "random"_a, "rate"_a, "count"_a = nb::none(), "Exponential sample with the given rate.");
     m.def(
         "sample_normal",
         [](RandomStream& stream, double mean, double sigma, std::optional<std::size_t> count) {
             return Sample<double>(count, [&] { return SampleNormal(stream, mean, sigma); });
         },
-        "stream"_a, "mean"_a, "sigma"_a, "count"_a = nb::none(),
+        "random"_a, "mean"_a, "sigma"_a, "count"_a = nb::none(),
         "Normal sample via the Box-Muller transform.");
     nb::class_<TabulatedDistribution>(m, "TabulatedDistribution",
                                       "Distribution given as a piecewise-linear CDF, sampled by "
@@ -111,18 +111,18 @@ void BindSamplers(nb::module_& m) {
                std::optional<std::size_t> count) {
                 return Sample<double>(count, [&] { return table.Sample(stream); });
             },
-            "stream"_a, "count"_a = nb::none());
+            "random"_a, "count"_a = nb::none());
 }
 
 void BindValueDistribution(nb::module_& m) {
-    BindEnum<ValueDistribution::Kind>(m, "ValueDistributionKind",
-                                      "The kind of distribution a random value is drawn from.");
-    BindOptions<ValueDistribution>(
+    const nb::class_<ValueDistribution> distribution = BindOptions<ValueDistribution>(
         m, "ValueDistribution",
         "A random value: constant `a`, uniform from `a` to `b`, normal or log-normal with mean "
         "`a` and deviation `b`, or piecewise: uniform within bins between `edges`, each drawn "
         "in proportion to its entry in `weights`; clipped to [min, max].",
         &ValidateValueDistribution);
+    BindEnum<ValueDistribution::Kind>(distribution, "Kind",
+                                      "The kind of distribution a random value is drawn from.");
     m.def("validate_value_distribution", &ValidateValueDistribution, "distribution"_a,
           kValidateDoc);
 }

@@ -80,8 +80,8 @@ void CheckRange(double value, const FieldRange& range, std::string_view unit,
 
 }  // namespace config
 
-void CheckConfigRanges(const TerrainConfig& config) {
-    TerrainConfig copy = config;
+void CheckConfigRanges(const TerrainGenConfig& config) {
+    TerrainGenConfig copy = config;
     config::RangeChecker checker("");
     config::Fields(checker, copy);
 }

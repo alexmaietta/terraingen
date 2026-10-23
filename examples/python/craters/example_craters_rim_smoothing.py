@@ -37,7 +37,7 @@ class Example(_common.Example):
             terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
-        generation = terraingen.CraterGenerationOptions(min_diameter=10.0, max_diameter=120.0)
+        generation = terraingen.CraterGenerationOptions(d_min=10.0, d_max=120.0)
         source = terraingen.FlatSource(257, 257, PIXEL)
         variants = {
             "none": terraingen.RimSmoothing(),
@@ -50,7 +50,7 @@ class Example(_common.Example):
             apply = terraingen.CraterApplyOptions(rim_smoothing=smoothing)
             options = terraingen.CraterLayerOptions(seed=3, generation=generation, apply=apply)
             craters = terraingen.CraterLayer(models, options)
-            heights = terraingen.evaluate(terraingen.Terrain(source, [craters])).values
+            heights = terraingen.evaluate(terraingen.TerrainGenerator(source, [craters])).values
             print(f"{name:14s} highest rim {heights.max():.2f} m")
             self.heights[name] = heights
         for name in ("default", "none", "wide", "half strength"):

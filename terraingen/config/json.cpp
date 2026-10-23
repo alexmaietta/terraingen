@@ -189,7 +189,7 @@ void CheckSchemaVersion(const Json& json) {
 ConfigError::ConfigError(std::string path, const std::string& message)
     : std::runtime_error(path.empty() ? message : path + ": " + message), path_(std::move(path)) {}
 
-TerrainConfig ParseConfig(std::string_view json) {
+TerrainGenConfig ParseConfig(std::string_view json) {
     config::Json document;
     try {
         document = config::Json::parse(json);
@@ -197,12 +197,12 @@ TerrainConfig ParseConfig(std::string_view json) {
         throw ConfigError("", std::string("invalid JSON: ") + error.what());
     }
     config::CheckSchemaVersion(document);
-    TerrainConfig parsed;
+    TerrainGenConfig parsed;
     config::Read(document, "", parsed);
     return parsed;
 }
 
-TerrainConfig LoadConfig(const std::filesystem::path& path) {
+TerrainGenConfig LoadConfig(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
         throw ConfigError("", "cannot read " + path.string());
@@ -212,7 +212,7 @@ TerrainConfig LoadConfig(const std::filesystem::path& path) {
     return ParseConfig(text.str());
 }
 
-std::string ConfigToJson(const TerrainConfig& terrainConfig, int indent) {
+std::string ConfigToJson(const TerrainGenConfig& terrainConfig, int indent) {
     return config::FieldsJson(terrainConfig, true, true).dump(indent) + "\n";
 }
 

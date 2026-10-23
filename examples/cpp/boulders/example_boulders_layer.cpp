@@ -53,7 +53,7 @@ class BouldersLayer : public terraingen::examples::Example {
         boulderOptions.sizes.maxDiameter = 3.0;
         boulderOptions.rendering.models.minDiameter = 0.6;
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(401, 401, 0.1);
         terrain.layers.push_back(
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));

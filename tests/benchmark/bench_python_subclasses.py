@@ -75,7 +75,7 @@ def crater_layer(density, profile, degradation):
     ages = terraingen.FreshAges()
     models = terraingen.CraterModels(density, ages, degradation, profile)
     options = terraingen.CraterLayerOptions(
-        seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=60.0)
+        seed=1, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=60.0)
     )
     return terraingen.CraterLayer(models, options)
 
@@ -112,7 +112,7 @@ def cases():
 
 
 def time_terrain(layer, size, threads, repeats):
-    terrain = terraingen.Terrain(terraingen.FlatSource(size, size, 1.0), [layer])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, 1.0), [layer])
     terraingen.evaluate(terrain, threads=threads)
     best = float("inf")
     for _ in range(repeats):

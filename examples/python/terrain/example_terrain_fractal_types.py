@@ -32,7 +32,7 @@ class Example(_common.Example):
             layer = terraingen.NoiseLayer(
                 terraingen.FractalParams(seed=1, type=fractal, wavelength=400.0, amplitude=30.0)
             )
-            terrain = terraingen.Terrain(
+            terrain = terraingen.TerrainGenerator(
                 terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([layer])]
             )
             raster = terraingen.evaluate(terrain)

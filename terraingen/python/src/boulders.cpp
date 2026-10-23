@@ -221,7 +221,7 @@ void BindFillet(nb::module_& m) {
         "its radius, falling to nothing `width_ratio` diameters further out; 0 `height_share` "
         "draws none.",
         &ValidateBoulderFillet);
-    m.def("boulder_fillet_height", &FilletHeight, "boulder"_a, "distance"_a, "fillet"_a,
+    m.def("fillet_height", &FilletHeight, "boulder"_a, "distance"_a, "fillet"_a,
           "The height (m) of `boulder`'s fillet `distance` metres from its centre.");
     m.def("validate_boulder_fillet", &ValidateBoulderFillet, "fillet"_a, kValidateDoc);
     BindOptions<BoulderVentifacts>(
@@ -303,36 +303,36 @@ void BindLayerQueries(nb::class_<BoulderLayer, Layer>& layer) {
     layer
         .def(
             "abundance_at",
-            [](const BoulderLayer& boulders, double x, double y, const PyTerrain* terrain,
-               std::size_t layers) {
+            [](const BoulderLayer& boulders, double x, double y,
+               const PyTerrainGenerator* generator, std::size_t layers) {
                 const BoulderAbundance abundance =
-                    WithGround(terrain, layers,
+                    WithGround(generator, layers,
                                [&](const Ground* g) { return boulders.AbundanceAt(x, y, g); });
                 return std::pair{abundance.background, abundance.ejecta};
             },
-            "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "x"_a, "y"_a, "generator"_a = nb::none(), "layers"_a = 0,
             "The boulder abundance at (x, y): (background, ejecta). With the exposure field, give "
-            "the ground beneath the boulders: `terrain`'s source and its first `layers` layers.")
+            "the ground beneath the boulders: `generator`'s source and its first `layers` layers.")
         .def(
             "density_at",
             [](const BoulderLayer& boulders, double diameter, double x, double y,
-               const PyTerrain* terrain, std::size_t layers) {
-                return WithGround(terrain, layers, [&](const Ground* g) {
+               const PyTerrainGenerator* generator, std::size_t layers) {
+                return WithGround(generator, layers, [&](const Ground* g) {
                     return boulders.DensityAt(diameter, x, y, g);
                 });
             },
-            "diameter"_a, "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "diameter"_a, "x"_a, "y"_a, "generator"_a = nb::none(), "layers"_a = 0,
             "Boulders at least `diameter` across per square metre at (x, y).")
         .def(
             "unresolved_cover_at",
             [](const BoulderLayer& boulders, double x, double y, double spacing,
-               const PyTerrain* terrain, std::size_t layers) {
-                const UnresolvedCover cover = WithGround(terrain, layers, [&](const Ground* g) {
+               const PyTerrainGenerator* generator, std::size_t layers) {
+                const UnresolvedCover cover = WithGround(generator, layers, [&](const Ground* g) {
                     return boulders.UnresolvedCoverAt(x, y, spacing, g);
                 });
                 return std::pair{cover.mean, cover.variance};
             },
-            "x"_a, "y"_a, "spacing"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "x"_a, "y"_a, "spacing"_a, "generator"_a = nb::none(), "layers"_a = 0,
             "The share of a sample `spacing` metres across at (x, y) that boulders too small "
             "to resolve cover: (mean, variance).");
 }

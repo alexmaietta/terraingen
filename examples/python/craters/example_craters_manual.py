@@ -35,7 +35,7 @@ class Example(_common.Example):
             terraingen.Crater(150.0, 250.0, 40.0, age_gyr=0.1),
         ]
         craters = terraingen.CraterLayer.manual(models, manual)
-        terrain = terraingen.Terrain(
+        terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
         )
 

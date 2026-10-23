@@ -48,7 +48,7 @@ class Example(_common.Example):
         for name, options in models.items():
             low, high = options.distribution.valid_range if options.distribution else (0.0, float("inf"))
             options.min_diameter, options.max_diameter, options.seed = max(0.2, low), min(3.0, high), 1
-            terrain = terraingen.Terrain(
+            terrain = terraingen.TerrainGenerator(
                 terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.BoulderLayer(options)]
             )
             self.heights[name] = terraingen.evaluate(terrain)

@@ -18,8 +18,8 @@ using terraingen::BuildCraterModels;
 using terraingen::ConfigError;
 using terraingen::CraterLayerSpec;
 using terraingen::CraterList;
-using terraingen::GenerateTerrain;
-using terraingen::TerrainConfig;
+using terraingen::GenerateFromConfig;
+using terraingen::TerrainGenConfig;
 using terraingen::testing::AlbedoOf;
 using terraingen::testing::BouldersOf;
 using terraingen::testing::Craters;
@@ -35,12 +35,12 @@ using terraingen::testing::Small;
 using terraingen::testing::TempPath;
 using terraingen::testing::WriteDem;
 
-TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, MatchesComposingTheLibraryCalls) {
+    TerrainGenConfig config = Small();
     Craters(config).manual = {{4.0, -3.0, 40.0, 0.0, 0u}};
     Craters(config).apply.datum = terraingen::CraterDatum::Plane;
     Craters(config).apply.rimSmoothing.sigmaRadii = 0.05;
-    const auto terrain = GenerateTerrain(config);
+    const auto terrain = GenerateFromConfig(config);
 
     auto expected = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Noise(config).Params());
     const auto models = BuildCraterModels(Craters(config));
@@ -71,20 +71,20 @@ TEST(GenerateTerrain, MatchesComposingTheLibraryCalls) {
     }
 }
 
-TEST(GenerateTerrain, GivesTheSameTerrainOnAnyNumberOfThreads) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, GivesTheSameTerrainOnAnyNumberOfThreads) {
+    TerrainGenConfig config = Small();
     Craters(config).apply.rimSmoothing.sigmaRadii = 0.05;
-    const auto serial = GenerateTerrain(config, {}, 1);
-    const auto parallel = GenerateTerrain(config, {}, 4);
+    const auto serial = GenerateFromConfig(config, {}, 1);
+    const auto parallel = GenerateFromConfig(config, {}, 4);
     ExpectSameRaster(HeightsOf(parallel), HeightsOf(serial));
     EXPECT_EQ(CratersOf(parallel).craters.Ids(), CratersOf(serial).craters.Ids());
 }
 
-TEST(GenerateTerrain, AppliesTheHurstExponentToTheGain) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, AppliesTheHurstExponentToTheGain) {
+    TerrainGenConfig config = Small();
     config.layers.pop_back();
     Noise(config).stack[0].hurst = 0.6f;
-    const auto terrain = GenerateTerrain(config);
+    const auto terrain = GenerateFromConfig(config);
     terraingen::SyntheticTerrainParams params;
     params.layers[0] = Noise(config).stack[0].EffectiveRelief();
     params.layers[0].fractal.gain = terraingen::GainFromHurst(0.6f, 2.0f);
@@ -93,17 +93,17 @@ TEST(GenerateTerrain, AppliesTheHurstExponentToTheGain) {
                            expected.Values().begin()));
 }
 
-TEST(GenerateTerrain, SupportsNoLayersNoCratersAndManualCratersOnly) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, SupportsNoLayersNoCratersAndManualCratersOnly) {
+    TerrainGenConfig config = Small();
     config.layers.clear();
-    const auto flat = GenerateTerrain(config);
+    const auto flat = GenerateFromConfig(config);
     EXPECT_TRUE(std::all_of(HeightsOf(flat).Values().begin(), HeightsOf(flat).Values().end(),
                             [](float h) { return h == 0.0f; }))
         << "the datum without a base";
 
     config = Small();
     config.layers.pop_back();
-    const auto plain = GenerateTerrain(config);
+    const auto plain = GenerateFromConfig(config);
     EXPECT_TRUE(CratersOf(plain).craters.Empty());
     const auto noise = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Noise(config).Params());
     EXPECT_TRUE(std::equal(HeightsOf(plain).Values().begin(), HeightsOf(plain).Values().end(),
@@ -113,27 +113,27 @@ TEST(GenerateTerrain, SupportsNoLayersNoCratersAndManualCratersOnly) {
     manualOnly.generateRandom = false;
     manualOnly.manual = {{0.0, 0.0, 30.0, 0.0, 0u}, {9000.0, 0.0, 30.0, 0.0, 0u}};
     config.layers.push_back(manualOnly);
-    const auto manual = GenerateTerrain(config);
+    const auto manual = GenerateFromConfig(config);
     ASSERT_EQ(CratersOf(manual).craters.Size(), 1u);
     EXPECT_TRUE(CratersOf(manual).craters.At(0).manual) << "building marks manual craters";
     EXPECT_EQ(CratersOf(manual).craters.At(0).id, terraingen::ManualCraterId(0.0, 0.0, 30.0));
-    TerrainConfig tiny;
+    TerrainGenConfig tiny;
     tiny.outputs = {
         terraingen::testing::Heightmap("tiny.tif", terraingen::GridRegionSpec{1, 1, 1.0})};
-    EXPECT_THROW(GenerateTerrain(tiny), ConfigError);
+    EXPECT_THROW(GenerateFromConfig(tiny), ConfigError);
 }
 
-TEST(GenerateTerrain, RunsLayersInOrderAndCollectsEveryLayersCraters) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, RunsLayersInOrderAndCollectsEveryLayersCraters) {
+    TerrainGenConfig config = Small();
     CraterLayerSpec second = Craters(config);
     second.seed = 2;
     config.layers.push_back(second);
-    const auto both = GenerateTerrain(config);
+    const auto both = GenerateFromConfig(config);
     config.layers.pop_back();
-    const auto first = GenerateTerrain(config);
+    const auto first = GenerateFromConfig(config);
     config.layers.pop_back();
     config.layers.push_back(second);
-    const auto other = GenerateTerrain(config);
+    const auto other = GenerateFromConfig(config);
     ASSERT_GT(CratersOf(first).craters.Size(), 0u);
     ASSERT_GT(CratersOf(other).craters.Size(), 0u);
     auto ids = CratersOf(first).craters.Ids();
@@ -142,14 +142,14 @@ TEST(GenerateTerrain, RunsLayersInOrderAndCollectsEveryLayersCraters) {
     EXPECT_EQ(CratersOf(both).craters.Ids(), ids);
 }
 
-TEST(GenerateTerrain, AddsRoughnessAsTheLibraryDoes) {
-    TerrainConfig config = Small();
-    const auto plain = GenerateTerrain(config);
+TEST(GenerateFromConfig, AddsRoughnessAsTheLibraryDoes) {
+    TerrainGenConfig config = Small();
+    const auto plain = GenerateFromConfig(config);
     terraingen::RoughnessOptions roughness;
     roughness.rmsSlope = 0.2;
     roughness.minWavelength = 1.0;
     config.layers.push_back(terraingen::RoughnessLayerSpec{roughness});
-    const auto rough = GenerateTerrain(config);
+    const auto rough = GenerateFromConfig(config);
     const terraingen::RoughnessLayer layer(roughness);
     const auto& heights = HeightsOf(plain);
     for (std::size_t row = 0; row < heights.Height(); row += 7) {
@@ -161,16 +161,16 @@ TEST(GenerateTerrain, AddsRoughnessAsTheLibraryDoes) {
     }
 }
 
-TEST(GenerateTerrain, AppliesTransformsAndRegionsAsTheLibraryDoes) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, AppliesTransformsAndRegionsAsTheLibraryDoes) {
+    TerrainGenConfig config = Small();
     const terraingen::RegionLayerSpec region{terraingen::CircleRegionSpec{10.0, -5.0, 20.0}, 6.0,
                                              terraingen::BlendShape::Linear,
                                              terraingen::ClampLayerSpec{std::nullopt, 0.0}};
     config.layers.push_back(terraingen::ScaleLayerSpec{2.0, 1.0});
     config.layers.push_back(region);
-    const auto generated = GenerateTerrain(config);
+    const auto generated = GenerateFromConfig(config);
 
-    terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     ASSERT_EQ(terrain.layers.size(), 4u);
     terrain.layers[2] = std::make_shared<terraingen::ScaleLayer>(2.0, 1.0);
     terrain.layers[3] = std::make_shared<terraingen::RegionLayer>(
@@ -185,8 +185,8 @@ TEST(GenerateTerrain, AppliesTransformsAndRegionsAsTheLibraryDoes) {
               0.0f);
 }
 
-TEST(GenerateTerrain, DrawsBouldersFromEachKindOfSizeDistribution) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, DrawsBouldersFromEachKindOfSizeDistribution) {
+    TerrainGenConfig config = Small();
     Region(config).pixelSize = 0.5;
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.sizes.minDiameter = 0.5;
@@ -197,7 +197,7 @@ TEST(GenerateTerrain, DrawsBouldersFromEachKindOfSizeDistribution) {
     boulders.ejectaSizes = terraingen::Sp8023CraterBouldersSpec{};
     boulders.extrapolate = true;
     config.layers.push_back(boulders);
-    const auto generated = GenerateTerrain(config);
+    const auto generated = GenerateFromConfig(config);
     EXPECT_FALSE(BouldersOf(generated).boulders.empty());
     for (const terraingen::BoulderSizesSpec& sizes :
          {terraingen::BoulderSizesSpec{terraingen::SynthterrainBouldersSpec{}},
@@ -206,28 +206,28 @@ TEST(GenerateTerrain, DrawsBouldersFromEachKindOfSizeDistribution) {
           terraingen::BoulderSizesSpec{terraingen::TabulatedSpec{{0.5, 10.0}, {0.01, 1e-5}}}}) {
         boulders.sizes = sizes;
         config.layers.back() = boulders;
-        EXPECT_NO_THROW(GenerateTerrain(config));
+        EXPECT_NO_THROW(GenerateFromConfig(config));
     }
 }
 
-TEST(GenerateTerrain, AddsBedformsAsTheLibraryDoes) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, AddsBedformsAsTheLibraryDoes) {
+    TerrainGenConfig config = Small();
     Region(config).pixelSize = 0.5;
     terraingen::BedformOptions ridges = terraingen::MarsTransverseAeolianRidges();
     ridges.wavelength = 5.0;
     ridges.cover = 0.5;
     ridges.fieldSize = 20.0;
     config.layers.push_back(terraingen::BedformLayerSpec{ridges});
-    const auto generated = GenerateTerrain(config);
-    terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const auto generated = GenerateFromConfig(config);
+    terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     terrain.layers.back() = std::make_shared<terraingen::BedformLayer>(ridges);
     ExpectSameRaster(
         HeightsOf(generated),
         terraingen::Evaluate(terrain, terraingen::RasterGrid::FromRaster(HeightsOf(generated))));
 }
 
-TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
+    TerrainGenConfig config = Small();
     Region(config).pixelSize = 0.5;
     Craters(config).minDiameter = 4.0;
     terraingen::BoulderLayerSpec boulders;
@@ -239,10 +239,10 @@ TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
     boulders.boulders.ejecta.minFreshness = 0.0;
     boulders.boulders.bedrock.exposure = terraingen::ExposureParams{};
     config.layers.push_back(boulders);
-    const auto generated = GenerateTerrain(config, {}, 4);
+    const auto generated = GenerateFromConfig(config, {}, 4);
     ASSERT_FALSE(BouldersOf(generated).boulders.empty());
 
-    terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     ASSERT_EQ(terrain.layers.size(), 3u);
     terraingen::BoulderLayerOptions options = boulders.boulders;
     terrain.layers[2] = std::make_shared<terraingen::BoulderLayer>(
@@ -261,32 +261,32 @@ TEST(GenerateTerrain, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem) {
 
     boulders.boulders.ejecta.minCraterDiameter = 0.0;
     config.layers.back() = boulders;
-    const auto without = GenerateTerrain(config);
+    const auto without = GenerateFromConfig(config);
     EXPECT_LT(BouldersOf(without).boulders.size(), BouldersOf(generated).boulders.size());
 }
 
-TEST(GenerateTerrain, ShapesMarsCraters) {
-    TerrainConfig surface = Small();
+TEST(GenerateFromConfig, ShapesMarsCraters) {
+    TerrainGenConfig surface = Small();
     Craters(surface).morphometry = terraingen::CraterMorphometryFit::Mars;
     Craters(surface).density = terraingen::ProductionSurfaceSpec{
         terraingen::ProductionFunction::Ivanov, terraingen::ChronologyModel::Ivanov, 3.0};
     Craters(surface).ages = terraingen::UniformAgesSpec{3.0};
     Craters(surface).minDiameter = 20.0;
-    EXPECT_FALSE(CratersOf(GenerateTerrain(surface)).craters.Empty());
+    EXPECT_FALSE(CratersOf(GenerateFromConfig(surface)).craters.Empty());
 }
 
-TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
+TEST(GenerateFromConfig, LoadsResamplesAndDetailsARasterSource) {
     const auto folder = TempPath("terraingen_raster_generate");
     const auto dem = WriteDem(folder, "dem.tif");
-    TerrainConfig config = RasterConfig("dem.tif");
-    const auto plain = GenerateTerrain(config, folder);
+    TerrainGenConfig config = RasterConfig("dem.tif");
+    const auto plain = GenerateFromConfig(config, folder);
     ExpectSameRaster(HeightsOf(plain), dem);
     EXPECT_EQ(plain.geoKeys, Keys());
     EXPECT_EQ(HeightsOf(plain).Transform(), dem.Transform());
 
     RasterSpec(config).read.scale = 1000.0;
     RasterSpec(config).read.offset = -5.0;
-    const auto scaled = GenerateTerrain(config, folder);
+    const auto scaled = GenerateFromConfig(config, folder);
     for (std::size_t i = 0; i < dem.Size(); ++i) {
         ASSERT_EQ(HeightsOf(scaled).Values()[i],
                   static_cast<float>(static_cast<double>(dem.Values()[i]) * 1000.0 - 5.0));
@@ -298,7 +298,7 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     RasterSpec(config).upsampling.type = "bilinear";
     config.outputs = {terraingen::testing::Heightmap(
         "fine.tif", terraingen::GridRegionSpec{80, 60, 2.5, 1100.0, 1925.0})};
-    const auto resampled = GenerateTerrain(config, folder);
+    const auto resampled = GenerateFromConfig(config, folder);
     ExpectSameRaster(HeightsOf(resampled),
                      terraingen::Resample(dem, 2.5, terraingen::ResampleMethod::Bilinear));
 
@@ -310,7 +310,7 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     terraingen::NoiseLayerSpec detailLayer;
     detailLayer.stack = {detail};
     config.layers = {detailLayer};
-    const auto detailed = GenerateTerrain(config, folder);
+    const auto detailed = GenerateFromConfig(config, folder);
     const terraingen::NoiseLayer layer = detail.Effective();
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
@@ -323,10 +323,10 @@ TEST(GenerateTerrain, LoadsResamplesAndDetailsARasterSource) {
     }
 }
 
-TEST(GenerateTerrain, PlacesCratersInTheRastersCoordinates) {
+TEST(GenerateFromConfig, PlacesCratersInTheRastersCoordinates) {
     const auto folder = TempPath("terraingen_raster_craters");
     WriteDem(folder, "dem.tif");
-    TerrainConfig config = RasterConfig("dem.tif");
+    TerrainGenConfig config = RasterConfig("dem.tif");
     CraterLayerSpec craters;
     craters.density = terraingen::PowerLawSpec{0.1, 2.0};
     craters.minDiameter = 15.0;
@@ -336,7 +336,7 @@ TEST(GenerateTerrain, PlacesCratersInTheRastersCoordinates) {
     craters.maxDiameter = 60.0;
     craters.manual = {{1100.0, 1925.0, 50.0, 0.0, 0u, true}};
     config.layers = {craters};
-    const auto terrain = GenerateTerrain(config, folder);
+    const auto terrain = GenerateFromConfig(config, folder);
     const CraterList placed = CratersOf(terrain).craters;
     ASSERT_GT(placed.Size(), 2u);
     const terraingen::Bounds2d bounds{1000.0, 1850.0, 1200.0, 2000.0};
@@ -350,7 +350,7 @@ TEST(GenerateTerrain, PlacesCratersInTheRastersCoordinates) {
     EXPECT_LT(HeightsOf(terrain)(20, 15), WriteDem(folder, "again.tif")(20, 15) - 2.0f);
 }
 
-TEST(GenerateTerrain, FillsARastersGapsFromTheSourcesChainedAfterIt) {
+TEST(GenerateFromConfig, FillsARastersGapsFromTheSourcesChainedAfterIt) {
     const auto folder = TempPath("terraingen_chain");
     const auto dem = WriteDem(folder, "dem.tif");
     auto holes = dem;
@@ -362,20 +362,20 @@ TEST(GenerateTerrain, FillsARastersGapsFromTheSourcesChainedAfterIt) {
     }
     terraingen::WriteGeoTiff(folder / "holes.tif", holes, Keys());
     const auto raster = [](const std::string& path) { return terraingen::RasterSourceSpec{path}; };
-    TerrainConfig config;
+    TerrainGenConfig config;
     config.source = terraingen::ChainSourceSpec{{raster("holes.tif"), raster("dem.tif")}};
     config.outputs = {terraingen::testing::Heightmap("filled.tif", std::nullopt)};
-    const auto filled = GenerateTerrain(config, folder);
+    const auto filled = GenerateFromConfig(config, folder);
     ExpectSameRaster(HeightsOf(filled), dem);
     EXPECT_EQ(filled.geoKeys, Keys());
 }
 
-TEST(GenerateTerrain, EvaluatesTheAlbedoAsTheLibraryDoes) {
-    const TerrainConfig config = terraingen::testing::WithAlbedo();
-    const auto generated = GenerateTerrain(config, {}, 3);
+TEST(GenerateFromConfig, EvaluatesTheAlbedoAsTheLibraryDoes) {
+    const TerrainGenConfig config = terraingen::testing::WithAlbedo();
+    const auto generated = GenerateFromConfig(config, {}, 3);
     ASSERT_EQ(AlbedoOf(generated).size(), 3u);
 
-    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     const auto craters =
         std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
     ASSERT_TRUE(craters);
@@ -394,18 +394,18 @@ TEST(GenerateTerrain, EvaluatesTheAlbedoAsTheLibraryDoes) {
     const auto col = static_cast<std::size_t>(centre.x);
     const auto row = static_cast<std::size_t>(centre.y);
     EXPECT_GT(AlbedoOf(generated)[0](col, row), background[0](col, row));
-    EXPECT_TRUE(GenerateTerrain(Small()).grids.at(0).albedo.empty());
+    EXPECT_TRUE(GenerateFromConfig(Small()).grids.at(0).albedo.empty());
 }
 
-TEST(GenerateTerrain, BuildsSphereTerrainsWithGeographicKeys) {
-    TerrainConfig config = terraingen::testing::OnASphere();
+TEST(GenerateFromConfig, BuildsSphereTerrainsWithGeographicKeys) {
+    TerrainGenConfig config = terraingen::testing::OnASphere();
     terraingen::SyntheticAlbedoSpec synthetic;
     config.albedo = terraingen::AlbedoSpec{synthetic, {terraingen::CraterAlbedoSpec{}}};
     terraingen::AlbedoOutput albedo;
     albedo.path = "albedo.tif";
     albedo.region = Region(config);
     config.outputs.push_back(albedo);
-    const auto generated = GenerateTerrain(config, {}, 2);
+    const auto generated = GenerateFromConfig(config, {}, 2);
     const auto grid = terraingen::RasterGrid::FromRaster(HeightsOf(generated));
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     EXPECT_NEAR(grid.Spacing(moon), 4.0, 1e-9);
@@ -419,19 +419,19 @@ TEST(GenerateTerrain, BuildsSphereTerrainsWithGeographicKeys) {
     EXPECT_EQ(generated.geoKeys, terraingen::GeographicSphereKeys(1737400.0));
     EXPECT_EQ(AlbedoOf(generated).size(), 1u);
 
-    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     EXPECT_EQ(terrain.surface, moon);
     const auto heights = terraingen::Evaluate(terrain, grid);
     const auto centre = heights.CellCenter(20, 30);
-    EXPECT_EQ(terraingen::EvaluateAt(terrain, centre.x, centre.y, 4.0), heights(20, 30));
+    EXPECT_EQ(terraingen::HeightAt(terrain, centre.x, centre.y, 4.0), heights(20, 30));
 }
 
-TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, WearsCratersByDiffusionAsTheLibraryDoes) {
+    TerrainGenConfig config = Small();
     Craters(config).degradation = terraingen::DiffusionDegradationSpec{};
     Craters(config).profile =
         terraingen::FassettThomsonSpec{terraingen::FassettThomsonRim::Plateau};
-    const auto generated = GenerateTerrain(config, {}, 2);
+    const auto generated = GenerateFromConfig(config, {}, 2);
     const terraingen::CraterModels models = BuildCraterModels(Craters(config));
     ASSERT_GT(CratersOf(generated).craters.Size(), 0u);
     const terraingen::Crater crater = CratersOf(generated).craters.At(0);
@@ -443,8 +443,8 @@ TEST(GenerateTerrain, WearsCratersByDiffusionAsTheLibraryDoes) {
         << "matched to their own profile, the ages wear craters as Fassett et al.'s fit";
 }
 
-TEST(GenerateTerrain, AddsSecondariesAroundTheCratersBeforeThem) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, AddsSecondariesAroundTheCratersBeforeThem) {
+    TerrainGenConfig config = Small();
     Region(config) = {400, 400, 8.0};
     CraterLayerSpec& craters = Craters(config);
     craters.generateRandom = false;
@@ -453,14 +453,14 @@ TEST(GenerateTerrain, AddsSecondariesAroundTheCratersBeforeThem) {
     secondaries.secondaries.onsetCount = 40.0;
     secondaries.secondaries.minDiameter = 16.0;
     config.layers.push_back(secondaries);
-    const auto generated = GenerateTerrain(config, {}, 2);
+    const auto generated = GenerateFromConfig(config, {}, 2);
     ASSERT_GT(CratersOf(generated).craters.Size(), 2u);
     EXPECT_EQ(CratersOf(generated).craters.At(0).id, 3u);
     EXPECT_EQ(CratersOf(generated).attributes.size(), CratersOf(generated).craters.Size());
 }
 
-TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, ShapesSecondariesWithTheirMorphometry) {
+    TerrainGenConfig config = Small();
     Region(config) = {400, 400, 8.0};
     CraterLayerSpec& craters = Craters(config);
     craters.generateRandom = false;
@@ -469,10 +469,10 @@ TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
     secondaries.secondaries.onsetCount = 40.0;
     secondaries.secondaries.minDiameter = 16.0;
     config.layers.push_back(secondaries);
-    const auto lunar = GenerateTerrain(config, {}, 2);
+    const auto lunar = GenerateFromConfig(config, {}, 2);
     secondaries.morphometry = terraingen::CraterMorphometryFit::Mars;
     config.layers.back() = secondaries;
-    const auto mars = GenerateTerrain(config, {}, 2);
+    const auto mars = GenerateFromConfig(config, {}, 2);
     ASSERT_EQ(CratersOf(lunar).craters.Size(), CratersOf(mars).craters.Size());
     ASSERT_GT(CratersOf(mars).craters.Size(), 2u);
     const auto lunarHeights = HeightsOf(lunar).Values();
@@ -482,8 +482,8 @@ TEST(GenerateTerrain, ShapesSecondariesWithTheirMorphometry) {
 }
 
 TEST(Summary, DescribesTheTerrainItsTimeAndBackend) {
-    terraingen::GeneratedTerrain terrain =
-        terraingen::GenerateTerrain(Small(), {}, 0, terraingen::Backend::Cpu);
+    terraingen::GeneratedOutputs terrain =
+        terraingen::GenerateFromConfig(Small(), {}, 0, terraingen::Backend::Cpu);
     EXPECT_GE(terrain.seconds, 0.0);
     EXPECT_EQ(terrain.backend, terraingen::Backend::Cpu);
     terrain.seconds = 1.5;
@@ -494,8 +494,8 @@ TEST(Summary, DescribesTheTerrainItsTimeAndBackend) {
                   terraingen::DescribeBackend(terraingen::Backend::Vulkan));
 }
 
-TEST(GenerateTerrain, GeneratesASyntheticSourceOverEachOutputsRegion) {
-    TerrainConfig config;
+TEST(GenerateFromConfig, GeneratesASyntheticSourceOverEachOutputsRegion) {
+    TerrainGenConfig config;
     terraingen::SyntheticSourceSpec synthetic;
     synthetic.elevation = 4.0;
     terraingen::NoiseLayerConfig layer;
@@ -504,7 +504,7 @@ TEST(GenerateTerrain, GeneratesASyntheticSourceOverEachOutputsRegion) {
     config.source = synthetic;
     const terraingen::GridRegionSpec region{33, 17, 3.0, 50.0, -20.0};
     config.outputs = {terraingen::testing::Heightmap("synthetic.tif", region)};
-    const auto generated = GenerateTerrain(config);
+    const auto generated = GenerateFromConfig(config);
     const terraingen::SyntheticSource expected(terraingen::StackParams(synthetic.stack), 4.0f);
     terraingen::Raster<float> heights = terraingen::config::RegionGrid(region, {}).MakeRaster();
     expected.Fill(heights);
@@ -514,25 +514,25 @@ TEST(GenerateTerrain, GeneratesASyntheticSourceOverEachOutputsRegion) {
         << "synthetic noise has no grid of its own to cover";
 }
 
-TEST(GenerateTerrain, EvaluatesEachDistinctOutputGridOnce) {
-    TerrainConfig config = Small();
+TEST(GenerateFromConfig, EvaluatesEachDistinctOutputGridOnce) {
+    TerrainGenConfig config = Small();
     const terraingen::GridRegionSpec coarse{20, 10, 8.0, 40.0, -16.0};
     config.outputs.push_back(terraingen::testing::Heightmap("again.tif"));
     config.outputs.push_back(terraingen::TerrainMeshOutput{"coarse.glb", coarse});
     config.outputs.push_back(terraingen::CraterListOutput{{"c.csv", {}, coarse}});
-    const auto generated = GenerateTerrain(config);
+    const auto generated = GenerateFromConfig(config);
     ASSERT_EQ(generated.grids.size(), 2u) << "lists evaluate no heights";
     const auto fine = terraingen::config::RegionGrid(Region(config), {});
     const auto wide = terraingen::config::RegionGrid(coarse, {});
     EXPECT_EQ(generated.Find(fine), &generated.grids[0]);
     EXPECT_EQ(generated.Find(wide), &generated.grids[1]);
     EXPECT_EQ(generated.Find({3, 3, {}}), nullptr);
-    ExpectSameRaster(generated.grids[1].heights, terraingen::Evaluate(generated.terrain, wide));
+    ExpectSameRaster(generated.grids[1].heights, terraingen::Evaluate(generated.generator, wide));
     EXPECT_EQ(terraingen::Summary(generated).rfind("Generated 2 grids (65x49, 20x10) in ", 0), 0u)
         << terraingen::Summary(generated);
 
     const terraingen::testing::LogCapture capture;
-    GenerateTerrain(config);
+    GenerateFromConfig(config);
     std::vector<std::string> lines;
     for (const auto& record : capture.Matching("pipeline", terraingen::LogLevel::Info)) {
         lines.push_back(record.message);
@@ -549,7 +549,7 @@ TEST(GenerateTerrain, EvaluatesEachDistinctOutputGridOnce) {
     EXPECT_EQ(count(first + " "), 1) << "and once in the totals";
 
     config.outputs = {};
-    const auto none = GenerateTerrain(config);
+    const auto none = GenerateFromConfig(config);
     EXPECT_TRUE(none.grids.empty());
     EXPECT_EQ(terraingen::Summary(none),
               "Built the terrain; no output grids to evaluate before writing");
@@ -580,8 +580,8 @@ TEST(OutputGrid, CoversARegionTheBaseGridOrTheWholeBody) {
     EXPECT_EQ(terraingen::config::WholeBodyGrid(moon, 1e12).height, 1u);
 }
 
-TEST(GenerateTerrain, ListsCratersOverTheWholeBody) {
-    TerrainConfig config;
+TEST(GenerateFromConfig, ListsCratersOverTheWholeBody) {
+    TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{50000.0};
     CraterLayerSpec craters;
     craters.minDiameter = 2000.0;
@@ -589,10 +589,10 @@ TEST(GenerateTerrain, ListsCratersOverTheWholeBody) {
     craters.density = terraingen::testing::LunarDensitySpec();
     config.layers = {craters};
     config.outputs = {terraingen::CraterListOutput{{"c.csv", {}, {}, 500.0}}};
-    const auto generated = GenerateTerrain(config);
+    const auto generated = GenerateFromConfig(config);
     const auto grid =
         terraingen::config::WholeBodyGrid(terraingen::Surface::Sphere(50000.0), 500.0);
-    const CraterList all = terraingen::PlacedCraters(generated.terrain, grid).craters;
+    const CraterList all = terraingen::PlacedCraters(generated.generator, grid).craters;
     ASSERT_GT(all.Size(), 10u);
     double south = 90.0;
     double north = -90.0;
@@ -604,16 +604,16 @@ TEST(GenerateTerrain, ListsCratersOverTheWholeBody) {
     EXPECT_GT(north, 45.0);
 }
 
-TEST(GenerateTerrain, ExpandsADemByDiamondSquareKeepingItsCells) {
+TEST(GenerateFromConfig, ExpandsADemByDiamondSquareKeepingItsCells) {
     const auto folder = TempPath("terraingen_midpoint");
     const auto dem = WriteDem(folder, "dem.tif");
-    TerrainConfig config = RasterConfig("dem.tif");
+    TerrainGenConfig config = RasterConfig("dem.tif");
     RasterSpec(config).upsampling.type = "diamond_square";
     const terraingen::GridRegionSpec region{21, 21, 2.5, 1102.5, 1922.5};
     config.outputs = {terraingen::testing::Heightmap("fine.tif", region),
                       terraingen::testing::Heightmap("base.tif", std::nullopt)};
     terraingen::ValidateConfig(config, folder);
-    const auto generated = GenerateTerrain(config, folder);
+    const auto generated = GenerateFromConfig(config, folder);
     ASSERT_EQ(generated.grids.size(), 2u);
     const terraingen::Raster<float>& fine = generated.grids[0].heights;
     bool expanded = false;
@@ -634,7 +634,7 @@ TEST(GenerateTerrain, ExpandsADemByDiamondSquareKeepingItsCells) {
     fractal.fractalDimension = 2.4;
     fractal.scale = 0.0;
     fractal.interp = terraingen::DiamondSquareInterp::CatmullRom;
-    const auto smooth = GenerateTerrain(config, folder);
+    const auto smooth = GenerateFromConfig(config, folder);
     double change = 0.0;
     for (std::size_t row = 0; row < smooth.grids[0].heights.Height(); ++row) {
         for (std::size_t col = 0; col < smooth.grids[0].heights.Width(); ++col) {
@@ -647,10 +647,10 @@ TEST(GenerateTerrain, ExpandsADemByDiamondSquareKeepingItsCells) {
     EXPECT_EQ(smooth.grids[0].heights(0, 0), dem(15, 10));
 }
 
-TEST(GenerateTerrain, ContinuesADemsSpectrumOnlyBelowItsCells) {
+TEST(GenerateFromConfig, ContinuesADemsSpectrumOnlyBelowItsCells) {
     const auto folder = TempPath("terraingen_spectral");
     const auto dem = WriteDem(folder, "dem.tif");
-    TerrainConfig config = RasterConfig("dem.tif");
+    TerrainGenConfig config = RasterConfig("dem.tif");
     terraingen::SpectralContinuationLayerSpec layer;
     layer.fit.maxPixels = 16.0;
     layer.minWavelength = 1.0;
@@ -659,11 +659,11 @@ TEST(GenerateTerrain, ContinuesADemsSpectrumOnlyBelowItsCells) {
     config.outputs = {terraingen::testing::Heightmap("fine.tif", region),
                       terraingen::testing::Heightmap("base.tif", std::nullopt)};
     terraingen::ValidateConfig(config, folder);
-    const auto generated = GenerateTerrain(config, folder);
+    const auto generated = GenerateFromConfig(config, folder);
     ASSERT_EQ(generated.grids.size(), 2u);
     ExpectSameRaster(generated.grids[1].heights, dem);
     const auto plain =
-        terraingen::Evaluate(GenerateTerrain(RasterConfig("dem.tif"), folder).terrain,
+        terraingen::Evaluate(GenerateFromConfig(RasterConfig("dem.tif"), folder).generator,
                              terraingen::RasterGrid::FromRaster(generated.grids[0].heights));
     double squares = 0.0;
     for (std::size_t i = 0; i < plain.Size(); ++i) {
@@ -676,14 +676,14 @@ TEST(GenerateTerrain, ContinuesADemsSpectrumOnlyBelowItsCells) {
     layer.slope = 2.5;
     layer.octaveRms = 0.0;
     config.layers = {layer};
-    ExpectSameRaster(GenerateTerrain(config, folder).grids[0].heights, plain);
+    ExpectSameRaster(GenerateFromConfig(config, folder).grids[0].heights, plain);
 }
 
 namespace {
 
 /// A DEM with roughness and noise that estimate their settings from it, over 2.5 m cells.
-TerrainConfig EstimatingDem(const terraingen::GridRegionSpec& region) {
-    TerrainConfig config = RasterConfig("dem.tif");
+TerrainGenConfig EstimatingDem(const terraingen::GridRegionSpec& region) {
+    TerrainGenConfig config = RasterConfig("dem.tif");
     terraingen::RoughnessLayerSpec roughness;
     roughness.estimateFromBase = true;
     roughness.roughness.maxWavelength = 4.0;
@@ -699,39 +699,41 @@ TerrainConfig EstimatingDem(const terraingen::GridRegionSpec& region) {
 
 }  // namespace
 
-TEST(GenerateTerrain, EstimatesRoughnessAndNoiseFromTheBaseAlikeForGridsTilesAndPoints) {
+TEST(GenerateFromConfig, EstimatesRoughnessAndNoiseFromTheBaseAlikeForGridsTilesAndPoints) {
     const auto folder = TempPath("terraingen_estimate");
     const auto dem = WriteDem(folder, "dem.tif");
     const terraingen::GridRegionSpec region{24, 20, 2.5, 1080.0, 1950.0};
-    const TerrainConfig config = EstimatingDem(region);
+    const TerrainGenConfig config = EstimatingDem(region);
     terraingen::ValidateConfig(config, folder);
-    const auto generated = GenerateTerrain(config, folder);
-    const auto shifted = GenerateTerrain(EstimatingDem({8, 8, 1.0, 1010.0, 1990.0}), folder);
+    const auto generated = GenerateFromConfig(config, folder);
+    const auto shifted = GenerateFromConfig(EstimatingDem({8, 8, 1.0, 1010.0, 1990.0}), folder);
     const terraingen::RasterSource base(dem);
     const terraingen::BaseRoughness expected = terraingen::EstimateSourceRoughness(base);
     const auto roughness =
-        terraingen::LayerAt<terraingen::RoughnessLayer>(generated.terrain, 1, "roughness");
+        terraingen::LayerAt<terraingen::RoughnessLayer>(generated.generator, 1, "roughness");
     EXPECT_DOUBLE_EQ(roughness->Options().hurst, expected.hurst);
     EXPECT_DOUBLE_EQ(roughness->Options().rmsSlope, expected.RmsSlope(0.25));
     EXPECT_EQ(roughness->Options(),
-              terraingen::LayerAt<terraingen::RoughnessLayer>(shifted.terrain, 1, "roughness")
+              terraingen::LayerAt<terraingen::RoughnessLayer>(shifted.generator, 1, "roughness")
                   ->Options());
-    const auto noise = terraingen::LayerAt<terraingen::NoiseRelief>(generated.terrain, 0, "noise");
+    const auto noise =
+        terraingen::LayerAt<terraingen::NoiseRelief>(generated.generator, 0, "noise");
     EXPECT_GT(noise->Params().layers[0].fractal.amplitude, 0.0f);
-    EXPECT_EQ(noise->Params(),
-              terraingen::LayerAt<terraingen::NoiseRelief>(shifted.terrain, 0, "noise")->Params());
+    EXPECT_EQ(
+        noise->Params(),
+        terraingen::LayerAt<terraingen::NoiseRelief>(shifted.generator, 0, "noise")->Params());
 
     const terraingen::Raster<float>& grid = generated.grids[0].heights;
     const terraingen::RasterGrid lattice = terraingen::RasterGrid::FromRaster(grid);
-    const terraingen::Raster<float> tile =
-        terraingen::Evaluate(generated.terrain, terraingen::Subgrid(lattice, {5, 17, 3, 11}), 2.5);
+    const terraingen::Raster<float> tile = terraingen::Evaluate(
+        generated.generator, terraingen::Subgrid(lattice, {5, 17, 3, 11}), 2.5);
     std::vector<terraingen::Vec2d> points;
     for (std::size_t row = 0; row < grid.Height(); ++row) {
         for (std::size_t col = 0; col < grid.Width(); ++col) {
             points.push_back(grid.CellCenter(col, row));
         }
     }
-    const std::vector<float> atPoints = terraingen::EvaluatePoints(generated.terrain, points, 2.5);
+    const std::vector<float> atPoints = terraingen::HeightsAt(generated.generator, points, 2.5);
     for (std::size_t row = 0; row < grid.Height(); ++row) {
         for (std::size_t col = 0; col < grid.Width(); ++col) {
             ASSERT_EQ(atPoints[row * grid.Width() + col], grid(col, row)) << col << " " << row;

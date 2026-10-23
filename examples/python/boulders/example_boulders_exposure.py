@@ -34,7 +34,7 @@ class Example(_common.Example):
         )
         exposure = terraingen.ExposureParams(reach=6.0)
         grid = terraingen.RasterGrid.centred(SIZE, SIZE, PIXEL)
-        ground = terraingen.Terrain(terraingen.FlatSource(SIZE, SIZE, PIXEL), [relief])
+        ground = terraingen.TerrainGenerator(terraingen.FlatSource(SIZE, SIZE, PIXEL), [relief])
         self.exposure_map = terraingen.ExposureField(exposure).fill(ground, 1, grid, PIXEL).values
 
         boulders = terraingen.BoulderLayer(
@@ -47,7 +47,7 @@ class Example(_common.Example):
                 bedrock_abundance=4.0,
             )
         )
-        terrain = terraingen.Terrain(ground.source, [relief, boulders])
+        terrain = terraingen.TerrainGenerator(ground.source, [relief, boulders])
         self.heights = terraingen.evaluate(terrain)
         table = terraingen.placed_boulders(terrain).table
         cols = np.clip(((table["x"] - grid.transform.origin_x) / PIXEL).astype(int), 0, SIZE - 1)

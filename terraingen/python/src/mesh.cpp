@@ -170,7 +170,7 @@ void BindTriangleMesh(nb::module_& m) {
             "degrees, with smooth normals elsewhere.")
         .def("transformed", &Transformed, "transform"_a)
         .def("scaled", &Scaled, "scale"_a, "The mesh scaled per axis.")
-        .def("subdivided", &Subdivide, "levels"_a, "on_unit_sphere"_a = false,
+        .def("subdivide", &Subdivide, "levels"_a, "on_unit_sphere"_a = false,
              "Each triangle split into four `levels` times, new vertices on the unit sphere if "
              "`on_unit_sphere`.");
     BindMeshFiles(mesh);

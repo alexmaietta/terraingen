@@ -95,12 +95,12 @@ def test_from_array_rejects_wrong_dimensions():
 def test_georeference_and_nodata_round_trip():
     raster = terraingen.Raster(10, 10)
     raster.transform = terraingen.GeoTransform.north_up(100.0, 200.0, 2.0)
-    raster.nodata = -9999.0
+    raster.no_data = -9999.0
     assert raster.cell_center(1, 2) == (103.0, 195.0)
     assert not hasattr(raster, "crs")
-    assert raster.nodata == -9999.0
-    raster.nodata = None
-    assert raster.nodata is None
+    assert raster.no_data == -9999.0
+    raster.no_data = None
+    assert raster.no_data is None
 
 
 def test_empty_raster_has_empty_views():
@@ -160,7 +160,7 @@ def test_geotransform_fields_are_writable_and_compare_by_value():
 
 def test_compute_stats_skips_nodata_and_nan():
     raster = terraingen.Raster.from_array(np.array([[1.0, 2.0], [-9999.0, np.nan]], dtype=np.float32))
-    raster.nodata = -9999.0
+    raster.no_data = -9999.0
     stats = terraingen.compute_stats(raster)
     assert (stats.min, stats.max, stats.mean, stats.valid_count) == (1.0, 2.0, 1.5, 2)
     assert "valid_count=2" in repr(stats)
@@ -209,7 +209,9 @@ def test_reading_a_missing_geotiff_raises_a_geotiff_error(tmp_path):
 
 def test_geotiff_heights_round_trip(tmp_path, lunar_models, crater_layer):
     craters = crater_layer(lunar_models(3.2), 60.0, 300.0)
-    heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(129, 129, 8.0), [craters]))
+    heights = terraingen.evaluate(
+        terraingen.TerrainGenerator(terraingen.FlatSource(129, 129, 8.0), [craters])
+    )
     terraingen.write_geotiff(tmp_path / "heights.tif", heights)
     np.testing.assert_array_equal(terraingen.read_geotiff(tmp_path / "heights.tif").values, heights.values)
 

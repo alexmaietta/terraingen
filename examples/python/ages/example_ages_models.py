@@ -51,7 +51,7 @@ class Example(_common.Example):
             terraingen.DiffusedProfile(terraingen.FassettThomsonProfile()),
         )
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
-        generation = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=300.0)
+        generation = terraingen.CraterGenerationOptions(d_min=8.0, d_max=300.0)
         self.heights, self.craters = {}, {}
         print(f"{'ages':16s} {'10%':>7s} {'50%':>7s} {'90%':>7s}  (Gyr)")
         for name, ages in age_models.items():
@@ -59,7 +59,7 @@ class Example(_common.Example):
             craters = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=1, generation=generation)
             )
-            terrain = terraingen.Terrain(
+            terrain = terraingen.TerrainGenerator(
                 terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([fbm]), craters]
             )
             heights = terraingen.evaluate(terrain)

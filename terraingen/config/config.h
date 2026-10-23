@@ -1055,7 +1055,7 @@ struct BoulderModelsOutput {
     }
 };
 
-/// Output "albedo": writes the albedo (`TerrainConfig::albedo`) with one band, or three
+/// Output "albedo": writes the albedo (`TerrainGenConfig::albedo`) with one band, or three
 /// (red, green, blue).
 struct AlbedoOutput : GeoTiffOutput {};
 
@@ -1098,7 +1098,7 @@ struct TerrainMeshOutput {
     }
 };
 
-/// Output "materials": the share of each material class (`TerrainConfig::materials`), one band
+/// Output "materials": the share of each material class (`TerrainGenConfig::materials`), one band
 /// per `MaterialClass` in its order.
 struct MaterialsOutput : GeoTiffOutput {};
 
@@ -1334,7 +1334,7 @@ struct MaterialsSpec {
 /// Everything needed to generate a terrain: the body it lies on, optionally its source of heights,
 /// the layers added to them in order, the outputs to write, and optionally its albedo and
 /// materials.
-struct TerrainConfig {
+struct TerrainGenConfig {
     int schemaVersion = kConfigSchemaVersion;
     SurfaceSpec body{};
     /// None for a flat synthetic source at the body's datum, 0 m, everywhere.
@@ -1344,12 +1344,12 @@ struct TerrainConfig {
     std::optional<AlbedoSpec> albedo;        ///< None by default.
     std::optional<MaterialsSpec> materials;  ///< None by default.
 
-    bool operator==(const TerrainConfig& other) const {
+    bool operator==(const TerrainGenConfig& other) const {
         return schemaVersion == other.schemaVersion && body == other.body &&
                source == other.source && layers == other.layers && outputs == other.outputs &&
                albedo == other.albedo && materials == other.materials;
     }
-    bool operator!=(const TerrainConfig& other) const {
+    bool operator!=(const TerrainGenConfig& other) const {
         return !(*this == other);
     }
 };

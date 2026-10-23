@@ -19,7 +19,7 @@ def boulder_terrain(lunar_models, crater_layer, size=201):
     """Craters 3 to 20 m and boulders with models above 0.6 m on a `size` square grid at 0.1 m."""
     craters = crater_layer(lunar_models(), 3.0, 20.0)
     boulders = terraingen.BoulderLayer(model_options(), craters)
-    return terraingen.Terrain(terraingen.FlatSource(size, size, 0.1), [craters, boulders])
+    return terraingen.TerrainGenerator(terraingen.FlatSource(size, size, 0.1), [craters, boulders])
 
 
 @pytest.fixture
@@ -145,8 +145,8 @@ def test_boulder_fillets_and_burial_by_wear_are_options():
     boulders = terraingen.BoulderLayerOptions(burial_by_wear=0.5, fillet=fillet)
     assert (boulders.burial_by_wear, boulders.fillet.height_share) == (0.5, 0.4)
     boulder = terraingen.Boulder(0.0, 0.0, 2.0, 1.0, burial=0.25)
-    assert terraingen.boulder_fillet_height(boulder, 1.25, fillet) == pytest.approx(0.075)
-    assert terraingen.boulder_fillet_height(boulder, 2.0, fillet) == 0.0
+    assert terraingen.fillet_height(boulder, 1.25, fillet) == pytest.approx(0.075)
+    assert terraingen.fillet_height(boulder, 2.0, fillet) == 0.0
     with pytest.raises(ValueError):
         terraingen.validate_boulder_fillet(terraingen.BoulderFillet(height_share=2.0))
 
@@ -240,7 +240,7 @@ def test_boulder_abundance_follows_exposed_bedrock(noise_relief):
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(exposure=exposure, bedrock_abundance=4.0)
     )
-    ground = terraingen.Terrain(terraingen.FlatSource(64, 64, 0.5), [noise_relief(3, 60.0, 5.0)])
+    ground = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [noise_relief(3, 60.0, 5.0)])
     abundances = [boulders.abundance_at(x, 0.0, ground, 1)[0] for x in np.linspace(-15.0, 15.0, 31)]
     assert min(abundances) < max(abundances) <= 4.0 + 1e-9
 
@@ -382,6 +382,6 @@ def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
     assert not built.options.generate_random and built.options.relief == terraingen.BoulderRelief.SHAPE
     assert sorted(np.asarray(built.boulders((-10.0, -10.0, 10.0, 10.0))["diameter"])) == [1.5, 2.0]
     centred = terraingen.BoulderLayer.manual([terraingen.ManualBoulder(0.0, 0.0, 1.0)])
-    terrain = terraingen.Terrain(terraingen.FlatSource(41, 41, 0.1), [centred])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(41, 41, 0.1), [centred])
     heights = terraingen.evaluate(terrain).values
     assert heights.max() > 0.2 and heights[0, 0] == 0.0

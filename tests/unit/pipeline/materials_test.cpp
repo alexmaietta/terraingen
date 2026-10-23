@@ -17,7 +17,7 @@
 using terraingen::MaterialClass;
 using terraingen::MaterialOptions;
 using terraingen::MaterialsAt;
-using terraingen::Terrain;
+using terraingen::TerrainGenerator;
 
 namespace {
 
@@ -43,8 +43,8 @@ class Tilt final : public terraingen::FormulaLayer {
     double pitX_;
 };
 
-Terrain Ground(double slope, double depth = 0.0, double pitX = 0.0) {
-    return Terrain{nullptr, {std::make_shared<Tilt>(slope, depth, pitX)}, {}};
+TerrainGenerator Ground(double slope, double depth = 0.0, double pitX = 0.0) {
+    return TerrainGenerator{nullptr, {std::make_shared<Tilt>(slope, depth, pitX)}, {}};
 }
 
 }  // namespace
@@ -75,7 +75,7 @@ TEST(MaterialsAt, LaysDustInPatchesAndSandFromLayersInOrder) {
     }
     EXPECT_NEAR(dust / count, 0.4, 0.15) << "about the dust cover";
 
-    Terrain sandy = Ground(0.6, 3.0, 0.0);
+    TerrainGenerator sandy = Ground(0.6, 3.0, 0.0);
     sandy.layers.push_back(std::make_shared<terraingen::SandFillLayer>(
         terraingen::SandFillOptions{8.0, 0.8, 1.0, 0.02}));
     const auto pit = MaterialsAt(sandy, {}, 0.0, 0.0, 0.5);
@@ -86,7 +86,7 @@ TEST(MaterialsAt, LaysDustInPatchesAndSandFromLayersInOrder) {
 }
 
 TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
-    Terrain terrain = Ground(0.15, 2.0, 5.0);
+    TerrainGenerator terrain = Ground(0.15, 2.0, 5.0);
     terraingen::DuneOptions dunes;
     dunes.shape = terraingen::DuneShape::Transverse;
     dunes.wavelength = 40.0;
@@ -116,7 +116,7 @@ TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
 }
 
 TEST(EvaluateMaterials, FindsBouldersOnceAndAgreesWithPoints) {
-    Terrain terrain = Ground(0.05, 0.0, 0.0);
+    TerrainGenerator terrain = Ground(0.05, 0.0, 0.0);
     terraingen::BoulderLayerOptions rocks;
     rocks.sizes.coverage = 0.1;
     rocks.sizes.minDiameter = 0.1;

@@ -7,7 +7,7 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/region.h"
-#include "terraingen/pipeline/terrain.h"
+#include "terraingen/pipeline/generator.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -34,19 +34,20 @@ Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& direc
 /// constructor rejects its parameters.
 CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string& path = {});
 
-/// The terrain a configuration describes, ready to `Evaluate` over any grid or at points. Checks
-/// the configuration with `ValidateConfig` first.
+/// The terrain generator a configuration describes, ready to `Evaluate` over any grid or at
+/// points. Checks the configuration with `ValidateConfig` first.
 /// @param directory Folder relative input paths resolve against.
 /// @throws ConfigError if the configuration is invalid.
-Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& directory = {});
+TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
+                                const std::filesystem::path& directory = {});
 
-/// The albedo `config.albedo` describes for `terrain`, whose top-level crater layers crater
+/// The albedo `config.albedo` describes for `generator`, whose top-level crater layers crater
 /// albedo layers read. Checks the albedo with `ValidateAlbedo` first.
-/// @param terrain The terrain `BuildTerrain` built from `config`.
+/// @param generator The generator `BuildGenerator` built from `config`.
 /// @param directory Folder relative input paths resolve against.
 /// @throws ConfigError if the albedo is invalid or the configuration has none.
 /// @throws GeoTiffError if an albedo map cannot be read.
-Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
+Albedo BuildAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
                    const std::filesystem::path& directory = {});
 
 /// Steps shared by validation, building and output writing.

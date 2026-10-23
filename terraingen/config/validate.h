@@ -28,14 +28,14 @@ struct ConfigSummary {
 /// Checks every number of a configuration against the range its field declares (`FieldRange`),
 /// in the units the configuration stores it in.
 /// @throws ConfigError naming the first number out of its range by its JSON path.
-void CheckConfigRanges(const TerrainConfig& config);
+void CheckConfigRanges(const TerrainGenConfig& config);
 
 /// Checks every field range (`CheckConfigRanges`) and everything that parsing cannot, such as grid
 /// limits, the raster file, model parameters, outputs and their grids, and the expected crater
 /// counts over each, and returns the grids and the largest count.
 /// @param directory Folder relative input paths resolve against.
 /// @throws ConfigError naming the first invalid value by its JSON path.
-ConfigSummary ValidateConfig(const TerrainConfig& config,
+ConfigSummary ValidateConfig(const TerrainGenConfig& config,
                              const std::filesystem::path& directory = {});
 
 /// The grid a source covers, reading only the header of a raster's file; a chain's is its first
@@ -51,6 +51,6 @@ std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
 /// Checks a configuration's albedo against its crater layers and files.
 /// @param config A configuration with an albedo.
 /// @throws ConfigError naming the first invalid value under "albedo".
-void ValidateAlbedo(const TerrainConfig& config, const std::filesystem::path& directory);
+void ValidateAlbedo(const TerrainGenConfig& config, const std::filesystem::path& directory);
 
 }  // namespace terraingen

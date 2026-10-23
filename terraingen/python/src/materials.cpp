@@ -41,23 +41,23 @@ void BindMaterialMaps(nb::module_& m) {
     m.def("validate_material_options", &ValidateMaterialOptions, "options"_a, kValidateDoc);
     m.def(
         "materials_at",
-        [](const PyTerrain& terrain, const MaterialOptions& material, double x, double y,
+        [](const PyTerrainGenerator& generator, const MaterialOptions& material, double x, double y,
            double spacing) {
-            const MaterialShares shares = MaterialsAt(terrain.Get(), material, x, y, spacing);
+            const MaterialShares shares = MaterialsAt(generator.Get(), material, x, y, spacing);
             return std::vector<double>(shares.begin(), shares.end());
         },
-        "terrain"_a, "options"_a, "x"_a, "y"_a, "spacing"_a,
+        "generator"_a, "options"_a, "x"_a, "y"_a, "spacing"_a,
         "The share of each MaterialClass at (x, y), in class order: soil, then bedrock where the "
         "ground beneath the first material layer is bare, dust in patches, and each material "
         "layer's cover in order.");
     m.def(
         "evaluate_materials",
-        [](const PyTerrain& terrain, const MaterialOptions& material, const RasterGrid& grid,
-           double spacing, unsigned threads) {
-            return EvaluateMaterials(terrain.Get(), material, grid,
+        [](const PyTerrainGenerator& generator, const MaterialOptions& material,
+           const RasterGrid& grid, double spacing, unsigned threads) {
+            return EvaluateMaterials(generator.Get(), material, grid,
                                      EvaluationOptions{spacing, threads});
         },
-        "terrain"_a, "options"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0,
+        "generator"_a, "options"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0,
         nb::call_guard<nb::gil_scoped_release>(),
         "One raster per MaterialClass over `grid`: each cell's share of that class.");
 }

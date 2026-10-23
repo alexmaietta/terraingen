@@ -51,7 +51,7 @@ class Example(_common.Example):
                 diffused,
             ),
         }
-        generation = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=150.0)
+        generation = terraingen.CraterGenerationOptions(d_min=4.0, d_max=150.0)
         self.heights, self.ratios = {}, {}
         for name, degradation in models.items():
             crater_models = terraingen.CraterModels(
@@ -60,7 +60,7 @@ class Example(_common.Example):
             craters = terraingen.CraterLayer(
                 crater_models, terraingen.CraterLayerOptions(seed=31, generation=generation)
             )
-            terrain = terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [craters])
+            terrain = terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, PIXEL), [craters])
             self.heights[name] = terraingen.evaluate(terrain)
             self.ratios[name] = terraingen.placed_craters(terrain).table["depth_ratio"]
             print(f"{name:18s} mean depth/diameter {self.ratios[name].mean():.3f}")

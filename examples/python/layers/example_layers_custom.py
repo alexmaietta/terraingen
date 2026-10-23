@@ -99,17 +99,19 @@ class Example(_common.Example):
             terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
-        generation = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=80.0)
+        generation = terraingen.CraterGenerationOptions(d_min=8.0, d_max=80.0)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(generation=generation))
 
-        plain = terraingen.Terrain(InclinedPlane(), [terraingen.NoiseRelief([fbm]), Rille(), Tilt(), craters])
-        terraced = terraingen.Terrain(plain.source, [*plain.layers, Terraces()])
+        plain = terraingen.TerrainGenerator(
+            InclinedPlane(), [terraingen.NoiseRelief([fbm]), Rille(), Tilt(), craters]
+        )
+        terraced = terraingen.TerrainGenerator(plain.source, [*plain.layers, Terraces()])
         self.heights = {}
         for name, terrain in (("custom source and layers", plain), ("plus terraces", terraced)):
             self.heights[name] = terraingen.evaluate(terrain)
             values = self.heights[name].values
             print(f"{name:26s} heights {values.min():7.2f} to {values.max():6.2f} m")
-        self.origin_height = terraingen.evaluate_at(plain, 0.0, 0.0, PIXEL)
+        self.origin_height = terraingen.height_at(plain, 0.0, 0.0, PIXEL)
         print(f"height at the origin: {self.origin_height:.2f} m")
 
         albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [SlopeBrightening()])

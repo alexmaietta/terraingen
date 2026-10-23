@@ -83,8 +83,8 @@ def add_terrain(scene, raster, path=TERRAIN_PATH, *, exaggeration=None, material
     prim.write(tokens.HEIGHTS, raster)
     prim.set(tokens.ORIGIN, (float(t.origin_x), float(t.origin_y)))
     prim.set(tokens.CELL_SIZE, float(t.pixel_width))
-    if raster.nodata is not None:
-        prim.set(tokens.NO_DATA, float(raster.nodata))
+    if raster.no_data is not None:
+        prim.set(tokens.NO_DATA, float(raster.no_data))
     else:
         scene.clear(path, tokens.NO_DATA)
     if exaggeration is not None:

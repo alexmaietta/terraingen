@@ -93,14 +93,14 @@ def test_basis_noise2_dispatches_by_enum():
     )
 
 
-def test_perlin_noise3_matches_scalar_and_stays_in_range():
-    values = terraingen.perlin_noise3(X3, Y3, Z3, 4)
+def test_perlin_noise3_precise_matches_scalar_and_stays_in_range():
+    values = terraingen.perlin_noise3_precise(X3, Y3, Z3, 4)
     assert values.shape == (3,) and np.all(np.abs(values) <= 1.0)
-    assert values[0] == pytest.approx(terraingen.perlin_noise3(0.3, 0.2, 0.1, 4))
+    assert values[0] == pytest.approx(terraingen.perlin_noise3_precise(0.3, 0.2, 0.1, 4))
 
 
-def test_perlin_noise3_is_zero_on_lattice_points():
-    assert terraingen.perlin_noise3(1.0, 2.0, 3.0, 4) == 0.0
+def test_perlin_noise3_precise_is_zero_on_lattice_points():
+    assert terraingen.perlin_noise3_precise(1.0, 2.0, 3.0, 4) == 0.0
     assert terraingen.basis_noise3(terraingen.NoiseBasis.PERLIN, 1, 2, 3, 0.0, 0.0, 0.0, 4) == 0.0
 
 
@@ -121,7 +121,7 @@ def test_simplex_noise3_matches_its_basis_and_vectorizes():
 
 def test_noise3_rejects_mismatched_shapes():
     with pytest.raises(ValueError):
-        terraingen.perlin_noise3(X3, Y3[:2], Z3, 1)
+        terraingen.perlin_noise3_precise(X3, Y3[:2], Z3, 1)
 
 
 def test_fractal3_matches_scalar_and_stays_within_amplitude():

@@ -49,10 +49,10 @@ class Example(_common.Example):
                 models,
                 terraingen.CraterLayerOptions(
                     seed=21,
-                    generation=terraingen.CraterGenerationOptions(min_diameter=20.0, max_diameter=200.0),
+                    generation=terraingen.CraterGenerationOptions(d_min=20.0, d_max=200.0),
                 ),
             )
-            terrain = terraingen.Terrain(
+            terrain = terraingen.TerrainGenerator(
                 terraingen.FlatSource(257, 257, PIXEL), [terraingen.NoiseRelief([fbm]), craters]
             )
             heights = terraingen.evaluate(terrain)

@@ -3,9 +3,9 @@ terraingen_add_library(
     SOURCES
     body_mesh.cpp
     features.cpp
-    height_mesh.cpp
+    generator.cpp
     materials.cpp
-    terrain.cpp
+    mesh_build.cpp
     PUBLIC
     terraingen_layers
     terraingen_mesh

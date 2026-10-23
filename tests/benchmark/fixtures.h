@@ -13,10 +13,10 @@ namespace terraingen::benchmarks {
 /// Fassett and Thomson profile degraded by age, on rolling noise, over a flat `size` x `size` m
 /// source of `pixelSize` cells centred on the origin. `cacheCraters` sizes the crater cell cache (0
 /// for none). On a sphere `body` the source is centred on longitude and latitude 0.
-inline Terrain LunarMare(double size, double pixelSize, double maxDiameter = 200.0,
-                         std::size_t cacheCraters = 4000000, CraterDatum datum = CraterDatum::None,
-                         const Surface& body = {}) {
-    Terrain terrain;
+inline TerrainGenerator LunarMare(double size, double pixelSize, double maxDiameter = 200.0,
+                                  std::size_t cacheCraters = 4000000,
+                                  CraterDatum datum = CraterDatum::None, const Surface& body = {}) {
+    TerrainGenerator terrain;
     terrain.surface = body;
     const auto cells = static_cast<std::size_t>(size / pixelSize);
     terrain.source = std::make_shared<FlatSource>(cells, cells, pixelSize / body.UnitLength());

@@ -354,8 +354,8 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
 }
 
 /// The point noise is measured from: the source's reference point, or the origin without one.
-Vec2d ReferencePoint(const Terrain& terrain) {
-    return terrain.source ? terrain.source->ReferencePoint() : Vec2d{};
+Vec2d ReferencePoint(const TerrainGenerator& generator) {
+    return generator.source ? generator.source->ReferencePoint() : Vec2d{};
 }
 
 /// What a layer is built on: the base's reference point, the top-level crater layers so far (all
@@ -557,32 +557,33 @@ std::vector<SecondaryCraterOptions> ThrownSecondaries(const std::vector<LayerSpe
     return thrown;
 }
 
-Terrain BuildValidTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
-    Terrain terrain;
-    terrain.surface = BuildSurface(config.body, directory);
-    terrain.source = config.source
-                         ? BuildSource(*config.source, directory, terrain.surface, "source")
-                         : std::make_shared<SyntheticSource>();
-    const std::shared_ptr<const Source> given = config.source ? terrain.source : nullptr;
+TerrainGenerator BuildValidGenerator(const TerrainGenConfig& config,
+                                     const std::filesystem::path& directory) {
+    TerrainGenerator generator;
+    generator.surface = BuildSurface(config.body, directory);
+    generator.source = config.source
+                           ? BuildSource(*config.source, directory, generator.surface, "source")
+                           : std::make_shared<SyntheticSource>();
+    const std::shared_ptr<const Source> given = config.source ? generator.source : nullptr;
     std::vector<std::shared_ptr<const CraterLayer>> craters;
     std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        const LayerInputs context{ReferencePoint(terrain),
+        const LayerInputs context{ReferencePoint(generator),
                                   directory,
                                   craters,
                                   boulders,
-                                  terrain.surface,
+                                  generator.surface,
                                   given,
                                   ThrownSecondaries(config.layers, i)};
-        terrain.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
+        generator.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
         if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
-            craters.push_back(std::static_pointer_cast<const CraterLayer>(terrain.layers.back()));
+            craters.push_back(std::static_pointer_cast<const CraterLayer>(generator.layers.back()));
         }
         if (std::holds_alternative<BoulderLayerSpec>(config.layers[i])) {
-            boulders = std::static_pointer_cast<const BoulderLayer>(terrain.layers.back());
+            boulders = std::static_pointer_cast<const BoulderLayer>(generator.layers.back());
         }
     }
-    return terrain;
+    return generator;
 }
 
 /// The bands of a raster albedo map, scaled as its metadata or the spec says.
@@ -609,26 +610,26 @@ std::vector<Raster<float>> LoadAlbedoBands(const RasterAlbedoSpec& spec,
 }
 
 std::shared_ptr<const AlbedoSource> BuildAlbedoSource(const AlbedoSourceSpec& spec,
-                                                      const Terrain& terrain,
+                                                      const TerrainGenerator& generator,
                                                       const std::filesystem::path& directory) {
     using Result = std::shared_ptr<const AlbedoSource>;
     return std::visit(Overloaded{
                           [&](const SyntheticAlbedoSpec& s) -> Result {
                               return std::make_shared<SyntheticAlbedo>(
-                                  s.Params(), ReferencePoint(terrain), terrain.surface);
+                                  s.Params(), ReferencePoint(generator), generator.surface);
                           },
                           [&](const RasterAlbedoSpec& s) -> Result {
                               return std::make_shared<RasterAlbedo>(LoadAlbedoBands(s, directory),
-                                                                    s.options, terrain.surface);
+                                                                    s.options, generator.surface);
                           },
                       },
                       spec);
 }
 
-/// What albedo layers are built from: the terrain, and the configuration it was built from.
+/// What albedo layers are built from: the generator, and the configuration it was built from.
 struct AlbedoInputs {
-    const TerrainConfig& config;
-    const Terrain& terrain;
+    const TerrainGenConfig& config;
+    const TerrainGenerator& generator;
 };
 
 void AddAlbedoLayer(const CraterAlbedoSpec& craters, const AlbedoInputs& inputs, Albedo& albedo) {
@@ -637,7 +638,7 @@ void AddAlbedoLayer(const CraterAlbedoSpec& craters, const AlbedoInputs& inputs,
     for (std::size_t i = 0; i < indices.size(); ++i) {
         if (!craters.craterLayer || *craters.craterLayer == i) {
             albedo.layers.push_back(std::make_shared<CraterAlbedo>(
-                std::static_pointer_cast<const CraterLayer>(inputs.terrain.layers[indices[i]]),
+                std::static_pointer_cast<const CraterLayer>(inputs.generator.layers[indices[i]]),
                 craters.options));
         }
     }
@@ -646,8 +647,8 @@ void AddAlbedoLayer(const CraterAlbedoSpec& craters, const AlbedoInputs& inputs,
 void AddAlbedoLayer(const RockAlbedoSpec& rocks, const AlbedoInputs& inputs, Albedo& albedo) {
     std::vector<RockSource> sources;
     for (const std::size_t i : config::LayerIndices<BoulderLayerSpec>(inputs.config.layers)) {
-        sources.push_back({std::static_pointer_cast<const BoulderLayer>(inputs.terrain.layers[i]),
-                           SharedGround(inputs.terrain, i)});
+        sources.push_back({std::static_pointer_cast<const BoulderLayer>(inputs.generator.layers[i]),
+                           SharedGround(inputs.generator, i)});
     }
     if (rocks.boulderLayer) {
         sources = {sources[*rocks.boulderLayer]};
@@ -658,23 +659,25 @@ void AddAlbedoLayer(const RockAlbedoSpec& rocks, const AlbedoInputs& inputs, Alb
 void AddAlbedoLayer(const SplotchAlbedoSpec& splotches, const AlbedoInputs& inputs,
                     Albedo& albedo) {
     albedo.layers.push_back(
-        std::make_shared<SplotchAlbedo>(splotches.options, inputs.terrain.surface));
+        std::make_shared<SplotchAlbedo>(splotches.options, inputs.generator.surface));
 }
 
 void AddAlbedoLayer(const BlastZoneAlbedoSpec& zones, const AlbedoInputs& inputs, Albedo& albedo) {
-    albedo.layers.push_back(std::make_shared<BlastZoneAlbedo>(zones.zones, inputs.terrain.surface));
+    albedo.layers.push_back(
+        std::make_shared<BlastZoneAlbedo>(zones.zones, inputs.generator.surface));
 }
 
 void AddAlbedoLayer(const SlopeAlbedoSpec& slopes, const AlbedoInputs& inputs, Albedo& albedo) {
-    albedo.layers.push_back(std::make_shared<SlopeAlbedo>(slopes.options, inputs.terrain.surface));
+    albedo.layers.push_back(
+        std::make_shared<SlopeAlbedo>(slopes.options, inputs.generator.surface));
 }
 
-Albedo BuildValidAlbedo(const TerrainConfig& config, const Terrain& terrain,
+Albedo BuildValidAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
                         const std::filesystem::path& directory) {
     Albedo albedo;
-    albedo.surface = terrain.surface;
-    albedo.source = BuildAlbedoSource(config.albedo->source, terrain, directory);
-    const AlbedoInputs inputs{config, terrain};
+    albedo.surface = generator.surface;
+    albedo.source = BuildAlbedoSource(config.albedo->source, generator, directory);
+    const AlbedoInputs inputs{config, generator};
     for (const AlbedoLayerSpec& layer : config.albedo->layers) {
         std::visit([&](const auto& spec) { AddAlbedoLayer(spec, inputs, albedo); }, layer);
     }
@@ -897,18 +900,19 @@ Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& direc
         spec);
 }
 
-Terrain BuildTerrain(const TerrainConfig& config, const std::filesystem::path& directory) {
+TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
+                                const std::filesystem::path& directory) {
     ValidateConfig(config, directory);
-    return BuildValidTerrain(config, directory);
+    return BuildValidGenerator(config, directory);
 }
 
-Albedo BuildAlbedo(const TerrainConfig& config, const Terrain& terrain,
+Albedo BuildAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
                    const std::filesystem::path& directory) {
     if (!config.albedo) {
         throw ConfigError("albedo", "the configuration has no albedo");
     }
     ValidateAlbedo(config, directory);
-    return BuildValidAlbedo(config, terrain, directory);
+    return BuildValidAlbedo(config, generator, directory);
 }
 
 }  // namespace terraingen

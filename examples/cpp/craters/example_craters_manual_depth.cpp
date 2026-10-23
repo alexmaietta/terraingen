@@ -47,7 +47,7 @@ class CratersManualDepth : public terraingen::examples::Example {
             options.generation.manual.Append(crater);
         }
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(401, 401, 0.25);
         terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(models, options));
 

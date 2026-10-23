@@ -43,7 +43,7 @@ class Example(_common.Example):
         craters = terraingen.CraterLayer(
             models,
             terraingen.CraterLayerOptions(
-                generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=20.0)
+                generation=terraingen.CraterGenerationOptions(d_min=3.0, d_max=20.0)
             ),
         )
         area = (SIZE * PIXEL) ** 2
@@ -57,7 +57,7 @@ class Example(_common.Example):
                 models=terraingen.BoulderModelThreshold(min_diameter=0.6),
             )
             boulders = terraingen.BoulderLayer(options, craters)
-            terrain = terraingen.Terrain(
+            terrain = terraingen.TerrainGenerator(
                 terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.NoiseRelief([fbm]), craters, boulders]
             )
             self.heights[coverage] = terraingen.evaluate(terrain)

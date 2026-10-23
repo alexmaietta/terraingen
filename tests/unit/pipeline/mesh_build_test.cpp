@@ -1,4 +1,4 @@
-#include "terraingen/pipeline/height_mesh.h"
+#include "terraingen/pipeline/mesh_build.h"
 
 #include "terraingen/raster/geo_transform.h"
 

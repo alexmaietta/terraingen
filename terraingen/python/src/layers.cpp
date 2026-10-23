@@ -157,9 +157,9 @@ void BindRegions(nb::module_& m) {
     m.def("validate_region_shape", &ValidateRegionShape, "shape"_a, kValidateDoc);
     nb::class_<RegionLayer, Layer>(
         m, "RegionLayer",
-        "`layer` applied only inside `shape`, faded out over `feather` metres outside it.")
+        "`inner` applied only inside `shape`, faded out over `feather` metres outside it.")
         .def(nb::init<std::shared_ptr<Layer>, RegionShape, double, BlendShape, Surface>(),
-             "layer"_a, "shape"_a, "feather"_a = 0.0, "blend"_a = BlendShape::Smoothstep,
+             "inner"_a, "shape"_a, "feather"_a = 0.0, "blend"_a = BlendShape::Smoothstep,
              "surface"_a = Surface{})
         .def("weight", &RegionLayer::Weight, "x"_a, "y"_a)
         .def_prop_ro("inner", &RegionLayer::Inner, nb::rv_policy::reference_internal,
@@ -202,17 +202,17 @@ void BindExposure(nb::module_& m) {
                  "surface"_a = Surface{})
             .def(
                 "fill",
-                [](const ExposureField& field, const PyTerrain& terrain, std::size_t layers,
-                   const RasterGrid& grid, double spacing, unsigned threads) {
+                [](const ExposureField& field, const PyTerrainGenerator& generator,
+                   std::size_t layers, const RasterGrid& grid, double spacing, unsigned threads) {
                     Raster<float> exposure = grid.MakeRaster();
-                    WithGround(&terrain, layers, [&](const Ground* ground) {
+                    WithGround(&generator, layers, [&](const Ground* ground) {
                         field.Fill(exposure, *ground, spacing, threads);
                     });
                     return exposure;
                 },
-                "terrain"_a, "layers"_a, "grid"_a, "spacing"_a, "threads"_a = 0,
+                "generator"_a, "layers"_a, "grid"_a, "spacing"_a, "threads"_a = 0,
                 nb::call_guard<nb::gil_scoped_release>(),
-                "The exposure over `grid` of the ground made by `terrain`'s source and its first "
+                "The exposure over `grid` of the ground made by `generator`'s source and its first "
                 "`layers` layers, sampled every `spacing` metres.");
     BindGroundQuery<ExposureField>(
         exposureField, "exposure",
@@ -240,15 +240,15 @@ void BindBedforms(nb::module_& m) {
     bedforms.def(nb::init<BedformOptions, Surface>(), "options"_a, "surface"_a = Surface{})
         .def(
             "cover_at",
-            [](const BedformLayer& layer, double x, double y, const PyTerrain* terrain,
+            [](const BedformLayer& layer, double x, double y, const PyTerrainGenerator* generator,
                std::size_t layers) {
-                return WithGround(terrain, layers, [&](const Ground* ground) {
+                return WithGround(generator, layers, [&](const Ground* ground) {
                     return layer.CoverAt(x, y, ground);
                 });
             },
-            "x"_a, "y"_a, "terrain"_a = nb::none(), "layers"_a = 0,
+            "x"_a, "y"_a, "generator"_a = nb::none(), "layers"_a = 0,
             "The share of (x, y) covered by bedforms; bedforms that read the exposure field need "
-            "the ground beneath them: `terrain`'s source and its first `layers` layers.");
+            "the ground beneath them: `generator`'s source and its first `layers` layers.");
     BindMaterialCover<BedformLayer>(bedforms);
 }
 

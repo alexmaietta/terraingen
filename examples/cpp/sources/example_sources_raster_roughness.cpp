@@ -30,7 +30,7 @@ class SourcesRasterRoughness : public terraingen::examples::Example {
         relief.fractal.amplitude = 12.0f;
         relief.fractal.octaves = 6;
         relief.fractal.gain = terraingen::GainFromHurst(0.8f, 2.0f);
-        terraingen::Terrain coarse;
+        terraingen::TerrainGenerator coarse;
         coarse.source = std::make_shared<terraingen::FlatSource>(33, 33, 8.0);
         coarse.layers = {std::make_shared<terraingen::NoiseRelief>(
             terraingen::SyntheticTerrainParams{{relief}})};
@@ -57,10 +57,10 @@ class SourcesRasterRoughness : public terraingen::examples::Example {
               << base_.RmsSlope(8.0) << " over 8 m, " << roughness.rmsSlope
               << " extrapolated to 1 m\n";
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = raster;
         terrain.layers = {std::make_shared<terraingen::RoughnessLayer>(roughness)};
-        terraingen::Terrain plain;
+        terraingen::TerrainGenerator plain;
         plain.source = raster;
         smooth_ = terraingen::Evaluate(plain, grid);
         evaluated_ = terraingen::Evaluate(terrain, grid);

@@ -23,14 +23,16 @@ class Example(_common.Example):
         fbm = terraingen.NoiseLayer(
             terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0, octaves=8)
         )
-        terrain = terraingen.Terrain(terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm])])
+        terrain = terraingen.TerrainGenerator(
+            terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm])]
+        )
 
         self.heights = terraingen.evaluate(terrain)
         heights = self.heights.values
         print(f"heights from {heights.min():.2f} to {heights.max():.2f} m")
         self.points = []
         for x, y in ((0.0, 0.0), (120.5, -310.25)):
-            self.points.append(terraingen.evaluate_at(terrain, x, y, 2.0))
+            self.points.append(terraingen.height_at(terrain, x, y, 2.0))
             print(f"height at ({x}, {y}): {self.points[-1]:.3f} m")
         self.show("heights", self.heights)
 

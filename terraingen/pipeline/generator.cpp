@@ -1,4 +1,4 @@
-#include "terraingen/pipeline/terrain.h"
+#include "terraingen/pipeline/generator.h"
 
 #include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/util/arithmetic.h"
@@ -19,20 +19,20 @@ namespace terraingen {
 
 namespace {
 
-/// Sets `heights` to the terrain's source at `points`, then applies its first `layers` layers to
+/// Sets `heights` to the generator's source at `points`, then applies its first `layers` layers to
 /// them all at once, each on the ground beneath it, which shares `cache`.
-void EvaluateStack(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
+void EvaluateStack(const TerrainGenerator& generator, std::size_t layers, Span<const Vec2d> points,
                    Span<float> heights, double spacing, EvaluationCache* cache) {
-    const double sourceSpacing = spacing / terrain.surface.UnitLength();
+    const double sourceSpacing = spacing / generator.surface.UnitLength();
     for (std::size_t i = 0; i < points.size(); ++i) {
-        heights[i] = terrain.source
-                         ? terrain.source->HeightAt(points[i].x, points[i].y, sourceSpacing)
+        heights[i] = generator.source
+                         ? generator.source->HeightAt(points[i].x, points[i].y, sourceSpacing)
                          : 0.0f;
     }
     for (std::size_t n = 0; n < layers; ++n) {
-        const TerrainGround ground(terrain, n, cache);
+        const TerrainGround ground(generator, n, cache);
         SampleBlock samples(points, heights);
-        terrain.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground, Backend::Cpu, cache});
+        generator.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground, Backend::Cpu, cache});
     }
 }
 
@@ -75,12 +75,12 @@ std::vector<std::size_t> MortonOrder(Span<const Vec2d> points) {
 /// `EvaluateStack` over `points` in batches on `threads` threads, the points taken in Morton order
 /// so each batch covers a small area and prepares only the features there; the batches share
 /// `shared`, or a cache of their own when it is null.
-void EvaluateBatched(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
-                     Span<float> heights, double spacing, unsigned threads,
-                     EvaluationCache* shared) {
+void EvaluateBatched(const TerrainGenerator& generator, std::size_t layers,
+                     Span<const Vec2d> points, Span<float> heights, double spacing,
+                     unsigned threads, EvaluationCache* shared) {
     constexpr std::size_t kBatch = 256;
     if (points.size() <= kBatch) {
-        EvaluateStack(terrain, layers, points, heights, spacing, shared);
+        EvaluateStack(generator, layers, points, heights, spacing, shared);
         return;
     }
     const std::vector<std::size_t> order = MortonOrder(points);
@@ -94,7 +94,7 @@ void EvaluateBatched(const Terrain& terrain, std::size_t layers, Span<const Vec2
     ParallelFor(CeilDiv(points.size(), kBatch), threads, [&](std::size_t batch) {
         const std::size_t begin = batch * kBatch;
         const std::size_t count = std::min(kBatch, points.size() - begin);
-        EvaluateStack(terrain, layers, Span<const Vec2d>(sorted).subspan(begin, count),
+        EvaluateStack(generator, layers, Span<const Vec2d>(sorted).subspan(begin, count),
                       Span<float>(values).subspan(begin, count), spacing, cache);
     });
     for (std::size_t i = 0; i < points.size(); ++i) {
@@ -102,11 +102,12 @@ void EvaluateBatched(const Terrain& terrain, std::size_t layers, Span<const Vec2
     }
 }
 
-/// The ground beneath the first layers of a terrain it keeps.
+/// The ground beneath the first layers of a generator it keeps.
 class OwnedGround final : public Ground {
   public:
-    OwnedGround(const Terrain& terrain, std::size_t layers)
-        : terrain_(std::make_shared<const Terrain>(terrain)), ground_(*terrain_, layers) {}
+    OwnedGround(const TerrainGenerator& generator, std::size_t layers)
+        : generator_(std::make_shared<const TerrainGenerator>(generator)),
+          ground_(*generator_, layers) {}
 
     float HeightAt(double x, double y, double spacing) const override {
         return ground_.HeightAt(x, y, spacing);
@@ -116,32 +117,32 @@ class OwnedGround final : public Ground {
     }
 
   private:
-    std::shared_ptr<const Terrain> terrain_;
+    std::shared_ptr<const TerrainGenerator> generator_;
     TerrainGround ground_;
 };
 
 }  // namespace
 
-Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing) {
-    return Evaluate(terrain, grid, EvaluationOptions{spacing});
+Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid, double spacing) {
+    return Evaluate(generator, grid, EvaluationOptions{spacing});
 }
 
-Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
+Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid,
                        const EvaluationOptions& options) {
-    ValidateTerrain(terrain);
+    ValidateGenerator(generator);
     RequireNonNegative(options.spacing, "Sample spacing");
-    const double resolved = ResolvedSpacing(grid, options.spacing, terrain.surface);
+    const double resolved = ResolvedSpacing(grid, options.spacing, generator.surface);
     const Backend backend = ResolveBackend(options.backend.value_or(DefaultBackend()));
     Raster<float> heights = grid.MakeRaster();
-    if (terrain.source) {
-        terrain.source->Fill(heights, resolved / terrain.surface.UnitLength());
+    if (generator.source) {
+        generator.source->Fill(heights, resolved / generator.surface.UnitLength());
     }
-    for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
+    for (std::size_t n = 0; n < generator.layers.size(); ++n) {
         const Stopwatch stopwatch;
         EvaluationCache cache;
-        const TerrainGround ground(terrain, n, &cache);
-        terrain.layers[n]->Apply(heights,
-                                 LayerContext{resolved, options.threads, &ground, backend});
+        const TerrainGround ground(generator, n, &cache);
+        generator.layers[n]->Apply(heights,
+                                   LayerContext{resolved, options.threads, &ground, backend});
         if (options.onLayer) {
             options.onLayer(n, stopwatch.Milliseconds());
         }
@@ -149,41 +150,42 @@ Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
     return heights;
 }
 
-void FillHeights(const Terrain& terrain, const RasterGrid& grid, Span<float> heights,
+void FillHeights(const TerrainGenerator& generator, const RasterGrid& grid, Span<float> heights,
                  const EvaluationOptions& options) {
     if (heights.size() != grid.width * grid.height) {
         throw std::invalid_argument("The grid needs " + std::to_string(grid.width * grid.height) +
                                     " heights, not " + std::to_string(heights.size()));
     }
-    const Raster<float> evaluated = Evaluate(terrain, grid, options);
+    const Raster<float> evaluated = Evaluate(generator, grid, options);
     const Span<const float> values = evaluated.Values();
     std::copy(values.begin(), values.end(), heights.begin());
 }
 
-void ValidateTerrain(const Terrain& terrain) {
-    if (std::any_of(terrain.layers.begin(), terrain.layers.end(),
+void ValidateGenerator(const TerrainGenerator& generator) {
+    if (std::any_of(generator.layers.begin(), generator.layers.end(),
                     [](const auto& l) { return !l; })) {
         throw std::invalid_argument("A terrain's layers must not be null");
     }
 }
 
-std::vector<float> EvaluatePoints(const Terrain& terrain, Span<const Vec2d> points, double spacing,
-                                  unsigned threads) {
-    ValidateTerrain(terrain);
+std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d> points,
+                             double spacing, unsigned threads) {
+    ValidateGenerator(generator);
     RequirePositive(spacing, "Sample spacing");
     std::vector<float> heights(points.size());
-    EvaluateBatched(terrain, terrain.layers.size(), points, heights, spacing, threads, nullptr);
+    EvaluateBatched(generator, generator.layers.size(), points, heights, spacing, threads, nullptr);
     return heights;
 }
 
-float EvaluateAt(const Terrain& terrain, double x, double y, double spacing) {
+float HeightAt(const TerrainGenerator& generator, double x, double y, double spacing) {
     const Vec2d point{x, y};
-    return EvaluatePoints(terrain, {&point, 1}, spacing)[0];
+    return HeightsAt(generator, {&point, 1}, spacing)[0];
 }
 
-TerrainGround::TerrainGround(const Terrain& terrain, std::size_t layers, EvaluationCache* cache)
-    : terrain_(terrain), layers_(layers), cache_(cache) {
-    if (layers_ > terrain_.layers.size()) {
+TerrainGround::TerrainGround(const TerrainGenerator& generator, std::size_t layers,
+                             EvaluationCache* cache)
+    : generator_(generator), layers_(layers), cache_(cache) {
+    if (layers_ > generator_.layers.size()) {
         throw std::invalid_argument("The terrain has fewer layers than the ground asks for");
     }
 }
@@ -191,28 +193,28 @@ TerrainGround::TerrainGround(const Terrain& terrain, std::size_t layers, Evaluat
 float TerrainGround::HeightAt(double x, double y, double spacing) const {
     const Vec2d point{x, y};
     float height = 0.0f;
-    EvaluateStack(terrain_, layers_, {&point, 1}, {&height, 1}, spacing, cache_);
+    EvaluateStack(generator_, layers_, {&point, 1}, {&height, 1}, spacing, cache_);
     return height;
 }
 
 void TerrainGround::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
-    EvaluateBatched(terrain_, layers_, points, heights, spacing, 0, cache_);
+    EvaluateBatched(generator_, layers_, points, heights, spacing, 0, cache_);
 }
 
-std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t layers) {
-    return std::make_shared<OwnedGround>(terrain, layers);
+std::shared_ptr<const Ground> SharedGround(const TerrainGenerator& generator, std::size_t layers) {
+    return std::make_shared<OwnedGround>(generator, layers);
 }
 
-Raster<float> Evaluate(const Terrain& terrain) {
-    ValidateTerrain(terrain);
+Raster<float> Evaluate(const TerrainGenerator& generator) {
+    ValidateGenerator(generator);
     const std::optional<RasterGrid> grid =
-        terrain.source ? BoundedGrid(*terrain.source) : std::nullopt;
+        generator.source ? BoundedGrid(*generator.source) : std::nullopt;
     if (!grid) {
         throw std::invalid_argument(
             "A terrain without a source, or with a source without bounds such as synthetic "
             "noise, needs a grid to evaluate over");
     }
-    return Evaluate(terrain, *grid);
+    return Evaluate(generator, *grid);
 }
 
 }  // namespace terraingen

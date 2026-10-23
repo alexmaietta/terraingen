@@ -1,7 +1,7 @@
 /// A rover's wheel contacts from point queries, as a physics engine such as Chrono asks for them
 /// every step.
 ///
-/// `EvaluateAt` gives the height at one point, equal to the grid cell centred there, and is safe
+/// `HeightAt` gives the height at one point, equal to the grid cell centred there, and is safe
 /// to call from several threads at once. This example drives a four-wheeled rover across cratered,
 /// rocky ground, queries each wheel's contact height every step on one thread and then four, and
 /// reports the body's height, pitch and roll and the query rate.
@@ -66,7 +66,7 @@ class QueriesRoverContacts : public terraingen::examples::Example {
         fbm.fractal.seed = 6;
         fbm.fractal.wavelength = 50.0f;
         fbm.fractal.amplitude = 1.0f;
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(64, 64, 1.0);
         terrain.layers = {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
@@ -87,7 +87,7 @@ class QueriesRoverContacts : public terraingen::examples::Example {
                         const double py = y + std::sin(heading) * kWheels[w][0] +
                                           std::cos(heading) * kWheels[w][1];
                         contacts[static_cast<std::size_t>(step)][w] =
-                            terraingen::EvaluateAt(terrain, px, py, kSpacing);
+                            terraingen::HeightAt(terrain, px, py, kSpacing);
                     }
                 }
             };

@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-using terraingen::TerrainConfig;
+using terraingen::TerrainGenConfig;
 using terraingen::ValidateConfig;
 using terraingen::testing::Craters;
 using terraingen::testing::ErrorPath;
@@ -35,52 +35,54 @@ terraingen::SpectralContinuationLayerSpec ExplicitSpectrum() {
 /// A change to a `Small` configuration and the JSON path validation reports for it.
 struct PathCase {
     const char* name;
-    void (*mutate)(TerrainConfig&);
+    void (*mutate)(TerrainGenConfig&);
     const char* path;
 };
 
 const PathCase kPathCases[] = {
-    {"Unchanged", [](TerrainConfig&) {}, "valid"},
-    {"NarrowGrid", [](TerrainConfig& c) { Region(c).width = 1; }, "outputs[0].region.width"},
-    {"TallGrid", [](TerrainConfig& c) { Region(c).height = 100000; }, "outputs[0].region.height"},
-    {"ZeroPixelSize", [](TerrainConfig& c) { Region(c).pixelSize = 0.0; },
+    {"Unchanged", [](TerrainGenConfig&) {}, "valid"},
+    {"NarrowGrid", [](TerrainGenConfig& c) { Region(c).width = 1; }, "outputs[0].region.width"},
+    {"TallGrid", [](TerrainGenConfig& c) { Region(c).height = 100000; },
+     "outputs[0].region.height"},
+    {"ZeroPixelSize", [](TerrainGenConfig& c) { Region(c).pixelSize = 0.0; },
      "outputs[0].region.pixel_size"},
-    {"EmptyNoiseStack", [](TerrainConfig& c) { Noise(c).stack.clear(); }, "layers[0].stack"},
-    {"NoOctaves", [](TerrainConfig& c) { Noise(c).stack[0].layer.fractal.octaves = 0; },
+    {"EmptyNoiseStack", [](TerrainGenConfig& c) { Noise(c).stack.clear(); }, "layers[0].stack"},
+    {"NoOctaves", [](TerrainGenConfig& c) { Noise(c).stack[0].layer.fractal.octaves = 0; },
      "layers[0].stack[0].octaves"},
     {"InfiniteHurst",
-     [](TerrainConfig& c) { Noise(c).stack[0].hurst = std::numeric_limits<float>::infinity(); },
+     [](TerrainGenConfig& c) { Noise(c).stack[0].hurst = std::numeric_limits<float>::infinity(); },
      "layers[0].stack[0].hurst"},
     {"HeightmapWithoutPath",
-     [](TerrainConfig& c) { c.outputs = {terraingen::testing::Heightmap("")}; }, "outputs[0].path"},
+     [](TerrainGenConfig& c) { c.outputs = {terraingen::testing::Heightmap("")}; },
+     "outputs[0].path"},
     {"PackBitsHeightmap",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.outputs = {terraingen::HeightmapOutput{"a.tif", terraingen::TiffCompression::PackBits,
                                                   256, terraingen::testing::SmallRegion()}};
      },
      "outputs[0].compression"},
     {"OddTileSize",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.outputs = {terraingen::HeightmapOutput{"a.tif", terraingen::TiffCompression::Lzw, 20,
                                                   terraingen::testing::SmallRegion()}};
      },
      "outputs[0].tile_size"},
     {"LunarSurfaceTooOld",
-     [](TerrainConfig& c) { Craters(c).density = terraingen::testing::LunarDensitySpec(9.0); },
+     [](TerrainGenConfig& c) { Craters(c).density = terraingen::testing::LunarDensitySpec(9.0); },
      "layers[1].density.distributions[0].age_gyr"},
-    {"NoLifetime", [](TerrainConfig& c) { Craters(c).ages = terraingen::UniformAgesSpec{0.0}; },
+    {"NoLifetime", [](TerrainGenConfig& c) { Craters(c).ages = terraingen::UniformAgesSpec{0.0}; },
      "layers[1].ages.lifetime_gyr"},
     {"NoFreshnessLifetime",
-     [](TerrainConfig& c) { Craters(c).ages = terraingen::FreshnessAgesSpec{0.0}; },
+     [](TerrainGenConfig& c) { Craters(c).ages = terraingen::FreshnessAgesSpec{0.0}; },
      "layers[1].ages.lifetime_gyr"},
     {"ReversedFreshness",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          Craters(c).ages = terraingen::FreshnessAgesSpec{
              1.0, {terraingen::ValueDistribution::Kind::Uniform, 0.6, 0.2}};
      },
      "layers[1].ages"},
     {"NegativeFreshnessWeight",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::FreshnessAgesSpec ages;
          ages.freshness = {terraingen::ValueDistribution::Kind::Piecewise};
          ages.freshness.edges = {0.0, 1.0};
@@ -89,85 +91,91 @@ const PathCase kPathCases[] = {
      },
      "layers[1].ages.freshness.weights[0]"},
     {"DeepCutoff",
-     [](TerrainConfig& c) { Craters(c).degradation = terraingen::FreshnessDegradationSpec{0.5}; },
+     [](TerrainGenConfig& c) {
+         Craters(c).degradation = terraingen::FreshnessDegradationSpec{0.5};
+     },
      "layers[1].degradation.cutoff_depth_ratio"},
-    {"SpacingRatioBelowOne", [](TerrainConfig& c) { Craters(c).spacing.diameterRatio = 0.5; },
+    {"SpacingRatioBelowOne", [](TerrainGenConfig& c) { Craters(c).spacing.diameterRatio = 0.5; },
      "layers[1].spacing.diameter_ratio"},
-    {"ReplacementAboveOne", [](TerrainConfig& c) { Craters(c).apply.interiorReplacement = 2.0; },
+    {"ReplacementAboveOne", [](TerrainGenConfig& c) { Craters(c).apply.interiorReplacement = 2.0; },
      "layers[1].apply.interior_replacement"},
-    {"NegativeRimStrength", [](TerrainConfig& c) { Craters(c).apply.rimSmoothing.strength = -1.0; },
+    {"NegativeRimStrength",
+     [](TerrainGenConfig& c) { Craters(c).apply.rimSmoothing.strength = -1.0; },
      "layers[1].apply.rim_smoothing.strength"},
-    {"ZeroNoiseOctaves", [](TerrainConfig& c) { Craters(c).apply.noise.octaves = 0; },
+    {"ZeroNoiseOctaves", [](TerrainGenConfig& c) { Craters(c).apply.noise.octaves = 0; },
      "layers[1].apply.noise.octaves"},
-    {"ZeroMinDiameter", [](TerrainConfig& c) { Craters(c).minDiameter = 0.0; },
+    {"ZeroMinDiameter", [](TerrainGenConfig& c) { Craters(c).minDiameter = 0.0; },
      "layers[1].min_diameter"},
-    {"MaxBelowMin", [](TerrainConfig& c) { Craters(c).maxDiameter = 5.0; },
+    {"MaxBelowMin", [](TerrainGenConfig& c) { Craters(c).maxDiameter = 5.0; },
      "layers[1].max_diameter"},
-    {"InfiniteMax", [](TerrainConfig& c) { Craters(c).maxDiameter = kInfinity; },
+    {"InfiniteMax", [](TerrainGenConfig& c) { Craters(c).maxDiameter = kInfinity; },
      "layers[1].max_diameter"},
-    {"TooManyCraters", [](TerrainConfig& c) { Craters(c).minDiameter = 2.0; },
+    {"TooManyCraters", [](TerrainGenConfig& c) { Craters(c).minDiameter = 2.0; },
      "layers[1].min_diameter"},
     {"TooManyTraskCraters",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          Craters(c).density = terraingen::TraskSpec{};
          Craters(c).minDiameter = 0.001;
      },
      "layers[1].min_diameter"},
     {"NegativeManualDiameter",
-     [](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, -1.0, 0.0}}; },
+     [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, -1.0, 0.0}}; },
      "layers[1].manual[0].diameter"},
-    {"NegativeManualAge", [](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, 5.0, -1.0}}; },
+    {"NegativeManualAge", [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, 5.0, -1.0}}; },
      "layers[1].manual[0].age_gyr"},
     {"InfiniteManualPosition",
-     [](TerrainConfig& c) { Craters(c).manual = {{kInfinity, 0.0, 5.0, 0.0}}; },
+     [](TerrainGenConfig& c) { Craters(c).manual = {{kInfinity, 0.0, 5.0, 0.0}}; },
      "layers[1].manual[0]"},
     {"ManualDepth",
-     [](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, 0.2}}; },
+     [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, 0.2}}; },
      "valid"},
     {"ZeroManualDepth",
-     [](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.0}}; },
+     [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.0}}; },
      "layers[1].manual[0].depth"},
     {"NegativeManualRimHeight",
-     [](TerrainConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, -0.1}}; },
+     [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, -0.1}}; },
      "layers[1].manual[0].rim_height"},
     {"ManualRimHeightWithoutDepth",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nan(""), 0.2}};
      },
      "layers[1].manual[0].rim_height"},
     {"ManualRimHeightTheProfileFixes",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          Craters(c).profile = terraingen::FassettThomsonSpec{};
          Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, 0.2}};
      },
      "layers[1].manual[0]"},
     {"ManualOnlyStillChecksDiameterRanges",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          Craters(c).generateRandom = false;
          Craters(c).minDiameter = -1.0;
      },
      "layers[1].min_diameter"},
     {"CraterListWithoutPath",
-     [](TerrainConfig& c) { c.outputs = {terraingen::CraterListOutput{}}; }, "outputs[0].path"},
+     [](TerrainGenConfig& c) { c.outputs = {terraingen::CraterListOutput{}}; }, "outputs[0].path"},
     {"BoulderListWithoutPath",
-     [](TerrainConfig& c) { c.outputs = {terraingen::BoulderListOutput{}}; }, "outputs[0].path"},
+     [](TerrainGenConfig& c) { c.outputs = {terraingen::BoulderListOutput{}}; }, "outputs[0].path"},
     {"BoulderModelsAsObj",
-     [](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.fbx"}}; },
+     [](TerrainGenConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.fbx"}}; },
      "outputs[0].path"},
     {"BoulderModelsCreaseTooWide",
-     [](TerrainConfig& c) { c.outputs = {terraingen::BoulderModelsOutput{"boulders.glb", 200.0}}; },
+     [](TerrainGenConfig& c) {
+         c.outputs = {terraingen::BoulderModelsOutput{"boulders.glb", 200.0}};
+     },
      "outputs[0].crease_angle_deg"},
     {"EmptyMinimumDensity",
-     [](TerrainConfig& c) { Craters(c).density = terraingen::MinimumSpec{}; }, "layers[1].density"},
+     [](TerrainGenConfig& c) { Craters(c).density = terraingen::MinimumSpec{}; },
+     "layers[1].density"},
     {"PavementWithoutOctaves",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::PavementLayerSpec pavement;
          pavement.pavement.octaves = 0;
          c.layers.push_back(pavement);
      },
      "layers[2].octaves"},
     {"PhotometryNeedsBedrockUnderPavement",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.exposure.reset();
          c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
@@ -177,14 +185,14 @@ const PathCase kPathCases[] = {
      },
      "materials.photometry.bedrock"},
     {"StrataBelowSharpnessOne",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::StrataLayerSpec strata;
          strata.strata.sharpness = 0.5;
          c.layers.push_back(strata);
      },
      "layers[2].sharpness"},
     {"PhotometryNeedsBedrockUnderStrata",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.exposure.reset();
          c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
@@ -194,9 +202,10 @@ const PathCase kPathCases[] = {
      },
      "materials.photometry.bedrock"},
     {"SandShadowWithoutBoulders",
-     [](TerrainConfig& c) { c.layers.push_back(terraingen::SandShadowLayerSpec{}); }, "layers[2]"},
+     [](TerrainGenConfig& c) { c.layers.push_back(terraingen::SandShadowLayerSpec{}); },
+     "layers[2]"},
     {"SandShadowWithoutLength",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.layers.push_back(terraingen::BoulderLayerSpec{});
          terraingen::SandShadowLayerSpec shadows;
          shadows.shadows.lengthRatio = 0.0;
@@ -204,7 +213,7 @@ const PathCase kPathCases[] = {
      },
      "layers[3].length_ratio"},
     {"PhotometryNeedsRockUnderBoulders",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.exposure.reset();
          c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
@@ -214,7 +223,7 @@ const PathCase kPathCases[] = {
      },
      "materials.photometry.rock"},
     {"VentifactAnglesOutOfOrder",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::BoulderLayerSpec boulders;
          boulders.boulders.ventifacts.share = 0.5;
          boulders.boulders.ventifacts.minAngle = 1.2;
@@ -223,21 +232,21 @@ const PathCase kPathCases[] = {
      },
      "layers[2]"},
     {"SyntheticSourceIsValid",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
          synthetic.stack = {terraingen::NoiseLayerConfig{}};
          c.source = synthetic;
      },
      "valid"},
     {"UpsamplingWithoutPixelSize",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
          synthetic.upsampling = terraingen::UpsamplingSpec{};
          c.source = synthetic;
      },
      "source.upsampling"},
     {"UnknownUpsamplingType",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
          synthetic.pixelSize = 4.0;
          synthetic.upsampling = terraingen::UpsamplingSpec{"no_such_upsampler", {}, {}};
@@ -245,7 +254,7 @@ const PathCase kPathCases[] = {
      },
      "source.upsampling"},
     {"DiamondSquareDimensionAboveThree",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
          synthetic.pixelSize = 4.0;
          terraingen::UpsamplingSpec upsampling;
@@ -256,21 +265,21 @@ const PathCase kPathCases[] = {
      },
      "source.upsampling.fractal_dimension"},
     {"SyntheticStackTooLong",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
          synthetic.stack.assign(terraingen::kMaxNoiseLayers + 1, terraingen::NoiseLayerConfig{});
          c.source = synthetic;
      },
      "source.stack"},
     {"SyntheticPixelSizeNotPositive",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
          synthetic.pixelSize = 0.0;
          c.source = synthetic;
      },
      "source.pixel_size_m"},
     {"EstimateFromNoiseWithoutPosts",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
          synthetic.stack = {terraingen::NoiseLayerConfig{}};
          c.source = synthetic;
@@ -280,19 +289,19 @@ const PathCase kPathCases[] = {
      },
      "layers[2].estimate_from_base"},
     {"SpectralContinuationWithoutBase",
-     [](TerrainConfig& c) { c.layers.push_back(terraingen::SpectralContinuationLayerSpec{}); },
+     [](TerrainGenConfig& c) { c.layers.push_back(terraingen::SpectralContinuationLayerSpec{}); },
      "layers[2]"},
     {"SpectralContinuationWithItsSpectrumWithoutBase",
-     [](TerrainConfig& c) { c.layers.push_back(ExplicitSpectrum()); }, "valid"},
+     [](TerrainGenConfig& c) { c.layers.push_back(ExplicitSpectrum()); }, "valid"},
     {"SpectralContinuationSlopeAboveFour",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SpectralContinuationLayerSpec layer = ExplicitSpectrum();
          layer.slope = 4.5;
          c.layers.push_back(layer);
      },
      "layers[2].slope"},
     {"SpectralContinuationFitBandInverted",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SpectralContinuationLayerSpec layer = ExplicitSpectrum();
          layer.fit.minPixels = 8.0;
          layer.fit.maxPixels = 6.0;
@@ -300,35 +309,35 @@ const PathCase kPathCases[] = {
      },
      "layers[2]"},
     {"SpectralContinuationZeroMinWavelength",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::SpectralContinuationLayerSpec layer = ExplicitSpectrum();
          layer.minWavelength = 0.0;
          c.layers.push_back(layer);
      },
      "layers[2].min_wavelength"},
     {"SandFillWithoutReach",
-     [](TerrainConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
+     [](TerrainGenConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
      "layers[2].reach"},
     {"MaterialsOutputWithoutMaterials",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.outputs.push_back(terraingen::MaterialsOutput{
              {"m.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
      },
      "outputs[1]"},
     {"PhotometryOutputWithoutMaterials",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.outputs.push_back(terraingen::PhotometryOutput{
              {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
      },
      "outputs[1]"},
     {"TooMuchDust",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.dustCover = 1.0;
      },
      "materials.dust_cover"},
     {"PhotometryNeedsBedrockWithExposure",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
          c.outputs.push_back(terraingen::PhotometryOutput{
@@ -336,7 +345,7 @@ const PathCase kPathCases[] = {
      },
      "materials.photometry.bedrock"},
     {"MarsPancamCoversBedrock",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->photometry.reference = terraingen::PhotometryReference::MarsPancam;
          c.outputs.push_back(terraingen::PhotometryOutput{
@@ -344,7 +353,7 @@ const PathCase kPathCases[] = {
      },
      "valid"},
     {"PhotometryNeedsSoilWithoutAReference",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.exposure.reset();
          c.outputs.push_back(terraingen::PhotometryOutput{
@@ -352,7 +361,7 @@ const PathCase kPathCases[] = {
      },
      "materials.photometry.soil"},
     {"PhotometryNeedsSandUnderDunes",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.exposure.reset();
          c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
@@ -362,7 +371,7 @@ const PathCase kPathCases[] = {
      },
      "materials.photometry.sand"},
     {"PhotometryWithBedrockGiven",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->photometry.reference = terraingen::PhotometryReference::MarsPancam;
          c.materials->photometry.classes[3] = terraingen::HapkeParameters{0.7, 0.4, 0.3, 15.0};
@@ -372,64 +381,65 @@ const PathCase kPathCases[] = {
      },
      "valid"},
     {"OutOfRangeHapke",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->photometry.classes[2] = terraingen::HapkeParameters{1.5, 0.3, 0.5, 10.0};
      },
      "materials.photometry.dust.albedo"},
     {"DunesSteeperThanASlipFace",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::DuneLayerSpec dunes{terraingen::MarsBarchans()};
          dunes.dunes.stossSlope = dunes.dunes.slipFaceAngle;
          c.layers.push_back(dunes);
      },
      "layers[2]"},
     {"MarsDunesWithRipples",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          c.layers.push_back(terraingen::DuneLayerSpec{terraingen::MarsBarchans()});
      },
      "valid"},
     {"MarsMorphometryOnALunarSurface",
-     [](TerrainConfig& c) { Craters(c).morphometry = terraingen::CraterMorphometryFit::Mars; },
+     [](TerrainGenConfig& c) { Craters(c).morphometry = terraingen::CraterMorphometryFit::Mars; },
      "valid"},
     {"IvanovChronologyTooOld",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          Craters(c).density = terraingen::ProductionSurfaceSpec{
              terraingen::ProductionFunction::Ivanov, terraingen::ChronologyModel::Ivanov, 9.0};
      },
      "layers[1].density.age_gyr"},
     {"SteadyStateAgesTooOld",
-     [](TerrainConfig& c) { Craters(c).ages = terraingen::testing::LunarAgesSpec(9.0); },
+     [](TerrainGenConfig& c) { Craters(c).ages = terraingen::testing::LunarAgesSpec(9.0); },
      "layers[1].ages.age_gyr"},
     {"RoughnessHurstAboveOne",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::RoughnessLayerSpec roughness;
          roughness.hurst = 2.0;
          c.layers.push_back(roughness);
      },
      "layers[2].hurst"},
     {"RoughnessEstimateWithoutABase",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::RoughnessLayerSpec roughness;
          roughness.estimateFromBase = true;
          c.layers.push_back(roughness);
      },
      "layers[2].estimate_from_base"},
     {"NoiseEstimateWithoutABase",
-     [](TerrainConfig& c) {
+     [](TerrainGenConfig& c) {
          terraingen::NoiseLayerSpec noise;
          noise.estimateFromBase = true;
          c.layers.push_back(noise);
      },
      "layers[2].estimate_from_base"},
     {"UnresolvedLimitWithoutABase",
-     [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = 4.0; }, "valid"},
-    {"ZeroUnresolvedLimit", [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = 0.0; },
+     [](TerrainGenConfig& c) { Craters(c).unresolvedPixelsAcross = 4.0; }, "valid"},
+    {"ZeroUnresolvedLimit", [](TerrainGenConfig& c) { Craters(c).unresolvedPixelsAcross = 0.0; },
      "layers[1].unresolved_pixels_across"},
-    {"NegativeUnresolvedLimit", [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = -3.0; },
+    {"NegativeUnresolvedLimit",
+     [](TerrainGenConfig& c) { Craters(c).unresolvedPixelsAcross = -3.0; },
      "layers[1].unresolved_pixels_across"},
     {"InfiniteUnresolvedLimit",
-     [](TerrainConfig& c) { Craters(c).unresolvedPixelsAcross = kInfinity; },
+     [](TerrainGenConfig& c) { Craters(c).unresolvedPixelsAcross = kInfinity; },
      "layers[1].unresolved_pixels_across"},
 };
 
@@ -447,8 +457,8 @@ INSTANTIATE_TEST_SUITE_P(Small, ValidateConfigPaths, ::testing::ValuesIn(kPathCa
                          });
 
 TEST(ValidateConfig, SaysWhyAManualCratersShapeIsRejected) {
-    const auto message = [](void (*mutate)(TerrainConfig&)) {
-        TerrainConfig config = Small();
+    const auto message = [](void (*mutate)(TerrainGenConfig&)) {
+        TerrainGenConfig config = Small();
         mutate(config);
         try {
             ValidateConfig(config);
@@ -457,11 +467,11 @@ TEST(ValidateConfig, SaysWhyAManualCratersShapeIsRejected) {
         }
         return std::string("valid");
     };
-    EXPECT_NE(message([](TerrainConfig& c) {
+    EXPECT_NE(message([](TerrainGenConfig& c) {
                   Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nan(""), 0.2}};
               }).find("needs a depth"),
               std::string::npos);
-    const std::string shallow = message([](TerrainConfig& c) {
+    const std::string shallow = message([](TerrainGenConfig& c) {
         Craters(c).degradation = terraingen::DiffusionDegradationSpec{};
         Craters(c).manual = {{0.0, 0.0, 100.0, 0.0, 0u, false, 0.01}};
     });
@@ -469,11 +479,11 @@ TEST(ValidateConfig, SaysWhyAManualCratersShapeIsRejected) {
 }
 
 TEST(ValidateConfig, AcceptsTheDefaults) {
-    EXPECT_NO_THROW(ValidateConfig(TerrainConfig{}));
+    EXPECT_NO_THROW(ValidateConfig(TerrainGenConfig{}));
 }
 
 TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     const terraingen::ConfigSummary summary = ValidateConfig(config);
     EXPECT_FALSE(summary.source);
     ASSERT_EQ(summary.outputGrids.size(), 1u);
@@ -485,7 +495,7 @@ TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
     const double expected = models.density->ExpectedCount(grid.SurfaceArea({}), 8.0, 60.0);
     EXPECT_DOUBLE_EQ(*summary.expectedCraters, expected);
 
-    TerrainConfig larger = config;
+    TerrainGenConfig larger = config;
     larger.outputs.push_back(terraingen::testing::Heightmap("big.tif", {{130, 98, 2.0}}));
     EXPECT_DOUBLE_EQ(*ValidateConfig(larger).expectedCraters,
                      models.density->ExpectedCount(4.0 * grid.SurfaceArea({}), 8.0, 60.0))
@@ -505,7 +515,7 @@ TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
 
 TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
     const auto withBoulders = [](auto change) {
-        return ErrorPath([&](TerrainConfig& c) {
+        return ErrorPath([&](TerrainGenConfig& c) {
             terraingen::BoulderLayerSpec boulders;
             boulders.boulders.sizes.minDiameter = 1.0;
             change(boulders.boulders);
@@ -515,7 +525,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
     EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions&) {}), "valid");
     EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.sizes.coverage = 2.0; }),
               "layers[2].coverage");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+    EXPECT_EQ(ErrorPath([](TerrainGenConfig& c) {
                   terraingen::BoulderLayerSpec boulders;
                   boulders.sizes = terraingen::GolombekRappBouldersSpec{};
                   boulders.boulders.sizes.coverage = 0.0;
@@ -523,7 +533,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
               }),
               "layers[2].coverage")
         << "random boulders need some coverage";
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+    EXPECT_EQ(ErrorPath([](TerrainGenConfig& c) {
                   terraingen::BoulderLayerSpec boulders;
                   boulders.boulders.generateRandom = false;
                   boulders.boulders.sizes.coverage = 0.0;
@@ -534,7 +544,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
               }),
               "valid")
         << "a manual-only layer checks no sizes, coverage or ejecta";
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+    EXPECT_EQ(ErrorPath([](TerrainGenConfig& c) {
                   terraingen::BoulderLayerSpec boulders;
                   boulders.boulders.generateRandom = false;
                   boulders.manual = {{1.0, 2.0, -1.5}};
@@ -549,13 +559,13 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
               "valid");
     EXPECT_EQ(withBoulders([](terraingen::BoulderLayerOptions& r) { r.sizes.maxDiameter = 2.0; }),
               "valid");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+    EXPECT_EQ(ErrorPath([](TerrainGenConfig& c) {
                   terraingen::BoulderLayerSpec boulders;
                   boulders.boulders.ejecta.minCraterDiameter = 10.0;
                   c.layers.insert(c.layers.begin() + 1, boulders);
               }),
               "layers[1].ejecta.min_crater_diameter");
-    EXPECT_EQ(ErrorPath([](TerrainConfig& c) {
+    EXPECT_EQ(ErrorPath([](TerrainGenConfig& c) {
                   Region(c) = {60000, 60000, 0.1};
                   terraingen::BoulderLayerSpec boulders;
                   boulders.sizes = terraingen::GolombekRappBouldersSpec{};
@@ -567,7 +577,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
 
 TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
     const auto withManual = [](auto change) {
-        return ErrorPath([&](TerrainConfig& c) {
+        return ErrorPath([&](TerrainGenConfig& c) {
             terraingen::BoulderLayerSpec boulders;
             boulders.boulders.sizes.minDiameter = 1.0;
             boulders.manual = {{1.0, 2.0, 1.5}, {-3.0, 4.0, 2.0}};
@@ -598,7 +608,7 @@ TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
 }
 
 TEST(ValidateConfig, ReportsBoulderSizeProblemsByPath) {
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     Region(config).pixelSize = 0.5;
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.sizes.minDiameter = 0.5;
@@ -621,7 +631,7 @@ TEST(ValidateConfig, ReportsBoulderSizeProblemsByPath) {
 }
 
 TEST(ValidateConfig, EjectaSizesFollowTheSizesWhenUnset) {
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.ejecta.minCraterDiameter = 8.0;
@@ -635,7 +645,7 @@ TEST(ValidateConfig, EjectaSizesFollowTheSizesWhenUnset) {
 
 TEST(ValidateConfig, RejectsGolombekRappTermsThatNoSizesUse) {
     const auto errorPath = [](auto change) {
-        TerrainConfig config = Small();
+        TerrainGenConfig config = Small();
         terraingen::BoulderLayerSpec boulders;
         boulders.boulders.sizes.minDiameter = 0.5;
         change(boulders);
@@ -677,7 +687,7 @@ TEST(ValidateConfig, RejectsGolombekRappTermsThatNoSizesUse) {
 }
 
 TEST(ValidateConfig, NamesGolombekRappSizesForACoverage) {
-    const TerrainConfig config = terraingen::ParseConfig(R"({"schema_version": 1,
+    const TerrainGenConfig config = terraingen::ParseConfig(R"({"schema_version": 1,
         "layers": [{"type": "boulders", "coverage": 0.05}],
         "outputs": [{"type": "heightmap", "path": "a.tif",
                      "region": {"width": 33, "height": 33, "pixel_size": 1}}]})");
@@ -693,7 +703,7 @@ TEST(ValidateConfig, NamesGolombekRappSizesForACoverage) {
 }
 
 TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     Craters(config).ages = terraingen::SteadyStateAgesSpec{};
     Craters(config).minDiameter = 1.0;
     try {
@@ -710,7 +720,7 @@ TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
 TEST(ValidateConfig, ReportsBedformProblemsByPath) {
     terraingen::BedformOptions ridges = terraingen::MarsTransverseAeolianRidges();
     ridges.leeFraction = 2.0;
-    EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
+    EXPECT_EQ(ErrorPath([&](TerrainGenConfig& c) {
                   c.layers.push_back(terraingen::BedformLayerSpec{ridges});
               }),
               "layers[2].lee_fraction");
@@ -720,7 +730,7 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
     using terraingen::ClampLayerSpec;
     using terraingen::RegionLayerSpec;
     const auto with = [](terraingen::LayerSpec layer) {
-        return ErrorPath([&](TerrainConfig& c) { c.layers.push_back(layer); });
+        return ErrorPath([&](TerrainGenConfig& c) { c.layers.push_back(layer); });
     };
     EXPECT_EQ(with(terraingen::ScaleLayerSpec{2.0, 1.0}), "valid");
     EXPECT_EQ(with(ClampLayerSpec{2.0, 1.0}), "layers[2]");
@@ -737,7 +747,7 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
     EXPECT_EQ(with(RegionLayerSpec{
                   terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, ClampLayerSpec{2.0, 1.0}}),
               "layers[2].layer");
-    TerrainConfig small = Small();
+    TerrainGenConfig small = Small();
     EXPECT_EQ(with(RegionLayerSpec{
                   terraingen::CircleRegionSpec{0.0, 0.0, 10.0},
                   1.0,
@@ -748,14 +758,14 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.ejecta.minCraterDiameter = 10.0;
     EXPECT_EQ(
-        ErrorPath([&](TerrainConfig& c) {
+        ErrorPath([&](TerrainGenConfig& c) {
             c.layers = {
                 RegionLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, Craters(c)},
                 boulders};
         }),
         "layers[1].ejecta.min_crater_diameter")
         << "crater layers inside regions do not count for ejecta";
-    EXPECT_EQ(ErrorPath([&](TerrainConfig& c) {
+    EXPECT_EQ(ErrorPath([&](TerrainGenConfig& c) {
                   c.layers.push_back(RegionLayerSpec{
                       terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, boulders});
               }),
@@ -765,7 +775,7 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
 
 TEST(ValidateConfig, ReportsDiffusionProblemsByPath) {
     const auto error = [](auto mutate) {
-        return ErrorPath([&](TerrainConfig& c) {
+        return ErrorPath([&](TerrainGenConfig& c) {
             terraingen::DiffusionDegradationSpec diffusion;
             mutate(diffusion, Craters(c));
             Craters(c).degradation = diffusion;
@@ -789,7 +799,7 @@ TEST(ValidateConfig, ReportsDiffusionProblemsByPath) {
 
 TEST(ValidateConfig, ReportsSecondaryLayerProblemsByPath) {
     const auto error = [](auto mutate) {
-        return ErrorPath([&](TerrainConfig& c) {
+        return ErrorPath([&](TerrainGenConfig& c) {
             terraingen::SecondaryLayerSpec layer;
             layer.secondaries.onsetCount = 5.0;
             mutate(c, layer);
@@ -807,40 +817,40 @@ TEST(ValidateConfig, ReportsSecondaryLayerProblemsByPath) {
 TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
     using terraingen::testing::WithAlbedo;
     const auto error = [](auto mutate) {
-        TerrainConfig config = WithAlbedo();
+        TerrainGenConfig config = WithAlbedo();
         mutate(config);
         return ValidationErrorPath(config);
     };
-    const auto synthetic = [](TerrainConfig& c) -> terraingen::SyntheticAlbedoSpec& {
+    const auto synthetic = [](TerrainGenConfig& c) -> terraingen::SyntheticAlbedoSpec& {
         return std::get<terraingen::SyntheticAlbedoSpec>(c.albedo->source);
     };
-    const auto craters = [](TerrainConfig& c) -> terraingen::CraterAlbedoSpec& {
+    const auto craters = [](TerrainGenConfig& c) -> terraingen::CraterAlbedoSpec& {
         return std::get<terraingen::CraterAlbedoSpec>(c.albedo->layers.at(0));
     };
-    EXPECT_EQ(error([](TerrainConfig&) {}), "valid");
-    EXPECT_EQ(error([&](TerrainConfig& c) { synthetic(c).value = 2.0; }), "albedo.source.value");
-    EXPECT_EQ(error([&](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig&) {}), "valid");
+    EXPECT_EQ(error([&](TerrainGenConfig& c) { synthetic(c).value = 2.0; }), "albedo.source.value");
+    EXPECT_EQ(error([&](TerrainGenConfig& c) {
                   synthetic(c).hueNoise.assign(terraingen::kMaxNoiseLayers + 1, {});
               }),
               "albedo.source.hue_noise_deg");
-    EXPECT_EQ(error([&](TerrainConfig& c) {
+    EXPECT_EQ(error([&](TerrainGenConfig& c) {
                   synthetic(c).saturationNoise = {terraingen::NoiseLayerConfig{}};
                   synthetic(c).saturationNoise[0].layer.fractal.octaves = 0;
               }),
               "albedo.source.saturation_noise[0].octaves");
-    EXPECT_EQ(error([&](TerrainConfig& c) { synthetic(c).valueNoise[0].hurst = NAN; }),
+    EXPECT_EQ(error([&](TerrainGenConfig& c) { synthetic(c).valueNoise[0].hurst = NAN; }),
               "albedo.source.value_noise[0].hurst");
-    EXPECT_EQ(error([&](TerrainConfig& c) { craters(c).craterLayer = 1; }),
+    EXPECT_EQ(error([&](TerrainGenConfig& c) { craters(c).craterLayer = 1; }),
               "albedo.layers[0].crater_layer");
-    EXPECT_EQ(error([&](TerrainConfig& c) { craters(c).options.share = 2.0; }),
+    EXPECT_EQ(error([&](TerrainGenConfig& c) { craters(c).options.share = 2.0; }),
               "albedo.layers[0].share");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   terraingen::SplotchAlbedoSpec splotches;
                   splotches.options.softness = 0.0;
                   c.albedo->layers.push_back(splotches);
               }),
               "albedo.layers[1].softness");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   terraingen::BlastZoneAlbedoSpec blast;
                   terraingen::BlastZone empty;
                   empty.area = 0.0;
@@ -848,54 +858,55 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
                   c.albedo->layers.push_back(blast);
               }),
               "albedo.layers[1].zones[1].area");
-    EXPECT_EQ(
-        error([](TerrainConfig& c) { c.albedo->layers.push_back(terraingen::RockAlbedoSpec{}); }),
-        "albedo.layers[1]")
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
+                  c.albedo->layers.push_back(terraingen::RockAlbedoSpec{});
+              }),
+              "albedo.layers[1]")
         << "rocks need a boulder layer";
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.layers.push_back(terraingen::BoulderLayerSpec{});
                   terraingen::RockAlbedoSpec rocks;
                   rocks.boulderLayer = 1;
                   c.albedo->layers.push_back(rocks);
               }),
               "albedo.layers[1].boulder_layer");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.layers.push_back(terraingen::BoulderLayerSpec{});
                   terraingen::RockAlbedoSpec rocks;
                   rocks.options.reflectanceRatio = -1.0;
                   c.albedo->layers.push_back(rocks);
               }),
               "albedo.layers[1].reflectance_ratio");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   terraingen::SlopeAlbedoSpec slopes;
                   slopes.options.baseline = 0.0;
                   c.albedo->layers.push_back(slopes);
               }),
               "albedo.layers[1].baseline");
-    EXPECT_EQ(error([](TerrainConfig& c) { c.layers.pop_back(); }), "albedo.layers[0]");
-    EXPECT_EQ(error([](TerrainConfig& c) { c.albedo->source = terraingen::RasterAlbedoSpec{}; }),
+    EXPECT_EQ(error([](TerrainGenConfig& c) { c.layers.pop_back(); }), "albedo.layers[0]");
+    EXPECT_EQ(error([](TerrainGenConfig& c) { c.albedo->source = terraingen::RasterAlbedoSpec{}; }),
               "albedo.source.path");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.albedo->source = terraingen::RasterAlbedoSpec{"x.tif", {0, 1}, {}, {}, {}};
               }),
               "albedo.source.bands");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.albedo->source = terraingen::RasterAlbedoSpec{"missing.tif", {0}, {}, {}, {}};
               }),
               "albedo.source.path");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.albedo.reset();
                   c.outputs = {terraingen::AlbedoOutput{"a.tif"}};
               }),
               "outputs[0]");
-    EXPECT_EQ(error([](TerrainConfig& c) { c.outputs = {terraingen::AlbedoOutput{}}; }),
+    EXPECT_EQ(error([](TerrainGenConfig& c) { c.outputs = {terraingen::AlbedoOutput{}}; }),
               "outputs[0].path");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.outputs = {
                       terraingen::AlbedoOutput{"a.tif", terraingen::TiffCompression::PackBits}};
               }),
               "outputs[0].compression");
-    EXPECT_EQ(error([](TerrainConfig& c) {
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.outputs = {
                       terraingen::AlbedoOutput{"a.tif", terraingen::TiffCompression::Lzw, 10}};
               }),
@@ -910,7 +921,7 @@ TEST(ValidateConfig, ReportsGeoTiffCropProblemsByPath) {
     terraingen::testing::WriteDem(folder, "dem.tif");
     const double nan = std::numeric_limits<double>::quiet_NaN();
     const auto crop = [&](const Bounds2d& region) {
-        TerrainConfig config = RasterConfig("dem.tif");
+        TerrainGenConfig config = RasterConfig("dem.tif");
         RasterSpec(config).read.crop = region;
         return ValidationErrorPath(config, folder);
     };
@@ -927,7 +938,7 @@ TEST(ValidateConfig, ReportsUpsamplingProblemsByPath) {
     using terraingen::testing::RasterSpec;
     const auto folder = terraingen::testing::TempPath("terraingen_upsampling_errors");
     terraingen::testing::WriteDem(folder, "dem.tif");
-    TerrainConfig config = RasterConfig("dem.tif");
+    TerrainGenConfig config = RasterConfig("dem.tif");
     for (const char* type : {"nearest", "bilinear", "cubic", "catmull_rom", "lanczos3",
                              "cubic_bspline", "diamond_square"}) {
         RasterSpec(config).upsampling.type = type;
@@ -965,7 +976,7 @@ TEST(ValidateConfig, MeasuresARasterSourcesGridOverItsCrop) {
     using terraingen::testing::RasterSpec;
     const auto folder = terraingen::testing::TempPath("terraingen_region_size");
     terraingen::testing::WriteDem(folder, "dem.tif");
-    TerrainConfig config = RasterConfig("dem.tif");
+    TerrainGenConfig config = RasterConfig("dem.tif");
     const terraingen::Bounds2d window{1050.0, 1900.0, 1080.1, 1930.1};
     RasterSpec(config).read.crop = window;
     EXPECT_EQ(ValidationErrorPath(config, folder), "valid");

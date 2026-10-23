@@ -73,7 +73,7 @@ class BouldersEjecta : public terraingen::examples::Example {
             Out() << Format("  %4.0f m from the centre: %5.2f, %5.2f\n", x, a.background, a.ejecta);
         }
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(401, 401, 0.1);
         terrain.layers = {craters, boulders};
         evaluated_ = terraingen::Evaluate(terrain);

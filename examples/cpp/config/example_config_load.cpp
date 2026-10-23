@@ -1,5 +1,5 @@
 /// Generates the terrain a JSON config describes and writes its outputs, as the terraingen command
-/// does: LoadConfig, ValidateConfig, GenerateTerrain, WriteOutputs. The other examples build the
+/// does: LoadConfig, ValidateConfig, GenerateFromConfig, WriteOutputs. The other examples build the
 /// same kinds of terrain from library objects instead. Without CONFIG, generates
 /// examples/config/craters/example_craters_simple.json.
 ///
@@ -23,30 +23,30 @@ class ConfigLoad : public terraingen::examples::Example {
                                           : std::filesystem::path(Args().positional.front());
         config_ = terraingen::LoadConfig(path_);
         terraingen::ValidateConfig(config_, path_.parent_path());
-        terrain_ = terraingen::GenerateTerrain(config_, path_.parent_path());
-        Out() << terraingen::Summary(terrain_) << "\n";
-        if (terrain_.grids.empty()) {
+        generated_ = terraingen::GenerateFromConfig(config_, path_.parent_path());
+        Out() << terraingen::Summary(generated_) << "\n";
+        if (generated_.grids.empty()) {
             return;
         }
-        const terraingen::GeneratedGrid& first = terrain_.grids.front();
-        craters_ = terraingen::PlacedCraters(terrain_.terrain,
+        const terraingen::GeneratedGrid& first = generated_.grids.front();
+        craters_ = terraingen::PlacedCraters(generated_.generator,
                                              terraingen::RasterGrid::FromRaster(first.heights));
         Out() << craters_.craters.Size() << " craters over the first grid\n";
         Show(path_.stem().string(), first.heights,
              first.albedo.empty() ? nullptr : &first.albedo.front(),
-             terrain_.geoKeys.IsGeographic());
+             generated_.geoKeys.IsGeographic());
     }
 
     void Save(const std::filesystem::path& dir) override {
-        for (const auto& written : terraingen::WriteOutputs(config_, terrain_, dir)) {
+        for (const auto& written : terraingen::WriteOutputs(config_, generated_, dir)) {
             Out() << "Wrote " << written.string() << "\n";
         }
     }
 
     void Test() override {
         if (Args().positional.empty()) {
-            Check(terrain_.grids.size() == 1, "example_craters_simple.json makes one grid");
-            const terraingen::Raster<float>& heights = terrain_.grids.front().heights;
+            Check(generated_.grids.size() == 1, "example_craters_simple.json makes one grid");
+            const terraingen::Raster<float>& heights = generated_.grids.front().heights;
             Check(heights.Width() == 513 && heights.Height() == 513,
                   "example_craters_simple.json makes 513 x 513 heights");
             Check(craters_.craters.Size() > 100,
@@ -56,8 +56,8 @@ class ConfigLoad : public terraingen::examples::Example {
 
   private:
     std::filesystem::path path_;
-    terraingen::TerrainConfig config_;
-    terraingen::GeneratedTerrain terrain_;
+    terraingen::TerrainGenConfig config_;
+    terraingen::GeneratedOutputs generated_;
     terraingen::CraterFeatures craters_;
 };
 

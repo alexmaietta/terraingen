@@ -11,7 +11,7 @@
 
 using terraingen::RasterGrid;
 using terraingen::RegionShape;
-using terraingen::Terrain;
+using terraingen::TerrainGenerator;
 using terraingen::testing::PowerLawCraterModels;
 
 namespace {
@@ -28,8 +28,8 @@ ManualCraters(const std::vector<terraingen::Vec2d>& centres) {
 }
 
 /// A 100 x 80 flat source of 1 m cells at 2 m.
-Terrain Flat() {
-    Terrain terrain;
+TerrainGenerator Flat() {
+    TerrainGenerator terrain;
     terrain.source = std::make_shared<terraingen::FlatSource>(100, 80, 1.0, 2.0f);
     return terrain;
 }
@@ -46,7 +46,7 @@ terraingen::BoulderLayerOptions Models() {
 }  // namespace
 
 TEST(PlacedCraters, ListsEachCraterLayerInOrderWithItsAttributes) {
-    Terrain terrain = Flat();
+    TerrainGenerator terrain = Flat();
     const auto first = ManualCraters({{0.0, 0.0}, {10.0, 5.0}});
     const auto second = ManualCraters({{-20.0, -10.0}});
     terrain.layers = {first, std::make_shared<terraingen::ScaleLayer>(2.0), second};
@@ -62,7 +62,7 @@ TEST(PlacedCraters, ListsEachCraterLayerInOrderWithItsAttributes) {
 }
 
 TEST(PlacedCraters, KeepsOnlyTheCratersARegionHolds) {
-    Terrain terrain = Flat();
+    TerrainGenerator terrain = Flat();
     terrain.layers = {std::make_shared<terraingen::RegionLayer>(
         ManualCraters({{0.0, 0.0}, {16.0, 0.0}, {30.0, 20.0}}),
         RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 12.0)};
@@ -75,7 +75,7 @@ TEST(PlacedCraters, KeepsOnlyTheCratersARegionHolds) {
 }
 
 TEST(PlacedCraters, ListsAtASpacingFinerThanTheGrid) {
-    Terrain terrain = Flat();
+    TerrainGenerator terrain = Flat();
     terraingen::CraterLayerOptions options;
     options.generation.dMin = 0.5;
     options.generation.dMax = 20.0;
@@ -93,7 +93,7 @@ TEST(PlacedCraters, ListsAtASpacingFinerThanTheGrid) {
 }
 
 TEST(PlacedBoulders, ListsEveryBoulderOfTheSizesHoweverSmall) {
-    Terrain terrain = Flat();
+    TerrainGenerator terrain = Flat();
     terraingen::BoulderLayerOptions options;
     options.sizes.minDiameter = 0.2;
     options.sizes.coverage = 0.1;
@@ -113,7 +113,7 @@ TEST(PlacedBoulders, ListsEveryBoulderOfTheSizesHoweverSmall) {
 }
 
 TEST(PlacedBoulders, PlacesModelsOnTheGroundBeneathTheirLayer) {
-    Terrain terrain = Flat();
+    TerrainGenerator terrain = Flat();
     terrain.layers = {std::make_shared<terraingen::ScaleLayer>(1.0, 3.0),
                       std::make_shared<terraingen::BoulderLayer>(Models())};
     const auto placed = terraingen::PlacedBoulders(terrain, terrain.source->Grid());
@@ -148,7 +148,7 @@ terraingen::CraterList DemCraters(const std::shared_ptr<const terraingen::Source
     if (limited) {
         options.generation.completeness = terraingen::UnresolvedCraterLimit(source, 4.0);
     }
-    Terrain terrain;
+    TerrainGenerator terrain;
     terrain.source = source;
     terrain.layers = {std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options)};
     return terraingen::PlacedCraters(terrain, grid).craters;
@@ -213,7 +213,7 @@ TEST(PlacedCraters, FollowTheResolutionOfEachMemberOfASourceChain) {
 }
 
 TEST(PlacedBoulders, KeepsOnlyTheBouldersARegionHolds) {
-    Terrain terrain = Flat();
+    TerrainGenerator terrain = Flat();
     terrain.layers = {std::make_shared<terraingen::RegionLayer>(
         std::make_shared<terraingen::BoulderLayer>(Models()),
         RegionShape::Circle({0.0, 0.0}, 35.0))};

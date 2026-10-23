@@ -30,7 +30,7 @@ class Example(_common.Example):
             params = terraingen.FractalParams(
                 seed=4, wavelength=400.0, amplitude=20.0, gain=terraingen.gain_from_hurst(hurst)
             )
-            terrain = terraingen.Terrain(
+            terrain = terraingen.TerrainGenerator(
                 terraingen.FlatSource(257, 257, PIXEL),
                 [terraingen.NoiseRelief([terraingen.NoiseLayer(params)])],
             )

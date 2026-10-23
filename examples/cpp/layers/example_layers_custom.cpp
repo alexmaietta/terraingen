@@ -106,7 +106,7 @@ class LayersCustom : public terraingen::examples::Example {
         options.generation.dMin = 8.0;
         options.generation.dMax = 80.0;
 
-        terraingen::Terrain terrain;
+        terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<InclinedPlane>(0.02);
         terrain.layers = {
             std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
@@ -117,7 +117,7 @@ class LayersCustom : public terraingen::examples::Example {
                                              ages, terraingen::LunarFreshCraterMorphometry),
                                          std::make_shared<terraingen::FassettThomsonProfile>()},
                 options)};
-        originHeight_ = terraingen::EvaluateAt(terrain, 0.0, 0.0, 2.0);
+        originHeight_ = terraingen::HeightAt(terrain, 0.0, 0.0, 2.0);
         Out() << "height at the origin: " << std::fixed << std::setprecision(2) << originHeight_
               << " m\n"
               << std::defaultfloat;

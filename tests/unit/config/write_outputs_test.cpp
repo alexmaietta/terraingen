@@ -14,9 +14,9 @@
 #include <string>
 
 using terraingen::CraterListOutput;
-using terraingen::GenerateTerrain;
+using terraingen::GenerateFromConfig;
 using terraingen::ListFormat;
-using terraingen::TerrainConfig;
+using terraingen::TerrainGenConfig;
 using terraingen::WriteOutputs;
 using terraingen::testing::BouldersOf;
 using terraingen::testing::CratersOf;
@@ -32,11 +32,11 @@ using terraingen::testing::TempPath;
 using terraingen::testing::WriteDem;
 
 TEST(WriteOutputs, ResolvesRelativePathsAndCreatesFolders) {
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     const auto absolute = TempPath("terraingen_absolute.csv");
     config.outputs = {CraterListOutput{{"nested/list.json", ListFormat::Json, SmallRegion()}},
                       CraterListOutput{{absolute.string(), ListFormat::Csv, SmallRegion()}}};
-    const auto terrain = GenerateTerrain(config);
+    const auto terrain = GenerateFromConfig(config);
     const auto directory = TempPath("terraingen_outputs");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, terrain, directory);
@@ -50,7 +50,7 @@ TEST(WriteOutputs, ResolvesRelativePathsAndCreatesFolders) {
 }
 
 TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     const terraingen::GridRegionSpec region{200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};
@@ -64,7 +64,7 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
                       terraingen::BoulderListOutput{{"boulders.json", ListFormat::Json, region}},
                       terraingen::BoulderModelsOutput{"boulders.glb", 35.0, region},
                       terraingen::BoulderModelsOutput{"boulders.stl", 35.0, region}};
-    const auto terrain = GenerateTerrain(config);
+    const auto terrain = GenerateFromConfig(config);
     ASSERT_FALSE(BouldersOf(terrain, region).models.empty());
     for (const auto& boulder : BouldersOf(terrain, region).models) {
         ASSERT_TRUE(boulder.boulder.ground.has_value());
@@ -86,12 +86,12 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     EXPECT_EQ(ReadText(written[2]).substr(0, 4), "glTF");
     EXPECT_EQ(ReadText(written[3]).substr(0, 10), "TerrainGen") << "a binary STL";
 
-    const auto generations = [&](const TerrainConfig& outputs) {
+    const auto generations = [&](const TerrainGenConfig& outputs) {
         const terraingen::testing::LogCapture capture(terraingen::LogLevel::Debug);
         WriteOutputs(outputs, terrain, directory);
         return capture.Matching("boulders", terraingen::LogLevel::Debug).size();
     };
-    TerrainConfig one = config;
+    TerrainGenConfig one = config;
     one.outputs.resize(1);
     EXPECT_GT(generations(one), 0u);
     EXPECT_EQ(generations(config), generations(one))
@@ -101,17 +101,17 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     none.boulders.sizes.minDiameter = 0.5;
     config.layers.back() = none;
     config.outputs = {terraingen::BoulderModelsOutput{"empty.glb", 35.0, region}};
-    EXPECT_TRUE(WriteOutputs(config, GenerateTerrain(config), directory).empty())
+    EXPECT_TRUE(WriteOutputs(config, GenerateFromConfig(config), directory).empty())
         << "nothing to write without models";
 }
 
 TEST(WriteOutputs, WritesHeightmapsWithTheSourceProjection) {
     const auto folder = TempPath("terraingen_heightmap");
     const auto dem = WriteDem(folder, "dem.tif");
-    TerrainConfig config = RasterConfig("dem.tif");
+    TerrainGenConfig config = RasterConfig("dem.tif");
     config.outputs = {
         terraingen::HeightmapOutput{"out/height.tif", terraingen::TiffCompression::Deflate, 16}};
-    const auto terrain = GenerateTerrain(config, folder);
+    const auto terrain = GenerateFromConfig(config, folder);
     const auto written = WriteOutputs(config, terrain, folder);
     ASSERT_EQ(written.size(), 1u);
     const auto info = terraingen::ReadGeoTiffInfo(written[0]);
@@ -131,12 +131,12 @@ TEST(WriteOutputs, WritesARasterAlbedoUpscaledWithTheSourceProjection) {
         map.Values()[i] = static_cast<float>(1000 + 37 * (i % 11));
     }
     terraingen::WriteGeoTiff(folder / "map.tif", map, Keys());
-    TerrainConfig config = RasterConfig("dem.tif");
+    TerrainGenConfig config = RasterConfig("dem.tif");
     terraingen::RasterAlbedoSpec raster{"map.tif", {0}, 0.0001, 0.0, {}};
     raster.options.detail.enabled = false;
     config.albedo = terraingen::AlbedoSpec{raster, {}};
     config.outputs = {terraingen::AlbedoOutput{"out/albedo.tif"}};
-    const auto terrain = GenerateTerrain(config, folder);
+    const auto terrain = GenerateFromConfig(config, folder);
     const auto written = WriteOutputs(config, terrain, folder);
     ASSERT_EQ(written.size(), 1u);
     const auto read = terraingen::ReadGeoTiff(written[0]);
@@ -156,21 +156,21 @@ TEST(WriteOutputs, WritesARasterAlbedoUpscaledWithTheSourceProjection) {
     EXPECT_LT(highest, 0.15f);
 
     config.albedo->source = terraingen::RasterAlbedoSpec{"map.tif", {0}, {}, {}, {}};
-    EXPECT_NEAR(terraingen::testing::AlbedoOf(GenerateTerrain(config, folder))[0](3, 4), sampled,
+    EXPECT_NEAR(terraingen::testing::AlbedoOf(GenerateFromConfig(config, folder))[0](3, 4), sampled,
                 1e-3f);
     config.albedo.reset();
-    EXPECT_THROW(WriteOutputs(config, GenerateTerrain(Small()), folder), std::runtime_error);
+    EXPECT_THROW(WriteOutputs(config, GenerateFromConfig(Small()), folder), std::runtime_error);
 }
 
 TEST(WriteOutputs, WritesGeographicRastersAndListsOnASphere) {
-    TerrainConfig config = terraingen::testing::OnASphere();
+    TerrainGenConfig config = terraingen::testing::OnASphere();
     config.albedo = terraingen::AlbedoSpec{terraingen::SyntheticAlbedoSpec{}, {}};
     const terraingen::GridRegionSpec region = Region(config);
     config.outputs = {
         terraingen::testing::Heightmap("height.tif", region),
         terraingen::AlbedoOutput{{"albedo.tif", terraingen::TiffCompression::Lzw, 256, region}},
         CraterListOutput{{"craters.csv", ListFormat::Csv, region}}};
-    const auto generated = GenerateTerrain(config, {}, 2);
+    const auto generated = GenerateFromConfig(config, {}, 2);
     const auto directory = TempPath("terraingen_sphere");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, generated, directory);
@@ -182,7 +182,7 @@ TEST(WriteOutputs, WritesGeographicRastersAndListsOnASphere) {
 }
 
 TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
     const terraingen::GridRegionSpec region{160, 160, 0.25, -30.0, 60.0};
     terraingen::BoulderLayerSpec boulders;
@@ -193,7 +193,7 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
     boulders.boulders.rendering.models.minDiameter = 1.0;
     config.layers = {boulders};
     config.outputs = {terraingen::BoulderModelsOutput{"boulders.stl", 35.0, region}};
-    const auto terrain = GenerateTerrain(config);
+    const auto terrain = GenerateFromConfig(config);
     ASSERT_FALSE(BouldersOf(terrain, region).models.empty());
     const auto directory = TempPath("terraingen_sphere_boulders");
     std::filesystem::remove_all(directory);
@@ -211,11 +211,11 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
 }
 
 TEST(WriteOutputs, WritesWholeBodyMeshes) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
     config.outputs = {terraingen::MeshOutput{"body.glb", 6, std::nullopt},
                       terraingen::MeshOutput{"body.stl", 4, 20000.0}};
-    const auto terrain = GenerateTerrain(config);
+    const auto terrain = GenerateFromConfig(config);
     const auto directory = TempPath("terraingen_body_mesh");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, terrain, directory);
@@ -225,11 +225,11 @@ TEST(WriteOutputs, WritesWholeBodyMeshes) {
 }
 
 TEST(WriteOutputs, WritesEllipsoidBodiesAsIcqShapeModels) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     config.body = terraingen::EllipsoidSurfaceSpec{{267500.0, 147000.0, 104500.0}};
     config.outputs = {terraingen::MeshOutput{"body.icq", 8, std::nullopt}};
     EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "valid");
-    const auto terrain = GenerateTerrain(config);
+    const auto terrain = GenerateFromConfig(config);
     const auto directory = TempPath("terraingen_body_icq");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, terrain, directory);
@@ -248,7 +248,7 @@ TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
     terraingen::WriteMesh(
         directory / "rock.obj",
         {terraingen::Scaled(cube, {1.0, 0.7, 0.5}), {}, {"basalt", {0.2, 0.2, 0.2}}});
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     const terraingen::GridRegionSpec region{120, 100, 0.5};
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};
@@ -259,7 +259,7 @@ TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
     config.layers.push_back(boulders);
     config.outputs = {terraingen::BoulderModelsOutput{"boulders.obj", 35.0, region},
                       terraingen::TerrainMeshOutput{"terrain.glb", region}};
-    const auto terrain = GenerateTerrain(config, directory);
+    const auto terrain = GenerateFromConfig(config, directory);
     const auto models = BouldersOf(terrain).models;
     ASSERT_FALSE(models.empty());
     const auto written = WriteOutputs(config, terrain, directory);
@@ -289,7 +289,7 @@ TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
 }
 
 TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
-    TerrainConfig config;
+    TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{50000.0};
     terraingen::CraterLayerSpec craters;
     craters.minDiameter = 2000.0;
@@ -297,7 +297,7 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
     craters.density = terraingen::testing::LunarDensitySpec();
     config.layers = {craters};
     config.outputs = {CraterListOutput{{"craters.csv", ListFormat::Csv, {}, 500.0}}};
-    const auto generated = GenerateTerrain(config);
+    const auto generated = GenerateFromConfig(config);
     const auto directory = TempPath("terraingen_whole_body_list");
     std::filesystem::remove_all(directory);
     const auto written = WriteOutputs(config, generated, directory);
@@ -305,7 +305,7 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
     const std::string csv = ReadText(written[0]);
     EXPECT_GT(std::count(csv.begin(), csv.end(), '\n'), 10);
 
-    TerrainConfig other = Small();
+    TerrainGenConfig other = Small();
     EXPECT_THROW(WriteOutputs(other, generated, directory), std::runtime_error)
         << "the heightmap's grid was not generated";
     other.outputs = {terraingen::MeshOutput{"m.glb"}};
@@ -314,7 +314,7 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
 }
 
 TEST(WriteOutputs, WritesMaterialsAndTheirPhotometry) {
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     config.layers.push_back(terraingen::SandFillLayerSpec{{6.0, 0.8, 0.5, 0.02}});
     terraingen::MaterialsSpec materials;
     materials.photometry.reference = terraingen::PhotometryReference::MarsPancam;
@@ -324,7 +324,7 @@ TEST(WriteOutputs, WritesMaterialsAndTheirPhotometry) {
         {"materials.tif", terraingen::TiffCompression::Lzw, 256, SmallRegion()}});
     config.outputs.push_back(terraingen::PhotometryOutput{
         {"hapke.tif", terraingen::TiffCompression::Lzw, 256, SmallRegion()}});
-    const auto generated = GenerateTerrain(config);
+    const auto generated = GenerateFromConfig(config);
     ASSERT_EQ(generated.grids.size(), 1u) << "one grid for heights, materials and photometry";
     ASSERT_EQ(generated.grids[0].materials.size(), terraingen::kMaterialClasses);
     const auto directory = TempPath("terraingen_materials");
@@ -342,9 +342,9 @@ TEST(WriteOutputs, WritesMaterialsAndTheirPhotometry) {
         generated.grids[0].materials[static_cast<std::size_t>(terraingen::MaterialClass::Sand)];
     EXPECT_GT(*std::max_element(sand.Values().begin(), sand.Values().end()), 0.5f);
 
-    TerrainConfig without = Small();
+    TerrainGenConfig without = Small();
     without.outputs.push_back(terraingen::MaterialsOutput{
         {"m.tif", terraingen::TiffCompression::Lzw, 256, SmallRegion()}});
-    EXPECT_THROW(WriteOutputs(without, GenerateTerrain(Small()), directory), std::runtime_error)
+    EXPECT_THROW(WriteOutputs(without, GenerateFromConfig(Small()), directory), std::runtime_error)
         << "no materials generated";
 }

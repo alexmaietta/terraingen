@@ -1,8 +1,8 @@
 /// @file
-/// @brief Small terrains built from objects, shared by the terrain evaluation tests.
+/// @brief Small terrain generators built from objects, shared by the evaluation tests.
 #pragma once
 
-#include "terraingen/pipeline/terrain.h"
+#include "terraingen/pipeline/generator.h"
 #include "terraingen/terraingen.h"
 
 #include <memory>
@@ -21,8 +21,8 @@ inline CraterModels PowerLawCraterModels() {
 
 /// A 96 x 64 flat source of 2 m cells at 5 m, rolling noise, then 6 to 50 m craters shaped with
 /// `apply`.
-inline Terrain Rolling(const CraterApplyOptions& apply = {}) {
-    Terrain terrain;
+inline TerrainGenerator Rolling(const CraterApplyOptions& apply = {}) {
+    TerrainGenerator terrain;
     terrain.source = std::make_shared<FlatSource>(96, 64, 2.0, 5.0f);
     SyntheticTerrainParams noise;
     noise.layers[0].fractal.wavelength = 80.0f;
@@ -37,7 +37,7 @@ inline Terrain Rolling(const CraterApplyOptions& apply = {}) {
 }
 
 /// `Rolling` with rounded crater rims.
-inline Terrain Smoothed() {
+inline TerrainGenerator Smoothed() {
     CraterApplyOptions apply;
     apply.rimSmoothing.sigmaRadii = 0.05;
     return Rolling(apply);
@@ -46,8 +46,8 @@ inline Terrain Smoothed() {
 /// @brief `Rolling` with its craters cut to a datum fitted to the ground.
 /// @param datum The datum.
 /// @return The terrain.
-inline Terrain Datum(CraterDatum datum = CraterDatum::Plane) {
-    Terrain terrain = Rolling();
+inline TerrainGenerator Datum(CraterDatum datum = CraterDatum::Plane) {
+    TerrainGenerator terrain = Rolling();
     CraterLayerOptions options;
     options.generation.dMin = 6.0;
     options.generation.dMax = 50.0;

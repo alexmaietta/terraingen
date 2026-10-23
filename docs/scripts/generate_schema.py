@@ -294,7 +294,7 @@ class Reference:
         lines = [
             "# Configuration",
             "",
-            "A configuration is a JSON file the `terraingen` command, `GenerateTerrain` and",
+            "A configuration is a JSON file the `terraingen` command, `GenerateFromConfig` and",
             "`terraingen.load_config` read. This reference is generated from the same field lists",
             "the parser reads, so it always matches the library; the [raw schema](schema.md) is",
             "the same information as JSON, for editors and tools.",

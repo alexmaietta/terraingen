@@ -21,34 +21,36 @@
 
 namespace terraingen::testing {
 
-/// The heights a generated terrain has over its first grid.
-inline const Raster<float>& HeightsOf(const GeneratedTerrain& terrain) {
-    return terrain.grids.at(0).heights;
+/// The heights generated over the first grid.
+inline const Raster<float>& HeightsOf(const GeneratedOutputs& generated) {
+    return generated.grids.at(0).heights;
 }
 
-/// The albedo bands a generated terrain has over its first grid.
-inline const std::vector<Raster<float>>& AlbedoOf(const GeneratedTerrain& terrain) {
-    return terrain.grids.at(0).albedo;
+/// The albedo bands generated over the first grid.
+inline const std::vector<Raster<float>>& AlbedoOf(const GeneratedOutputs& generated) {
+    return generated.grids.at(0).albedo;
 }
 
-/// The craters a generated terrain's layers apply over its first grid.
-inline CraterFeatures CratersOf(const GeneratedTerrain& terrain) {
-    return PlacedCraters(terrain.terrain, RasterGrid::FromRaster(HeightsOf(terrain)));
+/// The craters the generator's layers apply over the first grid.
+inline CraterFeatures CratersOf(const GeneratedOutputs& generated) {
+    return PlacedCraters(generated.generator, RasterGrid::FromRaster(HeightsOf(generated)));
 }
 
-/// The boulders a generated terrain's layers place over its first grid, and the models among them.
-inline BoulderFeatures BouldersOf(const GeneratedTerrain& terrain) {
-    return PlacedBoulders(terrain.terrain, RasterGrid::FromRaster(HeightsOf(terrain)));
+/// The boulders the generator's layers place over the first grid, and the models among them.
+inline BoulderFeatures BouldersOf(const GeneratedOutputs& generated) {
+    return PlacedBoulders(generated.generator, RasterGrid::FromRaster(HeightsOf(generated)));
 }
 
-/// The craters a generated terrain's layers apply over `region`.
-inline CraterFeatures CratersOf(const GeneratedTerrain& terrain, const GridRegionSpec& region) {
-    return PlacedCraters(terrain.terrain, config::RegionGrid(region, terrain.terrain.surface));
+/// The craters the generator's layers apply over `region`.
+inline CraterFeatures CratersOf(const GeneratedOutputs& generated, const GridRegionSpec& region) {
+    return PlacedCraters(generated.generator,
+                         config::RegionGrid(region, generated.generator.surface));
 }
 
-/// The boulders a generated terrain's layers place over `region`.
-inline BoulderFeatures BouldersOf(const GeneratedTerrain& terrain, const GridRegionSpec& region) {
-    return PlacedBoulders(terrain.terrain, config::RegionGrid(region, terrain.terrain.surface));
+/// The boulders the generator's layers place over `region`.
+inline BoulderFeatures BouldersOf(const GeneratedOutputs& generated, const GridRegionSpec& region) {
+    return PlacedBoulders(generated.generator,
+                          config::RegionGrid(region, generated.generator.surface));
 }
 
 /// The region of `Small`'s heightmap: 65 x 49 cells of 2 m.
@@ -68,21 +70,21 @@ inline HeightmapOutput Heightmap(const std::string& path,
 /// @brief The region of a configuration's first output, a heightmap with a region.
 /// @param config A configuration such as `Small`.
 /// @return Its region spec.
-inline GridRegionSpec& Region(TerrainConfig& config) {
+inline GridRegionSpec& Region(TerrainGenConfig& config) {
     return *std::get<HeightmapOutput>(config.outputs.at(0)).region;
 }
 
 /// @brief The noise layer of a `Small` configuration.
 /// @param config A `Small` configuration.
 /// @return Its first layer.
-inline NoiseLayerSpec& Noise(TerrainConfig& config) {
+inline NoiseLayerSpec& Noise(TerrainGenConfig& config) {
     return std::get<NoiseLayerSpec>(config.layers.at(0));
 }
 
 /// @brief The crater layer of a `Small` configuration.
 /// @param config A `Small` configuration.
 /// @return Its second layer.
-inline CraterLayerSpec& Craters(TerrainConfig& config) {
+inline CraterLayerSpec& Craters(TerrainGenConfig& config) {
     return std::get<CraterLayerSpec>(config.layers.at(1));
 }
 
@@ -108,8 +110,8 @@ inline SteadyStateAgesSpec LunarAgesSpec(double ageGyr = 3.5) {
 /// @brief A small, fast configuration: a noise layer, then a crater layer of 8 to 60 m craters on
 /// a 3.5 Gyr lunar surface, and a heightmap over 65 x 49 cells of 2 m (`SmallRegion`).
 /// @return The configuration.
-inline TerrainConfig Small() {
-    TerrainConfig config;
+inline TerrainGenConfig Small() {
+    TerrainGenConfig config;
     config.outputs = {Heightmap("terrain.tif")};
     NoiseLayerSpec noise;
     noise.stack[0].layer.fractal.wavelength = 200.0f;
@@ -128,8 +130,8 @@ inline TerrainConfig Small() {
 /// @brief `Small` with a synthetic albedo and bright crater material from its crater layer, and an
 /// albedo output over its heightmap's region.
 /// @return The configuration.
-inline TerrainConfig WithAlbedo() {
-    TerrainConfig config = Small();
+inline TerrainGenConfig WithAlbedo() {
+    TerrainGenConfig config = Small();
     Craters(config).manual = {{10.0, -8.0, 30.0, 0.0, 77u, true}};
     SyntheticAlbedoSpec synthetic;
     synthetic.rgb = true;
@@ -147,8 +149,8 @@ inline TerrainConfig WithAlbedo() {
 
 /// @brief `Small` on a lunar-sized sphere: its heightmap of 4 m cells at (30, -45).
 /// @return The configuration.
-inline TerrainConfig OnASphere() {
-    TerrainConfig config = Small();
+inline TerrainGenConfig OnASphere() {
+    TerrainGenConfig config = Small();
     config.body = SphereSurfaceSpec{1737400.0};
     Region(config).centreX = 30.0;
     Region(config).centreY = -45.0;
@@ -160,7 +162,7 @@ inline TerrainConfig OnASphere() {
 /// @param config The configuration.
 /// @param directory Folder relative paths resolve against.
 /// @return The path, or "valid".
-inline std::string ValidationErrorPath(const TerrainConfig& config,
+inline std::string ValidationErrorPath(const TerrainGenConfig& config,
                                        const std::filesystem::path& directory = {}) {
     try {
         ValidateConfig(config, directory);
@@ -174,7 +176,7 @@ inline std::string ValidationErrorPath(const TerrainConfig& config,
 /// @param mutate Changes the configuration.
 /// @return The path, or "valid".
 template <typename Mutate> std::string ErrorPath(Mutate mutate) {
-    TerrainConfig config = Small();
+    TerrainGenConfig config = Small();
     mutate(config);
     return ValidationErrorPath(config);
 }
@@ -245,8 +247,8 @@ inline Raster<float> WriteDem(const std::filesystem::path& folder, const std::st
 /// @brief A configuration with a raster source and a heightmap over its grid.
 /// @param path The raster's path.
 /// @return The configuration.
-inline TerrainConfig RasterConfig(const std::string& path) {
-    TerrainConfig config;
+inline TerrainGenConfig RasterConfig(const std::string& path) {
+    TerrainGenConfig config;
     config.source = RasterSourceSpec{path};
     config.outputs = {Heightmap("terrain.tif", std::nullopt)};
     return config;
@@ -255,7 +257,7 @@ inline TerrainConfig RasterConfig(const std::string& path) {
 /// @brief The raster source of a `RasterConfig`.
 /// @param config A configuration with a raster source.
 /// @return Its source spec.
-inline RasterSourceSpec& RasterSpec(TerrainConfig& config) {
+inline RasterSourceSpec& RasterSpec(TerrainGenConfig& config) {
     return std::get<RasterSourceSpec>(*config.source);
 }
 

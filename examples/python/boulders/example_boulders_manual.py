@@ -52,7 +52,7 @@ class Example(_common.Example):
             models=terraingen.BoulderModelThreshold(min_diameter=0.5),
             manual=self.manual,
         )
-        terrain = terraingen.Terrain(
+        terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.BoulderLayer(options)]
         )
 

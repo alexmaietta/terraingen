@@ -37,7 +37,7 @@ class Example(_common.Example):
             terraingen.FreshnessDegradation(ages, fresh=fresh),
             terraingen.FassettThomsonProfile(),
         )
-        generation = terraingen.CraterGenerationOptions(min_diameter=15.0, max_diameter=150.0)
+        generation = terraingen.CraterGenerationOptions(d_min=15.0, d_max=150.0)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=2, generation=generation))
         self.ripples = terraingen.mars_large_ripples()
         self.ripples.cover, self.ripples.field_size, self.ripples.wind_azimuth_deg = 0.6, 80.0, 60.0
@@ -49,7 +49,7 @@ class Example(_common.Example):
                 )
             ]
         )
-        terrain = terraingen.Terrain(
+        terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(513, 513, PIXEL), [noise, craters, terraingen.BedformLayer(self.ripples)]
         )
         self.heights = terraingen.evaluate(terrain)

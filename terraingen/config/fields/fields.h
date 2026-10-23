@@ -16,7 +16,7 @@
 namespace terraingen::config {
 
 /// The fields of the root configuration.
-template <typename IO> void Fields(IO& io, TerrainConfig& config) {
+template <typename IO> void Fields(IO& io, TerrainGenConfig& config) {
     io("schema_version", config.schemaVersion,
        "Version of the configuration format, which this library reads; required.");
     io("body", config.body,

@@ -1,5 +1,6 @@
 /// @file
-/// @brief A terrain as optional starting heights and layers, evaluated over grids or at points.
+/// @brief A terrain generator as optional starting heights and layers, evaluated over grids or at
+/// points.
 #pragma once
 
 #include "terraingen/layers/layer.h"
@@ -19,23 +20,23 @@
 
 namespace terraingen {
 
-/// A terrain as a composition: heights from `source` (the datum, 0 m, without one), plus each of
-/// `layers` in order.
+/// A terrain generator as a composition: heights from `source` (the datum, 0 m, without one), plus
+/// each of `layers` in order.
 ///
-/// Every part is a pure function of where it is evaluated, so a terrain can be evaluated over any
+/// Every part is a pure function of where it is evaluated, so a generator can be evaluated over any
 /// grid, such as a tile, at any sample spacing. On a body, grids are in longitude and latitude and
 /// spacings in meters (`RasterGrid::Spacing`), which reach the source in its units, divided by
 /// `Surface::UnitLength`. The layers must be built for `surface`.
-struct Terrain {
+struct TerrainGenerator {
     std::shared_ptr<const Source> source;              ///< The starting heights; may be null.
     std::vector<std::shared_ptr<const Layer>> layers;  ///< Applied in order.
     Surface surface{};                                 ///< What the terrain lies on.
 };
 
-/// How to evaluate a terrain over a grid.
+/// How to evaluate a generator over a grid.
 struct EvaluationOptions {
-    /// Sample spacing in metres; 0 means the grid's spacing on the terrain's surface, and a smaller
-    /// value is raised to it.
+    /// Sample spacing in metres; 0 means the grid's spacing on the generator's surface, and a
+    /// smaller value is raised to it.
     double spacing = 0.0;
     /// Threads to split each layer over; 0 for every hardware thread. The result does
     /// not depend on it.
@@ -49,45 +50,47 @@ struct EvaluationOptions {
     std::function<void(std::size_t layer, double milliseconds)> onLayer{};
 };
 
-/// The ground beneath one layer of a terrain: its starting heights and the layers before it,
-/// evaluated at points as `EvaluatePoints`. `Evaluate` and `EvaluatePoints` give each layer the
-/// ground beneath it.
+/// The ground beneath one layer of a generator: its starting heights and the layers before it,
+/// evaluated at points as `HeightsAt`. `Evaluate` and `HeightsAt` give each layer the ground
+/// beneath it.
 class TerrainGround final : public Ground {
   public:
-    /// The ground beneath layer `layers` of `terrain`, which must outlive it.
+    /// The ground beneath layer `layers` of `generator`, which must outlive it.
     /// @param layers The number of layers the ground includes.
     /// @param cache Values the layers beneath share with the evaluation reading this ground, such
     /// as crater datums, so nested reads do not compute them again; null for a cache per read.
-    /// @throws std::invalid_argument if `terrain` has fewer than `layers` layers.
-    TerrainGround(const Terrain& terrain, std::size_t layers, EvaluationCache* cache = nullptr);
+    /// @throws std::invalid_argument if `generator` has fewer than `layers` layers.
+    TerrainGround(const TerrainGenerator& generator, std::size_t layers,
+                  EvaluationCache* cache = nullptr);
 
     /// The starting height at surface point (`x`, `y`) after each included layer's `ApplyAt`, at
     /// a sample spacing of `spacing` metres.
     float HeightAt(double x, double y, double spacing) const override;
 
-    /// The heights at `points` in batches over every hardware thread, as `EvaluatePoints` does.
+    /// The heights at `points` in batches over every hardware thread, as the free `HeightsAt` does.
     void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
 
   private:
-    const Terrain& terrain_;
+    const TerrainGenerator& generator_;
     std::size_t layers_;
     EvaluationCache* cache_;
 };
 
-/// A `TerrainGround` beneath the first `layers` layers of a copy of `terrain` that it keeps, so it
-/// outlives `terrain`; the copy shares its source and layers.
-/// @throws std::invalid_argument if `terrain` has fewer layers.
-std::shared_ptr<const Ground> SharedGround(const Terrain& terrain, std::size_t layers);
+/// A `TerrainGround` beneath the first `layers` layers of a copy of `generator` that it keeps, so
+/// it outlives `generator`; the copy shares its source and layers.
+/// @throws std::invalid_argument if `generator` has fewer layers.
+std::shared_ptr<const Ground> SharedGround(const TerrainGenerator& generator, std::size_t layers);
 
-/// Layer `index` of `terrain`, which must be a `T`.
+/// Layer `index` of `generator`, which must be a `T`.
 /// @param what What a `T` is, for the error message, such as "a boulder layer".
-/// @throws std::invalid_argument if `terrain` has no layer `index` or it is not a `T`.
+/// @throws std::invalid_argument if `generator` has no layer `index` or it is not a `T`.
 template <typename T>
-std::shared_ptr<const T> LayerAt(const Terrain& terrain, std::size_t index, std::string_view what) {
-    if (index >= terrain.layers.size()) {
+std::shared_ptr<const T> LayerAt(const TerrainGenerator& generator, std::size_t index,
+                                 std::string_view what) {
+    if (index >= generator.layers.size()) {
         throw std::invalid_argument("The terrain has no layer " + std::to_string(index));
     }
-    auto layer = std::dynamic_pointer_cast<const T>(terrain.layers[index]);
+    auto layer = std::dynamic_pointer_cast<const T>(generator.layers[index]);
     if (!layer) {
         throw std::invalid_argument("Layer " + std::to_string(index) + " is not " +
                                     std::string(what));
@@ -95,62 +98,63 @@ std::shared_ptr<const T> LayerAt(const Terrain& terrain, std::size_t index, std:
     return layer;
 }
 
-/// Calls `visit(layer, index)` for each layer of `terrain` that is a `T`, in order, with `index`
-/// its position in `terrain.layers`.
+/// Calls `visit(layer, index)` for each layer of `generator` that is a `T`, in order, with `index`
+/// its position in `generator.layers`.
 template <typename T, typename Visit>
-void ForEachLayer(const Terrain& terrain, const Visit& visit) {
-    for (std::size_t n = 0; n < terrain.layers.size(); ++n) {
-        if (const auto* layer = dynamic_cast<const T*>(terrain.layers[n].get())) {
+void ForEachLayer(const TerrainGenerator& generator, const Visit& visit) {
+    for (std::size_t n = 0; n < generator.layers.size(); ++n) {
+        if (const auto* layer = dynamic_cast<const T*>(generator.layers[n].get())) {
             visit(*layer, n);
         }
     }
 }
 
-/// The heights of `terrain` over `grid`, evaluated on every hardware thread with the default
+/// The heights of `generator` over `grid`, evaluated on every hardware thread with the default
 /// options.
 /// @param spacing Sample spacing in metres; 0 means the grid's spacing, and a smaller value is
 /// raised to it.
-/// @throws std::invalid_argument as `ValidateTerrain`, or for a negative or non-finite `spacing`;
+/// @throws std::invalid_argument as `ValidateGenerator`, or for a negative or non-finite `spacing`;
 /// and whatever the parts throw.
-Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid, double spacing = 0.0);
+Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid,
+                       double spacing = 0.0);
 
-/// The heights of `terrain` over `grid`, evaluated on several threads to the same bits as one.
+/// The heights of `generator` over `grid`, evaluated on several threads to the same bits as one.
 /// @throws std::invalid_argument as `Evaluate` with a spacing.
 /// @throws std::runtime_error when the backend is `Vulkan` and Vulkan is unavailable.
-Raster<float> Evaluate(const Terrain& terrain, const RasterGrid& grid,
+Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid,
                        const EvaluationOptions& options);
 
-/// Evaluates `terrain` over `grid` into a caller buffer, to the same bits as `Evaluate`.
+/// Evaluates `generator` over `grid` into a caller buffer, to the same bits as `Evaluate`.
 /// @param heights grid.width * grid.height heights in meters, row-major with row 0 first (north
 /// up), as `Raster` stores them.
 /// @throws std::invalid_argument as `Evaluate`, or for a buffer of another size.
 /// @throws std::runtime_error as `Evaluate`.
-void FillHeights(const Terrain& terrain, const RasterGrid& grid, Span<float> heights,
+void FillHeights(const TerrainGenerator& generator, const RasterGrid& grid, Span<float> heights,
                  const EvaluationOptions& options = {});
 
-/// Checks that a terrain can be evaluated.
-/// @throws std::invalid_argument if `terrain` holds a null layer.
-void ValidateTerrain(const Terrain& terrain);
+/// Checks that a generator can be evaluated.
+/// @throws std::invalid_argument if `generator` holds a null layer.
+void ValidateGenerator(const TerrainGenerator& generator);
 
-/// The heights of `terrain` over its source's grid.
-/// @throws std::invalid_argument as `Evaluate` over a grid, or for a terrain without a source or
+/// The heights of `generator` over its source's grid.
+/// @throws std::invalid_argument as `Evaluate` over a grid, or for a generator without a source or
 /// with a source without bounds (`BoundedGrid`).
-Raster<float> Evaluate(const Terrain& terrain);
+Raster<float> Evaluate(const TerrainGenerator& generator);
 
-/// The heights of a terrain at scattered points, such as wheel contacts or mesh vertices: the
+/// The heights of a generator at scattered points, such as wheel contacts or mesh vertices: the
 /// starting heights there, then each layer applied to all of them at once. Each equals the cell
 /// centred at its point of `Evaluate` over a grid of `spacing` metres, to the same bits, whatever
 /// the batch and thread count.
 /// @param points Positions in surface coordinates.
 /// @param spacing The sample spacing, in metres.
 /// @param threads Threads to split the points over; 0 for every hardware thread.
-/// @throws std::invalid_argument as `ValidateTerrain`, or for a `spacing` that is not positive
+/// @throws std::invalid_argument as `ValidateGenerator`, or for a `spacing` that is not positive
 /// and finite.
-std::vector<float> EvaluatePoints(const Terrain& terrain, Span<const Vec2d> points, double spacing,
-                                  unsigned threads = 0);
+std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d> points,
+                             double spacing, unsigned threads = 0);
 
-/// The height of a terrain at one point, as `EvaluatePoints`.
-/// @throws std::invalid_argument as `EvaluatePoints`.
-float EvaluateAt(const Terrain& terrain, double x, double y, double spacing);
+/// The height of a generator at one point, as `HeightsAt`.
+/// @throws std::invalid_argument as `HeightsAt`.
+float HeightAt(const TerrainGenerator& generator, double x, double y, double spacing);
 
 }  // namespace terraingen

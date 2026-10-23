@@ -5,7 +5,7 @@
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/pipeline/body_mesh.h"
-#include "terraingen/pipeline/height_mesh.h"
+#include "terraingen/pipeline/mesh_build.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/util/bits.h"
@@ -28,17 +28,17 @@ namespace terraingen {
 namespace {
 
 /// The projection of a terrain's raster base, or geographic keys on a body without one.
-GeoKeys OutputGeoKeys(const Terrain& terrain) {
-    GeoKeys keys = terrain.source ? terrain.source->Keys() : GeoKeys{};
-    if (terrain.surface.IsBody() && keys.Empty()) {
-        keys = GeographicSphereKeys(terrain.surface.Radius());
+GeoKeys OutputGeoKeys(const TerrainGenerator& generator) {
+    GeoKeys keys = generator.source ? generator.source->Keys() : GeoKeys{};
+    if (generator.surface.IsBody() && keys.Empty()) {
+        keys = GeographicSphereKeys(generator.surface.Radius());
     }
     return keys;
 }
 
 /// The grid of the terrain's source, or none without one or for one without bounds.
-std::optional<RasterGrid> BaseGrid(const Terrain& terrain) {
-    return terrain.source ? BoundedGrid(*terrain.source) : std::nullopt;
+std::optional<RasterGrid> BaseGrid(const TerrainGenerator& generator) {
+    return generator.source ? BoundedGrid(*generator.source) : std::nullopt;
 }
 
 /// Whether an output writes the material map or its photometry.
@@ -98,12 +98,13 @@ void LogStepTimes(const std::vector<StepTime>& steps, std::size_t grids, double 
 }
 
 /// The distinct grids the heightmap, albedo, terrain mesh and material outputs cover, in order.
-std::vector<RasterGrid> GeneratedGrids(const TerrainConfig& config, const Terrain& terrain) {
-    const std::optional<RasterGrid> base = BaseGrid(terrain);
+std::vector<RasterGrid> GeneratedGrids(const TerrainGenConfig& config,
+                                       const TerrainGenerator& generator) {
+    const std::optional<RasterGrid> base = BaseGrid(generator);
     std::vector<RasterGrid> grids;
     for (const OutputSpec& output : config.outputs) {
         if (WritesGrid(output)) {
-            const RasterGrid grid = *config::OutputGrid(output, base, terrain.surface);
+            const RasterGrid grid = *config::OutputGrid(output, base, generator.surface);
             if (std::find(grids.begin(), grids.end(), grid) == grids.end()) {
                 grids.push_back(grid);
             }
@@ -116,10 +117,10 @@ std::vector<RasterGrid> GeneratedGrids(const TerrainConfig& config, const Terrai
 /// need, timing each step.
 class GridGenerator {
   public:
-    GridGenerator(const TerrainConfig& config, GeneratedTerrain& generated,
+    GridGenerator(const TerrainGenConfig& config, GeneratedOutputs& generated,
                   const std::filesystem::path& directory, unsigned threads)
         : config_(config), generated_(generated), directory_(directory), threads_(threads),
-          grids_(GeneratedGrids(config, generated.terrain)) {
+          grids_(GeneratedGrids(config, generated.generator)) {
         for (std::size_t n = 0; n < config.layers.size(); ++n) {
             steps_.push_back(
                 {"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
@@ -130,15 +131,15 @@ class GridGenerator {
 
     /// Generates what `output` writes over its grid, unless an earlier output did.
     void Generate(const OutputSpec& output) {
-        const Terrain& terrain = generated_.terrain;
-        const RasterGrid grid = *config::OutputGrid(output, BaseGrid(terrain), terrain.surface);
+        const TerrainGenerator& generator = generated_.generator;
+        const RasterGrid grid = *config::OutputGrid(output, BaseGrid(generator), generator.surface);
         GeneratedGrid& target = Heights(grid);
         if (std::holds_alternative<AlbedoOutput>(output) && target.albedo.empty()) {
             AddAlbedo(grid, target);
         }
         if (MapsMaterials(output) && target.materials.empty()) {
             const Stopwatch stopwatch;
-            target.materials = EvaluateMaterials(terrain, config_.materials->options, grid,
+            target.materials = EvaluateMaterials(generator, config_.materials->options, grid,
                                                  EvaluationOptions{0.0, threads_});
             Timed(steps_.size() - 1, stopwatch.Milliseconds());
         }
@@ -162,24 +163,25 @@ class GridGenerator {
         if (GeneratedGrid* existing = generated_.Find(grid)) {
             return *existing;
         }
-        const Terrain& terrain = generated_.terrain;
+        const TerrainGenerator& generator = generated_.generator;
         LogInfo("pipeline", "Grid ", generated_.grids.size() + 1, " of ", grids_.size(), ": ",
-                grid.width, "x", grid.height, " at ", FormatSpacing(grid.Spacing(terrain.surface)));
+                grid.width, "x", grid.height, " at ",
+                FormatSpacing(grid.Spacing(generator.surface)));
         EvaluationOptions options{0.0, threads_, generated_.backend};
         options.onLayer = [this](std::size_t step, double milliseconds) {
             Timed(step, milliseconds);
         };
-        generated_.grids.push_back({Evaluate(terrain, grid, options), {}});
+        generated_.grids.push_back({Evaluate(generator, grid, options), {}});
         return generated_.grids.back();
     }
 
     void AddAlbedo(const RasterGrid& grid, GeneratedGrid& target) {
         const Stopwatch stopwatch;
-        const Terrain& terrain = generated_.terrain;
+        const TerrainGenerator& generator = generated_.generator;
         if (!albedo_) {
-            albedo_ = BuildAlbedo(config_, terrain, directory_);
+            albedo_ = BuildAlbedo(config_, generator, directory_);
         }
-        const TerrainGround ground(terrain, terrain.layers.size());
+        const TerrainGround ground(generator, generator.layers.size());
         AlbedoContext context;
         context.spacing = 0.0;
         context.threads = threads_;
@@ -188,8 +190,8 @@ class GridGenerator {
         Timed(steps_.size() - 2, stopwatch.Milliseconds());
     }
 
-    const TerrainConfig& config_;
-    GeneratedTerrain& generated_;
+    const TerrainGenConfig& config_;
+    GeneratedOutputs& generated_;
     const std::filesystem::path& directory_;
     unsigned threads_;
     std::vector<RasterGrid> grids_;
@@ -199,10 +201,10 @@ class GridGenerator {
 
 /// What `WriteOutputs` writes one output from.
 struct OutputContext {
-    const GeneratedTerrain& generated;
-    std::optional<RasterGrid> grid;         ///< The grid the output covers; none for a mesh.
-    double spacing = 0.0;                   ///< The output's sample spacing; 0 for its grid's.
-    const TerrainConfig* config = nullptr;  ///< The configuration the outputs come from.
+    const GeneratedOutputs& generated;
+    std::optional<RasterGrid> grid;            ///< The grid the output covers; none for a mesh.
+    double spacing = 0.0;                      ///< The output's sample spacing; 0 for its grid's.
+    const TerrainGenConfig* config = nullptr;  ///< The configuration the outputs come from.
     std::vector<PlacedBoulderSet>* placed = nullptr;  ///< Boulders placed for earlier outputs.
 
     /// The boulders placed over the output's grid, placed once for every output that lists them.
@@ -212,7 +214,7 @@ struct OutputContext {
                 return set.features;
             }
         }
-        placed->push_back({*grid, spacing, PlacedBoulders(generated.terrain, *grid, spacing)});
+        placed->push_back({*grid, spacing, PlacedBoulders(generated.generator, *grid, spacing)});
         return placed->back().features;
     }
 
@@ -290,7 +292,7 @@ bool Write(const CraterListOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
     const Stopwatch stopwatch;
     const CraterFeatures placed =
-        PlacedCraters(context.generated.terrain, *context.grid, context.spacing);
+        PlacedCraters(context.generated.generator, *context.grid, context.spacing);
     WriteCraterList(placed.craters, path, output.format, placed.attributes);
     LogInfo("pipeline", "Wrote ", placed.craters.Size(), " craters to ", path.string(), " in ",
             FormatDuration(stopwatch.Milliseconds()));
@@ -315,7 +317,7 @@ bool Write(const BoulderModelsOutput& output, const std::filesystem::path& path,
         LogWarning("pipeline", "No boulder models to write to ", path.string());
         return false;
     }
-    WriteBoulderModels(models, path, output.creaseAngle, context.generated.terrain.surface,
+    WriteBoulderModels(models, path, output.creaseAngle, context.generated.generator.surface,
                        context.Centre(), output.instanced);
     LogInfo("pipeline", "Wrote ", models.size(), " boulder models to ", path.string(), " in ",
             FormatDuration(stopwatch.Milliseconds()));
@@ -326,14 +328,14 @@ bool Write(const MeshOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
     const Stopwatch stopwatch;
     if (IsIcqPath(path)) {
-        WriteIcq(path, BodyIcq(context.generated.terrain, output.cellsPerFace,
+        WriteIcq(path, BodyIcq(context.generated.generator, output.cellsPerFace,
                                output.spacing.value_or(0.0)));
         LogInfo("pipeline", "Wrote an ICQ shape model of Q = ", output.cellsPerFace, " to ",
                 path.string(), " in ", FormatDuration(stopwatch.Milliseconds()));
         return true;
     }
     const TriangleMesh mesh =
-        BodyMesh(context.generated.terrain, output.cellsPerFace, output.spacing.value_or(0.0));
+        BodyMesh(context.generated.generator, output.cellsPerFace, output.spacing.value_or(0.0));
     ShadedMesh shaded = WithCreases(mesh, kPi);
     WriteMesh(path, {std::move(shaded.mesh), std::move(shaded.normals)});
     LogInfo("pipeline", "Wrote a body mesh of ", mesh.triangles.size(), " triangles to ",
@@ -352,7 +354,7 @@ bool Write(const TerrainMeshOutput& output, const std::filesystem::path& path,
     const Vec2d centre = context.Centre();
     const Vec2d site{output.siteX.value_or(centre.x), output.siteY.value_or(centre.y)};
     TriangleMesh mesh = BuildMesh(context.Generated(path).heights,
-                                  context.generated.terrain.surface, site, options);
+                                  context.generated.generator.surface, site, options);
     const std::size_t triangles = mesh.triangles.size();
     std::vector<Vec3d> normals = VertexNormals(mesh);
     WriteMesh(path, {std::move(mesh), std::move(normals), {"terrain", {0.5, 0.5, 0.5}}});
@@ -363,7 +365,7 @@ bool Write(const TerrainMeshOutput& output, const std::filesystem::path& path,
 
 }  // namespace
 
-const GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) const {
+const GeneratedGrid* GeneratedOutputs::Find(const RasterGrid& grid) const {
     for (const GeneratedGrid& generated : grids) {
         if (RasterGrid::FromRaster(generated.heights) == grid) {
             return &generated;
@@ -372,53 +374,53 @@ const GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) const {
     return nullptr;
 }
 
-GeneratedGrid* GeneratedTerrain::Find(const RasterGrid& grid) {
+GeneratedGrid* GeneratedOutputs::Find(const RasterGrid& grid) {
     return const_cast<GeneratedGrid*>(std::as_const(*this).Find(grid));
 }
 
-GeneratedTerrain GenerateTerrain(const TerrainConfig& config,
-                                 const std::filesystem::path& directory, unsigned threads,
-                                 std::optional<Backend> backend) {
-    GeneratedTerrain generated{BuildTerrain(config, directory)};
+GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& config,
+                                    const std::filesystem::path& directory, unsigned threads,
+                                    std::optional<Backend> backend) {
+    GeneratedOutputs generated{BuildGenerator(config, directory)};
     generated.backend = ResolveBackend(backend.value_or(DefaultBackend()));
     const Stopwatch stopwatch;
-    GridGenerator generator(config, generated, directory, threads);
+    GridGenerator gridGenerator(config, generated, directory, threads);
     for (const OutputSpec& output : config.outputs) {
         if (WritesGrid(output)) {
-            generator.Generate(output);
+            gridGenerator.Generate(output);
         }
     }
-    generated.geoKeys = OutputGeoKeys(generated.terrain);
+    generated.geoKeys = OutputGeoKeys(generated.generator);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
-    generator.LogTimes(stopwatch.Milliseconds());
+    gridGenerator.LogTimes(stopwatch.Milliseconds());
     return generated;
 }
 
-std::string Summary(const GeneratedTerrain& terrain) {
+std::string Summary(const GeneratedOutputs& generated) {
     std::ostringstream text;
     text << std::setprecision(3);
-    if (terrain.grids.empty()) {
+    if (generated.grids.empty()) {
         return "Built the terrain; no output grids to evaluate before writing";
     }
-    if (terrain.grids.size() == 1) {
-        text << "Generated a " << terrain.grids[0].heights.Width() << "x"
-             << terrain.grids[0].heights.Height() << " terrain";
+    if (generated.grids.size() == 1) {
+        text << "Generated a " << generated.grids[0].heights.Width() << "x"
+             << generated.grids[0].heights.Height() << " terrain";
     } else {
-        text << "Generated " << terrain.grids.size() << " grids (";
-        for (std::size_t i = 0; i < terrain.grids.size(); ++i) {
-            text << (i > 0 ? ", " : "") << terrain.grids[i].heights.Width() << "x"
-                 << terrain.grids[i].heights.Height();
+        text << "Generated " << generated.grids.size() << " grids (";
+        for (std::size_t i = 0; i < generated.grids.size(); ++i) {
+            text << (i > 0 ? ", " : "") << generated.grids[i].heights.Width() << "x"
+                 << generated.grids[i].heights.Height();
         }
         text << ")";
     }
-    text << " in " << terrain.seconds << " s on " << DescribeBackend(terrain.backend);
+    text << " in " << generated.seconds << " s on " << DescribeBackend(generated.backend);
     return text.str();
 }
 
-std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
-                                                const GeneratedTerrain& terrain,
+std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& config,
+                                                const GeneratedOutputs& generated,
                                                 const std::filesystem::path& directory) {
-    const std::optional<RasterGrid> base = BaseGrid(terrain.terrain);
+    const std::optional<RasterGrid> base = BaseGrid(generated.generator);
     std::vector<std::filesystem::path> written;
     std::vector<PlacedBoulderSet> placed;
     for (const OutputSpec& spec : config.outputs) {
@@ -428,8 +430,8 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainConfig& config,
         if (path.has_parent_path()) {
             std::filesystem::create_directories(path.parent_path());
         }
-        const OutputContext context{terrain,
-                                    config::OutputGrid(spec, base, terrain.terrain.surface),
+        const OutputContext context{generated,
+                                    config::OutputGrid(spec, base, generated.generator.surface),
                                     config::OutputSpacing(spec), &config, &placed};
         if (std::holds_alternative<MeshOutput>(spec) == context.grid.has_value()) {
             throw std::runtime_error("No grid to write " + path.string() + " over");

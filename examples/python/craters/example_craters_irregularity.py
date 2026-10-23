@@ -36,7 +36,7 @@ class Example(_common.Example):
             terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             terraingen.FassettThomsonProfile(),
         )
-        uniform = terraingen.ValueDistributionKind.UNIFORM
+        uniform = terraingen.ValueDistribution.Kind.UNIFORM
         variants = {
             "round": terraingen.CraterIrregularity(),
             "rough rims": terraingen.CraterIrregularity(
@@ -61,14 +61,16 @@ class Example(_common.Example):
                 elongated_share=0.3,
             ),
         }
-        generation = terraingen.CraterGenerationOptions(min_diameter=15.0, max_diameter=150.0)
+        generation = terraingen.CraterGenerationOptions(d_min=15.0, d_max=150.0)
         self.heights = {}
         for name, irregularity in variants.items():
             apply = terraingen.CraterApplyOptions(irregularity=irregularity)
             layer = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=4, generation=generation, apply=apply)
             )
-            heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(257, 257, PIXEL), [layer]))
+            heights = terraingen.evaluate(
+                terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, PIXEL), [layer])
+            )
             print(f"{name:12s} done")
             self.heights[name] = heights.values
             self.show(name, heights)

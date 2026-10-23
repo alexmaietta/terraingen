@@ -97,7 +97,7 @@ fractal = terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0)
 noise = terraingen.NoiseLayer(fractal)
 relief = terraingen.NoiseRelief([noise])
 
-terrain = terraingen.Terrain(ground, [relief])
+terrain = terraingen.TerrainGenerator(ground, [relief])
 heights = terraingen.evaluate(terrain)
 terraingen.write_geotiff("terrain.tif", heights)
 ```
@@ -123,7 +123,7 @@ int main() {
     relief.layers = {noise};
 
     // A flat 513 x 513 grid with 2 m pixels, plus the noise
-    terraingen::Terrain terrain;
+    terraingen::TerrainGenerator terrain;
     terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
     terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(relief));
 

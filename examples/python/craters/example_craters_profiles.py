@@ -86,7 +86,7 @@ class Example(_common.Example):
             [terraingen.ProductionSurface(production, 3.5, terraingen.neukum_lunar_chronology), equilibrium]
         )
         ages = terraingen.SteadyStateAges(production, equilibrium, 3.5, terraingen.neukum_lunar_chronology)
-        generation = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=150.0)
+        generation = terraingen.CraterGenerationOptions(d_min=8.0, d_max=150.0)
         self.terrains = {}
         for name, (profile, _) in profiles.items():
             if isinstance(profile, terraingen.DiffusedProfile):
@@ -100,7 +100,9 @@ class Example(_common.Example):
             craters = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=2, generation=generation)
             )
-            heights = terraingen.evaluate(terraingen.Terrain(terraingen.FlatSource(257, 257, 1.0), [craters]))
+            heights = terraingen.evaluate(
+                terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, 1.0), [craters])
+            )
             self.terrains[name] = heights.values
             self.show(name, heights)
 

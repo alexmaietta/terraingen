@@ -310,7 +310,7 @@ void BindSourceTypes(nb::module_& m) {
         "Heights from band `band` of a GeoTIFF, scaled (height * scale + offset), its cells "
         "refined by `upsampler` (cubic when None). With `crop` (min_x, min_y, max_x, max_y) it "
         "covers only the cells meeting that box and reads only a window of the file, giving the "
-        "same heights there as without it. `effective_pixel_size_m` is the cell size the heights "
+        "same heights there as without it. `effective_pixel_size` is the cell size the heights "
         "truly resolve, for a DEM upsampled before it was saved.")
         .def(
             "__init__",
@@ -328,12 +328,12 @@ void BindSourceTypes(nb::module_& m) {
                 new (self) GeoTiffSource(path, options);
             },
             "path"_a, "band"_a = 0, "scale"_a = nb::none(), "offset"_a = nb::none(),
-            "crop"_a = nb::none(), "effective_pixel_size_m"_a = nb::none(),
+            "crop"_a = nb::none(), "effective_pixel_size"_a = nb::none(),
             "upsampler"_a = nb::none());
     nb::class_<RasterSource, Source>(
         m, "RasterSource",
         "Heights from a raster held in memory, used as given with its no-data value, its cells "
-        "refined by `upsampler` (cubic when None); `effective_pixel_size_m` (CRS units) is the "
+        "refined by `upsampler` (cubic when None); `effective_pixel_size` (CRS units) is the "
         "cell size the heights truly resolve.")
         .def(
             "__init__",
@@ -342,7 +342,7 @@ void BindSourceTypes(nb::module_& m) {
                 new (self) RasterSource(heights,
                                         SamplingOptions(effectivePixelSize, std::move(upsampler)));
             },
-            "heights"_a, "effective_pixel_size_m"_a = nb::none(), "upsampler"_a = nb::none())
+            "heights"_a, "effective_pixel_size"_a = nb::none(), "upsampler"_a = nb::none())
         .def(
             "__init__",
             [](RasterSource* self, const CpuMatrix<float>& heights, const GeoTransform& transform,
@@ -351,10 +351,10 @@ void BindSourceTypes(nb::module_& m) {
                 new (self) RasterSource(HeightsFromArray(heights, transform, noData),
                                         SamplingOptions(effectivePixelSize, std::move(upsampler)));
             },
-            "heights"_a, "transform"_a = GeoTransform{}, "nodata"_a = nb::none(),
-            "effective_pixel_size_m"_a = nb::none(), "upsampler"_a = nb::none(),
+            "heights"_a, "transform"_a = GeoTransform{}, "no_data"_a = nb::none(),
+            "effective_pixel_size"_a = nb::none(), "upsampler"_a = nb::none(),
             "From a float32 array of shape (height, width), copied, placed by `transform`, with "
-            "`nodata` marking cells without data.")
+            "`no_data` marking cells without data.")
         .def_prop_ro(
             "upsampler", [](const RasterSource& s) { return Mutable(s.UpsamplerInUse()); },
             "The upsampler in use, fitted to the raster.");

@@ -38,10 +38,10 @@ class Example(_common.Example):
         craters = terraingen.CraterLayer(
             models,
             terraingen.CraterLayerOptions(
-                seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=300.0)
+                seed=1, generation=terraingen.CraterGenerationOptions(d_min=8.0, d_max=300.0)
             ),
         )
-        terrain = terraingen.Terrain(
+        terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
         )
 

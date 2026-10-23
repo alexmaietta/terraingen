@@ -108,7 +108,7 @@ def lunar_models():
 
 def build_crater_layer(models, min_diameter, max_diameter, **layer_options):
     """A crater layer generating craters of `models` between the two diameters (m)."""
-    generation = terraingen.CraterGenerationOptions(min_diameter=min_diameter, max_diameter=max_diameter)
+    generation = terraingen.CraterGenerationOptions(d_min=min_diameter, d_max=max_diameter)
     return terraingen.CraterLayer(
         models, terraingen.CraterLayerOptions(generation=generation, **layer_options)
     )

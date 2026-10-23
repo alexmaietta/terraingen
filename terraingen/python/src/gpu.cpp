@@ -37,8 +37,8 @@ void BindGpu(nb::module_& m) {
           "set, otherwise TERRAINGEN_BACKEND, otherwise CPU.");
     m.def("set_default_backend", &SetDefaultBackend, "backend"_a,
           "Sets the default backend, overriding TERRAINGEN_BACKEND.");
-    m.def("resolve_backend", &ResolveBackend, "backend"_a,
-          "The backend `backend` resolves to: GPU becomes the best GPU backend available (METAL, "
+    m.def("resolve_backend", &ResolveBackend, "requested"_a,
+          "The backend `requested` resolves to: GPU becomes the best GPU backend available (METAL, "
           "then CUDA, then VULKAN), AUTO the same or CPU when there is none. Raises RuntimeError "
           "for a GPU backend that is unavailable.");
 }

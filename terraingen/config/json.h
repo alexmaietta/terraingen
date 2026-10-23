@@ -42,15 +42,15 @@ class ConfigError : public std::runtime_error {
 /// objects with a "type". Omitted keys take their defaults and omitted lists are empty.
 /// @throws ConfigError for malformed JSON, a missing or unsupported "schema_version", an unknown
 /// key, or a value of the wrong type.
-TerrainConfig ParseConfig(std::string_view json);
+TerrainGenConfig ParseConfig(std::string_view json);
 
 /// `ParseConfig` on the contents of a file.
 /// @throws ConfigError as `ParseConfig`, or when the file cannot be read.
-TerrainConfig LoadConfig(const std::filesystem::path& path);
+TerrainGenConfig LoadConfig(const std::filesystem::path& path);
 
 /// A configuration as JSON with every value written out but an unset source and albedo; parsing it
 /// gives back an equal configuration.
-std::string ConfigToJson(const TerrainConfig& config, int indent = 2);
+std::string ConfigToJson(const TerrainGenConfig& config, int indent = 2);
 
 /// A reference of every configuration type with its defaults, as JSON.
 ///
