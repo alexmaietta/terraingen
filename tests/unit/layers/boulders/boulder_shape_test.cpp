@@ -1,8 +1,7 @@
 #include "terraingen/layers/boulders/boulder_shape.h"
 
-#include "support/mesh_measures.h"
-
 #include "support/mesh_checks.h"
+#include "support/mesh_measures.h"
 
 #include <gtest/gtest.h>
 

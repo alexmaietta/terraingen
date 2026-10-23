@@ -1,8 +1,7 @@
 #include "terraingen/mesh/mesh.h"
 
-#include "support/mesh_measures.h"
-
 #include "support/mesh_checks.h"
+#include "support/mesh_measures.h"
 #include "terraingen/mesh/polyhedra.h"
 #include "terraingen/util/bits.h"
 
