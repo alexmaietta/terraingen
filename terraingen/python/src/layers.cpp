@@ -101,8 +101,7 @@ void BindFades(nb::module_& m) {
         m, "ResolutionFade",
         "How features too small to resolve fade out, by how many samples span them: absent up "
         "to `start_samples`, whole from `end_samples`.",
-        &ValidateResolutionFade);
-    m.def("validate_resolution_fade", &ValidateResolutionFade, "fade"_a, kValidateDoc);
+        {&ValidateResolutionFade, "validate_resolution_fade", "fade"});
     m.def("falloff", &Falloff, "x"_a, "start"_a, "end"_a, "shape"_a,
           "The weight at `x` of a falloff from 1 at `start` to 0 at `end` along `shape`.");
     m.def("smoothstep", &Smoothstep, "t"_a, "The cubic smoothstep of `t` clamped to [0, 1].");
@@ -178,8 +177,7 @@ void BindRoughness(nb::module_& m) {
         m, "RoughnessOptions",
         "Fine roughness of `rms_slope` (m/m) over `baseline` meters with Hurst exponent `hurst`, "
         "between `min_wavelength` and `max_wavelength` meters.",
-        &ValidateRoughnessOptions);
-    m.def("validate_roughness_options", &ValidateRoughnessOptions, "options"_a, kValidateDoc);
+        {&ValidateRoughnessOptions, "validate_roughness_options", "options"});
     nb::class_<RoughnessLayer, Layer>(m, "RoughnessLayer", "Fine roughness of a given RMS slope.")
         .def(nb::init<RoughnessOptions, Surface>(), "options"_a = RoughnessOptions{},
              "surface"_a = Surface{})
@@ -198,8 +196,7 @@ void BindExposure(nb::module_& m) {
         m, "ExposureParams",
         "How exposed the ground is (crests and steep slopes shed regolith): rises and slopes "
         "for soil and boulder, read over `reach` meters.",
-        &ValidateExposureParams);
-    m.def("validate_exposure_params", &ValidateExposureParams, "params"_a, kValidateDoc);
+        {&ValidateExposureParams, "validate_exposure_params", "params"});
     auto exposureField =
         nb::class_<ExposureField>(m, "ExposureField",
                                   "How exposed the ground is, from 0 (buried under regolith) to 1 "
@@ -238,8 +235,7 @@ void BindBedforms(nb::module_& m) {
         "(degrees "
         "counter-clockwise from +x), covering `cover` of the ground in fields `field_size` meters "
         "across.",
-        &ValidateBedformOptions);
-    m.def("validate_bedform_options", &ValidateBedformOptions, "options"_a, kValidateDoc);
+        {&ValidateBedformOptions, "validate_bedform_options", "options"});
     m.def("mars_large_ripples", &MarsLargeRipples, "Martian large ripples.");
     m.def("mars_transverse_aeolian_ridges", &MarsTransverseAeolianRidges,
           "Martian transverse aeolian ridges.");
@@ -276,8 +272,7 @@ void BindSandFill(nb::module_& m) {
         m, "SandFillOptions",
         "Sand pooled in lows: `fill` of the depth below the surroundings `reach` meters around, up "
         "to `max_thickness` meters.",
-        &ValidateSandFillOptions);
-    m.def("validate_sand_fill_options", &ValidateSandFillOptions, "options"_a, kValidateDoc);
+        {&ValidateSandFillOptions, "validate_sand_fill_options", "options"});
     auto layer = nb::class_<SandFillLayer, Layer>(m, "SandFillLayer",
                                                   "Sand pooled in the lows of the ground beneath.");
     layer
@@ -326,9 +321,8 @@ void BindSpectralContinuation(nb::module_& m) {
         m, "SpectralContinuationOptions",
         "The power-law spectrum (`slope`, `octave_rms` meters) of a base of `pixel_size` meters "
         "that a spectral continuation layer extends down to `min_wavelength` meters.",
-        &ValidateSpectralContinuationOptions);
-    m.def("validate_spectral_continuation_options", &ValidateSpectralContinuationOptions,
-          "options"_a, kValidateDoc);
+        {&ValidateSpectralContinuationOptions, "validate_spectral_continuation_options",
+         "options"});
     nb::class_<SpectralContinuationLayer, Layer>(
         m, "SpectralContinuationLayer",
         "Detail finer than a base continuing its power-law spectrum, as sparse Gabor noise.")
@@ -369,8 +363,7 @@ void BindPavement(nb::module_& m) {
         "Fractured bedrock: Voronoi plates `plate_size` meters across, each tilted and stepped, "
         "parted by cracks (or raised ridges) `crack_width` meters wide and `crack_depth` deep; "
         "angles in degrees.",
-        &ValidatePavementOptions);
-    m.def("validate_pavement_options", &ValidatePavementOptions, "options"_a, kValidateDoc);
+        {&ValidatePavementOptions, "validate_pavement_options", "options"});
     m.def("mars_desiccation_ridges", &MarsDesiccationRidges,
           "The desiccation ridges of Gale crater's Old Soaker slab (Stein et al. 2018).");
     auto layer = nb::class_<PavementLayer, Layer>(m, "PavementLayer", "Fractured bedrock plates.");
@@ -389,8 +382,7 @@ void BindStrata(nb::module_& m) {
         "Layered rock: beds `bed_thickness` meters thick, dipping `dip_deg` toward "
         "`dip_azimuth_deg`, each "
         "cut into a flat bench and a cliff by `sharpness`; angles in degrees.",
-        &ValidateStrataOptions);
-    m.def("validate_strata_options", &ValidateStrataOptions, "options"_a, kValidateDoc);
+        {&ValidateStrataOptions, "validate_strata_options", "options"});
     auto layer = nb::class_<StrataLayer, Layer>(m, "StrataLayer",
                                                 "Layered rock terraced into benches and cliffs.");
     layer.def(nb::init<StrataOptions, Surface>(), "options"_a, "surface"_a = Surface{})
@@ -423,8 +415,7 @@ void BindDunes(nb::module_& m) {
         "Dunes: barchans and domes of `width` (m) in cells `spacing` meters apart, or crest-line "
         "dunes `wavelength` meters apart and `height` meters high; angles in degrees, the wind "
         "counter-clockwise from +x.",
-        &ValidateDuneOptions);
-    m.def("validate_dune_options", &ValidateDuneOptions, "options"_a, kValidateDoc);
+        {&ValidateDuneOptions, "validate_dune_options", "options"});
     m.def("mars_dune_ripples", &MarsDuneRipples, "Martian large wind ripples to lay on dunes.");
     m.def("mars_barchans", &MarsBarchans, "Martian barchans with large ripples.");
     m.def("mars_transverse_dunes", &MarsTransverseDunes,

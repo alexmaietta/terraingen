@@ -83,11 +83,9 @@ void BindValueDistribution(nb::module_& m) {
         "A random value: constant `a`, uniform from `a` to `b`, normal or log-normal with mean "
         "`a` and deviation `b`, or piecewise: uniform within bins between `edges`, each drawn "
         "in proportion to its entry in `weights`; clipped to [min, max].",
-        &ValidateValueDistribution);
+        {&ValidateValueDistribution, "validate_value_distribution", "distribution"});
     BindEnum<ValueDistribution::Kind>(distribution, "Kind",
                                       "The kind of distribution a random value is drawn from.");
-    m.def("validate_value_distribution", &ValidateValueDistribution, "distribution"_a,
-          kValidateDoc);
 }
 
 }  // namespace

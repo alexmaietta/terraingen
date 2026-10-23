@@ -192,9 +192,8 @@ void BindSpacing(nb::module_& m) {
         "Keeps craters of similar size apart: two conflict when their diameters differ by at most "
         "`diameter_ratio` (at least 1) and their centers are closer than `separation` times the "
         "larger diameter. A separation of 0 disables it.",
-        &ValidateCraterSpacing)
+        {&ValidateCraterSpacing, "validate_crater_spacing", "spacing"})
         .def_rw("outrank_from", &CraterSpacing::outrankFrom);
-    m.def("validate_crater_spacing", &ValidateCraterSpacing, "spacing"_a, kValidateDoc);
     m.def("craters_conflict", &CratersConflict, "a"_a, "b"_a, "spacing"_a, "surface"_a = Surface{},
           "Whether two craters are too close under `spacing`.");
     m.def("crater_takes_precedence", &CraterTakesPrecedence, "a"_a, "b"_a,
@@ -303,9 +302,7 @@ void BindIrregularity(nb::module_& m) {
         m, "CraterIrregularity",
         "Irregular, elongated crater outlines for the craters it selects: rims roughened by "
         "random harmonics and some craters stretched into ellipses.",
-        &ValidateCraterIrregularity);
-    m.def("validate_crater_irregularity", &ValidateCraterIrregularity, "irregularity"_a,
-          kValidateDoc);
+        {&ValidateCraterIrregularity, "validate_crater_irregularity", "irregularity"});
 }
 
 void BindOutlines(nb::module_& m) {
@@ -333,18 +330,16 @@ void BindShapeDetails(nb::module_& m) {
         "Rounded crater rims: near the rim the profile is blended toward itself smoothed across "
         "distance by a Gaussian of `sigma_radii` radii, over the band from `inner_radii` to "
         "`outer_radii`, fading along `shape`, at `strength`; 0 `sigma_radii` leaves rims sharp.",
-        &ValidateRimSmoothing)
+        {&ValidateRimSmoothing, "validate_rim_smoothing", "smoothing"})
         .def("weight", &RimSmoothing::Weight, "radii"_a,
              "The smoothing weight at `radii` crater radii from the center.");
-    m.def("validate_rim_smoothing", &ValidateRimSmoothing, "smoothing"_a, kValidateDoc);
     BindOptions<CraterNoise>(
         m, "CraterNoise",
         "Fractal noise added to each crater, keyed to its ID: `amplitude` over the whole "
         "footprint (fading out beyond the rim) at `wavelength_radii`, and `rim_amplitude` in the "
         "band from `rim_inner_radii` to `rim_outer_radii` at `rim_wavelength_radii`; amplitudes "
         "are shares of the diameter and 0 adds none.",
-        &ValidateCraterNoise);
-    m.def("validate_crater_noise", &ValidateCraterNoise, "noise"_a, kValidateDoc);
+        {&ValidateCraterNoise, "validate_crater_noise", "noise"});
     BindOptions<CraterTexture>(
         m, "CraterTexture",
         "Texture keyed to each crater's ID: `wall_streaks` (gullies down the inner wall, as a "
@@ -352,8 +347,7 @@ void BindShapeDetails(nb::module_& m) {
         "ejecta as a share of McGetchin's thickness, lineations `ejecta_lineation_radii` wide) "
         "and `mantling` (older relief buried under the ejecta, with a datum), out to "
         "`ejecta_reach_radii`; gullies and ejecta fade out by `min_freshness`.",
-        &ValidateCraterTexture);
-    m.def("validate_crater_texture", &ValidateCraterTexture, "texture"_a, kValidateDoc);
+        {&ValidateCraterTexture, "validate_crater_texture", "texture"});
     m.def("ejecta_thickness_share", &EjectaThicknessShare, "radii"_a, "reach_radii"_a,
           "McGetchin's ejecta thickness at `radii` radii over that at the rim, tapered to "
           "nothing at `reach_radii`.");
@@ -366,9 +360,7 @@ void BindApplyOptions(nb::module_& m) {
         "Craters made asymmetric along the slope of the ground beneath their layer: the deepest "
         "point `floor_offset` diameters downslope (drawn per crater), `upslope_rim` of the raised "
         "rim and ejecta kept upslope, complete from `full_slope_deg` degrees.",
-        &ValidateCraterSlopeResponse);
-    m.def("validate_crater_slope_response", &ValidateCraterSlopeResponse, "response"_a,
-          kValidateDoc);
+        {&ValidateCraterSlopeResponse, "validate_crater_slope_response", "response"});
     m.def("slope_wear_rate", &SlopeWearRate, "response"_a, "east"_a, "north"_a,
           "How many times as fast a crater wears on ground rising `east` and `north` m/m.");
     BindOptions<CraterApplyOptions>(
@@ -379,8 +371,7 @@ void BindApplyOptions(nb::module_& m) {
         "(`interior_replacement`, 0 to 1), the `blend` into the exterior, the `order` overlapping "
         "craters are applied in, the resolution `fade`, rim `irregularity`, `rim_smoothing`, "
         "`noise`, `texture` and `slope`.",
-        &ValidateCraterApplyOptions);
-    m.def("validate_crater_apply_options", &ValidateCraterApplyOptions, "options"_a, kValidateDoc);
+        {&ValidateCraterApplyOptions, "validate_crater_apply_options", "options"});
     m.def("crater_apply_order", &CraterApplyOrder, "craters"_a, "order"_a,
           "The indices of `craters` in the order they are applied.");
 }
@@ -483,8 +474,7 @@ void BindSecondaryOptions(nb::module_& m) {
                            "How many rays a crater has (`count`) and how wide (`width_deg`), "
                            "drawn from its ID and `seed`; layers with the same layout share the "
                            "same rays.",
-                           &ValidateRayLayout);
-    m.def("validate_ray_layout", &ValidateRayLayout, "layout"_a, kValidateDoc);
+                           {&ValidateRayLayout, "validate_ray_layout", "layout"});
     nb::class_<RayDirection> ray(m, "RayDirection", "One ray: its azimuth and width.");
     DefDegreesRo(ray, "azimuth_deg", &RayDirection::azimuth,
                  "Degrees counter-clockwise from east.");
@@ -504,9 +494,7 @@ void BindSecondaryOptions(nb::module_& m) {
         "Secondary craters around a crater layer's primaries; `onset_count` (the number at "
         "least `count_fraction` of the primary's diameter across, per primary-sized area at the "
         "onset) must be given.",
-        &ValidateSecondaryCraterOptions);
-    m.def("validate_secondary_crater_options", &ValidateSecondaryCraterOptions, "options"_a,
-          kValidateDoc);
+        {&ValidateSecondaryCraterOptions, "validate_secondary_crater_options", "options"});
 }
 
 void BindSecondaryLaws(nb::module_& m) {

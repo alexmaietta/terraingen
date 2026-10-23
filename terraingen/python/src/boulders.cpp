@@ -38,7 +38,7 @@ void BindBoulderShapes(nb::module_& m) {
     BindOptions<BoulderShapeOptions>(
         m, "BoulderShapeOptions",
         "Boulder shapes: the `styles` to draw from, `subdivisions` of each solid and a `seed`.",
-        &ValidateBoulderShapeOptions)
+        {&ValidateBoulderShapeOptions, "validate_boulder_shape_options", "options"})
         .def_prop_rw(
             "library",
             [](const BoulderShapeOptions& o) {
@@ -73,8 +73,6 @@ void BindBoulderShapes(nb::module_& m) {
           "The shape `shape_seed` gives: the same seed always gives the same shape.");
     m.def("boulder_shape_seed", &BoulderShapeSeed, "id"_a, "prototypes"_a = 0,
           "The shape seed of boulder `id`, or of one of `prototypes` shared shapes.");
-    m.def("validate_boulder_shape_options", &ValidateBoulderShapeOptions, "options"_a,
-          kValidateDoc);
 }
 
 void BindFacet(nb::module_& m) {
@@ -197,8 +195,7 @@ void BindClustersAndFragments(nb::module_& m) {
         "Boulders between craters gathered in clusters: `share` of them crowd within about "
         "`radius` meters of cluster centers about `spacing` meters apart; the mean density is "
         "kept.",
-        &ValidateBoulderClusters);
-    m.def("validate_boulder_clusters", &ValidateBoulderClusters, "clusters"_a, kValidateDoc);
+        {&ValidateBoulderClusters, "validate_boulder_clusters", "clusters"});
     m.def("mean_patch_abundance", &MeanPatchAbundance, "patches"_a,
           "The mean of the patches' abundance, which a density map divides them by.");
     m.def("max_cluster_abundance", &MaxClusterAbundance, "clusters"_a,
@@ -209,10 +206,8 @@ void BindClustersAndFragments(nb::module_& m) {
         "least `min_diameter` across split into `min_pieces` to `max_pieces` fitting pieces, "
         "their cracks opening to `gap_ratio` diameters; from `rubble_wear` the pieces scatter up "
         "to `spread_ratio` diameters further, turn and sink. A `split_wear` of 1 breaks nothing.",
-        &ValidateBoulderFragmentation)
+        {&ValidateBoulderFragmentation, "validate_boulder_fragmentation", "fragmentation"})
         .def_prop_ro("enabled", &BoulderFragmentation::Enabled);
-    m.def("validate_boulder_fragmentation", &ValidateBoulderFragmentation, "fragmentation"_a,
-          kValidateDoc);
 }
 
 void BindFillet(nb::module_& m) {
@@ -221,18 +216,16 @@ void BindFillet(nb::module_& m) {
         "Regolith piled against each boulder's base: `height_share` of its exposed height out to "
         "its radius, falling to nothing `width_ratio` diameters further out; 0 `height_share` "
         "draws none.",
-        &ValidateBoulderFillet);
+        {&ValidateBoulderFillet, "validate_boulder_fillet", "fillet"});
     m.def("fillet_height", &FilletHeight, "boulder"_a, "distance"_a, "fillet"_a,
           "The height (m) of `boulder`'s fillet `distance` meters from its center.");
-    m.def("validate_boulder_fillet", &ValidateBoulderFillet, "fillet"_a, kValidateDoc);
     BindOptions<BoulderVentifacts>(
         m, "BoulderVentifacts",
         "Windward facets planed on `share` of the boulders by wind blowing toward "
         "`wind_azimuth_deg`, sloping `min_angle_deg` to `max_angle_deg`, with keels on "
         "`keel_share` "
         "of them toward `second_wind_azimuth_deg`; angles in degrees.",
-        &ValidateBoulderVentifacts);
-    m.def("validate_boulder_ventifacts", &ValidateBoulderVentifacts, "ventifacts"_a, kValidateDoc);
+        {&ValidateBoulderVentifacts, "validate_boulder_ventifacts", "ventifacts"});
     m.def("gale_ventifacts", &GaleVentifacts,
           "The ventifacts of Gale crater's first 100 sols (Bridges et al. 2014; facet slopes "
           "from Laity and Bridges 2009); the winds are left to the site.");
@@ -261,8 +254,7 @@ void BindManualBoulder(nb::module_& m) {
         "shape fixed: `height`, `burial`, `yaw_deg`, `lean_deg`, `tilt_deg`, "
         "`tilt_azimuth_deg`, `wear`, `rest` and `shape_seed`; None draws a field as for "
         "generated boulders. Angles in degrees.",
-        &ValidateManualBoulder);
-    m.def("validate_manual_boulder", &ValidateManualBoulder, "boulder"_a, kValidateDoc);
+        {&ValidateManualBoulder, "validate_manual_boulder", "boulder"});
     m.def("manual_boulder_id", &ManualBoulderId, "boulder"_a,
           "The ID a manual boulder is placed with: its own, or one from its position and size "
           "for 0.");
@@ -276,7 +268,7 @@ void BindLayerOptions(nb::module_& m) {
         "`distribution`), between `min_diameter` and `max_diameter`; `patches`, `ejecta` and "
         "`exposure` shape where they lie; heights, burial and lean shape each boulder; `relief` "
         "and `models` how they are drawn.",
-        &ValidateBoulderLayerOptions)
+        {&ValidateBoulderLayerOptions, "validate_boulder_layer_options", "options"})
         .def_prop_rw(
             "distribution", [](const O& o) { return o.sizes.distribution; },
             [](O& o, std::shared_ptr<const SizeFrequencyDistribution> distribution) {
@@ -289,8 +281,6 @@ void BindLayerOptions(nb::module_& m) {
                 "Catalog or hand-placed boulders (ManualBoulder) placed as given.")
         .def_rw("completeness", &O::completeness,
                 "Diameter (m) from which `manual` is a complete catalog at each point.");
-    m.def("validate_boulder_layer_options", &ValidateBoulderLayerOptions, "options"_a,
-          kValidateDoc);
     m.def("boulder_throw_distance", &BoulderThrowDistance, "crater_diameter"_a,
           "regolith_thickness"_a, "gravity"_a,
           "Bart and Melosh's (2010) farthest block throw (m) over a regolith blanket.");
@@ -410,12 +400,12 @@ void BindModels(nb::module_& m) {
 }
 
 void BindSandShadows(nb::module_& m) {
-    BindOptions<SandShadowOptions>(m, "SandShadowOptions",
-                                   "Sand tails behind boulders: blown toward `wind_azimuth_deg`, "
-                                   "`length_ratio` boulder widths "
-                                   "long, flanks at `flank_angle_deg`; angles in degrees.",
-                                   &ValidateSandShadowOptions);
-    m.def("validate_sand_shadow_options", &ValidateSandShadowOptions, "options"_a, kValidateDoc);
+    BindOptions<SandShadowOptions>(
+        m, "SandShadowOptions",
+        "Sand tails behind boulders: blown toward `wind_azimuth_deg`, "
+        "`length_ratio` boulder widths "
+        "long, flanks at `flank_angle_deg`; angles in degrees.",
+        {&ValidateSandShadowOptions, "validate_sand_shadow_options", "options"});
     auto layer = nb::class_<SandShadowLayer, Layer>(m, "SandShadowLayer",
                                                     "Sand tails in the lee of boulders.");
     layer

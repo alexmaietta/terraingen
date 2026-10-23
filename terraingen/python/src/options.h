@@ -267,6 +267,23 @@ nb::class_<T> BindOptions(nb::handle scope, const char* name, const char* doc,
     return cls;
 }
 
+/// A validation function and the module function `function(argument)` Python gives it.
+template <typename T> struct Validator {
+    void (*validate)(const T&);
+    const char* function;
+    const char* argument;
+};
+
+/// `BindOptions`, with a `validate()` method and the module function `validator.function`, both
+/// calling `validator.validate`.
+template <typename T, typename Visit = VisitFields>
+nb::class_<T> BindOptions(nb::module_& m, const char* name, const char* doc,
+                          const Validator<T>& validator, Visit visit = {}) {
+    nb::class_<T> cls = BindOptions<T>(m, name, doc, validator.validate, visit);
+    m.def(validator.function, validator.validate, nb::arg(validator.argument), kValidateDoc);
+    return cls;
+}
+
 /// Binds the angle `member`, stored in radians, as the property `name` in degrees.
 template <typename T, typename Class>
 void DefDegrees(Class& cls, const char* name, double T::* member, const char* doc) {

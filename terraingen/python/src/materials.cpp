@@ -37,8 +37,7 @@ void BindMaterialMaps(nb::module_& m) {
         "How a material map is made: bedrock where the ground beneath the material layers is bare "
         "(`exposure`, None for none), and dust in patches covering about `dust_cover` of the "
         "surface.",
-        &ValidateMaterialOptions);
-    m.def("validate_material_options", &ValidateMaterialOptions, "options"_a, kValidateDoc);
+        {&ValidateMaterialOptions, "validate_material_options", "options"});
     m.def(
         "materials_at",
         [](const PyTerrainGenerator& generator, const MaterialOptions& material, double x, double y,

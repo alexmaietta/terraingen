@@ -178,10 +178,9 @@ void BindDiffusion(nb::module_& m) {
         "Topographic diffusivity coefficient * D^exponent (m^2 per Myr, D in km), no less than "
         "at `min_diameter` meters; called with (diameter, age_gyr) it gives the diffusion "
         "length squared, in m^2.",
-        &ValidatePowerLawDiffusivity)
+        {&ValidatePowerLawDiffusivity, "validate_power_law_diffusivity", "law"})
         .def("diffusivity", &PowerLawDiffusivity::Diffusivity, "diameter"_a)
         .def("__call__", &PowerLawDiffusivity::operator(), "diameter"_a, "age_gyr"_a);
-    m.def("validate_power_law_diffusivity", &ValidatePowerLawDiffusivity, "law"_a, kValidateDoc);
     nb::class_<DiffusionDegradation, DegradationModel>(
         m, "DiffusionDegradation",
         "Craters smoothed by topographic diffusion over their age (Fassett and Thomson 2014): "

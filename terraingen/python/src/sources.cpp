@@ -160,7 +160,7 @@ nb::object ReadPosts(const PostLattice& posts, std::int64_t col0, std::int64_t r
     return nb::cast(OwnedArray(std::move(values), {height, width}));
 }
 
-void BindUpsampling(nb::module_& m) {
+void BindPosts(nb::module_& m) {
     nb::class_<PostLattice>(
         m, "PostLattice",
         "A source's posts: heights on a regular lattice, post (col, row) at the center of cell "
@@ -191,7 +191,9 @@ void BindUpsampling(nb::module_& m) {
             "raster"_a);
     m.def("post_spacing", &PostSpacing, "transform"_a,
           "The spacing of a lattice's posts: the longer side of a cell of `transform`.");
+}
 
+void BindKernelUpsampler(nb::module_& m) {
     nb::class_<Upsampler, PyUpsampler>(
         m, "Upsampler",
         "How a source's posts become heights at any point and sample spacing. Subclass it and "
@@ -216,7 +218,9 @@ void BindUpsampling(nb::module_& m) {
         "same heights as `sample_raster`.")
         .def(nb::init<ResampleMethod>(), "method"_a = ResampleMethod::Cubic)
         .def_prop_ro("method", &KernelUpsampler::Method);
+}
 
+void BindDiamondSquare(nb::module_& m) {
     BindEnum<DiamondSquareInterp>(m, "DiamondSquareInterp",
                                   "How diamond-square fills new nodes and reads between them.");
     auto options = nb::class_<DiamondSquareOptions>(
@@ -248,7 +252,9 @@ void BindUpsampling(nb::module_& m) {
         .def("levels", &DiamondSquareUpsampler::Levels, "post_spacing"_a, "spacing"_a,
              "The levels refined at a sample spacing over posts `post_spacing` apart.")
         .def_prop_ro("options", &DiamondSquareUpsampler::Options);
+}
 
+void BindUpsamplerRegistry(nb::module_& m) {
     m.def(
         "default_upsampler", [] { return Mutable(DefaultUpsampler()); },
         "The upsampler sources use unless given one: cubic interpolation.");
@@ -275,7 +281,7 @@ void BindUpsampling(nb::module_& m) {
           "The names upsampler types are registered under.");
 }
 
-void BindSourceTypes(nb::module_& m) {
+void BindGeneratedSources(nb::module_& m) {
     nb::class_<FlatSource, Source>(m, "FlatSource",
                                    "A level datum at `elevation` over a `width` x `height` grid of "
                                    "`pixel_size` meters centered on `center`.")
@@ -305,6 +311,9 @@ void BindSourceTypes(nb::module_& m) {
         .def_prop_ro(
             "upsampler", [](const SyntheticSource& s) { return Mutable(s.UpsamplerInUse()); },
             "The upsampler in use, fitted to the posts; None without a pixel size.");
+}
+
+void BindRasterSources(nb::module_& m) {
     nb::class_<GeoTiffSource, Source>(
         m, "GeoTiffSource",
         "Heights from band `band` of a GeoTIFF, scaled (height * scale + offset), its cells "
@@ -452,8 +461,12 @@ void BindSyntheticTerrain(nb::module_& m) {
 
 void BindSources(nb::module_& m) {
     BindSourceBase(m);
-    BindUpsampling(m);
-    BindSourceTypes(m);
+    BindPosts(m);
+    BindKernelUpsampler(m);
+    BindDiamondSquare(m);
+    BindUpsamplerRegistry(m);
+    BindGeneratedSources(m);
+    BindRasterSources(m);
     BindFields(m);
     BindSyntheticTerrain(m);
 }
