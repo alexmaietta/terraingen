@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `RasterGrid::Centered(center, size, pixelSize)` and `RasterGrid::Covering(box, pixelSize)`: the north-up grid covering a box, snapped outward to whole cells as configuration outputs snap their extents (`SnappedCells`, `kGridSnapTolerance`).
 - `ManualCrater(x, y, diameter, depth, rimHeight)` (`manual_crater`) and a `CraterList` built from a list of craters, `CraterList{a, b, c}`.
-- `EvaluationCache` for point queries: `HeightsAt` and `HeightAt` take one (`cache=` in Python) to keep values such as fitted crater datums between calls, so craters with a datum are fitted once and later queries near them run as fast as craters without one (about 1k to 330k point queries per second in `BM_HeightAtDatumCached`).
+- Point queries keep fitted crater datums between calls, so craters with a datum are fitted once and later queries near them run as fast as craters without one (`BM_HeightAtDatum` about 1k to 340k point queries per second). `HeightsAt` and `HeightAt` share a cache kept per generator, matched by its surface, source and layers and dropped once one of them is freed; pass an `EvaluationCache` (`cache=` in Python) to manage one yourself.
 
 ### Changed
 

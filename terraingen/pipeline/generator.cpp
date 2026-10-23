@@ -11,7 +11,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <list>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -20,6 +22,73 @@
 namespace terraingen {
 
 namespace {
+
+/// Generators whose point queries keep a default cache, and values each cache holds.
+constexpr std::size_t kCachedGenerators = 4;
+constexpr std::size_t kDefaultCacheValues = std::size_t{1} << 17U;
+
+/// A generator as its default cache knows it: its surface and weak references to its parts, so it
+/// matches only while every part is the same live object, and keeps none of them alive.
+struct GeneratorKey {
+    Surface surface;
+    std::weak_ptr<const Source> source;
+    const Source* sourceAddress = nullptr;
+    std::vector<std::weak_ptr<const Layer>> layers;
+    std::vector<const Layer*> layerAddresses;
+
+    explicit GeneratorKey(const TerrainGenerator& generator)
+        : surface(generator.surface), source(generator.source),
+          sourceAddress(generator.source.get()) {
+        for (const std::shared_ptr<const Layer>& layer : generator.layers) {
+            layers.push_back(layer);
+            layerAddresses.push_back(layer.get());
+        }
+    }
+
+    bool Matches(const TerrainGenerator& generator) const {
+        if (!(surface == generator.surface) || generator.source.get() != sourceAddress ||
+            source.lock().get() != sourceAddress ||
+            generator.layers.size() != layerAddresses.size()) {
+            return false;
+        }
+        for (std::size_t n = 0; n < layers.size(); ++n) {
+            if (generator.layers[n].get() != layerAddresses[n] ||
+                layers[n].lock().get() != layerAddresses[n]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool Expired() const {
+        if (sourceAddress != nullptr && source.expired()) {
+            return true;
+        }
+        return std::any_of(layers.begin(), layers.end(),
+                           [](const std::weak_ptr<const Layer>& layer) { return layer.expired(); });
+    }
+};
+
+/// The cache point queries of `generator` share when the caller gives none: one per recently
+/// queried generator, dropped once one of its parts is freed or it is the least recently used.
+std::shared_ptr<EvaluationCache> DefaultCache(const TerrainGenerator& generator) {
+    static std::mutex mutex;
+    static std::list<std::pair<GeneratorKey, std::shared_ptr<EvaluationCache>>> caches;
+    const std::lock_guard lock(mutex);
+    caches.remove_if([](const auto& entry) { return entry.first.Expired(); });
+    for (auto entry = caches.begin(); entry != caches.end(); ++entry) {
+        if (entry->first.Matches(generator)) {
+            caches.splice(caches.begin(), caches, entry);
+            return caches.front().second;
+        }
+    }
+    caches.emplace_front(GeneratorKey(generator),
+                         std::make_shared<EvaluationCache>(kDefaultCacheValues));
+    if (caches.size() > kCachedGenerators) {
+        caches.pop_back();
+    }
+    return caches.front().second;
+}
 
 /// Sets `heights` to the generator's source at `points`, then applies its first `layers` layers to
 /// them all at once, each on the ground beneath it, which shares `cache`.
@@ -175,7 +244,10 @@ std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d
     ValidateGenerator(generator);
     RequirePositive(spacing, "Sample spacing");
     std::vector<float> heights(points.size());
-    EvaluateBatched(generator, generator.layers.size(), points, heights, spacing, threads, cache);
+    const std::shared_ptr<EvaluationCache> kept =
+        cache == nullptr ? DefaultCache(generator) : nullptr;
+    EvaluateBatched(generator, generator.layers.size(), points, heights, spacing, threads,
+                    cache != nullptr ? cache : kept.get());
     return heights;
 }
 

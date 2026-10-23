@@ -379,6 +379,32 @@ TEST(HeightAt, EqualsGridsForCratersCutToADatumWithDatumsKeptAcrossCalls) {
     }
 }
 
+TEST(HeightAt, KeepsDatumsPerGeneratorSoALayerSharedOverOtherGroundRefitsThem) {
+    const TerrainGenerator terrain = Datum(terraingen::CraterDatum::Plane);
+    TerrainGenerator steeper = terrain;
+    std::vector<terraingen::NoiseLayer> noise{terraingen::NoiseLayer{}};
+    noise[0].fractal.wavelength = 30.0f;
+    noise[0].fractal.amplitude = 9.0f;
+    steeper.layers[0] = std::make_shared<terraingen::NoiseRelief>(noise);
+    const auto grid = Evaluate(terrain);
+    const auto steeperGrid = Evaluate(steeper);
+    std::size_t differing = 0;
+    for (std::size_t pass = 0; pass < 2; ++pass) {
+        for (std::size_t row = 1; row < grid.Height(); row += 4) {
+            for (std::size_t col = 2; col < grid.Width(); col += 3) {
+                const auto center = grid.CellCenter(col, row);
+                ASSERT_EQ(terraingen::HeightAt(terrain, center.x, center.y, 2.0), grid(col, row))
+                    << "pass " << pass << " at " << col << "," << row;
+                ASSERT_EQ(terraingen::HeightAt(steeper, center.x, center.y, 2.0),
+                          steeperGrid(col, row))
+                    << "pass " << pass << " at " << col << "," << row;
+                differing += grid(col, row) != steeperGrid(col, row) ? std::size_t{1} : 0;
+            }
+        }
+    }
+    EXPECT_GT(differing, 0u) << "the grounds differ, so a shared cache would show";
+}
+
 TEST(TerrainGround, IsTheSourceAndTheLayersBeneath) {
     const TerrainGenerator terrain = Datum();
     const terraingen::TerrainGround source(terrain, 0);

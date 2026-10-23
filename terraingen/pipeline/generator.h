@@ -135,9 +135,9 @@ Raster<float> Evaluate(const TerrainGenerator& generator);
 /// @param points Positions in surface coordinates.
 /// @param spacing The sample spacing, in meters.
 /// @param threads Threads to split the points over; 0 for every hardware thread.
-/// @param cache Values kept between calls, such as fitted crater datums; pass one cache to
-/// repeated queries of this generator so they are computed once, or null to keep none. A cache
-/// belongs to one generator: start a new one after changing its source or layers.
+/// @param cache Values kept between calls, such as fitted crater datums; null shares a cache kept
+/// for this generator, dropped once one of its parts is freed or it goes unqueried longest. A
+/// cache passed in belongs to one generator: start a new one after changing its source or layers.
 /// @throws std::invalid_argument as `ValidateGenerator`, or for a `spacing` that is not positive
 /// and finite.
 std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d> points,

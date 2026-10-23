@@ -166,8 +166,8 @@ void BindEvaluation(nb::module_& m) {
         "On Vulkan the heights match the CPU to within float rounding.");
     nb::class_<EvaluationCache>(
         m, "EvaluationCache",
-        "Values point queries keep between calls, such as fitted crater datums: pass one to "
-        "repeated `height_at` and `heights_at` calls of a generator so they are computed once. A "
+        "Values point queries keep between calls, such as fitted crater datums. Without one, "
+        "`height_at` and `heights_at` share a cache kept per generator; pass one to manage it. A "
         "cache belongs to one generator; start a new one after changing its source or layers.")
         .def(nb::init<std::size_t>(), "capacity"_a = std::size_t{1} << 20U,
              "A cache holding at most `capacity` values.");
@@ -178,14 +178,14 @@ void BindEvaluation(nb::module_& m) {
         "generator"_a, "x"_a, "y"_a, "spacing"_a, "cache"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
         "The generator's height at (x, y) sampled every `spacing` meters; equal to the cell "
-        "centered there of `evaluate`. `cache`, an EvaluationCache, keeps values such as crater "
-        "datums for later calls.");
+        "centered there of `evaluate`. `cache`, an EvaluationCache, replaces the cache kept for "
+        "the generator.");
     m.def("heights_at", &HeightsAtArray, "generator"_a, "points"_a, "spacing"_a, "threads"_a = 0,
           "cache"_a = nb::none(),
           "The generator's heights at `points`, an array of shape (n, 2) in surface coordinates, "
           "sampled every `spacing` meters, as a float32 array; each equals `height_at` there. "
           "Batches of points are much faster than one call per point. `cache`, an "
-          "EvaluationCache, keeps values such as crater datums for later calls.");
+          "EvaluationCache, replaces the cache kept for the generator.");
     m.def(
         "fill_heights",
         [](const PyTerrainGenerator& generator, const RasterGrid& grid, CpuOutMatrix<float> heights,
