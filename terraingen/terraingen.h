@@ -14,6 +14,7 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
+#include "terraingen/config/report.h"
 #include "terraingen/config/validate.h"
 #include "terraingen/distribution/equilibrium.h"
 #include "terraingen/distribution/golombek_rapp.h"

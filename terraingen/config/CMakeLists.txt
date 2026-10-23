@@ -10,6 +10,7 @@ terraingen_add_library(
     generate.cpp
     json.cpp
     ranges.cpp
+    report.cpp
     schema.cpp
     validate.cpp
     PUBLIC

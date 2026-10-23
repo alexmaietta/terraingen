@@ -22,4 +22,5 @@ NB_MODULE(_terraingen, m) {
     BindAlbedo(m);
     BindMaterials(m);
     BindPipeline(m);
+    BindReport(m);
 }

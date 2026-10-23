@@ -19,7 +19,8 @@ nanobind_add_module(
     src/boulders.cpp
     src/albedo.cpp
     src/materials.cpp
-    src/pipeline.cpp)
+    src/pipeline.cpp
+    src/report.cpp)
 target_link_libraries(_terraingen PRIVATE terraingen::terraingen terraingen_warnings
                                           terraingen_coverage)
 target_include_directories(_terraingen SYSTEM PRIVATE "${NB_DIR}/include" ${Python_INCLUDE_DIRS})
