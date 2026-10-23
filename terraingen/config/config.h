@@ -1314,9 +1314,9 @@ struct ShapeModelSurfaceSpec {
     /// for a mesh.
     std::optional<std::size_t> q{};
     /// Metres per file unit; unset is 1000 for an ICQ model (kilometres) and 1 for a mesh.
-    std::optional<double> metresPerUnit{};
+    std::optional<double> metersPerUnit{};
     bool operator==(const ShapeModelSurfaceSpec& other) const {
-        return path == other.path && q == other.q && metresPerUnit == other.metresPerUnit;
+        return path == other.path && q == other.q && metersPerUnit == other.metersPerUnit;
     }
     bool operator!=(const ShapeModelSurfaceSpec& other) const {
         return !(*this == other);

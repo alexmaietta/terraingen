@@ -53,7 +53,7 @@ class Example(_common.Example):
         craters = terraingen.CraterLayer(
             models, terraingen.CraterLayerOptions(seed=4, generation=generation, surface=self.mercury)
         )
-        site = terraingen.FlatSource(257, 257, PIXEL, centre=(-30.0, 10.0), surface=self.mercury)
+        site = terraingen.FlatSource(257, 257, PIXEL, center=(-30.0, 10.0), surface=self.mercury)
         terrain = terraingen.TerrainGenerator(site, [noise, craters], surface=self.mercury)
         self.heights = terraingen.evaluate(terrain)
         self.craters = terraingen.placed_craters(terrain).table

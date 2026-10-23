@@ -51,8 +51,8 @@ TEST(BedformLayer, GivesPointsTheSameBitsAsGridsOnAnyThreads) {
     for (std::size_t row = 0; row < one.Height(); ++row) {
         for (std::size_t col = 0; col < one.Width(); ++col) {
             ASSERT_EQ(one(col, row), many(col, row));
-            const auto centre = one.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.5}), one(col, row));
+            const auto center = one.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(1.0f, center.x, center.y, {0.5}), one(col, row));
             ASSERT_GE(one(col, row), 1.0f);
             highest = std::fmax(highest, static_cast<double>(one(col, row)) - 1.0);
         }

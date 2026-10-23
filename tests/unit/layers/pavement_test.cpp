@@ -148,8 +148,8 @@ TEST(PavementLayer, GridsAndPointsAgree) {
     layer.Apply(heights, {0.02, 2});
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {0.02}), heights(col, row));
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {0.02}), heights(col, row));
         }
     }
 }

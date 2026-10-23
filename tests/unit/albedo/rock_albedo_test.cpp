@@ -40,7 +40,7 @@ std::shared_ptr<const BoulderLayer> Boulders(double coverage = 0.02) {
     return std::make_shared<BoulderLayer>(options);
 }
 
-Albedo Grey(const std::shared_ptr<const RockAlbedo>& rocks) {
+Albedo Gray(const std::shared_ptr<const RockAlbedo>& rocks) {
     terraingen::SyntheticAlbedoOptions params;
     params.value = 0.1;
     return {std::make_shared<terraingen::SyntheticAlbedo>(params), {rocks}, {}};
@@ -94,10 +94,10 @@ TEST(BoulderLayer, CoversWithBouldersTooSmallToResolveTheAreaTheirSizesGive) {
     ASSERT_EQ(over.size(), 30u);
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = grid.transform.PixelToWorld(static_cast<double>(col) + 0.5,
+            const auto center = grid.transform.PixelToWorld(static_cast<double>(col) + 0.5,
                                                             static_cast<double>(row) + 0.5);
             EXPECT_EQ(over[row * grid.width + col],
-                      layer->UnresolvedCoverAt(centre.x, centre.y, 0.2));
+                      layer->UnresolvedCoverAt(center.x, center.y, 0.2));
         }
     }
 }
@@ -110,7 +110,7 @@ TEST(RockAlbedo, BrightensSamplesByTheRockThatCoversThem) {
     const auto resolvedOnly =
         std::make_shared<RockAlbedo>(options, std::vector<terraingen::RockSource>{{layer, ground}});
     const RasterGrid grid{64, 64, GeoTransform::NorthUp(-6.4, 6.4, 0.2)};
-    const auto values = terraingen::EvaluateAlbedo(Grey(resolvedOnly), grid, {0.2});
+    const auto values = terraingen::EvaluateAlbedo(Gray(resolvedOnly), grid, {0.2});
     const auto cover = layer->MaterialCoverOver(grid, 0.2, ground.get(), 1);
     bool covered = false;
     for (std::size_t row = 0; row < grid.height; ++row) {
@@ -121,13 +121,13 @@ TEST(RockAlbedo, BrightensSamplesByTheRockThatCoversThem) {
         }
     }
     EXPECT_TRUE(covered);
-    const auto centre = values[0].CellCenter(13, 41);
-    EXPECT_EQ(terraingen::EvaluateAlbedoAt(Grey(resolvedOnly), centre.x, centre.y, {0.2})[0],
+    const auto center = values[0].CellCenter(13, 41);
+    EXPECT_EQ(terraingen::EvaluateAlbedoAt(Gray(resolvedOnly), center.x, center.y, {0.2})[0],
               values[0](13, 41));
 
     const auto speckled = std::make_shared<RockAlbedo>(
         RockAlbedoOptions{}, std::vector<terraingen::RockSource>{{layer, ground}});
-    const Albedo albedo = Grey(speckled);
+    const Albedo albedo = Gray(speckled);
     const auto coarse = terraingen::EvaluateAlbedo(albedo, grid, {0.2});
     terraingen::AlbedoContext onGround;
     onGround.spacing = 0.2;
@@ -155,6 +155,6 @@ TEST(RockAlbedo, RejectsBadOptionsAndSources) {
     const RasterGrid grid{4, 4, GeoTransform::NorthUp(0.0, 4.0, 1.0)};
     const auto bare =
         std::make_shared<RockAlbedo>(RockAlbedoOptions{}, std::vector<terraingen::RockSource>{});
-    EXPECT_FLOAT_EQ(terraingen::EvaluateAlbedo(Grey(bare), grid, {1.0})[0](1, 2), 0.1f)
+    EXPECT_FLOAT_EQ(terraingen::EvaluateAlbedo(Gray(bare), grid, {1.0})[0](1, 2), 0.1f)
         << "no boulder layers, no rock";
 }

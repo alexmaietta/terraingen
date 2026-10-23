@@ -744,18 +744,18 @@ std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& s
     static std::mutex mutex;
     static std::map<Key, std::shared_ptr<const RadialShape>> loaded;
     const Key key{std::filesystem::absolute(file).string(), modified, spec.q.value_or(0),
-                  spec.metresPerUnit.value_or(0.0)};
+                  spec.metersPerUnit.value_or(0.0)};
     const std::lock_guard<std::mutex> lock(mutex);
     if (const auto found = loaded.find(key); found != loaded.end()) {
         return found->second;
     }
     const auto shape = AtFile("body.path", [&] {
         if (IsIcqPath(file)) {
-            const IcqModel model = ReadIcq(file, spec.metresPerUnit.value_or(1000.0));
+            const IcqModel model = ReadIcq(file, spec.metersPerUnit.value_or(1000.0));
             return spec.q && *spec.q != model.q ? ShapeModelFromMesh(IcqToMesh(model), *spec.q)
                                                 : ToRadialShape(model);
         }
-        const double scale = spec.metresPerUnit.value_or(1.0);
+        const double scale = spec.metersPerUnit.value_or(1.0);
         const TriangleMesh mesh = Scaled(ReadMesh(file).mesh, {scale, scale, scale});
         return ShapeModelFromMesh(mesh, spec.q.value_or(256));
     });

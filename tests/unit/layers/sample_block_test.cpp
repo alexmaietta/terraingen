@@ -19,7 +19,7 @@ using terraingen::Raster;
 using terraingen::SampleBlock;
 using terraingen::Vec2d;
 
-TEST(SampleBlock, ListsAGridsCellCentresRowByRow) {
+TEST(SampleBlock, ListsAGridsCellCentersRowByRow) {
     Raster<float> heights(3, 2, 1.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(10.0, 20.0, 2.0));
     const SampleBlock samples(heights);
@@ -92,7 +92,7 @@ TEST(SampleBlock, AppliesALayerToManyPointsAsToEachAlone) {
         << "points need a sample spacing";
 }
 
-TEST(FunctionLayer, PassesTheSpacingInMetresOnASphere) {
+TEST(FunctionLayer, PassesTheSpacingInMetersOnASphere) {
     const auto moon = terraingen::Surface::Sphere(1737400.0);
     double seen = 0.0;
     const terraingen::FunctionLayer layer(

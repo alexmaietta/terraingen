@@ -111,7 +111,7 @@ TEST(ConfigEditor, LabelsKeysInWordsWithoutTheirUnit) {
     EXPECT_EQ(ConfigEditor::Label("age_gyr", "Gyr"), "Age");
     EXPECT_EQ(ConfigEditor::Label("lifetime_gyr"), "Lifetime gyr");
     EXPECT_EQ(ConfigEditor::Label("heading_deg", "deg"), "Heading");
-    EXPECT_EQ(ConfigEditor::Label("centre_x"), "Centre X");
+    EXPECT_EQ(ConfigEditor::Label("center_x"), "Center X");
     EXPECT_EQ(ConfigEditor::Label("m", "m"), "M") << "a lone word stays";
     EXPECT_EQ(ConfigEditor::Label("rim_smoothing"), "Rim smoothing");
     EXPECT_EQ(ConfigEditor::Label(""), "");

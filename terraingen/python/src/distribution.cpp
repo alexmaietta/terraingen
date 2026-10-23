@@ -137,7 +137,7 @@ void BindPowerLaws(nb::module_& m) {
         .def_ro("start", &PowerLawSegment::start)
         .def_ro("coefficient", &PowerLawSegment::coefficient)
         .def_ro("exponent", &PowerLawSegment::exponent);
-    m.def("power_law_coefficient_from_kilometres", &PowerLawCoefficientFromKilometres,
+    m.def("power_law_coefficient_from_kilometers", &PowerLawCoefficientFromKilometers,
           "coefficient"_a, "exponent"_a,
           "The coefficient per square metre, D in metres, of a power law given per square "
           "kilometre with D in kilometres.");

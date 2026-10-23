@@ -96,6 +96,6 @@ TEST(ComplexCraterProfile, RejectsInvalidShapes) {
     shape = terraingen::LunarComplexCraterShape();
     shape.reachRadii = 1.0;
     EXPECT_THROW(terraingen::ValidateComplexCraterShape(shape), std::invalid_argument);
-    EXPECT_EQ((terraingen::KilometrePowerLaw{2.0, 1.0}.At(3000.0)), 6000.0);
-    EXPECT_EQ((terraingen::KilometrePowerLaw{2.0, 1.0}.At(3000.0, true)), 6e9);
+    EXPECT_EQ((terraingen::KilometerPowerLaw{2.0, 1.0}.At(3000.0)), 6000.0);
+    EXPECT_EQ((terraingen::KilometerPowerLaw{2.0, 1.0}.At(3000.0, true)), 6e9);
 }

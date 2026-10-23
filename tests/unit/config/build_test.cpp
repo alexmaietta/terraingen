@@ -578,12 +578,12 @@ TEST(BuildSurface, LoadsAnIcqShapeModelOnceRelativeToTheConfig) {
         terraingen::ShapeModelSurfaceSpec{"config_shape.icq", 6}, ::testing::TempDir());
     EXPECT_EQ(coarse.Shape()->Q(), 6u);
     EXPECT_NEAR(coarse.Shape()->At({0.0, 0.0, 1.0}), 380.0, 0.5);
-    const terraingen::Surface metres = terraingen::BuildSurface(
+    const terraingen::Surface meters = terraingen::BuildSurface(
         terraingen::ShapeModelSurfaceSpec{"config_shape.icq", {}, 1.0}, ::testing::TempDir());
-    EXPECT_NEAR(metres.Shape()->At({1.0, 0.0, 0.0}), 0.4, 1e-8) << "in metres, not kilometres";
+    EXPECT_NEAR(meters.Shape()->At({1.0, 0.0, 0.0}), 0.4, 1e-8) << "in metres, not kilometres";
 }
 
-TEST(BuildSurface, ResamplesAMeshShapeModelScaledToMetres) {
+TEST(BuildSurface, ResamplesAMeshShapeModelScaledToMeters) {
     terraingen::SceneMesh scene;
     scene.mesh = terraingen::Scaled(terraingen::Icosphere(4), {0.3, 0.2, 0.1});
     const auto path = terraingen::testing::TempPath("config_shape.obj");
@@ -601,14 +601,14 @@ TEST(BuildSurface, ReportsShapeModelProblemsAtTheirKeys) {
     EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", 0}), "body.q");
     EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", 5000}), "body.q");
     EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", {}, -1.0}),
-              "body.metres_per_unit");
+              "body.meters_per_unit");
     terraingen::SceneMesh off;
     off.mesh = terraingen::Icosphere(1);
     for (terraingen::Vec3d& p : off.mesh.positions) {
         p.x += 5.0;
     }
-    terraingen::WriteMesh(terraingen::testing::TempPath("config_off_centre.obj"), off);
-    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"config_off_centre.obj", 4}),
+    terraingen::WriteMesh(terraingen::testing::TempPath("config_off_center.obj"), off);
+    EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"config_off_center.obj", 4}),
               "body.path");
     const auto corrupt = terraingen::testing::TempPath("config_corrupt.icq");
     std::ofstream(corrupt) << "not an ICQ model\n";

@@ -49,9 +49,9 @@ class Example(_common.Example):
         terrain = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, SPACING), [noise, craters])
 
         self.grid = terraingen.evaluate(terrain, spacing=SPACING)
-        self.centre = self.grid.values[32, 32]
+        self.center = self.grid.values[32, 32]
         self.query = terraingen.height_at(terrain, 0.25, -0.25, SPACING)
-        print(f"grid cell at the centre {self.centre:.4f} m, point query {self.query:.4f} m")
+        print(f"grid cell at the centre {self.center:.4f} m, point query {self.query:.4f} m")
 
         self.path = np.linspace(-100.0, 100.0, 801)
         start = time.perf_counter()
@@ -76,7 +76,7 @@ class Example(_common.Example):
 
     def test_final(self):
         assert self.grid.shape == (64, 64), "the grid is 64 x 64"
-        assert abs(self.query - self.centre) < 1e-4, "the point query equals the grid cell centred there"
+        assert abs(self.query - self.center) < 1e-4, "the point query equals the grid cell centred there"
         assert self.heights.shape == (801,) and np.isfinite(self.heights).all(), (
             "801 finite heights along the path"
         )

@@ -14,12 +14,12 @@ namespace terraingen {
 
 /// A mesh's material: a name and a diffuse colour.
 struct MeshMaterial {
-    std::string name = "default";                 ///< Name in OBJ/MTL and glTF.
-    std::array<double, 3> colour{0.5, 0.5, 0.5};  ///< Linear RGB, each in [0, 1].
+    std::string name = "default";                ///< Name in OBJ/MTL and glTF.
+    std::array<double, 3> color{0.5, 0.5, 0.5};  ///< Linear RGB, each in [0, 1].
 
     /// Memberwise equality.
     bool operator==(const MeshMaterial& other) const {
-        return name == other.name && colour == other.colour;
+        return name == other.name && color == other.color;
     }
     bool operator!=(const MeshMaterial& other) const {
         return !(*this == other);

@@ -21,7 +21,7 @@ import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import _common
-from _common import colour_name, line_plot, write_png
+from _common import color_name, line_plot, write_png
 
 SPACING = 0.05
 WHEELS = [(1.0, 0.8), (1.0, -0.8), (-1.0, 0.8), (-1.0, -0.8)]
@@ -92,11 +92,10 @@ class Example(_common.Example):
         print(
             "legend:",
             ", ".join(
-                f"{colour_name(i)} {n}"
-                for i, n in enumerate(("body height (m)", "pitch (deg)", "roll (deg)"))
+                f"{color_name(i)} {n}" for i, n in enumerate(("body height (m)", "pitch (deg)", "roll (deg)"))
             ),
         )
-        self.ground = terraingen.evaluate(terrain, grid=terraingen.RasterGrid.centred(192, 48, 0.25))
+        self.ground = terraingen.evaluate(terrain, grid=terraingen.RasterGrid.centered(192, 48, 0.25))
         self.show("ground along the path", self.ground)
 
     def save(self, out):

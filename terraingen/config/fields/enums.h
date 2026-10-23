@@ -147,7 +147,7 @@ template <> struct EnumNames<CraterDatum> {
          "slopes."},
         {"mean_height", CraterDatum::MeanHeight,
          "Interior cut relative to a flat datum at the mean height over the fit footprint."},
-        {"centre_height", CraterDatum::CentreHeight,
+        {"center_height", CraterDatum::CenterHeight,
          "Interior cut relative to a flat datum at the terrain height under the crater centre."},
     }};
 };

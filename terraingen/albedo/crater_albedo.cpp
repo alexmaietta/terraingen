@@ -258,8 +258,8 @@ struct ShadowProfile {
         return Smoothstep(g / depth);
     }
 
-    /// The surface points of the held samples around `centre`, row-major by ray.
-    std::vector<Vec2d> Points(const Vec2d& centre, const Surface& surface) const {
+    /// The surface points of the held samples around `center`, row-major by ray.
+    std::vector<Vec2d> Points(const Vec2d& center, const Surface& surface) const {
         std::vector<Vec2d> points;
         points.reserve(rays * used);
         for (std::size_t k = 0; k < rays; ++k) {
@@ -268,7 +268,7 @@ struct ShadowProfile {
             for (std::size_t j = 0; j < used; ++j) {
                 const double distance = start + static_cast<double>(j) * step;
                 points.push_back(surface.Locate(
-                    centre, {distance * std::cos(angle), distance * std::sin(angle)}));
+                    center, {distance * std::cos(angle), distance * std::sin(angle)}));
             }
         }
         return points;
@@ -294,15 +294,15 @@ struct ShadowProfile {
     }
 };
 
-/// The rays, of `azimuths` around `centre`, that reach `region`, with one more on each side, and
-/// the farthest distance in metres of the region from `centre`.
+/// The rays, of `azimuths` around `center`, that reach `region`, with one more on each side, and
+/// the farthest distance in metres of the region from `center`.
 struct RayWindow {
     std::size_t first = 0;
     std::size_t rays = 0;
     double far = 0.0;
 };
 
-RayWindow RaysOver(const Vec2d& centre, const Bounds2d& region, const Surface& surface,
+RayWindow RaysOver(const Vec2d& center, const Bounds2d& region, const Surface& surface,
                    std::size_t azimuths) {
     RayWindow window;
     window.rays = azimuths;
@@ -314,7 +314,7 @@ RayWindow RaysOver(const Vec2d& centre, const Bounds2d& region, const Surface& s
     std::vector<Vec2d> corners;
     for (const double x : {region.minX, region.maxX}) {
         for (const double y : {region.minY, region.maxY}) {
-            const Vec2d c = surface.Offset(centre, {x, y});
+            const Vec2d c = surface.Offset(center, {x, y});
             corners.push_back(c);
             minX = std::fmin(minX, c.x);
             maxX = std::fmax(maxX, c.x);
@@ -686,12 +686,12 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
     if (reach <= radius) {
         return;
     }
-    const Vec2d centre{crater.x, crater.y};
+    const Vec2d center{crater.x, crater.y};
     const Surface& surface = craters_->Options().surface;
     const RayWindow window =
-        RaysOver(centre, region, surface, static_cast<std::size_t>(s.azimuths));
+        RaysOver(center, region, surface, static_cast<std::size_t>(s.azimuths));
     auto profile = std::make_shared<ShadowProfile>(MakeShadowProfile(s, radius, reach, window));
-    const std::vector<Vec2d> points = profile->Points(centre, surface);
+    const std::vector<Vec2d> points = profile->Points(center, surface);
     std::vector<float> heights(points.size());
     ground.HeightsAt(points, heights, profile->step);
     profile->TraceJets(heights, std::tan(s.jetAngleDegrees * kDegree) * profile->step);

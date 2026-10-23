@@ -11,7 +11,7 @@ TEST(TraskEquilibrium, IsTenToTheMinusOnePointOneOverDiameterSquared) {
     EXPECT_DOUBLE_EQ(trask.Cumulative(10.0), std::pow(10.0, -1.1) / 100.0);
 }
 
-TEST(HartmannEquilibrium, ConvertsItsKilometreFitToMetres) {
+TEST(HartmannEquilibrium, ConvertsItsKilometerFitToMeters) {
     const terraingen::PowerLawSfd hartmann = terraingen::HartmannEquilibrium();
     EXPECT_EQ(hartmann.Kind(), terraingen::SfdKind::Density);
     EXPECT_NEAR(hartmann.Cumulative(1000.0) * 1e6, std::pow(10.0, -1.14), 1e-12);

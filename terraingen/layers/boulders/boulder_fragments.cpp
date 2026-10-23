@@ -14,7 +14,7 @@ namespace {
 /// The seed points of `pieces` pieces of a shape whose box is `box`: around the middle, a third
 /// of the way out, a little above or below it so the cracks tilt.
 std::vector<Vec3d> SeedPoints(const Box3d& box, int pieces, RandomStream& random) {
-    const Vec3d centre = (box.min + box.max) * 0.5;
+    const Vec3d center = (box.min + box.max) * 0.5;
     const Vec3d half = (box.max - box.min) * 0.5;
     const double turn = 2.0 * kPi / pieces;
     const double start = turn * random.NextDouble();
@@ -23,7 +23,7 @@ std::vector<Vec3d> SeedPoints(const Box3d& box, int pieces, RandomStream& random
         const double angle = start + turn * (k + 0.3 * (random.NextDouble() - 0.5));
         const double out = 0.35 + 0.15 * random.NextDouble();
         const double rise = 0.2 * (random.NextDouble() - 0.5);
-        seeds.push_back(centre + Vec3d{out * half.x * std::cos(angle),
+        seeds.push_back(center + Vec3d{out * half.x * std::cos(angle),
                                        out * half.y * std::sin(angle), rise * half.z});
     }
     return seeds;
@@ -33,7 +33,7 @@ std::vector<Vec3d> SeedPoints(const Box3d& box, int pieces, RandomStream& random
 /// line through the middle, a little off it and above or below it, so the cracks between them run
 /// roughly parallel right through the shape.
 std::vector<Vec3d> SlabSeedPoints(const Box3d& box, int pieces, RandomStream& random) {
-    const Vec3d centre = (box.min + box.max) * 0.5;
+    const Vec3d center = (box.min + box.max) * 0.5;
     const Vec3d half = (box.max - box.min) * 0.5;
     const double angle = kPi * random.NextDouble();
     const Vec3d along{std::cos(angle), std::sin(angle), 0.0};
@@ -46,7 +46,7 @@ std::vector<Vec3d> SlabSeedPoints(const Box3d& box, int pieces, RandomStream& ra
         const double at = (k - 0.5 * (pieces - 1) + 0.4 * (random.NextDouble() - 0.5)) * step;
         const double off = 0.3 * side * (random.NextDouble() - 0.5);
         const double rise = 0.3 * half.z * (random.NextDouble() - 0.5);
-        seeds.push_back(centre + along * at + across * off + Vec3d{0.0, 0.0, rise});
+        seeds.push_back(center + along * at + across * off + Vec3d{0.0, 0.0, rise});
     }
     return seeds;
 }
@@ -93,11 +93,11 @@ std::vector<BoulderFragment> FragmentBoulderShape(const BoulderShape& parent, in
         const Box3d bounds = Bounds(cut);
         const Vec3d extents = bounds.max - bounds.min;
         BoulderFragment fragment;
-        fragment.centre = (bounds.min + bounds.max) * 0.5;
+        fragment.center = (bounds.min + bounds.max) * 0.5;
         fragment.scale = std::fmax(extents.x, extents.y);
         fragment.shape.mesh.triangles = cut.triangles;
         for (const Vec3d& p : cut.positions) {
-            fragment.shape.mesh.positions.push_back((p - fragment.centre) * (1.0 / fragment.scale));
+            fragment.shape.mesh.positions.push_back((p - fragment.center) * (1.0 / fragment.scale));
         }
         fragment.shape.style = parent.style;
         fragment.shape.intermediate = std::fmin(extents.x, extents.y) / fragment.scale;

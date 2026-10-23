@@ -108,7 +108,7 @@ template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
            CountText(1, kMaxCubeFaceCells) +
            "; unset keeps an ICQ model's own Q and uses 256 for a mesh.",
        "", CubeFaceCellsRange());
-    io("metres_per_unit", spec.metresPerUnit,
+    io("meters_per_unit", spec.metersPerUnit,
        "Metres per unit of the file's coordinates; unset is 1000 for an ICQ model, whose "
        "coordinates are kilometres, and 1 for a mesh.",
        "m", Above(0.0));

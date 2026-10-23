@@ -162,7 +162,7 @@ class GltfDocument {
         material.has_pbr_metallic_roughness = 1;
         auto& pbr = material.pbr_metallic_roughness;
         for (std::size_t c = 0; c < 3; ++c) {
-            pbr.base_color_factor[c] = static_cast<float>(scene.material.colour[c]);
+            pbr.base_color_factor[c] = static_cast<float>(scene.material.color[c]);
         }
         pbr.base_color_factor[3] = 1.0f;
         pbr.metallic_factor = 0.0f;
@@ -255,7 +255,7 @@ void AppendNodeTriangles(const cgltf_node& node, SceneMesh& read) {
                 const cgltf_material& material = *primitive.material;
                 read.material.name = material.name ? material.name : "default";
                 for (std::size_t c = 0; c < 3; ++c) {
-                    read.material.colour[c] =
+                    read.material.color[c] =
                         static_cast<double>(material.pbr_metallic_roughness.base_color_factor[c]);
                 }
             }

@@ -37,8 +37,8 @@ class Patchy final : public terraingen::Source {
         const float fill = noData_.value_or(std::numeric_limits<float>::quiet_NaN());
         for (std::size_t row = 0; row < heights.Height(); ++row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const auto centre = heights.CellCenter(col, row);
-                const float height = HeightAt(centre.x, centre.y, spacing);
+                const auto center = heights.CellCenter(col, row);
+                const float height = HeightAt(center.x, center.y, spacing);
                 heights(col, row) = std::isnan(height) ? fill : height;
             }
         }
@@ -72,10 +72,10 @@ TEST(SourceChain, FillsEachGapFromTheNextSourceWithData) {
     partial.Fill(heights);
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            const float expected = partial.HeightAt(centre.x, centre.y, 1.0);
-            if (centre.x > 0.0 || centre.y > 1.0) {
-                EXPECT_EQ(heights(col, row), static_cast<float>(centre.x + 2.0 * centre.y));
+            const auto center = heights.CellCenter(col, row);
+            const float expected = partial.HeightAt(center.x, center.y, 1.0);
+            if (center.x > 0.0 || center.y > 1.0) {
+                EXPECT_EQ(heights(col, row), static_cast<float>(center.x + 2.0 * center.y));
                 EXPECT_EQ(heights(col, row), expected);
             } else {
                 EXPECT_TRUE(heights.IsNoData(heights(col, row)));
@@ -102,8 +102,8 @@ TEST(SourceChain, FillsNaNGapsOfSourcesWithoutANoDataValue) {
         void Fill(Raster<float>& heights, double spacing) const override {
             for (std::size_t row = 0; row < heights.Height(); ++row) {
                 for (std::size_t col = 0; col < heights.Width(); ++col) {
-                    const auto centre = heights.CellCenter(col, row);
-                    heights(col, row) = HeightAt(centre.x, centre.y, spacing);
+                    const auto center = heights.CellCenter(col, row);
+                    heights(col, row) = HeightAt(center.x, center.y, spacing);
                 }
             }
         }
@@ -117,9 +117,9 @@ TEST(SourceChain, FillsNaNGapsOfSourcesWithoutANoDataValue) {
     chain.Fill(heights);
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            EXPECT_EQ(heights(col, row), centre.x < 0.0 ? -5.0f : 1.0f);
-            EXPECT_EQ(heights(col, row), chain.HeightAt(centre.x, centre.y, 1.0));
+            const auto center = heights.CellCenter(col, row);
+            EXPECT_EQ(heights(col, row), center.x < 0.0 ? -5.0f : 1.0f);
+            EXPECT_EQ(heights(col, row), chain.HeightAt(center.x, center.y, 1.0));
         }
     }
 }

@@ -16,13 +16,13 @@ using terraingen::testing::PowerLawCraterModels;
 
 namespace {
 
-/// A crater layer of only manual 8 m craters at `centres`.
+/// A crater layer of only manual 8 m craters at `centers`.
 std::shared_ptr<const terraingen::CraterLayer>
-ManualCraters(const std::vector<terraingen::Vec2d>& centres) {
+ManualCraters(const std::vector<terraingen::Vec2d>& centers) {
     terraingen::CraterLayerOptions options;
     options.generateRandom = false;
-    for (const auto& centre : centres) {
-        options.generation.manual.Append({centre.x, centre.y, 8.0, 0.0});
+    for (const auto& center : centers) {
+        options.generation.manual.Append({center.x, center.y, 8.0, 0.0});
     }
     return std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options);
 }

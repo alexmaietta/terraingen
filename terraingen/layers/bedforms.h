@@ -114,7 +114,7 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
         double relief = 0.0;
     };
     FieldSum SumFields(double x, double y, const Ground* ground) const;
-    void AddField(FieldSum& sum, RandomStream& random, const Vec2d& centre, const Vec2d& offset,
+    void AddField(FieldSum& sum, RandomStream& random, const Vec2d& center, const Vec2d& offset,
                   const Ground* ground) const;
 
     BedformOptions options_;

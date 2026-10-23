@@ -45,7 +45,7 @@ class Example(_common.Example):
             "default": terraingen.CraterApplyOptions(),
             "plane datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.PLANE),
             "mean-height datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.MEAN_HEIGHT),
-            "centre-height datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.CENTRE_HEIGHT),
+            "centre-height datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.CENTER_HEIGHT),
             "plane, half replaced": terraingen.CraterApplyOptions(
                 datum=terraingen.CraterDatum.PLANE, interior_replacement=0.5
             ),

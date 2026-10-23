@@ -38,7 +38,7 @@ class InclinedPlane(terraingen.Source):
         self.slope = slope
 
     def grid(self):
-        return terraingen.RasterGrid.centred(SIZE, SIZE, PIXEL)
+        return terraingen.RasterGrid.centered(SIZE, SIZE, PIXEL)
 
     def height_at(self, x, y, spacing):
         return self.slope * (x + y) / math.sqrt(2.0)
@@ -48,8 +48,8 @@ class Rille(terraingen.Layer):
     """A sinuous channel 12 m deep and 40 m wide, meandering north to south."""
 
     def apply_at(self, height, x, y, context):
-        centre = 60.0 * math.sin(y / 70.0)
-        return height - 12.0 * math.exp(-(((x - centre) / 20.0) ** 2))
+        center = 60.0 * math.sin(y / 70.0)
+        return height - 12.0 * math.exp(-(((x - center) / 20.0) ** 2))
 
     def max_feature_diameter(self):
         return 40.0
@@ -78,8 +78,8 @@ class SlopeBrightening(terraingen.AlbedoLayer):
     """Brighter albedo where the rille's walls are steep (fresh material exposed)."""
 
     def apply_at(self, value, bands, x, y, context):
-        centre = 60.0 * math.sin(y / 70.0)
-        wall = abs(x - centre) / 20.0
+        center = 60.0 * math.sin(y / 70.0)
+        wall = abs(x - center) / 20.0
         brightening = 1.0 + 0.6 * wall * math.exp(-(wall**2))
         return [v * brightening for v in value]
 

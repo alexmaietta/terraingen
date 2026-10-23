@@ -66,11 +66,11 @@ double At(const DuneLayer& layer, double x, double y, double spacing = 0.01) {
     return static_cast<double>(layer.ApplyAt(0.0f, x, y, {spacing}));
 }
 
-/// The steepest slope of `layer`'s dunes over a square of `half` metres about `centre`.
-double SteepestSlope(const DuneLayer& layer, const Vec2d& centre, double half, double step) {
+/// The steepest slope of `layer`'s dunes over a square of `half` metres about `center`.
+double SteepestSlope(const DuneLayer& layer, const Vec2d& center, double half, double step) {
     double steepest = 0.0;
-    for (double y = centre.y - half; y <= centre.y + half; y += step) {
-        for (double x = centre.x - half; x <= centre.x + half; x += step) {
+    for (double y = center.y - half; y <= center.y + half; y += step) {
+        for (double x = center.x - half; x <= center.x + half; x += step) {
             const double gx =
                 (layer.DuneHeightAt(x + 0.5 * step, y) - layer.DuneHeightAt(x - 0.5 * step, y)) /
                 step;
@@ -238,8 +238,8 @@ TEST(DuneLayer, GridsAndPointsAgreeAndCoarseSpacingsFadeTheDunesOut) {
     double relief = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const Vec2d centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {0.5}), heights(col, row));
+            const Vec2d center = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {0.5}), heights(col, row));
             relief = std::max(relief, static_cast<double>(heights(col, row)));
         }
     }
@@ -372,8 +372,8 @@ TEST(DuneLayer, GrainflowsCutScarpsAndLayLobesOnlyOnSlipFaces) {
     with.Apply(heights, {0.1, 2});
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(with.ApplyAt(0.0f, centre.x, centre.y, {0.1}), heights(col, row));
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(with.ApplyAt(0.0f, center.x, center.y, {0.1}), heights(col, row));
         }
     }
 }

@@ -127,7 +127,7 @@ CraterList CraterLayer::Throwers(const Bounds2d& region) const {
 
 CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
     struct Thrower {
-        Vec2d centre;
+        Vec2d center;
         SecondaryDensity density;
     };
     auto thrown = std::make_shared<std::vector<Thrower>>();
@@ -154,7 +154,7 @@ CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
             return share;
         }
         for (const Thrower& thrower : *thrown) {
-            const Vec2d offset = surface.Offset(thrower.centre, {crater.x, crater.y});
+            const Vec2d offset = surface.Offset(thrower.center, {crater.x, crater.y});
             if (std::hypot(offset.x, offset.y) < thrower.density.Reach()) {
                 value -= cover ? thrower.density.CoverAt(offset, map.minDiameter, map.maxDiameter)
                                : thrower.density.At(offset, map.minDiameter, map.maxDiameter);

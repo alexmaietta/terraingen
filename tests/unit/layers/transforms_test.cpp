@@ -37,8 +37,8 @@ void ExpectGridMatchesPoints(const terraingen::Layer& layer) {
                 EXPECT_EQ(after(col, row), -9999.0f);
                 continue;
             }
-            const auto centre = after.CellCenter(col, row);
-            EXPECT_EQ(after(col, row), layer.ApplyAt(before(col, row), centre.x, centre.y, {0.5}));
+            const auto center = after.CellCenter(col, row);
+            EXPECT_EQ(after(col, row), layer.ApplyAt(before(col, row), center.x, center.y, {0.5}));
         }
     }
 }
@@ -76,7 +76,7 @@ TEST(ClampLayer, ClampsToEitherOrBothBounds) {
                  std::invalid_argument);
 }
 
-TEST(FunctionLayer, CallsTheFunctionAtCellCentresWithTheSpacing) {
+TEST(FunctionLayer, CallsTheFunctionAtCellCentersWithTheSpacing) {
     const FunctionLayer layer(
         [](double x, double y, double spacing, double height) { return height + x - y * spacing; });
     EXPECT_EQ(layer.ApplyAt(1.0f, 2.0, 4.0, {0.25}), 2.0f);

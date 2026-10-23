@@ -35,7 +35,7 @@ std::uint64_t SecondaryId(std::uint64_t primary, int band, std::int64_t ring, st
 }
 
 /// The smallest and largest distances, and the directions (radians counter-clockwise from east,
-/// as an interval around `mid` of half-width `half`), from `centre` to `region` on `surface`;
+/// as an interval around `mid` of half-width `half`), from `center` to `region` on `surface`;
 /// the whole circle when `region` holds the centre.
 struct Footprint {
     double near = 0.0;
@@ -44,12 +44,12 @@ struct Footprint {
     double half = kPi;
 };
 
-Footprint SecondaryFootprint(const Vec2d& centre, const Bounds2d& region, const Surface& surface) {
+Footprint SecondaryFootprint(const Vec2d& center, const Bounds2d& region, const Surface& surface) {
     Footprint footprint;
     std::vector<Vec2d> corners;
     for (const double x : {region.minX, region.maxX}) {
         for (const double y : {region.minY, region.maxY}) {
-            corners.push_back(surface.Offset(centre, {x, y}));
+            corners.push_back(surface.Offset(center, {x, y}));
         }
     }
     constexpr double kInf = std::numeric_limits<double>::infinity();

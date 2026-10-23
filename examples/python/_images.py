@@ -38,7 +38,7 @@ def write_png(path, image):
         np.uint8
     )
     height, width = pixels.shape[:2]
-    colour = 2 if pixels.ndim == 3 else 0
+    color = 2 if pixels.ndim == 3 else 0
     rows = pixels.reshape(height, -1)
     raw = b"".join(b"\x00" + row.tobytes() for row in rows)
 
@@ -50,7 +50,7 @@ def write_png(path, image):
             + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
         )
 
-    header = struct.pack(">IIBBBBB", width, height, 8, colour, 0, 0, 0)
+    header = struct.pack(">IIBBBBB", width, height, 8, color, 0, 0, 0)
     png = (
         b"\x89PNG\r\n\x1a\n"
         + chunk(b"IHDR", header)
@@ -116,16 +116,16 @@ def line_plot(curves, log_x=False, log_y=False, size=(640, 420), margin=24):
     for index, (x, y) in enumerate(transformed):
         px = margin + (x - x0) / (x1 - x0) * (width - 2 * margin)
         py = height - margin - (y - y0) / (y1 - y0) * (height - 2 * margin)
-        colour = PALETTE[index % len(PALETTE)]
+        color = PALETTE[index % len(PALETTE)]
         for i in range(len(px) - 1):
             steps = int(max(abs(px[i + 1] - px[i]), abs(py[i + 1] - py[i]), 1)) * 2
             for t in np.linspace(0.0, 1.0, steps):
                 cx = int(round(px[i] + t * (px[i + 1] - px[i])))
                 cy = int(round(py[i] + t * (py[i + 1] - py[i])))
-                image[max(cy - 1, 0) : cy + 1, max(cx - 1, 0) : cx + 1] = colour
+                image[max(cy - 1, 0) : cy + 1, max(cx - 1, 0) : cx + 1] = color
     return image
 
 
-def colour_name(index):
+def color_name(index):
     """The name of PALETTE colour `index`, for legends."""
-    return ["blue", "red", "green", "purple", "orange", "brown", "pink", "grey"][index % len(PALETTE)]
+    return ["blue", "red", "green", "purple", "orange", "brown", "pink", "gray"][index % len(PALETTE)]

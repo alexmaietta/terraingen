@@ -45,7 +45,7 @@ TEST(UnresolvedCraterLimit, IsTheCellsAcrossOfTheDataGivingTheHeight) {
               kInf);
 }
 
-TEST(UnresolvedCraterLimit, ConvertsDegreesToMetresOnABody) {
+TEST(UnresolvedCraterLimit, ConvertsDegreesToMetersOnABody) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const auto dem = Dem(10, 0.01, 10.0, -20.0);
     const auto limit = UnresolvedCraterLimit(dem, 3.0, moon);

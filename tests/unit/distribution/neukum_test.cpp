@@ -23,7 +23,7 @@ using terraingen::RandomStream;
 using terraingen::SfdKind;
 using terraingen::SplicedSfd;
 
-TEST(NeukumProductionFunction, IsAProductionRateFromTenMetresTo300Kilometres) {
+TEST(NeukumProductionFunction, IsAProductionRateFromTenMetersTo300Kilometers) {
     const LogPolynomialSfd npf = NeukumProductionFunction();
     EXPECT_EQ(npf.Kind(), SfdKind::ProductionRate);
     EXPECT_EQ(npf.ValidRange().min, 10.0);
@@ -39,7 +39,7 @@ TEST(NeukumProductionFunction, IsAProductionRateFromTenMetresTo300Kilometres) {
     }
 }
 
-TEST(ProductionSurface, ScalesTheProductionFunctionToTheChronologyAtOneKilometre) {
+TEST(ProductionSurface, ScalesTheProductionFunctionToTheChronologyAtOneKilometer) {
     const auto npf = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
     const ProductionSurface surface(npf, 3.5, NeukumLunarChronology);
     EXPECT_EQ(surface.Kind(), SfdKind::Density);
@@ -90,7 +90,7 @@ TEST(ProductionSurface, InheritsExtrapolationAndRejectsInvalidProduction) {
     EXPECT_THROW(ProductionSurface(npf, 5.0, NeukumLunarChronology), std::domain_error);
 }
 
-TEST(ExtendedNeukumProductionFunction, ContinuesBelowTenMetresWithSlope285) {
+TEST(ExtendedNeukumProductionFunction, ContinuesBelowTenMetersWithSlope285) {
     const SplicedSfd extended = ExtendedNeukumProductionFunction();
     const LogPolynomialSfd npf = NeukumProductionFunction();
     EXPECT_EQ(extended.Kind(), SfdKind::ProductionRate);

@@ -25,7 +25,7 @@ enum class CraterDatum {
     None,          ///< No datum: the profile is added onto the terrain everywhere.
     Plane,         ///< Least-squares plane over the fit footprint; keeps regional slopes.
     MeanHeight,    ///< Flat datum at the mean height over the fit footprint.
-    CentreHeight,  ///< Flat datum at the terrain height under the crater centre.
+    CenterHeight,  ///< Flat datum at the terrain height under the crater centre.
 };
 
 /// Where a crater's replaced interior blends into the surrounding terrain, in crater radii.

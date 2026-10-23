@@ -122,10 +122,10 @@ void SlopeAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, doub
 namespace {
 
 /// The box of the cell centres of `raster`.
-Bounds2d CellCentreBounds(const Raster<float>& raster) {
+Bounds2d CellCenterBounds(const Raster<float>& raster) {
     const std::size_t lastCol = raster.Width() - 1;
     const std::size_t lastRow = raster.Height() - 1;
-    Bounds2d centres{
+    Bounds2d centers{
         std::numeric_limits<double>::infinity(), std::numeric_limits<double>::infinity(),
         -std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()};
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{0, 0},
@@ -133,10 +133,10 @@ Bounds2d CellCentreBounds(const Raster<float>& raster) {
                                    {0, lastRow},
                                    {lastCol, lastRow}}) {
         const Vec2d c = raster.CellCenter(col, row);
-        centres = {std::fmin(centres.minX, c.x), std::fmin(centres.minY, c.y),
-                   std::fmax(centres.maxX, c.x), std::fmax(centres.maxY, c.y)};
+        centers = {std::fmin(centers.minX, c.x), std::fmin(centers.minY, c.y),
+                   std::fmax(centers.maxX, c.x), std::fmax(centers.maxY, c.y)};
     }
-    return centres;
+    return centers;
 }
 
 }  // namespace
@@ -145,7 +145,7 @@ void SlopeAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& 
     if (context.ground == nullptr || bands.empty()) {
         return;
     }
-    const Lattice lattice = ReadLattice(CellCentreBounds(bands[0]), *context.ground);
+    const Lattice lattice = ReadLattice(CellCenterBounds(bands[0]), *context.ground);
     const std::size_t count = bands.size();
     ForEachAlbedoCell(bands, context.threads, [&](AlbedoSample& value, double x, double y) {
         Mature(value, count, Interpolate(lattice, x, y));

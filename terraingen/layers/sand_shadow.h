@@ -88,7 +88,7 @@ class SandShadowLayer final : public Layer, public MaterialSource {
   private:
     /// One boulder's shadow, ready to draw.
     struct Shadow {
-        Vec2d centre{};
+        Vec2d center{};
         double width = 0.0;
         double cap = 0.0;
         double weight = 1.0;

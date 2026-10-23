@@ -95,8 +95,8 @@ TEST(BlastZoneAlbedo, GridsAndPointsAgreeOnAPlaneAndASphere) {
         EXPECT_FLOAT_EQ(values[0](0, 0), 0.1f) << "undisturbed";
         for (std::size_t row = 0; row < 48; row += 5) {
             for (std::size_t col = 0; col < 48; col += 3) {
-                const auto centre = values[0].CellCenter(col, row);
-                ASSERT_EQ(terraingen::EvaluateAlbedoAt(albedo, centre.x, centre.y, {8.0})[0],
+                const auto center = values[0].CellCenter(col, row);
+                ASSERT_EQ(terraingen::EvaluateAlbedoAt(albedo, center.x, center.y, {8.0})[0],
                           values[0](col, row));
             }
         }

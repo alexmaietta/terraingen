@@ -220,17 +220,17 @@ def frame_terrain(
     ernie = _ernie()
     tokens = ernie.tokens
     low, high = terrain_bounds(raster, exaggeration)
-    centre = tuple(0.5 * (a + b) for a, b in zip(low, high, strict=True))
+    center = tuple(0.5 * (a + b) for a, b in zip(low, high, strict=True))
     radius = 0.5 * math.dist(low, high)
     half_fov = math.radians(vertical_fov_deg) / 2.0
     distance = max(radius * margin / math.sin(half_fov), 1e-3)
     back = direction(azimuth_deg, elevation_deg)
-    eye = tuple(c + distance * d for c, d in zip(centre, back, strict=True))
+    eye = tuple(c + distance * d for c, d in zip(center, back, strict=True))
     up = (0.0, 0.0, 1.0) if abs(back[2]) < 0.999 else (0.0, 1.0, 0.0)
     focal = 50.0
     return (
         scene.define(path, tokens.CAMERA)
-        .set(tokens.TRANSFORM, ernie.look_at_transform(eye, centre, up))
+        .set(tokens.TRANSFORM, ernie.look_at_transform(eye, center, up))
         .set(tokens.FOCAL_LENGTH, focal)
         .set(tokens.VERTICAL_APERTURE, 2.0 * focal * math.tan(half_fov))
         .set(tokens.CLIPPING_RANGE, (max(distance - 2 * radius, distance * 1e-3), distance + 2 * radius))

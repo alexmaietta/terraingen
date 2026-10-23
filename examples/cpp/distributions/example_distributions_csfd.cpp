@@ -46,7 +46,7 @@ class RolledOverPowerLaw final : public terraingen::SizeFrequencyDistribution {
     double knee_;
 };
 
-double PerSquareKilometre(const terraingen::SizeFrequencyDistribution& sfd, double diameter) {
+double PerSquareKilometer(const terraingen::SizeFrequencyDistribution& sfd, double diameter) {
     const auto& range = sfd.ValidRange();
     return range.Contains(diameter) ? 1e6 * sfd.Cumulative(diameter) : std::nan("");
 }
@@ -97,8 +97,8 @@ class DistributionsCsfd : public terraingen::examples::Example {
         Out() << Format("N(>= D) per km^2  %12s %12s %12s\n", "10 m", "100 m", "1000 m");
         for (const auto& [name, sfd] : distributions_) {
             Out() << Format("%-22s %12.4g %12.4g %12.4g\n", name.c_str(),
-                            PerSquareKilometre(*sfd, 10.0), PerSquareKilometre(*sfd, 100.0),
-                            PerSquareKilometre(*sfd, 1000.0));
+                            PerSquareKilometer(*sfd, 10.0), PerSquareKilometer(*sfd, 100.0),
+                            PerSquareKilometer(*sfd, 1000.0));
         }
 
         custom_ = std::make_shared<RolledOverPowerLaw>(0.05, 2.5, 1.2, 20.0);
@@ -131,12 +131,12 @@ class DistributionsCsfd : public terraingen::examples::Example {
         Check(distributions_.size() == 7, "seven built-in distributions");
         const auto& young = *distributions_[0].second;
         const auto& old = *distributions_[1].second;
-        Check(PerSquareKilometre(old, 100.0) > 10.0 * PerSquareKilometre(young, 100.0),
+        Check(PerSquareKilometer(old, 100.0) > 10.0 * PerSquareKilometer(young, 100.0),
               "a 3.8 Gyr surface has over ten times the craters of a 0.1 Gyr one");
         bool decreasing = true;
         for (const auto& [name, sfd] : distributions_) {
-            const double n100 = PerSquareKilometre(*sfd, 100.0);
-            const double n1000 = PerSquareKilometre(*sfd, 1000.0);
+            const double n100 = PerSquareKilometer(*sfd, 100.0);
+            const double n1000 = PerSquareKilometer(*sfd, 1000.0);
             decreasing = decreasing && std::isfinite(n100) && std::isfinite(n1000) && n1000 < n100;
         }
         Check(decreasing, "every distribution has fewer craters at 1000 m than at 100 m");

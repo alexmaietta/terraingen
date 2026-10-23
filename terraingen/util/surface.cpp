@@ -152,18 +152,18 @@ Vec3d Surface::Normal(const Vec2d& point, const Vec3d& p) const {
     return n / Length(n);
 }
 
-Vec2d Surface::TangentOffset(const Vec2d& centre, const Vec2d& point) const {
-    const LocalFrame frame = Frame(centre);
-    const Vec3d d = Position(point) - Position(centre);
+Vec2d Surface::TangentOffset(const Vec2d& center, const Vec2d& point) const {
+    const LocalFrame frame = Frame(center);
+    const Vec3d d = Position(point) - Position(center);
     return {Dot(d, frame.east), Dot(d, frame.north)};
 }
 
-Vec2d Surface::ShapeLocate(const Vec2d& centre, const Vec2d& offset) const {
+Vec2d Surface::ShapeLocate(const Vec2d& center, const Vec2d& offset) const {
     if (offset.x == 0.0 && offset.y == 0.0) {
-        return centre;
+        return center;
     }
-    const Vec3d c = Position(centre);
-    const LocalFrame frame = Frame(centre);
+    const Vec3d c = Position(center);
+    const LocalFrame frame = Frame(center);
     const Vec3d q = c + frame.east * offset.x + frame.north * offset.y;
     const auto along = [&](double s) { return q - frame.up * s; };
     const auto excess = [&](double s) {
@@ -194,12 +194,12 @@ Vec2d Surface::ShapeLocate(const Vec2d& centre, const Vec2d& offset) const {
     return Coordinates(along(0.5 * (inside + outside)));
 }
 
-Vec2d Surface::EllipsoidLocate(const Vec2d& centre, const Vec2d& offset) const {
+Vec2d Surface::EllipsoidLocate(const Vec2d& center, const Vec2d& offset) const {
     if (offset.x == 0.0 && offset.y == 0.0) {
-        return centre;
+        return center;
     }
-    const Vec3d c = Position(centre);
-    const LocalFrame frame = Frame(centre);
+    const Vec3d c = Position(center);
+    const LocalFrame frame = Frame(center);
     const Vec3d q = c + frame.east * offset.x + frame.north * offset.y;
     const Vec3d& n = frame.up;
     const Vec3d inverse{1.0 / (radii_.x * radii_.x), 1.0 / (radii_.y * radii_.y),
@@ -212,12 +212,12 @@ Vec2d Surface::EllipsoidLocate(const Vec2d& centre, const Vec2d& offset) const {
     return Coordinates(q - n * t);
 }
 
-Vec2d Surface::SphereOffset(const Vec2d& centre, const Vec2d& point) const {
-    const Vec3d c = UnitVector(centre.x, centre.y);
+Vec2d Surface::SphereOffset(const Vec2d& center, const Vec2d& point) const {
+    const Vec3d c = UnitVector(center.x, center.y);
     const Vec3d p = UnitVector(point.x, point.y);
     Vec3d east;
     Vec3d north;
-    LocalAxes(centre.x * kDegree, centre.y * kDegree, east, north);
+    LocalAxes(center.x * kDegree, center.y * kDegree, east, north);
     const double angle = std::atan2(Length(Cross(c, p)), Dot(c, p));
     const double e = Dot(p, east);
     const double n = Dot(p, north);
@@ -229,15 +229,15 @@ Vec2d Surface::SphereOffset(const Vec2d& centre, const Vec2d& point) const {
     return {e * scale, n * scale};
 }
 
-Vec2d Surface::SphereLocate(const Vec2d& centre, const Vec2d& offset) const {
+Vec2d Surface::SphereLocate(const Vec2d& center, const Vec2d& offset) const {
     const double distance = std::hypot(offset.x, offset.y);
     if (distance == 0.0) {
-        return centre;
+        return center;
     }
-    const Vec3d c = UnitVector(centre.x, centre.y);
+    const Vec3d c = UnitVector(center.x, center.y);
     Vec3d east;
     Vec3d north;
-    LocalAxes(centre.x * kDegree, centre.y * kDegree, east, north);
+    LocalAxes(center.x * kDegree, center.y * kDegree, east, north);
     const double angle = distance / radius_;
     const double along = std::sin(angle) / distance;
     const double cosAngle = std::cos(angle);
@@ -300,15 +300,15 @@ BucketIndex Surface::Bucket(const Vec2d& point, double size) const {
             static_cast<long long>(std::floor(p.z / size))};
 }
 
-Bounds2d Surface::Expand(const Bounds2d& region, double metres) const {
+Bounds2d Surface::Expand(const Bounds2d& region, double meters) const {
     if (form_ == Form::Plane) {
-        return region.Expanded(metres);
+        return region.Expanded(meters);
     }
-    double dLat = metres / unitLength_;
-    double angle = metres / radius_;
+    double dLat = meters / unitLength_;
+    double angle = meters / radius_;
     if (IsNonSphere()) {
         const double shortest = MinRadius();
-        angle = metres < shortest ? std::asin(metres / shortest) : kPi;
+        angle = meters < shortest ? std::asin(meters / shortest) : kPi;
         dLat = angle * kRadian;
     }
     Bounds2d expanded{region.minX, std::max(-90.0, region.minY - dLat), region.maxX,

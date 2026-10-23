@@ -80,8 +80,8 @@ void ExposureField::Fill(Raster<float>& raster, const Ground& ground, double spa
                          unsigned threads) const {
     ParallelFor(raster.Height(), threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < raster.Width(); ++col) {
-            const Vec2d centre = raster.CellCenter(col, row);
-            raster(col, row) = static_cast<float>(Exposure(ground, centre.x, centre.y, spacing));
+            const Vec2d center = raster.CellCenter(col, row);
+            raster(col, row) = static_cast<float>(Exposure(ground, center.x, center.y, spacing));
         }
     });
 }

@@ -97,7 +97,7 @@ TEST(RoughnessLayerSpec, TakesTheDefaultsTheGivenValuesOrTheBaseEstimates) {
     EXPECT_EQ(spec.Options().hurst, 0.9);
 }
 
-TEST(SyntheticAlbedoSpec, GivesTheColourAndEachNoiseStack) {
+TEST(SyntheticAlbedoSpec, GivesTheColorAndEachNoiseStack) {
     terraingen::SyntheticAlbedoSpec spec;
     spec.rgb = true;
     spec.hue = 30.0;

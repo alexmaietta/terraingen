@@ -9,7 +9,7 @@
 using terraingen::FlatSource;
 using terraingen::GeoTransform;
 
-TEST(FlatSource, CoversAGridCentredOnTheOrigin) {
+TEST(FlatSource, CoversAGridCenteredOnTheOrigin) {
     const FlatSource source(10, 6, 2.0);
     const auto grid = source.Grid();
     EXPECT_EQ(grid.width, 10u);
@@ -45,14 +45,14 @@ TEST(FlatSource, RejectsInvalidGrids) {
                  std::invalid_argument);
 }
 
-TEST(FlatSource, CentresItsGridWhereAsked) {
+TEST(FlatSource, CentersItsGridWhereAsked) {
     const FlatSource source(4, 2, 0.5, 1.0f, {30.0, -10.0});
     EXPECT_EQ(source.Grid().transform, GeoTransform::NorthUp(29.0, -9.5, 0.5));
     EXPECT_THROW(FlatSource(4, 2, 0.5, 1.0f, {std::numeric_limits<double>::quiet_NaN(), 0.0}),
                  std::invalid_argument);
 }
 
-TEST(FlatSource, TakesItsCellSizeInMetresOnASurface) {
+TEST(FlatSource, TakesItsCellSizeInMetersOnASurface) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const FlatSource site(4, 2, 30.0, 0.0f, {10.0, -20.0}, moon);
     const FlatSource degrees(4, 2, 30.0 / moon.UnitLength(), 0.0f, {10.0, -20.0});

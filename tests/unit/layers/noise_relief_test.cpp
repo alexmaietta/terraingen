@@ -49,10 +49,10 @@ TEST(NoiseRelief, MeasuresPositionsFromItsOriginAndSkipsNoData) {
     const SyntheticTerrainParams params = Params();
     NoiseRelief({params}, {500000.0, 4000000.0}).Apply(heights, {1.0});
     EXPECT_TRUE(std::isnan(heights(1, 2)));
-    const auto centre = heights.CellCenter(3, 1);
+    const auto center = heights.CellCenter(3, 1);
     EXPECT_EQ(heights(3, 1),
-              terraingen::EvaluateNoiseLayers(static_cast<float>(centre.x - 500000.0),
-                                              static_cast<float>(centre.y - 4000000.0),
+              terraingen::EvaluateNoiseLayers(static_cast<float>(center.x - 500000.0),
+                                              static_cast<float>(center.y - 4000000.0),
                                               params.layers.data(), 1));
 }
 
@@ -68,8 +68,8 @@ TEST(NoiseRelief, PointQueriesMatchCellsAndKeepNoData) {
     heights.SetTransform(GeoTransform::NorthUp(-8.0, 8.0, 2.0));
     const NoiseRelief relief(Params(), {1.0, -2.0});
     relief.Apply(heights, {2.0});
-    const auto centre = heights.CellCenter(5, 2);
-    EXPECT_EQ(relief.ApplyAt(3.0f, centre.x, centre.y, {2.0}), heights(5, 2));
+    const auto center = heights.CellCenter(5, 2);
+    EXPECT_EQ(relief.ApplyAt(3.0f, center.x, center.y, {2.0}), heights(5, 2));
     EXPECT_TRUE(
         std::isnan(relief.ApplyAt(std::numeric_limits<float>::quiet_NaN(), 0.0, 0.0, {2.0})));
 }
@@ -198,8 +198,8 @@ TEST(NoiseRelief, SplitsLargeGridsIntoStripsOnEachGpuBackend) {
         relief.Apply(heights, On(backend, 1.0));
         for (const std::size_t row : {std::size_t{0}, std::size_t{4095}, std::size_t{4096}}) {
             for (const std::size_t col : {std::size_t{0}, std::size_t{1234}, std::size_t{4095}}) {
-                const auto centre = heights.CellCenter(col, row);
-                const float expected = relief.ApplyAt(1.0f, centre.x, centre.y, {1.0});
+                const auto center = heights.CellCenter(col, row);
+                const float expected = relief.ApplyAt(1.0f, center.x, center.y, {1.0});
                 ASSERT_NEAR(heights(col, row), expected,
                             1e-4f * std::max(1.0f, std::fabs(expected)))
                     << col << "," << row;
@@ -245,10 +245,10 @@ TEST(NoiseRelief, SkipsDisabledLayersAsTheFullStackDoes) {
     NoiseRelief(params, {10.0, 5.0}).Apply(heights, {3.0});
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const auto centre = heights.CellCenter(col, row);
+            const auto center = heights.CellCenter(col, row);
             ASSERT_EQ(heights(col, row), 2.0f + terraingen::EvaluateNoiseLayers(
-                                                    static_cast<float>(centre.x - 10.0),
-                                                    static_cast<float>(centre.y - 5.0),
+                                                    static_cast<float>(center.x - 10.0),
+                                                    static_cast<float>(center.y - 5.0),
                                                     params.layers.data(), params.layers.size()))
                 << col << "," << row;
         }

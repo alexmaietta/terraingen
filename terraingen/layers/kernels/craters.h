@@ -328,9 +328,9 @@ inline float SimpleProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distanc
 }
 
 /// y (m) of a power law `coefficient` D^`exponent` in kilometres, or m^3 with `volume`.
-inline float KilometreLaw(float coefficient, float exponent, float diameter, bool volume) {
-    const float kilometres = coefficient * pow(diameter / 1000.0f, exponent);
-    return volume ? kilometres * 1e9f : kilometres * 1000.0f;
+inline float KilometerLaw(float coefficient, float exponent, float diameter, bool volume) {
+    const float kilometers = coefficient * pow(diameter / 1000.0f, exponent);
+    return volume ? kilometers * 1e9f : kilometers * 1000.0f;
 }
 
 /// `ComplexCraterProfile::Height` of a complex crater (m).
@@ -348,7 +348,7 @@ inline float ComplexProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distan
         return rim * (pow(x, -p.ejectaExponent) - edge) / (1.0f - edge);
     }
     const float floorShare =
-        min(0.9f, KilometreLaw(p.floorCoefficient, p.floorExponent, diameter, false) / diameter);
+        min(0.9f, KilometerLaw(p.floorCoefficient, p.floorExponent, diameter, false) / diameter);
     float height = rim - depth;
     if (x > floorShare) {
         const float t = (x - floorShare) / (1.0f - floorShare);
@@ -357,14 +357,14 @@ inline float ComplexProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distan
     const float fitted =
         p.peakFitMaxDiameter > 0.0f ? min(diameter, p.peakFitMaxDiameter) : diameter;
     const float peakHeight =
-        KilometreLaw(p.peakHeightCoefficient, p.peakHeightExponent, fitted, false);
+        KilometerLaw(p.peakHeightCoefficient, p.peakHeightExponent, fitted, false);
     float base = 0.0f;
     if (p.peakFromVolume == 1u) {
         const float volume =
-            KilometreLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, true);
+            KilometerLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, true);
         base = sqrt(3.0f * volume / (3.14159265358979f * peakHeight));
     } else {
-        base = 0.5f * KilometreLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, false);
+        base = 0.5f * KilometerLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, false);
     }
     base *= diameter / fitted;
     if (distance < base) {

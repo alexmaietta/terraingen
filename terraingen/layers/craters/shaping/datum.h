@@ -72,7 +72,7 @@ template <typename Visit> void ForEachDatumPoint(double fitRadius, const Visit& 
 /// The datum a crater is cut to, fitted to the ground beneath it; nothing for
 /// `CraterDatum::None` or where the ground has no data.
 ///
-/// `CentreHeight` reads the ground at the centre; `MeanHeight` and `Plane` fit it at the points of
+/// `CenterHeight` reads the ground at the centre; `MeanHeight` and `Plane` fit it at the points of
 /// a 7 x 7 lattice inside the `datumFitRadii` footprint.
 std::optional<Plane> FitCraterDatum(const Crater& crater, const CraterApplyOptions& options,
                                     const HeightSampler& ground);

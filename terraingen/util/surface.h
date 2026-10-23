@@ -113,35 +113,35 @@ class Surface {
         return form_ == Form::Plane ? 1.0 : unitLength_;
     }
 
-    /// The east and north offsets in metres of `point` in the local frame of `centre` (both in
-    /// surface coordinates); exactly `point` - `centre` on a plane.
-    Vec2d Offset(const Vec2d& centre, const Vec2d& point) const {
+    /// The east and north offsets in metres of `point` in the local frame of `center` (both in
+    /// surface coordinates); exactly `point` - `center` on a plane.
+    Vec2d Offset(const Vec2d& center, const Vec2d& point) const {
         switch (form_) {
         case Form::Plane:
-            return point - centre;
+            return point - center;
         case Form::Sphere:
-            return SphereOffset(centre, point);
+            return SphereOffset(center, point);
         case Form::Ellipsoid:
         case Form::Shape:
             break;
         }
-        return TangentOffset(centre, point);
+        return TangentOffset(center, point);
     }
 
-    /// The point, in surface coordinates, at east and north `offset` metres from `centre`: the
+    /// The point, in surface coordinates, at east and north `offset` metres from `center`: the
     /// inverse of `Offset`. On a sphere the longitude is in (-180, 180].
-    Vec2d Locate(const Vec2d& centre, const Vec2d& offset) const {
+    Vec2d Locate(const Vec2d& center, const Vec2d& offset) const {
         switch (form_) {
         case Form::Plane:
-            return centre + offset;
+            return center + offset;
         case Form::Sphere:
-            return SphereLocate(centre, offset);
+            return SphereLocate(center, offset);
         case Form::Ellipsoid:
-            return EllipsoidLocate(centre, offset);
+            return EllipsoidLocate(center, offset);
         case Form::Shape:
             break;
         }
-        return ShapeLocate(centre, offset);
+        return ShapeLocate(center, offset);
     }
 
     /// The distance in metres between two points: straight on a plane, along a great circle on
@@ -163,8 +163,8 @@ class Surface {
     /// A box containing every point within a distance of a region; on a body latitudes
     /// are clamped to [-90, 90] and a box reaching a pole or wider than a full turn takes every
     /// longitude, [-180, 180]. Longitudes are not wrapped.
-    /// @param metres The distance in metres.
-    Bounds2d Expand(const Bounds2d& region, double metres) const;
+    /// @param meters The distance in metres.
+    Bounds2d Expand(const Bounds2d& region, double meters) const;
 
     /// Whether a region holds a point, half-open as `Bounds2d::Contains`; on a sphere a
     /// longitude also counts 360 degrees either side, and a box reaching latitude 90 holds the
@@ -210,11 +210,11 @@ class Surface {
         return form_ == Form::Ellipsoid || form_ == Form::Shape;
     }
 
-    Vec2d SphereOffset(const Vec2d& centre, const Vec2d& point) const;
-    Vec2d SphereLocate(const Vec2d& centre, const Vec2d& offset) const;
-    Vec2d TangentOffset(const Vec2d& centre, const Vec2d& point) const;
-    Vec2d EllipsoidLocate(const Vec2d& centre, const Vec2d& offset) const;
-    Vec2d ShapeLocate(const Vec2d& centre, const Vec2d& offset) const;
+    Vec2d SphereOffset(const Vec2d& center, const Vec2d& point) const;
+    Vec2d SphereLocate(const Vec2d& center, const Vec2d& offset) const;
+    Vec2d TangentOffset(const Vec2d& center, const Vec2d& point) const;
+    Vec2d EllipsoidLocate(const Vec2d& center, const Vec2d& offset) const;
+    Vec2d ShapeLocate(const Vec2d& center, const Vec2d& offset) const;
     /// The outward unit normal at surface coordinates `point`, whose position is `p`, on an
     /// ellipsoid or shape model.
     Vec3d Normal(const Vec2d& point, const Vec3d& p) const;

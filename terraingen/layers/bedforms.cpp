@@ -99,7 +99,7 @@ BedformLayer::BedformLayer(BedformOptions options, Surface surface,
     }
 }
 
-void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& centre,
+void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& center,
                             const Vec2d& offset, const Ground* ground) const {
     const double barren = random.NextDouble();
     const auto ox = static_cast<float>(97.0 * random.NextDouble());
@@ -119,7 +119,7 @@ void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& ce
         return;
     }
     if (exposure_ &&
-        barren < exposure_->Exposure(*ground, centre.x, centre.y, options_.exposureSpacing)) {
+        barren < exposure_->Exposure(*ground, center.x, center.y, options_.exposureSpacing)) {
         return;
     }
     const double cover = Smoothstep(inside / kEdgeShare);
@@ -148,7 +148,7 @@ BedformLayer::FieldSum BedformLayer::SumFields(double x, double y, const Ground*
     }
     if (cells_) {
         const CellIndex home = cells_->CellAt(x, y, cell_);
-        for (const CellIndex& cell : cells_->Neighbours(home, cell_, 2)) {
+        for (const CellIndex& cell : cells_->Neighbors(home, cell_, 2)) {
             RandomStream random(options_.seed, kBedformSphereStream,
                                 static_cast<std::uint32_t>(cell.i),
                                 static_cast<std::uint32_t>(cell.j));
@@ -158,8 +158,8 @@ BedformLayer::FieldSum BedformLayer::SumFields(double x, double y, const Ground*
             }
             const double u = random.NextDouble();
             const double v = random.NextDouble();
-            const Vec2d centre = cells_->SamplePoint(u, v, cell, cell_);
-            AddField(sum, random, centre, surface_.Offset(centre, {x, y}), ground);
+            const Vec2d center = cells_->SamplePoint(u, v, cell, cell_);
+            AddField(sum, random, center, surface_.Offset(center, {x, y}), ground);
         }
         return sum;
     }

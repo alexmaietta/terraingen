@@ -428,13 +428,13 @@ void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
 BoulderShape NormalizedBoulderShape(const SceneMesh& rock) {
     const Vec3d extents = CheckRock(rock.mesh);
     const Box3d box = Bounds(rock.mesh);
-    const Vec3d centre = (box.min + box.max) * 0.5;
+    const Vec3d center = (box.min + box.max) * 0.5;
     const bool turned = extents.y > extents.x;
     const double length = std::fmax(extents.x, extents.y);
     BoulderShape shape;
     shape.mesh.triangles = rock.mesh.triangles;
     for (const Vec3d& p : rock.mesh.positions) {
-        const Vec3d q = (p - centre) * (1.0 / length);
+        const Vec3d q = (p - center) * (1.0 / length);
         shape.mesh.positions.push_back(turned ? Vec3d{q.y, -q.x, q.z} : q);
     }
     shape.intermediate = std::fmin(extents.x, extents.y) / length;

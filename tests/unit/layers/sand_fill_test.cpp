@@ -55,10 +55,10 @@ TEST(SandFillLayer, FillsLowsUpToItsThicknessAndLeavesRisesBare) {
     const SandFillOptions options{8.0, 0.6, 0.5, 0.02};
     const SandFillLayer layer(options);
     const Mound pit(-0.4, 3.0);
-    const double centre = Fill(layer, pit, 0.0, 0.0);
-    EXPECT_GT(centre, 0.1);
-    EXPECT_LT(centre, options.fill * 0.4) << "a share of the depth, approached smoothly";
-    EXPECT_NEAR(layer.ThicknessAt(pit, 0.0, 0.0, 0.1), centre, 1e-6);
+    const double center = Fill(layer, pit, 0.0, 0.0);
+    EXPECT_GT(center, 0.1);
+    EXPECT_LT(center, options.fill * 0.4) << "a share of the depth, approached smoothly";
+    EXPECT_NEAR(layer.ThicknessAt(pit, 0.0, 0.0, 0.1), center, 1e-6);
     EXPECT_EQ(Fill(layer, Mound(0.4, 3.0), 0.0, 0.0), 0.0) << "a hill holds no sand";
     EXPECT_EQ(Fill(layer, Mound(0.0, 3.0), 2.0, 1.0), 0.0) << "nor does level ground";
     EXPECT_LE(Fill(layer, Mound(-50.0, 3.0), 0.0, 0.0), options.maxThickness);

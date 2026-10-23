@@ -152,10 +152,10 @@ def test_planar_cells_sample_points_inside_their_cell():
     assert (px, py) == pytest.approx((15.0, 25.0))
 
 
-def test_cube_sphere_cells_neighbour_themselves():
+def test_cube_sphere_cells_neighbor_themselves():
     sphere = terraingen.CubeSphereCells(1737400.0)
     cell = sphere.cell_at(23.0, 1.0, 50000.0)
-    assert cell in sphere.neighbours(cell, 50000.0, 1) and sphere.cells_per_edge(50000.0) > 10
+    assert cell in sphere.neighbors(cell, 50000.0, 1) and sphere.cells_per_edge(50000.0) > 10
 
 
 def test_cube_sphere_cell_area_is_near_the_cell_size_squared():

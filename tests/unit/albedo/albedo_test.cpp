@@ -124,7 +124,7 @@ TEST(SyntheticAlbedo, DefaultsToAUniformMareReflectance) {
     }
 }
 
-TEST(SyntheticAlbedo, ColourAndNoiseVaryEachChannel) {
+TEST(SyntheticAlbedo, ColorAndNoiseVaryEachChannel) {
     SyntheticAlbedoOptions params;
     params.rgb = true;
     params.hue = 30.0;
@@ -201,8 +201,8 @@ TEST(EvaluateAlbedo, PointsEqualGridCellsAndThreadsDoNotMatter) {
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{0, 0}, std::pair<std::size_t, std::size_t>{5, 17},
           std::pair<std::size_t, std::size_t>{23, 23}}) {
-        const auto centre = one[0].CellCenter(col, row);
-        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {0.5});
+        const auto center = one[0].CellCenter(col, row);
+        const AlbedoSample point = EvaluateAlbedoAt(albedo, center.x, center.y, {0.5});
         for (std::size_t band = 0; band < 3; ++band) {
             EXPECT_EQ(point[band], one[band](col, row));
         }
@@ -299,8 +299,8 @@ TEST(RasterAlbedo, PointsEqualGridCellsAndOutsideIsNoData) {
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{30, 30}, std::pair<std::size_t, std::size_t>{36, 25},
           std::pair<std::size_t, std::size_t>{39, 39}}) {
-        const auto centre = evaluated[0].CellCenter(col, row);
-        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {2.5});
+        const auto center = evaluated[0].CellCenter(col, row);
+        const AlbedoSample point = EvaluateAlbedoAt(albedo, center.x, center.y, {2.5});
         for (std::size_t band = 0; band < 3; ++band) {
             EXPECT_FALSE(std::isnan(point[band]));
             EXPECT_EQ(point[band], evaluated[band](col, row));
@@ -351,7 +351,7 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
                     simplex.ValueAt(-180.0, 3.0, context)[0]);
 }
 
-TEST(RasterAlbedo, AddsDetailInMetresOnASphere) {
+TEST(RasterAlbedo, AddsDetailInMetersOnASphere) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     Raster<float> map = Ramp(32, 0.02);
     const double step = 100.0 / moon.UnitLength();
@@ -371,8 +371,8 @@ TEST(RasterAlbedo, AddsDetailInMetresOnASphere) {
     const RasterGrid grid{40, 40,
                           GeoTransform::NorthUp(40.0 + 3.0 * step, 10.0 - 3.0 * step, step / 8.0)};
     const auto bands = EvaluateAlbedo(composed, grid, {0.0, 2});
-    const auto centre = bands[0].CellCenter(17, 23);
-    EXPECT_EQ(EvaluateAlbedoAt(composed, centre.x, centre.y, {100.0 / 8.0})[0], bands[0](17, 23));
+    const auto center = bands[0].CellCenter(17, 23);
+    EXPECT_EQ(EvaluateAlbedoAt(composed, center.x, center.y, {100.0 / 8.0})[0], bands[0](17, 23));
 }
 
 TEST(RasterAlbedoStatistics, MeasureTheMapsLogBrightness) {

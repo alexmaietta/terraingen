@@ -18,7 +18,7 @@ import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import _common
-from _common import colour_name, line_plot, write_png
+from _common import color_name, line_plot, write_png
 
 
 def curve(distribution, diameters):
@@ -54,7 +54,7 @@ class Example(_common.Example):
         for name, sfd in distributions.items():
             self.table[name] = curve(sfd, [10.0, 100.0, 1000.0]) * 1e6
             print(f"{name:24s}" + "".join(f"{v:12.4g}" for v in self.table[name]))
-        print("legend:", ", ".join(f"{colour_name(i)} {n}" for i, n in enumerate(self.columns)))
+        print("legend:", ", ".join(f"{color_name(i)} {n}" for i, n in enumerate(self.columns)))
 
     def save(self, out):
         rows = ["diameter_m," + ",".join(self.columns)]

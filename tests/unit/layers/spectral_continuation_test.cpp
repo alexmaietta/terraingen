@@ -346,7 +346,7 @@ TEST(SpectralContinuationLayer, VariesWithTheSeedAndSkipsCellsWithoutData) {
     EXPECT_NE(heights(7, 7), 1.0f);
 }
 
-TEST(SpectralContinuationLayer, ScalesBodyCoordinatesToMetres) {
+TEST(SpectralContinuationLayer, ScalesBodyCoordinatesToMeters) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const double unit = moon.UnitLength();
     const SpectralContinuationLayer plane(Options());

@@ -4,9 +4,9 @@
 
 namespace terraingen {
 
-std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& centre, double step) {
-    return {surface.Locate(centre, {step, 0.0}), surface.Locate(centre, {-step, 0.0}),
-            surface.Locate(centre, {0.0, step}), surface.Locate(centre, {0.0, -step})};
+std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& center, double step) {
+    return {surface.Locate(center, {step, 0.0}), surface.Locate(center, {-step, 0.0}),
+            surface.Locate(center, {0.0, step}), surface.Locate(center, {0.0, -step})};
 }
 
 std::optional<Vec2d> GradientFromHeights(Span<const float> heights, double step) {
@@ -21,18 +21,18 @@ std::optional<Vec2d> GradientFromHeights(Span<const float> heights, double step)
 }
 
 std::optional<Vec2d> GroundGradient(const Ground& ground, const Surface& surface,
-                                    const Vec2d& centre, double step, double spacing) {
-    const std::array<Vec2d, 4> points = GradientPoints(surface, centre, step);
+                                    const Vec2d& center, double step, double spacing) {
+    const std::array<Vec2d, 4> points = GradientPoints(surface, center, step);
     std::array<float, 4> heights{};
     ground.HeightsAt(points, heights, spacing);
     return GradientFromHeights(heights, step);
 }
 
-void GroundAround(const Ground& ground, const Surface& surface, const Vec2d& centre,
+void GroundAround(const Ground& ground, const Surface& surface, const Vec2d& center,
                   Span<const Vec2d> offsets, double spacing, double fallback,
                   Span<double> heights) {
     for (std::size_t k = 0; k < offsets.size(); ++k) {
-        const Vec2d at = surface.Locate(centre, offsets[k]);
+        const Vec2d at = surface.Locate(center, offsets[k]);
         const float there = ground.HeightAt(at.x, at.y, spacing);
         heights[k] = std::isnan(there) ? fallback : static_cast<double>(there);
     }

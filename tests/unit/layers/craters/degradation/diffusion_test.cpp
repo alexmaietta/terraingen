@@ -221,8 +221,8 @@ TEST(DiffusionDegradation, CraterLayersAgreeOnGridsAndPoints) {
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{40, 22},
           std::pair<std::size_t, std::size_t>{63, 63}}) {
-        const auto centre = heights.CellCenter(col, row);
-        EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {2.0}), heights(col, row));
+        const auto center = heights.CellCenter(col, row);
+        EXPECT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {2.0}), heights(col, row));
     }
     for (std::size_t n = 0; n < craters.Size(); ++n) {
         EXPECT_LE(layer.Attributes(craters.At(n)).freshness, 1.0);

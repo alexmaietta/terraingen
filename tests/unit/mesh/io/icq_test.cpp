@@ -95,7 +95,7 @@ TEST(IcqToMesh, TriangulatesAClosedOutwardBodyOverTheDistinctVertices) {
     EXPECT_THROW(terraingen::IcqToMesh(IcqModel{}), std::invalid_argument);
 }
 
-TEST(IcqFile, RoundTripsInKilometresAndIgnoresExtraColumns) {
+TEST(IcqFile, RoundTripsInKilometersAndIgnoresExtraColumns) {
     const IcqModel model = Sphere(4, 2500.0);
     const auto path = terraingen::testing::TempPath("icq_round_trip.icq");
     terraingen::WriteIcq(path, model);

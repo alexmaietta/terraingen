@@ -39,7 +39,7 @@ TEST(PerlinNoise2, StaysWithinUnitRange) {
     EXPECT_GT(maxAbs, 0.5f);
 }
 
-TEST(PerlinNoise2, ReachesOneWhereAllGradientsPointAtTheCellCentre) {
+TEST(PerlinNoise2, ReachesOneWhereAllGradientsPointAtTheCellCenter) {
     using terraingen::detail::PerlinCornerHash;
     for (std::uint32_t ix = 0; ix < 1000000u; ++ix) {
         const bool outward = (PerlinCornerHash(ix, 0u, kSeed) & 7u) == 4u &&

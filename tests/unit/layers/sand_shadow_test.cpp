@@ -119,8 +119,8 @@ TEST(SandShadowLayer, GridsAndPointsAgreeAndCoverIsSand) {
     double deepest = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {0.2}), heights(col, row));
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {0.2}), heights(col, row));
             deepest = std::max(deepest, static_cast<double>(heights(col, row)));
         }
     }
@@ -174,8 +174,8 @@ TEST(SandShadowLayer, GivesTheSameCoverOverAGridAsAtItsPoints) {
     double sand = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = cover.CellCenter(col, row);
-            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(centre.x, centre.y, 0.5, nullptr));
+            const auto center = cover.CellCenter(col, row);
+            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(center.x, center.y, 0.5, nullptr));
             sand += cover(col, row);
         }
     }

@@ -60,7 +60,7 @@ std::set<std::uint64_t> Ids(const CraterList& craters) {
 
 }  // namespace
 
-TEST(SphereCraters, GeneratesTheDensityPerSquareMetreOfSphere) {
+TEST(SphereCraters, GeneratesTheDensityPerSquareMeterOfSphere) {
     const CraterModels models = Models();
     const CubeSphereCells cells(kMoon);
     for (const Bounds2d& box : {Bounds2d{10.0, 0.0, 10.6, 0.6}, Bounds2d{40.0, 70.0, 41.8, 70.6}}) {
@@ -105,10 +105,10 @@ TEST(SphereCraters, TilesAgreeAcrossTheAntimeridianAndThePole) {
 
 TEST(SphereCraters, SpacingMeasuresGreatCircleDistances) {
     const Surface moon = Surface::Sphere(kMoon);
-    const double metre = 1.0 / moon.UnitLength();
+    const double meter = 1.0 / moon.UnitLength();
     const Crater a{0.0, 60.0, 100.0, 1.0, 1u};
-    const Crater near{150.0 * metre / std::cos(60.0 * kDegree), 60.0, 100.0, 2.0, 2u};
-    const Crater far{450.0 * metre / std::cos(60.0 * kDegree), 60.0, 100.0, 2.0, 3u};
+    const Crater near{150.0 * meter / std::cos(60.0 * kDegree), 60.0, 100.0, 2.0, 2u};
+    const Crater far{450.0 * meter / std::cos(60.0 * kDegree), 60.0, 100.0, 2.0, 3u};
     const terraingen::CraterSpacing spacing(2.0, 2.0);
     EXPECT_TRUE(terraingen::CratersConflict(a, near, spacing, moon));
     EXPECT_FALSE(terraingen::CratersConflict(a, far, spacing, moon));
@@ -122,7 +122,7 @@ TEST(SphereCraters, SpacingMeasuresGreatCircleDistances) {
     EXPECT_EQ(thinned.Ids()[1], 3u);
 }
 
-TEST(SphereCraterLayer, ShapesCratersInMetresAroundTheirCentres) {
+TEST(SphereCraterLayer, ShapesCratersInMetersAroundTheirCenters) {
     CraterLayerOptions options = SphereOptions();
     options.generateRandom = false;
     options.generation.manual.Append({30.0, 60.0, 2000.0, 1.0, 11u});
@@ -169,9 +169,9 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{50, 50},
           std::pair<std::size_t, std::size_t>{95, 40},
           std::pair<std::size_t, std::size_t>{70, 77}}) {
-        const auto centre = one.CellCenter(col, row);
-        const double lon = centre.x > 180.0 ? centre.x - 360.0 : centre.x;
-        EXPECT_EQ(layer.ApplyAt(0.0f, lon, centre.y, {spacing}), one(col, row))
+        const auto center = one.CellCenter(col, row);
+        const double lon = center.x > 180.0 ? center.x - 360.0 : center.x;
+        EXPECT_EQ(layer.ApplyAt(0.0f, lon, center.y, {spacing}), one(col, row))
             << col << " " << row;
     }
     Raster<float> wrapped = Geographic(-180.05, 45.05, 0.001, 100);
@@ -179,8 +179,8 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
     for (std::size_t i = 0; i < one.Size(); ++i) {
         EXPECT_NEAR(wrapped.Values()[i], one.Values()[i], 1e-2f);
     }
-    const auto centre = wrapped.CellCenter(3, 50);
-    EXPECT_EQ(wrapped(3, 50), layer.ApplyAt(0.0f, centre.x, centre.y, {spacing}));
+    const auto center = wrapped.CellCenter(3, 50);
+    EXPECT_EQ(wrapped(3, 50), layer.ApplyAt(0.0f, center.x, center.y, {spacing}));
 }
 
 TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
@@ -205,9 +205,9 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
     const Raster<float> before = heights;
     const double spacing = terraingen::RasterGrid::FromRaster(heights).Spacing(options.surface);
     layer.Apply(heights, {spacing, 1, &ground});
-    const auto centre = heights.CellCenter(25, 25);
+    const auto center = heights.CellCenter(25, 25);
     EXPECT_EQ(heights(25, 25),
-              layer.ApplyAt(before(25, 25), centre.x, centre.y, {spacing, 1, &ground}));
+              layer.ApplyAt(before(25, 25), center.x, center.y, {spacing, 1, &ground}));
     EXPECT_LT(heights(25, 25), before(25, 25) - 100.0f);
 }
 
@@ -279,8 +279,8 @@ void ExpectGridsTilesAndPointsAgree(const CraterLayer& layer, const BodyCase& bo
     }
     for (const std::size_t at :
          {std::size_t{5}, std::size_t{40}, std::size_t{48}, std::size_t{70}}) {
-        const auto centre = whole.CellCenter(at, 95 - at);
-        EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {spacing, 1, ground}), whole(at, 95 - at))
+        const auto center = whole.CellCenter(at, 95 - at);
+        EXPECT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {spacing, 1, ground}), whole(at, 95 - at))
             << body.name << " at " << at;
     }
     for (const terraingen::BackendStatus& status : terraingen::Backends()) {
@@ -303,7 +303,7 @@ TEST(BodyCraterLayer, GridsTilesPointsAndBackendsAgreeOnEveryBody) {
     const FlatGround ground;
     for (const BodyCase& body : Bodies()) {
         for (const auto datum : {terraingen::CraterDatum::None, terraingen::CraterDatum::Plane,
-                                 terraingen::CraterDatum::CentreHeight}) {
+                                 terraingen::CraterDatum::CenterHeight}) {
             CraterLayerOptions options;
             options.generateRandom = false;
             options.surface = body.surface;
@@ -337,9 +337,9 @@ TEST(BodyCraterLayer, ShapesCratersInTheirLocalFrameOnEveryBody) {
         const CraterLayer plane(Models(), flat);
         for (const double distance : {0.0, 0.2, 0.49, 0.65}) {
             for (const double azimuth : {0.3, 2.0, 4.4}) {
-                const double metres = distance * body.crater.diameter;
-                const terraingen::Vec2d offset{metres * std::sin(azimuth),
-                                               metres * std::cos(azimuth)};
+                const double meters = distance * body.crater.diameter;
+                const terraingen::Vec2d offset{meters * std::sin(azimuth),
+                                               meters * std::cos(azimuth)};
                 const terraingen::Vec2d at =
                     body.surface.Locate({body.crater.x, body.crater.y}, offset);
                 EXPECT_NEAR(layer.ApplyAt(0.0f, at.x, at.y, {5.0}),

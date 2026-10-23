@@ -70,8 +70,8 @@ class SelfAffineSurface {
             GeoTransform::NorthUp(0.0, cellSize * static_cast<double>(size), cellSize));
         for (std::size_t row = 0; row < size; ++row) {
             for (std::size_t col = 0; col < size; ++col) {
-                const auto centre = heights.CellCenter(col, row);
-                heights(col, row) = static_cast<float>(At(centre.x, centre.y));
+                const auto center = heights.CellCenter(col, row);
+                heights(col, row) = static_cast<float>(At(center.x, center.y));
             }
         }
         return heights;

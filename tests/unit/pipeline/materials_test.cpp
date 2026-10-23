@@ -101,8 +101,8 @@ TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
     double sand = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = bands[0].CellCenter(col, row);
-            const auto shares = MaterialsAt(terrain, options, centre.x, centre.y, 2.0);
+            const auto center = bands[0].CellCenter(col, row);
+            const auto shares = MaterialsAt(terrain, options, center.x, center.y, 2.0);
             double sum = 0.0;
             for (std::size_t k = 0; k < terraingen::kMaterialClasses; ++k) {
                 ASSERT_EQ(bands[k](col, row), static_cast<float>(shares[k]));
@@ -135,8 +135,8 @@ TEST(EvaluateMaterials, FindsBouldersOnceAndAgreesWithPoints) {
     double sand = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = bands[0].CellCenter(col, row);
-            const auto shares = MaterialsAt(terrain, MaterialOptions{}, centre.x, centre.y, 0.05);
+            const auto center = bands[0].CellCenter(col, row);
+            const auto shares = MaterialsAt(terrain, MaterialOptions{}, center.x, center.y, 0.05);
             for (std::size_t k = 0; k < terraingen::kMaterialClasses; ++k) {
                 ASSERT_EQ(bands[k](col, row), static_cast<float>(shares[k]));
             }

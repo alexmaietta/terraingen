@@ -130,7 +130,7 @@ TEST(SampleRaster, InterpolatesAtWorldPositions) {
     EXPECT_TRUE(std::isnan(terraingen::SampleRaster(raster, 14.0, 27.0, ResampleMethod::Bilinear)));
 }
 
-TEST(ResampleTo, SamplesEachCellCentreAndMarksCellsBeyondTheRaster) {
+TEST(ResampleTo, SamplesEachCellCenterAndMarksCellsBeyondTheRaster) {
     Raster<float> raster(4, 4, 5.0f);
     raster.SetTransform(GeoTransform::NorthUp(0.0, 8.0, 2.0));
     const terraingen::RasterGrid grid{6, 6, GeoTransform::NorthUp(-2.0, 10.0, 2.0)};
@@ -268,17 +268,17 @@ TEST(FilledNoData, KeepsTheSourceValueOrMarksMissingCellsNan) {
     EXPECT_TRUE(std::isnan(*terraingen::FilledNoData(std::nullopt, true)));
 }
 
-TEST(SampleAtCentres, CallsTheSamplerAtEachCellCentre) {
+TEST(SampleAtCenters, CallsTheSamplerAtEachCellCenter) {
     Raster<float> target(3, 2);
     target.SetTransform(GeoTransform::NorthUp(0.0, 2.0, 1.0));
-    terraingen::SampleAtCentres(target, std::nullopt, [](double x, double y) {
+    terraingen::SampleAtCenters(target, std::nullopt, [](double x, double y) {
         return x > 2.0 ? std::numeric_limits<float>::quiet_NaN() : static_cast<float>(x + 10 * y);
     });
     EXPECT_FLOAT_EQ(target(0, 0), 15.5f);
     EXPECT_FLOAT_EQ(target(1, 1), 6.5f);
     EXPECT_TRUE(std::isnan(target(2, 0)));
     EXPECT_TRUE(target.NoData().has_value());
-    terraingen::SampleAtCentres(target, -1.0f, [](double, double) { return 1.0f; });
+    terraingen::SampleAtCenters(target, -1.0f, [](double, double) { return 1.0f; });
     EXPECT_EQ(target(2, 0), 1.0f);
     EXPECT_EQ(target.NoData(), -1.0f);
 }

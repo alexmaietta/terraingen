@@ -97,15 +97,15 @@ TEST(GeoTiffSource, InterpolatesOntoGridsOffItsLattice) {
         source.Fill(heights);
         for (std::size_t row = 0; row < grid.height; ++row) {
             for (std::size_t col = 0; col < grid.width; ++col) {
-                const auto centre = heights.CellCenter(col, row);
+                const auto center = heights.CellCenter(col, row);
                 const float expected =
-                    terraingen::SampleRaster(dem, centre.x, centre.y, ResampleMethod::Bilinear);
+                    terraingen::SampleRaster(dem, center.x, center.y, ResampleMethod::Bilinear);
                 if (std::isnan(expected)) {
                     EXPECT_TRUE(heights.IsNoData(heights(col, row)));
                 } else {
                     EXPECT_EQ(heights(col, row), expected) << col << "," << row;
                 }
-                EXPECT_EQ(std::isnan(source.HeightAt(centre.x, centre.y, grid.PixelSize())),
+                EXPECT_EQ(std::isnan(source.HeightAt(center.x, center.y, grid.PixelSize())),
                           std::isnan(expected));
             }
         }
@@ -150,7 +150,7 @@ TEST(GeoTiffSource, RejectsUnusableFiles) {
                  std::invalid_argument);
 }
 
-TEST(GeoTiffSource, GivesCellsAtTheirCentresAndInterpolatesElsewhere) {
+TEST(GeoTiffSource, GivesCellsAtTheirCentersAndInterpolatesElsewhere) {
     const auto path = TempPath("geotiff_source_point.tif");
     Raster<float> dem = WriteDem(path);
     const GeoTiffSource source(path);
@@ -326,8 +326,8 @@ TEST(GeoTiffSource, ACropGivesTheSameBitsOverItsGridAndNoDataBeyond) {
                     }
                     for (std::size_t row = 0; row < grid.height; ++row) {
                         for (std::size_t col = 0; col < grid.width; ++col) {
-                            const auto centre = mine.CellCenter(col, row);
-                            const float point = part.HeightAt(centre.x, centre.y, spacing);
+                            const auto center = mine.CellCenter(col, row);
+                            const float point = part.HeightAt(center.x, center.y, spacing);
                             ASSERT_TRUE(SameBits(point, mine(col, row)) ||
                                         (std::isnan(point) && mine.IsNoData(mine(col, row))));
                         }

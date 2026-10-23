@@ -126,8 +126,8 @@ class Generation {
         if (!spacing.Enabled()) {
             return 0.5 * options_.marginRadii * diameter;
         }
-        const double neighbour = std::fmin(spacing.diameterRatio * diameter, dMax_);
-        return SpacingReach(diameter, dMax_, spacing) + 0.5 * options_.marginRadii * neighbour;
+        const double neighbor = std::fmin(spacing.diameterRatio * diameter, dMax_);
+        return SpacingReach(diameter, dMax_, spacing) + 0.5 * options_.marginRadii * neighbor;
     }
 
     /// Whether `crater` is centred in the region or within its margin of it.
@@ -198,11 +198,11 @@ class Generation {
         if (!(crater.diameter >= region.band.low && crater.diameter <= region.band.high)) {
             return InRegion(crater, CandidateMargin(crater.diameter));
         }
-        const Vec2d centre{crater.x, crater.y};
-        if (!surface_.Contains(region.outer, centre)) {
+        const Vec2d center{crater.x, crater.y};
+        if (!surface_.Contains(region.outer, center)) {
             return false;
         }
-        return surface_.Contains(region.inner, centre) ||
+        return surface_.Contains(region.inner, center) ||
                InRegion(crater, CandidateMargin(crater.diameter));
     }
 
@@ -322,13 +322,13 @@ CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band
         const double diameter = density.SampleDiameter(geometry, band.low, band.high);
         const double u = geometry.NextDouble();
         const double v = geometry.NextDouble();
-        const Vec2d centre = cells.SamplePoint(u, v, cell, band.cellSize);
+        const Vec2d center = cells.SamplePoint(u, v, cell, band.cellSize);
         if (sampling.bound > 0.0 &&
-            geometry.NextDouble() * sampling.bound >= cells.Weight(centre)) {
+            geometry.NextDouble() * sampling.bound >= cells.Weight(center)) {
             continue;
         }
         const double ageGyr = ages.SampleAgeGyr(ageStream, diameter);
-        craters.Append({centre.x, centre.y, diameter, ageGyr,
+        craters.Append({center.x, center.y, diameter, ageGyr,
                         CraterId(seed, band, cell, static_cast<std::uint32_t>(index))});
     }
     return craters;

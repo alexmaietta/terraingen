@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-TEST(ViperSpecification, JumpsBetweenItsTwoPowerLawsAtEightyMetres) {
+TEST(ViperSpecification, JumpsBetweenItsTwoPowerLawsAtEightyMeters) {
     const auto viper = terraingen::ViperSpecification();
     EXPECT_EQ(viper.Kind(), terraingen::SfdKind::Density);
     EXPECT_DOUBLE_EQ(viper.Cumulative(10.0), 29174.0 / 1e6 * std::pow(10.0, -1.92));

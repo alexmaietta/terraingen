@@ -160,9 +160,9 @@ TEST(GenerateFromConfig, AddsRoughnessAsTheLibraryDoes) {
     const auto& heights = HeightsOf(plain);
     for (std::size_t row = 0; row < heights.Height(); row += 7) {
         for (std::size_t col = 0; col < heights.Width(); col += 5) {
-            const auto centre = heights.CellCenter(col, row);
+            const auto center = heights.CellCenter(col, row);
             EXPECT_EQ(HeightsOf(rough)(col, row),
-                      layer.ApplyAt(heights(col, row), centre.x, centre.y, {2.0}));
+                      layer.ApplyAt(heights(col, row), center.x, center.y, {2.0}));
         }
     }
 }
@@ -186,8 +186,8 @@ TEST(GenerateFromConfig, AppliesTransformsAndRegionsAsTheLibraryDoes) {
         HeightsOf(generated),
         terraingen::Evaluate(terrain, terraingen::RasterGrid::FromRaster(HeightsOf(generated))));
     const auto& heights = HeightsOf(generated);
-    const auto centre = heights.Transform().WorldToPixel(10.0, -5.0);
-    EXPECT_LE(heights(static_cast<std::size_t>(centre.x), static_cast<std::size_t>(centre.y)),
+    const auto center = heights.Transform().WorldToPixel(10.0, -5.0);
+    EXPECT_LE(heights(static_cast<std::size_t>(center.x), static_cast<std::size_t>(center.y)),
               0.0f);
 }
 
@@ -320,10 +320,10 @@ TEST(GenerateFromConfig, LoadsResamplesAndDetailsARasterSource) {
     const terraingen::NoiseLayer layer = detail.Effective();
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
-            const auto centre = dem.CellCenter(col, row);
+            const auto center = dem.CellCenter(col, row);
             const float noise =
-                terraingen::EvaluateNoiseLayers(static_cast<float>(centre.x - 1000.0),
-                                                static_cast<float>(centre.y - 2000.0), &layer, 1);
+                terraingen::EvaluateNoiseLayers(static_cast<float>(center.x - 1000.0),
+                                                static_cast<float>(center.y - 2000.0), &layer, 1);
             ASSERT_EQ(HeightsOf(detailed)(col, row), dem(col, row) + noise) << col << " " << row;
         }
     }
@@ -396,9 +396,9 @@ TEST(GenerateFromConfig, EvaluatesTheAlbedoAsTheLibraryDoes) {
     }
     const terraingen::Albedo plain{albedo.source, {}};
     const auto background = terraingen::EvaluateAlbedo(plain, grid, {grid.PixelSize()});
-    const auto centre = AlbedoOf(generated)[0].Transform().WorldToPixel(10.0, -8.0);
-    const auto col = static_cast<std::size_t>(centre.x);
-    const auto row = static_cast<std::size_t>(centre.y);
+    const auto center = AlbedoOf(generated)[0].Transform().WorldToPixel(10.0, -8.0);
+    const auto col = static_cast<std::size_t>(center.x);
+    const auto row = static_cast<std::size_t>(center.y);
     EXPECT_GT(AlbedoOf(generated)[0](col, row), background[0](col, row));
     EXPECT_TRUE(GenerateFromConfig(Small()).grids.at(0).albedo.empty());
 }
@@ -428,8 +428,8 @@ TEST(GenerateFromConfig, BuildsSphereTerrainsWithGeographicKeys) {
     const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     EXPECT_EQ(terrain.surface, moon);
     const auto heights = terraingen::Evaluate(terrain, grid);
-    const auto centre = heights.CellCenter(20, 30);
-    EXPECT_EQ(terraingen::HeightAt(terrain, centre.x, centre.y, 4.0), heights(20, 30));
+    const auto center = heights.CellCenter(20, 30);
+    EXPECT_EQ(terraingen::HeightAt(terrain, center.x, center.y, 4.0), heights(20, 30));
 }
 
 TEST(GenerateFromConfig, WearsCratersByDiffusionAsTheLibraryDoes) {

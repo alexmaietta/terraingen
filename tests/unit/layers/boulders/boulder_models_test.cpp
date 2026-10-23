@@ -95,7 +95,7 @@ Placed(const Boulder& boulder, const terraingen::BoulderShape& shape, bool settl
 
 /// Whether the centre of mass stands over the points touching the ground: for every horizontal
 /// direction some contact point reaches at least as far as the centre.
-bool RestsStably(const terraingen::Vec3d& centre, const std::vector<terraingen::Vec3d>& points) {
+bool RestsStably(const terraingen::Vec3d& center, const std::vector<terraingen::Vec3d>& points) {
     double low = 1e300;
     for (const auto& p : points) {
         low = std::fmin(low, p.z);
@@ -110,7 +110,7 @@ bool RestsStably(const terraingen::Vec3d& centre, const std::vector<terraingen::
                 reach = std::fmax(reach, p.x * ux + p.y * uy);
             }
         }
-        if (reach < centre.x * ux + centre.y * uy - 1e-6) {
+        if (reach < center.x * ux + center.y * uy - 1e-6) {
             return false;
         }
     }

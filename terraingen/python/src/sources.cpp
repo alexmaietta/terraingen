@@ -50,8 +50,8 @@ class PySource : public Source {
         }
         for (std::size_t row = 0; row < heights.Height(); ++row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const Vec2d centre = heights.CellCenter(col, row);
-                heights(col, row) = HeightAt(centre.x, centre.y, spacing);
+                const Vec2d center = heights.CellCenter(col, row);
+                heights(col, row) = HeightAt(center.x, center.y, spacing);
             }
         }
     }
@@ -278,11 +278,11 @@ void BindUpsampling(nb::module_& m) {
 void BindSourceTypes(nb::module_& m) {
     nb::class_<FlatSource, Source>(m, "FlatSource",
                                    "A level datum at `elevation` over a `width` x `height` grid of "
-                                   "`pixel_size` metres centred on `centre`.")
+                                   "`pixel_size` metres centred on `center`.")
         .def(nb::init<std::size_t, std::size_t, double, float, Vec2d, const Surface&>(), "width"_a,
-             "height"_a, "pixel_size"_a, "elevation"_a = 0.0f, "centre"_a = Vec2d{},
+             "height"_a, "pixel_size"_a, "elevation"_a = 0.0f, "center"_a = Vec2d{},
              "surface"_a = Surface{},
-             "On a body `centre` is (longitude, latitude) in degrees and `pixel_size` stays in "
+             "On a body `center` is (longitude, latitude) in degrees and `pixel_size` stays in "
              "metres, converted to degrees along a meridian.");
     nb::class_<SyntheticSource, Source>(
         m, "SyntheticSource",

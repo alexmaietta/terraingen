@@ -510,7 +510,7 @@ TEST(ConfigSchema, ListsProductionSurfacesMinimumsAndTheirModels) {
               morphometry["schema"]);
 }
 
-TEST(ConfigSchema, GivesASphereOnlyARadiusInMetres) {
+TEST(ConfigSchema, GivesASphereOnlyARadiusInMeters) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
     const SchemaJson surfaces = Resolve(schema, FieldOf(schema["root"], "body")["schema"]);
     const SchemaJson sphere = AlternativeOf(surfaces, "sphere");

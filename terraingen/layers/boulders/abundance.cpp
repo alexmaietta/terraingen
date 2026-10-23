@@ -379,10 +379,10 @@ std::vector<UnresolvedCover> BoulderLayer::UnresolvedCoverOver(const RasterGrid&
     const std::vector<UnresolvedNode> nodes = UnresolvedNodes(spacing);
     ParallelFor(grid.height, threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const Vec2d centre = grid.transform.PixelToWorld(static_cast<double>(col) + 0.5,
+            const Vec2d center = grid.transform.PixelToWorld(static_cast<double>(col) + 0.5,
                                                              static_cast<double>(row) + 0.5);
             cover[row * grid.width + col] =
-                UnresolvedCoverWith(Abundance(centre.x, centre.y, ground, ejecta), nodes, spacing);
+                UnresolvedCoverWith(Abundance(center.x, center.y, ground, ejecta), nodes, spacing);
         }
     });
     return cover;

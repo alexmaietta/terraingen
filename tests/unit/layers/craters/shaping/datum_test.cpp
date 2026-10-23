@@ -61,7 +61,7 @@ TEST(FitCraterDatum, FitsTheGroundOnALatticeAroundTheCrater) {
     EXPECT_NEAR(plane->c, -0.25, 1e-6);
     options.datum = CraterDatum::MeanHeight;
     EXPECT_NEAR(terraingen::FitCraterDatum(crater, options, slope)->a, 70.0, 1e-4);
-    options.datum = CraterDatum::CentreHeight;
+    options.datum = CraterDatum::CenterHeight;
     EXPECT_FLOAT_EQ(static_cast<float>(terraingen::FitCraterDatum(crater, options, slope)->a),
                     70.0f);
     const HeightSampler none = [](double, double) { return std::nanf(""); };

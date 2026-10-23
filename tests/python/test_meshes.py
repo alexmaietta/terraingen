@@ -90,7 +90,7 @@ def test_meshes_round_trip_with_their_material(tmp_path, cube, name):
     read = terraingen.read_mesh(tmp_path / name)
     np.testing.assert_allclose(read.mesh.arrays[0], cube.arrays[0], atol=1e-6)
     assert read.material.name == "basalt"
-    assert read.material.colour == pytest.approx((0.2, 0.25, 0.3))
+    assert read.material.color == pytest.approx((0.2, 0.25, 0.3))
     assert terraingen.is_mesh_path(tmp_path / name) and not terraingen.is_mesh_path("rock.ply")
 
 

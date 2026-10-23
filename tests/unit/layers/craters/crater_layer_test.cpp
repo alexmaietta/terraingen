@@ -250,7 +250,7 @@ CraterLayer ExplicitLayer(bool generateRandom, double depth, double rim) {
 }
 
 /// A `size` x `size` flat grid of `cell` m cells centred on the origin.
-Raster<float> Centred(std::size_t size, double cell) {
+Raster<float> Centered(std::size_t size, double cell) {
     Raster<float> raster(size, size, 0.0f);
     const double half = 0.5 * static_cast<double>(size) * cell;
     raster.SetTransform(GeoTransform::NorthUp(-half, half, cell));
@@ -261,7 +261,7 @@ Raster<float> Centred(std::size_t size, double cell) {
 
 TEST(CraterLayer, ShapesAManualCraterToItsExplicitDepthAndRim) {
     const CraterLayer layer = ExplicitLayer(false, 6.0, 1.5);
-    Raster<float> heights = Centred(200, 0.5);
+    Raster<float> heights = Centered(200, 0.5);
     layer.Apply(heights, {0.5});
     const auto [low, high] = std::minmax_element(heights.Values().begin(), heights.Values().end());
     EXPECT_NEAR(static_cast<double>(*high), 1.5, 0.05);
@@ -294,8 +294,8 @@ TEST(CraterLayer, LeavesOtherCratersAsTheyWereBesideAnExplicitOne) {
     std::size_t compared = 0;
     for (std::size_t row = 0; row < a.Height(); ++row) {
         for (std::size_t col = 0; col < a.Width(); ++col) {
-            const auto centre = a.CellCenter(col, row);
-            if (std::hypot(centre.x, centre.y) > reach) {
+            const auto center = a.CellCenter(col, row);
+            if (std::hypot(center.x, center.y) > reach) {
                 ASSERT_EQ(a(col, row), b(col, row)) << col << " " << row;
                 ++compared;
             }

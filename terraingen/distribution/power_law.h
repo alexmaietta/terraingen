@@ -73,6 +73,6 @@ class PowerLawSfd final : public SizeFrequencyDistribution {
 
 /// Converts a power-law coefficient published for D in km and N per km^2 to D in metres and
 /// N per m^2.
-double PowerLawCoefficientFromKilometres(double coefficient, double exponent);
+double PowerLawCoefficientFromKilometers(double coefficient, double exponent);
 
 }  // namespace terraingen

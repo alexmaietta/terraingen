@@ -10,17 +10,17 @@
 
 namespace terraingen {
 
-double KilometrePowerLaw::At(double diameter, bool volume) const {
-    const double kilometres = coefficient * std::pow(diameter / 1000.0, exponent);
-    return volume ? kilometres * 1e9 : kilometres * 1000.0;
+double KilometerPowerLaw::At(double diameter, bool volume) const {
+    const double kilometers = coefficient * std::pow(diameter / 1000.0, exponent);
+    return volume ? kilometers * 1e9 : kilometers * 1000.0;
 }
 
 void ValidateComplexCraterShape(const ComplexCraterShape& shape) {
     if (!IsPositive(shape.transitionDiameter)) {
         throw std::invalid_argument("The complex crater transition diameter must be positive");
     }
-    const KilometrePowerLaw peakWidth = shape.peakDiameter ? *shape.peakDiameter : shape.peakVolume;
-    for (const KilometrePowerLaw& law : {shape.floorDiameter, shape.peakHeight, peakWidth}) {
+    const KilometerPowerLaw peakWidth = shape.peakDiameter ? *shape.peakDiameter : shape.peakVolume;
+    for (const KilometerPowerLaw& law : {shape.floorDiameter, shape.peakHeight, peakWidth}) {
         if (!(IsPositive(law.coefficient) && std::isfinite(law.exponent))) {
             throw std::invalid_argument("Complex crater power laws need a positive coefficient");
         }

@@ -12,7 +12,7 @@ import terraingen
 def ramp_raster():
     """An 8 x 8 ramp 0..63 on a centred 2 m grid."""
     return terraingen.Raster.from_array(
-        np.arange(64, dtype=np.float32).reshape(8, 8), terraingen.RasterGrid.centred(8, 8, 2.0).transform
+        np.arange(64, dtype=np.float32).reshape(8, 8), terraingen.RasterGrid.centered(8, 8, 2.0).transform
     )
 
 
@@ -24,7 +24,7 @@ def test_constructs_filled_with_shape_height_by_width():
     assert repr(raster) == "Raster(width=4, height=3)"
 
 
-def test_render_bounds_span_cell_centres_and_valid_heights():
+def test_render_bounds_span_cell_centers_and_valid_heights():
     from terraingen import render
 
     raster = terraingen.Raster(4, 3, 2.0)
@@ -126,7 +126,7 @@ def test_geotransform_gdal_coefficients_round_trip():
     assert terraingen.GeoTransform.from_gdal(coefficients).to_gdal() == coefficients
 
 
-def test_north_up_geotransform_maps_corners_and_centres():
+def test_north_up_geotransform_maps_corners_and_centers():
     t = terraingen.GeoTransform.north_up(1000.0, 2000.0, 5.0)
     assert t.pixel_to_world(0.0, 0.0) == (1000.0, 2000.0)
     assert t.pixel_to_world(0.5, 0.5) == (1002.5, 1997.5)
@@ -172,18 +172,18 @@ def test_compute_stats_of_an_empty_raster_has_no_mean():
 
 
 def test_grid_area_and_pixel_size():
-    grid = terraingen.RasterGrid.centred(10, 20, 2.0)
+    grid = terraingen.RasterGrid.centered(10, 20, 2.0)
     assert grid.area == pytest.approx(800.0) and grid.pixel_size == 2.0
 
 
 def test_grid_on_a_plane_has_its_flat_area_and_spacing():
-    grid = terraingen.RasterGrid.centred(10, 20, 2.0)
+    grid = terraingen.RasterGrid.centered(10, 20, 2.0)
     assert grid.surface_area(terraingen.Surface()) == pytest.approx(800.0)
     assert grid.spacing(terraingen.Surface()) == 2.0
 
 
 def test_grid_makes_filled_rasters():
-    assert terraingen.RasterGrid.centred(10, 20, 2.0).make_raster(3.0).values.mean() == 3.0
+    assert terraingen.RasterGrid.centered(10, 20, 2.0).make_raster(3.0).values.mean() == 3.0
 
 
 def test_geographic_sphere_keys_are_geographic():
@@ -219,7 +219,7 @@ def test_geotiff_heights_round_trip(tmp_path, lunar_models, crater_layer):
 def test_geotiff_bands_round_trip_and_out_of_range_bands_raise(tmp_path):
     rgb = terraingen.evaluate_albedo(
         terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue_deg=30.0, saturation=0.2)),
-        terraingen.RasterGrid.centred(129, 129, 8.0),
+        terraingen.RasterGrid.centered(129, 129, 8.0),
     )
     terraingen.write_geotiff(tmp_path / "rgb.tif", rgb)
     np.testing.assert_array_equal(terraingen.read_geotiff(tmp_path / "rgb.tif", band=2).values, rgb[2].values)
@@ -242,7 +242,7 @@ def test_resample_to_a_finer_pixel_size():
 
 def test_resample_onto_another_grid():
     onto = terraingen.resample_to(
-        ramp_raster(), terraingen.RasterGrid.centred(4, 4, 2.0), terraingen.ResampleMethod.NEAREST
+        ramp_raster(), terraingen.RasterGrid.centered(4, 4, 2.0), terraingen.ResampleMethod.NEAREST
     )
     assert onto.shape == (4, 4)
 

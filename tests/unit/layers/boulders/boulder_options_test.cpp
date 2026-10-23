@@ -94,7 +94,7 @@ TEST(BoulderBackground, BuildsTheModelsOnceAndMatchesTheirFunctions) {
         << "the checked overload validates";
 }
 
-TEST(LatticeMean, AveragesOverTheLatticeCentres) {
+TEST(LatticeMean, AveragesOverTheLatticeCenters) {
     EXPECT_DOUBLE_EQ(terraingen::LatticeMean(4.0, [](double x, double y) { return x + y; }), 4.0);
     EXPECT_EQ(terraingen::LatticeMean(1.0, [](double, double) { return 2.0; }), 2.0);
 }

@@ -32,7 +32,7 @@ RigidTransform RestRotation(BoulderRest rest) {
 }
 
 /// The centre of mass of a closed mesh of uniform density, from its signed tetrahedra.
-Vec3d MassCentre(const std::vector<Vec3d>& points,
+Vec3d MassCenter(const std::vector<Vec3d>& points,
                  const std::vector<std::array<std::uint32_t, 3>>& triangles) {
     Vec3d sum{};
     double volume = 0.0;
@@ -152,10 +152,10 @@ struct PivotStep {
     }
 };
 
-/// The next tip of `points` resting on the plane through their lowest point toward `centre`,
+/// The next tip of `points` resting on the plane through their lowest point toward `center`,
 /// about the edge or corner of the contact nearest it, until another point touches; none once
 /// the centre stands over the contact, within `tolerance`.
-std::optional<PivotStep> NextPivot(const std::vector<Vec3d>& points, const Vec3d& centre,
+std::optional<PivotStep> NextPivot(const std::vector<Vec3d>& points, const Vec3d& center,
                                    double tolerance) {
     const double low = ZRange(points, [](const Vec3d& p) { return p; }).first;
     std::vector<Vec2d> contact;
@@ -164,7 +164,7 @@ std::optional<PivotStep> NextPivot(const std::vector<Vec3d>& points, const Vec3d
             contact.push_back({p.x, p.y});
         }
     }
-    const Vec2d c{centre.x, centre.y};
+    const Vec2d c{center.x, center.y};
     const auto [pivot, inside] = NearestOnHull(Hull2d(contact), c);
     const double distance = std::hypot(c.x - pivot.x, c.y - pivot.y);
     if (inside || distance <= tolerance) {
@@ -195,7 +195,7 @@ std::optional<PivotStep> NextPivot(const std::vector<Vec3d>& points, const Vec3d
 /// The rotation that tips `points` over on a level plane until they rest: each step pivots about
 /// the edge or corner of the ground contact nearest the centre of mass, toward it, until another
 /// point touches, and stops once the centre of mass stands over the contact.
-std::array<double, 9> SettleRotation(std::vector<Vec3d> points, Vec3d centre) {
+std::array<double, 9> SettleRotation(std::vector<Vec3d> points, Vec3d center) {
     std::array<double, 9> total{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
     double extent = 0.0;
     for (const Vec3d& p : points) {
@@ -204,14 +204,14 @@ std::array<double, 9> SettleRotation(std::vector<Vec3d> points, Vec3d centre) {
     }
     const double tolerance = 1e-7 * extent;
     for (int n = 0; n < 64; ++n) {
-        const std::optional<PivotStep> step = NextPivot(points, centre, tolerance);
+        const std::optional<PivotStep> step = NextPivot(points, center, tolerance);
         if (!step) {
             break;
         }
         for (Vec3d& p : points) {
             p = step->Turn(p);
         }
-        centre = step->Turn(centre);
+        center = step->Turn(center);
         total = Multiply(step->Rotation(), total);
     }
     return total;
@@ -265,7 +265,7 @@ BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& s
     if (settle && !shape.mesh.triangles.empty()) {
         const std::vector<Vec3d> points = PlaceMesh(shape.mesh, placement).positions;
         RigidTransform rest;
-        rest.rotation = SettleRotation(points, MassCentre(points, shape.mesh.triangles));
+        rest.rotation = SettleRotation(points, MassCenter(points, shape.mesh.triangles));
         placement.pose = rest.After(placement.pose);
     }
     if (boulder.tilt != 0.0) {

@@ -60,13 +60,13 @@ void CheckRegion(const Bounds2d& region) {
 
 /// The angle in radians from the centre of a cell to its farthest corner, and that centre.
 double CornerAngle(const detail::CubeFace& face, const std::array<double, 4>& bounds,
-                   Vec3d& centre) {
+                   Vec3d& center) {
     const auto [a1, a2, b1, b2] = bounds;
-    centre = Normalized(detail::CubeFacePoint(face, 0.5 * (a1 + a2), 0.5 * (b1 + b2)));
+    center = Normalized(detail::CubeFacePoint(face, 0.5 * (a1 + a2), 0.5 * (b1 + b2)));
     double nearest = 1.0;
     for (const double a : {a1, a2}) {
         for (const double b : {b1, b2}) {
-            nearest = std::min(nearest, Dot(centre, Normalized(detail::CubeFacePoint(face, a, b))));
+            nearest = std::min(nearest, Dot(center, Normalized(detail::CubeFacePoint(face, a, b))));
         }
     }
     return std::acos(std::clamp(nearest, -1.0, 1.0));
@@ -133,8 +133,8 @@ CellIndex CubeSphereCells::CellAt(double lonDeg, double latDeg, double cellSize)
             index(detail::kCubeFaces[face].v)};
 }
 
-std::vector<CellIndex> CubeSphereCells::Neighbours(const CellIndex& cell, double cellSize,
-                                                   int rings) const {
+std::vector<CellIndex> CubeSphereCells::Neighbors(const CellIndex& cell, double cellSize,
+                                                  int rings) const {
     const std::int32_t n = CellsPerEdge(cellSize);
     const auto face = static_cast<std::int32_t>(FaceIndex(cell, n));
     const std::int32_t col = cell.i % n;
@@ -182,7 +182,7 @@ std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
     const std::vector<CellIndex> seeds = Seeds(box, cellSize);
     std::vector<CellIndex> cells;
     for (const CellIndex& seed : seeds) {
-        const std::vector<CellIndex> around = Neighbours(seed, cellSize, 1);
+        const std::vector<CellIndex> around = Neighbors(seed, cellSize, 1);
         cells.insert(cells.end(), around.begin(), around.end());
     }
     SortUnique(cells);
@@ -217,16 +217,16 @@ std::vector<CellIndex> CubeSphereCells::KeepReaching(const Bounds2d& box,
     // it, since cell edges are great circles; one expansion by the largest such angle tests them.
     const std::int32_t n = CellsPerEdge(cellSize);
     std::vector<CellIndex> ring;
-    std::vector<Vec2d> centres;
+    std::vector<Vec2d> centers;
     double widest = 0.0;
     for (const CellIndex& cell : cells) {
         if (std::binary_search(seeds.begin(), seeds.end(), cell)) {
             continue;
         }
-        Vec3d centre;
-        widest = std::max(widest, CornerAngle(FaceAt(cell, n), Bounds(cell, n), centre));
+        Vec3d center;
+        widest = std::max(widest, CornerAngle(FaceAt(cell, n), Bounds(cell, n), center));
         ring.push_back(cell);
-        centres.push_back(sphere_.Coordinates(centre));
+        centers.push_back(sphere_.Coordinates(center));
     }
     if (ring.empty()) {
         return cells;
@@ -234,7 +234,7 @@ std::vector<CellIndex> CubeSphereCells::KeepReaching(const Bounds2d& box,
     const Bounds2d reach = sphere_.Expand(box, Radius() * (widest * (1.0 + 1e-9) + 1e-12));
     std::vector<CellIndex> kept = seeds;
     for (std::size_t k = 0; k < ring.size(); ++k) {
-        if (sphere_.Contains(reach, centres[k])) {
+        if (sphere_.Contains(reach, centers[k])) {
             kept.push_back(ring[k]);
         }
     }

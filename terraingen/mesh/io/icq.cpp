@@ -42,7 +42,7 @@ bool IsIcqPath(const std::filesystem::path& path) {
     return HasExtension(path, {".icq"});
 }
 
-IcqModel ReadIcq(const std::filesystem::path& path, double metresPerUnit) {
+IcqModel ReadIcq(const std::filesystem::path& path, double metersPerUnit) {
     std::istringstream file(ReadFile(path));
     std::string line;
     long long q = 0;
@@ -68,20 +68,20 @@ IcqModel ReadIcq(const std::filesystem::path& path, double metresPerUnit) {
             throw std::runtime_error("ICQ file " + path.string() + " line " +
                                      std::to_string(number) + " is not three finite numbers");
         }
-        model.vertices.push_back({v.x * metresPerUnit, v.y * metresPerUnit, v.z * metresPerUnit});
+        model.vertices.push_back({v.x * metersPerUnit, v.y * metersPerUnit, v.z * metersPerUnit});
     }
     return model;
 }
 
-void WriteIcq(const std::filesystem::path& path, const IcqModel& model, double metresPerUnit) {
+void WriteIcq(const std::filesystem::path& path, const IcqModel& model, double metersPerUnit) {
     CheckModel(model);
     std::string text;
     std::array<char, 64> buffer{};
     std::snprintf(buffer.data(), buffer.size(), "%12zu\n", model.q);
     text += buffer.data();
     for (const Vec3d& v : model.vertices) {
-        std::snprintf(buffer.data(), buffer.size(), "%18.9f%18.9f%18.9f\n", v.x / metresPerUnit,
-                      v.y / metresPerUnit, v.z / metresPerUnit);
+        std::snprintf(buffer.data(), buffer.size(), "%18.9f%18.9f%18.9f\n", v.x / metersPerUnit,
+                      v.y / metersPerUnit, v.z / metersPerUnit);
         text += buffer.data();
     }
     WriteFile(path, text);

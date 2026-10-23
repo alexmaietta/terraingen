@@ -163,7 +163,7 @@ def test_complex_profile_switches_at_the_transition_diameter():
 
 def test_complex_crater_shape_takes_custom_laws():
     custom_shape = terraingen.ComplexCraterShape(
-        transition_diameter=5000.0, peak_height=terraingen.KilometrePowerLaw(0.1, 1.0)
+        transition_diameter=5000.0, peak_height=terraingen.KilometerPowerLaw(0.1, 1.0)
     )
     assert custom_shape.peak_height.coefficient == 0.1
 

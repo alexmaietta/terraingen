@@ -38,7 +38,7 @@ class Example(_common.Example):
         row, col = np.unravel_index(np.argmax(self.field.values), self.field.values.shape)
         x, y = self.field.cell_center(int(col), int(row))
         print(f"tallest dune {self.field.values.max():.1f} m at ({x:.0f}, {y:.0f})")
-        upwind = terraingen.FlatSource(513, 513, CLOSE_PIXEL, centre=(x - 40.0, y)).grid()
+        upwind = terraingen.FlatSource(513, 513, CLOSE_PIXEL, center=(x - 40.0, y)).grid()
         self.close = terraingen.evaluate(terrain, grid=upwind)
         self.show("dune field", self.field)
 

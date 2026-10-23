@@ -28,8 +28,8 @@ class InclinedPlane final : public terraingen::Source {
     void Fill(terraingen::Raster<float>& heights, double spacing) const override {
         for (std::size_t row = 0; row < heights.Height(); ++row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const terraingen::Vec2d centre = heights.CellCenter(col, row);
-                heights(col, row) = HeightAt(centre.x, centre.y, spacing);
+                const terraingen::Vec2d center = heights.CellCenter(col, row);
+                heights(col, row) = HeightAt(center.x, center.y, spacing);
             }
         }
     }
@@ -47,8 +47,8 @@ class Rille final : public terraingen::FormulaLayer {
   protected:
     float HeightAt(float height, double x, double y, double /*spacing*/,
                    const terraingen::Ground* /*ground*/) const override {
-        const double centre = 60.0 * std::sin(y / 70.0);
-        const double offset = (x - centre) / 20.0;
+        const double center = 60.0 * std::sin(y / 70.0);
+        const double offset = (x - center) / 20.0;
         return height - static_cast<float>(12.0 * std::exp(-offset * offset));
     }
 };

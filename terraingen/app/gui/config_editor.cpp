@@ -63,7 +63,7 @@ const char* TypeGlyph(std::string_view root, std::string_view type) {
 }
 
 /// Text for a setting the configuration leaves at its default.
-const ImVec4 kDefaultColour(0.55f, 0.57f, 0.62f, 1.0f);
+const ImVec4 kDefaultColor(0.55f, 0.57f, 0.62f, 1.0f);
 
 /// Shows `text` (and `extra` below it, dimmed) as the last item's tooltip, wrapped to a readable
 /// width; nothing for empty text.
@@ -77,7 +77,7 @@ void Tooltip(std::string_view text, const std::string& extra = {}) {
             ImGui::TextUnformatted(text.data(), text.data() + text.size());
         }
         if (!extra.empty()) {
-            ImGui::TextColored(kDefaultColour, "%s", extra.c_str());
+            ImGui::TextColored(kDefaultColor, "%s", extra.c_str());
         }
         ImGui::PopTextWrapPos();
         ImGui::EndTooltip();
@@ -556,7 +556,7 @@ bool ConfigEditor::DrawInspector(Json& config) {
         ImGui::SetNextItemWidth(-1.0f);
         changed |= DrawTypeMenu("##type", value, *node);
         if (const Json* alternative = FindAlternative(*node, ChoiceType(value, *node))) {
-            ImGui::PushStyleColor(ImGuiCol_Text, kDefaultColour);
+            ImGui::PushStyleColor(ImGuiCol_Text, kDefaultColor);
             ImGui::TextWrapped("%s", alternative->value("description", "").c_str());
             ImGui::PopStyleColor();
         }
@@ -566,7 +566,7 @@ bool ConfigEditor::DrawInspector(Json& config) {
         ImGui::EndTable();
     } else {
         ImGui::TextUnformatted(TypeTitle(root, root).c_str());
-        ImGui::PushStyleColor(ImGuiCol_Text, kDefaultColour);
+        ImGui::PushStyleColor(ImGuiCol_Text, kDefaultColor);
         ImGui::TextWrapped("%s", field->value("description", "").c_str());
         ImGui::PopStyleColor();
         ImGui::Separator();
@@ -708,7 +708,7 @@ bool ConfigEditor::DrawValue(const std::string& label, Json& value, const Json& 
     if (given) {
         ImGui::TextUnformatted(label.c_str());
     } else {
-        ImGui::TextColored(kDefaultColour, "%s", label.c_str());
+        ImGui::TextColored(kDefaultColor, "%s", label.c_str());
     }
     Tooltip(description, DefaultText(fallback != nullptr ? *fallback : Json(), unit));
     ImGui::TableSetColumnIndex(1);

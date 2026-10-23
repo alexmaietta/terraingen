@@ -65,7 +65,7 @@ def test_common_re_exports_the_split_modules():
     assert _common.write_png is _images.write_png and _common.ExampleBrowser is _browser.ExampleBrowser
 
 
-def test_show_centres_arrays_on_the_origin():
+def test_show_centers_arrays_on_the_origin():
     example = Ramp(None, None)
     example.generate()
     name, heights, pixel_size, corner, albedo = example.views[0]

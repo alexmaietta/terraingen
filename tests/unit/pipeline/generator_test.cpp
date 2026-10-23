@@ -121,8 +121,8 @@ TEST(Evaluate, RoundsCraterRimsAndStillAnswersPointQueries) {
         std::equal(rounded.Values().begin(), rounded.Values().end(), sharp.Values().begin()));
     for (std::size_t row = 1; row < rounded.Height(); row += 7) {
         for (std::size_t col = 2; col < rounded.Width(); col += 7) {
-            const auto centre = rounded.CellCenter(col, row);
-            ASSERT_EQ(terraingen::HeightAt(smoothed, centre.x, centre.y, 2.0), rounded(col, row))
+            const auto center = rounded.CellCenter(col, row);
+            ASSERT_EQ(terraingen::HeightAt(smoothed, center.x, center.y, 2.0), rounded(col, row))
                 << col << ", " << row;
         }
     }
@@ -141,14 +141,14 @@ TEST(Evaluate, RejectsIncompleteTerrainsAndBadSpacings) {
     EXPECT_THROW(Evaluate(terrain, grid), std::invalid_argument);
 }
 
-TEST(HeightAt, EqualsTheGridCellCentredThereToTheBit) {
+TEST(HeightAt, EqualsTheGridCellCenteredThereToTheBit) {
     const TerrainGenerator terrain = Rolling();
     for (const double spacing : {2.0, 5.0}) {
         const auto grid = Evaluate(terrain, terrain.source->Grid(), spacing);
         for (std::size_t row = 0; row < grid.Height(); row += 3) {
             for (std::size_t col = 0; col < grid.Width(); col += 3) {
-                const auto centre = grid.CellCenter(col, row);
-                ASSERT_EQ(terraingen::HeightAt(terrain, centre.x, centre.y, spacing),
+                const auto center = grid.CellCenter(col, row);
+                ASSERT_EQ(terraingen::HeightAt(terrain, center.x, center.y, spacing),
                           grid(col, row))
                     << "spacing " << spacing << " cell " << col << "," << row;
             }
@@ -156,24 +156,24 @@ TEST(HeightAt, EqualsTheGridCellCentredThereToTheBit) {
     }
 }
 
-TEST(HeightsAt, EqualsEveryGridCellCentredThereInAnyBatchAndThreadCount) {
+TEST(HeightsAt, EqualsEveryGridCellCenteredThereInAnyBatchAndThreadCount) {
     const TerrainGenerator terrain = Rolling();
     const auto grid = Evaluate(terrain, terrain.source->Grid(), 2.0);
-    std::vector<terraingen::Vec2d> centres;
+    std::vector<terraingen::Vec2d> centers;
     for (std::size_t row = 0; row < grid.Height(); ++row) {
         for (std::size_t col = 0; col < grid.Width(); ++col) {
-            centres.push_back(grid.CellCenter(col, row));
+            centers.push_back(grid.CellCenter(col, row));
         }
     }
     for (const unsigned threads : {1u, 3u}) {
-        const std::vector<float> heights = terraingen::HeightsAt(terrain, centres, 2.0, threads);
+        const std::vector<float> heights = terraingen::HeightsAt(terrain, centers, 2.0, threads);
         ASSERT_EQ(heights.size(), grid.Size());
         for (std::size_t i = 0; i < heights.size(); ++i) {
             ASSERT_EQ(heights[i], grid.Values()[i]) << "point " << i;
         }
     }
     EXPECT_TRUE(terraingen::HeightsAt(terrain, {}, 2.0).empty());
-    EXPECT_THROW(terraingen::HeightsAt(terrain, centres, 0.0), std::invalid_argument);
+    EXPECT_THROW(terraingen::HeightsAt(terrain, centers, 0.0), std::invalid_argument);
 }
 
 TEST(HeightAt, ChangesContinuouslyWithTheSpacing) {
@@ -355,13 +355,13 @@ TEST(Layer, DefaultsRunApplyAndPlaceNoFeatures) {
 
 TEST(HeightAt, EqualsGridsForCratersCutToADatum) {
     for (const auto datum :
-         {terraingen::CraterDatum::Plane, terraingen::CraterDatum::CentreHeight}) {
+         {terraingen::CraterDatum::Plane, terraingen::CraterDatum::CenterHeight}) {
         const TerrainGenerator terrain = Datum(datum);
         const auto grid = Evaluate(terrain);
         for (std::size_t row = 1; row < grid.Height(); row += 5) {
             for (std::size_t col = 2; col < grid.Width(); col += 5) {
-                const auto centre = grid.CellCenter(col, row);
-                ASSERT_EQ(terraingen::HeightAt(terrain, centre.x, centre.y, 2.0), grid(col, row))
+                const auto center = grid.CellCenter(col, row);
+                ASSERT_EQ(terraingen::HeightAt(terrain, center.x, center.y, 2.0), grid(col, row))
                     << col << "," << row;
             }
         }

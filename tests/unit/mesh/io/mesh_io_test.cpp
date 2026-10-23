@@ -103,7 +103,7 @@ TEST(WriteMesh, RoundTripsThroughObjAndGltfInZUp) {
         ExpectSameMesh(read.mesh, tilted.positions, 1);
         EXPECT_EQ(read.material.name, "basalt") << name;
         for (std::size_t c = 0; c < 3; ++c) {
-            EXPECT_NEAR(read.material.colour[c], basalt.colour[c], 1e-6) << name;
+            EXPECT_NEAR(read.material.color[c], basalt.color[c], 1e-6) << name;
         }
     }
     EXPECT_TRUE(std::filesystem::exists(TempPath("tilted.mtl")));

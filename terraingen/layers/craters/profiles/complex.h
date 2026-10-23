@@ -11,7 +11,7 @@ namespace terraingen {
 
 /// y = `coefficient` * D^`exponent` with D and y in kilometres (km^3 for volumes), as
 /// morphometric relations are published.
-struct KilometrePowerLaw {
+struct KilometerPowerLaw {
     double coefficient = 0.0;  ///< y of a 1 km crater, in km (or km^3).
     double exponent = 0.0;     ///< Power of the diameter.
 
@@ -19,10 +19,10 @@ struct KilometrePowerLaw {
     double At(double diameter, bool volume = false) const;
 
     /// Memberwise equality.
-    bool operator==(const KilometrePowerLaw& other) const {
+    bool operator==(const KilometerPowerLaw& other) const {
         return coefficient == other.coefficient && exponent == other.exponent;
     }
-    bool operator!=(const KilometrePowerLaw& other) const {
+    bool operator!=(const KilometerPowerLaw& other) const {
         return !(*this == other);
     }
 };
@@ -31,12 +31,12 @@ struct KilometrePowerLaw {
 /// at; depth and rim height come from the crater's state.
 struct ComplexCraterShape {
     double transitionDiameter = 0.0;  ///< Smallest complex crater (m).
-    KilometrePowerLaw floorDiameter;  ///< Diameter of the flat floor.
-    KilometrePowerLaw peakHeight;     ///< Height of the central peak above the floor.
-    KilometrePowerLaw peakVolume;  ///< Volume of the central peak (km^3), with no `peakDiameter`.
+    KilometerPowerLaw floorDiameter;  ///< Diameter of the flat floor.
+    KilometerPowerLaw peakHeight;     ///< Height of the central peak above the floor.
+    KilometerPowerLaw peakVolume;  ///< Volume of the central peak (km^3), with no `peakDiameter`.
     /// Diameter of the central peak's base, when known; otherwise the base follows from the peak's
     /// height and `peakVolume`.
-    std::optional<KilometrePowerLaw> peakDiameter;
+    std::optional<KilometerPowerLaw> peakDiameter;
     /// Largest crater the peak relations were fitted to (m); larger craters keep this size's peak
     /// height and a base in proportion to the diameter. 0 applies the laws to every size.
     double peakFitMaxDiameter = 0.0;

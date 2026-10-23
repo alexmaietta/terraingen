@@ -438,10 +438,10 @@ class ReliefIndex {
                 }
                 continue;
             }
-            const BucketIndex centre = surface_.Bucket(point, size);
-            for (long long z = centre.k - depth; z <= centre.k + depth; ++z) {
-                for (long long j = centre.j - span; j <= centre.j + span; ++j) {
-                    for (long long i = centre.i - span; i <= centre.i + span; ++i) {
+            const BucketIndex center = surface_.Bucket(point, size);
+            for (long long z = center.k - depth; z <= center.k + depth; ++z) {
+                for (long long j = center.j - span; j <= center.j + span; ++j) {
+                    for (long long i = center.i - span; i <= center.i + span; ++i) {
                         const auto found = buckets_.find({bands_[b], i, j, z});
                         if (found == buckets_.end()) {
                             continue;
@@ -463,10 +463,10 @@ class ReliefIndex {
         float relief = 0.0f;
         const long long depth = surface_.IsBody() ? 1 : 0;
         for (const int band : bands_) {
-            const BucketIndex centre = surface_.Bucket(point, BucketSize(band));
-            for (long long j = centre.j - 1; j <= centre.j + 1; ++j) {
-                for (long long i = centre.i - 1; i <= centre.i + 1; ++i) {
-                    for (long long z = centre.k - depth; z <= centre.k + depth; ++z) {
+            const BucketIndex center = surface_.Bucket(point, BucketSize(band));
+            for (long long j = center.j - 1; j <= center.j + 1; ++j) {
+                for (long long i = center.i - 1; i <= center.i + 1; ++i) {
+                    for (long long z = center.k - depth; z <= center.k + depth; ++z) {
                         const auto found = buckets_.find({band, i, j, z});
                         if (found != buckets_.end()) {
                             AddBucket(found->second, point, k, relief);
@@ -761,7 +761,7 @@ void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& g
 
 /// Whether datums are fitted with `DatumKernelIndex`: on a plane, for fitted datums.
 bool FitsOnKernelIndex(const CraterApplyOptions& options) {
-    return !options.surface.IsBody() && options.datum != CraterDatum::CentreHeight;
+    return !options.surface.IsBody() && options.datum != CraterDatum::CenterHeight;
 }
 
 /// Fits the datums of craters `fitted` of `prepared` to `ground`, or to the raster as given when
@@ -787,7 +787,7 @@ void FitDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::siz
         }
     }
     const ReliefIndex index(prepared, shape, profile, options);
-    if (options.surface.IsBody() && options.datum != CraterDatum::CentreHeight &&
+    if (options.surface.IsBody() && options.datum != CraterDatum::CenterHeight &&
         FitBodyDatumsOnGpu(prepared, fitted, ground,
                            sampling.ground ? sampling.groundBatch : HeightsSampler{}, index, shape,
                            options, sampling)) {
@@ -935,11 +935,11 @@ struct GpuFrames {
 };
 
 /// The frames of craters `onRaster` of `prepared` and the positions of the cells of `raster` on
-/// body `surface`, measured from the position of surface point `centre`, on `threads` threads.
+/// body `surface`, measured from the position of surface point `center`, on `threads` threads.
 GpuFrames BodyFrames(const Raster<float>& raster, const std::vector<PreparedCrater>& prepared,
                      const std::vector<std::size_t>& onRaster, const Surface& surface,
-                     const Vec2d& centre, unsigned threads) {
-    const Vec3d origin = surface.Position(centre);
+                     const Vec2d& center, unsigned threads) {
+    const Vec3d origin = surface.Position(center);
     GpuFrames body;
     body.frames.resize(onRaster.size());
     for (std::size_t n = 0; n < onRaster.size(); ++n) {

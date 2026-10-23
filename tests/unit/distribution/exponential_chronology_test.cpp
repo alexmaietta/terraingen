@@ -11,7 +11,7 @@
 
 using terraingen::detail::ExponentialChronology;
 
-TEST(ExponentialChronology, CountsAndRatesFollowTheFormInSquareMetres) {
+TEST(ExponentialChronology, CountsAndRatesFollowTheFormInSquareMeters) {
     const ExponentialChronology chronology{1e-3, 2.0, 0.5, 3.0, "Age out of range"};
     EXPECT_DOUBLE_EQ(chronology.Count(0.0), 0.0);
     EXPECT_DOUBLE_EQ(chronology.Count(1.0), (1e-3 * std::expm1(2.0) + 0.5) / 1e6);

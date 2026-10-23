@@ -588,7 +588,7 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
               (std::vector<double>{270.0, 147.0, 104.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(ellipsoid)), ellipsoid);
     const TerrainGenConfig shape = ParseConfig(R"({"schema_version": 1, "body": {
-        "type": "shape_model", "path": "itokawa.icq", "q": 64, "metres_per_unit": 1000}})");
+        "type": "shape_model", "path": "itokawa.icq", "q": 64, "meters_per_unit": 1000}})");
     EXPECT_EQ(std::get<terraingen::ShapeModelSurfaceSpec>(shape.body),
               (terraingen::ShapeModelSurfaceSpec{"itokawa.icq", 64, 1000.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(shape)), shape);

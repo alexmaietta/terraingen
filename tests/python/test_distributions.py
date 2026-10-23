@@ -23,8 +23,8 @@ def test_power_law_rejects_diameters_outside_its_range_unless_extrapolating(powe
     assert power.cumulative(1000.0) == pytest.approx(0.05e-6)
 
 
-def test_power_law_coefficient_from_kilometres():
-    assert terraingen.power_law_coefficient_from_kilometres(1.0, 2.0) == pytest.approx(1e-6 * 1e6)
+def test_power_law_coefficient_from_kilometers():
+    assert terraingen.power_law_coefficient_from_kilometers(1.0, 2.0) == pytest.approx(1e-6 * 1e6)
 
 
 def test_power_law_samples_diameters_in_the_requested_range(power):
@@ -208,7 +208,7 @@ def test_mars_production_function_is_positive():
     assert terraingen.ivanov_mars_production_function().cumulative(100.0) > 0
 
 
-def test_mars_production_surface_follows_the_mars_chronology_at_one_kilometre():
+def test_mars_production_surface_follows_the_mars_chronology_at_one_kilometer():
     surface = terraingen.ProductionSurface(
         terraingen.ivanov_mars_production_function(), 3.0, terraingen.ivanov_mars_chronology
     )

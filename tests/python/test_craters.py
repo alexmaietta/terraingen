@@ -22,7 +22,7 @@ def generate_lunar_craters(lunar_craters, region=REGION):
 
 def carved_raster(craters, options=None):
     """A 200 x 200 raster at 2 m with `craters` applied with `options`."""
-    raster = terraingen.RasterGrid.centred(200, 200, 2.0).make_raster()
+    raster = terraingen.RasterGrid.centered(200, 200, 2.0).make_raster()
     terraingen.apply_craters(
         raster,
         craters,
@@ -120,7 +120,7 @@ def test_crater_list_reads_depth_and_rim_height_columns():
 
 
 def test_apply_craters_carves_an_explicit_depth():
-    raster = terraingen.RasterGrid.centred(200, 200, 0.5).make_raster()
+    raster = terraingen.RasterGrid.centered(200, 200, 0.5).make_raster()
     craters = terraingen.CraterList(
         [terraingen.Crater(0.0, 0.0, 40.0, age_gyr=1.5, depth=6.0, rim_height=1.5)]
     )

@@ -74,13 +74,13 @@ class ConflictSearch {
   private:
     /// Whether a crater in the cells of `grid` around `crater` outranks it.
     bool OutrankedIn(const BandGrid& grid, std::size_t n, const Crater& crater) const {
-        const CellKey centre = BucketKey(crater, grid.cellSize, surface_);
+        const CellKey center = BucketKey(crater, grid.cellSize, surface_);
         const long long depth = surface_.IsBody() ? 1 : 0;
         for (long long di = -1; di <= 1; ++di) {
             for (long long dj = -1; dj <= 1; ++dj) {
                 for (long long dk = -depth; dk <= depth; ++dk) {
                     const auto cell =
-                        grid.cells.find({centre[0] + di, centre[1] + dj, centre[2] + dk});
+                        grid.cells.find({center[0] + di, center[1] + dj, center[2] + dk});
                     if (cell != grid.cells.end() && OutrankedBy(cell->second, n, crater)) {
                         return true;
                     }
@@ -97,9 +97,9 @@ class ConflictSearch {
             if (other == n) {
                 continue;
             }
-            const Crater neighbour = craters_.At(other);
-            if (CratersConflict(crater, neighbour, spacing_, surface_) &&
-                CraterTakesPrecedence(neighbour, crater, spacing_.outrankFrom)) {
+            const Crater neighbor = craters_.At(other);
+            if (CratersConflict(crater, neighbor, spacing_, surface_) &&
+                CraterTakesPrecedence(neighbor, crater, spacing_.outrankFrom)) {
                 return true;
             }
         }

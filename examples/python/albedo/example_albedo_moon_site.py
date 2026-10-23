@@ -58,7 +58,7 @@ class Example(_common.Example):
         craters = terraingen.CraterLayer(
             models, terraingen.CraterLayerOptions(seed=3, generation=generation, surface=moon)
         )
-        site = terraingen.FlatSource(257, 257, PIXEL, centre=SITE, surface=moon)
+        site = terraingen.FlatSource(257, 257, PIXEL, center=SITE, surface=moon)
         terrain = terraingen.TerrainGenerator(site, [noise, craters], surface=moon)
 
         mottling = terraingen.NoiseLayer(

@@ -90,9 +90,9 @@ TEST(ExposureField, FillsGridsWithThePointValues) {
     field.Fill(raster, ridge, 5.0, 3);
     for (std::size_t row = 0; row < raster.Height(); ++row) {
         for (std::size_t col = 0; col < raster.Width(); ++col) {
-            const auto centre = raster.CellCenter(col, row);
+            const auto center = raster.CellCenter(col, row);
             ASSERT_EQ(raster(col, row),
-                      static_cast<float>(field.Exposure(ridge, centre.x, centre.y, 5.0)));
+                      static_cast<float>(field.Exposure(ridge, center.x, center.y, 5.0)));
         }
     }
 }

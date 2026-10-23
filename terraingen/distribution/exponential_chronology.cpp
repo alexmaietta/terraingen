@@ -8,7 +8,7 @@ namespace terraingen::detail {
 namespace {
 
 /// Square metres per square kilometre.
-constexpr double kSquareKilometre = 1e6;
+constexpr double kSquareKilometer = 1e6;
 
 void CheckAge(const ExponentialChronology& chronology, double ageGyr) {
     if (!(ageGyr >= 0.0 && ageGyr <= chronology.maxAgeGyr)) {
@@ -20,12 +20,12 @@ void CheckAge(const ExponentialChronology& chronology, double ageGyr) {
 
 double ExponentialChronology::Count(double ageGyr) const {
     CheckAge(*this, ageGyr);
-    return (burst * std::expm1(decay * ageGyr) + linear * ageGyr) / kSquareKilometre;
+    return (burst * std::expm1(decay * ageGyr) + linear * ageGyr) / kSquareKilometer;
 }
 
 double ExponentialChronology::Rate(double ageGyr) const {
     CheckAge(*this, ageGyr);
-    return (burst * decay * std::exp(decay * ageGyr) + linear) / kSquareKilometre;
+    return (burst * decay * std::exp(decay * ageGyr) + linear) / kSquareKilometer;
 }
 
 }  // namespace terraingen::detail

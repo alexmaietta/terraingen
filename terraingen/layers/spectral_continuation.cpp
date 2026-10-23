@@ -83,7 +83,7 @@ struct Window {
     std::size_t height = 0;
 };
 
-Window CentredWindow(const Raster<float>& heights) {
+Window CenteredWindow(const Raster<float>& heights) {
     Window window;
     window.width = FloorPowerOfTwo(std::max<std::size_t>(heights.Width(), 1));
     window.height = FloorPowerOfTwo(std::max<std::size_t>(heights.Height(), 1));
@@ -116,7 +116,7 @@ double Determinant(const Matrix3& m) {
 }
 
 /// The offset of cell `i` of `n` from their centre, in cells.
-double Centred(std::size_t i, std::size_t n) {
+double Centered(std::size_t i, std::size_t n) {
     return static_cast<double>(i) - 0.5 * static_cast<double>(n - 1);
 }
 
@@ -129,8 +129,8 @@ Plane FitPlane(const Raster<float>& heights, const Window& window) {
             if (heights.IsMissing(value)) {
                 continue;
             }
-            const std::array<double, 3> basis{1.0, Centred(col, window.width),
-                                              Centred(row, window.height)};
+            const std::array<double, 3> basis{1.0, Centered(col, window.width),
+                                              Centered(row, window.height)};
             for (std::size_t i = 0; i < 3; ++i) {
                 for (std::size_t j = 0; j < 3; ++j) {
                     normal[i][j] += basis[i] * basis[j];
@@ -175,7 +175,8 @@ std::pair<std::vector<std::complex<double>>, double> TaperedWindow(const Raster<
             if (heights.IsMissing(value)) {
                 continue;
             }
-            const double trend = plane.At(Centred(col, window.width), Centred(row, window.height));
+            const double trend =
+                plane.At(Centered(col, window.width), Centered(row, window.height));
             values[row * window.width + col] = (static_cast<double>(value) - trend) *
                                                Hann(col, window.width) * Hann(row, window.height);
         }
@@ -234,7 +235,7 @@ std::vector<SpectrumBin> RadialPowerSpectrum(const Raster<float>& heights) {
     if (transform.IsRotated()) {
         throw std::invalid_argument("A power spectrum needs an unrotated raster");
     }
-    const Window window = CentredWindow(heights);
+    const Window window = CenteredWindow(heights);
     auto [values, energy] = TaperedWindow(heights, window);
     Fft2(values, window.width, window.height, -1.0);
     const double dx = std::fabs(transform.pixelWidth);
@@ -289,7 +290,7 @@ PowerLawSpectrum EstimatePowerLawSpectrum(const Raster<float>& heights,
                                           const SpectrumFitBand& band) {
     ValidateSpectrumFitBand(band);
     const double pixel = CellSize(heights);
-    const Window window = CentredWindow(heights);
+    const Window window = CenteredWindow(heights);
     const double maxPixels =
         band.maxPixels > 0.0 ? band.maxPixels
                              : 0.25 * static_cast<double>(std::min(window.width, window.height));

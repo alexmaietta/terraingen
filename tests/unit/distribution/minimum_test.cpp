@@ -13,7 +13,7 @@ using terraingen::DiameterRange;
 using terraingen::LogPolynomialSfd;
 using terraingen::MinimumSfd;
 using terraingen::PiecewisePowerLawSfd;
-using terraingen::PowerLawCoefficientFromKilometres;
+using terraingen::PowerLawCoefficientFromKilometers;
 using terraingen::PowerLawSegment;
 using terraingen::PowerLawSfd;
 using terraingen::RandomStream;

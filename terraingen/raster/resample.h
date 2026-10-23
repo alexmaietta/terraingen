@@ -152,13 +152,13 @@ std::optional<float> FilledNoData(std::optional<float> noData, bool missing);
 /// @tparam Sample Callable as `float(double x, double y)` with world coordinates; returns NaN
 /// where missing.
 template <typename Sample>
-void SampleAtCentres(Raster<float>& target, std::optional<float> noData, Sample&& sample) {
+void SampleAtCenters(Raster<float>& target, std::optional<float> noData, Sample&& sample) {
     const float fill = noData.value_or(std::numeric_limits<float>::quiet_NaN());
     bool missing = false;
     for (std::size_t row = 0; row < target.Height(); ++row) {
         for (std::size_t col = 0; col < target.Width(); ++col) {
-            const Vec2d centre = target.CellCenter(col, row);
-            const float value = sample(centre.x, centre.y);
+            const Vec2d center = target.CellCenter(col, row);
+            const float value = sample(center.x, center.y);
             missing = missing || std::isnan(value);
             target(col, row) = std::isnan(value) ? fill : value;
         }

@@ -38,12 +38,12 @@ TEST(Surface, PlaneOffsetsAreDifferencesExactly) {
     EXPECT_EQ(plane, Surface::Plane());
     EXPECT_EQ(plane.UnitLength(), 1.0);
     EXPECT_EQ(plane.Radius(), 0.0);
-    const Vec2d centre{1000.25, -3.5};
+    const Vec2d center{1000.25, -3.5};
     const Vec2d point{1003.0, 7.125};
-    const Vec2d offset = plane.Offset(centre, point);
-    EXPECT_EQ(offset.x, point.x - centre.x);
-    EXPECT_EQ(offset.y, point.y - centre.y);
-    const Vec2d back = plane.Locate(centre, offset);
+    const Vec2d offset = plane.Offset(center, point);
+    EXPECT_EQ(offset.x, point.x - center.x);
+    EXPECT_EQ(offset.y, point.y - center.y);
+    const Vec2d back = plane.Locate(center, offset);
     EXPECT_EQ(back.x, point.x);
     EXPECT_EQ(back.y, point.y);
     EXPECT_EQ(plane.Distance({0.0, 0.0}, {3.0, 4.0}), 5.0);
@@ -77,15 +77,15 @@ TEST(Surface, SphereOffsetsAreAzimuthalEquidistant) {
 
     RandomStream random(3, 4);
     for (int i = 0; i < 200; ++i) {
-        const Vec2d centre{360.0 * random.NextDouble() - 180.0, 178.0 * random.NextDouble() - 89.0};
+        const Vec2d center{360.0 * random.NextDouble() - 180.0, 178.0 * random.NextDouble() - 89.0};
         const Vec2d offset{5e5 * (random.NextDouble() - 0.5), 5e5 * (random.NextDouble() - 0.5)};
-        const Vec2d point = moon.Locate(centre, offset);
+        const Vec2d point = moon.Locate(center, offset);
         EXPECT_GT(point.x, -180.0);
         EXPECT_LE(point.x, 180.0);
-        const Vec2d again = moon.Offset(centre, point);
+        const Vec2d again = moon.Offset(center, point);
         EXPECT_NEAR(again.x, offset.x, 1e-6);
         EXPECT_NEAR(again.y, offset.y, 1e-6);
-        EXPECT_NEAR(moon.Distance(centre, point), std::hypot(offset.x, offset.y), 1e-6);
+        EXPECT_NEAR(moon.Distance(center, point), std::hypot(offset.x, offset.y), 1e-6);
     }
     EXPECT_EQ(moon.Locate({12.0, -3.0}, {0.0, 0.0}).x, 12.0);
     EXPECT_NEAR(moon.Offset({179.9, 0.0}, {-179.9, 0.0}).x, 0.2 * moon.UnitLength(), 1e-6);
@@ -109,15 +109,15 @@ TEST(Surface, SpherePositionsAndPoints) {
 TEST(Surface, SphereExpandCoversEveryPointWithinTheDistance) {
     const Surface moon = Surface::Sphere(kMoon);
     const Bounds2d region{10.0, 40.0, 12.0, 60.0};
-    const double metres = 50000.0;
-    const Bounds2d grown = moon.Expand(region, metres);
+    const double meters = 50000.0;
+    const Bounds2d grown = moon.Expand(region, meters);
     RandomStream random(5, 6);
     for (int i = 0; i < 2000; ++i) {
         const Vec2d inside{region.minX + 2.0 * random.NextDouble(),
                            region.minY + 20.0 * random.NextDouble()};
         const double azimuth = 2.0 * terraingen::kPi * random.NextDouble();
         const Vec2d reached =
-            moon.Locate(inside, {metres * std::sin(azimuth), metres * std::cos(azimuth)});
+            moon.Locate(inside, {meters * std::sin(azimuth), meters * std::cos(azimuth)});
         EXPECT_GE(reached.x, grown.minX - 1e-9);
         EXPECT_LE(reached.x, grown.maxX + 1e-9);
         EXPECT_GE(reached.y, grown.minY - 1e-9);
@@ -261,49 +261,49 @@ TEST(CubeSphereCells, CoveringKeepsCellsAtTheRegionEdgesAndDropsFarRingCells) {
         }
     }
 
-    const CellIndex centre = cells.CellAt(10.0, 10.0, size);
+    const CellIndex center = cells.CellAt(10.0, 10.0, size);
     const std::int32_t n = cells.CellsPerEdge(size);
     const double step = terraingen::kPi / 2.0 / n;
     const Vec3d direction = CubeSphereCells::Direction(
-        centre.i / n, -terraingen::kPi / 4.0 + (centre.i % n + 0.5) * step,
-        -terraingen::kPi / 4.0 + (centre.j + 0.5) * step);
+        center.i / n, -terraingen::kPi / 4.0 + (center.i % n + 0.5) * step,
+        -terraingen::kPi / 4.0 + (center.j + 0.5) * step);
     const Vec2d point = Surface::Sphere(kMoon).Coordinates(direction);
     const std::vector<CellIndex> one =
         cells.CellsCovering(terraingen::PointBounds(point.x, point.y), size);
     ASSERT_EQ(one.size(), 1u);
-    EXPECT_EQ(one[0], centre);
+    EXPECT_EQ(one[0], center);
 }
 
-TEST(CubeSphereCells, TwoRingsOfNeighboursHoldEveryPointWithinACellAcrossFacesAndCorners) {
+TEST(CubeSphereCells, TwoRingsOfNeighborsHoldEveryPointWithinACellAcrossFacesAndCorners) {
     const CubeSphereCells cells(kMoon);
     const Surface moon = Surface::Sphere(kMoon);
     const double size = 50000.0;
     RandomStream random(11, 12);
     const double corner = std::atan(1.0 / std::sqrt(2.0)) * 180.0 / terraingen::kPi;
-    std::vector<Vec2d> centres{{45.0, corner}, {-135.0, -corner}, {45.0, 0.0}, {0.0, 45.0}};
+    std::vector<Vec2d> centers{{45.0, corner}, {-135.0, -corner}, {45.0, 0.0}, {0.0, 45.0}};
     for (int k = 0; k < 300; ++k) {
-        centres.push_back(
+        centers.push_back(
             {360.0 * random.NextDouble() - 180.0, 180.0 * random.NextDouble() - 90.0});
     }
-    for (const Vec2d& centre : centres) {
-        const CellIndex home = cells.CellAt(centre.x, centre.y, size);
-        const std::vector<CellIndex> around = cells.Neighbours(home, size, 2);
+    for (const Vec2d& center : centers) {
+        const CellIndex home = cells.CellAt(center.x, center.y, size);
+        const std::vector<CellIndex> around = cells.Neighbors(home, size, 2);
         EXPECT_TRUE(std::find(around.begin(), around.end(), home) != around.end());
         for (int k = 0; k < 60; ++k) {
             const double distance = 0.91 * size * std::sqrt(random.NextDouble());
             const double azimuth = 2.0 * terraingen::kPi * random.NextDouble();
             const Vec2d there =
-                moon.Locate(centre, {distance * std::sin(azimuth), distance * std::cos(azimuth)});
+                moon.Locate(center, {distance * std::sin(azimuth), distance * std::cos(azimuth)});
             const CellIndex cell = cells.CellAt(there.x, there.y, size);
             EXPECT_TRUE(std::find(around.begin(), around.end(), cell) != around.end())
-                << centre.x << " " << centre.y;
+                << center.x << " " << center.y;
         }
     }
-    const std::vector<CellIndex> inner = cells.Neighbours({5, 5}, size, 1);
+    const std::vector<CellIndex> inner = cells.Neighbors({5, 5}, size, 1);
     EXPECT_EQ(inner.size(), 9u);
 }
 
-TEST(Surface, FramesAreOrthonormalWithUpAwayFromTheCentre) {
+TEST(Surface, FramesAreOrthonormalWithUpAwayFromTheCenter) {
     const Surface moon = Surface::Sphere(kMoon);
     const terraingen::LocalFrame frame = moon.Frame({40.0, -30.0});
     const Vec3d& e = frame.east;
@@ -396,41 +396,41 @@ TEST(Surface, EllipsoidFramesAreRightHandedWithUpAlongTheNormal) {
 
 TEST(Surface, EllipsoidOffsetsAndLocateInvertEachOther) {
     for (int i = 0; i < 400; ++i) {
-        const Vec2d centre{static_cast<double>(i * 53 % 360) - 180.0,
+        const Vec2d center{static_cast<double>(i * 53 % 360) - 180.0,
                            static_cast<double>(i * 17 % 160) - 80.0};
         const Vec2d offset{static_cast<double>(i % 21 - 10) * 3.0,
                            static_cast<double>(i % 17 - 8) * 3.0};
-        const Vec2d point = kEllipsoid.Locate(centre, offset);
-        const Vec2d back = kEllipsoid.Offset(centre, point);
-        EXPECT_NEAR(back.x, offset.x, 1e-8) << centre.x << ", " << centre.y;
-        EXPECT_NEAR(back.y, offset.y, 1e-8) << centre.x << ", " << centre.y;
+        const Vec2d point = kEllipsoid.Locate(center, offset);
+        const Vec2d back = kEllipsoid.Offset(center, point);
+        EXPECT_NEAR(back.x, offset.x, 1e-8) << center.x << ", " << center.y;
+        EXPECT_NEAR(back.y, offset.y, 1e-8) << center.x << ", " << center.y;
     }
     EXPECT_EQ(kEllipsoid.Locate({12.0, 34.0}, {0.0, 0.0}), (Vec2d{12.0, 34.0}));
 }
 
 TEST(Surface, ShortEllipsoidOffsetsMatchTheDistance) {
     for (int i = 0; i < 200; ++i) {
-        const Vec2d centre{static_cast<double>(i * 29 % 360) - 180.0,
+        const Vec2d center{static_cast<double>(i * 29 % 360) - 180.0,
                            static_cast<double>(i * 11 % 160) - 80.0};
-        const Vec2d point = kEllipsoid.Locate(centre, {0.6, -0.8});
-        const double distance = kEllipsoid.Distance(centre, point);
+        const Vec2d point = kEllipsoid.Locate(center, {0.6, -0.8});
+        const double distance = kEllipsoid.Distance(center, point);
         EXPECT_NEAR(distance, 1.0, 1e-3);
-        EXPECT_DOUBLE_EQ(distance, kEllipsoid.Distance(point, centre));
+        EXPECT_DOUBLE_EQ(distance, kEllipsoid.Distance(point, center));
     }
 }
 
 TEST(Surface, EllipsoidExpandCoversEveryPointWithinTheDistance) {
     const Bounds2d region{20.0, -10.0, 30.0, 5.0};
-    for (const double metres : {5.0, 40.0, 90.0}) {
-        const Bounds2d expanded = kEllipsoid.Expand(region, metres);
+    for (const double meters : {5.0, 40.0, 90.0}) {
+        const Bounds2d expanded = kEllipsoid.Expand(region, meters);
         for (int i = 0; i < 20000; ++i) {
             const Vec2d point{static_cast<double>(i % 200) * 1.8 - 180.0,
                               static_cast<double>(i / 200) * 1.8 - 90.0};
             const Vec2d nearest{std::clamp(point.x, region.minX, region.maxX),
                                 std::clamp(point.y, region.minY, region.maxY)};
-            if (kEllipsoid.Distance(nearest, point) <= metres) {
+            if (kEllipsoid.Distance(nearest, point) <= meters) {
                 EXPECT_TRUE(kEllipsoid.Contains(expanded, point))
-                    << metres << ": " << point.x << ", " << point.y;
+                    << meters << ": " << point.x << ", " << point.y;
             }
         }
     }
@@ -599,30 +599,30 @@ TEST(Surface, ShapeModelFramesAreRightHandedWithUpAlongTheNormal) {
 
 TEST(Surface, ShapeModelOffsetsAndLocateInvertEachOther) {
     for (int i = 0; i < 400; ++i) {
-        const Vec2d centre{static_cast<double>(i * 53 % 360) - 180.0,
+        const Vec2d center{static_cast<double>(i * 53 % 360) - 180.0,
                            static_cast<double>(i * 17 % 160) - 80.0};
         const Vec2d offset{static_cast<double>(i % 21 - 10) * 3.0,
                            static_cast<double>(i % 17 - 8) * 3.0};
-        const Vec2d point = kShape.Locate(centre, offset);
-        const Vec2d back = kShape.Offset(centre, point);
-        EXPECT_NEAR(back.x, offset.x, 1e-7) << centre.x << ", " << centre.y;
-        EXPECT_NEAR(back.y, offset.y, 1e-7) << centre.x << ", " << centre.y;
+        const Vec2d point = kShape.Locate(center, offset);
+        const Vec2d back = kShape.Offset(center, point);
+        EXPECT_NEAR(back.x, offset.x, 1e-7) << center.x << ", " << center.y;
+        EXPECT_NEAR(back.y, offset.y, 1e-7) << center.x << ", " << center.y;
     }
     EXPECT_EQ(kShape.Locate({12.0, 34.0}, {0.0, 0.0}), (Vec2d{12.0, 34.0}));
 }
 
 TEST(Surface, ShapeModelExpandCoversEveryPointWithinTheDistance) {
     const Bounds2d region{20.0, -10.0, 30.0, 5.0};
-    for (const double metres : {5.0, 40.0}) {
-        const Bounds2d expanded = kShape.Expand(region, metres);
+    for (const double meters : {5.0, 40.0}) {
+        const Bounds2d expanded = kShape.Expand(region, meters);
         for (int i = 0; i < 20000; ++i) {
             const Vec2d point{static_cast<double>(i % 200) * 1.8 - 180.0,
                               static_cast<double>(i / 200) * 1.8 - 90.0};
             const Vec2d nearest{std::clamp(point.x, region.minX, region.maxX),
                                 std::clamp(point.y, region.minY, region.maxY)};
-            if (kShape.Distance(nearest, point) <= metres) {
+            if (kShape.Distance(nearest, point) <= meters) {
                 EXPECT_TRUE(kShape.Contains(expanded, point))
-                    << metres << ": " << point.x << ", " << point.y;
+                    << meters << ": " << point.x << ", " << point.y;
             }
         }
     }

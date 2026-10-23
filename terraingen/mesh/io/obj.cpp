@@ -31,7 +31,7 @@ std::string Materials(const std::vector<SceneMesh>& meshes) {
         if (!written.insert(material.name).second) {
             continue;
         }
-        const auto& c = material.colour;
+        const auto& c = material.color;
         mtl += "\nnewmtl " + material.name + "\nKa 0 0 0\nKd " + Number(c[0]) + " " + Number(c[1]) +
                " " + Number(c[2]) + "\nKs 0 0 0\nd 1\nillum 1\n";
     }

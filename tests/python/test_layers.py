@@ -164,7 +164,7 @@ def exposure_terrain(noise_relief):
 
 def test_exposure_is_a_fraction_that_varies_over_relief(noise_relief):
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
-    grid = terraingen.RasterGrid.centred(256, 256, 0.25)
+    grid = terraingen.RasterGrid.centered(256, 256, 0.25)
     exposure = field.fill(exposure_terrain(noise_relief), 1, grid, 0.25).values
     assert exposure.shape == (256, 256) and 0.0 <= exposure.min() and exposure.max() <= 1.0
     assert np.ptp(exposure) > 0.1
@@ -173,7 +173,7 @@ def test_exposure_is_a_fraction_that_varies_over_relief(noise_relief):
 def test_exposure_at_a_point_matches_the_filled_raster(noise_relief):
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
     terrain = exposure_terrain(noise_relief)
-    exposure = field.fill(terrain, 1, terraingen.RasterGrid.centred(256, 256, 0.25), 0.25).values
+    exposure = field.fill(terrain, 1, terraingen.RasterGrid.centered(256, 256, 0.25), 0.25).values
     assert field.exposure(0.125, 0.125, 0.25, terrain, 1) == pytest.approx(exposure[127, 128], abs=1e-6)
     with pytest.raises(ValueError, match="need the ground"):
         field.exposure(0.125, 0.125)
@@ -184,7 +184,7 @@ def test_exposure_of_flat_ground_is_uniform():
     flat = field.fill(
         terraingen.TerrainGenerator(terraingen.FlatSource(16, 16, 0.25)),
         0,
-        terraingen.RasterGrid.centred(16, 16, 0.25),
+        terraingen.RasterGrid.centered(16, 16, 0.25),
         0.25,
     )
     assert np.ptp(flat.values) == 0.0

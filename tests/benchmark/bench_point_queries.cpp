@@ -10,12 +10,12 @@ namespace terraingen::benchmarks {
 namespace {
 
 /// Points on a jittered 0.25 m lattice over a 20 m patch, as SCM's nodes under a rover.
-std::vector<Vec2d> Patch(double centreX, double centreY) {
+std::vector<Vec2d> Patch(double centerX, double centerY) {
     std::vector<Vec2d> points;
     for (int j = 0; j < 80; ++j) {
         for (int i = 0; i < 80; ++i) {
-            points.push_back({centreX - 10.0 + 0.25 * i + 0.01 * (j % 7),
-                              centreY - 10.0 + 0.25 * j + 0.01 * (i % 5)});
+            points.push_back({centerX - 10.0 + 0.25 * i + 0.01 * (j % 7),
+                              centerY - 10.0 + 0.25 * j + 0.01 * (i % 5)});
         }
     }
     return points;

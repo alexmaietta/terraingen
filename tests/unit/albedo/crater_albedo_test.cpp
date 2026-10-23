@@ -57,7 +57,7 @@ CraterAlbedoOptions NoRays() {
     return options;
 }
 
-Albedo Grey(std::shared_ptr<const terraingen::AlbedoLayer> layer, double value = 0.11) {
+Albedo Gray(std::shared_ptr<const terraingen::AlbedoLayer> layer, double value = 0.11) {
     SyntheticAlbedoOptions params;
     params.value = value;
     return {std::make_shared<SyntheticAlbedo>(params), {std::move(layer)}};
@@ -96,7 +96,7 @@ TEST(CraterRays, MedianLengthFollowsElliott) {
 TEST(CraterAlbedo, BrightensAFreshCraterAsTychoIs) {
     const auto layer =
         std::make_shared<CraterAlbedo>(Craters({{0.0, 0.0, 1000.0, 0.0, 7u, true}}), NoRays());
-    const Albedo albedo = Grey(layer);
+    const Albedo albedo = Gray(layer);
     EXPECT_FLOAT_EQ(At(albedo, 0.0, 0.0), Brightened(0.11, 0.334));
     EXPECT_FLOAT_EQ(At(albedo, 300.0, 0.0), Brightened(0.11, 0.334));
     EXPECT_NEAR(At(albedo, 500.5, 0.0), Brightened(0.11, 0.278), 1e-4);
@@ -111,17 +111,17 @@ TEST(CraterAlbedo, FadesWithAgeOverTheRetentionTime) {
     CraterAlbedoOptions options = NoRays();
     const auto halfway =
         std::make_shared<CraterAlbedo>(Craters({{0.0, 0.0, 10000.0, 0.375, 7u, true}}), options);
-    EXPECT_NEAR(At(Grey(halfway), 0.0, 0.0, 10.0), Brightened(0.11, 0.202 + 0.066), 1e-7);
+    EXPECT_NEAR(At(Gray(halfway), 0.0, 0.0, 10.0), Brightened(0.11, 0.202 + 0.066), 1e-7);
     options.fadeExponent = 2.0;
     const auto squared =
         std::make_shared<CraterAlbedo>(Craters({{0.0, 0.0, 10000.0, 0.375, 7u, true}}), options);
-    EXPECT_NEAR(At(Grey(squared), 0.0, 0.0, 10.0), Brightened(0.11, 0.202 + 0.033), 1e-7);
+    EXPECT_NEAR(At(Gray(squared), 0.0, 0.0, 10.0), Brightened(0.11, 0.202 + 0.033), 1e-7);
     const auto old =
         std::make_shared<CraterAlbedo>(Craters({{0.0, 0.0, 10000.0, 0.8, 7u, true}}), NoRays());
-    EXPECT_FLOAT_EQ(At(Grey(old), 0.0, 0.0, 10.0), 0.11f);
+    EXPECT_FLOAT_EQ(At(Gray(old), 0.0, 0.0, 10.0), 0.11f);
     const auto small =
         std::make_shared<CraterAlbedo>(Craters({{0.0, 0.0, 500.0, 0.01, 7u, true}}), NoRays());
-    EXPECT_FLOAT_EQ(At(Grey(small), 0.0, 0.0), 0.11f);
+    EXPECT_FLOAT_EQ(At(Gray(small), 0.0, 0.0), 0.11f);
     EXPECT_EQ(small->Reach({0.0, 0.0, 500.0, 0.01, 7u, true}), 0.0);
 }
 
@@ -129,24 +129,24 @@ TEST(CraterAlbedo, KeepsOnlyEligibleCraters) {
     const auto craters = Craters({{0.0, 0.0, 1000.0, 0.0, 7u, true}});
     CraterAlbedoOptions options = NoRays();
     options.selection.minDiameter = 2000.0;
-    EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
+    EXPECT_FLOAT_EQ(At(Gray(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
     options.selection.maxDiameter = 500.0;
-    EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
+    EXPECT_FLOAT_EQ(At(Gray(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
     options.selection.minAgeGyr = 0.1;
-    EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
+    EXPECT_FLOAT_EQ(At(Gray(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
     options.selection.manual = false;
-    EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
+    EXPECT_FLOAT_EQ(At(Gray(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
     options.share = 0.0;
-    EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
+    EXPECT_FLOAT_EQ(At(Gray(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0), 0.11f);
     options = NoRays();
     options.maxMaturity = 0.25;
-    EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0),
+    EXPECT_FLOAT_EQ(At(Gray(std::make_shared<CraterAlbedo>(craters, options)), 0.0, 0.0),
                     Brightened(0.11, 0.25));
-    EXPECT_FLOAT_EQ(At(Grey(std::make_shared<CraterAlbedo>(craters, NoRays())), 0.0, 0.0, 600.0),
+    EXPECT_FLOAT_EQ(At(Gray(std::make_shared<CraterAlbedo>(craters, NoRays())), 0.0, 0.0, 600.0),
                     0.11f);
 }
 
@@ -231,8 +231,8 @@ TEST(CraterAlbedo, GridsTilesAndPointsAgree) {
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{32, 32}, std::pair<std::size_t, std::size_t>{49, 25},
           std::pair<std::size_t, std::size_t>{20, 45}}) {
-        const auto centre = grid[0].CellCenter(col, row);
-        const AlbedoSample point = EvaluateAlbedoAt(albedo, centre.x, centre.y, {20.0});
+        const auto center = grid[0].CellCenter(col, row);
+        const AlbedoSample point = EvaluateAlbedoAt(albedo, center.x, center.y, {20.0});
         for (std::size_t band = 0; band < 3; ++band) {
             EXPECT_EQ(point[band], grid[band](col, row));
         }
@@ -289,12 +289,12 @@ TEST(CraterAlbedo, RejectsInvalidOptions) {
     rejects([](CraterAlbedoOptions& o) { o.ejectaExponent = 0.0; });
     rejects([](CraterAlbedoOptions& o) { o.ejectaReachRadii = 1.0; });
     rejects([](CraterAlbedoOptions& o) { o.fadeExponent = 0.0; });
-    EXPECT_THROW(terraingen::EvaluateAlbedoAt(Grey(std::make_shared<CraterAlbedo>(craters)), 0.0,
+    EXPECT_THROW(terraingen::EvaluateAlbedoAt(Gray(std::make_shared<CraterAlbedo>(craters)), 0.0,
                                               0.0, {0.0}),
                  std::invalid_argument);
 }
 
-TEST(CraterAlbedo, WorksOnASphereInMetres) {
+TEST(CraterAlbedo, WorksOnASphereInMeters) {
     const Surface moon = Surface::Sphere(1737400.0);
     terraingen::CraterLayerOptions sphereOptions;
     sphereOptions.generateRandom = false;
@@ -338,8 +338,8 @@ TEST(CraterAlbedo, WorksOnASphereInMetres) {
     EXPECT_GT(bright, 100);
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{60, 40},
                                    std::pair<std::size_t, std::size_t>{100, 10}}) {
-        const auto centre = bands[0].CellCenter(col, row);
-        EXPECT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, {50.0})[0], bands[0](col, row));
+        const auto center = bands[0].CellCenter(col, row);
+        EXPECT_EQ(EvaluateAlbedoAt(albedo, center.x, center.y, {50.0})[0], bands[0](col, row));
     }
 }
 
@@ -477,7 +477,7 @@ TEST(CraterAlbedo, TexturesFreshMaterialIntoFilamentsLobesAndBrightWalls) {
     EXPECT_GT(filaments.Reach(crater), smooth.Reach(crater)) << "lobes reach further";
 
     const auto layer = std::make_shared<CraterAlbedo>(Craters({crater}), textured);
-    const Albedo albedo = Grey(layer);
+    const Albedo albedo = Gray(layer);
     const RasterGrid whole{48, 48, GeoTransform::NorthUp(-480.0, 480.0, 20.0)};
     const RasterGrid tile{16, 16, GeoTransform::NorthUp(-160.0, 160.0, 20.0)};
     const auto grid = EvaluateAlbedo(albedo, whole, {20.0});
@@ -597,7 +597,7 @@ TEST(CraterAlbedo, ReflectanceZonesFollowTheirSharesAndRaggedEdges) {
 TEST(CraterAlbedo, ReflectanceZonesDarkenAndBrightenTheAlbedoAlike) {
     const Crater crater{0.0, 0.0, 20.0, 0.0, 7u, true};
     const auto layer = std::make_shared<CraterAlbedo>(Craters({crater}), FixedZones());
-    const Albedo albedo = Grey(layer);
+    const Albedo albedo = Gray(layer);
     EXPECT_FLOAT_EQ(At(albedo, 0.0, 0.0, 0.1), static_cast<float>(0.11 * 1.12));
     EXPECT_FLOAT_EQ(At(albedo, 0.0, 40.0, 0.1), static_cast<float>(0.11 * 0.91));
     const RasterGrid whole{48, 48, GeoTransform::NorthUp(-120.0, 120.0, 5.0)};
@@ -607,8 +607,8 @@ TEST(CraterAlbedo, ReflectanceZonesDarkenAndBrightenTheAlbedoAlike) {
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {
             ASSERT_EQ(part[0](col, row), grid[0](col + 16, row + 16));
-            const auto centre = part[0].CellCenter(col, row);
-            ASSERT_EQ(At(albedo, centre.x, centre.y, 0.1), part[0](col, row));
+            const auto center = part[0].CellCenter(col, row);
+            ASSERT_EQ(At(albedo, center.x, center.y, 0.1), part[0](col, row));
         }
     }
 }
@@ -640,7 +640,7 @@ TEST(CraterReflectanceZones, RejectsInvalidSettings) {
     rejects([](Zones& z) { z.distalHigh.fingerWidthDegrees = 0.0; });
 }
 
-TEST(CraterAlbedo, ThinZonesLastAsLongAsTheTopCentimetresTakeToChurn) {
+TEST(CraterAlbedo, ThinZonesLastAsLongAsTheTopCentimetersTakeToChurn) {
     const Crater recent{0.0, 0.0, 20.0, 0.00004, 7u, true};
     const CraterAlbedo layer(Craters({recent}), FixedZones());
     EXPECT_NEAR(layer.ReflectanceChange(recent, -1500.0, 0.0, 0.1), -0.04 * (1.0 - 40.0 / 81.0),
@@ -747,7 +747,7 @@ TEST(CraterAlbedo, RisesShadowTheDistalZonesBehindThem) {
         << "a steep jet drops back to the ground within 10 m";
 
     const auto shared = std::make_shared<CraterAlbedo>(Craters({crater}), options);
-    const Albedo albedo = Grey(shared);
+    const Albedo albedo = Gray(shared);
     const RasterGrid whole{40, 40, GeoTransform::NorthUp(80.0, 100.0, 5.0)};
     const RasterGrid tile{8, 8, GeoTransform::NorthUp(120.0, 60.0, 5.0)};
     terraingen::AlbedoContext onRidge;
@@ -758,8 +758,8 @@ TEST(CraterAlbedo, RisesShadowTheDistalZonesBehindThem) {
     for (std::size_t row = 0; row < 8; ++row) {
         for (std::size_t col = 0; col < 8; ++col) {
             ASSERT_EQ(part[0](col, row), grid[0](col + 8, row + 8));
-            const auto centre = part[0].CellCenter(col, row);
-            ASSERT_EQ(EvaluateAlbedoAt(albedo, centre.x, centre.y, onRidge)[0], part[0](col, row));
+            const auto center = part[0].CellCenter(col, row);
+            ASSERT_EQ(EvaluateAlbedoAt(albedo, center.x, center.y, onRidge)[0], part[0](col, row));
         }
     }
     EXPECT_EQ(grid[0](10, 20), 0.11f) << "(132.5, 0) in shadow";

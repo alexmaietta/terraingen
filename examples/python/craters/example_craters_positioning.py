@@ -24,7 +24,7 @@ from _common import hillshade, montage, write_png
 REGION = (-256.0, -256.0, 256.0, 256.0)
 
 
-def nearest_neighbour(x, y):
+def nearest_neighbor(x, y):
     d = np.hypot(x[:, None] - x[None, :], y[:, None] - y[None, :])
     np.fill_diagonal(d, np.inf)
     return d.min(axis=1)
@@ -65,7 +65,7 @@ class Example(_common.Example):
                 models, terraingen.CraterLayerOptions(seed=8, generation=generation)
             )
             table = layer.craters(REGION)
-            gaps = nearest_neighbour(table["x"], table["y"]) / table["diameter"]
+            gaps = nearest_neighbor(table["x"], table["y"]) / table["diameter"]
             self.counts[name] = len(table["x"])
             self.median_gaps[name] = np.median(gaps)
             print(

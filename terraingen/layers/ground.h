@@ -54,24 +54,24 @@ class Ground {
     }
 };
 
-/// The four points `step` metres east, west, north and south of `centre` on `surface`, in that
+/// The four points `step` metres east, west, north and south of `center` on `surface`, in that
 /// order, which `GradientFromHeights` reads a gradient from.
-std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& centre, double step);
+std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& center, double step);
 
 /// The gradient (east, north, rise over run) by central differences of `heights` read at
 /// `GradientPoints` `step` metres out; nothing where any difference is not finite.
 std::optional<Vec2d> GradientFromHeights(Span<const float> heights, double step);
 
-/// The gradient (east, north, rise over run) of `ground` at `centre` by central differences
+/// The gradient (east, north, rise over run) of `ground` at `center` by central differences
 /// `step` metres out (`GradientPoints`); nothing where the ground has no data there.
 /// @param spacing Sample spacing in metres the ground is read at.
 std::optional<Vec2d> GroundGradient(const Ground& ground, const Surface& surface,
-                                    const Vec2d& centre, double step, double spacing);
+                                    const Vec2d& center, double step, double spacing);
 
-/// The heights of `ground` at `offsets` (metres east and north in the local frame of `centre`),
+/// The heights of `ground` at `offsets` (metres east and north in the local frame of `center`),
 /// into `heights` of the same size, with `fallback` where the ground has no data.
 /// @param spacing Sample spacing in metres the ground is read at.
-void GroundAround(const Ground& ground, const Surface& surface, const Vec2d& centre,
+void GroundAround(const Ground& ground, const Surface& surface, const Vec2d& center,
                   Span<const Vec2d> offsets, double spacing, double fallback, Span<double> heights);
 
 }  // namespace terraingen

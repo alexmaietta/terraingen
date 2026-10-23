@@ -9,7 +9,7 @@ PowerLawSfd TraskEquilibrium() {
 }
 
 PowerLawSfd HartmannEquilibrium() {
-    return PowerLawSfd(PowerLawCoefficientFromKilometres(std::pow(10.0, -1.14), 1.83), 1.83);
+    return PowerLawSfd(PowerLawCoefficientFromKilometers(std::pow(10.0, -1.14), 1.83), 1.83);
 }
 
 }  // namespace terraingen

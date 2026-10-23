@@ -38,9 +38,9 @@ void FillSyntheticTerrain(Raster<float>& raster, const SyntheticTerrainParams& p
     const Stopwatch stopwatch;
     for (std::size_t row = 0; row < raster.Height(); ++row) {
         for (std::size_t col = 0; col < raster.Width(); ++col) {
-            const Vec2d centre = raster.CellCenter(col, row);
+            const Vec2d center = raster.CellCenter(col, row);
             raster(col, row) =
-                EvaluateNoiseLayers(static_cast<float>(centre.x), static_cast<float>(centre.y),
+                EvaluateNoiseLayers(static_cast<float>(center.x), static_cast<float>(center.y),
                                     params.layers.data(), params.layers.size());
         }
     }

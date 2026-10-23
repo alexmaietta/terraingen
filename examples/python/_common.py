@@ -16,7 +16,7 @@ from _harness import (
     output_dir,
     run,
 )
-from _images import PALETTE, colour_name, hillshade, line_plot, montage, normalize, write_png
+from _images import PALETTE, color_name, hillshade, line_plot, montage, normalize, write_png
 
 __all__ = [
     "CATEGORIES",
@@ -28,7 +28,7 @@ __all__ = [
     "TERRAIN_PRIM",
     "Example",
     "ExampleBrowser",
-    "colour_name",
+    "color_name",
     "config_path",
     "create_parser",
     "discover_examples",

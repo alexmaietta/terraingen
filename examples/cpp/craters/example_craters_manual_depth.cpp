@@ -88,13 +88,13 @@ class CratersManualDepth : public terraingen::examples::Example {
               "exactly the four hand-placed craters, each with attributes");
         bool depths = true;
         bool rims = true;
-        bool modelled = false;
+        bool modeled = false;
         for (std::size_t i = 0; i < craters.Size(); ++i) {
             const terraingen::Crater crater = craters.At(i);
             const terraingen::CraterAttributes& a = craters_.attributes[i];
             const double tolerance = 1e-3 * crater.diameter;
             if (std::isnan(crater.depth)) {
-                modelled = a.floorDepth + a.rimHeight > 1.0;
+                modeled = a.floorDepth + a.rimHeight > 1.0;
                 continue;
             }
             depths = depths && std::fabs(a.floorDepth + a.rimHeight - crater.depth) < tolerance;
@@ -103,7 +103,7 @@ class CratersManualDepth : public terraingen::examples::Example {
         }
         Check(depths, "each crater given a depth is that deep from rim to floor");
         Check(rims, "each crater given a rim height has that rim");
-        Check(modelled, "the crater given only a diameter takes its depth from the model");
+        Check(modeled, "the crater given only a diameter takes its depth from the model");
         Check(terraingen::ComputeStats(evaluated_).min < -1.0, "the craters are cut into the site");
     }
 

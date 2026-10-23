@@ -50,18 +50,18 @@ inline Vec3d IcqDirection(std::size_t q, std::size_t i, std::size_t j, std::size
 
 /// Reads an ICQ file: Q on the first line, then 6 (Q + 1)^2 lines of x, y and z (extra columns,
 /// such as albedo, are ignored).
-/// @param metresPerUnit Metres per file unit; Gaskell's models are in kilometres.
+/// @param metersPerUnit Metres per file unit; Gaskell's models are in kilometres.
 /// @throws std::runtime_error if the file cannot be read, or holds a bad Q, too few vertices or a
 /// value that is not a finite number.
-IcqModel ReadIcq(const std::filesystem::path& path, double metresPerUnit = 1000.0);
+IcqModel ReadIcq(const std::filesystem::path& path, double metersPerUnit = 1000.0);
 
 /// Writes `model` as an ICQ file.
-/// @param metresPerUnit Metres per file unit; Gaskell's models are in kilometres.
+/// @param metersPerUnit Metres per file unit; Gaskell's models are in kilometres.
 /// @throws std::invalid_argument for a Q of 0, a vertex count other than 6 (Q + 1)^2 or a vertex
 /// that is not finite.
 /// @throws std::runtime_error if the file cannot be written.
 void WriteIcq(const std::filesystem::path& path, const IcqModel& model,
-              double metresPerUnit = 1000.0);
+              double metersPerUnit = 1000.0);
 
 /// The model as 12 Q^2 triangles over its 6 Q^2 + 2 distinct vertices, as Gaskell converts it:
 /// each shared edge and corner vertex taken from one face, each quadrilateral split along its

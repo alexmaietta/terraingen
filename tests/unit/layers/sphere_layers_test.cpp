@@ -21,12 +21,12 @@ namespace {
 constexpr double kMoon = 1737400.0;
 const Surface kSphere = Surface::Sphere(kMoon);
 
-/// A longitude-latitude raster of `side` cells of `metres` (along a meridian) whose north-west
+/// A longitude-latitude raster of `side` cells of `meters` (along a meridian) whose north-west
 /// corner is at (`lon`, `lat`), filled with `fill`.
-Raster<float> Geographic(double lon, double lat, double metres, std::size_t side,
+Raster<float> Geographic(double lon, double lat, double meters, std::size_t side,
                          float fill = 0.0f) {
     Raster<float> raster(side, side, fill);
-    raster.SetTransform(GeoTransform::NorthUp(lon, lat, metres / kSphere.UnitLength()));
+    raster.SetTransform(GeoTransform::NorthUp(lon, lat, meters / kSphere.UnitLength()));
     return raster;
 }
 
@@ -46,8 +46,8 @@ Raster<float> CheckGridAndPoints(const Layer& layer, Raster<float> raster, doubl
          {std::pair<std::size_t, std::size_t>{0, 0}, std::pair<std::size_t, std::size_t>{last, 3},
           std::pair<std::size_t, std::size_t>{last / 2, last / 2},
           std::pair<std::size_t, std::size_t>{7, last}}) {
-        const Vec2d centre = raster.CellCenter(col, row);
-        EXPECT_EQ(layer.ApplyAt(before(col, row), centre.x, centre.y, {spacing, 1, ground}),
+        const Vec2d center = raster.CellCenter(col, row);
+        EXPECT_EQ(layer.ApplyAt(before(col, row), center.x, center.y, {spacing, 1, ground}),
                   raster(col, row))
             << col << " " << row;
     }
@@ -84,7 +84,7 @@ TEST(SphereLayers, NoiseIsSeamlessAcrossTheAntimeridianAndPoles) {
     }
 }
 
-TEST(SphereLayers, ExposureReadsTheSurroundingsInMetres) {
+TEST(SphereLayers, ExposureReadsTheSurroundingsInMeters) {
     class EastSlope final : public terraingen::Ground {
       public:
         float HeightAt(double x, double y, double) const override {
@@ -113,13 +113,13 @@ TEST(SphereLayers, ExposureReadsTheSurroundingsInMetres) {
     EXPECT_NEAR(sum / 2000.0, 0.5, 0.1);
 }
 
-TEST(SphereLayers, RegionsMeasureMetres) {
+TEST(SphereLayers, RegionsMeasureMeters) {
     const auto inner = std::make_shared<terraingen::ScaleLayer>(1.0, 5.0);
     const terraingen::MaskedLayer circle(inner,
                                          terraingen::RegionShape::Circle({-40.0, 45.0}, 1000.0),
                                          200.0, terraingen::BlendShape::Linear, kSphere);
-    const auto at = [&](double metres) {
-        const Vec2d p = kSphere.Locate({-40.0, 45.0}, {metres, 0.0});
+    const auto at = [&](double meters) {
+        const Vec2d p = kSphere.Locate({-40.0, 45.0}, {meters, 0.0});
         return circle.ApplyAt(0.0f, p.x, p.y, {1.0});
     };
     EXPECT_FLOAT_EQ(at(900.0), 5.0f);

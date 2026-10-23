@@ -38,8 +38,8 @@ void VisitRowCells(std::vector<Raster<float>>& bands, std::size_t row, const Vis
 void VisitRow(std::vector<Raster<float>>& bands, std::size_t row, const AlbedoCellVisitor& visit) {
     const Raster<float>& first = bands.front();
     VisitRowCells(bands, row, [&](AlbedoSample& value, std::size_t col) {
-        const Vec2d centre = first.CellCenter(col, row);
-        visit(value, centre.x, centre.y);
+        const Vec2d center = first.CellCenter(col, row);
+        visit(value, center.x, center.y);
     });
 }
 

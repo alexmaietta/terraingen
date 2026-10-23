@@ -94,11 +94,11 @@ std::vector<double> RockAlbedo::BareShares(const Raster<float>& first,
         ParallelFor(grid.height, context.threads, [&](std::size_t row) {
             for (std::size_t col = 0; col < grid.width; ++col) {
                 const std::size_t cell = row * grid.width + col;
-                const Vec2d centre = first.CellCenter(col, row);
+                const Vec2d center = first.CellCenter(col, row);
                 bare[cell] *=
                     1.0 -
                     RockShare(resolved(col, row), unresolved[cell],
-                              options_.unresolved ? UnresolvedNormal(centre.x, centre.y, n) : 0.0);
+                              options_.unresolved ? UnresolvedNormal(center.x, center.y, n) : 0.0);
             }
         });
     }

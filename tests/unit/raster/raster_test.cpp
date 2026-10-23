@@ -60,9 +60,9 @@ TEST(Raster, AtChecksBounds) {
 TEST(Raster, CellCenterUsesTransform) {
     Raster<float> raster(10, 10);
     raster.SetTransform(GeoTransform::NorthUp(100.0, 200.0, 2.0));
-    const auto centre = raster.CellCenter(1, 2);
-    EXPECT_DOUBLE_EQ(centre.x, 103.0);
-    EXPECT_DOUBLE_EQ(centre.y, 195.0);
+    const auto center = raster.CellCenter(1, 2);
+    EXPECT_DOUBLE_EQ(center.x, 103.0);
+    EXPECT_DOUBLE_EQ(center.y, 195.0);
 }
 
 TEST(Raster, IsNoDataMatchesTheValueAndAnyNanForANanNoData) {

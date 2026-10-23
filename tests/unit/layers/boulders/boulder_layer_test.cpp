@@ -276,8 +276,8 @@ TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
     bool raised = false;
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.5}), heights(col, row));
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(1.0f, center.x, center.y, {0.5}), heights(col, row));
             raised = raised || heights(col, row) > 1.0f;
         }
     }
@@ -392,11 +392,11 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
         EXPECT_FLOAT_EQ(static_cast<float>(*boulder.ground), 2.0f);
     }
     ASSERT_GT(models, 0u);
-    const auto modelled = layer.Models(boulders);
-    EXPECT_EQ(modelled.size(), models);
+    const auto modeled = layer.Models(boulders);
+    EXPECT_EQ(modeled.size(), models);
     EXPECT_TRUE(layer.Models(layer.Boulders({-40.0, -40.0, 40.0, 40.0}, 0.5)).empty())
         << "no models without the ground";
-    for (const auto& boulder : modelled) {
+    for (const auto& boulder : modeled) {
         EXPECT_TRUE(boulder.boulder.model);
         terraingen::TriangleMesh placed = boulder.shape->mesh;
         for (auto& p : placed.positions) {
@@ -452,19 +452,19 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
     }
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.5}), heights(col, row));
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(1.0f, center.x, center.y, {0.5}), heights(col, row));
             highest = std::fmax(highest, static_cast<double>(heights(col, row)) - 1.0);
         }
     }
     EXPECT_GT(highest, 0.0);
     EXPECT_LE(highest, 2.0 * tallest) << "overlapping boulders add up";
-    std::vector<terraingen::Vec2d> centres;
+    std::vector<terraingen::Vec2d> centers;
     for (std::size_t i = 0; i < heights.Values().size(); ++i) {
-        centres.push_back(heights.CellCenter(i % heights.Width(), i / heights.Width()));
+        centers.push_back(heights.CellCenter(i % heights.Width(), i / heights.Width()));
     }
-    std::vector<float> batch(centres.size(), 1.0f);
-    terraingen::SampleBlock points(centres, batch);
+    std::vector<float> batch(centers.size(), 1.0f);
+    terraingen::SampleBlock points(centers, batch);
     layer.Apply(points, {0.5});
     EXPECT_TRUE(std::equal(batch.begin(), batch.end(), heights.Values().begin()))
         << "one batch of points matches the grid";
@@ -522,13 +522,13 @@ TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {
     std::size_t aprons = 0;
     for (std::size_t row = 0; row < piled.Height(); ++row) {
         for (std::size_t col = 0; col < piled.Width(); ++col) {
-            const auto centre = piled.CellCenter(col, row);
-            ASSERT_EQ(filleted.ApplyAt(1.0f, centre.x, centre.y, {0.25}), piled(col, row));
+            const auto center = piled.CellCenter(col, row);
+            ASSERT_EQ(filleted.ApplyAt(1.0f, center.x, center.y, {0.25}), piled(col, row));
             ASSERT_GE(piled(col, row), plain(col, row));
             aprons += plain(col, row) == 1.0f && piled(col, row) > 1.0f ? 1u : 0u;
             bool near = false;
             for (const Boulder& boulder : boulders) {
-                near = near || std::hypot(centre.x - boulder.x, centre.y - boulder.y) <
+                near = near || std::hypot(center.x - boulder.x, center.y - boulder.y) <
                                    terraingen::FilletReach(boulder, options.fillet);
             }
             if (!near) {
@@ -540,10 +540,10 @@ TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {
 
     options.rendering.relief = terraingen::BoulderRelief::None;
     options.rendering.models.minDiameter = options.sizes.minDiameter;
-    Raster<float> modelled(80, 60, 1.0f);
-    modelled.SetTransform(plain.Transform());
-    BoulderLayer(options).Apply(modelled, {0.25});
-    EXPECT_GT(*std::max_element(modelled.Values().begin(), modelled.Values().end()), 1.0f)
+    Raster<float> modeled(80, 60, 1.0f);
+    modeled.SetTransform(plain.Transform());
+    BoulderLayer(options).Apply(modeled, {0.25});
+    EXPECT_GT(*std::max_element(modeled.Values().begin(), modeled.Values().end()), 1.0f)
         << "models stand in fillets too";
 }
 
@@ -681,8 +681,8 @@ TEST(BoulderLayer, DrawsNoBoulderNarrowerThanTheFadeStartButListsEveryOne) {
         for (std::size_t row = 0; row < 80; ++row) {
             for (std::size_t col = 0; col < 50; ++col) {
                 ASSERT_EQ(tile(col, row), heights(offset + col, row));
-                const auto centre = tile.CellCenter(col, row);
-                ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {kSpacing}), tile(col, row));
+                const auto center = tile.CellCenter(col, row);
+                ASSERT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {kSpacing}), tile(col, row));
             }
         }
     }
@@ -831,8 +831,8 @@ TEST(BoulderLayer, DrawsTiltedShapesThatPointQueriesMatch) {
         layer.Apply(heights, {0.25, 4});
         for (std::size_t row = 0; row < heights.Height(); ++row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const auto centre = heights.CellCenter(col, row);
-                ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.25}), heights(col, row))
+                const auto center = heights.CellCenter(col, row);
+                ASSERT_EQ(layer.ApplyAt(1.0f, center.x, center.y, {0.25}), heights(col, row))
                     << "seed " << seed;
             }
         }
@@ -899,8 +899,8 @@ TEST(BoulderLayer, GivesTheSameRockCoverOverAGridAsAtItsPoints) {
     double rock = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = cover.CellCenter(col, row);
-            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(centre.x, centre.y, 0.2, nullptr));
+            const auto center = cover.CellCenter(col, row);
+            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(center.x, center.y, 0.2, nullptr));
             rock += cover(col, row);
         }
     }

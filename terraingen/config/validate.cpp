@@ -166,7 +166,7 @@ void AddExpectedCraters(const CraterLayerSpec& craters, const CraterModels& mode
 }
 
 /// A length as messages give it, such as 2.5.
-std::string Metres(double value) {
+std::string Meters(double value) {
     std::array<char, 32> buffer{};
     std::snprintf(buffer.data(), buffer.size(), "%g", value);
     return buffer.data();
@@ -196,12 +196,12 @@ void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
     } catch (const std::domain_error&) {
         const DiameterRange& density = models.density->ValidRange();
         std::string message =
-            "the density or ages are not defined at " + Metres(craters.minDiameter) + " m";
+            "the density or ages are not defined at " + Meters(craters.minDiameter) + " m";
         if (const auto* steady = std::get_if<SteadyStateAgesSpec>(&craters.ages)) {
             message += "; steady-state ages need the production function's diameters, from " +
-                       Metres(ProductionRange(steady->production).min) + " m";
+                       Meters(ProductionRange(steady->production).min) + " m";
         } else if (density.min > 0.0) {
-            message += "; the density starts at " + Metres(density.min) + " m";
+            message += "; the density starts at " + Meters(density.min) + " m";
         }
         throw ConfigError(path, message);
     }

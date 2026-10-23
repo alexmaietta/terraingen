@@ -94,8 +94,8 @@ TEST(ApplyCraters, StampsTheProfileOnFlatTerrain) {
     ApplyCraters(raster, One(0.5, 0.5, 40.0), profile);
     for (std::size_t row = 0; row < raster.Height(); ++row) {
         for (std::size_t col = 0; col < raster.Width(); ++col) {
-            const auto centre = raster.CellCenter(col, row);
-            const double r = std::hypot(centre.x - 0.5, centre.y - 0.5);
+            const auto center = raster.CellCenter(col, row);
+            const double r = std::hypot(center.x - 0.5, center.y - 0.5);
             EXPECT_NEAR(raster(col, row), Fresh(profile, r, 40.0), 1e-5) << col << " " << row;
         }
     }
@@ -128,14 +128,14 @@ TEST(ApplyCraters, ReplacesOlderReliefInsideTheRimAndDrapesEjectaOutside) {
     }
     const FassettThomsonProfile profile;
     ApplyCraters(raster, One(0.0, 0.0, 40.0), profile, Datum(CraterDatum::Plane));
-    const float centre = At(raster, 0.5, 0.5);
-    const float neighbour = At(raster, 1.5, 0.5);
-    EXPECT_NEAR(centre, neighbour, 0.05);
+    const float center = At(raster, 0.5, 0.5);
+    const float neighbor = At(raster, 1.5, 0.5);
+    EXPECT_NEAR(center, neighbor, 0.05);
     const double outside =
         static_cast<double>(At(raster, 26.5, 0.5)) - Fresh(profile, std::hypot(26.5, 0.5), 40.0);
-    const double outsideNeighbour =
+    const double outsideNeighbor =
         static_cast<double>(At(raster, 27.5, 0.5)) - Fresh(profile, std::hypot(27.5, 0.5), 40.0);
-    EXPECT_NEAR(std::fabs(outside - outsideNeighbour), 1.0, 1e-5);
+    EXPECT_NEAR(std::fabs(outside - outsideNeighbor), 1.0, 1e-5);
 }
 
 TEST(ApplyCraters, OrderDecidesWhichCraterOverprints) {
@@ -291,15 +291,15 @@ TEST(ApplyCraters, FlatDatumsLevelTheInteriorAndAPlaneKeepsTheSlope) {
     EXPECT_NEAR(planeRight - planeLeft, 0.2f * 12.0f, 1e-3f);
     const auto [meanLeft, meanRight] = interior(CraterDatum::MeanHeight);
     EXPECT_NEAR(meanRight - meanLeft, 0.0f, 1e-3f);
-    const auto [centreLeft, centreRight] = interior(CraterDatum::CentreHeight);
-    EXPECT_NEAR(centreLeft, centreRight, 1e-3f);
-    EXPECT_NEAR(centreLeft - static_cast<float>(Fresh(profile, 6.0, 30.0)), 0.2f * 10.5f + 5.0f,
+    const auto [centerLeft, centerRight] = interior(CraterDatum::CenterHeight);
+    EXPECT_NEAR(centerLeft, centerRight, 1e-3f);
+    EXPECT_NEAR(centerLeft - static_cast<float>(Fresh(profile, 6.0, 30.0)), 0.2f * 10.5f + 5.0f,
                 1e-3f);
 }
 
 TEST(ApplyCraters, DatumFitRadiusChoosesTheFootprint) {
     const FassettThomsonProfile profile;
-    const auto centre = [&](double fitRadii) {
+    const auto center = [&](double fitRadii) {
         Raster<float> raster = Flat(100);
         for (std::size_t row = 0; row < raster.Height(); ++row) {
             for (std::size_t col = 0; col < raster.Width(); ++col) {
@@ -313,8 +313,8 @@ TEST(ApplyCraters, DatumFitRadiusChoosesTheFootprint) {
         return At(raster, 0.5, 0.5) -
                static_cast<float>(Fresh(profile, std::hypot(0.5, 0.5), 20.0));
     };
-    EXPECT_NEAR(centre(1.0), 0.0f, 1e-4f);
-    EXPECT_GT(centre(2.0), 1.0f);
+    EXPECT_NEAR(center(1.0), 0.0f, 1e-4f);
+    EXPECT_GT(center(2.0), 1.0f);
 }
 
 TEST(ApplyCraters, InteriorReplacementBlendsOldReliefWithTheDatum) {
@@ -436,8 +436,8 @@ TEST(ApplyCraters, RoundsRimsByTheSmoothedProfileOnlyNearTheRim) {
     float roundedCrest = -1e9f;
     for (std::size_t row = 0; row < rounded.Height(); ++row) {
         for (std::size_t col = 0; col < rounded.Width(); ++col) {
-            const auto centre = rounded.CellCenter(col, row);
-            const double radii = std::hypot(centre.x - 0.5, centre.y - 0.5) / 20.0;
+            const auto center = rounded.CellCenter(col, row);
+            const double radii = std::hypot(center.x - 0.5, center.y - 0.5) / 20.0;
             sharpCrest = std::max(sharpCrest, sharp(col, row));
             roundedCrest = std::max(roundedCrest, rounded(col, row));
             if (radii < 0.8 || radii > 1.2) {
@@ -582,10 +582,10 @@ TEST(ApplyCraters, TexturesEjectaOutToTheirReachLikePointQueries) {
     bool beyondProfile = false;
     for (std::size_t row = 0; row < textured.Height(); ++row) {
         for (std::size_t col = 0; col < textured.Width(); ++col) {
-            const auto centre = textured.CellCenter(col, row);
-            const double radii = std::hypot(centre.x - 0.5, centre.y - 0.5) / 15.0;
+            const auto center = textured.CellCenter(col, row);
+            const double radii = std::hypot(center.x - 0.5, center.y - 0.5) / 15.0;
             ASSERT_EQ(
-                terraingen::ApplyCraterTo(0.0f, centre.x, centre.y, prepared, profile, options),
+                terraingen::ApplyCraterTo(0.0f, center.x, center.y, prepared, profile, options),
                 textured(col, row));
             if (radii <= 1.0 || radii >= 3.0) {
                 ASSERT_EQ(textured(col, row), plain(col, row)) << "only the ejecta at " << radii;

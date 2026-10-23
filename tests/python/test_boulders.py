@@ -35,7 +35,7 @@ def test_boulder_and_crater_tables_match_their_lists(lunar_models, crater_layer)
     assert len(craters.craters) == len(craters.table["x"])
 
 
-def test_modelled_boulders_are_partly_buried(first_model):
+def test_modeled_boulders_are_partly_buried(first_model):
     assert first_model.boulder.model and first_model.boulder.exposed_height < first_model.boulder.height
 
 
@@ -168,7 +168,7 @@ def test_worn_boulders_break_into_pieces_that_replace_them():
         terraingen.validate_boulder_fragmentation(terraingen.BoulderFragmentation(min_pieces=1))
 
 
-def test_boulder_clusters_raise_the_abundance_near_their_centres():
+def test_boulder_clusters_raise_the_abundance_near_their_centers():
     clusters = terraingen.BoulderClusters(share=0.8, spacing_m=40.0, radius_m=4.0)
     layer = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(clusters=clusters))
     abundances = [layer.abundance_at(x + 0.5, y + 0.5)[0] for x in range(0, 200, 2) for y in range(0, 200, 2)]
@@ -384,7 +384,7 @@ def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
     )
     assert not built.options.generate_random and built.options.relief == terraingen.BoulderRelief.SHAPE
     assert sorted(np.asarray(built.boulders((-10.0, -10.0, 10.0, 10.0))["diameter"])) == [1.5, 2.0]
-    centred = terraingen.BoulderLayer.manual([terraingen.ManualBoulder(0.0, 0.0, 1.0)])
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(41, 41, 0.1), [centred])
+    centered = terraingen.BoulderLayer.manual([terraingen.ManualBoulder(0.0, 0.0, 1.0)])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(41, 41, 0.1), [centered])
     heights = terraingen.evaluate(terrain).values
     assert heights.max() > 0.2 and heights[0, 0] == 0.0

@@ -191,12 +191,12 @@ def lunar_site(moon, lunar_models, noise_relief):
     craters = terraingen.CraterLayer(
         lunar_models(3.8), terraingen.CraterLayerOptions(surface=moon, generation=generation)
     )
-    site = terraingen.FlatSource(65, 65, 4000.0, centre=(23.47, 0.67), surface=moon)
+    site = terraingen.FlatSource(65, 65, 4000.0, center=(23.47, 0.67), surface=moon)
     return terraingen.TerrainGenerator(site, [noise, craters], surface=moon)
 
 
 def test_a_site_on_a_sphere_has_pixels_in_degrees(moon):
-    site = terraingen.FlatSource(65, 65, 4000.0, centre=(23.47, 0.67), surface=moon)
+    site = terraingen.FlatSource(65, 65, 4000.0, center=(23.47, 0.67), surface=moon)
     assert site.transform.pixel_width == pytest.approx(4000.0 / moon.unit_length)
 
 
@@ -207,8 +207,8 @@ def test_terrain_on_a_sphere_has_relief(lunar_site):
 
 
 def test_point_query_on_a_sphere_matches_the_grid(lunar_site):
-    centre = terraingen.evaluate(lunar_site).values[32, 32]
-    assert terraingen.height_at(lunar_site, 23.47, 0.67, 4000.0) == pytest.approx(centre, abs=1e-3)
+    center = terraingen.evaluate(lunar_site).values[32, 32]
+    assert terraingen.height_at(lunar_site, 23.47, 0.67, 4000.0) == pytest.approx(center, abs=1e-3)
 
 
 def test_point_batches_match_single_point_queries(lunar_site):
@@ -289,7 +289,7 @@ def test_fill_mesh_writes_what_build_mesh_makes_into_numpy_arrays(paraboloid, mo
         assert size == terraingen.get_mesh_size(heights, **options)
         assert positions.tobytes() == mesh.positions.tobytes()
         np.testing.assert_array_equal(triangles, mesh.triangles.astype(np.int32))
-    site = terraingen.FlatSource(9, 9, 100.0, centre=(23.47, 0.67), surface=moon)
+    site = terraingen.FlatSource(9, 9, 100.0, center=(23.47, 0.67), surface=moon)
     spherical = terraingen.evaluate(terraingen.TerrainGenerator(site, surface=moon))
     mesh = terraingen.build_mesh(spherical, surface=moon, site=(23.47, 0.67), skirt=3.0)
     _, positions, triangles = _fill(spherical, surface=moon, site=(23.47, 0.67), skirt=3.0)

@@ -184,13 +184,13 @@ void BindScene(nb::module_& m) {
     nb::class_<MeshMaterial>(m, "MeshMaterial", "A mesh's material: a name and a diffuse colour.")
         .def(
             "__init__",
-            [](MeshMaterial* self, std::string name, std::array<double, 3> colour) {
-                new (self) MeshMaterial{std::move(name), colour};
+            [](MeshMaterial* self, std::string name, std::array<double, 3> color) {
+                new (self) MeshMaterial{std::move(name), color};
             },
-            "name"_a = "default", "colour"_a = std::array<double, 3>{0.5, 0.5, 0.5},
-            "`colour` is linear RGB, each in [0, 1].")
+            "name"_a = "default", "color"_a = std::array<double, 3>{0.5, 0.5, 0.5},
+            "`color` is linear RGB, each in [0, 1].")
         .def_rw("name", &MeshMaterial::name)
-        .def_rw("colour", &MeshMaterial::colour)
+        .def_rw("color", &MeshMaterial::color)
         .def(nb::self == nb::self);
     nb::class_<SceneMesh>(m, "SceneMesh", "A mesh and its material.")
         .def(
@@ -240,9 +240,9 @@ void BindIcq(nb::module_& m) {
         .def("to_mesh", &IcqToMesh,
              "The model as 12 Q^2 outward triangles over its 6 Q^2 + 2 distinct vertices.")
         .def("__eq__", [](const IcqModel& a, const IcqModel& b) { return a == b; });
-    m.def("read_icq", &ReadIcq, "path"_a, "metres_per_unit"_a = 1000.0,
+    m.def("read_icq", &ReadIcq, "path"_a, "meters_per_unit"_a = 1000.0,
           "Reads an ICQ file; Gaskell's models are in kilometres.");
-    m.def("write_icq", &WriteIcq, "path"_a, "model"_a, "metres_per_unit"_a = 1000.0,
+    m.def("write_icq", &WriteIcq, "path"_a, "model"_a, "meters_per_unit"_a = 1000.0,
           "Writes an ICQ file; Gaskell's models are in kilometres.");
     m.def("to_icq", &ToIcq, "shape"_a, "The RadialShape as an ICQ model.");
     m.def("icq_direction", &IcqDirection, "q"_a, "i"_a, "j"_a, "face"_a,

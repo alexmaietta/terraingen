@@ -545,28 +545,28 @@ double DuneLayer::Forks(const Vec2d& q, double wavelength, double density, doubl
         double draw = random.NextDouble();
         while (draw > none) {
             draw *= random.NextDouble();
-            const Vec2d centre{(static_cast<double>(gx) + random.NextDouble()) * cell,
+            const Vec2d center{(static_cast<double>(gx) + random.NextDouble()) * cell,
                                (static_cast<double>(gy) + random.NextDouble()) * cell};
-            AddFork(phase, core, random, q, centre, wavelength);
+            AddFork(phase, core, random, q, center, wavelength);
         }
     });
     return phase;
 }
 
 void DuneLayer::AddFork(double& phase, double& core, RandomStream& random, const Vec2d& q,
-                        const Vec2d& centre, double wavelength) {
+                        const Vec2d& center, double wavelength) {
     const double inner = kForkInner * wavelength;
     const double outer = kForkOuter * wavelength;
     const double turn = 2.0 * kPi * random.NextDouble();
     const double half = 0.5 * wavelength * (kForkMin + (kForkMax - kForkMin) * random.NextDouble());
     const double sign = random.NextDouble() < 0.5 ? -1.0 : 1.0;
-    const double r = std::hypot(q.x - centre.x, q.y - centre.y);
+    const double r = std::hypot(q.x - center.x, q.y - center.y);
     const double window = 1.0 - Smoothstep((r - inner) / (outer - inner));
     if (window <= 0.0) {
         return;
     }
-    const Vec2d a{centre.x - half * std::cos(turn), centre.y - half * std::sin(turn)};
-    const Vec2d b{centre.x + half * std::cos(turn), centre.y + half * std::sin(turn)};
+    const Vec2d a{center.x - half * std::cos(turn), center.y - half * std::sin(turn)};
+    const Vec2d b{center.x + half * std::cos(turn), center.y + half * std::sin(turn)};
     double subtended = std::atan2(q.y - a.y, q.x - a.x) - std::atan2(q.y - b.y, q.x - b.x);
     subtended -= 2.0 * kPi * std::floor((subtended + kPi) / (2.0 * kPi));
     phase += sign * window * subtended / (2.0 * kPi);

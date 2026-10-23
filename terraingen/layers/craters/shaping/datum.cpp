@@ -68,7 +68,7 @@ std::optional<Plane> FitCraterDatum(const Crater& crater, const CraterApplyOptio
     if (options.datum == CraterDatum::None) {
         return std::nullopt;
     }
-    if (options.datum == CraterDatum::CentreHeight) {
+    if (options.datum == CraterDatum::CenterHeight) {
         const float height = ground(crater.x, crater.y);
         if (std::isnan(height)) {
             return std::nullopt;

@@ -409,7 +409,7 @@ void BoulderLayer::AddRockCover(Raster<double>& cover, const RasterGrid& grid,
         [&](double& cell, const FeatureCell& at) {
             const Relief& relief = reliefs[at.feature];
             const TriangleMesh* shape = relief.Shape();
-            if (RockRelief(at.centre.x, at.centre.y, *relief.boulder, shape, relief.width) > 0.0) {
+            if (RockRelief(at.center.x, at.center.y, *relief.boulder, shape, relief.width) > 0.0) {
                 cell = std::fmax(cell, relief.weight);
             }
         });
@@ -432,7 +432,7 @@ void BoulderLayer::AddModelCover(Raster<double>& cover, const RasterGrid& grid,
         [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
         [&](double& cell, const FeatureCell& at) {
             const Boulder& boulder = *models[at.feature];
-            const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, at.centre);
+            const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, at.center);
             if (std::hypot(offset.x, offset.y) < 0.5 * boulder.diameter) {
                 cell = std::fmax(cell, ResolutionWeight(boulder.diameter, spacing, options_.fade));
             }
@@ -457,9 +457,9 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
     if (!options_.generateRandom) {
         CraterList manual;
         for (const ManualBoulder& boulder : options_.manual) {
-            const Vec2d centre{boulder.x, boulder.y};
+            const Vec2d center{boulder.x, boulder.y};
             if (surface_.Contains(surface_.Expand(region, 0.5 * margin * boulder.diameter),
-                                  centre)) {
+                                  center)) {
                 manual.Append(
                     {boulder.x, boulder.y, boulder.diameter, 0.0, ManualBoulderId(boulder), true});
             }
@@ -831,11 +831,11 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
     const BoulderPlacement& placement = frame.placement;
     const double scatter = frame.stage.scatter;
     const auto [low, high] = ZRange(fragment.shape.mesh.positions, [&](const Vec3d& p) {
-        return placement.Apply(fragment.centre + p * fragment.scale);
+        return placement.Apply(fragment.center + p * fragment.scale);
     });
-    const Vec3d centre = placement.Apply(fragment.centre);
-    const double out = std::hypot(centre.x, centre.y);
-    const double angle = out > 0.0 ? std::atan2(centre.y, centre.x) : 2.0 * kPi * push;
+    const Vec3d center = placement.Apply(fragment.center);
+    const double out = std::hypot(center.x, center.y);
+    const double angle = out > 0.0 ? std::atan2(center.y, center.x) : 2.0 * kPi * push;
     const double gap = (frame.stage.opening * fragmentation.gapRatio +
                         scatter * fragmentation.spreadRatio * (0.5 + 0.5 * push)) *
                        parent.diameter;
@@ -855,7 +855,7 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
     const double sunk = std::clamp(-low / (high - low), 0.0, 0.95);
     piece.burial = std::fmax(sunk, sunk + scatter * (options_.pose.maxBurial - sunk));
     const Vec2d at = surface_.Locate(
-        {parent.x, parent.y}, {centre.x + gap * std::cos(angle), centre.y + gap * std::sin(angle)});
+        {parent.x, parent.y}, {center.x + gap * std::cos(angle), center.y + gap * std::sin(angle)});
     piece.x = at.x;
     piece.y = at.y;
     return piece;
@@ -964,7 +964,7 @@ void BoulderLayer::DrawRelief(SampleBlock& samples, const std::vector<Relief>& r
             [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
             [&](float& cell, const FeatureCell& at) {
                 const float base = ground[at.row * width + at.col];
-                cell = draw(cell, base, at.centre, reliefs[at.feature]);
+                cell = draw(cell, base, at.center, reliefs[at.feature]);
             });
         return;
     }

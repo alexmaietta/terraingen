@@ -13,7 +13,7 @@ using terraingen::DiameterRange;
 using terraingen::LogPolynomialSfd;
 using terraingen::MinimumSfd;
 using terraingen::PiecewisePowerLawSfd;
-using terraingen::PowerLawCoefficientFromKilometres;
+using terraingen::PowerLawCoefficientFromKilometers;
 using terraingen::PowerLawSegment;
 using terraingen::PowerLawSfd;
 using terraingen::RandomStream;
@@ -51,9 +51,9 @@ TEST(PowerLawSfd, RejectsInvalidParameters) {
                  std::invalid_argument);
 }
 
-TEST(PowerLawSfd, ConvertsKilometreCoefficientsToMetres) {
-    EXPECT_DOUBLE_EQ(PowerLawCoefficientFromKilometres(0.1, 2.0), 0.1);
-    EXPECT_DOUBLE_EQ(PowerLawCoefficientFromKilometres(1.0, 3.0), 1000.0);
-    const PowerLawSfd metres(PowerLawCoefficientFromKilometres(5.0, 1.8), 1.8);
-    EXPECT_NEAR(metres.Cumulative(2000.0) * 1e6, 5.0 * std::pow(2.0, -1.8), 1e-12);
+TEST(PowerLawSfd, ConvertsKilometerCoefficientsToMeters) {
+    EXPECT_DOUBLE_EQ(PowerLawCoefficientFromKilometers(0.1, 2.0), 0.1);
+    EXPECT_DOUBLE_EQ(PowerLawCoefficientFromKilometers(1.0, 3.0), 1000.0);
+    const PowerLawSfd meters(PowerLawCoefficientFromKilometers(5.0, 1.8), 1.8);
+    EXPECT_NEAR(meters.Cumulative(2000.0) * 1e6, 5.0 * std::pow(2.0, -1.8), 1e-12);
 }

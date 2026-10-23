@@ -12,7 +12,7 @@ using terraingen::PowerLawSfd;
 using terraingen::ProductionSurface;
 using terraingen::SfdKind;
 
-TEST(ProductionSurface, ScalesAnyProductionRateToItsChronologyAtOneKilometre) {
+TEST(ProductionSurface, ScalesAnyProductionRateToItsChronologyAtOneKilometer) {
     const auto production = std::make_shared<PowerLawSfd>(2.0, 2.0, SfdKind::ProductionRate);
     const Chronology linear = [](double ageGyr) { return 1e-6 * ageGyr; };
     const ProductionSurface surface(production, 3.0, linear);

@@ -229,16 +229,16 @@ void BindSimpleProfiles(nb::module_& m) {
 }
 
 void BindComplexShape(nb::module_& m) {
-    nb::class_<KilometrePowerLaw>(m, "KilometrePowerLaw",
+    nb::class_<KilometerPowerLaw>(m, "KilometerPowerLaw",
                                   "coefficient * D^exponent with D in kilometres.")
         .def(
             "__init__",
-            [](KilometrePowerLaw* self, double coefficient, double exponent) {
-                new (self) KilometrePowerLaw{coefficient, exponent};
+            [](KilometerPowerLaw* self, double coefficient, double exponent) {
+                new (self) KilometerPowerLaw{coefficient, exponent};
             },
             "coefficient"_a = 0.0, "exponent"_a = 0.0)
-        .def_rw("coefficient", &KilometrePowerLaw::coefficient)
-        .def_rw("exponent", &KilometrePowerLaw::exponent);
+        .def_rw("coefficient", &KilometerPowerLaw::coefficient)
+        .def_rw("exponent", &KilometerPowerLaw::exponent);
     auto shape = nb::class_<ComplexCraterShape>(
         m, "ComplexCraterShape",
         "Where craters turn complex and how their floors and central peaks scale.");

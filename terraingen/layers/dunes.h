@@ -251,9 +251,9 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     /// crest, add near planar point `q`, in wavelengths; `core` becomes the weight in [0, 1] that
     /// fades the crests out at the forks' ends.
     double Forks(const Vec2d& q, double wavelength, double density, double& core) const;
-    /// Adds to `phase` and `core` the fork centred at `centre`, its shape drawn from `random`.
+    /// Adds to `phase` and `core` the fork centred at `center`, its shape drawn from `random`.
     static void AddFork(double& phase, double& core, RandomStream& random, const Vec2d& q,
-                        const Vec2d& centre, double wavelength);
+                        const Vec2d& center, double wavelength);
     /// The dunes' gradient at planar point `q`, by central differences `step` metres apart.
     Vec2d Gradient(const Vec2d& q, double step) const;
     /// How far the ground with gradient `g` is a slip face, in [0, 1]: facing downwind near the

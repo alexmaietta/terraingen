@@ -27,8 +27,8 @@ Raster<double> MaterialSource::MaterialCoverOver(const RasterGrid& grid, double 
     cover.SetTransform(grid.transform);
     ParallelFor(grid.height, threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const Vec2d centre = cover.CellCenter(col, row);
-            cover(col, row) = MaterialCoverAt(centre.x, centre.y, spacing, ground);
+            const Vec2d center = cover.CellCenter(col, row);
+            cover(col, row) = MaterialCoverAt(center.x, center.y, spacing, ground);
         }
     });
     return cover;

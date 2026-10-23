@@ -155,9 +155,9 @@ TEST(WriteOutputs, WritesARasterAlbedoUpscaledWithTheSourceProjection) {
     const auto read = terraingen::ReadGeoTiff(written[0]);
     EXPECT_EQ(read.geoKeys, Keys());
     EXPECT_EQ(read.raster.Transform(), HeightsOf(terrain).Transform());
-    const auto centre = read.raster.CellCenter(3, 4);
+    const auto center = read.raster.CellCenter(3, 4);
     const float sampled =
-        terraingen::SampleRaster(map, centre.x, centre.y, terraingen::ResampleMethod::Cubic);
+        terraingen::SampleRaster(map, center.x, center.y, terraingen::ResampleMethod::Cubic);
     EXPECT_NEAR(read.raster(3, 4), 0.0001f * sampled, 1e-6f);
     float lowest = 1.0f;
     float highest = 0.0f;
@@ -194,7 +194,7 @@ TEST(WriteOutputs, WritesGeographicRastersAndListsOnASphere) {
     EXPECT_TRUE(terraingen::ReadGeoTiffInfo(written[1]).geoKeys.IsGeographic());
 }
 
-TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCentre) {
+TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCenter) {
     TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
     const terraingen::testing::GridRegion region{160, 160, 0.25, -30.0, 60.0};

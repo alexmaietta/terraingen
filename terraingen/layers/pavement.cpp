@@ -31,14 +31,14 @@ constexpr int kMaxOctaves = 8;
 
 /// One plate: its site and the plane it lies in.
 struct Site {
-    Vec2d centre;
+    Vec2d center;
     double step = 0.0;
     double slope = 0.0;
     Vec2d downhill;
     std::uint32_t id = 0;
 
     double HeightAt(const Vec2d& p) const {
-        return step + slope * ((p.x - centre.x) * downhill.x + (p.y - centre.y) * downhill.y);
+        return step + slope * ((p.x - center.x) * downhill.x + (p.y - center.y) * downhill.y);
     }
 };
 
@@ -60,14 +60,14 @@ Sites PlateSites(const Vec2d& p, double size, double jitter, double maxStep, dou
         const double u = random.NextDouble();
         const double v = random.NextDouble();
         Site& site = around.sites[around.count];
-        site.centre = {(static_cast<double>(gx) + 0.5 + jitter * (u - 0.5)) * size,
+        site.center = {(static_cast<double>(gx) + 0.5 + jitter * (u - 0.5)) * size,
                        (static_cast<double>(gy) + 0.5 + jitter * (v - 0.5)) * size};
         site.step = maxStep * (2.0 * random.NextDouble() - 1.0);
         site.slope = std::tan(maxTilt * random.NextDouble());
         const double turn = 2.0 * kPi * random.NextDouble();
         site.downhill = {std::cos(turn), std::sin(turn)};
         site.id = random.NextU32();
-        const double d = std::hypot(p.x - site.centre.x, p.y - site.centre.y);
+        const double d = std::hypot(p.x - site.center.x, p.y - site.center.y);
         if (d < best) {
             best = d;
             around.nearest = around.count;
@@ -82,23 +82,23 @@ Sites PlateSites(const Vec2d& p, double size, double jitter, double maxStep, dou
 std::pair<double, std::size_t> NearestEdge(const Sites& around, const Vec2d& p) {
     const Site& own = around.sites[around.nearest];
     double edge = std::numeric_limits<double>::infinity();
-    std::size_t neighbour = around.nearest;
+    std::size_t neighbor = around.nearest;
     for (std::size_t k = 0; k < around.count; ++k) {
         if (k == around.nearest) {
             continue;
         }
-        const Vec2d centre = around.sites[k].centre;
-        const Vec2d across{centre.x - own.centre.x, centre.y - own.centre.y};
+        const Vec2d center = around.sites[k].center;
+        const Vec2d across{center.x - own.center.x, center.y - own.center.y};
         const double length = std::hypot(across.x, across.y);
-        const Vec2d middle{0.5 * (centre.x + own.centre.x), 0.5 * (centre.y + own.centre.y)};
+        const Vec2d middle{0.5 * (center.x + own.center.x), 0.5 * (center.y + own.center.y)};
         const double d =
             ((middle.x - p.x) * across.x + (middle.y - p.y) * across.y) / std::max(length, 1e-12);
         if (d < edge) {
             edge = d;
-            neighbour = k;
+            neighbor = k;
         }
     }
-    return {edge, neighbour};
+    return {edge, neighbor};
 }
 
 }  // namespace
@@ -179,12 +179,11 @@ PavementLayer::Plate PavementLayer::PlateAt(const Vec2d& q, const Level& level, 
     const Sites around =
         PlateSites(p, level.size, options_.jitter, level.maxStep, level.maxTilt, seed);
     const Site& own = around.sites[around.nearest];
-    const auto [edge, neighbour] = NearestEdge(around, p);
+    const auto [edge, neighbor] = NearestEdge(around, p);
     const double shoulder = 0.5 * level.crackWidth + level.rounding;
     const double crack = 1.0 - Smoothstep(edge / shoulder);
     const double ownHeight = own.HeightAt(p);
-    const double plate =
-        ownHeight + 0.5 * crack * (around.sites[neighbour].HeightAt(p) - ownHeight);
+    const double plate = ownHeight + 0.5 * crack * (around.sites[neighbor].HeightAt(p) - ownHeight);
     const double sign = options_.raised ? 1.0 : -1.0;
     return {plate + crackWeight * sign * level.crackDepth * crack, edge, 1.0 - crack, own.id};
 }

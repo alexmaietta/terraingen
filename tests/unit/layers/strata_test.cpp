@@ -164,8 +164,8 @@ TEST(StrataLayer, GridsAndPointsAgree) {
     layer.Apply(heights, {0.5, 2});
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(before(col, row), centre.x, centre.y, {0.5}),
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(before(col, row), center.x, center.y, {0.5}),
                       heights(col, row));
         }
     }

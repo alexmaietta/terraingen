@@ -154,7 +154,7 @@ class CubeSphereCells final : public SurfaceCells {
     /// continuing onto neighbouring faces past an edge, without repeats, sorted by i, then j.
     /// @param cellSize The cell side in metres.
     /// @throws std::invalid_argument as `CellsPerEdge`.
-    std::vector<CellIndex> Neighbours(const CellIndex& cell, double cellSize, int rings) const;
+    std::vector<CellIndex> Neighbors(const CellIndex& cell, double cellSize, int rings) const;
 
     /// The unit direction of a face at equiangular coordinates.
     /// @param face The face, 0 to 5: +x, -x, +y, -y, +z, -z.

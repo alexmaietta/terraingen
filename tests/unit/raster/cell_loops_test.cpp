@@ -73,7 +73,7 @@ TEST(ForEachFeatureCell, VisitsEachFeaturesCellsInOrderOnAnyNumberOfThreads) {
             [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
             [&](float& cell, const terraingen::FeatureCell& at) {
                 cell = cell * 10.0f + static_cast<float>(at.feature + 1);
-                EXPECT_EQ(at.centre.x, static_cast<double>(at.col) + 0.5);
+                EXPECT_EQ(at.center.x, static_cast<double>(at.col) + 0.5);
                 EXPECT_EQ(windows[at.feature][at.window].colBegin <= at.col, true);
             });
         EXPECT_EQ(raster(0, 0), 1.0f);
@@ -89,8 +89,8 @@ TEST(MapCells, MapsEveryCellHoldingData) {
     Raster<float> raster = Grid(5, 4);
     raster.SetNoData(std::numeric_limits<float>::quiet_NaN());
     raster(1, 1) = std::nanf("");
-    terraingen::MapCells(raster, 2, [](float height, const terraingen::Vec2d& centre) {
-        return height + static_cast<float>(centre.x);
+    terraingen::MapCells(raster, 2, [](float height, const terraingen::Vec2d& center) {
+        return height + static_cast<float>(center.x);
     });
     EXPECT_EQ(raster(0, 0), 0.5f);
     EXPECT_EQ(raster(4, 3), 4.5f);

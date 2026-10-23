@@ -27,7 +27,7 @@ double PowerLawSfd::InvertCumulative(double target, double /*dMin*/, double /*dM
     return law_.Invert(target);
 }
 
-double PowerLawCoefficientFromKilometres(double coefficient, double exponent) {
+double PowerLawCoefficientFromKilometers(double coefficient, double exponent) {
     return coefficient * std::pow(1000.0, exponent) / 1e6;
 }
 

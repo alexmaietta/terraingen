@@ -108,6 +108,7 @@ Old keys and names are rejected rather than aliased. Angle keys are in degrees; 
 | `base.pixel_size`, `base.resampling` | `source.upsampling`; set the output's `pixel_size_m` for finer cells |
 | `base.low_pass` | removed; `effective_pixel_size_m` for a DEM smoothed before it was saved |
 | layer `dem_detail` | removed; use `source.upsampling` or a `spectral_continuation` layer |
+| `body.metres_per_unit` (`shape_model`) | `body.meters_per_unit` |
 
 **Configuration, outputs**
 
@@ -128,6 +129,7 @@ Old keys and names are rejected rather than aliased. Angle keys are in degrees; 
 | craters `min_diameter`, `max_diameter` | `min_diameter_m`, `max_diameter_m` |
 | craters `apply.fade` {`start_samples`, `end_samples`, `shape`} | `apply.fade_px` [start, end], `apply.fade_shape` |
 | crater `irregularity.heading`, `heading_spread` | `heading_deg`, `heading_spread_deg` |
+| craters `apply.datum` `"centre_height"` | `"center_height"` |
 | secondaries `min_diameter`, `max_diameter`, `min_primary_diameter`, `max_primary_diameter` | the same with `_m` |
 | secondaries `width_degrees`, `min_half_angle_degrees` | `width_deg`, `min_half_angle_deg` |
 | boulders `min_diameter`, `max_diameter` | `min_diameter_m`, `max_diameter_m` |
@@ -169,6 +171,11 @@ Old keys and names are rejected rather than aliased. Angle keys are in degrees; 
 | `GridRegionSpec`, `config::RegionGrid`, `config::FeatureOutput` | `OutputAreaSpec`, `ExtentSpec`, `config::SnappedGrid` |
 | `terraingen/materials/` | `terraingen/pipeline/materials.h`, `terraingen/albedo/photometry.h` |
 | `NoiseLayersAt` in `layers/noise_relief.h` | `sources/synthetic_terrain.h` |
+| `KilometrePowerLaw`, `PowerLawCoefficientFromKilometres` | `KilometerPowerLaw`, `PowerLawCoefficientFromKilometers` |
+| `CraterDatum::CentreHeight` | `CraterDatum::CenterHeight` |
+| `CubeSphereCells::Neighbours`, `SampleAtCentres` | `CubeSphereCells::Neighbors`, `SampleAtCenters` |
+| `MeshMaterial::colour`, `FeatureCell::centre`, `BoulderFragment::centre` | `MeshMaterial::color`, `FeatureCell::center`, `BoulderFragment::center` |
+| `ShapeModelSurfaceSpec::metresPerUnit` | `ShapeModelSurfaceSpec::metersPerUnit` |
 | `TERRAINGEN_API_VERSION` 1 | 2 |
 
 **Python API**
@@ -197,6 +204,13 @@ Old keys and names are rejected rather than aliased. Angle keys are in degrees; 
 | `SplotchOptions`, `SlopeMaturityOptions` | `SplotchAlbedoOptions`, `SlopeAlbedoOptions` |
 | angles in radians (`SyntheticAlbedo(hue=)`, `hsv_to_rgb(hue)`, `RigidTransform.rotation_x(angle)`, `Boulder.yaw`, ...) | degrees with `_deg` names (`hue_deg=`, `angle_deg`, `Boulder.yaw_deg`, ...) |
 | `crater_blend_weight`, `CraterAgeModel.lifetime_gyr` | `CraterBlend.weight`, `lifetime_at` |
+| `KilometrePowerLaw`, `power_law_coefficient_from_kilometres` | `KilometerPowerLaw`, `power_law_coefficient_from_kilometers` |
+| `CraterDatum.CENTRE_HEIGHT` | `CraterDatum.CENTER_HEIGHT` |
+| `CubeSphereCells.neighbours` | `CubeSphereCells.neighbors` |
+| `RasterGrid.centred(centre=)` | `RasterGrid.centered(center=)` |
+| keyword `centre=` (`FlatSource`, `Surface.offset`, `Surface.locate`), `metres=` (`Surface.expand`) | `center=`, `meters=` |
+| `MeshMaterial(colour=)`, `MeshMaterial.colour` | `MeshMaterial(color=)`, `MeshMaterial.color` |
+| `read_icq(metres_per_unit=)`, `write_icq(metres_per_unit=)` | `meters_per_unit=` |
 | `TileScheme`, `TileKey`, `TileCache`, `evaluate_tile`, `evaluate_tiles` | removed |
 
 ## [0.1.0] - 2026-10-18

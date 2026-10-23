@@ -25,7 +25,7 @@ const ParseCase kParseCases[] = {
     {"SchemaVersionAsString", R"({"schema_version": "1"})", "schema_version"},
     {"HugeSchemaVersion", R"({"schema_version": 3000000000})", "schema_version"},
     {"NegativeSchemaVersion", R"({"schema_version": -3000000000})", "schema_version"},
-    {"UnknownRootKey", R"({"schema_version": 1, "colour": 3})", "colour"},
+    {"UnknownRootKey", R"({"schema_version": 1, "color": 3})", "color"},
     {"UnknownRootObject", R"({"schema_version": 1, "grid": {}})", "grid"},
     {"RetiredCratersKey", R"({"schema_version": 1, "craters": {}})", "craters"},
     {"ExtentAsArray",
@@ -96,6 +96,12 @@ const ParseCase kParseCases[] = {
     {"EnabledAsNumber",
      R"({"schema_version": 1, "layers": [{"type": "noise", "stack": [{"enabled": 1}]}]})",
      "layers[0].stack[0].enabled"},
+    {"RenamedCenterHeightDatum",
+     R"({"schema_version": 1, "layers": [{"type": "craters", "apply": {"datum": "centre_height"}}]})",
+     "layers[0].apply.datum"},
+    {"RenamedMetersPerUnit",
+     R"({"schema_version": 1, "body": {"type": "shape_model", "path": "x.icq", "metres_per_unit": 1000}})",
+     "body.metres_per_unit"},
     {"DensityWithoutType",
      R"({"schema_version": 1, "layers": [{"type": "craters", "density": {"age_gyr": 3}}]})",
      "layers[0].density.type"},
@@ -158,8 +164,8 @@ TEST(ConfigJson, ErrorMessagesNameThePathAndTheAlternatives) {
     EXPECT_EQ(ParseErrorMessage(R"({"schema_version": 2})"),
               "schema_version: version 2 is not supported; this library reads version 1");
     EXPECT_EQ(ParseErrorMessage("{}"), "schema_version: required; this library reads version 1");
-    EXPECT_EQ(ParseErrorMessage(R"({"schema_version": 1, "colour": 3})")
-                  .rfind("colour: unknown key; expected one of: ", 0),
+    EXPECT_EQ(ParseErrorMessage(R"({"schema_version": 1, "color": 3})")
+                  .rfind("color: unknown key; expected one of: ", 0),
               0u);
     EXPECT_EQ(ParseErrorMessage("[]"), "expected an object, not array");
 }

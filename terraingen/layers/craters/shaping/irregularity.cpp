@@ -32,9 +32,9 @@ constexpr std::size_t kTableSize = 1024;
 struct PiecewiseFit {
     double a1, b1, sigma1, a2, b2, sigma2;
 
-    double At(double kilometres, double z) const {
-        return kilometres <= 20.0 ? a1 * kilometres + b1 + z * sigma1
-                                  : a2 * kilometres + b2 + z * sigma2;
+    double At(double kilometers, double z) const {
+        return kilometers <= 20.0 ? a1 * kilometers + b1 + z * sigma1
+                                  : a2 * kilometers + b2 + z * sigma2;
     }
 };
 
@@ -88,14 +88,14 @@ void LimitDeviation(std::vector<double>& table, double maxDeviation) {
 
 std::vector<double> DuRimTable(double diameter, bool scatter, double maxDeviation,
                                RandomStream& random) {
-    const double kilometres = std::clamp(diameter / 1000.0, 1.0, 140.0);
+    const double kilometers = std::clamp(diameter / 1000.0, 1.0, 140.0);
     const auto draw = [&] { return scatter ? StandardNormal(random) : 0.0; };
     DuSpectrum fit{};
-    fit.slope = kSlope12.At(kilometres, draw());
-    fit.logWavelength2 = kLogWavelength2.At(kilometres, draw());
-    fit.logPower2 = kLogPower2.At(kilometres, draw());
-    fit.logPower3 = kLogPower3.At(kilometres, draw());
-    fit.logPower4 = kLogPower4.At(kilometres, draw());
+    fit.slope = kSlope12.At(kilometers, draw());
+    fit.logWavelength2 = kLogWavelength2.At(kilometers, draw());
+    fit.logPower2 = kLogPower2.At(kilometers, draw());
+    fit.logPower3 = kLogPower3.At(kilometers, draw());
+    fit.logPower4 = kLogPower4.At(kilometers, draw());
     std::vector<std::complex<double>> spectrum(kTableSize);
     for (std::size_t k = 1; k < kTableSize / 2; ++k) {
         const double noise = scatter ? kSpectrumSigma * StandardNormal(random) : 0.0;

@@ -18,11 +18,11 @@ enum class BoulderCracks {
 
 /// One piece of a split boulder shape.
 struct BoulderFragment {
-    /// The piece as `(parent point - centre) / scale`: the unit form of `BoulderShape` scaled to
+    /// The piece as `(parent point - center) / scale`: the unit form of `BoulderShape` scaled to
     /// its largest horizontal extent rather than turned to its long axis, so that placing it with
     /// its parent's pose puts it back where it was.
     BoulderShape shape;
-    Vec3d centre;        ///< Centre of the piece's box in the parent's unit form.
+    Vec3d center;        ///< Centre of the piece's box in the parent's unit form.
     double scale = 1.0;  ///< The piece's largest horizontal extent in the parent's unit form.
 };
 

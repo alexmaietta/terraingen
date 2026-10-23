@@ -48,7 +48,7 @@ class Bowl final : public terraingen::Ground {
     }
 };
 
-Albedo Grey(double value) {
+Albedo Gray(double value) {
     terraingen::SyntheticAlbedoOptions params;
     params.value = value;
     return {std::make_shared<terraingen::SyntheticAlbedo>(params),
@@ -77,7 +77,7 @@ TEST(SlopeAlbedo, ReadsTheSlopeOfTheGround) {
 TEST(SlopeAlbedo, BrightensSteepGroundAsFreshMaterial) {
     const Tilted steep(30.0);
     const Tilted gentle(10.0);
-    const Albedo albedo = Grey(0.12);
+    const Albedo albedo = Gray(0.12);
     const auto value = [&](const terraingen::Ground& ground) {
         return terraingen::EvaluateAlbedoAt(albedo, 1.0, 2.0, OnGround(1.0, &ground))[0];
     };
@@ -92,16 +92,16 @@ TEST(SlopeAlbedo, BrightensSteepGroundAsFreshMaterial) {
 
 TEST(SlopeAlbedo, GridsAndPointsAgree) {
     const Bowl bowl;
-    const Albedo albedo = Grey(0.12);
+    const Albedo albedo = Gray(0.12);
     const RasterGrid grid{40, 30, GeoTransform::NorthUp(-60.0, 45.0, 3.0)};
     const auto values = terraingen::EvaluateAlbedo(albedo, grid, OnGround(3.0, &bowl));
     EXPECT_FLOAT_EQ(values[0](20, 15), 0.12f) << "the gentle floor";
     EXPECT_GT(values[0](0, 0), 0.12f) << "the steep wall";
     for (std::size_t row = 0; row < grid.height; row += 3) {
         for (std::size_t col = 0; col < grid.width; col += 7) {
-            const auto centre = values[0].CellCenter(col, row);
+            const auto center = values[0].CellCenter(col, row);
             ASSERT_EQ(
-                terraingen::EvaluateAlbedoAt(albedo, centre.x, centre.y, OnGround(3.0, &bowl))[0],
+                terraingen::EvaluateAlbedoAt(albedo, center.x, center.y, OnGround(3.0, &bowl))[0],
                 values[0](col, row));
         }
     }

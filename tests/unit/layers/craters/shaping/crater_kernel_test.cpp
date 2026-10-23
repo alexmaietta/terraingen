@@ -328,7 +328,7 @@ namespace {
 struct BodySurface {
     std::string name;
     terraingen::Surface surface;
-    terraingen::Vec2d centre;  ///< Longitude and latitude in degrees.
+    terraingen::Vec2d center;  ///< Longitude and latitude in degrees.
     double step;               ///< Grid cell side in degrees.
     double maxDiameter;        ///< Largest crater on the grid, in metres.
 };
@@ -356,8 +356,8 @@ terraingen::CraterList BodyCraters(const BodySurface& body, std::size_t side, in
         const double u = std::fmod(0.37 * i, 1.0);
         const double v = std::fmod(0.53 * i + 0.1, 1.0);
         const double d = body.maxDiameter * (0.02 + 0.98 * std::fmod(0.29 * i, 1.0));
-        craters.Append({body.centre.x - half + 2.0 * half * u,
-                        body.centre.y - half + 2.0 * half * v, d, 0.002 * (i % 40),
+        craters.Append({body.center.x - half + 2.0 * half * u,
+                        body.center.y - half + 2.0 * half * v, d, 0.002 * (i % 40),
                         static_cast<std::uint64_t>(i + 1)});
     }
     return craters;
@@ -368,7 +368,7 @@ terraingen::Raster<float> BodyGrid(const BodySurface& body, std::size_t side) {
     terraingen::Raster<float> grid(side, side, 0.0f);
     const double half = 0.5 * static_cast<double>(side) * body.step;
     grid.SetTransform(
-        terraingen::GeoTransform::NorthUp(body.centre.x - half, body.centre.y + half, body.step));
+        terraingen::GeoTransform::NorthUp(body.center.x - half, body.center.y + half, body.step));
     for (std::size_t i = 0; i < grid.Size(); ++i) {
         grid.Values()[i] = 0.02f * static_cast<float>(i % side);
     }
@@ -399,24 +399,24 @@ TEST(CraterKernel, TakesArcsineRatiosToWithinFloatRounding) {
 
 TEST(CraterKernel, WorksOutBodyOffsetsInEachCratersFrameAsTheSurfaceDoes) {
     for (const BodySurface& body : BodySurfaces()) {
-        const Crater crater{body.centre.x, body.centre.y, body.maxDiameter, 0.0, 1u};
-        const terraingen::Vec2d corner = body.surface.Locate(body.centre, {-900.0, 700.0});
+        const Crater crater{body.center.x, body.center.y, body.maxDiameter, 0.0, 1u};
+        const terraingen::Vec2d corner = body.surface.Locate(body.center, {-900.0, 700.0});
         const terraingen::Vec3d origin = body.surface.Position(corner);
         const terraingen::CraterFrame frame =
             terraingen::MakeCraterFrame(body.surface, crater, origin);
-        for (const double metres : {0.0, 0.01, 1.0, 37.0, 250.0, 1200.0}) {
+        for (const double meters : {0.0, 0.01, 1.0, 37.0, 250.0, 1200.0}) {
             for (const double azimuth : {0.0, 0.7, 2.2, 3.9, 5.5}) {
                 const terraingen::Vec2d point = body.surface.Locate(
-                    body.centre, {metres * std::sin(azimuth), metres * std::cos(azimuth)});
+                    body.center, {meters * std::sin(azimuth), meters * std::cos(azimuth)});
                 const terraingen::Vec3d p = body.surface.Position(point) - origin;
                 const terraingen::KernelOffset kernel =
                     terraingen::KernelFrameOffset(frame, static_cast<float>(p.x),
                                                   static_cast<float>(p.y), static_cast<float>(p.z));
                 const terraingen::KernelOffset exact =
                     terraingen::ShapingOffset(body.surface, crater, point);
-                const double tolerance = 1e-3 + 1e-6 * metres;
-                EXPECT_NEAR(kernel.dx, exact.dx, tolerance) << body.name << " at " << metres;
-                EXPECT_NEAR(kernel.dy, exact.dy, tolerance) << body.name << " at " << metres;
+                const double tolerance = 1e-3 + 1e-6 * meters;
+                EXPECT_NEAR(kernel.dx, exact.dx, tolerance) << body.name << " at " << meters;
+                EXPECT_NEAR(kernel.dy, exact.dy, tolerance) << body.name << " at " << meters;
             }
         }
     }

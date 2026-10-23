@@ -107,8 +107,8 @@ std::vector<Raster<float>> EvaluateMaterials(const TerrainGenerator& generator,
     std::vector<Raster<float>> bands(kMaterialClasses, grid.MakeRaster());
     ParallelFor(grid.height, evaluation.threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
-            const Vec2d centre = bands[0].CellCenter(col, row);
-            MaterialShares shares = ground.At(centre.x, centre.y, spacing);
+            const Vec2d center = bands[0].CellCenter(col, row);
+            MaterialShares shares = ground.At(center.x, center.y, spacing);
             for (const auto& [material, cover] : covers) {
                 CoverWith(shares, material, cover(col, row));
             }

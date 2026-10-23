@@ -211,7 +211,7 @@ Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
         throw std::invalid_argument("Cannot resample onto an empty grid");
     }
     Raster<float> result = grid.MakeRaster();
-    SampleAtCentres(result, raster.NoData(),
+    SampleAtCenters(result, raster.NoData(),
                     [&](double x, double y) { return SampleRaster(raster, x, y, method); });
     return result;
 }

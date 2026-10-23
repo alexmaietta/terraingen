@@ -51,7 +51,7 @@ def fine_grid(source, pixel_size=2.0):
 
 
 def test_flat_source_describes_its_grid():
-    source = terraingen.FlatSource(65, 33, 2.0, elevation=5.0, centre=(100.0, -50.0))
+    source = terraingen.FlatSource(65, 33, 2.0, elevation=5.0, center=(100.0, -50.0))
     assert (source.width, source.height) == (65, 33)
     assert source.transform.pixel_width == 2.0
     assert source.height_at(100.0, -50.0, 1.0) == 5.0 and source.bounded
@@ -62,9 +62,9 @@ def test_flat_source_rejects_an_empty_grid():
         terraingen.FlatSource(0, 10, 1.0)
 
 
-def test_flat_source_on_a_body_takes_its_cell_size_in_metres():
+def test_flat_source_on_a_body_takes_its_cell_size_in_meters():
     moon = terraingen.Surface.sphere(1737400.0)
-    source = terraingen.FlatSource(9, 9, 30.0, centre=(10.0, -20.0), surface=moon)
+    source = terraingen.FlatSource(9, 9, 30.0, center=(10.0, -20.0), surface=moon)
     assert source.transform.pixel_width == pytest.approx(30.0 / moon.unit_length)
 
 
@@ -105,7 +105,7 @@ def test_python_source_fills_the_heights(paraboloid):
     assert plain[32, 32] == pytest.approx(0.0, abs=1e-6) and plain[0, 0] > 4.0
 
 
-def test_synthetic_terrain_is_centred_on_the_origin():
+def test_synthetic_terrain_is_centered_on_the_origin():
     raster = terraingen.generate_synthetic_terrain(17, 9, 1.5, synthetic_params())
     assert raster.shape == (9, 17)
     assert raster.transform == terraingen.GeoTransform.north_up(-12.75, 6.75, 1.5)
@@ -120,7 +120,7 @@ def test_synthetic_terrain_matches_fill():
     np.testing.assert_array_equal(raster.values, filled.values)
 
 
-def test_synthetic_terrain_samples_the_noise_layers_at_cell_centres():
+def test_synthetic_terrain_samples_the_noise_layers_at_cell_centers():
     params = synthetic_params()
     raster = terraingen.generate_synthetic_terrain(17, 9, 1.5, params)
     cols, rows = np.meshgrid(np.arange(17), np.arange(9))

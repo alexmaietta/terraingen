@@ -59,7 +59,7 @@ SandShadowLayer::ShadowsOver(const Bounds2d& region, double spacing, const Groun
 }
 
 double SandShadowLayer::ShadowDepth(const Shadow& shadow, double x, double y) const {
-    const Vec2d offset = surface_.Offset(shadow.centre, {x, y});
+    const Vec2d offset = surface_.Offset(shadow.center, {x, y});
     const double along = offset.x * downwind_.x + offset.y * downwind_.y - 0.5 * shadow.width;
     const double length = options_.lengthRatio * shadow.width;
     if (!(along >= 0.0 && along < length)) {
@@ -104,7 +104,7 @@ Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid, double
         cover, threads, shadows.size(),
         [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
         [&](double& cell, const FeatureCell& at) {
-            cell = std::max(cell, ShadowDepth(shadows[at.feature], at.centre.x, at.centre.y));
+            cell = std::max(cell, ShadowDepth(shadows[at.feature], at.center.x, at.center.y));
         });
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
@@ -130,7 +130,7 @@ void SandShadowLayer::ApplySamples(SampleBlock& samples, const LayerContext& con
             *heights, context.threads, shadows.size(),
             [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
             [&](float& cell, const FeatureCell& at) {
-                const double depth = ShadowDepth(shadows[at.feature], at.centre.x, at.centre.y);
+                const double depth = ShadowDepth(shadows[at.feature], at.center.x, at.center.y);
                 const double base = static_cast<double>(beneath[at.row * width + at.col]);
                 cell = static_cast<float>(std::max(static_cast<double>(cell), base + depth));
             });

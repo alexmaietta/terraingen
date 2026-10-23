@@ -18,16 +18,16 @@ TEST(GeoTransform, GdalCoefficientsRoundTrip) {
     EXPECT_EQ(GeoTransform::FromGdal(coefficients).ToGdal(), coefficients);
 }
 
-TEST(GeoTransform, NorthUpMapsCornersAndCentres) {
+TEST(GeoTransform, NorthUpMapsCornersAndCenters) {
     const GeoTransform t = GeoTransform::NorthUp(1000.0, 2000.0, 5.0);
 
     const Vec2d corner = t.PixelToWorld(0.0, 0.0);
     EXPECT_DOUBLE_EQ(corner.x, 1000.0);
     EXPECT_DOUBLE_EQ(corner.y, 2000.0);
 
-    const Vec2d centre = t.PixelToWorld(0.5, 0.5);
-    EXPECT_DOUBLE_EQ(centre.x, 1002.5);
-    EXPECT_DOUBLE_EQ(centre.y, 1997.5);
+    const Vec2d center = t.PixelToWorld(0.5, 0.5);
+    EXPECT_DOUBLE_EQ(center.x, 1002.5);
+    EXPECT_DOUBLE_EQ(center.y, 1997.5);
 
     const Vec2d farCorner = t.PixelToWorld(10.0, 4.0);
     EXPECT_DOUBLE_EQ(farCorner.x, 1050.0);

@@ -350,8 +350,8 @@ TEST(ApplyCraters, StretchesElongatedCratersAndKeepsPointQueriesOnTheGrid) {
     layer.Apply(heights, {1.0, 2, &flat});
     for (std::size_t row = 0; row < heights.Height(); row += 3) {
         for (std::size_t col = 0; col < heights.Width(); col += 3) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {1.0, 1, &flat}), heights(col, row));
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {1.0, 1, &flat}), heights(col, row));
         }
     }
     const double along = 20.0 * std::sqrt(2.0);

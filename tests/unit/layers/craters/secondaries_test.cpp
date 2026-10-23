@@ -150,8 +150,8 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
         for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{5, 5},
                                        std::pair<std::size_t, std::size_t>{48, 60},
                                        std::pair<std::size_t, std::size_t>{90, 30}}) {
-            const auto centre = whole.CellCenter(col, row);
-            EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {4.0}), whole(col, row));
+            const auto center = whole.CellCenter(col, row);
+            EXPECT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {4.0}), whole(col, row));
         }
         EXPECT_TRUE(std::isnan(layer.ApplyAt(NAN, 0.0, 0.0, {4.0})));
     }
@@ -272,7 +272,7 @@ TEST(SingerMaxRange, InvertsTheLargestSecondaryInRange) {
         << "below 1 km the largest secondary does not shrink with range";
 }
 
-TEST(ElliottMedianRayLength, FollowsTheirPowerLawInRadiusInKilometres) {
+TEST(ElliottMedianRayLength, FollowsTheirPowerLawInRadiusInKilometers) {
     EXPECT_DOUBLE_EQ(terraingen::ElliottMedianRayLength(2000.0), 6590.0);
     EXPECT_DOUBLE_EQ(terraingen::ElliottMedianRayLength(4000.0, 2.0, 1.0), 4000.0);
     const SecondaryCraterLayer layer(Primaries({0.0, 0.0, 2000.0, 0.0, 9u, true}), Models(),
@@ -388,8 +388,8 @@ TEST(SecondaryCraterLayer, RaysAndShapesKeepGridsTilesAndPointsInStep) {
     for (std::size_t row = 0; row < 32; ++row) {
         for (std::size_t col = 0; col < 32; ++col) {
             ASSERT_NEAR(tile(col, row), whole(col + 32, row + 32), 1e-5f);
-            const auto centre = tile.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {4.0}), tile(col, row));
+            const auto center = tile.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {4.0}), tile(col, row));
         }
     }
 }

@@ -126,8 +126,8 @@ TEST(RoughnessLayer, GivesPointsTheSameBitsAsGridsOnAnyThreads) {
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             ASSERT_EQ(one(col, row), many(col, row));
-            const auto centre = one.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {0.02}), one(col, row));
+            const auto center = one.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {0.02}), one(col, row));
             sumSquares += std::pow(static_cast<double>(one(col, row)), 2.0);
         }
     }

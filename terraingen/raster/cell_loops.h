@@ -76,7 +76,7 @@ struct FeatureCell {
     std::size_t window = 0;   ///< Index of the window among the feature's.
     std::size_t col = 0;      ///< Column of the cell.
     std::size_t row = 0;      ///< Row of the cell.
-    Vec2d centre{};           ///< World coordinates of the cell's centre.
+    Vec2d center{};           ///< World coordinates of the cell's centre.
 };
 
 /// Visits the cells of each feature's windows, feature by feature, on several threads.
@@ -117,7 +117,7 @@ void ForEachFeatureCell(Raster<T>& raster, unsigned threads, std::size_t feature
 /// Sets each cell of a raster holding data to a function of its height and centre, rows
 /// over several threads.
 /// @param threads Threads to split the rows over; 0 for every hardware thread.
-/// @param map `map(height, centre)` returning the cell's new height as a `float`.
+/// @param map `map(height, center)` returning the cell's new height as a `float`.
 template <typename Map> void MapCells(Raster<float>& heights, unsigned threads, const Map& map) {
     ParallelFor(heights.Height(), threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {

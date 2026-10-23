@@ -144,8 +144,8 @@ TEST(FreshnessAges, CraterLayersAgreeOnGridsTilesAndPoints) {
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{50, 70},
           std::pair<std::size_t, std::size_t>{95, 30}}) {
-        const auto centre = whole.CellCenter(col, row);
-        EXPECT_EQ(layer.ApplyAt(0.0f, centre.x, centre.y, {2.0}), whole(col, row));
+        const auto center = whole.CellCenter(col, row);
+        EXPECT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {2.0}), whole(col, row));
     }
     const auto all = layer.Craters(terraingen::RasterGrid::FromRaster(whole).Bounds(), 2.0);
     const auto part = layer.Craters(terraingen::RasterGrid::FromRaster(tile).Bounds(), 2.0);

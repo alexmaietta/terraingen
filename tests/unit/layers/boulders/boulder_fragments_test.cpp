@@ -49,7 +49,7 @@ TEST(FragmentBoulderShape, SplitsAShapeIntoPiecesThatFillIt) {
         for (const auto& fragment : fragments) {
             total += terraingen::Volume(fragment.shape.mesh) * std::pow(fragment.scale, 3.0);
             for (const auto& p : fragment.shape.mesh.positions) {
-                const auto q = fragment.centre + p * fragment.scale;
+                const auto q = fragment.center + p * fragment.scale;
                 ASSERT_GE(q.x, box.min.x - 1e-9);
                 ASSERT_LE(q.x, box.max.x + 1e-9);
                 ASSERT_GE(q.z, box.min.z - 1e-9);
@@ -147,8 +147,8 @@ TEST(BoulderLayer, DrawsPiecesThatPointQueriesMatch) {
     bool raised = false;
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const auto centre = heights.CellCenter(col, row);
-            ASSERT_EQ(layer.ApplyAt(1.0f, centre.x, centre.y, {0.25}), heights(col, row));
+            const auto center = heights.CellCenter(col, row);
+            ASSERT_EQ(layer.ApplyAt(1.0f, center.x, center.y, {0.25}), heights(col, row));
             raised = raised || heights(col, row) > 1.0f;
         }
     }
@@ -282,15 +282,15 @@ TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
     double mx = 0.0;
     double my = 0.0;
     for (const auto& fragment : slabs) {
-        mx += 0.25 * fragment.centre.x;
-        my += 0.25 * fragment.centre.y;
+        mx += 0.25 * fragment.center.x;
+        my += 0.25 * fragment.center.y;
     }
     double sxx = 0.0;
     double syy = 0.0;
     double sxy = 0.0;
     for (const auto& fragment : slabs) {
-        const double dx = fragment.centre.x - mx;
-        const double dy = fragment.centre.y - my;
+        const double dx = fragment.center.x - mx;
+        const double dy = fragment.center.y - my;
         sxx += dx * dx;
         syy += dy * dy;
         sxy += dx * dy;
@@ -298,8 +298,8 @@ TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
     const double mean = 0.5 * (sxx + syy);
     const double spread = std::sqrt(0.25 * (sxx - syy) * (sxx - syy) + sxy * sxy);
     EXPECT_LT((mean - spread) / (mean + spread), 0.1) << "slab centres lie along a line";
-    EXPECT_NE(FragmentBoulderShape(parent, 4, 11, terraingen::BoulderCracks::Radial)[0].centre.x,
-              slabs[0].centre.x);
+    EXPECT_NE(FragmentBoulderShape(parent, 4, 11, terraingen::BoulderCracks::Radial)[0].center.x,
+              slabs[0].center.x);
     BoulderLayerOptions options;
     options.fragmentation.slabShare = 1.5;
     EXPECT_THROW(terraingen::ValidateBoulderFragmentation(options.fragmentation),

@@ -88,8 +88,8 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
     EXPECT_FALSE(terraingen::PlacedBoulders(terrain, large).boulders.empty());
     for (std::size_t row = 3; row < large.height; row += 7) {
         for (std::size_t col = 1; col < large.width; col += 7) {
-            const auto centre = whole.CellCenter(col, row);
-            ASSERT_EQ(terraingen::HeightAt(terrain, centre.x, centre.y, 1.0), whole(col, row));
+            const auto center = whole.CellCenter(col, row);
+            ASSERT_EQ(terraingen::HeightAt(terrain, center.x, center.y, 1.0), whole(col, row));
         }
     }
     ExpectSameCells(Evaluate(terrain, Window(large, 56, 68)), whole, 56, 68);
@@ -123,8 +123,8 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     EXPECT_GT(terraingen::PlacedCraters(terrain, terrain.source->Grid()).craters.Size(), 3u);
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{10, 10},
                                    std::pair<std::size_t, std::size_t>{50, 33}}) {
-        const auto centre = whole.CellCenter(col, row);
-        EXPECT_EQ(terraingen::HeightAt(terrain, centre.x, centre.y, 4.0), whole(col, row));
+        const auto center = whole.CellCenter(col, row);
+        EXPECT_EQ(terraingen::HeightAt(terrain, center.x, center.y, 4.0), whole(col, row));
     }
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-100.0 * step, 80.0 * step, step)};
     const auto smoothed = Evaluate(terrain, large);

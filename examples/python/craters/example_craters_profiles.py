@@ -17,7 +17,7 @@ import terraingen
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import _common
-from _common import colour_name, hillshade, line_plot, montage, write_png
+from _common import color_name, hillshade, line_plot, montage, write_png
 
 DIAMETER = 100.0
 
@@ -78,7 +78,7 @@ class Example(_common.Example):
             self.curves.append(
                 (np.concatenate([-distances[::-1], distances]), np.concatenate([heights[::-1], heights]))
             )
-        print("legend:", ", ".join(f"{colour_name(i)} {n}" for i, n in enumerate(profiles)))
+        print("legend:", ", ".join(f"{color_name(i)} {n}" for i, n in enumerate(profiles)))
 
         production = terraingen.extended_neukum_production_function()
         equilibrium = terraingen.trask_equilibrium()

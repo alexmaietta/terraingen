@@ -58,14 +58,14 @@ TEST(ValidateSyntheticTerrain, ChecksLayerCountAndNamesTheBadLayer) {
     }
 }
 
-TEST(FillSyntheticTerrain, WritesLayerHeightsAtCellCentres) {
+TEST(FillSyntheticTerrain, WritesLayerHeightsAtCellCenters) {
     Raster<float> raster(8, 4);
     raster.SetTransform(GeoTransform::NorthUp(100.0, 50.0, 2.0));
     const SyntheticTerrainParams params = TwoLayers();
     FillSyntheticTerrain(raster, params);
-    const auto centre = raster.CellCenter(3, 2);
+    const auto center = raster.CellCenter(3, 2);
     EXPECT_EQ(raster(3, 2),
-              EvaluateNoiseLayers(static_cast<float>(centre.x), static_cast<float>(centre.y),
+              EvaluateNoiseLayers(static_cast<float>(center.x), static_cast<float>(center.y),
                                   params.layers.data(), params.layers.size()));
 }
 
@@ -101,7 +101,7 @@ TEST(FillSyntheticTerrain, RejectsInvalidParams) {
     EXPECT_THROW(FillSyntheticTerrain(raster, params), std::invalid_argument);
 }
 
-TEST(GenerateSyntheticTerrain, HasRequestedSizeAndIsCentredOnTheOrigin) {
+TEST(GenerateSyntheticTerrain, HasRequestedSizeAndIsCenteredOnTheOrigin) {
     const Raster<float> raster = GenerateSyntheticTerrain(8, 6, 2.0, SyntheticTerrainParams{});
     EXPECT_EQ(raster.Width(), 8u);
     EXPECT_EQ(raster.Height(), 6u);

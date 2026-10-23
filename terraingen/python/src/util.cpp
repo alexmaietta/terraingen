@@ -89,10 +89,10 @@ void BindSurfacePoints(nb::class_<Surface>& surface) {
              "The distance in metres between two points, great-circle on a sphere.")
         .def("position", &Surface::Position, "point"_a,
              "The 3D position (m) of a point; on a sphere, body-fixed with z north.")
-        .def("offset", &Surface::Offset, "centre"_a, "point"_a,
-             "`point` as (east, north) metres from `centre` (azimuthal equidistant on a sphere).")
-        .def("locate", &Surface::Locate, "centre"_a, "offset"_a,
-             "The point (east, north) metres from `centre`.")
+        .def("offset", &Surface::Offset, "center"_a, "point"_a,
+             "`point` as (east, north) metres from `center` (azimuthal equidistant on a sphere).")
+        .def("locate", &Surface::Locate, "center"_a, "offset"_a,
+             "The point (east, north) metres from `center`.")
         .def(
             "frame",
             [](const Surface& s, const Vec2d& point) {
@@ -102,8 +102,8 @@ void BindSurfacePoints(nb::class_<Surface>& surface) {
             "point"_a, "The (east, north, up) unit vectors at a point.")
         .def("coordinates", &Surface::Coordinates, "direction"_a,
              "The surface point of a direction from the sphere's centre.")
-        .def("expand", &Surface::Expand, "region"_a, "metres"_a,
-             "A box holding every point within `metres` of `region`.")
+        .def("expand", &Surface::Expand, "region"_a, "meters"_a,
+             "A box holding every point within `meters` of `region`.")
         .def("contains", &Surface::Contains, "region"_a, "point"_a,
              "Whether `region` holds `point`, across the antimeridian and at the poles on a "
              "sphere.");
@@ -214,7 +214,7 @@ void BindCells(nb::module_& m) {
         .def("weight", &CubeSphereCells::Weight, "point"_a, "The area per steradian at a point.")
         .def("cell_at", &CubeSphereCells::CellAt, "lon_deg"_a, "lat_deg"_a, "cell_size"_a,
              "The cell holding a point.")
-        .def("neighbours", &CubeSphereCells::Neighbours, "cell"_a, "cell_size"_a, "rings"_a = 1,
+        .def("neighbors", &CubeSphereCells::Neighbors, "cell"_a, "cell_size"_a, "rings"_a = 1,
              "The cells within `rings` of `cell`, across face edges too.")
         .def("cells_per_edge", &CubeSphereCells::CellsPerEdge, "cell_size"_a)
         .def_prop_ro("radius", &CubeSphereCells::Radius)

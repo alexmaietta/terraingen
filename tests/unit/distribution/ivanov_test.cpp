@@ -21,7 +21,7 @@ TEST(IvanovMarsChronology, FollowsIvanov2001) {
     EXPECT_THROW(terraingen::IvanovMarsChronologyRate(5.0), std::domain_error);
 }
 
-TEST(IvanovMarsProductionFunction, MatchesItsPresentDayRateAtOneKilometre) {
+TEST(IvanovMarsProductionFunction, MatchesItsPresentDayRateAtOneKilometer) {
     const auto production = terraingen::IvanovMarsProductionFunction();
     EXPECT_EQ(production.Kind(), terraingen::SfdKind::ProductionRate);
     EXPECT_EQ(production.ValidRange().min, 15.0);

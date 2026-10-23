@@ -25,7 +25,7 @@ constexpr float F(int v) {
     return static_cast<float>(v);
 }
 
-double MeanNeighbourDifference(const FractalParams& params) {
+double MeanNeighborDifference(const FractalParams& params) {
     double sum = 0.0;
     int count = 0;
     for (int y = 0; y < 100; ++y) {
@@ -117,7 +117,7 @@ TEST(Fractal2, HigherGainIsRougherAtShortBaselines) {
     smooth.gain = 0.3f;
     FractalParams rough = smooth;
     rough.gain = 0.7f;
-    EXPECT_GT(MeanNeighbourDifference(rough), 1.5 * MeanNeighbourDifference(smooth));
+    EXPECT_GT(MeanNeighborDifference(rough), 1.5 * MeanNeighborDifference(smooth));
 }
 
 TEST(Fractal2, ScalesLinearlyWithAmplitude) {

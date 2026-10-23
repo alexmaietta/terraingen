@@ -27,7 +27,7 @@ bool ShapesSimply(const CraterShapeKernel& kernel, double diameter, const Crater
 
 /// Sets the complex form of `shape` on `p`.
 void SetComplexShape(CraterProfileKernel& p, const ComplexCraterShape& shape) {
-    const KilometrePowerLaw width = shape.peakDiameter ? *shape.peakDiameter : shape.peakVolume;
+    const KilometerPowerLaw width = shape.peakDiameter ? *shape.peakDiameter : shape.peakVolume;
     p.complex = 1u;
     p.transitionDiameter = static_cast<float>(shape.transitionDiameter);
     p.floorCoefficient = static_cast<float>(shape.floorDiameter.coefficient);
@@ -262,9 +262,9 @@ CraterShapeKernel MakeCraterShapeKernel(const CraterProfile& profile,
 }
 
 CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const Vec3d& origin) {
-    const Vec2d centre{crater.x, crater.y};
-    const Vec3d position = surface.Position(centre) - origin;
-    const LocalFrame frame = surface.Frame(centre);
+    const Vec2d center{crater.x, crater.y};
+    const Vec3d position = surface.Position(center) - origin;
+    const LocalFrame frame = surface.Frame(center);
     CraterFrame f;
     f.x = static_cast<float>(position.x);
     f.y = static_cast<float>(position.y);
