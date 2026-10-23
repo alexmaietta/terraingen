@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "support/boulder_records.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/pipeline/report.h"
 #include "terraingen/util/geometry.h"
@@ -241,13 +242,15 @@ TEST(ReportGrid, ExpectedCountsAreNanOutsideTheTarget) {
 
 TEST(ReportGrid, CountsBouldersModelsAndCover) {
     const Raster<float> flat = PlaneRaster(10, 5, 2.0, [](double, double) { return 0.0; });
-    BoulderFeatures boulders;
+    std::vector<Boulder> records;
     for (const double diameter : {1.0, 2.0, 2.0}) {
         Boulder boulder;
         boulder.diameter = diameter;
-        boulders.boulders.push_back(boulder);
+        records.push_back(boulder);
     }
-    boulders.boulders.back().model = true;
+    records.back().model = true;
+    BoulderFeatures boulders;
+    boulders.boulders = terraingen::testing::List(records);
     boulders.models.push_back(BoulderModel{});
     const GridReport report = ReportGrid(flat, Surface{}, nullptr, &boulders, nullptr);
     EXPECT_EQ(report.boulderCount, 3u);
@@ -273,7 +276,7 @@ TEST(ReportToJson, RoundTripsEveryField) {
     const Raster<float> ramp = PlaneRaster(5, 3, 1.0, [](double x, double) { return x - 0.5; });
     const CraterFeatures craters = CratersWithDiameters({1.5, 3.0});
     BoulderFeatures boulders;
-    boulders.boulders.push_back(Boulder{});
+    boulders.boulders.Append(Boulder{});
     TerrainReport report;
     report.grids.push_back(ReportGrid(ramp, Surface{}, &craters, &boulders, nullptr));
     report.layers = {{"noise", 0.125}, {"craters", 1.0 / 3.0}};

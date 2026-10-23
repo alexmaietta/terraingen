@@ -24,6 +24,7 @@ terraingen_add_library(
     strata.cpp
     sample_block.cpp
     transforms.cpp
+    boulders/boulder.cpp
     boulders/boulder_layer_abundance.cpp
     boulders/boulder_abundance.cpp
     boulders/boulder_clusters.cpp

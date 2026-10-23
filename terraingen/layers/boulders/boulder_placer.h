@@ -15,12 +15,12 @@ namespace terraingen {
 
 /// Boulders, and those of them placed as their own 3D models.
 struct BoulderFeatures {
-    std::vector<Boulder> boulders;     ///< Every boulder, in the order placed.
+    BoulderList boulders;              ///< Every boulder, in the order placed.
     std::vector<BoulderModel> models;  ///< The boulders placed as their own 3D models.
 
     /// Appends `other`'s boulders and models.
     void Append(const BoulderFeatures& other) {
-        boulders.insert(boulders.end(), other.boulders.begin(), other.boulders.end());
+        boulders.Append(other.boulders);
         models.insert(models.end(), other.models.begin(), other.models.end());
     }
 };

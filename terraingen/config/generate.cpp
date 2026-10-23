@@ -430,10 +430,9 @@ bool Write(const CraterListOutput& output, const std::filesystem::path& path,
 
 bool Write(const BoulderListOutput& output, const std::filesystem::path& path,
            const OutputContext& context) {
-    const std::vector<Boulder>& boulders =
-        Require(context.grid->boulders, "boulders", path).boulders;
+    const BoulderList& boulders = Require(context.grid->boulders, "boulders", path).boulders;
     WriteBoulderList(boulders, path, output.format);
-    LogInfo("pipeline", "Wrote ", boulders.size(), " boulders to ", path.string());
+    LogInfo("pipeline", "Wrote ", boulders.Size(), " boulders to ", path.string());
     return true;
 }
 

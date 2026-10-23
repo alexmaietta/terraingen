@@ -68,7 +68,7 @@ class BouldersLayer : public terraingen::examples::Example {
             terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
         boulders_ =
             terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
-        Out() << craters_.craters.Size() << " craters, " << boulders_.boulders.size()
+        Out() << craters_.craters.Size() << " craters, " << boulders_.boulders.Size()
               << " boulders, " << boulders_.models.size() << " of them boulder models\n";
         Show("heights", evaluated_);
     }
@@ -87,14 +87,13 @@ class BouldersLayer : public terraingen::examples::Example {
     void Test() override {
         Check(evaluated_.Width() == 401 && evaluated_.Height() == 401, "the heights are 401 x 401");
         Check(craters_.craters.Size() > 5, "more than 5 craters");
-        Check(boulders_.boulders.size() > 150 && boulders_.boulders.size() < 1500,
+        Check(boulders_.boulders.Size() > 150 && boulders_.boulders.Size() < 1500,
               "a few hundred boulders for 5% cover");
-        Check(std::all_of(boulders_.boulders.begin(), boulders_.boulders.end(),
-                          [](const terraingen::Boulder& r) {
-                              return r.diameter >= 0.2 && r.diameter <= 3.0;
-                          }),
+        const std::vector<double>& diameters = boulders_.boulders.Diameters();
+        Check(std::all_of(diameters.begin(), diameters.end(),
+                          [](double diameter) { return diameter >= 0.2 && diameter <= 3.0; }),
               "every boulder is 0.2 to 3 m across");
-        Check(!boulders_.models.empty() && boulders_.models.size() < boulders_.boulders.size() / 10,
+        Check(!boulders_.models.empty() && boulders_.models.size() < boulders_.boulders.Size() / 10,
               "a few of the boulders are boulder models");
         Check(std::all_of(
                   boulders_.models.begin(), boulders_.models.end(),

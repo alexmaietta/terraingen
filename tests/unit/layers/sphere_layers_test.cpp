@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "support/boulder_records.h"
 #include "terraingen/terraingen.h"
 #include "terraingen/util/bits.h"
 
@@ -174,8 +175,9 @@ TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
     const double side = 120.0;
     const double dLat = side / kSphere.UnitLength();
     const double dLon = dLat / std::cos(50.0 * terraingen::kPi / 180.0);
-    const auto onSphere = sphere.Boulders({20.0, 50.0, 20.0 + dLon, 50.0 + dLat}, 0.05);
-    const auto onPlane = plane.Boulders({0.0, 0.0, side, side}, 0.05);
+    const auto onSphere =
+        terraingen::testing::Records(sphere.Boulders({20.0, 50.0, 20.0 + dLon, 50.0 + dLat}, 0.05));
+    const auto onPlane = terraingen::testing::Records(plane.Boulders({0.0, 0.0, side, side}, 0.05));
     const double expected = static_cast<double>(onPlane.size());
     ASSERT_GT(expected, 100.0);
     EXPECT_NEAR(static_cast<double>(onSphere.size()), expected, 5.0 * std::sqrt(expected));
@@ -187,8 +189,8 @@ TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
         highest = std::max(highest, value);
     }
     EXPECT_GT(highest, 0.05f);
-    const auto boulders =
-        sphere.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.1, &flat);
+    const auto boulders = terraingen::testing::Records(
+        sphere.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.1, &flat));
     for (const auto& boulder : sphere.Models(boulders)) {
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.x), 1e-9);
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.y), 1e-9);

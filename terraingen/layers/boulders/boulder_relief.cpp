@@ -117,7 +117,7 @@ double BoulderLayer::ModelCover(const Boulder& boulder, const Vec2d& p, double s
 std::vector<Boulder> BoulderLayer::ReliefBoulders(const Bounds2d& region, double spacing,
                                                   const Ground* ground) const {
     const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
-    return Boulders(surface_.Expand(region, rim), spacing, ground);
+    return BoulderRecords(surface_.Expand(region, rim), spacing, ground);
 }
 
 double BoulderLayer::MaterialCoverAt(double x, double y, double spacing,

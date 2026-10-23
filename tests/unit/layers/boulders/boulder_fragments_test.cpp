@@ -4,6 +4,7 @@
 
 #include "support/mesh_measures.h"
 
+#include "support/boulder_records.h"
 #include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/terraingen.h"
@@ -80,10 +81,10 @@ TEST(BoulderLayer, BreaksWornBouldersIntoPiecesThatReplaceThem) {
     }());
     const BoulderLayer broken(Breaking(1.0));
     const terraingen::Bounds2d region{-30.0, -30.0, 30.0, 30.0};
-    const auto parents = whole.Boulders(region);
+    const auto parents = terraingen::testing::Records(whole.Boulders(region));
     ASSERT_GT(parents.size(), 10u);
     std::map<std::uint64_t, std::vector<Boulder>> byParent;
-    for (const Boulder& piece : broken.Boulders(region)) {
+    for (const Boulder& piece : terraingen::testing::Records(broken.Boulders(region))) {
         ASSERT_NE(piece.parent, 0u) << "every boulder here breaks";
         byParent[piece.parent].push_back(piece);
     }
@@ -109,10 +110,10 @@ TEST(BoulderLayer, BreaksWornBouldersIntoPiecesThatReplaceThem) {
 
     const terraingen::Bounds2d inner{-10.0, -10.0, 10.0, 10.0};
     std::set<std::uint64_t> fromInner;
-    for (const Boulder& piece : broken.Boulders(inner)) {
+    for (const Boulder& piece : terraingen::testing::Records(broken.Boulders(inner))) {
         fromInner.insert(piece.id);
     }
-    for (const Boulder& piece : broken.Boulders(region)) {
+    for (const Boulder& piece : terraingen::testing::Records(broken.Boulders(region))) {
         if (std::fabs(piece.x) < 9.0 && std::fabs(piece.y) < 9.0) {
             EXPECT_TRUE(fromInner.count(piece.id)) << "the same pieces in every region";
         }
@@ -126,11 +127,11 @@ TEST(BoulderLayer, ScattersRubbleFurtherAndSinksIt) {
     double splitSpread = 0.0;
     double rubbleSpread = 0.0;
     std::map<std::uint64_t, Boulder> splitPieces;
-    for (const Boulder& piece : split.Boulders(region)) {
+    for (const Boulder& piece : terraingen::testing::Records(split.Boulders(region))) {
         splitPieces[piece.id] = piece;
     }
     std::size_t compared = 0;
-    for (const Boulder& piece : rubble.Boulders(region)) {
+    for (const Boulder& piece : terraingen::testing::Records(rubble.Boulders(region))) {
         const auto found = splitPieces.find(piece.id);
         if (found == splitPieces.end()) {
             continue;
@@ -211,7 +212,8 @@ TEST(BoulderLayer, ClustersAndBreaksBouldersOnABodyStandingOnTheGround) {
     const double degree = 1737400.0 * terraingen::kPi / 180.0;
     const double span = 20.0 / degree;
     const Level level;
-    const auto boulders = layer.Boulders({-span, -span, span, span}, 0.0, &level);
+    const auto boulders =
+        terraingen::testing::Records(layer.Boulders({-span, -span, span, span}, 0.0, &level));
     ASSERT_FALSE(boulders.empty());
     std::size_t pieces = 0;
     for (const Boulder& boulder : boulders) {

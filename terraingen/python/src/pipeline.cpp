@@ -101,7 +101,7 @@ void BindFeatures(nb::module_& m) {
             "path"_a, "Writes the craters as CSV, or JSON for a .json path.");
     nb::class_<BoulderFeatures>(m, "BoulderFeatures",
                                 "Boulders, and those of them placed as their own 3D models.")
-        .def_ro("boulders", &BoulderFeatures::boulders, "The boulders, as Boulder objects.")
+        .def_ro("boulders", &BoulderFeatures::boulders, "The boulders, a BoulderList.")
         .def_ro("models", &BoulderFeatures::models,
                 "The boulder models, with their shapes and placements.")
         .def_prop_ro(

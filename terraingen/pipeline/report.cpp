@@ -193,11 +193,11 @@ void AddCraterBins(const CraterFeatures& craters, const SizeFrequencyDistributio
 }
 
 void AddBoulders(const BoulderFeatures& boulders, double area, GridReport& report) {
-    report.boulderCount = boulders.boulders.size();
+    report.boulderCount = boulders.boulders.Size();
     report.boulderModelCount = boulders.models.size();
     double footprints = 0.0;
-    for (const Boulder& boulder : boulders.boulders) {
-        footprints += 0.25 * kPi * boulder.diameter * boulder.diameter;
+    for (const double diameter : boulders.boulders.Diameters()) {
+        footprints += 0.25 * kPi * diameter * diameter;
     }
     report.boulderCover = area > 0.0 ? footprints / area : kNan;
 }

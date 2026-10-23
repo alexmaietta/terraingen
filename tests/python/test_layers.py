@@ -410,7 +410,7 @@ def test_sand_shadows_trail_boulders_and_boulders_are_rock():
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(coverage=0.05, min_diameter_m=1.0, max_diameter_m=2.0)
     )
-    table = boulders.boulders((-50.0, -50.0, 50.0, 50.0))
+    table = boulders.boulders((-50.0, -50.0, 50.0, 50.0)).table
     x, y, d = table["x"][0], table["y"][0], table["diameter"][0]
     assert boulders.material == terraingen.MaterialClass.ROCK
     assert boulders.material_cover_at(x, y, 0.05) == 1.0
@@ -438,7 +438,7 @@ def test_ventifacts_plane_the_windward_side_of_boulders():
             coverage=0.05, min_diameter_m=1.0, max_diameter_m=2.0, ventifacts=ventifacts
         )
     )
-    table = boulders.boulders((-50.0, -50.0, 50.0, 50.0))
+    table = boulders.boulders((-50.0, -50.0, 50.0, 50.0)).table
     x, y, d = table["x"][0], table["y"][0], table["diameter"][0]
     boulder = terraingen.Boulder(x, y, d, 0.5 * d)
     boulder.facets = [terraingen.BoulderFacet(180.0, 50.0, 0.5 * d)]

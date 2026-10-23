@@ -81,7 +81,7 @@ class BouldersEjecta : public terraingen::examples::Example {
         evaluated_ = terraingen::Evaluate(terrain);
         boulders_ =
             terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
-        Out() << Format("%zu boulders, %zu boulder models\n", boulders_.boulders.size(),
+        Out() << Format("%zu boulders, %zu boulder models\n", boulders_.boulders.Size(),
                         boulders_.models.size());
         Show("heights", evaluated_);
     }
@@ -104,18 +104,18 @@ class BouldersEjecta : public terraingen::examples::Example {
         Check(abundance_.size() == 5 && abundance_[4].second.ejecta < 0.1 &&
                   abundance_[3].second.ejecta > abundance_[4].second.ejecta,
               "ejecta are richer at the rim than 30 m out, where they have faded");
-        Check(boulders.size() > 500, "more than 500 boulders");
-        Check(!models.empty() && models.size() < boulders.size(),
+        Check(boulders.Size() > 500, "more than 500 boulders");
+        Check(!models.empty() && models.size() < boulders.Size(),
               "some boulders, not all, are boulder models");
         Check(std::all_of(models.begin(), models.end(),
                           [](const terraingen::BoulderModel& b) {
                               return b.boulder.diameter >= 0.8 && b.boulder.diameter <= 3.0;
                           }),
               "every boulder model is 0.8 to 3 m across");
-        Check(std::all_of(boulders.begin(), boulders.end(),
-                          [](const terraingen::Boulder& r) {
-                              return r.burial >= 0.0 && r.burial <= 0.1 && r.lean <= 0.5;
-                          }),
+        Check(std::all_of(boulders.Burials().begin(), boulders.Burials().end(),
+                          [](double burial) { return burial >= 0.0 && burial <= 0.1; }) &&
+                  std::all_of(boulders.Leans().begin(), boulders.Leans().end(),
+                              [](double lean) { return lean <= 0.5; }),
               "burial and lean stay within their options");
     }
 

@@ -27,6 +27,7 @@ terraingen_add_test_suite(
     sphere_layers_test.cpp
     transforms_test.cpp
     boulders/boulder_fragments_test.cpp
+    boulders/boulder_list_test.cpp
     boulders/boulder_layer_test.cpp
     boulders/boulder_models_test.cpp
     boulders/boulder_options_test.cpp

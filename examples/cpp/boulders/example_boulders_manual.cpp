@@ -13,10 +13,12 @@
 #include "common/example.h"
 #include "terraingen/terraingen.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -43,15 +45,14 @@ const char* RestName(terraingen::BoulderRest rest) {
     }
 }
 
-/// The placed boulder of ID `id`, or null.
-const terraingen::Boulder* Find(const std::vector<terraingen::Boulder>& boulders,
-                                std::uint64_t id) {
-    for (const terraingen::Boulder& boulder : boulders) {
-        if (boulder.id == id) {
-            return &boulder;
-        }
+/// The placed boulder of ID `id`, or none.
+std::optional<terraingen::Boulder> Find(const terraingen::BoulderList& boulders, std::uint64_t id) {
+    const std::vector<std::uint64_t>& ids = boulders.Ids();
+    const auto found = std::find(ids.begin(), ids.end(), id);
+    if (found == ids.end()) {
+        return std::nullopt;
     }
-    return nullptr;
+    return boulders.At(static_cast<std::size_t>(found - ids.begin()));
 }
 
 class BouldersManual : public terraingen::examples::Example {
@@ -89,12 +90,12 @@ class BouldersManual : public terraingen::examples::Example {
         evaluated_ = terraingen::Evaluate(terrain);
         boulders_ =
             terraingen::PlacedBoulders(terrain, terraingen::RasterGrid::FromRaster(evaluated_));
-        Out() << boulders_.boulders.size() << " boulders, " << boulders_.models.size()
+        Out() << boulders_.boulders.Size() << " boulders, " << boulders_.models.size()
               << " of them boulder models\n";
         for (const terraingen::ManualBoulder& manual : manual_) {
-            const terraingen::Boulder* b =
+            const std::optional<terraingen::Boulder> b =
                 Find(boulders_.boulders, terraingen::ManualBoulderId(manual));
-            if (b == nullptr) {
+            if (!b) {
                 continue;
             }
             Out() << "boulder " << b->id << " at (" << b->x << ", " << b->y << "), " << b->diameter
@@ -125,23 +126,24 @@ class BouldersManual : public terraingen::examples::Example {
         Check(terraingen::ComputeStats(evaluated_).validCount == evaluated_.Size(),
               "every height is finite");
         const terraingen::ManualBoulder& posed = manual_[0];
-        const terraingen::Boulder* p = Find(boulders_.boulders, 101);
-        Check(p != nullptr, "the posed boulder keeps its ID");
-        Check(p != nullptr && p->x == posed.x && p->y == posed.y && p->diameter == posed.diameter &&
-                  p->height == posed.height && p->burial == posed.burial && p->yaw == posed.yaw &&
-                  p->lean == posed.lean && p->tilt == posed.tilt &&
-                  p->tiltAzimuth == posed.tiltAzimuth && p->wear == posed.wear &&
-                  p->rest == terraingen::BoulderRest::Side && p->shapeSeed == posed.shapeSeed,
+        const std::optional<terraingen::Boulder> p = Find(boulders_.boulders, 101);
+        Check(p.has_value(), "the posed boulder keeps its ID");
+        Check(p.has_value() && p->x == posed.x && p->y == posed.y &&
+                  p->diameter == posed.diameter && p->height == posed.height &&
+                  p->burial == posed.burial && p->yaw == posed.yaw && p->lean == posed.lean &&
+                  p->tilt == posed.tilt && p->tiltAzimuth == posed.tiltAzimuth &&
+                  p->wear == posed.wear && p->rest == terraingen::BoulderRest::Side &&
+                  p->shapeSeed == posed.shapeSeed,
               "the posed boulder has every field it fixes");
         const terraingen::ManualBoulder& partly = manual_[1];
-        const terraingen::Boulder* q =
+        const std::optional<terraingen::Boulder> q =
             Find(boulders_.boulders, terraingen::ManualBoulderId(partly));
-        Check(q != nullptr && q->yaw == partly.yaw && q->burial == partly.burial &&
+        Check(q.has_value() && q->yaw == partly.yaw && q->burial == partly.burial &&
                   q->diameter == partly.diameter && !q->shapeSeed,
               "the partly posed boulder has its yaw and burial");
-        const terraingen::Boulder* r =
+        const std::optional<terraingen::Boulder> r =
             Find(boulders_.boulders, terraingen::ManualBoulderId(manual_[2]));
-        Check(r != nullptr && r->diameter == 1.0 && r->height > 0.0,
+        Check(r.has_value() && r->diameter == 1.0 && r->height > 0.0,
               "the boulder given only a diameter is drawn the rest of the way");
         std::size_t manualModels = 0;
         for (const terraingen::BoulderModel& model : boulders_.models) {
@@ -152,7 +154,7 @@ class BouldersManual : public terraingen::examples::Example {
             }
         }
         Check(manualModels == manual_.size(), "every manual boulder is a boulder model");
-        Check(boulders_.boulders.size() > 20 && boulders_.boulders.size() < 2000,
+        Check(boulders_.boulders.Size() > 20 && boulders_.boulders.Size() < 2000,
               "a sparse generated population around them");
     }
 

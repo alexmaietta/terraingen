@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/source_resolved.h"
 
+#include "support/boulder_records.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
@@ -139,9 +140,11 @@ TEST(BoulderLayer, DropsTheBouldersTheSourceResolves) {
     EXPECT_FALSE(options.sourceResolvesPixels) << "none by default";
     const auto dem = Dem(80, 0.25, 0.0, 20.0);
     const terraingen::Bounds2d region{-20.0, 0.0, 20.0, 20.0};
-    const auto all = terraingen::BoulderLayer(options, nullptr, {}, dem).Boulders(region);
+    const auto all = terraingen::testing::Records(
+        terraingen::BoulderLayer(options, nullptr, {}, dem).Boulders(region));
     options.sourceResolvesPixels = 4.0;
-    const auto kept = terraingen::BoulderLayer(options, nullptr, {}, dem).Boulders(region);
+    const auto kept = terraingen::testing::Records(
+        terraingen::BoulderLayer(options, nullptr, {}, dem).Boulders(region));
     std::size_t resolved = 0;
     std::size_t expected = 0;
     for (const terraingen::Boulder& boulder : all) {

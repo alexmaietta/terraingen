@@ -2,6 +2,7 @@
 
 #include "terraingen/pipeline/generator.h"
 
+#include "support/boulder_records.h"
 #include "terraingen/terraingen.h"
 #include "tests/unit/pipeline/terrains.h"
 
@@ -103,14 +104,15 @@ TEST(PlacedBoulders, ListsEveryBoulderOfTheSizesHoweverSmall) {
     terrain.layers = {layer};
     const RasterGrid grid = terrain.source->Grid();
     const auto placed = terraingen::PlacedBoulders(terrain, grid);
-    EXPECT_EQ(placed.boulders.size(), layer->Boulders(grid.Bounds()).size());
+    EXPECT_EQ(placed.boulders.Size(),
+              terraingen::testing::Records(layer->Boulders(grid.Bounds())).size());
     std::size_t small = 0;
-    for (const auto& boulder : placed.boulders) {
+    for (const auto& boulder : terraingen::testing::Records(placed.boulders)) {
         small += boulder.diameter < 2.0 ? 1 : 0;
     }
     EXPECT_GT(small, 0u) << "boulders the 1 m grid cannot draw stay in the list";
-    EXPECT_EQ(placed.boulders.size(),
-              terraingen::PlacedBoulders(terrain, grid, 4.0).boulders.size())
+    EXPECT_EQ(placed.boulders.Size(),
+              terraingen::PlacedBoulders(terrain, grid, 4.0).boulders.Size())
         << "the spacing does not decide which boulders exist";
 }
 
@@ -119,8 +121,8 @@ TEST(PlacedBoulders, PlacesModelsOnTheGroundBeneathTheirLayer) {
     terrain.layers = {std::make_shared<terraingen::ScaleLayer>(1.0, 3.0),
                       std::make_shared<terraingen::BoulderLayer>(Models())};
     const auto placed = terraingen::PlacedBoulders(terrain, terrain.source->Grid());
-    ASSERT_FALSE(placed.boulders.empty());
-    ASSERT_EQ(placed.models.size(), placed.boulders.size());
+    ASSERT_FALSE(placed.boulders.Empty());
+    ASSERT_EQ(placed.models.size(), placed.boulders.Size());
     for (const auto& model : placed.models) {
         ASSERT_TRUE(model.boulder.ground.has_value());
         EXPECT_FLOAT_EQ(static_cast<float>(*model.boulder.ground), 5.0f)
@@ -220,9 +222,9 @@ TEST(PlacedBoulders, KeepsOnlyTheBouldersARegionHolds) {
         std::make_shared<terraingen::BoulderLayer>(Models()),
         RegionShape::Circle({0.0, 0.0}, 35.0))};
     const auto placed = terraingen::PlacedBoulders(terrain, terrain.source->Grid());
-    ASSERT_FALSE(placed.boulders.empty());
+    ASSERT_FALSE(placed.boulders.Empty());
     ASSERT_FALSE(placed.models.empty());
-    for (const auto& boulder : placed.boulders) {
+    for (const auto& boulder : terraingen::testing::Records(placed.boulders)) {
         EXPECT_LE(std::hypot(boulder.x, boulder.y), 35.0);
     }
     for (const auto& model : placed.models) {

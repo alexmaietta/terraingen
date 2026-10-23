@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `RasterGrid::Centered(center, size, pixelSize)` and `RasterGrid::Covering(box, pixelSize)`: the north-up grid covering a box, snapped outward to whole cells as configuration outputs snap their extents (`SnappedCells`, `kGridSnapTolerance`).
 - `ManualCrater(x, y, diameter, depth, rimHeight)` (`manual_crater`) and a `CraterList` built from a list of craters, `CraterList{a, b, c}`.
+- `BoulderList` (Python `BoulderList`): boulders stored one column per field, as `CraterList` stores craters, built from `Boulder` records (`Append`, `BoulderList{a, b, c}`) and read back with `At`.
 - Point queries keep fitted crater datums between calls, so craters with a datum are fitted once and later queries near them run as fast as craters without one (`BM_HeightAtDatum` about 1k to 340k point queries per second). `HeightsAt` and `HeightAt` share a cache kept per generator, matched by its surface, source and layers and dropped once one of them is freed; pass an `EvaluationCache` (`cache=` in Python) to manage one yourself.
 
 ### Changed
 
+- `BoulderFeatures::boulders`, `BoulderLayer::Boulders` and `WriteBoulderList` hold or take a `BoulderList` instead of `std::vector<Boulder>`; Python `BoulderLayer.boulders(region)` returns a `BoulderList` like C++ (its `.table` gives the NumPy columns it returned before).
 - `NoiseRelief` takes its noise layers as `std::vector<NoiseLayer>` and returns them from `Layers()`, as the Python binding always did (it took `SyntheticTerrainParams` and had `Params()`).
 - Python `RasterGrid.centered(center, size, pixel_size)` takes the C++ arguments, a center and a size in world units, instead of cell counts (`centered(width, height, pixel_size, center)`).
 - `config::SnappedGrid`, `config::SnappedCells` and `config::kExtentSnapTolerance` give way to `RasterGrid::Covering`, `SnappedCells` and `kGridSnapTolerance` in `raster/grid.h`.

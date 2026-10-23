@@ -34,7 +34,7 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
 /// ({"boulders": [...]}) with the same keys, doubles written exactly and an unknown ground left
 /// empty (CSV) or null (JSON).
 /// @throws std::runtime_error if the file cannot be written.
-void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesystem::path& path,
+void WriteBoulderList(const BoulderList& boulders, const std::filesystem::path& path,
                       ListFormat format);
 
 /// Writes boulder models as a scene (`WriteScene`): each shape once with crease normals and its

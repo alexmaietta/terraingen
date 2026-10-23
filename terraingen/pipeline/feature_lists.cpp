@@ -169,20 +169,20 @@ Json CraterJson(const CraterList& craters, const std::vector<CraterAttributes>& 
     return Json{{"craters", std::move(list)}};
 }
 
-void WriteBoulderCsv(std::ostream& file, const std::vector<Boulder>& boulders) {
+void WriteBoulderCsv(std::ostream& file, const BoulderList& boulders) {
     WriteCsvHeader(file, kBoulderColumns, "");
     file << '\n';
-    for (const Boulder& boulder : boulders) {
-        WriteCsvCells(file, kBoulderColumns, boulder, "");
+    for (std::size_t i = 0; i < boulders.Size(); ++i) {
+        WriteCsvCells(file, kBoulderColumns, boulders.At(i), "");
         file << '\n';
     }
 }
 
-Json BoulderJson(const std::vector<Boulder>& boulders) {
+Json BoulderJson(const BoulderList& boulders) {
     Json list = Json::array();
-    for (const Boulder& boulder : boulders) {
+    for (std::size_t i = 0; i < boulders.Size(); ++i) {
         Json entry = Json::object();
-        AddJsonCells(entry, kBoulderColumns, boulder);
+        AddJsonCells(entry, kBoulderColumns, boulders.At(i));
         list.push_back(std::move(entry));
     }
     return Json{{"boulders", std::move(list)}};
@@ -247,7 +247,7 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
     CheckWritten(file, path);
 }
 
-void WriteBoulderList(const std::vector<Boulder>& boulders, const std::filesystem::path& path,
+void WriteBoulderList(const BoulderList& boulders, const std::filesystem::path& path,
                       ListFormat format) {
     std::ofstream file = OpenOutput(path);
     switch (format) {

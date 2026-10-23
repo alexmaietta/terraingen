@@ -305,8 +305,26 @@ BoulderLayer::Thin(const Crater& candidate, const Ground* ground, const EjectaIn
     return thinned;
 }
 
-std::vector<Boulder> BoulderLayer::Boulders(const Bounds2d& region, double spacing,
-                                            const Ground* ground) const {
+namespace {
+
+BoulderList ToBoulderList(const std::vector<Boulder>& boulders) {
+    BoulderList list;
+    list.Reserve(boulders.size());
+    for (const Boulder& boulder : boulders) {
+        list.Append(boulder);
+    }
+    return list;
+}
+
+}  // namespace
+
+BoulderList BoulderLayer::Boulders(const Bounds2d& region, double spacing,
+                                   const Ground* ground) const {
+    return ToBoulderList(BoulderRecords(region, spacing, ground));
+}
+
+std::vector<Boulder> BoulderLayer::BoulderRecords(const Bounds2d& region, double spacing,
+                                                  const Ground* ground) const {
     const double smallest = spacing > 0.0 ? options_.fade.startSamples * spacing : 0.0;
     return PlaceBoulders(region, spacing, smallest, ground);
 }
@@ -351,10 +369,9 @@ std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double 
 
 BoulderFeatures BoulderLayer::BouldersOver(const RasterGrid& grid, double spacing,
                                            const Ground* ground) const {
-    BoulderFeatures placed{
-        PlaceBoulders(grid.Bounds(), ListedSpacing(grid, spacing, surface_), 0.0, ground), {}};
-    placed.models = Models(placed.boulders);
-    return placed;
+    const std::vector<Boulder> boulders =
+        PlaceBoulders(grid.Bounds(), ListedSpacing(grid, spacing, surface_), 0.0, ground);
+    return {ToBoulderList(boulders), Models(boulders)};
 }
 
 }  // namespace terraingen

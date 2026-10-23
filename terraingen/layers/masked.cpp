@@ -166,8 +166,11 @@ BoulderFeatures MaskedLayer::BouldersOver(const RasterGrid& grid, double spacing
         return held;
     }
     const BoulderFeatures all = placer->BouldersOver(*inner, spacing, ground);
-    std::copy_if(all.boulders.begin(), all.boulders.end(), std::back_inserter(held.boulders),
-                 [&](const Boulder& b) { return Holds(b.x, b.y); });
+    for (std::size_t i = 0; i < all.boulders.Size(); ++i) {
+        if (Holds(all.boulders.X()[i], all.boulders.Y()[i])) {
+            held.boulders.Append(all.boulders.At(i));
+        }
+    }
     std::copy_if(all.models.begin(), all.models.end(), std::back_inserter(held.models),
                  [&](const BoulderModel& m) { return Holds(m.boulder.x, m.boulder.y); });
     return held;

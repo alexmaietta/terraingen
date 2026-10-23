@@ -39,8 +39,10 @@ std::vector<SandShadowLayer::Shadow>
 SandShadowLayer::ShadowsOver(const Bounds2d& region, double spacing, const Ground* ground) const {
     const double longest = boulders_->MaxFeatureDiameter() * (0.5 + options_.lengthRatio);
     std::vector<Shadow> shadows;
-    for (const Boulder& boulder :
-         boulders_->Boulders(surface_.Expand(region, longest), spacing, ground)) {
+    const BoulderList boulders =
+        boulders_->Boulders(surface_.Expand(region, longest), spacing, ground);
+    for (std::size_t i = 0; i < boulders.Size(); ++i) {
+        const Boulder boulder = boulders.At(i);
         if (boulder.diameter < options_.minDiameter) {
             continue;
         }

@@ -75,8 +75,11 @@ TEST(WriteCraterList, ReportsAFullDevice) {
     }
     EXPECT_THROW(terraingen::WriteCraterList(many, "/dev/full", ListFormat::Csv),
                  std::runtime_error);
-    EXPECT_THROW(terraingen::WriteBoulderList(std::vector<terraingen::Boulder>(20000), "/dev/full",
-                                              ListFormat::Json),
+    terraingen::BoulderList boulders;
+    for (std::uint64_t id = 0; id < 20000; ++id) {
+        boulders.Append(terraingen::Boulder{});
+    }
+    EXPECT_THROW(terraingen::WriteBoulderList(boulders, "/dev/full", ListFormat::Json),
                  std::runtime_error);
 }
 
@@ -88,7 +91,7 @@ TEST(WriteBoulderList, WritesCsvAndJsonWithUnknownGroundsLeftOut) {
     known.diameter = 0.5;
     known.id = 9;
     known.model = true;
-    const std::vector<terraingen::Boulder> boulders{known, terraingen::Boulder{}};
+    const terraingen::BoulderList boulders{known, terraingen::Boulder{}};
     const auto csv = TempPath("terraingen_boulders.csv");
     terraingen::WriteBoulderList(boulders, csv, ListFormat::Csv);
     const std::string text = ReadText(csv);

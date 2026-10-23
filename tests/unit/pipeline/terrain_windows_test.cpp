@@ -88,7 +88,7 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
 
     const RasterGrid large{240, 200, GeoTransform::NorthUp(-120.0, 100.0, 1.0)};
     const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
-    EXPECT_FALSE(terraingen::PlacedBoulders(terrain, large).boulders.empty());
+    EXPECT_FALSE(terraingen::PlacedBoulders(terrain, large).boulders.Empty());
     for (std::size_t row = 3; row < large.height; row += 7) {
         for (std::size_t col = 1; col < large.width; col += 7) {
             const auto center = whole.CellCenter(col, row);

@@ -101,8 +101,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// every boulder.
     /// @param ground Read under each boulder; needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
-    std::vector<Boulder> Boulders(const Bounds2d& region, double spacing = 0.0,
-                                  const Ground* ground = nullptr) const;
+    BoulderList Boulders(const Bounds2d& region, double spacing = 0.0,
+                         const Ground* ground = nullptr) const;
 
     /// The background and ejecta abundance at surface (x, y); both 0 without `generateRandom`.
     /// @param ground Needed with the exposure field.
@@ -303,6 +303,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double RockCover(const Relief& relief, const Vec2d& p) const;
     /// The weight at `spacing` of `boulder` where it is a model over `p`, else 0.
     double ModelCover(const Boulder& boulder, const Vec2d& p, double spacing) const;
+    /// `Boulders` as records, for the layer's own use.
+    std::vector<Boulder> BoulderRecords(const Bounds2d& region, double spacing,
+                                        const Ground* ground) const;
     /// The boulders whose relief at `spacing` can reach `region`.
     std::vector<Boulder> ReliefBoulders(const Bounds2d& region, double spacing,
                                         const Ground* ground) const;

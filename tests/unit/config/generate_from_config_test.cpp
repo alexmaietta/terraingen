@@ -216,7 +216,7 @@ TEST(GenerateFromConfig, DrawsBouldersFromEachKindOfSizeDistribution) {
     boulders.extrapolate = true;
     config.layers.push_back(boulders);
     const auto generated = GenerateFromConfig(config);
-    EXPECT_FALSE(BouldersOf(generated).boulders.empty());
+    EXPECT_FALSE(BouldersOf(generated).boulders.Empty());
     for (const terraingen::BoulderSizesSpec& sizes :
          {terraingen::BoulderSizesSpec{terraingen::SynthterrainBouldersSpec{}},
           terraingen::BoulderSizesSpec{terraingen::PowerLawSpec{0.001, 2.5}},
@@ -258,7 +258,7 @@ TEST(GenerateFromConfig, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem)
     boulders.boulders.bedrock.exposure = terraingen::ExposureParams{};
     config.layers.push_back(boulders);
     const auto generated = GenerateFromConfig(config, {}, 4);
-    ASSERT_FALSE(BouldersOf(generated).boulders.empty());
+    ASSERT_FALSE(BouldersOf(generated).boulders.Empty());
 
     terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     ASSERT_EQ(terrain.layers.size(), 3u);
@@ -272,15 +272,12 @@ TEST(GenerateFromConfig, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem)
                               terrain, terraingen::RasterGrid::FromRaster(HeightsOf(generated)))
                               .boulders;
     const auto placed = BouldersOf(generated).boulders;
-    ASSERT_EQ(placed.size(), expected.size());
-    for (std::size_t n = 0; n < expected.size(); ++n) {
-        EXPECT_EQ(placed[n].id, expected[n].id);
-    }
+    EXPECT_EQ(placed.Ids(), expected.Ids());
 
     boulders.boulders.ejecta.minCraterDiameter = 0.0;
     config.layers.back() = boulders;
     const auto without = GenerateFromConfig(config);
-    EXPECT_LT(BouldersOf(without).boulders.size(), BouldersOf(generated).boulders.size());
+    EXPECT_LT(BouldersOf(without).boulders.Size(), BouldersOf(generated).boulders.Size());
 }
 
 TEST(GenerateFromConfig, ShapesMarsCraters) {
@@ -943,7 +940,7 @@ TEST(GenerateFromConfig, ReportsGridStatisticsFeatureCountsTimingsAndSeeds) {
     EXPECT_EQ(counted, grid.craters->craters.Size());
     EXPECT_GT(withExpected, 0u);
     EXPECT_GT(stats.boulderCount, 0u);
-    EXPECT_EQ(stats.boulderCount, grid.boulders->boulders.size());
+    EXPECT_EQ(stats.boulderCount, grid.boulders->boulders.Size());
     EXPECT_GT(stats.boulderCover, 0.0);
 
     ASSERT_EQ(report.layers.size(), 3u);

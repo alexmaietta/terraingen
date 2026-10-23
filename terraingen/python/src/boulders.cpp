@@ -164,6 +164,40 @@ void BindBoulder(nb::module_& m) {
             },
             "Its ventifact facets, up to 2.")
         .def_prop_ro("exposed_height", &Boulder::ExposedHeight);
+    nb::class_<BoulderList>(m, "BoulderList",
+                            "Boulders stored column by column, as `CraterList` stores craters.")
+        .def(nb::init<>())
+        .def(
+            "__init__",
+            [](BoulderList* self, const std::vector<Boulder>& boulders) {
+                new (self) BoulderList{};
+                for (const Boulder& boulder : boulders) {
+                    self->Append(boulder);
+                }
+            },
+            "boulders"_a)
+        .def("__len__", &BoulderList::Size)
+        .def(
+            "__getitem__",
+            [](const BoulderList& list, std::size_t i) {
+                if (i >= list.Size()) {
+                    throw nb::index_error();
+                }
+                return list.At(i);
+            },
+            "index"_a)
+        .def(
+            "__eq__", [](const BoulderList& a, const BoulderList& b) { return a == b; }, "other"_a)
+        .def("append", nb::overload_cast<const Boulder&>(&BoulderList::Append), "boulder"_a)
+        .def(
+            "extend", [](BoulderList& list, const BoulderList& other) { list.Append(other); },
+            "other"_a)
+        .def_prop_ro(
+            "table", [](const BoulderList& list) { return BoulderTable(list); },
+            "The boulders as NumPy columns: 'x', 'y', 'ground' (NaN when unknown), 'diameter', "
+            "'height', 'burial', 'yaw_deg', 'lean_deg', 'id', 'model' (1 for boulder models), "
+            "'wear', 'parent', 'piece', 'rest' (a BoulderRest), 'tilt_deg' and "
+            "'tilt_azimuth_deg'.");
 }
 
 void BindPatchesAndEjecta(nb::module_& m) {
@@ -335,11 +369,11 @@ void BindLayer(nb::module_& m) {
         .def(
             "boulders",
             [](const BoulderLayer& boulders, const Bounds2d& region, double spacing) {
-                return BoulderTable(boulders.Boulders(region, spacing));
+                return boulders.Boulders(region, spacing);
             },
             "region"_a, "spacing"_a = 0.0,
-            "The boulders over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
-            "evaluating any heights or ground.")
+            "The boulders over `region` (min_x, min_y, max_x, max_y), without evaluating any "
+            "heights or ground; `.table` gives them as NumPy columns.")
         .def_prop_ro("options", &BoulderLayer::Options);
     BindLayerQueries(layer);
     BindMaterialCover<BoulderLayer>(layer);

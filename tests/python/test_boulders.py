@@ -37,6 +37,21 @@ def test_boulder_and_crater_tables_match_their_lists(lunar_models, crater_layer)
     assert len(craters.craters) == len(craters.table["x"])
 
 
+def test_boulder_list_builds_from_boulders_and_reads_back():
+    plain = terraingen.Boulder(1.0, 2.0, 0.5, 0.4)
+    posed = terraingen.Boulder(3.0, 4.0, 1.5, 0.9, burial=0.3, yaw_deg=30.0, id=42)
+    listed = terraingen.BoulderList([plain, posed])
+    assert len(listed) == 2
+    assert listed[1].id == 42 and listed[1].yaw_deg == pytest.approx(30.0)
+    assert [b.diameter for b in listed] == [0.5, 1.5]
+    assert list(listed.table["diameter"]) == [0.5, 1.5]
+    listed.extend(terraingen.BoulderList([plain]))
+    listed.append(posed)
+    assert len(listed) == 4 and listed == terraingen.BoulderList([plain, posed, plain, posed])
+    with pytest.raises(IndexError):
+        listed[4]
+
+
 def test_modeled_boulders_are_partly_buried(first_model):
     assert first_model.boulder.model and first_model.boulder.exposed_height < first_model.boulder.height
 
@@ -120,8 +135,8 @@ def test_boulder_fade_sets_the_smallest_boulder_drawn_in_pixels():
     assert options.fade_px == [4.0, 6.0] and options.fade_shape == terraingen.BlendShape.SMOOTHSTEP
     layer = terraingen.BoulderLayer(options)
     region = (-15.0, -15.0, 15.0, 15.0)
-    every = layer.boulders(region)["diameter"]
-    drawn = layer.boulders(region, 0.25)["diameter"]
+    every = layer.boulders(region).table["diameter"]
+    drawn = layer.boulders(region, 0.25).table["diameter"]
     assert every.min() < 1.0 and drawn.min() >= 1.0
     assert len(drawn) == np.count_nonzero(every >= 1.0)
     assert "pixels" in terraingen.BoulderLayerOptions.fade_px.__doc__
@@ -145,7 +160,7 @@ def test_worn_boulders_break_into_pieces_that_replace_them():
     broken = terraingen.BoulderLayer(options)
     assert options.fragmentation.enabled
     region = (-20.0, -20.0, 20.0, 20.0)
-    assert len(broken.boulders(region)["x"]) > len(whole.boulders(region)["x"])
+    assert len(broken.boulders(region).table["x"]) > len(whole.boulders(region).table["x"])
     piece = terraingen.Boulder(0.0, 0.0, 1.0, 0.5)
     piece.parent, piece.piece = 7, 2
     assert (piece.parent, piece.piece, piece.wear) == (7, 2, 0.0)
@@ -212,7 +227,7 @@ def test_boulder_options_keep_patches_and_exposure():
 def test_unburied_boulders_sit_on_the_ground():
     options = unburied_options()
     options.exposure = None
-    boulders = terraingen.BoulderLayer(options).boulders((-10.0, -10.0, 10.0, 10.0))
+    boulders = terraingen.BoulderLayer(options).boulders((-10.0, -10.0, 10.0, 10.0)).table
     assert len(boulders["x"]) > 0 and (boulders["burial"] == 0.0).all()
 
 
@@ -249,7 +264,7 @@ def test_validate_boulder_layer_options_rejects_negative_coverage():
 
 def test_boulders_rest_on_sides_and_ends_and_tilt():
     options = terraingen.BoulderLayerOptions(coverage=0.08, side_share=0.3, end_share=0.1, max_tilt_deg=45.0)
-    table = terraingen.BoulderLayer(options).boulders((-30.0, -30.0, 30.0, 30.0))
+    table = terraingen.BoulderLayer(options).boulders((-30.0, -30.0, 30.0, 30.0)).table
     rests = np.asarray(table["rest"])
     assert set(np.unique(rests)) <= {0, 1, 2} and (rests == 1).any() and (rests == 2).any()
     assert np.asarray(table["tilt_deg"]).max() <= 45.0 + 1e-9
@@ -339,9 +354,13 @@ def test_manual_boulders_fix_their_pose_and_shape():
     posed.validate()
     assert terraingen.manual_boulder_id(posed) == 17
     assert terraingen.manual_boulder_id(plain) == terraingen.manual_crater_id(1.0, 2.0, 1.5)
-    table = terraingen.BoulderLayer(
-        terraingen.BoulderLayerOptions(min_diameter_m=0.5, coverage=0.01, manual=[plain, posed])
-    ).boulders((-10.0, -10.0, 10.0, 10.0))
+    table = (
+        terraingen.BoulderLayer(
+            terraingen.BoulderLayerOptions(min_diameter_m=0.5, coverage=0.01, manual=[plain, posed])
+        )
+        .boulders((-10.0, -10.0, 10.0, 10.0))
+        .table
+    )
     row = list(np.asarray(table["id"])).index(17)
     assert np.asarray(table["height"])[row] == 0.9 and np.asarray(table["burial"])[row] == 0.3
     assert np.asarray(table["wear"])[row] == 0.25 and np.asarray(table["rest"])[row] == 1
@@ -357,7 +376,7 @@ def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
     options = terraingen.BoulderLayerOptions(generate_random=False, coverage=0.0, manual=boulders)
     options.validate()
     layer = terraingen.BoulderLayer(options)
-    table = layer.boulders((-10.0, -10.0, 10.0, 10.0))
+    table = layer.boulders((-10.0, -10.0, 10.0, 10.0)).table
     assert sorted(np.asarray(table["diameter"])) == [1.5, 2.0]
     assert layer.unresolved_cover_at(0.0, 0.0, 0.5) == (0.0, 0.0)
     with pytest.raises(ValueError):
@@ -366,7 +385,7 @@ def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
         boulders, terraingen.BoulderLayerOptions(relief=terraingen.BoulderRelief.SHAPE)
     )
     assert not built.options.generate_random and built.options.relief == terraingen.BoulderRelief.SHAPE
-    assert sorted(np.asarray(built.boulders((-10.0, -10.0, 10.0, 10.0))["diameter"])) == [1.5, 2.0]
+    assert sorted(np.asarray(built.boulders((-10.0, -10.0, 10.0, 10.0)).table["diameter"])) == [1.5, 2.0]
     centered = terraingen.BoulderLayer.manual([terraingen.ManualBoulder(0.0, 0.0, 1.0)])
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(41, 41, 0.1), [centered])
     heights = terraingen.evaluate(terrain).values

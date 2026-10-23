@@ -86,15 +86,15 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
                   0),
         0u);
     EXPECT_EQ(std::count(csv.begin(), csv.end(), '\n'),
-              static_cast<long>(BouldersOf(terrain, region).boulders.size() + 1));
+              static_cast<long>(BouldersOf(terrain, region).boulders.Size() + 1));
     EXPECT_NE(ReadText(written[1]).find("\"model\": true"), std::string::npos);
     EXPECT_EQ(ReadText(written[2]).substr(0, 4), "glTF");
     EXPECT_EQ(ReadText(written[3]).substr(0, 10), "TerrainGen") << "a binary STL";
 
     ASSERT_EQ(terrain.grids.size(), 1u);
     ASSERT_TRUE(terrain.Grid().boulders);
-    EXPECT_EQ(terrain.Grid().boulders->boulders.size(),
-              BouldersOf(terrain, region).boulders.size());
+    EXPECT_EQ(terrain.Grid().boulders->boulders.Size(),
+              BouldersOf(terrain, region).boulders.Size());
     EXPECT_TRUE(terrain.Grid().heights.Empty()) << "lists and models evaluate no heights";
 
     const auto placements = [&](const TerrainGenConfig& outputs) {

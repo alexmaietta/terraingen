@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "support/boulder_records.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -31,7 +32,7 @@ double ExpectedBoulders(const BoulderLayer& layer, const terraingen::Bounds2d& r
 /// Boulders centered in `region`.
 double CountBoulders(const BoulderLayer& layer, const terraingen::Bounds2d& region) {
     double count = 0.0;
-    for (const auto& boulder : layer.Boulders(region)) {
+    for (const auto& boulder : terraingen::testing::Records(layer.Boulders(region))) {
         count += region.Contains(boulder.x, boulder.y) ? 1.0 : 0.0;
     }
     return count;

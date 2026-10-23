@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/boulders/boulder_layer.h"
 
+#include "support/boulder_records.h"
 #include "terraingen/terraingen.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/span.h"
@@ -62,7 +63,7 @@ TEST(BoulderLayer, GivesEachBoulderStableAttributesInTheirRanges) {
     BoulderLayerOptions options;
     options.sizes.coverage = 0.05;
     const BoulderLayer layer(options);
-    const auto boulders = layer.Boulders({-20.0, -20.0, 20.0, 20.0});
+    const auto boulders = terraingen::testing::Records(layer.Boulders({-20.0, -20.0, 20.0, 20.0}));
     ASSERT_GT(boulders.size(), 50u);
     std::set<std::uint64_t> ids;
     for (const Boulder& boulder : boulders) {
@@ -79,7 +80,7 @@ TEST(BoulderLayer, GivesEachBoulderStableAttributesInTheirRanges) {
         ids.insert(boulder.id);
     }
     EXPECT_EQ(ids.size(), boulders.size());
-    EXPECT_EQ(layer.Boulders({-20.0, -20.0, 20.0, 20.0}), boulders);
+    EXPECT_EQ(terraingen::testing::Records(layer.Boulders({-20.0, -20.0, 20.0, 20.0})), boulders);
 }
 
 TEST(BoulderLayer, GivesTheSameBouldersInEveryRegionAndSkipsOnlyUnresolvedOnes) {
@@ -87,8 +88,8 @@ TEST(BoulderLayer, GivesTheSameBouldersInEveryRegionAndSkipsOnlyUnresolvedOnes) 
     options.sizes.coverage = 0.05;
     options.patches = {2.0, 30.0};
     const BoulderLayer layer(options);
-    const auto whole = layer.Boulders({-30.0, -30.0, 30.0, 30.0});
-    const auto part = layer.Boulders({-5.0, 0.0, 10.0, 12.0});
+    const auto whole = terraingen::testing::Records(layer.Boulders({-30.0, -30.0, 30.0, 30.0}));
+    const auto part = terraingen::testing::Records(layer.Boulders({-5.0, 0.0, 10.0, 12.0}));
     std::set<std::uint64_t> wholeIds;
     for (const Boulder& boulder : whole) {
         wholeIds.insert(boulder.id);
@@ -96,7 +97,8 @@ TEST(BoulderLayer, GivesTheSameBouldersInEveryRegionAndSkipsOnlyUnresolvedOnes) 
     for (const Boulder& boulder : part) {
         EXPECT_TRUE(wholeIds.count(boulder.id)) << boulder.id;
     }
-    const auto coarse = layer.Boulders({-30.0, -30.0, 30.0, 30.0}, 0.5);
+    const auto coarse =
+        terraingen::testing::Records(layer.Boulders({-30.0, -30.0, 30.0, 30.0}, 0.5));
     std::set<std::uint64_t> resolved;
     for (const Boulder& boulder : whole) {
         if (boulder.diameter >= 2.0 * 0.5) {
@@ -125,7 +127,8 @@ TEST(BoulderLayer, TakesBlocksFromEveryCraterLayerGiven) {
     EXPECT_EQ(last.AbundanceAt(50.0, 0.0).ejecta, 0.0);
     const BoulderLayer one(options, {first}, terraingen::Surface{});
     const BoulderLayer single(options, first);
-    EXPECT_EQ(one.Boulders({30.0, -20.0, 70.0, 20.0}), single.Boulders({30.0, -20.0, 70.0, 20.0}))
+    EXPECT_EQ(terraingen::testing::Records(one.Boulders({30.0, -20.0, 70.0, 20.0})),
+              terraingen::testing::Records(single.Boulders({30.0, -20.0, 70.0, 20.0})))
         << "one layer in a list is that layer";
     EXPECT_THROW(
         BoulderLayer(options,
@@ -147,8 +150,8 @@ TEST(BoulderLayer, AddsBlocksAroundFreshCraters) {
     EXPECT_LT(halfway, 1.0);
     EXPECT_EQ(layer.AbundanceAt(160.0, 0.0).ejecta, 0.0) << "beyond 3 radii";
     EXPECT_EQ(layer.AbundanceAt(160.0, 0.0).background, 1.0);
-    const auto nearRim = layer.Boulders({40.0, -10.0, 60.0, 10.0});
-    const auto far = layer.Boulders({300.0, -10.0, 320.0, 10.0});
+    const auto nearRim = terraingen::testing::Records(layer.Boulders({40.0, -10.0, 60.0, 10.0}));
+    const auto far = terraingen::testing::Records(layer.Boulders({300.0, -10.0, 320.0, 10.0}));
     EXPECT_GT(nearRim.size(), 3 * far.size());
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "ejecta need craters";
 
@@ -174,7 +177,7 @@ TEST(BoulderLayer, ThrowsNoCraterBlocksWithoutRandomBoulders) {
     options.manual = {rim};
     const BoulderLayer layer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
     EXPECT_EQ(layer.AbundanceAt(50.0, 0.0).ejecta, 0.0);
-    const auto boulders = layer.Boulders({40.0, -10.0, 60.0, 10.0});
+    const auto boulders = terraingen::testing::Records(layer.Boulders({40.0, -10.0, 60.0, 10.0}));
     ASSERT_EQ(boulders.size(), 1u) << "the manual boulder alone, no blocks at the rim";
     EXPECT_EQ(boulders[0].id, terraingen::ManualBoulderId(rim));
     EXPECT_NO_THROW(BoulderLayer{options}) << "and no crater layer needed";
@@ -225,7 +228,8 @@ TEST(BoulderLayer, DrawsBouldersAndCraterBlocksFromAnyDistribution) {
     options.ejecta.distribution = std::make_shared<terraingen::TabulatedSfd>(
         terraingen::Sp8023CraterBlocks(terraingen::SpecificationCurve::Nominal));
     const BoulderLayer layer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
-    const auto boulders = layer.Boulders({-100.0, -100.0, 100.0, 100.0});
+    const auto boulders =
+        terraingen::testing::Records(layer.Boulders({-100.0, -100.0, 100.0, 100.0}));
     ASSERT_FALSE(boulders.empty());
     for (const Boulder& boulder : boulders) {
         EXPECT_GE(boulder.diameter, 1.0);
@@ -254,7 +258,8 @@ TEST(BoulderLayer, RaisesTheAbundanceWhereBedrockShows) {
     const double bedrock = layer.AbundanceAt(100.0, 0.0, &steep).background;
     EXPECT_NEAR(bedrock, 3.0 * soil, 1e-12) << "bedrockAbundance times as many";
     EXPECT_THROW(layer.AbundanceAt(0.0, 0.0), std::invalid_argument);
-    EXPECT_THROW(layer.Boulders({0.0, 0.0, 1.0, 1.0}), std::invalid_argument);
+    EXPECT_THROW(terraingen::testing::Records(layer.Boulders({0.0, 0.0, 1.0, 1.0})),
+                 std::invalid_argument);
 }
 
 TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
@@ -265,7 +270,9 @@ TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
     Raster<float> heights(80, 60, 1.0f);
     heights.SetTransform(GeoTransform::NorthUp(-20.0, 15.0, 0.5));
     layer.Apply(heights, {0.5, 4});
-    ASSERT_FALSE(layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5).empty());
+    ASSERT_FALSE(terraingen::testing::Records(
+                     layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5))
+                     .empty());
     bool raised = false;
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
@@ -290,7 +297,9 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
     Raster<float> heights(120, 120, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(0.0, 60.0, 0.5));
     layer.Apply(heights, {0.5});
-    EXPECT_FALSE(layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5).empty());
+    EXPECT_FALSE(terraingen::testing::Records(
+                     layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5))
+                     .empty());
     for (const float value : heights.Values()) {
         EXPECT_EQ(value, 2.0f);
     }
@@ -367,8 +376,8 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
     Raster<float> heights(160, 160, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 0.5));
     const Analytic level([](double, double) { return 2.0f; });
-    const auto boulders =
-        layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5, &level);
+    const auto boulders = terraingen::testing::Records(
+        layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5, &level));
     std::size_t models = 0;
     for (const Boulder& boulder : boulders) {
         EXPECT_EQ(boulder.model, boulder.diameter >= 1.0);
@@ -379,7 +388,9 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
     ASSERT_GT(models, 0u);
     const auto modeled = layer.Models(boulders);
     EXPECT_EQ(modeled.size(), models);
-    EXPECT_TRUE(layer.Models(layer.Boulders({-40.0, -40.0, 40.0, 40.0}, 0.5)).empty())
+    EXPECT_TRUE(
+        layer.Models(terraingen::testing::Records(layer.Boulders({-40.0, -40.0, 40.0, 40.0}, 0.5)))
+            .empty())
         << "no models without the ground";
     for (const auto& boulder : modeled) {
         EXPECT_TRUE(boulder.boulder.model);
@@ -409,13 +420,16 @@ TEST(BoulderLayer, ReadsTheGroundBeneathEachBoulder) {
     options.rendering.models.minDiameter = 1.0;
     const BoulderLayer layer(options);
     const Analytic slope([](double x, double) { return static_cast<float>(0.1 * x); });
-    const auto boulders = layer.Boulders({0.0, 0.0, 40.0, 40.0}, 0.5, &slope);
+    const auto boulders =
+        terraingen::testing::Records(layer.Boulders({0.0, 0.0, 40.0, 40.0}, 0.5, &slope));
     ASSERT_FALSE(boulders.empty());
     for (const Boulder& boulder : boulders) {
         ASSERT_TRUE(boulder.ground.has_value());
         EXPECT_NEAR(*boulder.ground, 0.1 * boulder.x, 1e-5);
     }
-    EXPECT_FALSE(layer.Boulders({0.0, 0.0, 40.0, 40.0}, 0.5).front().ground.has_value());
+    EXPECT_FALSE(terraingen::testing::Records(layer.Boulders({0.0, 0.0, 40.0, 40.0}, 0.5))
+                     .front()
+                     .ground.has_value());
 }
 
 TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
@@ -428,7 +442,8 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
     Raster<float> heights(60, 50, 1.0f);
     heights.SetTransform(GeoTransform::NorthUp(-15.0, 12.5, 0.5));
     layer.Apply(heights, {0.5, 3});
-    const auto boulders = layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5);
+    const auto boulders = terraingen::testing::Records(
+        layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.5));
     ASSERT_FALSE(boulders.empty());
     double highest = 0.0;
     double tallest = 0.0;
@@ -501,8 +516,8 @@ TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {
     Raster<float> piled = plain;
     bare.Apply(plain, {0.25, 4});
     filleted.Apply(piled, {0.25, 4});
-    const auto boulders =
-        filleted.Boulders(terraingen::RasterGrid::FromRaster(piled).Bounds(), 0.25);
+    const auto boulders = terraingen::testing::Records(
+        filleted.Boulders(terraingen::RasterGrid::FromRaster(piled).Bounds(), 0.25));
     ASSERT_FALSE(boulders.empty());
     std::size_t aprons = 0;
     for (std::size_t row = 0; row < piled.Height(); ++row) {
@@ -541,14 +556,15 @@ TEST(BoulderLayer, SetsBurialByWearWhenAsked) {
     const BoulderLayer layer(options, craters);
     EXPECT_EQ(layer.AbundanceAt(50.0, 0.0).ejectaWear, 0.0) << "a fresh crater";
     std::size_t fresh = 0;
-    const auto nearRim = layer.Boulders({40.0, -10.0, 60.0, 10.0});
+    const auto nearRim = terraingen::testing::Records(layer.Boulders({40.0, -10.0, 60.0, 10.0}));
     for (const Boulder& boulder : nearRim) {
         fresh += boulder.burial == 0.1 ? 1u : 0u;
     }
     EXPECT_GT(fresh, nearRim.size() / 2) << "most blocks at the rim are the fresh crater's";
     double least = 1.0;
     double most = 0.0;
-    for (const Boulder& boulder : layer.Boulders({300.0, -10.0, 320.0, 10.0})) {
+    for (const Boulder& boulder :
+         terraingen::testing::Records(layer.Boulders({300.0, -10.0, 320.0, 10.0}))) {
         least = std::fmin(least, boulder.burial);
         most = std::fmax(most, boulder.burial);
     }
@@ -585,8 +601,8 @@ TEST(BoulderLayer, DrawsOnlyBouldersInItsReliefRange) {
     Raster<float> heights(120, 120, 0.0f);
     heights.SetTransform(GeoTransform::NorthUp(-15.0, 15.0, 0.25));
     layer.Apply(heights, {0.25});
-    const auto boulders =
-        layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.25);
+    const auto boulders = terraingen::testing::Records(
+        layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.25));
     std::size_t drawn = 0;
     for (const Boulder& boulder : boulders) {
         const auto pixel = heights.Transform().WorldToPixel(boulder.x, boulder.y);
@@ -629,7 +645,8 @@ TEST(BoulderLayer, DrawsNoBoulderNarrowerThanTheFadeStartButListsEveryOne) {
     Raster<float> heights(grid.width, grid.height, 0.0f);
     heights.SetTransform(grid.transform);
     layer.Apply(heights, {kSpacing, 2});
-    const std::vector<Boulder> listed = layer.BouldersOver(grid, kSpacing, nullptr).boulders;
+    const std::vector<Boulder> listed =
+        terraingen::testing::Records(layer.BouldersOver(grid, kSpacing, nullptr).boulders);
     std::size_t small = 0;
     std::size_t drawn = 0;
     for (const Boulder& boulder : listed) {
@@ -682,8 +699,8 @@ TEST(BoulderLayer, DrawsOverlappingBouldersAsTheirUnion) {
     heights.SetTransform(GeoTransform::NorthUp(-20.0, 20.0, 0.25));
     layer.Apply(heights, {0.25});
     double tallest = 0.0;
-    for (const Boulder& boulder :
-         layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.25)) {
+    for (const Boulder& boulder : terraingen::testing::Records(
+             layer.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.25))) {
         tallest = std::fmax(tallest, boulder.ExposedHeight());
     }
     const float highest = *std::max_element(heights.Values().begin(), heights.Values().end());
@@ -707,7 +724,7 @@ TEST(BoulderLayer, RestsBouldersOnSidesAndEndsAndTiltsThem) {
     options.pose.endShare = 0.1;
     options.pose.maxTilt = 0.8;
     const BoulderLayer layer(options);
-    const auto boulders = layer.Boulders({-40.0, -40.0, 40.0, 40.0});
+    const auto boulders = terraingen::testing::Records(layer.Boulders({-40.0, -40.0, 40.0, 40.0}));
     ASSERT_GT(boulders.size(), 500u);
     std::size_t sides = 0;
     std::size_t ends = 0;
@@ -745,7 +762,8 @@ TEST(BoulderLayer, SettlesBouldersOnTheSlopeBeneathThem) {
     options.pose.followSlope = true;
     const BoulderLayer layer(options);
     const Analytic ramp([](double x, double) { return static_cast<float>(0.5 * x); });
-    for (const Boulder& boulder : layer.Boulders({-10.0, -10.0, 10.0, 10.0}, 0.0, &ramp)) {
+    for (const Boulder& boulder :
+         terraingen::testing::Records(layer.Boulders({-10.0, -10.0, 10.0, 10.0}, 0.0, &ramp))) {
         ASSERT_NEAR(boulder.tilt, std::atan(0.5), 1e-4);
         ASSERT_NEAR(std::fabs(boulder.tiltAzimuth), terraingen::kPi, 1e-4) << "tipped downhill";
     }
@@ -758,13 +776,15 @@ TEST(BoulderLayer, LeavesOutBouldersOnGroundSteeperThanTheirMaxSlope) {
     const Analytic steep([](double x, double) { return static_cast<float>(0.8 * x); });
     const Analytic hill([](double x, double) { return static_cast<float>(0.05 * x * x); });
     const terraingen::Bounds2d region{-10.0, -10.0, 10.0, 10.0};
-    const auto all = BoulderLayer(options).Boulders(region, 0.0, &gentle);
+    const auto all =
+        terraingen::testing::Records(BoulderLayer(options).Boulders(region, 0.0, &gentle));
     ASSERT_FALSE(all.empty());
     options.pose.maxSlope = std::atan(0.5);
     const BoulderLayer limited(options);
-    EXPECT_EQ(limited.Boulders(region, 0.0, &gentle).size(), all.size());
-    EXPECT_TRUE(limited.Boulders(region, 0.0, &steep).empty());
-    const auto onHill = limited.Boulders(region, 0.0, &hill);
+    EXPECT_EQ(terraingen::testing::Records(limited.Boulders(region, 0.0, &gentle)).size(),
+              all.size());
+    EXPECT_TRUE(terraingen::testing::Records(limited.Boulders(region, 0.0, &steep)).empty());
+    const auto onHill = terraingen::testing::Records(limited.Boulders(region, 0.0, &hill));
     ASSERT_FALSE(onHill.empty());
     EXPECT_LT(onHill.size(), all.size());
     for (const Boulder& boulder : onHill) {
@@ -772,8 +792,9 @@ TEST(BoulderLayer, LeavesOutBouldersOnGroundSteeperThanTheirMaxSlope) {
     }
     BoulderLayerOptions unlimited = options;
     unlimited.pose.maxSlope.reset();
-    EXPECT_EQ(limited.Boulders(region, 0.0, nullptr).size(),
-              BoulderLayer(unlimited).Boulders(region, 0.0, nullptr).size())
+    EXPECT_EQ(
+        terraingen::testing::Records(limited.Boulders(region, 0.0, nullptr)).size(),
+        terraingen::testing::Records(BoulderLayer(unlimited).Boulders(region, 0.0, nullptr)).size())
         << "without the ground nothing is left out";
     options.pose.maxSlope = 0.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
@@ -814,7 +835,7 @@ TEST(BoulderLayer, ReportsRockWhereBoulderTopsStandAndNotOnFillets) {
     options.fillet.widthRatio = 0.3;
     const BoulderLayer layer(options);
     EXPECT_EQ(layer.Material(), terraingen::MaterialClass::Rock);
-    const auto boulders = layer.Boulders({-50.0, -50.0, 50.0, 50.0});
+    const auto boulders = terraingen::testing::Records(layer.Boulders({-50.0, -50.0, 50.0, 50.0}));
     ASSERT_FALSE(boulders.empty());
     const Boulder& b = boulders.front();
     EXPECT_EQ(layer.MaterialCoverAt(b.x, b.y, 0.05, nullptr), 1.0);
@@ -838,11 +859,13 @@ TEST(BoulderLayer, ReportsRockOverShapesAndModelFootprints) {
     options.sizes.maxDiameter = 2.0;
     options.rendering.relief = terraingen::BoulderRelief::Shape;
     const BoulderLayer shapes(options);
-    const Boulder b = shapes.Boulders({-50.0, -50.0, 50.0, 50.0}).front();
+    const Boulder b =
+        terraingen::testing::Records(shapes.Boulders({-50.0, -50.0, 50.0, 50.0})).front();
     EXPECT_EQ(shapes.MaterialCoverAt(b.x, b.y, 0.05, nullptr), 1.0);
     options.rendering.models.minDiameter = 1.0;
     const BoulderLayer models(options);
-    const Boulder m = models.Boulders({-50.0, -50.0, 50.0, 50.0}).front();
+    const Boulder m =
+        terraingen::testing::Records(models.Boulders({-50.0, -50.0, 50.0, 50.0})).front();
     ASSERT_TRUE(m.model);
     EXPECT_EQ(models.MaterialCoverAt(m.x, m.y, 0.05, nullptr), 1.0);
     EXPECT_EQ(models.MaterialCoverAt(m.x + 0.51 * m.diameter / std::sqrt(0.5),
@@ -858,7 +881,7 @@ TEST(BoulderLayer, GivesTheSameRockCoverOverAGridAsAtItsPoints) {
     options.rendering.models.minDiameter = 0.8;
     const BoulderLayer layer(options);
     const terraingen::RasterGrid grid{160, 120, GeoTransform::NorthUp(-16.0, 12.0, 0.2)};
-    const auto boulders = layer.Boulders(grid.Bounds(), 0.2);
+    const auto boulders = terraingen::testing::Records(layer.Boulders(grid.Bounds(), 0.2));
     ASSERT_TRUE(
         std::any_of(boulders.begin(), boulders.end(), [](const Boulder& b) { return b.model; }));
     const Raster<double> cover = layer.MaterialCoverOver(grid, 0.2, nullptr, 3);
@@ -881,7 +904,7 @@ TEST(BoulderLayer, FacetsTheirShareOfBouldersUpwindAndKeelsSome) {
     options.ventifacts.secondWindAzimuth = 2.5;
     options.ventifacts.keelShare = 0.5;
     const BoulderLayer layer(options);
-    const auto boulders = layer.Boulders({-20.0, -20.0, 20.0, 20.0});
+    const auto boulders = terraingen::testing::Records(layer.Boulders({-20.0, -20.0, 20.0, 20.0}));
     ASSERT_GT(boulders.size(), 500u);
     std::size_t faceted = 0;
     std::size_t keeled = 0;
@@ -903,7 +926,8 @@ TEST(BoulderLayer, FacetsTheirShareOfBouldersUpwindAndKeelsSome) {
     EXPECT_NEAR(share, 0.4, 0.05);
     EXPECT_NEAR(static_cast<double>(keeled) / static_cast<double>(faceted), 0.5, 0.08);
     options.ventifacts.share = 0.0;
-    const auto plain = BoulderLayer(options).Boulders({-20.0, -20.0, 20.0, 20.0});
+    const auto plain =
+        terraingen::testing::Records(BoulderLayer(options).Boulders({-20.0, -20.0, 20.0, 20.0}));
     ASSERT_EQ(plain.size(), boulders.size());
     for (std::size_t k = 0; k < plain.size(); ++k) {
         EXPECT_EQ(plain[k].facetCount, 0);
@@ -928,7 +952,8 @@ TEST(BoulderLayer, FacetsCutTheWindwardSideOfDomesShapesAndModels) {
         plainOptions.rendering.relief = relief;
         const BoulderLayer cut(options);
         const BoulderLayer plain(plainOptions);
-        const Boulder b = cut.Boulders({-50.0, -50.0, 50.0, 50.0}).front();
+        const Boulder b =
+            terraingen::testing::Records(cut.Boulders({-50.0, -50.0, 50.0, 50.0})).front();
         ASSERT_EQ(b.facetCount, 1);
         double lowered = 0.0;
         for (double t = -0.45; t <= 0.45; t += 0.05) {
@@ -977,7 +1002,7 @@ TEST(BoulderLayer, BrokenPiecesLoseTheirParentsFacets) {
     options.fragmentation.splitWear = 0.0;
     options.ventifacts.share = 1.0;
     const BoulderLayer layer(options);
-    const auto boulders = layer.Boulders({-30.0, -30.0, 30.0, 30.0});
+    const auto boulders = terraingen::testing::Records(layer.Boulders({-30.0, -30.0, 30.0, 30.0}));
     ASSERT_TRUE(std::any_of(boulders.begin(), boulders.end(),
                             [](const Boulder& b) { return b.parent != 0; }));
     for (const Boulder& b : boulders) {
@@ -1072,8 +1097,10 @@ TEST(BoulderLayer, FollowsADensityMapBetweenCraters) {
     BoulderLayerOptions plain;
     plain.sizes.coverage = 0.02;
     const Bounds2d region{-15.0, -15.0, 15.0, 15.0};
-    const double ratio = static_cast<double>(layer.Boulders(region, 0.0).size()) /
-                         static_cast<double>(BoulderLayer(plain).Boulders(region, 0.0).size());
+    const double ratio =
+        static_cast<double>(terraingen::testing::Records(layer.Boulders(region, 0.0)).size()) /
+        static_cast<double>(
+            terraingen::testing::Records(BoulderLayer(plain).Boulders(region, 0.0)).size());
     EXPECT_GT(ratio, 1.8) << "a higher coverage gives more boulders";
     options.sizes.coverage = 0.5;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "coverage over 1 under the map";
@@ -1088,13 +1115,15 @@ TEST(BoulderLayer, PlacesCatalogBouldersAndDropsGeneratedOnesItCovers) {
     options.pose.maxSlope = 0.1;
     const Analytic steep([](double x, double) { return static_cast<float>(0.5 * x); });
     const Bounds2d region{-10.0, -10.0, 10.0, 10.0};
-    const auto boulders = BoulderLayer(options).Boulders(region, 0.0, &steep);
+    const auto boulders =
+        terraingen::testing::Records(BoulderLayer(options).Boulders(region, 0.0, &steep));
     ASSERT_EQ(boulders.size(), 2u) << "steep ground leaves out every generated boulder";
     EXPECT_EQ(boulders[0].diameter, 12.0) << "beyond the sizes, still placed";
     options.pose.maxSlope.reset();
     std::size_t manual = 0;
     std::size_t small = 0;
-    for (const Boulder& boulder : BoulderLayer(options).Boulders(region, 0.0)) {
+    for (const Boulder& boulder :
+         terraingen::testing::Records(BoulderLayer(options).Boulders(region, 0.0))) {
         if (boulder.diameter == 12.0 || boulder.diameter == 0.8) {
             ++manual;
             continue;
@@ -1195,7 +1224,7 @@ TEST(BoulderLayer, BendsTheSizesIntoTheSlopeAMapGives) {
     double westLarge = 0.0;
     double eastSmall = 0.0;
     double eastLarge = 0.0;
-    for (const Boulder& boulder : layer.Boulders(region, 0.0)) {
+    for (const Boulder& boulder : terraingen::testing::Records(layer.Boulders(region, 0.0))) {
         const bool west = boulder.x < 0.0;
         (west ? westSmall : eastSmall) += boulder.diameter >= 1.0 ? 1.0 : 0.0;
         (west ? westLarge : eastLarge) += boulder.diameter >= 2.0 ? 1.0 : 0.0;
@@ -1220,9 +1249,10 @@ TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
     BoulderLayerOptions still = options;
     still.pose.maxSlope.reset();
     still.pose.rollDistance.reset();
-    const auto unrolled = BoulderLayer(still).Boulders(region, 0.0, &ramp);
+    const auto unrolled =
+        terraingen::testing::Records(BoulderLayer(still).Boulders(region, 0.0, &ramp));
     const BoulderLayer layer(options);
-    const auto rolled = layer.Boulders(region, 0.0, &ramp);
+    const auto rolled = terraingen::testing::Records(layer.Boulders(region, 0.0, &ramp));
     std::size_t onRamp = 0;
     std::size_t atFoot = 0;
     std::size_t atFootBefore = 0;
@@ -1243,7 +1273,8 @@ TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
     std::set<std::uint64_t> tiles;
     for (const Bounds2d& tile :
          {Bounds2d{-30.0, -10.0, 0.5, 10.0}, Bounds2d{0.5, -10.0, 30.0, 10.0}}) {
-        for (const Boulder& boulder : layer.Boulders(tile, 0.0, &ramp)) {
+        for (const Boulder& boulder :
+             terraingen::testing::Records(layer.Boulders(tile, 0.0, &ramp))) {
             if (tile.Contains(boulder.x, boulder.y)) {
                 tiles.insert(boulder.id);
             }
@@ -1257,7 +1288,9 @@ TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
     }
     EXPECT_EQ(tiles, inside) << "boulders rolling across a tile edge land in the right tile";
     options.pose.rollDistance = 3.0;
-    EXPECT_LT(BoulderLayer(options).Boulders(region, 0.0, &ramp).size(), rolled.size())
+    EXPECT_LT(
+        terraingen::testing::Records(BoulderLayer(options).Boulders(region, 0.0, &ramp)).size(),
+        rolled.size())
         << "those that would roll farther are left out";
     options.pose.maxSlope.reset();
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "rolling needs a max slope";
@@ -1302,8 +1335,8 @@ TEST(BoulderLayer, ReadsTheGroundBeneathItsBouldersInOnePass) {
     const Bounds2d region{-10.0, -10.0, 10.0, 10.0};
     const Counted batched(true);
     const Counted single(false);
-    const auto fast = layer.Boulders(region, 0.0, &batched);
-    const auto slow = layer.Boulders(region, 0.0, &single);
+    const auto fast = terraingen::testing::Records(layer.Boulders(region, 0.0, &batched));
+    const auto slow = terraingen::testing::Records(layer.Boulders(region, 0.0, &single));
     ASSERT_GT(fast.size(), 20u);
     EXPECT_EQ(batched.batched_.load(), 1);
     EXPECT_EQ(batched.single_.load(), 0) << "every point the boulders read was fetched";

@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/boulders/boulder_layer.h"
 
+#include "support/boulder_records.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -126,7 +127,8 @@ TEST(ManualBoulder, FixingWhatAnUnsetOneDrewGivesTheSameBoulderAndLeavesTheRestA
     BoulderLayerOptions options = Options();
     options.manual = {Plain(2.0, 3.0, 2.5), Plain(-4.0, 1.0, 0.8)};
     const Ramp level;
-    const auto drawn = BoulderLayer(options).Boulders(kRegion, 0.0, &level);
+    const auto drawn =
+        terraingen::testing::Records(BoulderLayer(options).Boulders(kRegion, 0.0, &level));
     const std::uint64_t id = terraingen::ManualCraterId(2.0, 3.0, 2.5);
     const Boulder* plain = Find(drawn, id);
     ASSERT_NE(plain, nullptr);
@@ -147,7 +149,8 @@ TEST(ManualBoulder, FixingWhatAnUnsetOneDrewGivesTheSameBoulderAndLeavesTheRestA
     fixed.shapeSeed = seed;
     BoulderLayerOptions fixing = options;
     fixing.manual[0] = fixed;
-    const auto posed = BoulderLayer(fixing).Boulders(kRegion, 0.0, &level);
+    const auto posed =
+        terraingen::testing::Records(BoulderLayer(fixing).Boulders(kRegion, 0.0, &level));
     const Boulder* again = Find(posed, id);
     ASSERT_NE(again, nullptr);
     EXPECT_EQ(again->shapeSeed, std::optional<std::uint64_t>(seed));
@@ -165,7 +168,7 @@ TEST(ManualBoulder, PlacesEveryFixedFieldExactlyInTheListsAndModels) {
     options.manual = {Posed()};
     const BoulderLayer layer(options);
     const Ramp level;
-    const auto boulders = layer.Boulders(kRegion, 0.0, &level);
+    const auto boulders = terraingen::testing::Records(layer.Boulders(kRegion, 0.0, &level));
     const Boulder* b = Find(boulders, 99);
     ASSERT_NE(b, nullptr);
     const ManualBoulder posed = Posed();
@@ -204,7 +207,7 @@ TEST(ManualBoulder, FixedOrientationIsNotTippedOverButOtherManualBouldersAre) {
     ASSERT_TRUE(options.pose.settle);
     const BoulderLayer layer(options);
     const Ramp level;
-    const auto boulders = layer.Boulders(kRegion, 0.0, &level);
+    const auto boulders = terraingen::testing::Records(layer.Boulders(kRegion, 0.0, &level));
     const auto models = layer.Models(boulders);
     for (const ManualBoulder& manual : options.manual) {
         const std::uint64_t id = terraingen::ManualBoulderId(manual);
@@ -224,7 +227,7 @@ TEST(ManualBoulder, ShapeSeedPicksTheShapeAGeneratedBoulderDerives) {
     BoulderLayerOptions options = Options();
     options.rendering.shapePrototypes = 0;
     const BoulderLayer plain(options);
-    const auto generated = plain.Boulders(kRegion);
+    const auto generated = terraingen::testing::Records(plain.Boulders(kRegion));
     ASSERT_FALSE(generated.empty());
     const Boulder& g = generated.front();
     const std::uint64_t seed = terraingen::ShapeSeed(g, 0);
@@ -233,7 +236,7 @@ TEST(ManualBoulder, ShapeSeedPicksTheShapeAGeneratedBoulderDerives) {
     manual.shapeSeed = seed;
     options.manual = {manual};
     const BoulderLayer layer(options);
-    const auto boulders = layer.Boulders(kRegion);
+    const auto boulders = terraingen::testing::Records(layer.Boulders(kRegion));
     const Boulder* placed = Find(boulders, terraingen::ManualBoulderId(manual));
     ASSERT_NE(placed, nullptr);
     EXPECT_EQ(layer.Shape(*placed)->mesh.positions, plain.Shape(g)->mesh.positions);
@@ -250,7 +253,7 @@ TEST(ManualBoulder, BouldersFixingAnyFieldNeverBreak) {
     worn.wear = 0.9;
     const ManualBoulder free = Plain(-5.0, 5.0, 2.0);
     options.manual = {worn, free};
-    const auto boulders = BoulderLayer(options).Boulders(kRegion);
+    const auto boulders = terraingen::testing::Records(BoulderLayer(options).Boulders(kRegion));
     const Boulder* whole = Find(boulders, terraingen::ManualBoulderId(worn));
     ASSERT_NE(whole, nullptr);
     EXPECT_EQ(whole->parent, 0u);
@@ -272,7 +275,8 @@ TEST(ManualBoulder, AFollowedSlopeTipsAFixedTilt) {
     upright.tiltAzimuth = 0.0;
     options.manual = {upright};
     const Ramp ramp(0.2);
-    const auto boulders = BoulderLayer(options).Boulders(kRegion, 0.0, &ramp);
+    const auto boulders =
+        terraingen::testing::Records(BoulderLayer(options).Boulders(kRegion, 0.0, &ramp));
     const Boulder* b = Find(boulders, terraingen::ManualBoulderId(upright));
     ASSERT_NE(b, nullptr);
     EXPECT_NEAR(b->tilt, std::atan(0.2), 1e-6);
@@ -285,7 +289,7 @@ TEST(ManualBoulder, AFixedWearSetsTheBurialDrawnByWear) {
     ManualBoulder worn = Plain(0.0, 0.0, 1.0);
     worn.wear = 0.5;
     options.manual = {worn};
-    const auto boulders = BoulderLayer(options).Boulders(kRegion);
+    const auto boulders = terraingen::testing::Records(BoulderLayer(options).Boulders(kRegion));
     const Boulder* b = Find(boulders, terraingen::ManualBoulderId(worn));
     ASSERT_NE(b, nullptr);
     EXPECT_EQ(b->wear, 0.5);
@@ -318,11 +322,12 @@ TEST(ManualOnlyBoulderLayer, PlacesTheManualBouldersAsAGeneratingLayerDoesAndNot
     BoulderLayerOptions options = Options();
     options.manual = {Posed(), Plain(2.0, 3.0, 2.5), Plain(-4.0, 1.0, 0.8), Plain(40.0, 40.0, 1.0)};
     const Ramp ramp(0.1);
-    const auto generating = BoulderLayer(options).Boulders(kRegion, 0.0, &ramp);
+    const auto generating =
+        terraingen::testing::Records(BoulderLayer(options).Boulders(kRegion, 0.0, &ramp));
     BoulderLayerOptions manualOnly = options;
     manualOnly.generateRandom = false;
     const BoulderLayer layer(manualOnly);
-    const auto boulders = layer.Boulders(kRegion, 0.0, &ramp);
+    const auto boulders = terraingen::testing::Records(layer.Boulders(kRegion, 0.0, &ramp));
     ASSERT_EQ(boulders.size(), 3u) << "the manual boulder far outside the region is left out";
     EXPECT_GT(generating.size(), 20u);
     for (const Boulder& boulder : boulders) {
@@ -338,7 +343,7 @@ TEST(ManualOnlyBoulderLayer, PlacesTheManualBouldersAsAGeneratingLayerDoesAndNot
             ModelWithId(BoulderLayer(options).Models(generating), model.boulder.id).placement));
     }
     EXPECT_EQ(layer.MaxFeatureDiameter(), 2.5);
-    EXPECT_TRUE(layer.Boulders({-30.0, 20.0, -20.0, 30.0}).empty());
+    EXPECT_TRUE(terraingen::testing::Records(layer.Boulders({-30.0, 20.0, -20.0, 30.0})).empty());
 }
 
 TEST(ManualOnlyBoulderLayer, NeedsNoSizesCraterLayerOrGroundAndHasNoAbundance) {
@@ -352,7 +357,8 @@ TEST(ManualOnlyBoulderLayer, NeedsNoSizesCraterLayerOrGroundAndHasNoAbundance) {
     EXPECT_NO_THROW(terraingen::ValidateBoulderLayerOptions(options));
     EXPECT_THROW(terraingen::BoulderCandidates(options), std::invalid_argument);
     const BoulderLayer layer(options);
-    EXPECT_EQ(layer.Boulders(kRegion).size(), 1u) << "no ground needed for the exposure field";
+    EXPECT_EQ(terraingen::testing::Records(layer.Boulders(kRegion)).size(), 1u)
+        << "no ground needed for the exposure field";
     EXPECT_EQ(layer.AbundanceAt(1.0, 1.0), (terraingen::BoulderAbundance{0.0, 0.0, 0.0, {}}));
     EXPECT_EQ(layer.UnresolvedCoverAt(1.0, 1.0, 0.5), terraingen::UnresolvedCover{});
     const terraingen::RasterGrid grid{8, 8, terraingen::GeoTransform::NorthUp(-2.0, 2.0, 0.5)};
@@ -385,7 +391,7 @@ TEST(ManualOnlyBoulderLayer, ManualMakesALayerOfOnlyTheGivenBoulders) {
     EXPECT_EQ(layer->Options().pose, options.pose);
     const auto plain = BoulderLayer::Manual(boulders);
     EXPECT_EQ(plain->Options().rendering, terraingen::BoulderRendering{});
-    EXPECT_EQ(plain->Boulders(kRegion).size(), 2u);
+    EXPECT_EQ(terraingen::testing::Records(plain->Boulders(kRegion)).size(), 2u);
     EXPECT_THROW(BoulderLayer::Manual({Plain(1.0, 2.0, 3.0), Plain(1.0, 2.0, 3.0)}),
                  std::invalid_argument);
 }

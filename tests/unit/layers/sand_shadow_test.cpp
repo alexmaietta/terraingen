@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/sand_shadow.h"
 
+#include "support/boulder_records.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
 
@@ -33,7 +34,8 @@ std::shared_ptr<const BoulderLayer> Sparse() {
 
 /// A boulder of `layer` with no other within `clear` meters.
 Boulder Isolated(const BoulderLayer& layer, double clear) {
-    const auto boulders = layer.Boulders({-150.0, -150.0, 150.0, 150.0});
+    const auto boulders =
+        terraingen::testing::Records(layer.Boulders({-150.0, -150.0, 150.0, 150.0}));
     for (const Boulder& boulder : boulders) {
         bool alone = true;
         for (const Boulder& other : boulders) {
@@ -141,7 +143,8 @@ TEST(SandShadowLayer, FollowsTheBoulderFramesOnABody) {
     options.sizes.maxDiameter = 2.0;
     const auto boulders = std::make_shared<BoulderLayer>(options, nullptr, mars);
     const SandShadowLayer layer(boulders, SandShadowOptions{}, mars);
-    const auto placed = boulders->Boulders({137.4, -4.6, 137.402, -4.598});
+    const auto placed =
+        terraingen::testing::Records(boulders->Boulders({137.4, -4.6, 137.402, -4.598}));
     ASSERT_FALSE(placed.empty());
     const Boulder& b = placed.front();
     const terraingen::Vec2d behind = mars.Locate({b.x, b.y}, {0.5 * b.diameter + 0.01, 0.0});

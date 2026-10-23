@@ -48,47 +48,34 @@ inline nb::dict CraterTable(const CraterList& craters,
     return table;
 }
 
-/// The boulders as NumPy columns, angles in degrees.
-inline nb::dict BoulderTable(const std::vector<Boulder>& boulders) {
-    std::vector<double> x, y, ground, diameter, height, burial, yaw, lean, wear, tilt, azimuth;
-    std::vector<std::uint64_t> id, parent;
-    std::vector<std::uint32_t> piece;
-    std::vector<std::uint8_t> model, rest;
-    for (const Boulder& boulder : boulders) {
-        x.push_back(boulder.x);
-        y.push_back(boulder.y);
-        ground.push_back(boulder.ground.value_or(std::numeric_limits<double>::quiet_NaN()));
-        diameter.push_back(boulder.diameter);
-        height.push_back(boulder.height);
-        burial.push_back(boulder.burial);
-        yaw.push_back(boulder.yaw * kRadian);
-        lean.push_back(boulder.lean * kRadian);
-        id.push_back(boulder.id);
-        model.push_back(boulder.model ? 1 : 0);
-        wear.push_back(boulder.wear);
-        parent.push_back(boulder.parent);
-        piece.push_back(boulder.piece);
-        rest.push_back(static_cast<std::uint8_t>(boulder.rest));
-        tilt.push_back(boulder.tilt * kRadian);
-        azimuth.push_back(boulder.tiltAzimuth * kRadian);
+/// Radians as degrees.
+inline std::vector<double> Degrees(const std::vector<double>& radians) {
+    std::vector<double> degrees(radians.size());
+    for (std::size_t i = 0; i < radians.size(); ++i) {
+        degrees[i] = radians[i] * kRadian;
     }
+    return degrees;
+}
+
+/// The boulders as NumPy columns, angles in degrees.
+inline nb::dict BoulderTable(const BoulderList& boulders) {
     nb::dict table;
-    table["x"] = Column(std::move(x));
-    table["y"] = Column(std::move(y));
-    table["ground"] = Column(std::move(ground));
-    table["diameter"] = Column(std::move(diameter));
-    table["height"] = Column(std::move(height));
-    table["burial"] = Column(std::move(burial));
-    table["yaw_deg"] = Column(std::move(yaw));
-    table["lean_deg"] = Column(std::move(lean));
-    table["id"] = Column(std::move(id));
-    table["model"] = Column(std::move(model));
-    table["wear"] = Column(std::move(wear));
-    table["parent"] = Column(std::move(parent));
-    table["piece"] = Column(std::move(piece));
-    table["rest"] = Column(std::move(rest));
-    table["tilt_deg"] = Column(std::move(tilt));
-    table["tilt_azimuth_deg"] = Column(std::move(azimuth));
+    table["x"] = Column(boulders.X());
+    table["y"] = Column(boulders.Y());
+    table["ground"] = Column(boulders.Grounds());
+    table["diameter"] = Column(boulders.Diameters());
+    table["height"] = Column(boulders.Heights());
+    table["burial"] = Column(boulders.Burials());
+    table["yaw_deg"] = Column(Degrees(boulders.Yaws()));
+    table["lean_deg"] = Column(Degrees(boulders.Leans()));
+    table["id"] = Column(boulders.Ids());
+    table["model"] = Column(boulders.Models());
+    table["wear"] = Column(boulders.Wears());
+    table["parent"] = Column(boulders.Parents());
+    table["piece"] = Column(boulders.Pieces());
+    table["rest"] = Column(boulders.Rests());
+    table["tilt_deg"] = Column(Degrees(boulders.Tilts()));
+    table["tilt_azimuth_deg"] = Column(Degrees(boulders.TiltAzimuths()));
     return table;
 }
 
