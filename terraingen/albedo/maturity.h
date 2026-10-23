@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The reflectance at another optical maturity (Lucey et al. 2000).
 #pragma once

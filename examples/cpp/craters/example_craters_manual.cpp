@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Hand-placed craters on a synthetic terrain, with no generated population: each crater has a
 /// position, diameter and age, and its age sets how degraded it is. The same terrain as
 /// examples/config/craters/example_craters_manual.json.

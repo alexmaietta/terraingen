@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/raster/spectrum.h"
 
 #include "terraingen/random/samplers.h"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Predicates and argument checks for numeric parameters; each check's `what` names the
 /// value and starts its error message.

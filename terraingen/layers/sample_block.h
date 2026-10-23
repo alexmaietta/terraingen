@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Positions a layer evaluates and their heights: a raster's cells or scattered points.
 #pragma once

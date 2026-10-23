@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/util/special_functions.h"
 
 #include <gtest/gtest.h>

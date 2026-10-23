@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief TerrainGen's GUI: a viewer of the terrain with panels to open, edit and generate it.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// `terraingen-examples`: lists the examples linked into it, runs one, or opens them in the GUI's
 /// Examples panel when the build has the GUI.
 

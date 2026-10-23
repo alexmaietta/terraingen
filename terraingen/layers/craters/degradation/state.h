@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief A crater's shape measures and degradation state.
 #pragma once

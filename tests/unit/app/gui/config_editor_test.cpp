@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/app/gui/config_editor.h"
 #include "terraingen/config/json.h"
 

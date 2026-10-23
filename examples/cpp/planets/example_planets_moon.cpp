@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// The Moon on a sphere: a site at Mare Tranquillitatis and a mesh of the whole body.
 ///
 /// On a sphere surface, grid coordinates are degrees of longitude and latitude while pixel sizes,

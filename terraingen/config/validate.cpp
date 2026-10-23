@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/config/validate.h"
 
 #include "terraingen/albedo/crater_albedo.h"

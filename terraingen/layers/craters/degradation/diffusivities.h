@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Lunar topographic diffusivities of Fassett and Thomson (2014) and Fassett et al. (2022).
 #pragma once

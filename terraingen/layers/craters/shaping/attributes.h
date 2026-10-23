@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `CraterAttributes`, what a crater looks like in its current state.
 #pragma once

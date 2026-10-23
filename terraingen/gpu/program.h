@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `KernelProgram`, a kernel compiled for each GPU backend, and `CompiledKernel`.
 #pragma once

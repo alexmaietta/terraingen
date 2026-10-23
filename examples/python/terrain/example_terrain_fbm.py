@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """A synthetic terrain built in code: a flat source with one fBm noise layer.
 
 Evaluates it over the source's grid, queries single points as a physics engine would, and writes

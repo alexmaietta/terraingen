@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// A synthetic terrain from library objects: a flat source with one fBm noise layer, composed into
 /// a `TerrainGenerator`. Evaluates it over the source's grid, queries single points as a physics
 /// engine would, and writes a GeoTIFF. The same terrain as

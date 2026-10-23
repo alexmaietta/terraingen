@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Prelude that compiles kernel headers both as C++ (CPU) and as Slang (GPU).
 ///

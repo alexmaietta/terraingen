@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 include("${PROJECT_SOURCE_DIR}/cmake/third_party/benchmark.cmake")
 
 # Timings are only meaningful from an optimized build: configure with -DCMAKE_BUILD_TYPE=Release.

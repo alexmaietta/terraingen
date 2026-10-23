@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """
 MkDocs hook that writes the configuration reference from the library's own schema.
 """

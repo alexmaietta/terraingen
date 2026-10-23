@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Craters, boulders and other values as NumPy columns.
 #pragma once

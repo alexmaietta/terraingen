@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/raster/geotiff/tiff_format.h"
 
 namespace terraingen::detail {

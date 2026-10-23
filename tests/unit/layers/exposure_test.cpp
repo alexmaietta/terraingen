@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/exposure.h"
 
 #include "terraingen/noise/perlin.h"

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """A stack of noise layers, each combined with the heights so far by its blend mode.
 
 Rolling fBm, domain-warped ridged crests added on top (their octave gain set from a Hurst

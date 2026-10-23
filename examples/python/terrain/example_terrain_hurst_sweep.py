@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Vary the Hurst exponent of a noise layer and see how roughness changes.
 
 The gain between octaves is lacunarity^-H (`gain_from_hurst`); a lower H keeps more energy in the

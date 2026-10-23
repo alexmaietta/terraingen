@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Crater degradation models compared on the same crater population: none, a fixed depth ratio,
 /// freshness (shallower with age relative to lifetime) and topographic diffusion with the
 /// diffusivities of Fassett and Thomson (2014) and Fassett et al. (2022). Prints each model's mean

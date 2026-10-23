@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/source_resolved.h"
 
 #include "terraingen/util/checks.h"

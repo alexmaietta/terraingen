@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/distribution/tabulated.h"
 
 #include "terraingen/util/checks.h"

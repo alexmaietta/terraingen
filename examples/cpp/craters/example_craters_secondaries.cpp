@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Secondary craters around a young 2 km primary: a `SecondaryCraterLayer` reads the primaries of a
 /// `CraterLayer` and throws secondaries whose largest size follows Singer et al. (2020), whose
 /// density falls off with range (Chapman 1968), out to about Elliott et al.'s (2018) longest rays.

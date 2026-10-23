@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Irregular, non-circular crater outlines: elongation and rough rims.
 #pragma once

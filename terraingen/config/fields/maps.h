@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The JSON fields of surface fields and density maps.
 #pragma once

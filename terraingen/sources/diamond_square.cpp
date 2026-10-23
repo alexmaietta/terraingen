@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/sources/diamond_square.h"
 
 #include "terraingen/random/samplers.h"

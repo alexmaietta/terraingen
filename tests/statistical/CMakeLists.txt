@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Tests that check distributions by sampling, against tolerances derived from the sample size.
 terraingen_add_test_suite(
     distribution_statistical

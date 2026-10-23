@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include "support/gdal_fixtures.h"

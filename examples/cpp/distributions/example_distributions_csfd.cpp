@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Crater size-frequency distributions: the built-in lunar and Martian models, and one of your own.
 ///
 /// Prints N(>= D) per square kilometer for the production on surfaces of several ages, the

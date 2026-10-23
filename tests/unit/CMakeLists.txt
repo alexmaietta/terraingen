@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 add_subdirectory(util)
 add_subdirectory(raster)
 add_subdirectory(noise)

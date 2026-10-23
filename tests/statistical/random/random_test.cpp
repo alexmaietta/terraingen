@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "support/statistics.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"

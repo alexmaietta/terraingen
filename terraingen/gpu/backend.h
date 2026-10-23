@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Evaluation backends (the CPU, Vulkan, CUDA or Metal) and the process-wide default.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `CraterAgeModel`, crater ages by diameter, and the simplest: `FreshAges`, `UniformAges`.
 #pragma once

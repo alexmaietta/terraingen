@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Calling the methods a Python subclass overrides, for the trampolines.
 #pragma once

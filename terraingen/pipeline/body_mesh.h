@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `BodyMesh` and `BodyIcq`, the whole body a terrain on a sphere or ellipsoid lies on.
 #pragma once

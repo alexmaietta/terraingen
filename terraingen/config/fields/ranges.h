@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Checking configuration numbers against the ranges their field lists declare.
 #pragma once

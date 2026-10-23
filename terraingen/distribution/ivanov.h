@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Ivanov's (2001) Martian chronology and production function.
 #pragma once

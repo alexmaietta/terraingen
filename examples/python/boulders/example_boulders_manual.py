@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Hand-placed boulders on a small flat site, as for a rover test scene.
 
 One boulder has its whole pose and shape fixed, one only its yaw and burial and one only its

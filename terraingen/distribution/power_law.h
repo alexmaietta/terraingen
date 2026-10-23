@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Power-law size-frequency distributions and their segments.
 #pragma once

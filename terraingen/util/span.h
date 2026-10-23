@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Span`, a non-owning view of contiguous elements that keeps the library at C++17.
 ///

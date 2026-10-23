@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The `terraingen` command line: exit codes, usage and argument handling.
 #pragma once

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Runs a Python example by name, or lists them, as `terraingen-examples` does for C++.
 
     python examples/python                       # list the examples

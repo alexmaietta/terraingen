@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """layers/boulders: boulder options, placement, models, abundance and writers."""
 
 import numpy as np

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `AnchoredPlane`, the tangent plane at an anchor that planar layers lay features out in.
 #pragma once

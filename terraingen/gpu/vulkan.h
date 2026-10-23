@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The shared Vulkan compute device and SPIR-V kernel dispatch.
 #pragma once

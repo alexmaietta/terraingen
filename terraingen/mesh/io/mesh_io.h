@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Reading and writing triangle meshes and instanced scenes as OBJ with MTL, glTF and STL.
 #pragma once

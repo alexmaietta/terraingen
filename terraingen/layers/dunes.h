@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `DuneLayer`, dune fields of barchans, domes or crest-line dunes, with ripples on them.
 #pragma once

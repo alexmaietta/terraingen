@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/config/generate.h"
 
 #include "terraingen/config/build.h"

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Compiling Slang kernels with slangc at build time and embedding them in libraries. Kernels
 # include TerrainGen headers from the repository root, so kernel headers are shared with the C++
 # code. Nothing of Slang ships or runs with TerrainGen.

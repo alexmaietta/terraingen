@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Generating crater populations cell by cell, in size bands.
 #pragma once

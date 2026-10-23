@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Blast zones: the regolith a lander's descent engine scoured, brighter than around it.
 #pragma once

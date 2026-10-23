@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/pipeline/generator.h"
 
 #include "support/raster_equality.h"

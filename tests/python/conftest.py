@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Shared fixtures and builders for the Python tests."""
 
 import copy

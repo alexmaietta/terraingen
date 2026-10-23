@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 terraingen_add_test_suite(
     random
     SOURCES

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """The harness every Python example runs on, after Newton's examples (`newton.examples`) and
 Ernie's demos (`ernie.demo`): the Example base class, its command line, running and discovery."""
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Hand-placed boulders on a small flat site, as for a rover test scene: one with its whole pose
 /// and shape fixed, one with only its yaw and burial fixed and one given only its position and
 /// diameter, among a sparse generated population. Fields left unset are drawn as for generated

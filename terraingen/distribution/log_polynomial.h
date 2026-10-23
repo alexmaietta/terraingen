@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Size-frequency distributions given by a polynomial in log diameter.
 #pragma once

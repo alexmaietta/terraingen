@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Cumulative size-frequency distributions (CSFDs) of the built-in crater models.
 
 Each distribution gives N(>= D), the number of craters at least D meters across per square meter.

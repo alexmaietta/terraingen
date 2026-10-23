@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 execute_process(
     COMMAND "${Python_EXECUTABLE}" -c "import pytest, numpy"
     RESULT_VARIABLE python_test_deps_missing

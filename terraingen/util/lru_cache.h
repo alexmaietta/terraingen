@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `LruCache`, a sharded thread-safe least-recently-used cache.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Heights read from a band of a GeoTIFF DEM.
 #pragma once

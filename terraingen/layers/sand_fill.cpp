@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/sand_fill.h"
 
 #include "terraingen/layers/fade.h"

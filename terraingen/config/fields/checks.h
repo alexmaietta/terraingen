@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief JSON paths and value checks that report configuration errors at a path.
 #pragma once

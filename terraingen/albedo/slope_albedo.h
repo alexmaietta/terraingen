@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Slope maturity: steep ground kept fresh, and bright, by regolith moving downslope.
 #pragma once

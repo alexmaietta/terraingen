@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 // Adds, to the ground under each lattice point of each crater's datum footprint on a body, the
 // relief of the craters before it that can reach it (KernelBodyDatumRelief). A row is one crater,
 // a column one lattice point; points with no data, or outside the footprint, hold NaN and are left

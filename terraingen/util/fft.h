@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief In-place radix-2 fast Fourier transforms in one and two dimensions.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The JSON fields of crater and secondary crater layers and rim smoothing.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "support/raster_equality.h"
 #include "terraingen/raster/resample.h"
 

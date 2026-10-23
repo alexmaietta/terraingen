@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "bindings.h"
 #include "common.h"
 #include "options.h"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `StrataLayer`, layered rock: the ground beneath terraced into benches and cliffs.
 #pragma once

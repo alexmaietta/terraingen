@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `PavementLayer`, fractured bedrock: polygonal plates parted by cracks or raised ridges.
 #pragma once

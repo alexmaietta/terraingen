@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `ResolvedCraterState`, a crater's state with a manual crater's explicit depth and rim
 /// height applied.

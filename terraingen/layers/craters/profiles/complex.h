@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `ComplexCraterProfile`: flat floors, terraced walls and central peaks.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Sources and layers of your own: every part of a terrain is an interface to derive from. Here
 /// an inclined plane (`Source`), a sinuous rille and a terrace quantization (`FormulaLayer`s) mix
 /// with built-in noise and craters. Writes the terrain with and without the terraces.

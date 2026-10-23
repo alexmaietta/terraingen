@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Base solids for boulders and midpoint subdivision.
 #pragma once

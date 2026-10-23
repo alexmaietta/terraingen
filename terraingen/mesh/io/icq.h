@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Gaskell's implicitly connected quadrilateral (ICQ) shape models: reading, writing and
 /// triangulating them.

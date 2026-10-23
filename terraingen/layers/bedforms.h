@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `BedformLayer`, fields of wind-blown ripples or dunes.
 #pragma once

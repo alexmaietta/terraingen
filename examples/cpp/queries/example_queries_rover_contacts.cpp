@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// A rover's wheel contacts from point queries, as a physics engine such as Chrono asks for them
 /// every step.
 ///

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/util/radial_shape.h"
 
 #include "terraingen/util/surface.h"

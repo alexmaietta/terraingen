@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The size-frequency distribution base class, its kinds and diameter ranges.
 #pragma once

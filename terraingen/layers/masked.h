@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `MaskedLayer`, another layer applied only inside a rectangle or circle.
 #pragma once

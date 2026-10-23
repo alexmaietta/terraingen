@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Roughness continuing a coarse DEM below its cells: the example writes an 8 m DEM of its own to
 /// stand in for orbital data, reads it upsampled to 0.5 m, estimates the Hurst exponent and RMS
 /// slope its variogram extrapolates to a 1 m baseline (`EstimateSourceRoughness`), and adds a

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """TerrainGen: scientific terrain generation for planetary surfaces.
 
 TerrainGen's log records go to the standard logging module on loggers named

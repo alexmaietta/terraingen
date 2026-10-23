@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `SandFillLayer`, sand pooled in the lows of the ground beneath it.
 #pragma once

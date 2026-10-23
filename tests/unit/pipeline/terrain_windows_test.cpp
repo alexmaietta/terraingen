@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terrains.h"
 
 #include "support/mesh_measures.h"

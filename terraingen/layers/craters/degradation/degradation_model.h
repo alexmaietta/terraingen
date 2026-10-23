@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `DegradationModel`, which maps craters to their degradation state, and `NoDegradation`.
 #pragma once

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """A site on the Moon, on a sphere: longitude and latitude coordinates and meters everywhere else.
 
 On a sphere surface, grid coordinates are degrees of longitude and latitude, but pixel sizes,

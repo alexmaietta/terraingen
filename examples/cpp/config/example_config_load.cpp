@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Generates the terrain a JSON config describes and writes its outputs, as the terraingen command
 /// does: LoadConfig, ValidateConfig, GenerateFromConfig, WriteOutputs. The other examples build the
 /// same kinds of terrain from library objects instead. Without CONFIG, generates

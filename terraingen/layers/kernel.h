@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `ApplyKernel`, applying a kernel on whichever backend a layer context gives.
 #pragma once

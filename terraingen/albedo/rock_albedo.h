@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Rock albedo: boulders and the rocks too small to resolve, brighter than the regolith.
 #pragma once

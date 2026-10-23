@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Text helpers: case-insensitive names and file extensions, and number formatting.
 #pragma once

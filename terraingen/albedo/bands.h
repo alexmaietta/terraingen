@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Internal helpers of the albedo layers: band scaling, soft edges, lobes and lifetimes.
 #pragma once

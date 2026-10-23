@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Checks that a source's points, tiles and whole grid agree, for source tests.
 #pragma once

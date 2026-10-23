@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """gpu: compute backends and the default backend."""
 
 import numpy as np

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/pipeline/report.h"
 #include "terraingen/util/geometry.h"

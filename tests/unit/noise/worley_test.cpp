@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/noise/worley.h"
 
 #include <gtest/gtest.h>

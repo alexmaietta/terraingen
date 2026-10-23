@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Where boulders lie: patches of richer and poorer cover, and boulders thrown out by a young
 /// crater.
 ///

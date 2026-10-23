@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The pointwise minimum of size-frequency distributions.
 #pragma once

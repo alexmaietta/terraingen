@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "support/log_capture.h"
 #include "support/lunar_craters.h"
 #include "terraingen/terraingen.h"

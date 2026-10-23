@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The Philox4x32-10 counter-based generator for the CPU and GPU backends.
 #pragma once

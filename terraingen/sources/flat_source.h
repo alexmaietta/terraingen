@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief A source of constant elevation, the start of a fully synthetic terrain.
 #pragma once

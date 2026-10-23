@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Point queries: the height at any point, as a physics engine or rover simulation asks for it.
 
 `height_at(terrain, x, y, spacing)` gives the height at one point sampled every `spacing`

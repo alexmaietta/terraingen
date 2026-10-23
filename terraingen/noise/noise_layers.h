@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Stacks of fractal noise layers with domain warps and blend modes.
 #pragma once

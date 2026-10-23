@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Surface`, the plane, sphere, triaxial ellipsoid or shape model a terrain lies on, with
 /// local frames and distances.

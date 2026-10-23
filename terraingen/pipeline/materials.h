@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Material maps of a terrain: the share of soil, sand, dust, bedrock and rock at each
 /// point.

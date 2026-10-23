@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Where boulders lie: patches, crater ejecta and the shape of each boulder.
 
 Boulders are not spread evenly. `BoulderPatches` varies their abundance from patch to patch;

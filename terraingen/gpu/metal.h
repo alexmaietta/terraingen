@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The shared Metal device on Apple platforms, and dispatch of Metal source kernels.
 #pragma once

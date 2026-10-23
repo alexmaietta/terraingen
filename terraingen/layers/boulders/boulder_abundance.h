@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief How abundant a `BoulderLayer`'s boulders are: density maps, patches, crater blocks and
 /// the candidates thinning starts from.

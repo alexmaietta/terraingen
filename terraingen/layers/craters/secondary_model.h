@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The laws secondary craters follow, their options, and their density around a primary.
 #pragma once

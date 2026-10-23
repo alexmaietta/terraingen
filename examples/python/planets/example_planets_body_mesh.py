@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """A mesh of the whole Moon: cube-sphere faces displaced by the terrain.
 
 `body_mesh` samples a terrain on a sphere at the vertices of a cube-sphere (six faces of

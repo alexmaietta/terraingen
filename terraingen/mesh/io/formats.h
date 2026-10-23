@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The format writers and readers behind `WriteScene` and `ReadMesh` (gltf.cpp, obj.cpp,
 /// stl.cpp), and what they share.

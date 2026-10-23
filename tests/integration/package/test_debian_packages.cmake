@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 file(REMOVE_RECURSE "${WORK_DIR}")
 file(MAKE_DIRECTORY "${WORK_DIR}/root")
 

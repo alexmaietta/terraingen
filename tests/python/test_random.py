@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """random: Philox streams and samplers."""
 
 import math

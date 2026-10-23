@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 include("${PROJECT_SOURCE_DIR}/cmake/third_party/mesh_formats.cmake")
 
 terraingen_add_library(

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `PreparedCrater`, a crater with everything needed to shape it at one sample spacing.
 #pragma once

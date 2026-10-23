@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/craters/secondary_model.h"
 
 #include "terraingen/layers/fade.h"

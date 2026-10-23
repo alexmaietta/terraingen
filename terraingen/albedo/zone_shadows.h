@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Internal: the topographic shadows of the distal reflectance zones around new craters.
 #pragma once

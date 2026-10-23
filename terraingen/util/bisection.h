@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Bisect` and `BisectLog`, finding where a monotone condition turns true.
 #pragma once

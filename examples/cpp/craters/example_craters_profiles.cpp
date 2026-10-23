@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Crater profiles: each built-in profile across a 100 m crater, and a profile of your own.
 ///
 /// Prints the height every 10 m from the center for Fassett and Thomson's fresh profile (three rim

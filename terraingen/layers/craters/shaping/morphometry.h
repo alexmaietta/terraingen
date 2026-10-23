@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Fresh crater morphometry and complex crater shapes fitted to the Moon and Mars.
 #pragma once

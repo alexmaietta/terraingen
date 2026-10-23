@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """The examples' GUI side: the scene a view becomes in Ernie's viewer, and the Examples panel that
 switches between examples. Imported only with a viewer, so Ernie stays optional."""
 

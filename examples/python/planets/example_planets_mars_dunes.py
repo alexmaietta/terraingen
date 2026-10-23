@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Martian dunes: barchans with large wind ripples on them.
 
 `DuneLayer` builds dunes as functions of position: here `mars_barchans`, crescents with 29 deg slip

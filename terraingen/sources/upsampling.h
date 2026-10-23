@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Upsamplers: how a source's posts become heights at any point and sample spacing.
 #pragma once

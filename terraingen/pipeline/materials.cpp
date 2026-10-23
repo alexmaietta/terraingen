@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/pipeline/materials.h"
 
 #include "terraingen/layers/fade.h"

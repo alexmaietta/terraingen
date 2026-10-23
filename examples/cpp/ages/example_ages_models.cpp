@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// How crater age models change a cratered terrain, and an age model of your own.
 ///
 /// `FreshAges` makes every crater new, `UniformAges` spreads ages over one lifetime, and

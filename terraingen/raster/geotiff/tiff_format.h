@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief TIFF and GeoTIFF numbers shared by the GeoTIFF reader and writer.
 #pragma once

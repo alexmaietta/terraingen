@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The shared CUDA device, opened through the NVIDIA driver at run time, and PTX dispatch.
 #pragma once

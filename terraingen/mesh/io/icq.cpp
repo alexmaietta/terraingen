@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/mesh/io/icq.h"
 
 #include "terraingen/mesh/shape_model.h"

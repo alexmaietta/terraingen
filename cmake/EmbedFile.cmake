@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Writes the bytes of INPUT to OUTPUT as a C++ source defining `SYMBOL` (an unsigned char array)
 # and `SYMBOL_size`, both with C linkage. The array ends in a zero byte that `SYMBOL_size` leaves
 # out, so text such as PTX or Metal source is a C string and an empty INPUT is still valid. Run with

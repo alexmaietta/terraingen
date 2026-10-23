@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/boulders/boulder_models.h"
 
 #include "support/mesh_measures.h"

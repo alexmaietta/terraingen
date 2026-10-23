@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Diameters sampled from size-frequency distributions, for statistical tests.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/albedo/blast_zones.h"
 
 #include "terraingen/albedo/bands.h"

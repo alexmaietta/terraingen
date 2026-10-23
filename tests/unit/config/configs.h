@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Small configurations and raster fixtures shared by the pipeline tests.
 #pragma once

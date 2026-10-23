@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Fill gaps in a DEM: a source chain falls back to the next source where one has no data.
 
 `SourceChain` tries its sources in order at each cell, so a DEM with holes (here a 2 m DEM with a

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/gpu/cuda.h"
 
 #include "terraingen/util/log.h"

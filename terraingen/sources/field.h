@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Scalar fields over a surface, such as density maps and catalog completeness limits.
 #pragma once

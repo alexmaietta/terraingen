@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `CraterLayer`, craters generated over the grid being evaluated and applied to it.
 #pragma once

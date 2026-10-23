@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The crater density of a surface of a given age: a production function times a chronology.
 #pragma once

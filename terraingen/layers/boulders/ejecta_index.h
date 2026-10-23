@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `EjectaIndex`, craters bucketed by the discs their ejecta reach.
 #pragma once

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Generate the terrain a JSON config describes and write its outputs, as the terraingen command
 does. The other examples build the same kinds of terrain from objects in code instead.
 

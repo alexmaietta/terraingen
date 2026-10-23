@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief How a `BoulderLayer` sizes, places, poses and draws its boulders.
 #pragma once

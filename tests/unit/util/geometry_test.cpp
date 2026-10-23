@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/util/geometry.h"
 
 #include <gtest/gtest.h>

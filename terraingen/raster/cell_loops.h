@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Parallel loops over a raster's cells: every cell, or the windows around features.
 #pragma once

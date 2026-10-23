@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """util: version and build info, logging, surfaces, cell grids and special functions."""
 
 import logging

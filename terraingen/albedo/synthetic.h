@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Synthetic albedos: a base color with noise in hue, saturation and value.
 #pragma once

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Image helpers for the Python examples: hillshading, PNG writing, montages and line plots.
 
 Only NumPy and the standard library are used, so the examples need nothing beyond TerrainGen.

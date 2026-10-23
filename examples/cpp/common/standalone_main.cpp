@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// The `main` of each example's own program, `example_<category>_<name>`: runs the one example
 /// linked in.
 

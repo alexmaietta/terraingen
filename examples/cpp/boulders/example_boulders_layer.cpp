@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Boulders on a cratered synthetic terrain: a `BoulderLayer` drawing boulders from Golombek and
 /// Rapp's (1997) model for 5% boulder cover, small boulders drawn into the heights and those 0.6 m
 /// or larger placed as 3D boulder models. Writes the heights, the boulder list and the boulders as

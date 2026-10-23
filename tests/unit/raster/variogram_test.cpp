@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/raster/variogram.h"
 
 #include <gtest/gtest.h>

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Leveled logging to a replaceable sink, and timing helpers for log messages.
 #pragma once

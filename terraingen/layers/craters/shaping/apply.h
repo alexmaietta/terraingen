@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Applying a list of craters to heights, over a raster or at scattered points.
 #pragma once

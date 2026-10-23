@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/spectral_continuation.h"
 
 #include "terraingen/layers/lattice.h"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief How craters are applied to the terrain: their order, datum, blend, outlines and rims.
 #pragma once

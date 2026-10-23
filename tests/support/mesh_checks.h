@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Mesh checks shared by the mesh and boulder shape tests.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The VIPER environmental specification's crater distribution.
 #pragma once

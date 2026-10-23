@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Size-frequency distributions spliced from others over consecutive diameter intervals.
 #pragma once

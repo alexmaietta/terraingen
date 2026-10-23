@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The JSON fields of bodies, sources and upsampling.
 #pragma once

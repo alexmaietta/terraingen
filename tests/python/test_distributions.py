@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """distribution: size-frequency distribution shapes, combinations and Python subclasses."""
 
 import math

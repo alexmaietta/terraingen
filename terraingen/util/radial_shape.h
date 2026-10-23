@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `RadialShape`, a star-shaped body's radius along each direction from its center.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The Neukum et al. (2001) lunar chronology and production function, extended to small D.
 #pragma once

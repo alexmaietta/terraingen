@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Density maps: how a map of feature counts or cover sets a layer's local density.
 #pragma once

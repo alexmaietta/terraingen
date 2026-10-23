@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Size-frequency distributions given as tables, interpolated in log-log space.
 #pragma once

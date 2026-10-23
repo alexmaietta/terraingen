@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "configs.h"
 #include "terraingen/config/fields/json_io.h"
 #include "terraingen/layers/bedforms.h"

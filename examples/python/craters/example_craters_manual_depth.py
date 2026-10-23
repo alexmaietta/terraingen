@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Hand-placed craters given an explicit rim-to-floor depth, one with its rim height as well.
 
 The craters lie on a small flat site under the Martin-Parkes-Dunstan profile, which honors both;

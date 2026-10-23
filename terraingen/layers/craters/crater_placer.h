@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `CraterPlacer`, a layer that lists the craters it applies, and `PlacedCraters`.
 #pragma once

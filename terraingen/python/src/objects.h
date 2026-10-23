@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Terrain generators and albedos as Python builds them, with mutable parts.
 #pragma once

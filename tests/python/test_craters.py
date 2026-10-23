@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """layers/craters: generation, crater lists, application, spacing, selection, outlines and secondaries."""
 
 import math

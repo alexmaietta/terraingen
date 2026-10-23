@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Vec2d`, `Vec3d` and `Bounds2d` as Python tuples of floats.
 #pragma once

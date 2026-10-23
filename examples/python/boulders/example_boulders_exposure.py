@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Boulders where bedrock is exposed: crests and steep slopes shed regolith and show boulder.
 
 An `ExposureField` estimates, from the ground beneath, how exposed each point is: 0 under a full

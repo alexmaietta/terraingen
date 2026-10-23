@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """The same cratered terrain at several surface ages.
 
 Each surface is the Neukum production for its age, capped at Trask's equilibrium by a `MinimumSfd`:

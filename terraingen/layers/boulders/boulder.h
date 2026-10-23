@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Boulder`, the record of one placed boulder, and `ManualBoulder`, one placed by hand.
 #pragma once

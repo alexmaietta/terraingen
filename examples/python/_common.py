@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Helpers shared by the Python examples, in one module: image helpers (`_images`), the example
 harness (`_harness`) and, with a viewer, the Examples panel (`_browser`)."""
 

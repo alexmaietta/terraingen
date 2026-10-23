@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Irregular and elongated crater outlines.
 
 Real craters are not perfect circles: `CraterIrregularity` roughens rims with random harmonics (a

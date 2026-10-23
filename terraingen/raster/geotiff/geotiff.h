@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Reading and writing GeoTIFF rasters, with their projection keys and band scaling.
 #pragma once

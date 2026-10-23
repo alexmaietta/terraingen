@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """The harness the Python examples run on (examples/python/_harness.py) and their runner
 (examples/python/__main__.py), without a viewer."""
 

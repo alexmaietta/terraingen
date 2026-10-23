@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `NoiseRelief`, a stack of noise layers added to the terrain.
 #pragma once

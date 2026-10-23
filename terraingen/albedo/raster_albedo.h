@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `RasterAlbedo`, an albedo map upscaled with fractal detail that continues its roughness.
 #pragma once

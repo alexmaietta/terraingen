@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """A site on Mercury, on a sphere of Mercury's mean radius.
 
 Any body works as a sphere: `Surface.sphere(radius)` with the body's radius, here Mercury's mean radius

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// A stack of noise layers, each combined with the heights so far by its blend mode: rolling fBm,
 /// domain-warped ridged crests added on top, and broad value noise as a mask that roughens some
 /// regions and calms others. The gain of the crests is set from a Hurst exponent. The same terrain

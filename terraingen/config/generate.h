@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Generating the terrain a configuration describes and writing its outputs.
 #pragma once

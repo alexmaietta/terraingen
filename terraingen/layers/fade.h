@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Falloff curves, and the fade of features too small to resolve at a sample spacing.
 #pragma once

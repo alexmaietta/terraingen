@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief GeoTIFFs written by GDAL, with what GDAL reads back, for hermetic GeoTIFF tests.
 #pragma once

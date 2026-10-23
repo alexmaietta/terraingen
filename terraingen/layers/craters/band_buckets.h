@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `BandBuckets`, indices bucketed by size band and surface position for neighbor searches.
 #pragma once

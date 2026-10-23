@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Crater` and `CraterList`, and `CraterSelection`, which of them a model applies to.
 #pragma once

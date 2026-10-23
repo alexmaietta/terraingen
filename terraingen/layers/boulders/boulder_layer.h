@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `BoulderLayer`, boulders scattered over the ground and around fresh craters.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Every random stream tag: the word that keys `RandomStream` and `SubstreamSeed` apart for
 /// one purpose. Tags are distinct (checked below) and frozen: changing one changes every output

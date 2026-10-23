@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/craters/generation/population.h"
 
 #include "terraingen/layers/craters/generation/spacing.h"

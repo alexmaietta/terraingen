@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The JSON fields of boulder layers, boulder sizes and boulder shapes.
 #pragma once

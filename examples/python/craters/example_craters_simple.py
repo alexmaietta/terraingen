@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Lunar craters on a synthetic terrain.
 
 A `CraterLayer` with the DSNE lunar surface model for a 3.5 Gyr surface (crater density and ages),

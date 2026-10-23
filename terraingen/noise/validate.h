@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Host-side checks of fractal and noise layer parameters before kernels use them.
 #pragma once

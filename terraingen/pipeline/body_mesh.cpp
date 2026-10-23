@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/pipeline/body_mesh.h"
 
 #include "terraingen/util/cells.h"

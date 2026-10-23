@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """sources: flat, GeoTIFF, chained, synthetic and Python height sources."""
 
 import numpy as np

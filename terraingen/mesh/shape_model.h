@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `ShapeModelFromMesh`, a body's shape model mesh as a `RadialShape`.
 #pragma once

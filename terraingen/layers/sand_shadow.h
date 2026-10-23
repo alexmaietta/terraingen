@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `SandShadowLayer`, sand tails in the lee of a boulder layer's boulders.
 #pragma once

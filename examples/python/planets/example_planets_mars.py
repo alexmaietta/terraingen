@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Martian terrain: Martian craters and wind-blown bedforms.
 
 A `ProductionSurface` of Ivanov's production and chronology gives Martian crater densities (valid

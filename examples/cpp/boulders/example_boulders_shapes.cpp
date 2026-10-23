@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Boulder shapes: one of each default style and of a custom style, written as glTF.
 ///
 /// Each style starts from a solid, is stretched to its axis ratios, rounded toward an ellipsoid,

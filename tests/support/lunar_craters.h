@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The lunar crater density and ages that tests generate craters from: an extended Neukum
 /// production surface capped by Trask equilibrium, with steady-state ages.

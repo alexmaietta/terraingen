@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Boulder shapes split into pieces that fit back together.
 #pragma once

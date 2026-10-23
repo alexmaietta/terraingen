@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Raster grids without values, and resampled grids and spacings derived from them.
 #pragma once

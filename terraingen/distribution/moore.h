@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Moore's lunar terrain crater distributions for Lunar Roving Vehicle trafficability.
 #pragma once

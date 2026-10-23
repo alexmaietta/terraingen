@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Boulders as 3D models: placing unit shapes on the ground, and their meshes.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/mesh/polyhedra.h"
 
 #include "support/mesh_checks.h"

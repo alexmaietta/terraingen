@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Sources, layers and albedo of your own, written in Python.
 
 Every part of a terrain can be replaced by subclassing its base class:

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Render TerrainGen rasters with Ernie, TerrainGen's renderer.
 
 These helpers need the ``ernie`` Python module, built from an Ernie checkout. They put a raster

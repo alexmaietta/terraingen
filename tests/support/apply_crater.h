@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `ApplyCraterTo`, one crater applied at one point through the crater kernel.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Noise layer stacks evaluated at points of a plane or a body's surface.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "fixtures.h"
 
 #include <benchmark/benchmark.h>

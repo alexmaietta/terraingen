@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Triangle meshes, their measures, normals and rigid transforms.
 #pragma once

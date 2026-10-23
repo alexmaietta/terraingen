@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Detail on a coarse DEM: a `GeoTiffSource` upsampled to a finer pixel, plus fine noise and
 /// craters smaller than the DEM's cells. The example first writes a coarse 16 m DEM of its own to
 /// stand in for orbital data, then builds the 2 m terrain on it. A `SourceChain` fills any gaps in

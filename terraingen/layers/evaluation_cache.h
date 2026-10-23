@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `EvaluationCache`, values one evaluation's batches of points share.
 #pragma once

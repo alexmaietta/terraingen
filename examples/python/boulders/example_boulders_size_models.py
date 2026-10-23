@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Boulder size models: how many boulders of each size a boulder layer places.
 
 `BoulderLayer` draws sizes from Golombek and Rapp's (1997) model for a boulder coverage by default, or from

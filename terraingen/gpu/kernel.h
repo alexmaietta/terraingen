@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Running a kernel over a grid on a GPU backend.
 #pragma once

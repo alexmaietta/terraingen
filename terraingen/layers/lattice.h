@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Jittered-lattice cell loops (`ForEachLatticeCell`) and their random streams.
 #pragma once

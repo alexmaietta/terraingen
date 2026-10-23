@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Plane` and `PlaneFit`, a least-squares plane through points added one at a time.
 #pragma once

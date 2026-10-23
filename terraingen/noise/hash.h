@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Stateless PCG hashes for the CPU and GPU backends (`portable.h`).
 #pragma once

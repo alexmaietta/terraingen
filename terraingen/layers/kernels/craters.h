@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The kernel of crater shaping (`ApplyCraters`); a kernel header for C++ and Slang.
 ///

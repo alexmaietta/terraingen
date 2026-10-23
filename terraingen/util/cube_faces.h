@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The two cube layouts directions are gridded on: `CubeSphereCells`' faces and Gaskell's
 /// ICQ faces.

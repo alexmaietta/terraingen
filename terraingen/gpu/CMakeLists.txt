@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # GPU backends and the choice between them. Each GPU library is opened at run time (the Vulkan
 # loader through volk, the NVIDIA driver for CUDA) or is part of the system (Metal on Apple
 # platforms), so one build runs with or without a GPU and links nothing of Vulkan or CUDA. Layers

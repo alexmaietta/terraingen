@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Overloaded`, a visitor made of lambdas for `std::visit`.
 #pragma once

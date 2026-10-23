@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Regions: different layers in different parts of the terrain. A `MaskedLayer` applies a layer
 /// only inside a rectangle or circle, faded out over `feather` meters outside it. A circular mare
 /// is flattened and lowered, the west half is an old, heavily cratered surface and the east half a

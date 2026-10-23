@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The simple-crater profile of Martin, Parkes and Dunstan (2014).
 #pragma once

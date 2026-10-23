@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 set(TERRAINGEN_DEP_VERSION_volk
     vulkan-sdk-1.4.363.0
     CACHE STRING "Tag of volk to fetch.")

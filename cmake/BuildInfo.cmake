@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Build info for terraingen::build_info, in two steps run with -P:
 #
 # MODE=git_state (every build): writes the checkout's short commit SHA and dirty flag to OUTPUT,

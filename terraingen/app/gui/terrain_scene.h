@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The GUI's scene: its prims, lighting and settings, and terrain heights shown in it.
 #pragma once

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Albedo on a sphere: bright crater material at a lunar site in longitude and latitude.
 
 Albedo sources and layers take a surface like terrain layers do. On the Moon's sphere the synthetic

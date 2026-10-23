@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `CellPosition`, where a kernel evaluates; a kernel header for C++ and Slang.
 #pragma once

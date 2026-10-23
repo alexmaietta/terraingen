@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 set(TERRAINGEN_PACKAGE_MAINTAINER
     "TerrainGen developers"
     CACHE STRING "Maintainer recorded in generated packages, as \"Name <email>\".")

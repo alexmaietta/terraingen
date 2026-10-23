@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The `terraingen --gui` command, with or without the GUI in the build.
 #pragma once

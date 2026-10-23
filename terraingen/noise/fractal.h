@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Fractals (fBm, ridged, billow, hybrid) built from octaves of a basis noise.
 #pragma once

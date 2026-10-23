@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 set(package_dir "${PROJECT_BINARY_DIR}/python/terraingen")
 
 nanobind_add_module(

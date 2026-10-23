@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/pipeline/report.h"
 
 #include "terraingen/util/bits.h"

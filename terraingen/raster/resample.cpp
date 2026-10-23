@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/raster/resample.h"
 
 #include "terraingen/util/arithmetic.h"

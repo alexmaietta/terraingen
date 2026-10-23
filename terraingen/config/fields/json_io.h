@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Reading configuration values from JSON and writing them back through the field lists.
 #pragma once

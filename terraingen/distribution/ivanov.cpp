@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/distribution/ivanov.h"
 
 #include "terraingen/distribution/production_surface.h"

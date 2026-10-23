@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 set(TERRAINGEN_DEP_VERSION_nvrtc
     12.4.127
     CACHE STRING "Release of NVRTC to fetch. Changing it requires updating the hashes below.")

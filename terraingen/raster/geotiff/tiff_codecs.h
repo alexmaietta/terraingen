@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief TIFF LZW, Deflate and PackBits codecs for the GeoTIFF reader and writer.
 #pragma once

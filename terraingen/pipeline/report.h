@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Terrain reports: statistics of evaluated grids, layer timings and run details as JSON.
 #pragma once

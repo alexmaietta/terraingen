@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/albedo/raster_albedo.h"
 
 #include "terraingen/noise/hash.h"

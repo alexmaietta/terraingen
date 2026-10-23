@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Checking a configuration before building it: everything parsing cannot catch.
 #pragma once

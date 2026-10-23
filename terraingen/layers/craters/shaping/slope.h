@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Craters formed on slopes: floors offset downslope and raised rims lowered upslope.
 #pragma once

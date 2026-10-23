@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Splotches: the dark and bright marks secondary impacts of loose regolith leave.
 #pragma once

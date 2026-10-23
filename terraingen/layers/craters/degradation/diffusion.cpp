@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/craters/degradation/diffusion.h"
 
 #include "terraingen/noise/hash.h"

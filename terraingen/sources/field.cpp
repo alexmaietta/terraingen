@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/sources/field.h"
 
 #include "terraingen/raster/geotiff/geotiff.h"

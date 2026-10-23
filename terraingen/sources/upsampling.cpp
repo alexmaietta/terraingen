@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/sources/upsampling.h"
 
 #include "terraingen/util/parallel.h"

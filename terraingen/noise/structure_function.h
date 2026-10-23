@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Structure functions of Perlin noise: the mean squared difference of values a lag apart.
 #pragma once

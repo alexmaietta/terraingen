@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/gpu/backend.h"
 #include "terraingen/gpu/cuda.h"
 #include "terraingen/gpu/kernel.h"

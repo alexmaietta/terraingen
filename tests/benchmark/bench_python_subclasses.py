@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """How much Python subclasses slow evaluation, against the built-in C++ parts they replace.
 
 Python methods run under the GIL, so calls into them from TerrainGen's worker threads take turns:

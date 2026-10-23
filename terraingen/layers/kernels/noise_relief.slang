@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 // Adds NoiseReliefKernel to a strip of grid rows. The host side is RunKernel
 // (terraingen/gpu/kernel.h).
 #include "terraingen/gpu/kernel.slang"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The options of `CraterAlbedo`: retention, rays, oblique impacts, texture and the
 /// reflectance zones of new craters.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Crater models: age models, degradation, profiles, and models written in Python."""
 
 import numpy as np

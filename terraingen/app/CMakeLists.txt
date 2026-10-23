@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # The `terraingen` command-line app: generate, validate and describe JSON terrain configs, and
 # edit them in the GUI.
 # The commands live in a library so tests can run them without a process.

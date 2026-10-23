@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Option structs and enums bound from the configuration's field lists and enum names.
 #pragma once

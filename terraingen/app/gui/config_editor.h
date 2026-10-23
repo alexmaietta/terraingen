@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The GUI's editor of a terrain configuration: an outliner and an inspector.
 #pragma once

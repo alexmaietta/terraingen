@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Hapke photometry of surface materials, and the mix a material map gives.
 #pragma once

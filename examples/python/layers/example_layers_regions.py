@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Regions: different layers in different parts of the terrain.
 
 `MaskedLayer` applies a layer only inside a rectangle or circle, fading it out over `feather`

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 // Evaluates the shared hash kernels on the GPU for comparison with the C++ build of the same header.
 #include "terraingen/noise/hash.h"
 

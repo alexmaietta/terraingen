@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/sample_block.h"
 
 #include "terraingen/raster/grid.h"

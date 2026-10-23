@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The deviogram of a raster's heights: the log-log fit of its variogram.
 #pragma once

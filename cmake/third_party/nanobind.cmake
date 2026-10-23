@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 set(TERRAINGEN_DEP_VERSION_nanobind
     v3.1.0
     CACHE STRING "Tag of nanobind to fetch when it is not installed for the target Python.")

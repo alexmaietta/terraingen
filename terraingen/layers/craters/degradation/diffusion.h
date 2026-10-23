@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Crater degradation by topographic diffusion: `DiffusedProfile`, `DiffusionDegradation`.
 #pragma once

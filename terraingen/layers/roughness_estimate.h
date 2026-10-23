@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Self-affine roughness of a base's heights by the variogram method, for layers that
 /// continue it below the base's resolution.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """A rover's wheel contacts from point queries, as a physics engine asks for them each step.
 
 Physics engines (Chrono, for example) query the ground under each wheel every step rather than a

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # TerrainGen's modules, one library each, every module depending only on the ones before it:
 #   util          logging, version, build info header, geometry and surface cells
 #   raster        rasters, geotransforms, interpolation and GeoTIFF files in geotiff/

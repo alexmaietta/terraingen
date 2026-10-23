@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/mesh/io/mesh_io.h"
 
 #include "support/mesh_measures.h"

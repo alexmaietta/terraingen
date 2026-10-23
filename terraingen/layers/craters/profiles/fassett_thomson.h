@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The fresh simple-crater profile of Fassett and Thomson (2014) and its rim variants.
 #pragma once

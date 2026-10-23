@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """How craters are applied to rough terrain: datum, interior replacement and blend.
 
 By default a crater's profile is added to the terrain, so its floor follows the rough terrain

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Writes the line coverage in gcovr's JSON summary SUMMARY to OUTPUT as a shields.io endpoint badge
 # (https://shields.io/badges/endpoint-badge), which the README shows from GitHub Pages. Run with
 # `cmake -DSUMMARY=... -DOUTPUT=... -P`.

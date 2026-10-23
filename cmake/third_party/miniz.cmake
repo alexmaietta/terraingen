@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # miniz, vendored in third_party/miniz, provides Deflate for GeoTIFFs; its objects are compiled into
 # the raster library. Its configuration and headers sit on one interface target that both use.
 add_library(terraingen_miniz_config INTERFACE)

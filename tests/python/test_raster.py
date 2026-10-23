@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """raster: rasters and their array views, geotransforms, grids, statistics and GeoTIFF I/O."""
 
 import gc

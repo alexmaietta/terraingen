@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "common/browser.h"
 #include "common/example.h"
 #include "terraingen/app/gui/gui_app.h"

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "support/source_agreement.h"
 #include "terraingen/sources/synthetic_source.h"
 

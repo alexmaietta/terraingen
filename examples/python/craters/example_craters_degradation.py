@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Compare crater degradation models on the same crater population.
 
 `NoDegradation` keeps each crater's fresh depth (or a fixed depth ratio); `FreshnessDegradation`

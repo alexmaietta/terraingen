@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Mars: sand where regolith collects, boulders where bedrock is exposed.
 
 An exposure field estimates how exposed the ground is, from 0 (deep cover in hollows) to 1 (bare

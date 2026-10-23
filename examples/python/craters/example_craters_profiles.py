@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Crater profiles: the shape of a crater across its center, and a profile of your own.
 
 Plots the height across a 100 m crater for each built-in profile (Fassett and Thomson's fresh

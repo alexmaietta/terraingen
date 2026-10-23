@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/raster/raster_stats.h"
 #include "terraingen/sources/synthetic_source.h"
 #include "terraingen/util/build_info.h"

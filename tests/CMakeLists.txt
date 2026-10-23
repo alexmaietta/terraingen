@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 add_subdirectory(unit)
 add_subdirectory(statistical)
 add_subdirectory(golden)

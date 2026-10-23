@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The albedo source and layer interfaces, albedo compositions and their evaluation.
 #pragma once

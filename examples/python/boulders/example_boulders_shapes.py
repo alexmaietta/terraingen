@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Boulder shapes: the default styles, a style of your own, and shapes shared by many boulders.
 
 Boulders placed as 3D models get shapes from `BoulderShapeOptions`: each style starts from a solid

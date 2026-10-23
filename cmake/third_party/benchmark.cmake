@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 set(TERRAINGEN_DEP_VERSION_benchmark
     v1.9.5
     CACHE STRING "Tag of Google Benchmark to fetch.")

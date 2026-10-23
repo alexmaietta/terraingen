@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/craters/shaping/prepared.h"
 
 #include "terraingen/layers/craters/shaping/apply.h"

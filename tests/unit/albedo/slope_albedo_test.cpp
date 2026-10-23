@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/albedo/slope_albedo.h"
 
 #include "terraingen/albedo/synthetic.h"

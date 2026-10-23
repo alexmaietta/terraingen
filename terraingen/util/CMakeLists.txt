@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 find_package(Threads REQUIRED)
 terraingen_add_library(
     util

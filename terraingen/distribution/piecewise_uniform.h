@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Size-frequency distributions made of bands with diameters spread uniformly.
 #pragma once

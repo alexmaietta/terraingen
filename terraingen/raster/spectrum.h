@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Power-law fits to the radially averaged power spectrum of a raster's heights.
 #pragma once

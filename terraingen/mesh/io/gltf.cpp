@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/mesh/io/formats.h"
 
 #define CGLTF_IMPLEMENTATION

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The JSON fields of the albedo, its sources and its crater layers.
 #pragma once

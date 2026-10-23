@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Surface cells for per-cell feature generation: planar squares and cube-sphere cells.
 #pragma once

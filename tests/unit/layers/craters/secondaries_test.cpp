@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "support/log_capture.h"
 #include "terraingen/terraingen.h"
 #include "terraingen/util/bits.h"

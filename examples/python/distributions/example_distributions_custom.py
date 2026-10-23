@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """A crater size-frequency distribution of your own, written in Python.
 
 Subclass `SizeFrequencyDistribution` and implement `cumulative_at(diameter)`; TerrainGen then draws

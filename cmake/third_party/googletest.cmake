@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 set(TERRAINGEN_DEP_VERSION_googletest
     v1.18.0
     CACHE STRING "Tag of GoogleTest to fetch.")

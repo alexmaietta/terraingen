@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `RoughnessLayer`, fine self-affine roughness from octaves of Perlin noise.
 #pragma once

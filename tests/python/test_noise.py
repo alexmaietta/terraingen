@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """noise: hashes, basis noise in 2D and 3D, fractals, noise layers and their validation."""
 
 import numpy as np

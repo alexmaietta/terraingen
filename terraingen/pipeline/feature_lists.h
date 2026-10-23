@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Writing crater and boulder lists as CSV or JSON, and boulder models as 3D scenes.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief What every binding file shares: the nanobind alias, casters and option helpers.
 #pragma once

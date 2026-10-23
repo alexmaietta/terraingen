@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `CraterProfile`, a crater's height as a function of distance from its center.
 #pragma once

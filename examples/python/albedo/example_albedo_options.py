@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Albedo options: color, maps with detail, and how bright crater material behaves.
 
 - `SyntheticAlbedo(rgb=True, hue_deg, saturation, ...)` gives three bands from a color and its noise.

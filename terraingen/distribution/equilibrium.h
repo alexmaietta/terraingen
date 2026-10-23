@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The Trask (1966) and Hartmann (1984) lunar crater equilibrium densities.
 #pragma once

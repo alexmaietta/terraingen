@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Rim smoothing: soften the sharp crests a crater profile leaves.
 
 A crater layer's `rim_smoothing` (in its `CraterApplyOptions`) smooths each crater's profile

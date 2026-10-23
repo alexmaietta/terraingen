@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Build metadata, configured by cmake/BuildInfo.cmake.
 #include "terraingen/util/build_info.h"

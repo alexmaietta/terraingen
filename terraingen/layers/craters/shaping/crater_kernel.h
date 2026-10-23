@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Prepared craters turned into the records the crater kernel shapes.
 #pragma once

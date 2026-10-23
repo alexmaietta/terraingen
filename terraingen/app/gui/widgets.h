@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief ImGui widgets the GUI's panels share.
 #pragma once

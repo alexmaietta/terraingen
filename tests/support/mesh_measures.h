@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Volumes, areas and icospheres of triangle meshes, for checking meshes in tests.
 #pragma once

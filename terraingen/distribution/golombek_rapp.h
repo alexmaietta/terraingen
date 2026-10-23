@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Boulder sizes after Golombek and Rapp (1997), from the fraction of ground boulders cover.
 #pragma once

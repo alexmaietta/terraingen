@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Small terrain generators built from objects, shared by the evaluation tests.
 #pragma once

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Add detail to a coarse DEM: a GeoTIFF source upsampled finer, plus noise and small craters.
 
 A coarse elevation model, such as one from orbit, is read with `GeoTiffSource`, upsampled onto a

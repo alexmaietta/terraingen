@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """How crater age models change a cratered terrain.
 
 Every crater gets an age within a lifetime that depends on its size. `FreshAges` makes every crater

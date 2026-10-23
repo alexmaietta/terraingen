@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 terraingen_add_test_suite(examples SOURCES example_harness_test.cpp LIBRARIES
                           terraingen_examples_common)
 if(TERRAINGEN_GUI)

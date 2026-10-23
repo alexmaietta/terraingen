@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `SyntheticSource`, heights generated from a stack of noise layers over an unbounded
 /// plane or a whole body.

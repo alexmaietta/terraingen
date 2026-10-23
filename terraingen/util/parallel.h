@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief A parallel for loop over a shared thread pool.
 #pragma once

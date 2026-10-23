@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # The build info keeps its build time, and nothing is relinked, when a build has nothing to do;
 # rebuilding one of a module's objects regenerates it with a new time.
 set(module_dir "${BUILD_DIR}/terraingen")

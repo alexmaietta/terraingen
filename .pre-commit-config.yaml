@@ -52,6 +52,16 @@ repos:
         args: ["--fix"]
       - id: ruff-format
 
+  - repo: local
+    hooks:
+      - id: license-header
+        name: license header
+        description: Source files start with the SPDX license identifier.
+        language: pygrep
+        entry: '\A(#!.*\n)?(//|#) SPDX-License-Identifier: BSD-3-Clause\n'
+        args: [--multiline, --negate]
+        files: (\.(h|cpp|slang|inc|in|py|cmake|sh)|(^|/)CMakeLists\.txt)$
+
   - repo: https://github.com/cheshirekow/cmake-format-precommit
     rev: v0.6.13
     hooks:

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Runs every example: each config through the terraingen command, each C++ example and each
 # Python example (when the bindings and NumPy are available) with its checks (`--test`), and
 # `terraingen-examples` listing them and, with the GUI, opening one hidden. Outputs go under the

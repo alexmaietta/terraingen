@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Height transforms as layers: scale and offset, clamp, and a function of your own.
 #pragma once

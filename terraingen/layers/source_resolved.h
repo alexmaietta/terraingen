@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The feature size from which a source's measured data already holds a layer's features.
 #pragma once

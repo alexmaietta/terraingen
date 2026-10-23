@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `FreshnessAges`, crater ages from a distribution of freshness.
 #pragma once

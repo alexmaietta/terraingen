@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 // What every TerrainGen compute kernel binds first: the grid strip's heights and its column and
 // row positions, and the layout of the push constants of RunKernel (terraingen/gpu/kernel.cpp).
 // Kernel sources include this, bind their kernel struct at 3 and any extra buffers from 4 on, and

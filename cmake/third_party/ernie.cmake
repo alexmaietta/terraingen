@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Ernie, the renderer `terraingen --gui` draws with, built from a local checkout inside this build.
 # Fetching a release of Ernie will replace TERRAINGEN_ERNIE_DIR once Ernie publishes one.
 #

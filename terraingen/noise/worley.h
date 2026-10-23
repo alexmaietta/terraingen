@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Worley cellular noise in 2D and 3D: feature-point distances and Voronoi cell values.
 #pragma once

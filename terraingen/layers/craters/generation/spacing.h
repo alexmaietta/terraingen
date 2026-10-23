@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Keeping craters of similar size apart: conflicts, precedence and thinning.
 #pragma once

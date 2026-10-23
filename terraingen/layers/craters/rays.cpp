@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/craters/rays.h"
 
 #include "terraingen/random/stream.h"

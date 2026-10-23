@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Resample`, a raster resampled whole to square cells, the reference that sources'
 /// upsampling is checked against in tests.

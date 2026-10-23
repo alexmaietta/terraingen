@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """report: statistics of evaluated grids and terrain reports as JSON and dicts."""
 
 import json

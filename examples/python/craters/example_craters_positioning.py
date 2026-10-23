@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Where craters go: generated positions, spacing and a cap on their number.
 
 Crater positions are drawn per cell with counter-based random numbers, so any region gives the same

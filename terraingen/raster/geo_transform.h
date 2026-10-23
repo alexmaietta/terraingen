@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The affine pixel-to-world transform of a georeferenced raster.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Bright, immature ejecta, interiors and rays around fresh craters.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `ValueDistribution`, a clamped distribution a parameter is drawn from.
 #pragma once

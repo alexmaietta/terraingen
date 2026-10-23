@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """layers: noise relief, regions, clamps, roughness, bedforms, exposure, fades and Python layers."""
 
 import json

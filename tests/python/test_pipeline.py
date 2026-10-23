@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """pipeline: building and evaluating terrains from configs and objects, outputs and body meshes."""
 
 import pathlib

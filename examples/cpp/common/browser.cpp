@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "common/browser.h"
 
 #include <ernie/app/icons.h>

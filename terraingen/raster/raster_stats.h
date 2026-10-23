@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Minimum, maximum and mean of a raster's valid cells.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Bit-for-bit comparison of floats and rasters in tests.
 #pragma once

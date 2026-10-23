@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Albedo for a cratered synthetic terrain, with bright crater rays.
 
 A `SyntheticAlbedo` of 0.11 with gentle noise, and a `CraterAlbedo` layer that reads the terrain's

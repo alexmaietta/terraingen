@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `BoulderPlacer`, a layer that lists the boulders it places.
 #pragma once

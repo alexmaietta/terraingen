@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/masked.h"
 
 #include "terraingen/raster/cell_loops.h"

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Boulders on a cratered synthetic terrain, small ones in the heights and large ones as 3D boulder models.
 
 `BoulderLayer` draws boulders from Golombek and Rapp's (1997) model, in which the fractional area

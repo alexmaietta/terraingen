@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `SpectralContinuationLayer`, detail finer than a base DEM that continues the base's
 /// measured power-law spectrum (`EstimatePowerLawSpectrum`).

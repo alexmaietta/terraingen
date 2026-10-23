@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Fitting crater datums to the ground plus the relief of the craters applied before each.
 #pragma once

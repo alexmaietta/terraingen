@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `BuildMesh`, a grid of heights as a triangle mesh, and `FillMesh` into caller buffers.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Internal: the boulder cluster fields and the lattice means that normalize them.
 #pragma once

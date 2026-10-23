@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/noise/validate.h"
 
 #include <gtest/gtest.h>

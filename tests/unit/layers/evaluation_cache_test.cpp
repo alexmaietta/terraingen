@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/evaluation_cache.h"
 
 #include <gtest/gtest.h>

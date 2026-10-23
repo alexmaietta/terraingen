@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `DiamondSquareUpsampler`, random midpoint displacement (diamond-square) refinement of a
 /// source's posts, as Martin, Parkes and Dunstan (2014) expand DEMs.

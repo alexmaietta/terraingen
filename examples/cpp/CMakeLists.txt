@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # The C++ examples, each an `Example` (common/example.h) in an example_*.cpp in the category
 # folders, linked against terraingen::terraingen as an application using an installed TerrainGen
 # would be (find_package(terraingen), then the same link line).

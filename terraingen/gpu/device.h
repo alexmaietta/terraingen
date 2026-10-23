@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `ComputeDevice`, the interface of the GPU devices, and `LazyDevice`, their shared
 /// opening.

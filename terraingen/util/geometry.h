@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Small vector types, vector math and axis-aligned boxes.
 #pragma once

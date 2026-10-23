@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """pipeline config: JSON round trips, errors, schema and catalog."""
 
 import json

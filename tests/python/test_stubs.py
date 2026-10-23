@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """The package ships type stubs for its extension module, and they cover the whole API."""
 
 import ast

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Interpolation of rasters: nearest, bilinear, cubic, Lanczos and B-spline.
 #pragma once

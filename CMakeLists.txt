@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 cmake_minimum_required(VERSION 3.22)
 
 # Archives fetched with FetchContent get extraction-time timestamps, so their files rebuild what

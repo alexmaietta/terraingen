@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """albedo: maturity, synthetic and raster albedo, crater albedo and rays, and Python albedo parts."""
 
 import numpy as np

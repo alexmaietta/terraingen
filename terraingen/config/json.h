@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Configurations as JSON: parsing, loading, writing, catalog and schema.
 #pragma once

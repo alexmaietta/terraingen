@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief A terrain generator as optional starting heights and layers, evaluated over grids or at
 /// points.

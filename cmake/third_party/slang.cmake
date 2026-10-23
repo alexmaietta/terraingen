@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 set(TERRAINGEN_DEP_VERSION_slang
     2026.19
     CACHE STRING "Release of Slang to fetch. Changing it requires updating the hashes below.")

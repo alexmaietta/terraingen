@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `SecondaryCraterLayer`, secondary craters around the craters of a `CraterLayer`.
 #pragma once

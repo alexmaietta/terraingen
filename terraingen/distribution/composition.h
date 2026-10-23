@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Checks and lookups shared by distributions composed of others or of pieces.
 #pragma once

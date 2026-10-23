@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief NASA SP-8023 lunar block size distributions, digitized.
 #pragma once

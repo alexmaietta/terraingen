@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The whole TerrainGen library: includes every public header.
 #pragma once

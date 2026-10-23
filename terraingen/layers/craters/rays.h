@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief The directions of a crater's rays, shared by its secondaries and its bright streaks.
 #pragma once

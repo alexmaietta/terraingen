@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `RandomStream`, a counter-based random number stream, derived seeds and 64-bit IDs.
 #pragma once

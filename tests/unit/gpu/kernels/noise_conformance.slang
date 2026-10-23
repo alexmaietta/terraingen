@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 // Evaluates the shared noise kernels on the GPU for comparison with the C++ build of the same
 // headers: per sample, every 2D basis, Perlin, simplex, value and Worley 3D noise, the Voronoi
 // cell values, each layer of a block and the whole stack, and one Philox block.

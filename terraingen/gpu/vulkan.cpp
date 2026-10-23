@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/gpu/vulkan.h"
 
 #include "terraingen/util/log.h"

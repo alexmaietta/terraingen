@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """One terrain per fractal type, from the same seed.
 
 fBm sums octaves; ridged turns |noise| into sharp crests; billow gives rounded forms; the hybrid

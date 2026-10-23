@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Pi, bit casts and byte order, in C++17.
 #pragma once

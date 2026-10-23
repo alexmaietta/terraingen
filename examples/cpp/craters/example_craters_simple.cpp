@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// Lunar craters on a synthetic terrain: a `CraterLayer` with the DSNE lunar surface model for a
 /// 3.5 Gyr surface (crater density and ages), freshness degradation and the Fassett and Thomson
 /// profile, added to the fBm terrain of example_terrain_fbm. The same terrain as

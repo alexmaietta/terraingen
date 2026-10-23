@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/boulders/boulder_fragments.h"
 
 #include "terraingen/random/stream.h"

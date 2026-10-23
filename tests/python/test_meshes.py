@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """meshes: triangle meshes, rigid transforms, mesh and scene writers, and boulder shapes."""
 
 import numpy as np

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Crater datums, the surfaces crater interiors are cut to, fitted to the ground.
 #pragma once

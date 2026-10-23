@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Secondary craters around a young primary.
 
 Ejecta from a primary crater makes secondary craters beyond its rim: their largest size at each

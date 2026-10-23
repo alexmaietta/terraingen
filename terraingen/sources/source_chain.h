@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Sources tried in order, each filling the gaps of those before it.
 #pragma once

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `Layer`, relief added on top of a source, and `FormulaLayer` for point-wise layers.
 #pragma once

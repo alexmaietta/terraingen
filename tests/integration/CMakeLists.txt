@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 # Tests of the build, install and packages, run against the build tree.
 
 # Builds the library, so it runs alone to keep its relink away from tests running binaries.

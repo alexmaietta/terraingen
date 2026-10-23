@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Procedural boulder meshes: styles, shape options and seeded shape generation.
 #pragma once

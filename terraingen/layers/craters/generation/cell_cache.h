@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief `CraterCellCache`, the craters of generated cells kept for reuse.
 #pragma once

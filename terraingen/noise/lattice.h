@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 /// @file
 /// @brief Points split into a lattice cell and a fraction, interpolation helpers, and the frozen
 /// lattice hash keys.

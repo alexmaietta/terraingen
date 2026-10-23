@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
 """Use the noise kernels directly, without a terrain.
 
 The kernels behind `NoiseRelief` are available as functions: single-octave bases

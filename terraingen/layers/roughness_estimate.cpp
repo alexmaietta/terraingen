@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/layers/roughness_estimate.h"
 
 #include "terraingen/raster/grid.h"

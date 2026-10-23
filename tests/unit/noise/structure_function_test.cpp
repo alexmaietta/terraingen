@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "terraingen/noise/structure_function.h"
 
 #include "terraingen/noise/perlin.h"
