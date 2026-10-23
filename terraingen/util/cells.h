@@ -188,6 +188,11 @@ class CubeSphereCells final : public SurfaceCells {
     void AddAcrossEdge(const detail::CubeFace& face, std::int32_t col, std::int32_t row,
                        std::int32_t n, double cellSize, std::vector<CellIndex>& cells) const;
 
+    /// The cells reaching a `box` under half a cell across, found among the one-ring neighbors
+    /// of the cell holding its center; empty when the box is too large, the cells too coarse,
+    /// or the box near a pole, so `CellsCovering` falls back to sampling it.
+    std::vector<CellIndex> CellsNear(const Bounds2d& box, double cellSize) const;
+
     /// The sorted cells holding a lattice of points over `box`, finer than the cells.
     std::vector<CellIndex> Seeds(const Bounds2d& box, double cellSize) const;
 

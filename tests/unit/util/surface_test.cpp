@@ -290,6 +290,34 @@ TEST(CubeSphereCells, CoveringKeepsCellsAtTheRegionEdgesAndDropsFarRingCells) {
     EXPECT_EQ(one[0], center);
 }
 
+TEST(CubeSphereCells, SmallRegionsAreCoveredFromTheNeighborsOfTheirCenterCell) {
+    const CubeSphereCells cells(kMoon);
+    const Surface moon = Surface::Sphere(kMoon);
+    const double size = 40000.0;
+    const double corner = std::atan(1.0 / std::sqrt(2.0)) * 180.0 / terraingen::kPi;
+    std::vector<Vec2d> centers{{45.0, corner}, {-135.0, -corner}, {45.0, 0.0},
+                               {0.0, 45.0},    {135.0, 30.0},     {-45.0, -10.0}};
+    RandomStream random(13, 14);
+    for (int k = 0; k < 200; ++k) {
+        centers.push_back(
+            {360.0 * random.NextDouble() - 180.0, 150.0 * random.NextDouble() - 75.0});
+    }
+    for (const Vec2d& center : centers) {
+        const double margin = 0.3 * size * random.NextDouble();
+        const Bounds2d region = moon.Expand(terraingen::PointBounds(center.x, center.y), margin);
+        const std::vector<CellIndex> covering = cells.CellsCovering(region, size);
+        EXPECT_LE(covering.size(), 9u) << center.x << " " << center.y;
+        EXPECT_TRUE(std::is_sorted(covering.begin(), covering.end()));
+        for (int k = 0; k < 400; ++k) {
+            const double lon = region.minX + (region.maxX - region.minX) * random.NextDouble();
+            const double lat = region.minY + (region.maxY - region.minY) * random.NextDouble();
+            const CellIndex c = cells.CellAt(lon, lat, size);
+            EXPECT_TRUE(std::binary_search(covering.begin(), covering.end(), c))
+                << center.x << " " << center.y << ": " << lon << " " << lat;
+        }
+    }
+}
+
 TEST(CubeSphereCells, TwoRingsOfNeighborsHoldEveryPointWithinACellAcrossFacesAndCorners) {
     const CubeSphereCells cells(kMoon);
     const Surface moon = Surface::Sphere(kMoon);

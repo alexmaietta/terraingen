@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Point queries on a body find the cells around them directly from the neighbors of the cell holding the point, instead of sampling the region: about 1.8x faster on a sphere, within 1.2x of a plane.
+
 - `terraingen schema` prints the configuration schema (`ConfigSchema`); the catalog of types with their defaults stays available as Python `config_catalog()`.
 - Every number in a configuration must be finite, and such errors name the number itself, such as `layers[1].manual[0].x`.
 - `terraingen/config/report.h` is now `terraingen/pipeline/report.h`; `WriteCraterList`, `WriteBoulderList`, `WriteBoulderModels` and `ListFormat` move to `terraingen/pipeline/feature_lists.h`, and `PlacedCraters` and `PlacedBoulders` to `terraingen/pipeline/generator.h` (`pipeline/features.h` is gone).

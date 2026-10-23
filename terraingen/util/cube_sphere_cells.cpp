@@ -176,6 +176,10 @@ std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
     CheckRegion(region);
     const Bounds2d box{region.minX, std::max(-90.0, region.minY), region.maxX,
                        std::min(90.0, region.maxY)};
+    std::vector<CellIndex> near = CellsNear(box, cellSize);
+    if (!near.empty()) {
+        return near;
+    }
     const std::vector<CellIndex> seeds = Seeds(box, cellSize);
     std::vector<CellIndex> cells;
     for (const CellIndex& seed : seeds) {
@@ -184,6 +188,51 @@ std::vector<CellIndex> CubeSphereCells::CellsCovering(const Bounds2d& region,
     }
     SortUnique(cells);
     return KeepReaching(box, seeds, cells, cellSize);
+}
+
+std::vector<CellIndex> CubeSphereCells::CellsNear(const Bounds2d& box, double cellSize) const {
+    // A step of dtheta along the sphere moves a face's equiangular angle by at most dtheta /
+    // sqrt(1 - v^2), under 1.53 dtheta within half a cell of a face of 16 or more cells per edge,
+    // so widening a cell's angles by 2 rho keeps every cell within rho of the center.
+    constexpr std::int32_t kMinCells = 16;
+    constexpr double kAngleRate = 2.0;
+    constexpr double kMaxLatitude = 80.0;
+    const std::int32_t n = CellsPerEdge(cellSize);
+    const double halfLon = 0.5 * (box.maxX - box.minX) * kDegree;
+    const double halfLat = 0.5 * (box.maxY - box.minY) * kDegree;
+    const double nearestLat = box.minY > 0.0 ? box.minY : (box.maxY < 0.0 ? -box.maxY : 0.0);
+    const double rho = halfLat + halfLon * std::cos(nearestLat * kDegree);
+    const double step = 2.0 * kQuarter / static_cast<double>(n);
+    if (n < kMinCells || std::fmax(-box.minY, box.maxY) > kMaxLatitude ||
+        !(kAngleRate * rho < step)) {
+        return {};
+    }
+    const Vec3d center = UnitVector(0.5 * (box.minX + box.maxX), 0.5 * (box.minY + box.maxY));
+    const detail::FacePosition at =
+        detail::FaceCoordinates(detail::kCubeFaces, center, static_cast<double>(n));
+    const auto index = [n](double s) {
+        return std::clamp<std::int32_t>(static_cast<std::int32_t>(std::floor(s)), 0, n - 1);
+    };
+    const CellIndex home{static_cast<std::int32_t>(at.face) * n + index(at.s), index(at.t)};
+    const double widen = kAngleRate * rho;
+    std::vector<CellIndex> cells;
+    for (const CellIndex& cell : Neighbors(home, cellSize, 1)) {
+        const std::size_t faceIndex = FaceIndex(cell, n);
+        const detail::CubeFace& face = detail::kCubeFaces[faceIndex];
+        const double along = Dot(center, face.normal);
+        const bool onHome = faceIndex == at.face;
+        const double alpha =
+            onHome ? at.s * step - kQuarter : std::atan2(Dot(center, face.u), along);
+        const double beta =
+            onHome ? at.t * step - kQuarter : std::atan2(Dot(center, face.v), along);
+        const double alpha0 = -kQuarter + static_cast<double>(cell.i % n) * step;
+        const double beta0 = -kQuarter + static_cast<double>(cell.j) * step;
+        if (along <= 0.0 || (alpha >= alpha0 - widen && alpha <= alpha0 + step + widen &&
+                             beta >= beta0 - widen && beta <= beta0 + step + widen)) {
+            cells.push_back(cell);
+        }
+    }
+    return cells;
 }
 
 std::vector<CellIndex> CubeSphereCells::Seeds(const Bounds2d& box, double cellSize) const {
