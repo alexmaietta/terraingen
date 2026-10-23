@@ -241,24 +241,9 @@ void AddGeoTags(IfdWriter& ifd, const Raster<float>& raster, const GeoKeys& geoK
     }
 }
 
-}  // namespace
-
-void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
-                  const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
-    WriteGeoTiff(path, std::vector<const Raster<float>*>{&raster}, geoKeys, options);
-}
-
-void WriteGeoTiff(const std::filesystem::path& path, const std::vector<Raster<float>>& bands,
-                  const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
-    std::vector<const Raster<float>*> pointers;
-    for (const Raster<float>& band : bands) {
-        pointers.push_back(&band);
-    }
-    WriteGeoTiff(path, pointers, geoKeys, options);
-}
-
-void WriteGeoTiff(const std::filesystem::path& path, const std::vector<const Raster<float>*>& bands,
-                  const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
+/// `WriteGeoTiff` of the rasters `bands` point to.
+void WriteBands(const std::filesystem::path& path, const std::vector<const Raster<float>*>& bands,
+                const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
     const Stopwatch stopwatch;
     CheckBands(path, bands, options);
     const Raster<float>& raster = *bands.front();
@@ -294,6 +279,22 @@ void WriteGeoTiff(const std::filesystem::path& path, const std::vector<const Ras
     }
     LogInfo("raster", "Wrote ", raster.Width(), "x", raster.Height(), "x", bands.size(),
             " GeoTIFF ", path.string(), " in ", FormatDuration(stopwatch.Milliseconds()));
+}
+
+}  // namespace
+
+void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
+                  const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
+    WriteBands(path, {&raster}, geoKeys, options);
+}
+
+void WriteGeoTiff(const std::filesystem::path& path, const std::vector<Raster<float>>& bands,
+                  const GeoKeys& geoKeys, const GeoTiffWriteOptions& options) {
+    std::vector<const Raster<float>*> pointers;
+    for (const Raster<float>& band : bands) {
+        pointers.push_back(&band);
+    }
+    WriteBands(path, pointers, geoKeys, options);
 }
 
 }  // namespace terraingen

@@ -1,5 +1,6 @@
 #include "terraingen/sources/geotiff_source.h"
 
+#include "support/resample.h"
 #include "support/temp_path.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/geotiff/tiff_format.h"
@@ -122,7 +123,8 @@ TEST(GeoTiffSource, UpsamplesOntoFinerGridsAsResamplingDoes) {
     EXPECT_EQ(source.Grid().height, 10u);
     auto heights = terraingen::ResampledGrid(source.Grid(), 2.0).MakeRaster();
     source.Fill(heights);
-    const Raster<float> expected = terraingen::Resample(dem, 2.0, ResampleMethod::Bilinear);
+    const Raster<float> expected =
+        terraingen::testing::Resample(dem, 2.0, ResampleMethod::Bilinear);
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], expected.Values()[i]) << i;
     }
@@ -233,7 +235,7 @@ TEST(GeoTiffSource, RefinesWithDiamondSquareKeepingTheCells) {
     const GeoTiffSource source(path, options);
     auto fine = terraingen::ResampledGrid(source.Grid(), 1.0).MakeRaster();
     source.Fill(fine);
-    const Raster<float> smooth = terraingen::Resample(dem, 1.0, ResampleMethod::Bilinear);
+    const Raster<float> smooth = terraingen::testing::Resample(dem, 1.0, ResampleMethod::Bilinear);
     double change = 0.0;
     for (std::size_t i = 0; i < fine.Size(); ++i) {
         change = std::fmax(change, std::fabs(static_cast<double>(fine.Values()[i]) -

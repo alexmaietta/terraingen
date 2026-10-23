@@ -163,11 +163,4 @@ TriangleMesh Subdivide(const TriangleMesh& mesh, int levels, bool onUnitSphere) 
     return result;
 }
 
-TriangleMesh Icosphere(int levels) {
-    if (levels < 0 || levels > 12) {
-        throw std::invalid_argument("Icosphere levels must be between 0 and 12");
-    }
-    return Subdivide(BaseSolidMesh(BaseSolid::Icosahedron), levels, true);
-}
-
 }  // namespace terraingen

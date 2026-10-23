@@ -113,7 +113,6 @@
 #include "terraingen/random/stream.h"
 #include "terraingen/random/value_distribution.h"
 #include "terraingen/raster/cell_loops.h"
-#include "terraingen/raster/gaussian_blur.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"

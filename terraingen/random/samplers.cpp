@@ -1,13 +1,9 @@
 #include "terraingen/random/samplers.h"
 
 #include "terraingen/util/bits.h"
-#include "terraingen/util/checks.h"
 
-#include <algorithm>
 #include <cmath>
-#include <iterator>
 #include <stdexcept>
-#include <utility>
 
 namespace terraingen {
 
@@ -64,23 +60,6 @@ std::uint64_t SamplePoisson(RandomStream& random, double mean) {
     return mean < 10.0 ? PoissonMultiplication(random, mean) : PoissonPtrs(random, mean);
 }
 
-double SampleTruncatedPowerLaw(RandomStream& random, double min, double max, double exponent) {
-    if (!(IsPositive(min) && max > min && !std::isnan(max))) {
-        throw std::invalid_argument("Power law bounds must satisfy 0 < min < max");
-    }
-    RequirePositive(exponent, "Power law exponent");
-    const double low = std::pow(min, -exponent);
-    const double high = std::isinf(max) ? 0.0 : std::pow(max, -exponent);
-    const double u = random.NextDouble();
-    const double x = std::pow(low - u * (low - high), -1.0 / exponent);
-    return std::clamp(x, min, max);
-}
-
-double SampleExponential(RandomStream& random, double rate) {
-    RequirePositive(rate, "Exponential rate");
-    return -std::log(random.NextDoubleOpenBelow()) / rate;
-}
-
 double StandardNormal(double u1, double u2) {
     return std::sqrt(-2.0 * std::log1p(-u1)) * std::cos(2.0 * kPi * u2);
 }
@@ -89,55 +68,6 @@ double StandardNormal(RandomStream& random) {
     const double u1 = random.NextDouble();
     const double u2 = random.NextDouble();
     return StandardNormal(u1, u2);
-}
-
-double SampleNormal(RandomStream& random, double mean, double sigma) {
-    if (!(std::isfinite(mean) && IsNonNegative(sigma))) {
-        throw std::invalid_argument("Normal mean must be finite and sigma finite and not negative");
-    }
-    return mean + sigma * StandardNormal(random);
-}
-
-TabulatedDistribution::TabulatedDistribution(std::vector<double> values,
-                                             std::vector<double> cumulative)
-    : values_(std::move(values)), cumulative_(std::move(cumulative)) {
-    if (values_.size() < 2 || values_.size() != cumulative_.size()) {
-        throw std::invalid_argument(
-            "A tabulated distribution needs at least two values and one CDF value per value");
-    }
-    for (std::size_t i = 0; i < values_.size(); ++i) {
-        if (!std::isfinite(values_[i]) || !std::isfinite(cumulative_[i])) {
-            throw std::invalid_argument("Tabulated values and CDF must be finite");
-        }
-        if (i > 0 && (values_[i] <= values_[i - 1] || cumulative_[i] < cumulative_[i - 1])) {
-            throw std::invalid_argument(
-                "Tabulated values must increase strictly and the CDF must not decrease");
-        }
-    }
-    if (cumulative_.front() != 0.0 || cumulative_.back() != 1.0) {
-        throw std::invalid_argument("Tabulated CDF must start at 0 and end at 1");
-    }
-}
-
-double TabulatedDistribution::Cdf(double x) const {
-    if (x <= values_.front()) {
-        return 0.0;
-    }
-    if (x >= values_.back()) {
-        return 1.0;
-    }
-    const auto upper = std::upper_bound(values_.begin(), values_.end(), x);
-    const auto i = static_cast<std::size_t>(std::distance(values_.begin(), upper)) - 1;
-    const double t = (x - values_[i]) / (values_[i + 1] - values_[i]);
-    return cumulative_[i] + t * (cumulative_[i + 1] - cumulative_[i]);
-}
-
-double TabulatedDistribution::Sample(RandomStream& random) const {
-    const double u = random.NextDouble();
-    const auto upper = std::upper_bound(cumulative_.begin(), cumulative_.end(), u);
-    const auto i = static_cast<std::size_t>(std::distance(cumulative_.begin(), upper)) - 1;
-    const double t = (u - cumulative_[i]) / (cumulative_[i + 1] - cumulative_[i]);
-    return values_[i] + t * (values_[i + 1] - values_[i]);
 }
 
 }  // namespace terraingen

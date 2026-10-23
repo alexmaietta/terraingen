@@ -1,5 +1,7 @@
 #include "terraingen/raster/resample.h"
 
+#include "support/resample.h"
+
 #include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
@@ -12,8 +14,8 @@
 
 using terraingen::GeoTransform;
 using terraingen::Raster;
-using terraingen::Resample;
 using terraingen::ResampleMethod;
+using terraingen::testing::Resample;
 
 namespace {
 
@@ -129,22 +131,9 @@ TEST(SampleRaster, InterpolatesAtWorldPositions) {
     EXPECT_TRUE(std::isnan(terraingen::SampleRaster(raster, 14.0, 27.0, ResampleMethod::Bilinear)));
 }
 
-TEST(ResampleTo, SamplesEachCellCenterAndMarksCellsBeyondTheRaster) {
+TEST(SampleRaster, RejectsEmptyAndRotatedRasters) {
     Raster<float> raster(4, 4, 5.0f);
-    raster.SetTransform(GeoTransform::NorthUp(0.0, 8.0, 2.0));
-    const terraingen::RasterGrid grid{6, 6, GeoTransform::NorthUp(-2.0, 10.0, 2.0)};
-    const Raster<float> resampled = terraingen::ResampleTo(raster, grid, ResampleMethod::Cubic);
-    EXPECT_EQ(terraingen::RasterGrid::FromRaster(resampled), grid);
-    EXPECT_FLOAT_EQ(resampled(2, 2), 5.0f);
-    EXPECT_TRUE(resampled.IsNoData(resampled(0, 0)));
-    EXPECT_TRUE(std::isnan(resampled(5, 3)));
-    raster.SetNoData(-1.0f);
-    const Raster<float> filled = terraingen::ResampleTo(raster, grid, ResampleMethod::Nearest);
-    EXPECT_EQ(filled(0, 0), -1.0f);
-    EXPECT_EQ(filled.NoData(), -1.0f);
-    EXPECT_THROW(terraingen::ResampleTo(raster, terraingen::RasterGrid{}, ResampleMethod::Cubic),
-                 std::invalid_argument);
-    EXPECT_THROW(terraingen::ResampleTo(Raster<float>(), grid, ResampleMethod::Cubic),
+    EXPECT_THROW(terraingen::SampleRaster(Raster<float>(), 1.0, 1.0, ResampleMethod::Cubic),
                  std::invalid_argument);
     raster.SetTransform(GeoTransform{0.0, 2.0, 0.3, 8.0, 0.3, -2.0});
     EXPECT_THROW(terraingen::SampleRaster(raster, 1.0, 1.0, ResampleMethod::Cubic),

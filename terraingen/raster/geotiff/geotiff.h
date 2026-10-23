@@ -176,10 +176,4 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
 void WriteGeoTiff(const std::filesystem::path& path, const std::vector<Raster<float>>& bands,
                   const GeoKeys& geoKeys = {}, const GeoTiffWriteOptions& options = {});
 
-/// `WriteGeoTiff` for bands held elsewhere.
-/// @param bands The bands; at least one, all on one grid.
-/// @throws GeoTiffError as for one raster, or for no bands or bands on different grids.
-void WriteGeoTiff(const std::filesystem::path& path, const std::vector<const Raster<float>*>& bands,
-                  const GeoKeys& geoKeys = {}, const GeoTiffWriteOptions& options = {});
-
 }  // namespace terraingen

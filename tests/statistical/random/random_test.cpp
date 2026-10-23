@@ -9,11 +9,7 @@
 #include <vector>
 
 using terraingen::RandomStream;
-using terraingen::SampleExponential;
-using terraingen::SampleNormal;
 using terraingen::SamplePoisson;
-using terraingen::SampleTruncatedPowerLaw;
-using terraingen::TabulatedDistribution;
 using terraingen::testing::ChiSquareCritical;
 using terraingen::testing::KolmogorovSmirnov;
 using terraingen::testing::KolmogorovSmirnovCritical;
@@ -43,21 +39,6 @@ TEST(RandomStatistics, UniformDoublesAreUniform) {
     const auto samples = Collect([&] { return stream.NextDouble(); });
     EXPECT_LT(KolmogorovSmirnov(samples, [](double x) { return x; }),
               KolmogorovSmirnovCritical(kSamples));
-}
-
-TEST(RandomStatistics, UniformFloatsFillBinsEvenly) {
-    RandomStream stream(2u, 100u);
-    constexpr int kBins = 64;
-    std::vector<double> counts(kBins, 0.0);
-    for (std::size_t i = 0; i < kSamples; ++i) {
-        counts[static_cast<std::size_t>(stream.NextFloat() * kBins)] += 1.0;
-    }
-    const double expected = static_cast<double>(kSamples) / kBins;
-    double chiSquare = 0.0;
-    for (const double c : counts) {
-        chiSquare += (c - expected) * (c - expected) / expected;
-    }
-    EXPECT_LT(chiSquare, ChiSquareCritical(kBins - 1));
 }
 
 TEST(RandomStatistics, PoissonMatchesItsMeanVarianceAndPmf) {
@@ -101,39 +82,11 @@ TEST(RandomStatistics, PoissonMatchesItsMeanVarianceAndPmf) {
     }
 }
 
-TEST(RandomStatistics, TruncatedPowerLawMatchesItsCdf) {
-    RandomStream stream(4u, 100u);
-    constexpr double kMin = 1.0;
-    constexpr double kMax = 100.0;
-    constexpr double kExponent = 1.8;
-    const auto samples =
-        Collect([&] { return SampleTruncatedPowerLaw(stream, kMin, kMax, kExponent); });
-    const double low = std::pow(kMin, -kExponent);
-    const double high = std::pow(kMax, -kExponent);
-    const auto cdf = [&](double x) { return (low - std::pow(x, -kExponent)) / (low - high); };
-    EXPECT_LT(KolmogorovSmirnov(samples, cdf), KolmogorovSmirnovCritical(kSamples));
-}
-
-TEST(RandomStatistics, ExponentialMatchesItsCdf) {
-    RandomStream stream(5u, 100u);
-    const auto samples = Collect([&] { return SampleExponential(stream, 0.25); });
-    EXPECT_LT(KolmogorovSmirnov(samples, [](double x) { return 1.0 - std::exp(-0.25 * x); }),
-              KolmogorovSmirnovCritical(kSamples));
-}
-
-TEST(RandomStatistics, NormalMatchesItsCdf) {
+TEST(RandomStatistics, StandardNormalMatchesItsCdf) {
     RandomStream stream(6u, 100u);
-    const auto samples = Collect([&] { return SampleNormal(stream, 3.0, 2.0); });
-    const auto cdf = [](double x) { return 0.5 * std::erfc(-(x - 3.0) / (2.0 * std::sqrt(2.0))); };
+    const auto samples = Collect([&] { return terraingen::StandardNormal(stream); });
+    const auto cdf = [](double x) { return 0.5 * std::erfc(-x / std::sqrt(2.0)); };
     EXPECT_LT(KolmogorovSmirnov(samples, cdf), KolmogorovSmirnovCritical(kSamples));
-}
-
-TEST(RandomStatistics, TabulatedDistributionMatchesItsCdf) {
-    const TabulatedDistribution table({0.0, 1.0, 5.0, 6.0}, {0.0, 0.2, 0.9, 1.0});
-    RandomStream stream(7u, 100u);
-    const auto samples = Collect([&] { return table.Sample(stream); });
-    EXPECT_LT(KolmogorovSmirnov(samples, [&](double x) { return table.Cdf(x); }),
-              KolmogorovSmirnovCritical(kSamples));
 }
 
 TEST(RandomStatistics, SubstreamsAreUncorrelated) {

@@ -1,5 +1,7 @@
 #include "terraingen/layers/boulders/boulder_fragments.h"
 
+#include "support/mesh_measures.h"
+
 #include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/terraingen.h"
@@ -40,14 +42,15 @@ BoulderLayerOptions Breaking(double rubbleWear) {
 
 TEST(FragmentBoulderShape, SplitsAShapeIntoPiecesThatFillIt) {
     const auto parent = terraingen::GenerateBoulderShape(7, {});
-    const double whole = terraingen::Volume(parent.mesh);
+    const double whole = terraingen::testing::Volume(parent.mesh);
     for (const int pieces : {2, 3, 5, 12}) {
         const auto fragments = FragmentBoulderShape(parent, pieces, 7);
         ASSERT_EQ(fragments.size(), static_cast<std::size_t>(pieces));
         const auto box = terraingen::Bounds(parent.mesh);
         double total = 0.0;
         for (const auto& fragment : fragments) {
-            total += terraingen::Volume(fragment.shape.mesh) * std::pow(fragment.scale, 3.0);
+            total +=
+                terraingen::testing::Volume(fragment.shape.mesh) * std::pow(fragment.scale, 3.0);
             for (const auto& p : fragment.shape.mesh.positions) {
                 const auto q = fragment.center + p * fragment.scale;
                 ASSERT_GE(q.x, box.min.x - 1e-9);
@@ -271,12 +274,12 @@ TEST(BoulderLayer, KeepsTheMeanDensityOfThomasClustersOnABody) {
 
 TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
     const auto parent = terraingen::GenerateBoulderShape(11, {});
-    const double whole = terraingen::Volume(parent.mesh);
+    const double whole = terraingen::testing::Volume(parent.mesh);
     const auto slabs = FragmentBoulderShape(parent, 4, 11, terraingen::BoulderCracks::Slabs);
     ASSERT_EQ(slabs.size(), 4u);
     double total = 0.0;
     for (const auto& fragment : slabs) {
-        total += terraingen::Volume(fragment.shape.mesh) * std::pow(fragment.scale, 3.0);
+        total += terraingen::testing::Volume(fragment.shape.mesh) * std::pow(fragment.scale, 3.0);
     }
     EXPECT_NEAR(total / whole, 1.0, 0.1);
     double mx = 0.0;

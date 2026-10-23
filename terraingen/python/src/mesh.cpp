@@ -153,8 +153,6 @@ void BindTriangleMesh(nb::module_& m) {
                 return std::pair{box.min, box.max};
             },
             "((min x, y, z), (max x, y, z)).")
-        .def_prop_ro("volume", &Volume, "The enclosed volume of a closed mesh, in cubic meters.")
-        .def_prop_ro("surface_area", &SurfaceArea, "The area of its triangles, in square meters.")
         .def(
             "vertex_normals",
             [](const TriangleMesh& self) { return VectorArray(VertexNormals(self)); },
@@ -168,7 +166,6 @@ void BindTriangleMesh(nb::module_& m) {
             "crease_angle_deg"_a,
             "(mesh, normals): vertices split along creases sharper than `crease_angle_deg` "
             "degrees, with smooth normals elsewhere.")
-        .def("transformed", &Transformed, "transform"_a)
         .def("scaled", &Scaled, "scale"_a, "The mesh scaled per axis.")
         .def("subdivide", &Subdivide, "levels"_a, "on_unit_sphere"_a = false,
              "Each triangle split into four `levels` times, new vertices on the unit sphere if "
@@ -176,8 +173,6 @@ void BindTriangleMesh(nb::module_& m) {
     BindMeshFiles(mesh);
     BindEnum<BaseSolid>(m, "BaseSolid", "A solid boulder shapes start from.");
     m.def("base_solid_mesh", &BaseSolidMesh, "solid"_a, "The mesh of a base solid.");
-    m.def("icosphere", &Icosphere, "levels"_a,
-          "A unit sphere: an icosahedron subdivided `levels` times.");
 }
 
 void BindScene(nb::module_& m) {

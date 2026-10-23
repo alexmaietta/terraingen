@@ -1,5 +1,6 @@
 #include "terraingen/mesh/io/mesh_io.h"
 
+#include "support/mesh_measures.h"
 #include "support/temp_path.h"
 #include "terraingen/mesh/io/formats.h"
 #include "terraingen/mesh/polyhedra.h"
@@ -82,7 +83,8 @@ TEST(WriteMesh, WritesABinaryStlAndReadsItBackWelded) {
     const TriangleMesh read = terraingen::ReadMesh(path).mesh;
     EXPECT_EQ(read.positions.size(), 8u) << "shared corners joined";
     EXPECT_EQ(read.triangles.size(), 12u);
-    EXPECT_NEAR(terraingen::Volume(read), terraingen::Volume(cube), 1e-6) << "still outward";
+    EXPECT_NEAR(terraingen::testing::Volume(read), terraingen::testing::Volume(cube), 1e-6)
+        << "still outward";
 }
 
 TEST(ReadMesh, ReadsAsciiStl) {
@@ -113,7 +115,7 @@ TEST(WriteMesh, RoundTripsThroughObjAndGltfInZUp) {
 }
 
 TEST(WriteMesh, WritesAValidBinaryGltfContainer) {
-    const auto sphere = terraingen::Icosphere(2);
+    const auto sphere = terraingen::testing::Icosphere(2);
     const auto path = TempPath("sphere.glb");
     terraingen::WriteMesh(path, {sphere, {}, {}});
     const std::string bytes = Read(path);
@@ -138,7 +140,7 @@ TEST(WriteMesh, WritesAValidBinaryGltfContainer) {
 TEST(WriteMesh, WritesBinaryGltfForAnUpperCaseExtension) {
     const auto path = TempPath("upper.GLB");
     std::filesystem::remove(TempPath("upper.bin"));
-    terraingen::WriteMesh(path, {terraingen::Icosphere(1), {}, {}});
+    terraingen::WriteMesh(path, {terraingen::testing::Icosphere(1), {}, {}});
     EXPECT_EQ(Read(path).substr(0, 4), "glTF");
     EXPECT_FALSE(std::filesystem::exists(TempPath("upper.bin")));
     EXPECT_EQ(terraingen::ReadMesh(path).mesh.triangles.size(), 80u);

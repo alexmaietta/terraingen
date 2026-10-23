@@ -2,7 +2,6 @@ terraingen_add_test_suite(
     raster
     SOURCES
     cell_loops_test.cpp
-    gaussian_blur_test.cpp
     geo_transform_test.cpp
     geotiff_test.cpp
     grid_test.cpp

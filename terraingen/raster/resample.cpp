@@ -147,49 +147,11 @@ float SampleRaster(const Raster<float>& raster, double x, double y, ResampleMeth
     return *value;
 }
 
-Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
-                         ResampleMethod method) {
-    CheckSource(raster);
-    if (grid.width == 0 || grid.height == 0) {
-        throw std::invalid_argument("Cannot resample onto an empty grid");
-    }
-    Raster<float> result = grid.MakeRaster();
-    const float fill = raster.NoData().value_or(std::numeric_limits<float>::quiet_NaN());
-    bool missing = false;
-    for (std::size_t row = 0; row < result.Height(); ++row) {
-        for (std::size_t col = 0; col < result.Width(); ++col) {
-            const Vec2d center = result.CellCenter(col, row);
-            const float value = SampleRaster(raster, center.x, center.y, method);
-            missing = missing || std::isnan(value);
-            result(col, row) = std::isnan(value) ? fill : value;
-        }
-    }
-    result.SetNoData(FilledNoData(raster.NoData(), missing));
-    return result;
-}
-
 std::optional<float> FilledNoData(std::optional<float> noData, bool missing) {
     if (noData || !missing) {
         return noData;
     }
     return std::numeric_limits<float>::quiet_NaN();
-}
-
-Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMethod method) {
-    CheckSource(raster);
-    Raster<float> result = ResampledGrid(RasterGrid::FromRaster(raster), pixelSize).MakeRaster();
-    result.SetNoData(raster.NoData());
-    const double scaleX = std::fabs(raster.Transform().pixelWidth) / pixelSize;
-    const double scaleY = std::fabs(raster.Transform().pixelHeight) / pixelSize;
-    const float fill = raster.NoData().value_or(std::nanf(""));
-    for (std::size_t row = 0; row < result.Height(); ++row) {
-        const double v = (static_cast<double>(row) + 0.5) / scaleY - 0.5;
-        for (std::size_t col = 0; col < result.Width(); ++col) {
-            const double u = (static_cast<double>(col) + 0.5) / scaleX - 0.5;
-            result(col, row) = Interpolate(raster, u, v, method).value_or(fill);
-        }
-    }
-    return result;
 }
 
 }  // namespace terraingen

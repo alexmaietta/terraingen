@@ -1,5 +1,7 @@
 #include "terraingen/layers/boulders/boulder_shape.h"
 
+#include "support/mesh_measures.h"
+
 #include "tests/unit/mesh/support.h"
 
 #include <gtest/gtest.h>
@@ -57,7 +59,7 @@ TEST(GenerateBoulderShape, MakesClosedUnfoldedShapesOfTheirExactExtents) {
         EXPECT_LE(shape.shortAxis, shape.intermediate);
         EXPECT_TRUE(terraingen::testing::IsClosedAndOriented(shape.mesh)) << seed;
         EXPECT_TRUE(terraingen::testing::FacesAwayFromOrigin(shape.mesh)) << seed;
-        EXPECT_GT(terraingen::Volume(shape.mesh), 0.0);
+        EXPECT_GT(terraingen::testing::Volume(shape.mesh), 0.0);
     }
     EXPECT_EQ(styles.size(), options.styles.size()) << "every default style appears";
 }
@@ -122,7 +124,7 @@ TEST(GenerateBoulderShape, FollowsTheStyleWeightsAndSettings) {
     options.styles = {options.styles[1]};
     options.subdivisions = 4;
     const auto ball = GenerateBoulderShape(1, options);
-    EXPECT_NEAR(terraingen::Volume(ball.mesh), std::acos(-1.0) / 6.0 * 0.9 * 0.8, 0.01)
+    EXPECT_NEAR(terraingen::testing::Volume(ball.mesh), std::acos(-1.0) / 6.0 * 0.9 * 0.8, 0.01)
         << "a smooth ellipsoid of axes 1, 0.9 and 0.8";
 }
 
@@ -139,8 +141,9 @@ TEST(GenerateBoulderShape, CutsFlatFractureFaces) {
     const auto cut = GenerateBoulderShape(3, options);
     options.styles[0].maxFractures = options.styles[0].minFractures = 0;
     const auto whole = GenerateBoulderShape(3, options);
-    EXPECT_LT(terraingen::Volume(cut.mesh) / (cut.intermediate * cut.shortAxis),
-              0.95 * terraingen::Volume(whole.mesh) / (whole.intermediate * whole.shortAxis));
+    EXPECT_LT(terraingen::testing::Volume(cut.mesh) / (cut.intermediate * cut.shortAxis),
+              0.95 * terraingen::testing::Volume(whole.mesh) /
+                  (whole.intermediate * whole.shortAxis));
 }
 
 TEST(ValidateBoulderShapeOptions, RejectsInvalidStyles) {
@@ -196,7 +199,7 @@ TEST(NormalizedBoulderShape, TurnsAndScalesARockToTheUnitForm) {
     EXPECT_NEAR(shape.shortAxis, 3.0 / 6.0, 1e-12) << "z stays vertical";
     EXPECT_NEAR(box.min.x + box.max.x, 0.0, 1e-12) << "centered on its box";
     EXPECT_NEAR(box.min.z + box.max.z, 0.0, 1e-12);
-    EXPECT_GT(terraingen::Volume(shape.mesh), 0.0) << "turning keeps the faces outward";
+    EXPECT_GT(terraingen::testing::Volume(shape.mesh), 0.0) << "turning keeps the faces outward";
     EXPECT_EQ(shape.material.name, "granite");
     terraingen::SceneMesh flat = rock;
     for (auto& p : flat.mesh.positions) {

@@ -25,24 +25,27 @@ def shifted_turn():
     return terraingen.RigidTransform.translation_by((5.0, 0.0, 0.0)).after(turn)
 
 
-def test_cube_volume_area_and_bounds(cube):
-    assert cube.volume == pytest.approx(8.0) and cube.surface_area == pytest.approx(24.0)
+def unit_sphere(levels):
+    icosahedron = terraingen.base_solid_mesh(terraingen.BaseSolid.ICOSAHEDRON)
+    return icosahedron.subdivide(levels, on_unit_sphere=True)
+
+
+def test_cube_bounds(cube):
     assert cube.bounds == ((-1.0, -1.0, -1.0), (1.0, 1.0, 1.0))
 
 
 def test_mesh_rebuilds_from_its_arrays(cube):
     positions, triangles = cube.arrays
     rebuilt = terraingen.TriangleMesh(positions, triangles.astype(np.uint32))
-    assert rebuilt.volume == pytest.approx(8.0)
+    assert rebuilt.bounds == cube.bounds and rebuilt.triangle_count == cube.triangle_count
 
 
-def test_icosphere_vertices_lie_on_the_unit_sphere():
-    sphere = terraingen.icosphere(3)
-    assert np.allclose(np.linalg.norm(sphere.arrays[0], axis=1), 1.0)
+def test_unit_sphere_subdivision_keeps_vertices_on_the_sphere():
+    assert np.allclose(np.linalg.norm(unit_sphere(3).arrays[0], axis=1), 1.0)
 
 
 def test_vertex_normals_have_one_row_per_vertex():
-    sphere = terraingen.icosphere(3)
+    sphere = unit_sphere(3)
     assert sphere.vertex_normals().shape == (sphere.vertex_count, 3)
 
 
@@ -60,12 +63,8 @@ def test_rigid_transforms_compose_right_to_left():
     assert shifted_turn().apply((1.0, 0.0, 0.0)) == pytest.approx((5.0, 1.0, 0.0))
 
 
-def test_transformed_mesh_moves_its_bounds(cube):
-    assert cube.transformed(shifted_turn()).bounds[0][0] == pytest.approx(4.0)
-
-
-def test_scaled_mesh_scales_its_volume(cube):
-    assert cube.scaled((2.0, 1.0, 1.0)).volume == pytest.approx(16.0)
+def test_scaled_mesh_scales_its_bounds(cube):
+    assert cube.scaled((2.0, 1.0, 1.0)).bounds[1] == pytest.approx((2.0, 1.0, 1.0))
 
 
 def test_subdivision_quadruples_the_triangles(cube):
@@ -77,7 +76,7 @@ def test_meshes_write_ply_and_glb_scenes(tmp_path, cube):
     assert terraingen.read_mesh(tmp_path / "cube.stl").mesh.vertex_count == cube.vertex_count
     terraingen.write_scene(
         tmp_path / "scene.glb",
-        [terraingen.SceneMesh(cube), terraingen.SceneMesh(terraingen.icosphere(3))],
+        [terraingen.SceneMesh(cube), terraingen.SceneMesh(unit_sphere(3))],
         [terraingen.SceneNode(0), terraingen.SceneNode(1, scale=(2.0, 2.0, 2.0), pose=shifted_turn())],
     )
     assert (tmp_path / "scene.glb").read_bytes()[:4] == b"glTF"
@@ -177,7 +176,6 @@ def test_icq_models_round_trip_and_triangulate(tmp_path):
     assert back.q == q and len(back.vertices) == 6 * (q + 1) ** 2
     mesh = back.to_mesh()
     assert mesh.vertex_count == 6 * q * q + 2 and mesh.triangle_count == 12 * q * q
-    assert mesh.volume > 0.0
     assert terraingen.read_mesh(path).mesh.triangle_count == 12 * q * q
 
 
@@ -191,7 +189,7 @@ def test_body_icq_follows_an_ellipsoid():
 
 
 def test_shape_models_come_from_meshes_and_icq_models(tmp_path):
-    mesh = terraingen.icosphere(4).scaled((300.0, 200.0, 100.0))
+    mesh = unit_sphere(4).scaled((300.0, 200.0, 100.0))
     shape = terraingen.shape_model_from_mesh(mesh, 8)
     assert shape.q == 8
     assert shape.at((1.0, 0.0, 0.0)) == pytest.approx(300.0, rel=1e-3)

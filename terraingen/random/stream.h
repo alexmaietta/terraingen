@@ -27,15 +27,8 @@ class RandomStream {
     /// The next uniformly distributed 32-bit word.
     std::uint32_t NextU32();
 
-    /// A uniform float in [0, 1) from the top 24 bits of one draw; every value is exactly
-    /// representable.
-    float NextFloat();
-
     /// A uniform double in [0, 1) with 53 random bits from two draws.
     double NextDouble();
-
-    /// A uniform double in (0, 1], never zero, for logarithms.
-    double NextDoubleOpenBelow();
 
   private:
     U32x2 key_;

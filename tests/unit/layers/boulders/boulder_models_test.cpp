@@ -1,4 +1,6 @@
 #include "terraingen/layers/boulders/boulder_models.h"
+
+#include "support/mesh_measures.h"
 #include "terraingen/layers/boulders/boulder_options.h"
 #include "terraingen/util/bits.h"
 
@@ -40,8 +42,9 @@ TEST(PlaceBoulderModel, StandsTheShapeAtTheBouldersSizeBurialAndHeading) {
     const auto box = terraingen::Bounds(mesh);
     EXPECT_NEAR(box.min.z, 10.0 - 0.25, 1e-12) << "a quarter of its height below the ground";
     EXPECT_NEAR(box.max.z - 10.0, boulder.ExposedHeight(), 1e-12);
-    EXPECT_NEAR(terraingen::Volume(mesh),
-                terraingen::Volume(shape.mesh) * 2.0 * 2.0 * (1.0 / shape.shortAxis), 1e-9);
+    EXPECT_NEAR(terraingen::testing::Volume(mesh),
+                terraingen::testing::Volume(shape.mesh) * 2.0 * 2.0 * (1.0 / shape.shortAxis),
+                1e-9);
     double along = 0.0;
     const terraingen::Vec3d heading{std::cos(0.4), std::sin(0.4), 0.0};
     double low = 1e9;

@@ -1,6 +1,7 @@
 #include "configs.h"
 #include "support/log_capture.h"
 #include "support/raster_equality.h"
+#include "support/resample.h"
 #include "support/temp_path.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
@@ -306,7 +307,7 @@ TEST(GenerateFromConfig, LoadsResamplesAndDetailsARasterSource) {
         terraingen::testing::Heightmap("fine.tif", GridRegion{80, 60, 2.5, 1100.0, 1925.0})};
     const auto resampled = GenerateFromConfig(config, folder);
     ExpectSameRaster(HeightsOf(resampled),
-                     terraingen::Resample(dem, 2.5, terraingen::ResampleMethod::Bilinear));
+                     terraingen::testing::Resample(dem, 2.5, terraingen::ResampleMethod::Bilinear));
 
     RasterSpec(config).upsampling = {};
     config.outputs = outputs;

@@ -1,5 +1,7 @@
 #include "terraingen/mesh/mesh.h"
 
+#include "support/mesh_measures.h"
+
 #include "terraingen/mesh/polyhedra.h"
 #include "terraingen/util/bits.h"
 #include "tests/unit/mesh/support.h"
@@ -30,18 +32,18 @@ TEST(TriangleMesh, MeasuresBoundsVolumeAndArea) {
     const auto box = terraingen::Bounds(cube);
     ExpectNear(box.min, {-1, -1, -1});
     ExpectNear(box.Extents(), {2, 2, 2});
-    EXPECT_NEAR(terraingen::Volume(cube), 8.0, 1e-12);
-    EXPECT_NEAR(terraingen::SurfaceArea(cube), 24.0, 1e-12);
+    EXPECT_NEAR(terraingen::testing::Volume(cube), 8.0, 1e-12);
+    EXPECT_NEAR(terraingen::testing::SurfaceArea(cube), 24.0, 1e-12);
     EXPECT_THROW(terraingen::Bounds(TriangleMesh{}), std::invalid_argument);
     TriangleMesh inward = cube;
     for (auto& t : inward.triangles) {
         std::swap(t[1], t[2]);
     }
-    EXPECT_NEAR(terraingen::Volume(inward), -8.0, 1e-12);
+    EXPECT_NEAR(terraingen::testing::Volume(inward), -8.0, 1e-12);
 }
 
 TEST(TriangleMesh, HasOutwardVertexNormals) {
-    const TriangleMesh sphere = terraingen::Icosphere(3);
+    const TriangleMesh sphere = terraingen::testing::Icosphere(3);
     const auto normals = terraingen::VertexNormals(sphere);
     ASSERT_EQ(normals.size(), sphere.positions.size());
     for (std::size_t v = 0; v < normals.size(); ++v) {
@@ -65,7 +67,7 @@ TEST(TriangleMesh, SplitsVerticesAtCreases) {
             ExpectNear(hard.normals[v], face);
         }
     }
-    EXPECT_NEAR(terraingen::Volume(hard.mesh), 8.0, 1e-12);
+    EXPECT_NEAR(terraingen::testing::Volume(hard.mesh), 8.0, 1e-12);
     const auto smooth = terraingen::WithCreases(cube, terraingen::kPi);
     EXPECT_EQ(smooth.mesh.positions.size(), 8u);
     EXPECT_THROW(terraingen::WithCreases(cube, -1.0), std::invalid_argument);
@@ -80,8 +82,6 @@ TEST(RigidTransform, RotatesTranslatesAndComposes) {
     ExpectNear(moved.Apply({1, 0, 0}), {1, 3, 3});
     const auto both = quarter.After(RigidTransform::Translation({1, 0, 0}));
     ExpectNear(both.Apply({0, 0, 0}), {0, 1, 0});
-    const TriangleMesh cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
-    EXPECT_NEAR(terraingen::Volume(terraingen::Transformed(cube, moved)), 8.0, 1e-9);
     ExpectNear(moved.Rotate({1, 0, 0}), {0, 1, 0});
     const Vec3d p{0.3, -1.2, 2.5};
     const Vec3d applied = moved.Apply(p);
@@ -113,9 +113,9 @@ TEST(RequireScaleFactors, RejectsZeroAndNonFiniteFactorsByName) {
 
 TEST(Scaled, ScalesPerAxisAndKeepsTheMeshOutward) {
     const TriangleMesh cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
-    EXPECT_NEAR(terraingen::Volume(terraingen::Scaled(cube, {2, 3, 0.5})), 24.0, 1e-12);
+    EXPECT_NEAR(terraingen::testing::Volume(terraingen::Scaled(cube, {2, 3, 0.5})), 24.0, 1e-12);
     const TriangleMesh mirrored = terraingen::Scaled(cube, {-1, 1, 1});
-    EXPECT_NEAR(terraingen::Volume(mirrored), 8.0, 1e-12);
+    EXPECT_NEAR(terraingen::testing::Volume(mirrored), 8.0, 1e-12);
     EXPECT_TRUE(terraingen::testing::IsClosedAndOriented(mirrored));
     EXPECT_THROW(terraingen::Scaled(cube, {0, 1, 1}), std::invalid_argument);
 }
@@ -137,8 +137,8 @@ TEST(TriangleMesh, RejectsTrianglesIndexingPastTheVertices) {
     EXPECT_NO_THROW(terraingen::ValidateMesh(mesh));
     mesh.triangles.push_back({0, 1, 3});
     EXPECT_THROW(terraingen::ValidateMesh(mesh), std::invalid_argument);
-    EXPECT_THROW(terraingen::Volume(mesh), std::invalid_argument);
-    EXPECT_THROW(terraingen::SurfaceArea(mesh), std::invalid_argument);
+    EXPECT_THROW(terraingen::testing::Volume(mesh), std::invalid_argument);
+    EXPECT_THROW(terraingen::testing::SurfaceArea(mesh), std::invalid_argument);
     EXPECT_THROW(terraingen::VertexNormals(mesh), std::invalid_argument);
     EXPECT_THROW(terraingen::WithCreases(mesh, 0.5), std::invalid_argument);
 }

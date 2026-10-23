@@ -1,5 +1,6 @@
 #include "terrains.h"
 
+#include "support/mesh_measures.h"
 #include "support/raster_equality.h"
 #include "terraingen/terraingen.h"
 
@@ -272,7 +273,7 @@ TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
             }
         }
     }
-    EXPECT_GT(terraingen::Volume(terraingen::IcqToMesh(model)), 0.0);
+    EXPECT_GT(terraingen::testing::Volume(terraingen::IcqToMesh(model)), 0.0);
     TerrainGenerator flat = terrain;
     flat.surface = {};
     EXPECT_THROW(terraingen::BodyIcq(flat, 4), std::invalid_argument);

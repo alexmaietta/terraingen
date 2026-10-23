@@ -3,7 +3,6 @@
 #include "common.h"
 #include "options.h"
 
-#include "terraingen/raster/gaussian_blur.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
@@ -181,16 +180,6 @@ void BindGrid(nb::module_& m) {
 
 void BindResampling(nb::module_& m) {
     BindEnum<ResampleMethod>(m, "ResampleMethod", "How a raster is interpolated.");
-    m.def("gaussian_blur", nb::overload_cast<const RasterF&, double>(&GaussianBlur), "raster"_a,
-          "sigma_pixels"_a,
-          "The raster blurred by a Gaussian of `sigma_pixels` cells; NaN cells are left out of "
-          "the weights.");
-    m.def("gaussian_blur", nb::overload_cast<const RasterF&, double, double>(&GaussianBlur),
-          "raster"_a, "sigma_columns"_a, "sigma_rows"_a);
-    m.def("resample", &Resample, "raster"_a, "pixel_size"_a, "method"_a = ResampleMethod::Cubic,
-          "The raster resampled to square cells of `pixel_size` over the same extent.");
-    m.def("resample_to", &ResampleTo, "raster"_a, "grid"_a, "method"_a = ResampleMethod::Cubic,
-          "The raster resampled onto `grid`.");
     m.def("sample_raster", &SampleRaster, "raster"_a, "x"_a, "y"_a,
           "method"_a = ResampleMethod::Cubic,
           "The raster interpolated at world position (x, y); NaN outside it.");
@@ -251,7 +240,7 @@ void BindGeoTiffIo(nb::module_& m) {
     options.def_rw("compression", &GeoTiffWriteOptions::compression)
         .def_rw("tile_size", &GeoTiffWriteOptions::tileSize)
         .def_rw("big_tiff", &GeoTiffWriteOptions::bigTiff);
-    using WriteBands = void (*)(const std::filesystem::path&, const std::vector<const RasterF*>&,
+    using WriteBands = void (*)(const std::filesystem::path&, const std::vector<RasterF>&,
                                 const GeoKeys&, const GeoTiffWriteOptions&);
     using WriteOne = void (*)(const std::filesystem::path&, const RasterF&, const GeoKeys&,
                               const GeoTiffWriteOptions&);

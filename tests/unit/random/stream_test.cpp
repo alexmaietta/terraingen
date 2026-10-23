@@ -11,11 +11,6 @@
 
 using terraingen::Philox4x32;
 using terraingen::RandomStream;
-using terraingen::SampleExponential;
-using terraingen::SampleNormal;
-using terraingen::SamplePoisson;
-using terraingen::SampleTruncatedPowerLaw;
-using terraingen::TabulatedDistribution;
 using terraingen::U32x2;
 using terraingen::U32x4;
 
@@ -51,12 +46,10 @@ TEST(RandomStream, IsDeterministicAndSeparatesEveryAddressWord) {
 
 TEST(RandomStream, UniformsUseTheExpectedBits) {
     RandomStream words(5u, 6u);
-    const std::uint32_t a = words.NextU32();
     const std::uint32_t b = words.NextU32();
     const std::uint32_t c = words.NextU32();
 
     RandomStream uniforms(5u, 6u);
-    EXPECT_EQ(uniforms.NextFloat(), static_cast<float>(a >> 8u) * 0x1p-24f);
     const double expected =
         static_cast<double>((static_cast<std::uint64_t>(b >> 5u) << 26u) | (c >> 6u)) * 0x1p-53;
     EXPECT_EQ(uniforms.NextDouble(), expected);
@@ -65,15 +58,9 @@ TEST(RandomStream, UniformsUseTheExpectedBits) {
 TEST(RandomStream, UniformRangesAreRespected) {
     RandomStream stream(9u, 9u);
     for (int i = 0; i < 10000; ++i) {
-        const float f = stream.NextFloat();
-        EXPECT_GE(f, 0.0f);
-        EXPECT_LT(f, 1.0f);
         const double d = stream.NextDouble();
         EXPECT_GE(d, 0.0);
         EXPECT_LT(d, 1.0);
-        const double open = stream.NextDoubleOpenBelow();
-        EXPECT_GT(open, 0.0);
-        EXPECT_LE(open, 1.0);
     }
 }
 

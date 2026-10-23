@@ -51,10 +51,7 @@ void BindStream(nb::module_& m) {
         .def(nb::init<std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t>(),
              "seed"_a, "stream"_a, "a"_a = 0u, "b"_a = 0u, "c"_a = 0u)
         .def("next_u32", &RandomStream::NextU32)
-        .def("next_float", &RandomStream::NextFloat, "Uniform float32 in [0, 1).")
         .def("next_double", &RandomStream::NextDouble, "Uniform float64 in [0, 1).")
-        .def("next_double_open_below", &RandomStream::NextDoubleOpenBelow,
-             "Uniform float64 in (0, 1].")
         .def(
             "u32s",
             [](RandomStream& s, std::size_t count) {
@@ -78,40 +75,6 @@ void BindSamplers(nb::module_& m) {
         "random"_a, "mean"_a, "count"_a = nb::none(),
         "Poisson count (multiplication method below 10, Hormann's PTRS above); an array if "
         "`count` is given.");
-    m.def(
-        "sample_truncated_power_law",
-        [](RandomStream& stream, double min, double max, double exponent,
-           std::optional<std::size_t> count) {
-            return Sample<double>(
-                count, [&] { return SampleTruncatedPowerLaw(stream, min, max, exponent); });
-        },
-        "random"_a, "min"_a, "max"_a, "exponent"_a, "count"_a = nb::none(),
-        "Power law on [min, max] with P(X > x) proportional to x**-exponent; max may be inf.");
-    m.def(
-        "sample_exponential",
-        [](RandomStream& stream, double rate, std::optional<std::size_t> count) {
-            return Sample<double>(count, [&] { return SampleExponential(stream, rate); });
-        },
-        "random"_a, "rate"_a, "count"_a = nb::none(), "Exponential sample with the given rate.");
-    m.def(
-        "sample_normal",
-        [](RandomStream& stream, double mean, double sigma, std::optional<std::size_t> count) {
-            return Sample<double>(count, [&] { return SampleNormal(stream, mean, sigma); });
-        },
-        "random"_a, "mean"_a, "sigma"_a, "count"_a = nb::none(),
-        "Normal sample via the Box-Muller transform.");
-    nb::class_<TabulatedDistribution>(m, "TabulatedDistribution",
-                                      "Distribution given as a piecewise-linear CDF, sampled by "
-                                      "inversion.")
-        .def(nb::init<std::vector<double>, std::vector<double>>(), "values"_a, "cumulative"_a)
-        .def("cdf", &TabulatedDistribution::Cdf, "x"_a)
-        .def(
-            "sample",
-            [](const TabulatedDistribution& table, RandomStream& stream,
-               std::optional<std::size_t> count) {
-                return Sample<double>(count, [&] { return table.Sample(stream); });
-            },
-            "random"_a, "count"_a = nb::none());
 }
 
 void BindValueDistribution(nb::module_& m) {

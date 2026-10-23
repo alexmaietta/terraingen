@@ -1,5 +1,5 @@
 /// @file
-/// @brief Resampling and interpolation of rasters: nearest, bilinear, cubic, Lanczos and B-spline.
+/// @brief Interpolation of rasters: nearest, bilinear, cubic, Lanczos and B-spline.
 #pragma once
 
 #include "terraingen/raster/cell_loops.h"
@@ -86,19 +86,8 @@ std::optional<float> InterpolateLattice(double u, double v, ResampleMethod metho
     return static_cast<float>(sum);
 }
 
-/// A raster resampled to square cells over the same extent, origin and axis directions, on the
-/// `ResampledGrid`, keeping `raster`'s no-data value (NaN cells without one).
-///
-/// Each output cell center is interpolated in the source, with samples beyond the edge taken from
-/// the nearest edge cell. An output cell is no-data where any contributing cell is.
-/// @param raster The source raster; not empty and not rotated.
-/// @param pixelSize The new cell side in world units; positive and finite.
-/// @throws std::invalid_argument for an empty or rotated raster, a non-positive or non-finite
-/// `pixelSize`, or a result wider or taller than 2^31 cells.
-Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMethod method);
-
-/// A raster interpolated at world position (`x`, `y`), as `Resample` interpolates; NaN outside
-/// the raster's extent or where a contributing cell is no-data.
+/// A raster interpolated at world position (`x`, `y`), with cells beyond the edge read from the
+/// nearest edge cell; NaN outside the raster's extent or where a contributing cell is no-data.
 /// @param raster The raster; not empty and not rotated.
 /// @throws std::invalid_argument for an empty or rotated raster.
 /// @throws std::domain_error if the raster's transform is not invertible.
@@ -116,16 +105,6 @@ struct RasterPlacement {
         return {RasterGrid::FromRaster(raster), 0, 0};
     }
 };
-
-/// A raster resampled onto a non-empty grid, each cell `SampleRaster` at its center.
-///
-/// Cells giving NaN hold `raster`'s no-data value, or NaN, which then becomes the no-data value
-/// (`FilledNoData`).
-/// @param raster The source raster; not empty and not rotated.
-/// @throws std::invalid_argument for an empty or rotated raster, or an empty grid.
-/// @throws std::domain_error if the raster's transform is not invertible.
-Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
-                         ResampleMethod method);
 
 /// The no-data value of a raster filled from a source with no-data value `noData`, whose
 /// missing cells hold `noData` or, without one, NaN: `noData` if set; otherwise NaN if a cell

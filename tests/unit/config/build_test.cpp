@@ -1,4 +1,6 @@
 #include "configs.h"
+#include "support/mesh_measures.h"
+#include "support/resample.h"
 #include "support/temp_path.h"
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
@@ -585,7 +587,7 @@ TEST(BuildSurface, LoadsAnIcqShapeModelOnceRelativeToTheConfig) {
 
 TEST(BuildSurface, ResamplesAMeshShapeModelScaledToMeters) {
     terraingen::SceneMesh scene;
-    scene.mesh = terraingen::Scaled(terraingen::Icosphere(4), {0.3, 0.2, 0.1});
+    scene.mesh = terraingen::Scaled(terraingen::testing::Icosphere(4), {0.3, 0.2, 0.1});
     const auto path = terraingen::testing::TempPath("config_shape.obj");
     terraingen::WriteMesh(path, scene);
     const terraingen::Surface surface =
@@ -603,7 +605,7 @@ TEST(BuildSurface, ReportsShapeModelProblemsAtTheirKeys) {
     EXPECT_EQ(SurfaceErrorPath(terraingen::ShapeModelSurfaceSpec{"missing.icq", {}, -1.0}),
               "body.meters_per_unit");
     terraingen::SceneMesh off;
-    off.mesh = terraingen::Icosphere(1);
+    off.mesh = terraingen::testing::Icosphere(1);
     for (terraingen::Vec3d& p : off.mesh.positions) {
         p.x += 5.0;
     }
@@ -784,7 +786,7 @@ TEST(BuildGenerator, UpsamplesTheSourceAsItsUpsamplingSays) {
     const terraingen::Raster<float> cubic =
         terraingen::Evaluate(terraingen::BuildGenerator(config, folder), fine);
     const terraingen::Raster<float> expected =
-        terraingen::Resample(dem, 1.0, terraingen::ResampleMethod::Cubic);
+        terraingen::testing::Resample(dem, 1.0, terraingen::ResampleMethod::Cubic);
     for (std::size_t i = 0; i < cubic.Size(); ++i) {
         ASSERT_EQ(cubic.Values()[i], expected.Values()[i]) << "cubic by default";
     }

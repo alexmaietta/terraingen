@@ -1,5 +1,7 @@
 #include "terraingen/mesh/polyhedra.h"
 
+#include "support/mesh_measures.h"
+
 #include "terraingen/util/bits.h"
 #include "tests/unit/mesh/support.h"
 
@@ -29,7 +31,7 @@ TEST(BaseSolidMesh, GivesClosedOutwardSolidsAroundTheOrigin) {
         const auto mesh = terraingen::BaseSolidMesh(c.solid);
         EXPECT_EQ(mesh.positions.size(), c.vertices);
         EXPECT_EQ(mesh.triangles.size(), c.triangles);
-        EXPECT_NEAR(terraingen::Volume(mesh), c.volume, 1e-12);
+        EXPECT_NEAR(terraingen::testing::Volume(mesh), c.volume, 1e-12);
         EXPECT_TRUE(terraingen::testing::IsClosedAndOriented(mesh));
         EXPECT_TRUE(terraingen::testing::FacesAwayFromOrigin(mesh));
     }
@@ -45,7 +47,7 @@ TEST(Subdivide, SplitsEachTriangleInFourKeepingTheSolidAndItsVertices) {
         EXPECT_EQ(twice.triangles.size(), 16 * base.triangles.size());
         const auto edges = 3 * twice.triangles.size() / 2;
         EXPECT_EQ(twice.positions.size() + twice.triangles.size(), edges + 2) << "Euler";
-        EXPECT_NEAR(terraingen::Volume(twice), terraingen::Volume(base), 1e-12)
+        EXPECT_NEAR(terraingen::testing::Volume(twice), terraingen::testing::Volume(base), 1e-12)
             << "planar faces stay planar";
         EXPECT_TRUE(terraingen::testing::IsClosedAndOriented(twice));
         for (std::size_t v = 0; v < once.positions.size(); ++v) {
@@ -58,7 +60,7 @@ TEST(Subdivide, SplitsEachTriangleInFourKeepingTheSolidAndItsVertices) {
 
 TEST(Icosphere, IsAGeodesicSphereOfUnitRadius) {
     for (int levels = 0; levels <= 4; ++levels) {
-        const auto sphere = terraingen::Icosphere(levels);
+        const auto sphere = terraingen::testing::Icosphere(levels);
         const std::size_t faces = 20u << (2 * levels);
         EXPECT_EQ(sphere.triangles.size(), faces);
         EXPECT_EQ(sphere.positions.size(), faces / 2 + 2);
@@ -67,8 +69,8 @@ TEST(Icosphere, IsAGeodesicSphereOfUnitRadius) {
         }
         EXPECT_TRUE(terraingen::testing::IsClosedAndOriented(sphere));
     }
-    EXPECT_NEAR(terraingen::Volume(terraingen::Icosphere(5)), 4.0 / 3.0 * terraingen::kPi, 0.01);
-    EXPECT_NEAR(terraingen::SurfaceArea(terraingen::Icosphere(5)), 4.0 * terraingen::kPi, 0.02);
-    EXPECT_THROW(terraingen::Icosphere(-1), std::invalid_argument);
-    EXPECT_THROW(terraingen::Icosphere(13), std::invalid_argument);
+    EXPECT_NEAR(terraingen::testing::Volume(terraingen::testing::Icosphere(5)),
+                4.0 / 3.0 * terraingen::kPi, 0.01);
+    EXPECT_NEAR(terraingen::testing::SurfaceArea(terraingen::testing::Icosphere(5)),
+                4.0 * terraingen::kPi, 0.02);
 }

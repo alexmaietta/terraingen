@@ -1,5 +1,7 @@
 #include "terraingen/mesh/shape_model.h"
 
+#include "support/mesh_measures.h"
+
 #include "terraingen/mesh/polyhedra.h"
 #include "terraingen/util/log.h"
 
@@ -41,7 +43,7 @@ template <typename Run> std::vector<std::string> Logged(Run run) {
 
 TEST(ShapeModelFromMesh, FindsTheRadiusOfAStarShapedMeshAlongEachLabel) {
     const TriangleMesh mesh =
-        terraingen::Scaled(terraingen::Icosphere(6), Vec3d{270.0, 147.0, 104.0});
+        terraingen::Scaled(terraingen::testing::Icosphere(6), Vec3d{270.0, 147.0, 104.0});
     std::optional<RadialShape> found;
     EXPECT_TRUE(Logged([&] { found = terraingen::ShapeModelFromMesh(mesh, 24); }).empty());
     const RadialShape& shape = *found;
@@ -58,9 +60,10 @@ TEST(ShapeModelFromMesh, FindsTheRadiusOfAStarShapedMeshAlongEachLabel) {
 }
 
 TEST(ShapeModelFromMesh, KeepsTheOuterSurfaceOfAFoldedMeshAndWarns) {
-    TriangleMesh mesh = terraingen::Scaled(terraingen::Icosphere(3), Vec3d{100.0, 100.0, 100.0});
+    TriangleMesh mesh =
+        terraingen::Scaled(terraingen::testing::Icosphere(3), Vec3d{100.0, 100.0, 100.0});
     const TriangleMesh inner =
-        terraingen::Scaled(terraingen::Icosphere(3), Vec3d{50.0, 50.0, 50.0});
+        terraingen::Scaled(terraingen::testing::Icosphere(3), Vec3d{50.0, 50.0, 50.0});
     const auto offset = static_cast<std::uint32_t>(mesh.positions.size());
     mesh.positions.insert(mesh.positions.end(), inner.positions.begin(), inner.positions.end());
     for (auto t : inner.triangles) {
@@ -76,7 +79,8 @@ TEST(ShapeModelFromMesh, KeepsTheOuterSurfaceOfAFoldedMeshAndWarns) {
 }
 
 TEST(ShapeModelFromMesh, RejectsMeshesThatDoNotEncloseTheOrigin) {
-    TriangleMesh mesh = terraingen::Scaled(terraingen::Icosphere(2), Vec3d{10.0, 10.0, 10.0});
+    TriangleMesh mesh =
+        terraingen::Scaled(terraingen::testing::Icosphere(2), Vec3d{10.0, 10.0, 10.0});
     EXPECT_THROW(terraingen::ShapeModelFromMesh(mesh, 0), std::invalid_argument);
     EXPECT_THROW(terraingen::ShapeModelFromMesh(TriangleMesh{}, 4), std::invalid_argument);
     for (Vec3d& p : mesh.positions) {

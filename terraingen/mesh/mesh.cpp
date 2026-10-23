@@ -43,24 +43,6 @@ void ValidateMesh(const TriangleMesh& mesh) {
     }
 }
 
-double Volume(const TriangleMesh& mesh) {
-    ValidateMesh(mesh);
-    double sum = 0.0;
-    for (const auto& t : mesh.triangles) {
-        sum += Dot(mesh.positions[t[0]], Cross(mesh.positions[t[1]], mesh.positions[t[2]]));
-    }
-    return sum / 6.0;
-}
-
-double SurfaceArea(const TriangleMesh& mesh) {
-    ValidateMesh(mesh);
-    double sum = 0.0;
-    for (const auto& t : mesh.triangles) {
-        sum += Length(AreaNormal(mesh, t));
-    }
-    return 0.5 * sum;
-}
-
 std::vector<Vec3d> VertexNormals(const TriangleMesh& mesh) {
     ValidateMesh(mesh);
     std::vector<Vec3d> normals(mesh.positions.size());
@@ -186,14 +168,6 @@ void RequireRotation(const std::array<double, 9>& r) {
     if (det < 0.0) {
         throw std::invalid_argument("A rotation matrix must not be a reflection");
     }
-}
-
-TriangleMesh Transformed(const TriangleMesh& mesh, const RigidTransform& transform) {
-    TriangleMesh moved = mesh;
-    for (Vec3d& p : moved.positions) {
-        p = transform.Apply(p);
-    }
-    return moved;
 }
 
 void RequireScaleFactors(const Vec3d& scale, std::string_view what) {

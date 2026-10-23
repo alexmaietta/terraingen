@@ -1,4 +1,4 @@
-"""raster: rasters and their array views, geotransforms, grids, statistics, GeoTIFF I/O and Gaussian blur."""
+"""raster: rasters and their array views, geotransforms, grids, statistics and GeoTIFF I/O."""
 
 import gc
 import math
@@ -225,26 +225,6 @@ def test_geotiff_bands_round_trip_and_out_of_range_bands_raise(tmp_path):
     np.testing.assert_array_equal(terraingen.read_geotiff(tmp_path / "rgb.tif", band=2).values, rgb[2].values)
     with pytest.raises(RuntimeError):
         terraingen.read_geotiff(tmp_path / "rgb.tif", band=3)
-
-
-def test_gaussian_blur_smooths_the_raster():
-    raster = ramp_raster()
-    blurred = terraingen.gaussian_blur(raster, 1.0)
-    assert blurred.values.std() < raster.values.std()
-    assert terraingen.gaussian_blur(raster, 1.0, 0.0).values[0, 0] == pytest.approx(
-        blurred.values[0, 0], abs=5.0
-    )
-
-
-def test_resample_to_a_finer_pixel_size():
-    assert terraingen.resample(ramp_raster(), 1.0, terraingen.ResampleMethod.BILINEAR).shape == (16, 16)
-
-
-def test_resample_onto_another_grid():
-    onto = terraingen.resample_to(
-        ramp_raster(), terraingen.RasterGrid.centered(4, 4, 2.0), terraingen.ResampleMethod.NEAREST
-    )
-    assert onto.shape == (4, 4)
 
 
 def test_sample_raster_nearest_reads_the_corner_cell():

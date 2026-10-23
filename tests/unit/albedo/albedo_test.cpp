@@ -235,7 +235,7 @@ TEST(RasterAlbedo, MeasuresTheHurstExponentAndRoughness) {
     white.SetTransform(GeoTransform::NorthUp(0.0, 640.0, 10.0));
     terraingen::RandomStream random(1, 2);
     for (float& value : white.Values()) {
-        value = 0.1f + 0.05f * random.NextFloat();
+        value = 0.1f + 0.05f * terraingen::HashToUnitFloat(random.NextU32());
     }
     const RasterAlbedo noisy({white});
     EXPECT_LT(noisy.Hurst(), 0.1);

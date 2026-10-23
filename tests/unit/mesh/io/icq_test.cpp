@@ -1,5 +1,6 @@
 #include "terraingen/mesh/io/icq.h"
 
+#include "support/mesh_measures.h"
 #include "support/temp_path.h"
 #include "terraingen/mesh/io/mesh_io.h"
 
@@ -91,7 +92,7 @@ TEST(IcqToMesh, TriangulatesAClosedOutwardBodyOverTheDistinctVertices) {
         ASSERT_EQ(uses, 2) << edge.first << ", " << edge.second;
     }
     const double sphere = 4.0 / 3.0 * terraingen::kPi * radius * radius * radius;
-    EXPECT_NEAR(terraingen::Volume(mesh) / sphere, 1.0, 0.01);
+    EXPECT_NEAR(terraingen::testing::Volume(mesh) / sphere, 1.0, 0.01);
     EXPECT_THROW(terraingen::IcqToMesh(IcqModel{}), std::invalid_argument);
 }
 
@@ -167,7 +168,7 @@ TEST(IcqToMesh, SplitsStretchedQuadrilateralsAlongEitherDiagonal) {
     }
     const terraingen::TriangleMesh mesh = terraingen::IcqToMesh(model);
     EXPECT_EQ(mesh.positions.size(), 6 * q * q + 2);
-    EXPECT_GT(terraingen::Volume(mesh), 0.0);
+    EXPECT_GT(terraingen::testing::Volume(mesh), 0.0);
     for (const auto& t : mesh.triangles) {
         const Vec3d a = mesh.positions[t[0]];
         const Vec3d b = mesh.positions[t[1]];

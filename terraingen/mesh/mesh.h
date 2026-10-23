@@ -11,8 +11,7 @@
 
 namespace terraingen {
 
-/// A triangle mesh of shared vertices; triangles are counter-clockwise seen from outside,
-/// so a closed mesh has a positive `Volume`.
+/// A triangle mesh of shared vertices; triangles are counter-clockwise seen from outside.
 struct TriangleMesh {
     std::vector<Vec3d> positions;                         ///< Vertex positions.
     std::vector<std::array<std::uint32_t, 3>> triangles;  ///< Indices into `positions`.
@@ -41,15 +40,6 @@ Box3d Bounds(const TriangleMesh& mesh);
 /// Checks that every triangle indexes one of the mesh's vertices.
 /// @throws std::invalid_argument for a triangle indexing past the vertices.
 void ValidateMesh(const TriangleMesh& mesh);
-
-/// The volume a closed mesh encloses, as a sum of signed tetrahedra from the origin; negative
-/// when the triangles face inward.
-/// @throws std::invalid_argument as `ValidateMesh`.
-double Volume(const TriangleMesh& mesh);
-
-/// The total area of a mesh's triangles.
-/// @throws std::invalid_argument as `ValidateMesh`.
-double SurfaceArea(const TriangleMesh& mesh);
 
 /// The unit normal of each vertex: the area-weighted mean of its triangles' normals.
 /// @throws std::invalid_argument as `ValidateMesh`.
@@ -98,9 +88,6 @@ struct RigidTransform {
 /// @param rotation Row-major 3 x 3.
 /// @throws std::invalid_argument otherwise.
 void RequireRotation(const std::array<double, 9>& rotation);
-
-/// A mesh with every vertex moved by a transform.
-TriangleMesh Transformed(const TriangleMesh& mesh, const RigidTransform& transform);
 
 /// Checks that each per-axis scale factor is finite and not zero.
 /// @param what What the factors are, as error messages name them, such as "Node scales".

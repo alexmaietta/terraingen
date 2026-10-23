@@ -1,5 +1,5 @@
 /// @file
-/// @brief Base solids for boulders, midpoint subdivision and icospheres.
+/// @brief Base solids for boulders and midpoint subdivision.
 #pragma once
 
 #include "terraingen/mesh/mesh.h"
@@ -28,11 +28,5 @@ TriangleMesh BaseSolidMesh(BaseSolid solid);
 /// @param onUnitSphere Whether each new vertex is pushed out to the unit sphere.
 /// @throws std::invalid_argument for a negative `levels` or one that would exceed 2^32 vertices.
 TriangleMesh Subdivide(const TriangleMesh& mesh, int levels, bool onUnitSphere = false);
-
-/// A geodesic sphere of unit radius: the icosahedron subdivided with every vertex on the
-/// sphere, 10 * 4^`levels` + 2 vertices and 20 * 4^`levels` triangles.
-/// @param levels Times to subdivide, 0 to 12.
-/// @throws std::invalid_argument for a negative `levels` or one beyond 12.
-TriangleMesh Icosphere(int levels);
 
 }  // namespace terraingen

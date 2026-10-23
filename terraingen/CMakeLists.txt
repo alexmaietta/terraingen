@@ -1,10 +1,10 @@
 # TerrainGen's modules, one library each, every module depending only on the ones before it:
 #   util          logging, version, build info header, geometry and surface cells
-#   raster        rasters, geotransforms, Gaussian blur, resampling, and GeoTIFF files in geotiff/
+#   raster        rasters, geotransforms, interpolation and GeoTIFF files in geotiff/
 #   noise         noise kernels, header-only and portable to GPU shading languages, and their checks
 #   gpu           backend selection and the Vulkan compute device, opened at run time
 #   random        the Philox generator (portable to GPUs), random streams and samplers
-#   mesh          triangle meshes, base solids, icospheres and mesh files
+#   mesh          triangle meshes, base solids, subdivision and mesh files
 #   distribution  size-frequency distributions
 #   sources       where heights come from: synthetic terrain from layered noise
 #   layers        relief added on top of a source: craters (populations, profiles, degradation)

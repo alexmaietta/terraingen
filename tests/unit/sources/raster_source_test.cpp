@@ -1,5 +1,6 @@
 #include "terraingen/sources/raster_source.h"
 
+#include "support/resample.h"
 #include "support/temp_path.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/sources/diamond_square.h"
@@ -147,7 +148,8 @@ TEST(RasterSource, CubicByDefaultGivesTodaysResamplingToTheBit) {
     const Raster<float> dem = Dem();
     const RasterSource source(dem);
     for (const double pixelSize : {1.3, 0.5, 2.0}) {
-        const Raster<float> resampled = terraingen::Resample(dem, pixelSize, ResampleMethod::Cubic);
+        const Raster<float> resampled =
+            terraingen::testing::Resample(dem, pixelSize, ResampleMethod::Cubic);
         Raster<float> filled = RasterGrid::FromRaster(resampled).MakeRaster();
         source.Fill(filled, pixelSize);
         for (std::size_t i = 0; i < filled.Size(); ++i) {

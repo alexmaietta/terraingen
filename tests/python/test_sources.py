@@ -79,10 +79,23 @@ def test_python_source_without_its_methods_raises_type_error():
 def test_geotiff_source_upsamples_onto_finer_grids(tmp_path, coarse_dem):
     source = bilinear_source(tmp_path)
     assert source.width == 33
-    heights = terraingen.evaluate(terraingen.TerrainGenerator(source), grid=fine_grid(source)).values
+    grid = fine_grid(source)
+    heights = terraingen.evaluate(terraingen.TerrainGenerator(source), grid=grid).values
     assert heights.shape == (132, 132)
-    expected = terraingen.resample(coarse_dem, 2.0, terraingen.ResampleMethod.BILINEAR).values
-    np.testing.assert_allclose(heights, 2 * expected, rtol=1e-5, atol=1e-4)
+    t = grid.transform
+    expected = [
+        [
+            terraingen.sample_raster(
+                coarse_dem,
+                t.origin_x + (col + 0.5) * t.pixel_width,
+                t.origin_y + (row + 0.5) * t.pixel_height,
+                terraingen.ResampleMethod.BILINEAR,
+            )
+            for col in range(grid.width)
+        ]
+        for row in range(grid.height)
+    ]
+    np.testing.assert_allclose(heights, 2 * np.array(expected), rtol=1e-5, atol=1e-4)
 
 
 def test_geotiff_source_scales_heights(tmp_path, coarse_dem):

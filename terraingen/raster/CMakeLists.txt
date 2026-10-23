@@ -4,7 +4,6 @@ terraingen_add_library(
     raster
     SOURCES
     cell_loops.cpp
-    gaussian_blur.cpp
     grid.cpp
     resample.cpp
     variogram.cpp
