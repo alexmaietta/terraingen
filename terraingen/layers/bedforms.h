@@ -72,9 +72,9 @@ BedformOptions MarsTransverseAeolianRidges();
 /// only, so grids, tiles and points agree.
 class BedformLayer final : public FormulaLayer, public MaterialSource {
   public:
-    /// On a sphere, fields are drawn in `CubeSphereCells`, shaped in their centers' local frames,
-    /// with the azimuth counter-clockwise from local east. Applying the layer with the exposure
-    /// field enabled needs `context.ground`.
+    /// Fields are drawn in the surface's cells (`MakeCells`) and shaped in their centers' local
+    /// frames, with the azimuth counter-clockwise from local east. Applying the layer with the
+    /// exposure field enabled needs `context.ground`.
     /// @param source The source the terrain's heights come from, which with
     /// `options.sourceResolvesPixels` holds the bedforms it resolves; null for none.
     /// @throws std::invalid_argument as `ValidateBedformOptions`.
@@ -120,7 +120,7 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     double density_ = 0.0;
     std::uint32_t wanderSeed_ = 0;  ///< Seed of the crest wander noise.
     LayerExposure exposure_;
-    std::optional<CubeSphereCells> cells_;
+    std::shared_ptr<const SurfaceCells> cells_;
 };
 
 }  // namespace terraingen

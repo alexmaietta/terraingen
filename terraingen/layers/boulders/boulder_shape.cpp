@@ -231,18 +231,12 @@ void ApplyFractures(TriangleMesh& mesh, std::size_t corners, const BoulderStyle&
 /// horizontal side lies along x, and scaled so that side is 1 long.
 BoulderShape NormalizedBoulderShape(const SceneMesh& rock) {
     const Vec3d extents = CheckRock(rock.mesh);
-    const Box3d box = Bounds(rock.mesh);
-    const Vec3d center = (box.min + box.max) * 0.5;
-    const bool turned = extents.y > extents.x;
-    const double length = std::fmax(extents.x, extents.y);
-    BoulderShape shape;
-    shape.mesh.triangles = rock.mesh.triangles;
-    for (const Vec3d& p : rock.mesh.positions) {
-        const Vec3d q = (p - center) * (1.0 / length);
-        shape.mesh.positions.push_back(turned ? Vec3d{q.y, -q.x, q.z} : q);
+    BoulderShape shape = UnitBoulderShape(rock.mesh, Bounds(rock.mesh));
+    if (extents.y > extents.x) {
+        for (Vec3d& p : shape.mesh.positions) {
+            p = {p.y, -p.x, p.z};
+        }
     }
-    shape.intermediate = std::fmin(extents.x, extents.y) / length;
-    shape.shortAxis = extents.z / length;
     shape.material = rock.material;
     return shape;
 }
@@ -473,6 +467,20 @@ BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOpt
     const Vec3d extents = Bounds(mesh).Extents();
     mesh = Scaled(mesh, {1.0 / extents.x, intermediate / extents.y, shortAxis / extents.z});
     return {std::move(mesh), index, intermediate, shortAxis};
+}
+
+BoulderShape UnitBoulderShape(const TriangleMesh& mesh, const Box3d& box) {
+    const Vec3d center = (box.min + box.max) * 0.5;
+    const Vec3d extents = box.max - box.min;
+    const double length = std::fmax(extents.x, extents.y);
+    BoulderShape shape;
+    shape.mesh.triangles = mesh.triangles;
+    for (const Vec3d& p : mesh.positions) {
+        shape.mesh.positions.push_back((p - center) * (1.0 / length));
+    }
+    shape.intermediate = std::fmin(extents.x, extents.y) / length;
+    shape.shortAxis = extents.z / length;
+    return shape;
 }
 
 std::uint64_t BoulderShapeSeed(std::uint64_t id, std::uint32_t prototypes) {

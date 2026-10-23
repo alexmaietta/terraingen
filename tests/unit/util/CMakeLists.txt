@@ -13,6 +13,7 @@ terraingen_add_test_suite(
     lru_cache_test.cpp
     overloaded_test.cpp
     plane_fit_test.cpp
+    quadrature_test.cpp
     parallel_test.cpp
     radial_shape_test.cpp
     span_test.cpp

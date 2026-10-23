@@ -107,6 +107,11 @@ struct BoulderShape {
     MeshMaterial material{"rock", {0.5, 0.5, 0.5}};  ///< The library mesh's, or plain gray.
 };
 
+/// `mesh` in the unit form of `BoulderShape` without turning it: centered on its bounding `box`
+/// and scaled so the longer horizontal side of the box is 1 long; the style and material are left
+/// as the defaults.
+BoulderShape UnitBoulderShape(const TriangleMesh& mesh, const Box3d& box);
+
 /// The shape a seed gives, a pure function of the seed and options; every subdivision level
 /// gives the same shape in finer detail.
 /// @param shapeSeed E.g. from `BoulderShapeSeed`.

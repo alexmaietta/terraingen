@@ -81,8 +81,8 @@ std::vector<BoulderFragment> FragmentBoulderShape(const BoulderShape& parent, in
     if (pieces < 2 || pieces > 12) {
         throw std::invalid_argument("A boulder breaks into 2 to 12 pieces");
     }
-    RandomStream random(static_cast<std::uint32_t>(seed), kBoulderFragmentStream,
-                        static_cast<std::uint32_t>(seed >> 32));
+    const IdWords words = SplitId(seed);
+    RandomStream random(words.low, kBoulderFragmentStream, words.high);
     const Box3d box = Bounds(parent.mesh);
     const std::vector<Vec3d> seeds = cracks == BoulderCracks::Slabs
                                          ? SlabSeedPoints(box, pieces, random)
@@ -91,18 +91,12 @@ std::vector<BoulderFragment> FragmentBoulderShape(const BoulderShape& parent, in
     for (std::size_t k = 0; k < seeds.size(); ++k) {
         const TriangleMesh cut = CutToCell(parent.mesh, seeds, k);
         const Box3d bounds = Bounds(cut);
-        const Vec3d extents = bounds.max - bounds.min;
         BoulderFragment fragment;
-        fragment.center = (bounds.min + bounds.max) * 0.5;
-        fragment.scale = std::fmax(extents.x, extents.y);
-        fragment.shape.mesh.triangles = cut.triangles;
-        for (const Vec3d& p : cut.positions) {
-            fragment.shape.mesh.positions.push_back((p - fragment.center) * (1.0 / fragment.scale));
-        }
+        fragment.shape = UnitBoulderShape(cut, bounds);
         fragment.shape.style = parent.style;
-        fragment.shape.intermediate = std::fmin(extents.x, extents.y) / fragment.scale;
-        fragment.shape.shortAxis = extents.z / fragment.scale;
         fragment.shape.material = parent.material;
+        fragment.center = (bounds.min + bounds.max) * 0.5;
+        fragment.scale = std::fmax(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y);
         fragments.push_back(std::move(fragment));
     }
     return fragments;

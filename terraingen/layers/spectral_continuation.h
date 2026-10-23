@@ -66,7 +66,7 @@ class SpectralContinuationLayer final : public Layer {
         double frequency = 0.0;  ///< Lowest frequency, in cycles per meter.
         double bandwidth = 0.0;  ///< Gaussian envelope parameter a, in 1 / m.
         double reach = 0.0;      ///< Impulse radius and lattice cell side, in meters.
-        std::uint32_t index = 0;
+        std::uint32_t seed = 0;  ///< Seed of the band's lattice streams.
     };
 
     struct ImpulseTable;

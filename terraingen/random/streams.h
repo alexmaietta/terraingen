@@ -59,7 +59,6 @@ inline constexpr std::uint32_t kRippleWanderStream = 0x52574E44u;       ///< Rip
 inline constexpr std::uint32_t kRippleKinkStream = 0x524B4E4Bu;         ///< Ripple kink noise.
 inline constexpr std::uint32_t kRippleFadeStream = 0x52464144u;         ///< Ripple fade noise.
 inline constexpr std::uint32_t kBedformStream = 0x42454446u;            ///< Bedform lattice cells.
-inline constexpr std::uint32_t kBedformSphereStream = 0x42454453u;      ///< Bedforms on a body.
 inline constexpr std::uint32_t kBedformWanderStream = 0x42574E44u;      ///< Bedform wander noise.
 inline constexpr std::uint32_t kPavementStream = 0x50415645u;           ///< Plate sites.
 inline constexpr std::uint32_t kPavementOctaveStream = 0x50564F43u;     ///< Crack octave seeds.
@@ -118,7 +117,6 @@ inline constexpr std::array kStreamTags = {kCraterStream,
                                            kRippleKinkStream,
                                            kRippleFadeStream,
                                            kBedformStream,
-                                           kBedformSphereStream,
                                            kBedformWanderStream,
                                            kPavementStream,
                                            kPavementOctaveStream,

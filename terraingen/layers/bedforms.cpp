@@ -93,9 +93,7 @@ BedformLayer::BedformLayer(BedformOptions options, Surface surface,
     wanderSeed_ = SubstreamSeed(options_.seed, kBedformWanderStream);
     exposure_ =
         LayerExposure(options_.exposure, options_.exposureSpacing, surface_, kExposureReader);
-    if (surface_.IsBody()) {
-        cells_.emplace(surface_);
-    }
+    cells_ = MakeCells(surface_);
 }
 
 void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& center,
@@ -142,32 +140,19 @@ BedformLayer::FieldSum BedformLayer::SumFields(double x, double y, const Ground*
         return sum;
     }
     exposure_.Require(ground);
-    if (cells_) {
-        const CellIndex home = cells_->CellAt(x, y, cell_);
-        for (const CellIndex& cell : cells_->Neighbors(home, cell_, 2)) {
-            RandomStream random(options_.seed, kBedformSphereStream,
-                                static_cast<std::uint32_t>(cell.i),
-                                static_cast<std::uint32_t>(cell.j));
-            const double chance = density_ * cells_->CellArea(cell, cell_) / (cell_ * cell_);
-            if (random.NextDouble() >= chance) {
-                continue;
-            }
-            const double u = random.NextDouble();
-            const double v = random.NextDouble();
-            const Vec2d center = cells_->SamplePoint(u, v, cell, cell_);
-            AddField(sum, random, center, surface_.Offset(center, {x, y}), ground);
+    const double reach = kRadiusMax * (1.0 + kRagged) * cell_;
+    for (const CellIndex& cell :
+         cells_->CellsCovering(surface_.Expand({x, y, x, y}, reach), cell_)) {
+        RandomStream random = LatticeStream(options_.seed, kBedformStream, cell.i, cell.j);
+        const double chance = density_ * cells_->CellArea(cell, cell_) / (cell_ * cell_);
+        if (random.NextDouble() >= chance) {
+            continue;
         }
-        return sum;
+        const double u = random.NextDouble();
+        const double v = random.NextDouble();
+        const Vec2d center = cells_->SamplePoint(u, v, cell, cell_);
+        AddField(sum, random, center, surface_.Offset(center, {x, y}), ground);
     }
-    ForEachLatticeCell({x, y}, {cell_, cell_}, 1, [&](std::int64_t gx, std::int64_t gy) {
-        RandomStream random = LatticeStream(options_.seed, kBedformStream, gx, gy);
-        if (random.NextDouble() >= density_) {
-            return;
-        }
-        const double cx = (static_cast<double>(gx) + random.NextDouble()) * cell_;
-        const double cy = (static_cast<double>(gy) + random.NextDouble()) * cell_;
-        AddField(sum, random, {cx, cy}, {x - cx, y - cy}, ground);
-    });
     return sum;
 }
 

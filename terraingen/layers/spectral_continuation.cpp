@@ -1,5 +1,6 @@
 #include "terraingen/layers/spectral_continuation.h"
 
+#include "terraingen/layers/lattice.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/random/streams.h"
 #include "terraingen/util/bits.h"
@@ -84,7 +85,8 @@ SpectralContinuationLayer::SpectralContinuationLayer(SpectralContinuationOptions
         band.frequency = std::ldexp(nyquist, i);
         band.bandwidth = kBandwidth * band.frequency;
         band.reach = radius / band.bandwidth;
-        band.index = static_cast<std::uint32_t>(i);
+        band.seed = SubstreamSeed(options_.seed, kSpectralContinuationStream,
+                                  static_cast<std::uint32_t>(i));
         bands_.push_back(band);
     }
 }
@@ -115,10 +117,7 @@ SpectralContinuationLayer::ImpulseTable SpectralContinuationLayer::Table(const B
     table.impulses.reserve(static_cast<std::size_t>(table.cols * rows * kImpulsesPerCell));
     for (std::int64_t row = table.row0; row < table.row0 + rows; ++row) {
         for (std::int64_t col = table.col0; col < table.col0 + table.cols; ++col) {
-            const auto high = static_cast<std::uint32_t>((col >> 32) ^ (row >> 32));
-            RandomStream random(options_.seed, kSpectralContinuationStream,
-                                static_cast<std::uint32_t>(col), static_cast<std::uint32_t>(row),
-                                band.index | (high << 6));
+            RandomStream random = LatticeStream(band.seed, kSpectralContinuationStream, col, row);
             for (int k = 0; k < kImpulsesPerCell; ++k) {
                 ImpulseTable::Impulse impulse;
                 impulse.x = (static_cast<double>(col) + random.NextDouble()) * band.reach;

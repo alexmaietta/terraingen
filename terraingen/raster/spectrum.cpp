@@ -4,6 +4,7 @@
 #include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/fft.h"
+#include "terraingen/util/plane_fit.h"
 
 #include <algorithm>
 #include <array>
@@ -69,66 +70,29 @@ Window CenteredWindow(const Raster<float>& heights) {
     return window;
 }
 
-/// The least-squares plane z = c0 + c1 x + c2 y through the cells of `window` holding data, x and
-/// y their offsets from the window's center in cells.
-struct Plane {
-    double c0 = 0.0;
-    double c1 = 0.0;
-    double c2 = 0.0;
-
-    double At(double x, double y) const {
-        return c0 + c1 * x + c2 * y;
-    }
-};
-
-using Matrix3 = std::array<std::array<double, 3>, 3>;
-
-double Determinant(const Matrix3& m) {
-    return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
-           m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
-           m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-}
-
 /// The offset of cell `i` of `n` from their center, in cells.
 double Centered(std::size_t i, std::size_t n) {
     return static_cast<double>(i) - 0.5 * static_cast<double>(n - 1);
 }
 
+/// The least-squares plane through the cells of `window` holding data, in cells from the
+/// window's center.
+/// @throws std::invalid_argument for a window without data.
 Plane FitPlane(const Raster<float>& heights, const Window& window) {
-    Matrix3 normal{};
-    std::array<double, 3> right{};
+    PlaneFit fit;
     for (std::size_t row = 0; row < window.height; ++row) {
         for (std::size_t col = 0; col < window.width; ++col) {
             const float value = heights(window.col0 + col, window.row0 + row);
-            if (heights.IsMissing(value)) {
-                continue;
-            }
-            const std::array<double, 3> basis{1.0, Centered(col, window.width),
-                                              Centered(row, window.height)};
-            for (std::size_t i = 0; i < 3; ++i) {
-                for (std::size_t j = 0; j < 3; ++j) {
-                    normal[i][j] += basis[i] * basis[j];
-                }
-                right[i] += basis[i] * static_cast<double>(value);
+            if (!heights.IsMissing(value)) {
+                fit.Add(Centered(col, window.width), Centered(row, window.height),
+                        static_cast<double>(value));
             }
         }
     }
-    if (normal[0][0] == 0.0) {
+    if (fit.Empty()) {
         throw std::invalid_argument("A power spectrum needs cells with data");
     }
-    const double det = Determinant(normal);
-    if (!(std::fabs(det) > 1e-12 * normal[0][0] * normal[1][1] * normal[2][2])) {
-        return {right[0] / normal[0][0], 0.0, 0.0};
-    }
-    std::array<double, 3> c{};
-    for (std::size_t k = 0; k < 3; ++k) {
-        Matrix3 replaced = normal;
-        for (std::size_t i = 0; i < 3; ++i) {
-            replaced[i][k] = right[i];
-        }
-        c[k] = Determinant(replaced) / det;
-    }
-    return {c[0], c[1], c[2]};
+    return fit.Solve();
 }
 
 /// The window's heights minus their plane, zero without data, times the 2D Hann window; and the
@@ -149,8 +113,8 @@ std::pair<std::vector<std::complex<double>>, double> TaperedWindow(const Raster<
             if (heights.IsMissing(value)) {
                 continue;
             }
-            const double trend =
-                plane.At(Centered(col, window.width), Centered(row, window.height));
+            const double trend = plane.a + plane.b * Centered(col, window.width) +
+                                 plane.c * Centered(row, window.height);
             values[row * window.width + col] = (static_cast<double>(value) - trend) *
                                                Hann(col, window.width) * Hann(row, window.height);
         }

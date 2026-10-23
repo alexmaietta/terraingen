@@ -2,6 +2,7 @@
 
 #include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/quadrature.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,17 +19,11 @@ constexpr int kArealSteps = 2048;
 /// The share of ground covered by features of `distribution` in [`low`, `high`) meters: the
 /// integral of pi D^2 / 4 dN/dD, taken in log diameter.
 double ArealFraction(const SizeFrequencyDistribution& distribution, double low, double high) {
-    const double a = std::log(low);
-    const double h = (std::log(high) - a) / kArealSteps;
-    const auto f = [&](int i) {
-        const double d = std::exp(a + h * i);
-        return 0.25 * kPi * d * d * d * distribution.Incremental(d);
-    };
-    double sum = f(0) + f(kArealSteps);
-    for (int i = 1; i < kArealSteps; ++i) {
-        sum += (i % 2 == 1 ? 4.0 : 2.0) * f(i);
-    }
-    return sum * h / 3.0;
+    double sum = 0.0;
+    ForEachLogSimpsonNode(low, high, kArealSteps, [&](double d, double weight) {
+        sum += weight * 0.25 * kPi * d * d * distribution.Incremental(d);
+    });
+    return sum;
 }
 
 }  // namespace

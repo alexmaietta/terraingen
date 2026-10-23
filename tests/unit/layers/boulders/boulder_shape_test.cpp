@@ -257,3 +257,17 @@ TEST(GenerateBoulderShape, WeatheringWearsEdgesAwayAndZeroKeepsThemSharp) {
     }
     EXPECT_GT(onTop, 3u) << "without softness or roughness, faces stay flat";
 }
+
+TEST(UnitBoulderShape, CentersAndScalesToTheLongerHorizontalSide) {
+    terraingen::TriangleMesh box =
+        terraingen::Scaled(terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube), {2.0, 3.0, 1.0});
+    for (auto& p : box.positions) {
+        p = p + terraingen::Vec3d{5.0, 0.0, -2.0};
+    }
+    const auto shape = terraingen::UnitBoulderShape(box, terraingen::Bounds(box));
+    const auto bounds = terraingen::Bounds(shape.mesh);
+    EXPECT_NEAR(bounds.max.y - bounds.min.y, 1.0, 1e-12) << "y is the longer side, left unturned";
+    EXPECT_NEAR(bounds.min.x + bounds.max.x, 0.0, 1e-12);
+    EXPECT_NEAR(shape.intermediate, 2.0 / 3.0, 1e-12);
+    EXPECT_NEAR(shape.shortAxis, 1.0 / 3.0, 1e-12);
+}

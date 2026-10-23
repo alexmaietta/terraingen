@@ -13,6 +13,7 @@
 #include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
+#include "terraingen/util/quadrature.h"
 
 #include <algorithm>
 #include <cmath>
@@ -303,17 +304,12 @@ std::vector<BoulderLayer::UnresolvedNode> BoulderLayer::UnresolvedNodes(double s
         if (!(high > low)) {
             return;
         }
-        constexpr int kIntervals = 16;
-        const double a = std::log(low);
-        const double h = (std::log(high) - a) / kIntervals;
-        for (int i = 0; i <= kIntervals; ++i) {
-            const double d = std::exp(a + h * i);
-            const double simpson = (i == 0 || i == kIntervals) ? 1.0 : (i % 2 == 1 ? 4.0 : 2.0);
+        ForEachLogSimpsonNode(low, high, 16, [&](double d, double weight) {
             const double unresolved = 1.0 - ResolutionWeight(d, spacing, options_.fade);
             if (unresolved > 0.0) {
-                nodes.push_back({d, 0.25 * kPi * d * d, unresolved * d * simpson * h / 3.0});
+                nodes.push_back({d, 0.25 * kPi * d * d, unresolved * weight});
             }
-        }
+        });
     };
     add(sizes.minDiameter, std::fmin(start, end));
     add(std::fmax(sizes.minDiameter, start), end);
