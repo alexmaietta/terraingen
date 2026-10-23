@@ -20,6 +20,12 @@ using terraingen::Vec2d;
 
 namespace {
 
+/// Whether `shape` keeps the level-ground shape.
+bool Level(const CraterSlopeShape& shape) {
+    return shape.shift.x == 0.0 && shape.shift.y == 0.0 && shape.upslope.x == 0.0 &&
+           shape.upslope.y == 0.0;
+}
+
 CraterSlopeResponse Enabled(double offset = 0.1, double upslopeRim = 0.0) {
     CraterSlopeResponse response;
     response.enabled = true;
@@ -32,10 +38,10 @@ CraterSlopeResponse Enabled(double offset = 0.1, double upslopeRim = 0.0) {
 
 TEST(SlopeShape, OffsetsTheFloorDownslopeAndLowersTheRimUpslope) {
     const Crater crater{0.0, 0.0, 100.0, 1.0, 9u};
-    EXPECT_TRUE(SlopeShape(crater, 0.3, 0.0, {}).Level()) << "off by default";
-    EXPECT_TRUE(SlopeShape(crater, 0.0, 0.0, Enabled()).Level()) << "level ground";
+    EXPECT_TRUE(Level(SlopeShape(crater, 0.3, 0.0, {}))) << "off by default";
+    EXPECT_TRUE(Level(SlopeShape(crater, 0.0, 0.0, Enabled()))) << "level ground";
     const CraterSlopeShape shape = SlopeShape(crater, 0.0, 0.5, Enabled(0.1, 0.25));
-    EXPECT_FALSE(shape.Level());
+    EXPECT_FALSE(Level(shape));
     EXPECT_NEAR(shape.shift.x, 0.0, 1e-12);
     EXPECT_DOUBLE_EQ(shape.shift.y, -10.0) << "downslope is south";
     EXPECT_NEAR(shape.upslope.x, 0.0, 1e-12);

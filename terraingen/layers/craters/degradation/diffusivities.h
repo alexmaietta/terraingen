@@ -9,10 +9,6 @@
 
 namespace terraingen {
 
-/// The depth over diameter at which Fassett et al. (2022, section 4) take a crater to be no longer
-/// recognized, from the left tail of the d/D distributions of Mahanti et al. (2018).
-inline constexpr double kVisibilityDepthRatio = 0.04;
-
 /// The lunar diffusivity of Fassett and Thomson (2014), 5.5 m^2/Myr for every size.
 PowerLawDiffusivity FassettThomson2014Diffusivity();
 

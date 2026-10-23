@@ -100,7 +100,7 @@ class CraterLayer final : public Layer, public CraterPlacer {
     double MaxFeatureDiameter() const;
 
     /// The craters this layer applies to a grid covering `region` (surface coordinates): generated
-    /// and manual ones centerd in it or within the profile's reach of it.
+    /// and manual ones centered in it or within the profile's reach of it.
     /// @param spacing Sample spacing in meters; bands too small to resolve at it are skipped
     /// (`CraterGenerationOptions::minResolvedDiameter`), 0 keeps every band.
     /// @param minDiameter,maxDiameter Diameters (m) of the craters wanted: generated bands wholly
@@ -108,10 +108,6 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// back.
     CraterList Craters(const Bounds2d& region, double spacing = 0.0, double minDiameter = 0.0,
                        double maxDiameter = std::numeric_limits<double>::infinity()) const;
-
-    /// A crater's depth, rim height and freshness in the state the degradation model gives it.
-    /// @throws std::domain_error as `DegradationModel::State`.
-    CraterAttributes Attributes(const Crater& crater) const;
 
     CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const override;
 
@@ -141,6 +137,8 @@ class CraterLayer final : public Layer, public CraterPlacer {
     static double SmallestThrower(const DensityMap& map, const SecondaryCraterOptions& secondaries);
     /// The craters large enough to throw secondaries that can reach `region`.
     CraterList Throwers(const Bounds2d& region) const;
+    /// The manual craters centered in `region` or within `marginRadii` of their radii of it.
+    CraterList ManualCratersNear(const Bounds2d& region, double marginRadii) const;
     /// The keep share for craters over `region`: the map's, less the secondaries thrown there
     /// by the craters around it that are large enough, when they are taken out of the map.
     CraterKeepShare KeepShare(const Bounds2d& region) const;

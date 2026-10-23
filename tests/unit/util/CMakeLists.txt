@@ -3,6 +3,7 @@ terraingen_add_test_suite(
     SOURCES
     arithmetic_test.cpp
     bits_test.cpp
+    bisection_test.cpp
     cells_test.cpp
     checks_test.cpp
     fft_test.cpp
@@ -11,6 +12,7 @@ terraingen_add_test_suite(
     log_test.cpp
     lru_cache_test.cpp
     overloaded_test.cpp
+    plane_fit_test.cpp
     parallel_test.cpp
     radial_shape_test.cpp
     span_test.cpp

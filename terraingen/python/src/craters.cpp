@@ -7,7 +7,6 @@
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/generation/population.h"
-#include "terraingen/layers/craters/generation/resolved_limit.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/craters/shaping/apply.h"
@@ -228,14 +227,8 @@ void BindGenerationOptions(nb::module_& m) {
                 "keyed to each ID; it is called from worker threads.")
         .def_rw("completeness", &CraterGenerationOptions::completeness,
                 "Diameter (m) from which `manual` is a complete catalog at each point, or from "
-                "which a DEM resolves craters (`unresolved_crater_limit`).")
+                "which a DEM resolves craters (`source_resolved_limit`).")
         .def("validate", &ValidateCraterGenerationOptions, kValidateDoc);
-    m.def("unresolved_crater_limit", &UnresolvedCraterLimit, "source"_a, "pixels_across"_a,
-          "surface"_a = Surface{},
-          "A field of the diameter (m) from which `source` resolves craters: `pixels_across` "
-          "times `source.resolution_at(x, y)`, converted to meters on `surface`; infinity where "
-          "it resolves nothing. Set `completeness` to it so generated craters leave the DEM's "
-          "own to it.");
     m.def("source_resolved_limit", &SourceResolvedLimit, "source"_a, "pixels_across"_a,
           "surface"_a = Surface{},
           "A field of the feature size (m) from which `source` holds a layer's features: "
@@ -270,9 +263,7 @@ void BindApplyEnums(nb::module_& m) {
     BindEnum<CraterDatum>(m, "CraterDatum", "The surface a crater's interior is cut relative to.");
     BindOptions<CraterBlend>(
         m, "CraterBlend",
-        "Where a crater's replaced interior blends into the draped exterior, in radii.")
-        .def("weight", &CraterBlend::Weight, "radii"_a,
-             "The interior weight `radii` crater radii from the center.");
+        "Where a crater's replaced interior blends into the draped exterior, in radii.");
 }
 
 void BindSelectionClass(nb::module_& m) {
@@ -330,9 +321,7 @@ void BindShapeDetails(nb::module_& m) {
         "Rounded crater rims: near the rim the profile is blended toward itself smoothed across "
         "distance by a Gaussian of `sigma_radii` radii, over the band from `inner_radii` to "
         "`outer_radii`, fading along `shape`, at `strength`; 0 `sigma_radii` leaves rims sharp.",
-        {&ValidateRimSmoothing, "validate_rim_smoothing", "smoothing"})
-        .def("weight", &RimSmoothing::Weight, "radii"_a,
-             "The smoothing weight at `radii` crater radii from the center.");
+        {&ValidateRimSmoothing, "validate_rim_smoothing", "smoothing"});
     BindOptions<CraterNoise>(
         m, "CraterNoise",
         "Fractal noise added to each crater, keyed to its ID: `amplitude` over the whole "
@@ -348,9 +337,6 @@ void BindShapeDetails(nb::module_& m) {
         "and `mantling` (older relief buried under the ejecta, with a datum), out to "
         "`ejecta_reach_radii`; gullies and ejecta fade out by `min_freshness`.",
         {&ValidateCraterTexture, "validate_crater_texture", "texture"});
-    m.def("ejecta_thickness_share", &EjectaThicknessShare, "radii"_a, "reach_radii"_a,
-          "McGetchin's ejecta thickness at `radii` radii over that at the rim, tapered to "
-          "nothing at `reach_radii`.");
 }
 
 void BindApplyOptions(nb::module_& m) {
@@ -436,7 +422,7 @@ nb::dict CraterLayerTable(const CraterLayer& layer, const Bounds2d& region, doub
     const CraterList craters = layer.Craters(region, spacing);
     std::vector<CraterAttributes> attributes;
     for (std::size_t i = 0; i < craters.Size(); ++i) {
-        attributes.push_back(layer.Attributes(craters.At(i)));
+        attributes.push_back(layer.Models().Shape().Attributes(craters.At(i)));
     }
     return CraterTable(craters, attributes);
 }
@@ -464,7 +450,6 @@ void BindCraterLayer(nb::module_& m) {
         .def("craters", &CraterLayerTable, "region"_a, "spacing"_a = 0.0,
              "The craters over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
              "evaluating any heights.")
-        .def("attributes", &CraterLayer::Attributes, "crater"_a)
         .def_prop_ro("models", &CraterLayer::Models)
         .def_prop_ro("options", &CraterLayer::Options);
 }

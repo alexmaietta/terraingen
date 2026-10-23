@@ -1,9 +1,9 @@
 #include "terraingen/layers/craters/generation/population.h"
 
-#include "terraingen/layers/bisection.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/random/samplers.h"
+#include "terraingen/util/bisection.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
 
@@ -130,7 +130,7 @@ class Generation {
         return SpacingReach(diameter, dMax_, spacing) + 0.5 * options_.marginRadii * neighbor;
     }
 
-    /// Whether `crater` is centerd in the region or within its margin of it.
+    /// Whether `crater` is centered in the region or within its margin of it.
     bool InRegion(const Crater& crater, double margin) const {
         return surface_.Contains(surface_.Expand(region_, margin), {crater.x, crater.y});
     }

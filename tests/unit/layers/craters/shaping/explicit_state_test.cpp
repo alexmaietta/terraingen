@@ -164,7 +164,7 @@ TEST(ResolvedCraterState, RejectsWhatTheFassettThomsonFitCannotShape) {
     const FassettThomsonProfile ft;
     const std::string rim = Rejection(ft, kFresh, Manual(10.0, 1.0, 0.2));
     EXPECT_NE(rim.find("the Fassett-Thomson profile fixes"), std::string::npos) << rim;
-    EXPECT_NE(rim.find("Martin-Parkes-Dunstan profile and complex craters honour"),
+    EXPECT_NE(rim.find("Martin-Parkes-Dunstan profile and complex craters honor"),
               std::string::npos);
     const std::string deep = Rejection(ft, kFresh, Manual(10.0, 3.0));
     EXPECT_NE(deep.find("deeper than the Fassett-Thomson fit"), std::string::npos) << deep;

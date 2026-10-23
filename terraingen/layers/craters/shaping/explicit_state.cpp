@@ -58,18 +58,18 @@ double FitFloorRatio(const FassettThomsonProfile& profile, double diameter,
 /// @throws std::invalid_argument otherwise.
 void CheckFassettThomson(const FassettThomsonProfile& profile, const Crater& crater,
                          const CraterMorphometry& fresh) {
-    const std::string honoured = "; the Martin-Parkes-Dunstan profile and complex craters honour "
-                                 "both depth and rim height";
+    const std::string honored = "; the Martin-Parkes-Dunstan profile and complex craters honor "
+                                "both depth and rim height";
     if (!std::isnan(crater.rimHeight)) {
         throw std::invalid_argument(CraterName(crater) +
                                     " has a rim height, which the Fassett-Thomson profile fixes" +
-                                    honoured);
+                                    honored);
     }
     const double deepest = fresh.rimHeightRatio - FitFloorRatio(profile, crater.diameter, fresh);
     if (crater.depth / crater.diameter > deepest * (1.0 + 1e-12)) {
         throw std::invalid_argument(CraterName(crater) +
                                     " is deeper than the Fassett-Thomson fit (" +
-                                    std::to_string(deepest * crater.diameter) + " m)" + honoured);
+                                    std::to_string(deepest * crater.diameter) + " m)" + honored);
     }
 }
 

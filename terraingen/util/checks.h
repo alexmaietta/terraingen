@@ -39,4 +39,9 @@ void RequireFinite(double value, std::string_view what);
 /// @throws std::invalid_argument "<what> must be in [0, 1]" otherwise.
 void RequireUnitInterval(double value, std::string_view what);
 
+
+/// Checks a feature's diameter, the argument of a model defined by size.
+/// @throws std::domain_error "Diameter must be positive and finite" otherwise.
+void RequireDiameter(double diameter);
+
 }  // namespace terraingen

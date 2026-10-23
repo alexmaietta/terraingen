@@ -312,9 +312,7 @@ CraterState DiffusionDegradation::State(const Crater& crater) const {
 }
 
 CraterState DiffusionDegradation::WornState(const Crater& crater, double rate) const {
-    if (!IsPositive(crater.diameter)) {
-        throw std::domain_error("Crater diameter must be positive and finite");
-    }
+    RequireDiameter(crater.diameter);
     if (!IsNonNegative(crater.ageGyr)) {
         throw std::domain_error("Crater age must be finite and not negative");
     }

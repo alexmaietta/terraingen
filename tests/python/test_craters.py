@@ -166,8 +166,6 @@ def test_rim_smoothing_lowers_the_highest_rim(lunar_craters):
     craters = generate_lunar_craters(lunar_craters)
     rounded = terraingen.CraterApplyOptions(rim_smoothing=terraingen.RimSmoothing(sigma_radii=0.1))
     assert carved_raster(craters, rounded).values.max() < carved_raster(craters).values.max()
-    assert terraingen.RimSmoothing().weight(1.0) == 0.0
-    assert rounded.rim_smoothing.weight(1.0) == 1.0
 
 
 def test_crater_texture_changes_the_craters_only_when_set(lunar_craters):
@@ -179,7 +177,6 @@ def test_crater_texture_changes_the_craters_only_when_set(lunar_craters):
     textured = terraingen.CraterApplyOptions(texture=texture)
     assert textured.texture.ejecta_reach_radii == 3.0
     assert (carved_raster(craters, textured).values != plain).any()
-    assert terraingen.ejecta_thickness_share(1.0, 3.0) == 1.0
     with pytest.raises(ValueError):
         terraingen.validate_crater_texture(terraingen.CraterTexture(mantling=2.0))
 
@@ -196,15 +193,6 @@ def test_crater_noise_changes_the_craters_only_when_set(lunar_craters):
     assert (carved_raster(craters, noisy).values != plain).any()
     with pytest.raises(ValueError):
         terraingen.validate_crater_noise(terraingen.CraterNoise(octaves=0))
-
-
-def test_crater_blend_weight_is_one_inside_the_blend():
-    assert terraingen.CraterBlend().weight(0.5) == 1.0
-
-
-def test_crater_blend_weight_falls_linearly_across_the_blend():
-    blend = terraingen.CraterBlend(start_radii=0.8, end_radii=1.2, shape=terraingen.BlendShape.LINEAR)
-    assert blend.weight(1.0) == pytest.approx(0.5)
 
 
 def test_fresh_crater_attributes_keep_the_fresh_depth_ratio():

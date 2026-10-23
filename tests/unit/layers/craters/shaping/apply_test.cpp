@@ -1,3 +1,4 @@
+#include "support/apply_crater.h"
 #include "support/log_capture.h"
 #include "terraingen/terraingen.h"
 
@@ -332,11 +333,21 @@ TEST(ApplyCraters, InteriorReplacementBlendsOldReliefWithTheDatum) {
 }
 
 TEST(CraterBlend, WeighsTheInteriorAlongItsFalloff) {
-    const terraingen::CraterBlend blend{0.8, 1.2, BlendShape::Linear};
-    EXPECT_EQ(blend.Weight(0.5), 1.0);
-    EXPECT_NEAR(blend.Weight(0.9), 0.75, 1e-12);
-    EXPECT_EQ(blend.Weight(1.3), 0.0);
-    EXPECT_EQ(blend.Weight(1.0), terraingen::Falloff(1.0, 0.8, 1.2, BlendShape::Linear));
+    const FassettThomsonProfile profile;
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
+    const terraingen::PreparedCrater bare{crater, 1.0, kFresh.State(crater)};
+    terraingen::PreparedCrater datum = bare;
+    datum.datum = terraingen::Plane{1.0, 0.0, 0.0};
+    CraterApplyOptions options;
+    options.blend = {0.8, 1.2, BlendShape::Linear};
+    const auto weight = [&](double radii) {
+        const double x = 10.0 * radii;
+        return terraingen::testing::ApplyCraterTo(2.0f, x, 0.0, bare, profile, options) -
+               terraingen::testing::ApplyCraterTo(2.0f, x, 0.0, datum, profile, options);
+    };
+    EXPECT_NEAR(weight(0.5), 1.0, 1e-6);
+    EXPECT_NEAR(weight(0.9), 0.75, 1e-6);
+    EXPECT_NEAR(weight(1.3), 0.0, 1e-6);
 }
 
 TEST(ApplyCraters, RejectsInvalidDatumAndBlendOptions) {
@@ -415,12 +426,12 @@ TEST(ApplyCraterTo, AddsTheProfileAndMovesTowardTheDatumInside) {
     const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
     terraingen::PreparedCrater prepared{crater, 0.5, kFresh.State(crater)};
     const double height = profile.Height(3.0, 20.0, prepared.state);
-    EXPECT_FLOAT_EQ(terraingen::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, {}),
+    EXPECT_FLOAT_EQ(terraingen::testing::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, {}),
                     static_cast<float>(2.0 + 0.5 * height));
-    EXPECT_EQ(terraingen::ApplyCraterTo(2.0f, 40.0, 0.0, prepared, profile, {}), 2.0f)
+    EXPECT_EQ(terraingen::testing::ApplyCraterTo(2.0f, 40.0, 0.0, prepared, profile, {}), 2.0f)
         << "beyond the profile's reach";
     prepared.datum = terraingen::Plane{1.0, 0.0, 0.0};
-    EXPECT_FLOAT_EQ(terraingen::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, {}),
+    EXPECT_FLOAT_EQ(terraingen::testing::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, {}),
                     static_cast<float>(2.0 + 0.5 * height + 0.5 * (1.0 - 2.0)));
 }
 
@@ -446,10 +457,6 @@ TEST(ApplyCraters, RoundsRimsByTheSmoothedProfileOnlyNearTheRim) {
         }
     }
     EXPECT_LT(roundedCrest, sharpCrest - 0.05f) << "the crest is lowered";
-    EXPECT_EQ(options.rimSmoothing.Weight(1.0), 1.0);
-    EXPECT_EQ(options.rimSmoothing.Weight(0.8), 0.0);
-    EXPECT_EQ(options.rimSmoothing.Weight(1.2), 0.0);
-    EXPECT_EQ(terraingen::RimSmoothing{}.Weight(1.0), 0.0) << "off by default";
     options.rimSmoothing.strength = 2.0;
     EXPECT_THROW(terraingen::ValidateCraterApplyOptions(options), std::invalid_argument);
     options.rimSmoothing = terraingen::RimSmoothing{};
@@ -467,20 +474,22 @@ TEST(ApplyCraterTo, AddsFootprintNoiseFadingOutBeyondTheRim) {
     double largest = 0.0;
     for (int i = 0; i < 40; ++i) {
         const double x = 0.4 * i - 8.0;
-        const float shift = terraingen::ApplyCraterTo(0.0f, x, 3.0, prepared, profile, noisy) -
-                            terraingen::ApplyCraterTo(0.0f, x, 3.0, prepared, profile, {});
+        const float shift =
+            terraingen::testing::ApplyCraterTo(0.0f, x, 3.0, prepared, profile, noisy) -
+            terraingen::testing::ApplyCraterTo(0.0f, x, 3.0, prepared, profile, {});
         largest = std::max(largest, static_cast<double>(std::fabs(shift)));
         ASSERT_LE(std::fabs(shift), 0.05 * 20.0 + 1e-4) << "within the amplitude";
     }
     EXPECT_GT(largest, 0.01) << "inside the rim";
     const double reach = profile.ReachRadii() * 10.0;
-    EXPECT_NEAR(terraingen::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, noisy),
-                terraingen::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, {}), 1e-6)
+    EXPECT_NEAR(
+        terraingen::testing::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, noisy),
+        terraingen::testing::ApplyCraterTo(0.0f, reach - 1e-6, 0.0, prepared, profile, {}), 1e-6)
         << "faded out at the reach, to within float rounding";
     const Crater other{0.0, 0.0, 20.0, 0.0, 2u};
     const terraingen::PreparedCrater second{other, 1.0, kFresh.State(other)};
-    EXPECT_NE(terraingen::ApplyCraterTo(0.0f, 3.0, 2.0, prepared, profile, noisy),
-              terraingen::ApplyCraterTo(0.0f, 3.0, 2.0, second, profile, noisy))
+    EXPECT_NE(terraingen::testing::ApplyCraterTo(0.0f, 3.0, 2.0, prepared, profile, noisy),
+              terraingen::testing::ApplyCraterTo(0.0f, 3.0, 2.0, second, profile, noisy))
         << "keyed to the crater ID";
 }
 
@@ -494,9 +503,9 @@ TEST(ApplyCraterTo, AddsRimNoiseOnlyInItsBand) {
     for (int i = 0; i <= 60; ++i) {
         const double radii = 0.025 * i;
         const float plain =
-            terraingen::ApplyCraterTo(0.0f, 10.0 * radii, 1.0, prepared, profile, {});
+            terraingen::testing::ApplyCraterTo(0.0f, 10.0 * radii, 1.0, prepared, profile, {});
         const float rough =
-            terraingen::ApplyCraterTo(0.0f, 10.0 * radii, 1.0, prepared, profile, noisy);
+            terraingen::testing::ApplyCraterTo(0.0f, 10.0 * radii, 1.0, prepared, profile, noisy);
         const double at = std::hypot(10.0 * radii, 1.0) / 10.0;
         if (at <= 0.8 || at >= 1.2) {
             ASSERT_EQ(rough, plain) << "outside the band at " << at;
@@ -517,12 +526,7 @@ TEST(ApplyCraterTo, AddsRimNoiseOnlyInItsBand) {
     EXPECT_THROW(terraingen::ValidateCraterNoise(noisy.noise), std::invalid_argument);
 }
 
-TEST(EjectaThicknessShare, FallsAsTheInverseCubeAndTapersToTheReach) {
-    EXPECT_EQ(terraingen::EjectaThicknessShare(0.5, 3.0), 1.0);
-    EXPECT_EQ(terraingen::EjectaThicknessShare(1.0, 3.0), 1.0);
-    EXPECT_DOUBLE_EQ(terraingen::EjectaThicknessShare(2.0, 3.0),
-                     (1.0 / 8.0 - 1.0 / 27.0) / (1.0 - 1.0 / 27.0));
-    EXPECT_EQ(terraingen::EjectaThicknessShare(3.0, 3.0), 0.0);
+TEST(CraterReachRadii, ReachesTheEjectaWhenTheTextureDrawsBeyondTheRim) {
     const FassettThomsonProfile profile;
     CraterApplyOptions options;
     EXPECT_EQ(terraingen::CraterReachRadii(profile, options), 1.5);
@@ -553,8 +557,8 @@ TEST(ApplyCraterTo, StreaksFreshWallsOnlyAndLetsThemWearAway) {
     const auto shift = [&](double radii, double angle) {
         const double x = 20.0 * radii * std::cos(angle);
         const double y = 20.0 * radii * std::sin(angle);
-        return terraingen::ApplyCraterTo(0.0f, x, y, prepared, profile, streaked) -
-               terraingen::ApplyCraterTo(0.0f, x, y, prepared, profile, {});
+        return terraingen::testing::ApplyCraterTo(0.0f, x, y, prepared, profile, streaked) -
+               terraingen::testing::ApplyCraterTo(0.0f, x, y, prepared, profile, {});
     };
     double largest = 0.0;
     for (int k = 0; k < 72; ++k) {
@@ -584,9 +588,9 @@ TEST(ApplyCraters, TexturesEjectaOutToTheirReachLikePointQueries) {
         for (std::size_t col = 0; col < textured.Width(); ++col) {
             const auto center = textured.CellCenter(col, row);
             const double radii = std::hypot(center.x - 0.5, center.y - 0.5) / 15.0;
-            ASSERT_EQ(
-                terraingen::ApplyCraterTo(0.0f, center.x, center.y, prepared, profile, options),
-                textured(col, row));
+            ASSERT_EQ(terraingen::testing::ApplyCraterTo(0.0f, center.x, center.y, prepared,
+                                                         profile, options),
+                      textured(col, row));
             if (radii <= 1.0 || radii >= 3.0) {
                 ASSERT_EQ(textured(col, row), plain(col, row)) << "only the ejecta at " << radii;
             }
@@ -603,12 +607,12 @@ TEST(ApplyCraterTo, BuriesOlderReliefUnderTheEjectaByTheDatum) {
     prepared.datum = terraingen::Plane{1.0, 0.0, 0.0};
     CraterApplyOptions options;
     options.texture.mantling = 1.0;
-    const double share = terraingen::EjectaThicknessShare(2.0, 3.0);
-    EXPECT_FLOAT_EQ(terraingen::ApplyCraterTo(2.0f, 20.0, 0.0, prepared, profile, options),
+    const double share = (1.0 / 8.0 - 1.0 / 27.0) / (1.0 - 1.0 / 27.0);
+    EXPECT_FLOAT_EQ(terraingen::testing::ApplyCraterTo(2.0f, 20.0, 0.0, prepared, profile, options),
                     static_cast<float>(2.0 + share * (1.0 - 2.0)));
-    EXPECT_EQ(terraingen::ApplyCraterTo(2.0f, 20.0, 0.0, prepared, profile, {}), 2.0f)
+    EXPECT_EQ(terraingen::testing::ApplyCraterTo(2.0f, 20.0, 0.0, prepared, profile, {}), 2.0f)
         << "nothing buried without mantling";
-    EXPECT_EQ(terraingen::ApplyCraterTo(2.0f, 31.0, 0.0, prepared, profile, options), 2.0f)
+    EXPECT_EQ(terraingen::testing::ApplyCraterTo(2.0f, 31.0, 0.0, prepared, profile, options), 2.0f)
         << "beyond the reach";
 }
 
@@ -643,4 +647,12 @@ TEST(SamplingFrom, CarriesTheLayerContext) {
     const terraingen::CraterSampling bare = terraingen::SamplingFrom({1.0}, 1.0, &owner);
     EXPECT_FALSE(bare.ground);
     EXPECT_FALSE(bare.groundBatch);
+}
+
+TEST(CraterReach, IsTheReachInRadiiStretchedByTheOutline) {
+    const Crater crater{0.0, 0.0, 20.0, 0.0, 1u};
+    terraingen::PreparedCrater prepared{crater, 1.0, kFresh.State(crater)};
+    EXPECT_EQ(terraingen::CraterReach(prepared, 1.5), 15.0);
+    prepared.outline.ellipticity = 4.0;
+    EXPECT_EQ(terraingen::CraterReach(prepared, 1.5), 30.0);
 }

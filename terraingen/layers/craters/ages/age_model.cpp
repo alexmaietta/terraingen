@@ -3,23 +3,11 @@
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
-#include <cmath>
-#include <stdexcept>
 
 namespace terraingen {
 
-namespace {
-
-void CheckDiameter(double diameter) {
-    if (!IsPositive(diameter)) {
-        throw std::domain_error("Diameter must be positive and finite");
-    }
-}
-
-}  // namespace
-
 double CraterAgeModel::LifetimeGyr(double diameter) const {
-    CheckDiameter(diameter);
+    RequireDiameter(diameter);
     return LifetimeAt(diameter);
 }
 

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "terraingen/layers/craters/crater.h"
-#include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/random/value_distribution.h"
 #include "terraingen/util/surface.h"
 

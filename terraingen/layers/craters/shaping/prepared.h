@@ -2,37 +2,17 @@
 /// @brief `PreparedCrater`, a crater with everything needed to shape it at one sample spacing.
 #pragma once
 
+#include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"
-#include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
+#include "terraingen/util/plane_fit.h"
 
 #include <functional>
 #include <optional>
 #include <vector>
 
 namespace terraingen {
-
-/// A crater's datum: the plane h = `a` + `b` dx + `c` dy, dx and dy in meters east and
-/// north of its center.
-struct Plane {
-    double a = 0.0;  ///< Height at the center (m).
-    double b = 0.0;  ///< Slope eastward (m/m).
-    double c = 0.0;  ///< Slope northward (m/m).
-
-    /// The height a + b dx + c dy at `dx` east and `dy` north of the center (m).
-    double At(double dx, double dy) const {
-        return a + b * dx + c * dy;
-    }
-
-    /// Memberwise equality.
-    bool operator==(const Plane& other) const {
-        return a == other.a && b == other.b && c == other.c;
-    }
-    bool operator!=(const Plane& other) const {
-        return !(*this == other);
-    }
-};
 
 /// A crater ready to shape at one sample spacing.
 struct PreparedCrater {
@@ -44,6 +24,11 @@ struct PreparedCrater {
     /// Its asymmetry on the ground beneath (`ShapeOnSlopes`); level without a slope response.
     CraterSlopeShape slope{};
 };
+
+/// How far (m) from its center `prepared` reaches at `reachRadii` radii, stretched by its outline.
+inline double CraterReach(const PreparedCrater& prepared, double reachRadii) {
+    return prepared.outline.MaxScale() * reachRadii * (0.5 * prepared.crater.diameter);
+}
 
 struct CraterShapeModels;
 

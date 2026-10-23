@@ -34,9 +34,9 @@ std::uint64_t SecondaryId(std::uint64_t primary, int band, std::int64_t ring, st
     return JoinWords(block.x, block.y);
 }
 
-/// The smallest and largest distances, and the directions (radians counter-clockwise from east,
-/// as an interval around `mid` of half-width `half`), from `center` to `region` on `surface`;
-/// the whole circle when `region` holds the center.
+/// A region seen from a primary's center: its nearest and farthest distances (m), and its
+/// directions as an interval around `mid` of half-width `half` (radians counter-clockwise from
+/// east).
 struct Footprint {
     double near = 0.0;
     double far = 0.0;
@@ -44,6 +44,7 @@ struct Footprint {
     double half = kPi;
 };
 
+/// `region` seen from `center` on `surface`; the whole circle when `region` holds the center.
 Footprint SecondaryFootprint(const Vec2d& center, const Bounds2d& region, const Surface& surface) {
     Footprint footprint;
     std::vector<Vec2d> corners;
@@ -129,22 +130,15 @@ struct Candidate {
     double e2 = 0.0;
 };
 
-}  // namespace
-
-double SecondaryStretch(const SecondaryShapes& shapes) {
-    return shapes.elongatedShare > 0.0 ? std::sqrt(shapes.ellipticity.Highest()) : 1.0;
-}
-
-namespace {
-
 /// Draws the secondaries of primaries into one list, keeping count of those expected.
 class Scatter {
   public:
-    Scatter(const SecondaryCraterLayer& layer, const Surface& surface, const Bounds2d& region,
-            const Bounds2d& wanted, double reachRadii, double skipBelow)
-        : options_(layer.Options()), limit_(layer.ResolvedLimit()), surface_(surface),
-          region_(region), wanted_(wanted), reachRadii_(reachRadii), skipBelow_(skipBelow),
-          maxStretch_(SecondaryStretch(layer.Options().shapes)) {}
+    Scatter(const SecondaryCraterOptions& options, const SurfaceField* limit,
+            const Surface& surface, const Bounds2d& region, const Bounds2d& wanted,
+            double reachRadii, double skipBelow)
+        : options_(options), limit_(limit), surface_(surface), region_(region), wanted_(wanted),
+          reachRadii_(reachRadii), skipBelow_(skipBelow),
+          maxStretch_(SecondaryStretch(options.shapes)) {}
 
     /// Draws the secondaries `crater` throws, if it is a selected primary.
     void DrawSecondaries(const Crater& crater) {
@@ -318,6 +312,10 @@ class Scatter {
 
 }  // namespace
 
+double SecondaryStretch(const SecondaryShapes& shapes) {
+    return shapes.elongatedShare > 0.0 ? std::sqrt(shapes.ellipticity.Highest()) : 1.0;
+}
+
 SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
                                            CraterShapeModels models, SecondaryCraterOptions options,
                                            CraterApplyOptions apply,
@@ -338,10 +336,6 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
 
 double SecondaryCraterLayer::OuterRange(double diameter) const {
     return SecondaryOuterRange(diameter, options_);
-}
-
-CraterAttributes SecondaryCraterLayer::Attributes(const Crater& crater) const {
-    return models_.Attributes(crater);
 }
 
 CraterFeatures SecondaryCraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
@@ -374,7 +368,7 @@ CraterList SecondaryCraterLayer::Secondaries(
     const CraterList primaries =
         primaries_->Craters(surface.Expand(wanted, OuterRange(largest)), 0.0);
     const double skipBelow = spacing > 0.0 ? apply_.fade.startSamples * spacing : 0.0;
-    Scatter scatter(*this, surface, region, wanted, reachRadii, skipBelow);
+    Scatter scatter(options_, limit_.get(), surface, region, wanted, reachRadii, skipBelow);
     for (std::size_t n = 0; n < primaries.Size(); ++n) {
         scatter.DrawSecondaries(primaries.At(n));
     }

@@ -2,8 +2,8 @@
 /// @brief `CraterAttributes`, what a crater looks like in its current state.
 #pragma once
 
+#include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/degradation/state.h"
-#include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/profiles/profile.h"
 
 namespace terraingen {

@@ -3,14 +3,11 @@
 #include "terraingen/util/checks.h"
 
 #include <cmath>
-#include <stdexcept>
 
 namespace terraingen {
 
 double LunarFreshCraterDepthRatio(double diameter) {
-    if (!IsPositive(diameter)) {
-        throw std::domain_error("Diameter must be positive and finite");
-    }
+    RequireDiameter(diameter);
     if (diameter <= 10.0) {
         return 0.10;
     }
@@ -49,9 +46,7 @@ ComplexCraterShape LunarComplexCraterShape() {
 }
 
 CraterMorphometry MarsFreshCraterMorphometry(double diameter) {
-    if (!IsPositive(diameter)) {
-        throw std::domain_error("Diameter must be positive and finite");
-    }
+    RequireDiameter(diameter);
     if (diameter >= kMarsComplexCraterDiameter) {
         const KilometerPowerLaw rim =
             diameter > 100000.0 ? KilometerPowerLaw{0.12, 0.35} : KilometerPowerLaw{0.02, 0.84};

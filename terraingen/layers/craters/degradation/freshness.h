@@ -18,7 +18,7 @@ class FreshnessDegradation final : public DegradationModel {
     /// @throws std::invalid_argument if `ages` is null, `fresh` empty, or `cutoffDepthRatio` not
     /// in (0, 0.1).
     FreshnessDegradation(std::shared_ptr<const CraterAgeModel> ages, FreshMorphometry fresh,
-                         double cutoffDepthRatio = 0.04);
+                         double cutoffDepthRatio = kVisibilityDepthRatio);
 
     /// The crater's fresh morphometry, and that scaled by the erosion factor at its age.
     /// @throws std::domain_error as `CraterAgeModel::LifetimeGyr`.

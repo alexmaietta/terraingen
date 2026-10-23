@@ -1,10 +1,10 @@
 #include "terraingen/layers/craters/crater_layer.h"
 
 #include "terraingen/distribution/summed.h"
-#include "terraingen/layers/bisection.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/source_resolved.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/util/bisection.h"
 #include "terraingen/util/cells.h"
 
 #include <algorithm>
@@ -112,17 +112,21 @@ CraterList CraterLayer::Throwers(const Bounds2d& region) const {
     }
     const Bounds2d around = options_.surface.Expand(region, reach);
     if (large.dMin < ResolveDMax(large.dMax, *candidates_)) {
-        if (cache_) {
-            large.cellCraters =
-                CachedCellCraters(*cache_, *cells_, *candidates_, *models_.ages, options_.seed);
-        }
-        return GenerateCraters(*cells_, around, *candidates_, *models_.ages, options_.seed, large);
+        return GenerateCachedCraters(cache_.get(), *cells_, around, *candidates_, *models_.ages,
+                                     options_.seed, large);
     }
-    CraterList throwers;
-    AppendManualCraters(large.manual, throwers, [&](const Crater& crater) {
-        return options_.surface.Contains(around, {crater.x, crater.y});
+    return ManualCratersNear(around, 0.0);
+}
+
+CraterList CraterLayer::ManualCratersNear(const Bounds2d& region, double marginRadii) const {
+    CraterList craters;
+    AppendManualCraters(options_.generation.manual, craters, [&](const Crater& crater) {
+        const Bounds2d near =
+            marginRadii > 0.0 ? options_.surface.Expand(region, 0.5 * marginRadii * crater.diameter)
+                              : region;
+        return options_.surface.Contains(near, {crater.x, crater.y});
     });
-    return throwers;
+    return craters;
 }
 
 CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
@@ -173,23 +177,13 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double m
         }
         generation.minResolvedDiameter = std::fmax(generation.minResolvedDiameter, minDiameter);
         generation.maxBandDiameter = std::fmin(generation.maxBandDiameter, maxDiameter);
-        if (cache_) {
-            generation.cellCraters =
-                CachedCellCraters(*cache_, *cells_, *candidates_, *models_.ages, options_.seed);
-        }
         if (std::isfinite(throwFrom_)) {
             generation.keepShare = KeepShare(region);
         }
-        return GenerateCraters(*cells_, region, *candidates_, *models_.ages, options_.seed,
-                               generation);
+        return GenerateCachedCraters(cache_.get(), *cells_, region, *candidates_, *models_.ages,
+                                     options_.seed, std::move(generation));
     }
-    CraterList craters;
-    AppendManualCraters(generation.manual, craters, [&](const Crater& crater) {
-        const double margin = 0.5 * generation.marginRadii * crater.diameter;
-        return options_.surface.Contains(options_.surface.Expand(region, margin),
-                                         {crater.x, crater.y});
-    });
-    return craters;
+    return ManualCratersNear(region, generation.marginRadii);
 }
 
 void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
@@ -207,10 +201,6 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     const CraterList craters = Craters(options_.surface.Expand(bounds, margin), spacing);
     ApplyCraters(samples, craters, models_.Shape(), options_.apply,
                  SamplingFrom(context, spacing, this));
-}
-
-CraterAttributes CraterLayer::Attributes(const Crater& crater) const {
-    return models_.Shape().Attributes(crater);
 }
 
 CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {

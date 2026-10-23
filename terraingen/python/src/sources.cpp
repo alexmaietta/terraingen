@@ -403,7 +403,7 @@ void BindFields(nb::module_& m) {
     nb::class_<MinimumField, SurfaceField>(
         m, "MinimumField",
         "The smaller of two fields at each point, the one with a value where the other is NaN, "
-        "such as a catalog's completeness limit and `unresolved_crater_limit`.")
+        "such as a catalog's completeness limit and `source_resolved_limit`.")
         .def(nb::init<std::shared_ptr<const SurfaceField>, std::shared_ptr<const SurfaceField>>(),
              "a"_a, "b"_a);
     auto options = nb::class_<RasterFieldOptions>(

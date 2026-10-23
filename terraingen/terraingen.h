@@ -55,7 +55,6 @@
 #include "terraingen/layers/craters/degradation/state.h"
 #include "terraingen/layers/craters/generation/cell_cache.h"
 #include "terraingen/layers/craters/generation/population.h"
-#include "terraingen/layers/craters/generation/resolved_limit.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/profiles/complex.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"

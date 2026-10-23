@@ -1,5 +1,5 @@
 /// @file
-/// @brief Applying craters to heights: one crater at a point, or a list over a raster.
+/// @brief Applying a list of craters to heights, over a raster or at scattered points.
 #pragma once
 
 #include "terraingen/gpu/backend.h"
@@ -32,7 +32,7 @@ struct CraterShapeModels {
     CraterAttributes Attributes(const Crater& crater) const;
 };
 
-/// How `ApplyCraters` samples a raster.
+/// How `ApplyCraters` samples a raster or points.
 struct CraterSampling {
     /// Sample spacing in world units; 0 or anything finer means the raster's cell size.
     double spacing = 0.0;
@@ -61,21 +61,12 @@ CraterSampling SamplingFrom(const LayerContext& context, double spacing, const v
 /// when `options.texture` draws beyond the rim and they reach further.
 double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& options);
 
-/// The height at surface (x, y) after one crater, bit-identical to what `ApplyCraters` does to a
-/// cell centerd there; `height` beyond its reach (`CraterReachRadii`).
-///
-/// Adds the profile, noise and texture weighted by the crater's resolution; with a datum, also
-/// moves the terrain toward the datum by `interiorReplacement` times the blend weight, or by the
-/// texture's mantling outside the rim where that is more.
-/// @param crater With its datum when the options have one.
-float ApplyCraterTo(float height, double x, double y, const PreparedCrater& crater,
-                    const CraterProfile& profile, const CraterApplyOptions& options);
-
 /// Applies craters to a raster, in turn, in the order `options` gives.
 ///
-/// Each crater is weighted by `ResolutionWeight`; with a datum, each is fitted to `sampling.ground`
-/// plus the relief of the craters before it. No-data cells are left unchanged and excluded from
-/// the fit.
+/// Each crater adds its profile, noise and texture weighted by `ResolutionWeight`; with a datum,
+/// fitted to `sampling.ground` plus the relief of the craters before it, it also moves the terrain
+/// toward the datum by `interiorReplacement` times the blend weight, or by the texture's mantling
+/// outside the rim where that is more. No-data cells are left unchanged and excluded from the fit.
 /// @param raster Its transform maps pixels to the craters' surface coordinates.
 /// @param craters With a datum, those within `DatumMargin` of the raster.
 /// @param models Neither may be null.
@@ -85,7 +76,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
                   const CraterApplyOptions& options = {}, const CraterSampling& sampling = {});
 
 /// `ApplyCraters` on a sample block: a grid as above, or scattered points, each of which ends at
-/// the same height as a grid cell centerd there.
+/// the same height as a grid cell centered there.
 /// @throws std::invalid_argument as above; for points also without a positive spacing, or with a
 /// datum and no `sampling.ground`.
 void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterShapeModels& models,

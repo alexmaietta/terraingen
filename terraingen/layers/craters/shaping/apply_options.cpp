@@ -9,16 +9,6 @@
 
 namespace terraingen {
 
-double RimSmoothing::Weight(double radii) const {
-    if (sigmaRadii == 0.0) {
-        return 0.0;
-    }
-    if (radii <= 1.0) {
-        return strength * Falloff(2.0 - radii, 1.0, 2.0 - innerRadii, shape);
-    }
-    return strength * Falloff(radii, 1.0, outerRadii, shape);
-}
-
 void ValidateRimSmoothing(const RimSmoothing& smoothing) {
     RequireNonNegative(smoothing.sigmaRadii, "Rim smoothing sigma");
     RequireUnitInterval(smoothing.strength, "Rim smoothing strength");
@@ -55,17 +45,6 @@ void ValidateCraterTexture(const CraterTexture& texture) {
     if (!(texture.minFreshness >= 0.0 && texture.minFreshness < 1.0)) {
         throw std::invalid_argument("Crater texture minFreshness must be in [0, 1)");
     }
-}
-
-double EjectaThicknessShare(double radii, double reachRadii) {
-    if (radii <= 1.0) {
-        return 1.0;
-    }
-    if (radii >= reachRadii) {
-        return 0.0;
-    }
-    const double atReach = 1.0 / (reachRadii * reachRadii * reachRadii);
-    return (1.0 / (radii * radii * radii) - atReach) / (1.0 - atReach);
 }
 
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {

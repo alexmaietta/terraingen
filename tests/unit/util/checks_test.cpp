@@ -54,3 +54,11 @@ TEST(Checks, RequirementsNameTheValueInTheirMessages) {
     EXPECT_EQ(MessageOf([] { terraingen::RequireUnitInterval(-0.5, "Shares"); }),
               "Shares must be in [0, 1]");
 }
+
+
+TEST(Checks, RequireDiameterRejectsDiametersOutsideAnyModelsDomain) {
+    EXPECT_NO_THROW(terraingen::RequireDiameter(4.0));
+    for (const double diameter : {0.0, -1.0, kInf, kNaN}) {
+        EXPECT_THROW(terraingen::RequireDiameter(diameter), std::domain_error) << diameter;
+    }
+}

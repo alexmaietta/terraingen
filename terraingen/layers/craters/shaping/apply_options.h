@@ -2,7 +2,7 @@
 /// @brief How craters are applied to the terrain: their order, datum, blend, outlines and rims.
 #pragma once
 
-#include "terraingen/layers/craters/generation/population.h"
+#include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 #include "terraingen/layers/craters/shaping/slope.h"
 #include "terraingen/layers/fade.h"
@@ -34,12 +34,6 @@ struct CraterBlend {
     double endRadii = 1.2;                        ///< And 0 from here; above `startRadii`.
     BlendShape shape = BlendShape::Smootherstep;  ///< The curve in between.
 
-    /// The interior weight at `radii` crater radii from the center: 1 up to `startRadii`, 0 from
-    /// `endRadii`, and `shape` in between.
-    double Weight(double radii) const {
-        return Falloff(radii, startRadii, endRadii, shape);
-    }
-
     /// Memberwise equality.
     bool operator==(const CraterBlend& other) const {
         return startRadii == other.startRadii && endRadii == other.endRadii && shape == other.shape;
@@ -58,10 +52,6 @@ struct RimSmoothing {
     double outerRadii = 1.2;  ///< Outer edge of the smoothed band, in crater radii; above 1.
     BlendShape shape = BlendShape::Smootherstep;  ///< How the weight falls toward the edges.
     double strength = 1.0;  ///< Share of the smoothed height used at the rim, in [0, 1].
-
-    /// The smoothing weight at `radii` crater radii from the center: `strength` at the rim, 0 from
-    /// the band's edges and when `sigmaRadii` is 0.
-    double Weight(double radii) const;
 
     /// Memberwise equality.
     bool operator==(const RimSmoothing& other) const {
@@ -152,10 +142,6 @@ struct CraterTexture {
 /// @throws std::invalid_argument for a negative or non-finite amplitude, a non-positive width, a
 /// mantling outside [0, 1], a reach of 1 radius or less, or a freshness outside [0, 1).
 void ValidateCraterTexture(const CraterTexture& texture);
-
-/// McGetchin et al.'s (1973) ejecta thickness at `radii` crater radii over that at the rim,
-/// (r / R)^-3, tapered linearly in it to nothing at `reachRadii`; 1 within the rim.
-double EjectaThicknessShare(double radii, double reachRadii);
 
 /// How `ApplyCraters` shapes craters into the terrain.
 struct CraterApplyOptions {

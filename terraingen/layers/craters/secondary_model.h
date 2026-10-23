@@ -35,14 +35,10 @@ double SecondaryOnsetRange(double diameter);
 /// @param coefficient In km.
 double ElliottMedianRayLength(double diameter, double coefficient = 6.59, double exponent = 1.27);
 
-/// Secondaries gathered into their primary's rays and clumped along them, as they commonly lie
-/// in radial chains and clusters pointing back to the primary (Singer et al. 2020); off by
-/// default. `share` of the secondaries follow the rays of `layout`, each ray's across-profile
-/// Gaussian at the ray's width 2 radii from the center but never narrower than
-/// `minHalfAngleDegrees`, and clumped along the ray by noise in log range with a wavelength of
-/// `clusterSpacing`. The count is kept: secondaries move into the rays, none are added. The
-/// share, floor angle, clustering and spacing are illustrative, as the sources do not measure
-/// them. Give a crater albedo layer the same layout for bright rays over the secondaries.
+/// Secondaries gathered into their primary's rays and clumped along them (Singer et al. 2020,
+/// https://doi.org/10.1029/2019JE006313); off by default. `share` of them follow the rays of
+/// `layout` with a Gaussian across-profile, clumped by noise in log range; none are added. Give a
+/// crater albedo layer the same layout for bright rays over the secondaries.
 struct SecondaryRays {
     bool enabled = false;              ///< Whether secondaries follow rays.
     RayLayout layout{};                ///< The rays.
@@ -194,11 +190,6 @@ class SecondaryDensity {
     /// The farthest a secondary lands from the primary's center, in meters; 0 when it throws none.
     double Reach() const {
         return outer_;
-    }
-
-    /// The primary's diameter, in meters.
-    double Diameter() const {
-        return diameter_;
     }
 
     /// Where the secondaries start (`SecondaryOnsetRange`), in meters from the primary's center.

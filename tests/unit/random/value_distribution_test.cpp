@@ -120,3 +120,13 @@ TEST(SplitId, GivesTheLowAndHighWords) {
     EXPECT_EQ(words.low, 0x89abcdefu);
     EXPECT_EQ(words.high, 0x01234567u);
 }
+
+TEST(ValueDistribution, DrawsFromTheNextTwoUniformsOfAStream) {
+    const ValueDistribution normal{ValueDistribution::Kind::Normal, 1.0, 0.5, -10.0, 10.0};
+    terraingen::RandomStream drawn(7u, 3u, 1u, 2u);
+    terraingen::RandomStream read(7u, 3u, 1u, 2u);
+    const double u1 = read.NextDouble();
+    const double u2 = read.NextDouble();
+    EXPECT_EQ(normal.Draw(drawn), normal.Sample(u1, u2));
+    EXPECT_EQ(drawn.NextDouble(), read.NextDouble()) << "two uniforms used";
+}

@@ -235,7 +235,7 @@ inline float KernelSmoothstep(float t) {
     return u * u * (3.0f - 2.0f * u);
 }
 
-/// The direction of (`dx`, `dy`) in radians from east, 0 at the origin: fast maths on some GPUs
+/// The direction of (`dx`, `dy`) in radians from east, 0 at the origin: fast math on some GPUs
 /// leaves `atan2(0, 0)` undefined.
 inline float KernelAngle(float dy, float dx) {
     if (dx == 0.0f && dy == 0.0f) {
@@ -244,7 +244,32 @@ inline float KernelAngle(float dy, float dx) {
     return atan2(dy, dx);
 }
 
-/// `EjectaThicknessShare`.
+/// pi and 2 pi in single precision.
+static const float kKernelPi = 3.14159265358979f;
+static const float kKernelTwoPi = 6.28318530717959f;
+
+/// A periodic table's knot below an angle and the fraction of the way to the next.
+struct KernelPeriodicCell {
+    uint32_t index;
+    float t;
+};
+
+/// Where angle `turns`, in turns, falls in a periodic table of `size` knots around a crater.
+inline KernelPeriodicCell KernelPeriodicAt(float turns, uint32_t size) {
+    const float position = (turns - floor(turns)) * float(size);
+    KernelPeriodicCell cell;
+    cell.index = min(uint32_t(position), size - 1u);
+    cell.t = position - float(cell.index);
+    return cell;
+}
+
+/// McGetchin et al.'s (1973) ejecta thickness (m) at the rim of a crater of `radius` meters.
+inline float KernelEjectaScale(float radius) {
+    return 0.14f * pow(radius, 0.74f);
+}
+
+/// McGetchin et al.'s (1973) ejecta thickness at `radii` crater radii over that at the rim,
+/// (r / R)^-3, tapered linearly in it to nothing at `reachRadii`; 1 within the rim.
 inline float KernelEjectaShare(float radii, float reachRadii) {
     if (radii <= 1.0f) {
         return 1.0f;
@@ -304,7 +329,7 @@ inline float MartinParkesDunstanHeight(float distance, float diameter, KERNEL_IN
     if (x <= 0.0f) {
         return k * (alpha + 1.0f) / alpha * x * x + rim;
     }
-    const float ejectaScale = 0.14f * pow(radius, 0.74f);
+    const float ejectaScale = KernelEjectaScale(radius);
     const float offset = rim - ejectaScale;
     const float gradient = -ejectaScale / 8.0f - offset;
     const float beta = min(1.0f, 1.5f * (freshRim - rim) / k);
@@ -317,7 +342,7 @@ inline float MartinParkesDunstanHeight(float distance, float diameter, KERNEL_IN
     return ejectaScale / ((x + 1.0f) * (x + 1.0f) * (x + 1.0f)) + offset + gradient * x;
 }
 
-/// The simple profile's height (m) in the fresh state when `fresh` is 1.
+/// The simple profile's height (m) in crater `c`'s current state.
 inline float SimpleProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distance, float diameter,
                                  KERNEL_IN(CraterRecord) c) {
     if (p.simple == CraterProfileKind::MartinParkesDunstan) {
@@ -362,7 +387,7 @@ inline float ComplexProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distan
     if (p.peakFromVolume == 1u) {
         const float volume =
             KilometerLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, true);
-        base = sqrt(3.0f * volume / (3.14159265358979f * peakHeight));
+        base = sqrt(3.0f * volume / (kKernelPi * peakHeight));
     } else {
         base = 0.5f * KilometerLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, false);
     }
@@ -384,6 +409,63 @@ inline float FreshProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distance
     return SimpleProfileHeight(p, distance, diameter, c);
 }
 
+/// A table row's cell at a distance and the fraction of the way across it.
+struct KernelTableCell {
+    uint32_t index;
+    float t;
+};
+
+/// Where `x` diameters from the center falls in a row of `p`'s tables.
+inline KernelTableCell KernelTableAt(KERNEL_IN(CraterProfileKernel) p, float x) {
+    const float position = x / p.tableExtent * float(p.tableCells);
+    KernelTableCell cell;
+    cell.index = min(uint32_t(position), p.tableCells - 1u);
+    cell.t = position - float(cell.index);
+    return cell;
+}
+
+/// The value `t` of the way from `data[at]` to `data[at + 1]`.
+inline float KernelLerp(CraterData data, uint32_t at, float t) {
+    return (1.0f - t) * CraterValue(data, at) + t * CraterValue(data, at + 1u);
+}
+
+/// The table row below a diffusion age and the weight of the row above it.
+struct KernelAgeRow {
+    uint32_t row;
+    float weight;
+};
+
+/// Where diffusion age `tau` falls among `p`'s tabulated ages, interpolating in log tau (linearly
+/// in tau before the first nonzero age), as `DiffusedProfile` does.
+inline KernelAgeRow KernelAgeRowAt(KERNEL_IN(CraterProfileKernel) p, CraterData data, float tau) {
+    KernelAgeRow age;
+    age.row = 0u;
+    age.weight = 0.0f;
+    const uint32_t last = p.ageCount - 1u;
+    const float first = CraterValue(data, p.agesOffset + 1u);
+    if (tau >= CraterValue(data, p.agesOffset + last)) {
+        age.row = last;
+    } else if (tau < first) {
+        age.weight = tau / first;
+    } else {
+        uint32_t low = 1u;
+        uint32_t high = last;
+        while (high - low > 1u) {
+            const uint32_t middle = (low + high) / 2u;
+            if (CraterValue(data, p.agesOffset + middle) <= tau) {
+                low = middle;
+            } else {
+                high = middle;
+            }
+        }
+        age.row = low;
+        const float below = CraterValue(data, p.agesOffset + low);
+        const float above = CraterValue(data, p.agesOffset + high);
+        age.weight = log(tau / below) / log(above / below);
+    }
+    return age;
+}
+
 /// `DiffusedProfile::Height` (m), reading the crater's table from `data`.
 inline float DiffusedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData data,
                                    float distance, float diameter, KERNEL_IN(CraterRecord) c) {
@@ -397,40 +479,13 @@ inline float DiffusedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData 
     if (x >= p.tableExtent) {
         return 0.0f;
     }
-    const float cell = x / p.tableExtent * float(p.tableCells);
-    const uint32_t i = min(uint32_t(cell), p.tableCells - 1u);
-    const float t = cell - float(i);
-    uint32_t row = 0u;
-    float weight = 0.0f;
-    const uint32_t last = p.ageCount - 1u;
-    const float first = CraterValue(data, p.agesOffset + 1u);
-    if (c.diffusion >= CraterValue(data, p.agesOffset + last)) {
-        row = last;
-    } else if (c.diffusion < first) {
-        weight = c.diffusion / first;
-    } else {
-        uint32_t low = 1u;
-        uint32_t high = last;
-        while (high - low > 1u) {
-            const uint32_t middle = (low + high) / 2u;
-            if (CraterValue(data, p.agesOffset + middle) <= c.diffusion) {
-                low = middle;
-            } else {
-                high = middle;
-            }
-        }
-        row = low;
-        const float below = CraterValue(data, p.agesOffset + low);
-        const float above = CraterValue(data, p.agesOffset + high);
-        weight = log(c.diffusion / below) / log(above / below);
-    }
+    const KernelTableCell cell = KernelTableAt(p, x);
+    const KernelAgeRow age = KernelAgeRowAt(p, data, c.diffusion);
     const uint32_t width = p.tableCells + 1u;
-    const uint32_t at = c.profileOffset + row * width + i;
-    float value = (1.0f - t) * CraterValue(data, at) + t * CraterValue(data, at + 1u);
-    if (weight > 0.0f) {
-        const float next =
-            (1.0f - t) * CraterValue(data, at + width) + t * CraterValue(data, at + width + 1u);
-        value += weight * (next - value);
+    const uint32_t at = c.profileOffset + age.row * width + cell.index;
+    float value = KernelLerp(data, at, cell.t);
+    if (age.weight > 0.0f) {
+        value += age.weight * (KernelLerp(data, at + width, cell.t) - value);
     }
     return diameter * value;
 }
@@ -443,11 +498,8 @@ inline float TabulatedProfileHeight(KERNEL_IN(CraterProfileKernel) p, CraterData
     if (!(x < p.tableExtent)) {
         return 0.0f;
     }
-    const float cell = x / p.tableExtent * float(p.tableCells);
-    const uint32_t i = min(uint32_t(cell), p.tableCells - 1u);
-    const float t = cell - float(i);
-    const uint32_t at = c.profileOffset + i;
-    return diameter * ((1.0f - t) * CraterValue(data, at) + t * CraterValue(data, at + 1u));
+    const KernelTableCell cell = KernelTableAt(p, x);
+    return diameter * KernelLerp(data, c.profileOffset + cell.index, cell.t);
 }
 
 /// The profile's height (m) at `distance`.
@@ -565,7 +617,7 @@ inline float KernelTextureHeight(KERNEL_IN(CraterShapeKernel) k, KERNEL_IN(Crate
     if (k.ejecta > 0.0f && radii > 1.0f && radii < k.ejectaReachRadii) {
         const float radius = 0.5f * c.diameter;
         const float thickness =
-            0.14f * pow(radius, 0.74f) * KernelEjectaShare(radii, k.ejectaReachRadii);
+            KernelEjectaScale(radius) * KernelEjectaShare(radii, k.ejectaReachRadii);
         const float rise = KernelSmoothstep((radii - 1.0f) / 0.1f);
         height += k.ejecta * thickness * rise *
                   KernelRadialStreaks(radii, angle, k.ejectaLineation, 2.0f * k.ejectaLineation, 3,
@@ -587,12 +639,9 @@ inline float KernelOutlineScale(CraterData data, KERNEL_IN(CraterRecord) c, floa
     }
     float wobble = 1.0f;
     if (c.tableCount > 0u) {
-        const float turns = theta / 6.28318530717959f;
-        const float position = (turns - floor(turns)) * float(c.tableCount);
-        const uint32_t index = min(uint32_t(position), c.tableCount - 1u);
-        const float t = position - float(index);
-        wobble += (1.0f - t) * CraterValue(data, c.tableOffset + index) +
-                  t * CraterValue(data, c.tableOffset + (index + 1u) % c.tableCount);
+        const KernelPeriodicCell cell = KernelPeriodicAt(theta / kKernelTwoPi, c.tableCount);
+        wobble += (1.0f - cell.t) * CraterValue(data, c.tableOffset + cell.index) +
+                  cell.t * CraterValue(data, c.tableOffset + (cell.index + 1u) % c.tableCount);
     }
     for (uint32_t n = 0u; n < c.harmonicCount; ++n) {
         const float order = float(c.firstHarmonic + n);
@@ -614,11 +663,10 @@ inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float d
     }
     const float window = KernelSmoothstep((radii - inner + fade) / fade) *
                          KernelSmoothstep((outer + fade - radii) / fade);
-    const float turns = KernelAngle(dy, dx) / 6.28318530717959f;
     const uint32_t size = c.markCount;
-    const float position = (turns - floor(turns)) * float(size);
-    const uint32_t index = min(uint32_t(position), size - 1u);
-    const float t = position - float(index);
+    const KernelPeriodicCell cell = KernelPeriodicAt(KernelAngle(dy, dx) / kKernelTwoPi, size);
+    const uint32_t index = cell.index;
+    const float t = cell.t;
     const uint32_t knots = c.markOffset + 3u;
     const float p0 = CraterValue(data, knots + (index + size - 1u) % size);
     const float p1 = CraterValue(data, knots + index);
@@ -663,16 +711,30 @@ inline float KernelSlopeRaisedShare(KERNEL_IN(CraterRecord) c, float dx, float d
     return 1.0f - removed * cosine * cosine;
 }
 
-/// `height` after crater `c`, at `dx` east and `dy` north of its center in meters
-/// (`ApplyCraterTo`); unchanged beyond its reach.
+/// `KernelProfileDistance` at `dx` east and `dy` north of crater `c`'s center after its floor
+/// shift (`CraterSlopeShape::shift`).
+inline float KernelShiftedDistance(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
+    const float shift =
+        c.shiftX != 0.0f || c.shiftY != 0.0f ? KernelSlopeShiftWeight(c, dx, dy) : 0.0f;
+    return KernelProfileDistance(data, c, dx - shift * c.shiftX, dy - shift * c.shiftY);
+}
+
+/// Profile height `height` (m) at `dx` east and `dy` north of crater `c`'s center with its raised
+/// relief lowered upslope (`CraterSlopeShape::upslope`).
+inline float KernelUpslopeHeight(KERNEL_IN(CraterRecord) c, float height, float dx, float dy) {
+    if (height > 0.0f && (c.upslopeX != 0.0f || c.upslopeY != 0.0f)) {
+        return height * KernelSlopeRaisedShare(c, dx, dy);
+    }
+    return height;
+}
+
+/// `height` after crater `c`, at `dx` east and `dy` north of its center in meters, as
+/// `ApplyCraters` shapes a cell there; unchanged beyond its reach.
 inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
                                KERNEL_IN(CraterRecord) c, float height, float dx, float dy) {
     const float diameter = c.diameter;
     const float radius = 0.5f * diameter;
-    const bool shifted = c.shiftX != 0.0f || c.shiftY != 0.0f;
-    const float shift = shifted ? KernelSlopeShiftWeight(c, dx, dy) : 0.0f;
-    const float distance =
-        KernelProfileDistance(data, c, dx - shift * c.shiftX, dy - shift * c.shiftY);
+    const float distance = KernelShiftedDistance(data, c, dx, dy);
     if (distance >= k.reachRadii * radius) {
         return height;
     }
@@ -686,10 +748,8 @@ inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
         }
         replaced = weight * (c.datumA + c.datumB * dx + c.datumC * dy - height);
     }
-    float bare = KernelRoundedHeight(k, data, distance, diameter, c);
-    if (bare > 0.0f && (c.upslopeX != 0.0f || c.upslopeY != 0.0f)) {
-        bare *= KernelSlopeRaisedShare(c, dx, dy);
-    }
+    const float bare =
+        KernelUpslopeHeight(c, KernelRoundedHeight(k, data, distance, diameter, c), dx, dy);
     const float shaped =
         bare + KernelNoiseHeight(k, c, dx, dy, radii) + KernelTextureHeight(k, c, dx, dy, radii);
     return height + c.resolution * shaped + c.resolution * replaced;
@@ -702,7 +762,6 @@ struct CraterDatumKernel {
     float fitRadii = 1.0f;      ///< The fit footprint, in crater radii.
     uint32_t latticeSide = 7u;  ///< Lattice points per side.
     uint32_t bandCount = 0u;    ///< Size bands of the crater index.
-    uint32_t unused = 0u;
 };
 
 /// The relief (m) crater `c` adds at `dx` east and `dy` north of its center without its datum,
@@ -714,18 +773,12 @@ inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
     if (!(squared < bound * bound)) {
         return 0.0f;
     }
-    const float shift =
-        c.shiftX != 0.0f || c.shiftY != 0.0f ? KernelSlopeShiftWeight(c, dx, dy) : 0.0f;
-    const float distance =
-        KernelProfileDistance(data, c, dx - shift * c.shiftX, dy - shift * c.shiftY);
+    const float distance = KernelShiftedDistance(data, c, dx, dy);
     if (!(distance < k.profileReachRadii * 0.5f * c.diameter)) {
         return 0.0f;
     }
-    float height = KernelProfileHeight(k, data, distance, c.diameter, c);
-    if (height > 0.0f && (c.upslopeX != 0.0f || c.upslopeY != 0.0f)) {
-        height *= KernelSlopeRaisedShare(c, dx, dy);
-    }
-    return c.resolution * height;
+    return c.resolution *
+           KernelUpslopeHeight(c, KernelProfileHeight(k, data, distance, c.diameter, c), dx, dy);
 }
 
 /// The offset (m) of lattice point `index` of `side` across a footprint of `fitRadius`.
@@ -736,16 +789,26 @@ inline float KernelDatumOffset(uint32_t index, uint32_t side, float fitRadius) {
 /// Relative float error allowed for, in cell lookups, at a position's magnitude.
 static const float kDatumCellSlack = 4.8e-7f;
 
+/// The first and last cells of a band's row or column within one cell of position `p`.
+struct KernelCellSpan {
+    int32_t first;
+    int32_t last;
+};
+
+/// The cells of side `size`, `count` of them from absolute cell `start`, within one cell plus
+/// float slack `slack` of position `p`, clamped to the band.
+inline KernelCellSpan KernelCellsNear(float p, float size, float slack, float start,
+                                      int32_t count) {
+    KernelCellSpan span;
+    span.first = max(int32_t(floor((p - size - slack) / size) - start), 0);
+    span.last = min(int32_t(floor((p + size + slack) / size) - start), count - 1);
+    return span;
+}
+
 /// The relief (m) of the craters before crater `k` of `records` at lattice point `point` of `k`'s
-/// datum footprint, numbered row by row; 0 outside the footprint.
-///
-/// Records hold positions as the floats nearest them and `lows` (x, y pairs) what those drop.
-/// Craters are found through size bands: per band, `bandFloats` holds its cell size, which is at
-/// least the reach of its craters, and its first cell's column and row, counted from the
-/// surface's origin; `bandCells` its cells across and down and its first cell; per cell, `cells`
-/// holds its first entry in `entries` and its entry count, entries being record indices in
-/// ascending order. Cells and order are absolute, so the sum depends only on the craters reaching
-/// the point.
+/// datum footprint, numbered row by row; 0 outside the footprint. The index is laid out as
+/// `DatumKernelIndex` (shaping/datum_fit.cpp) describes, with `lows` the x, y pairs the records'
+/// float positions drop.
 inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData data,
                                CraterRecords records, KernelFloats lows, KernelFloats bandFloats,
                                KernelUints bandCells, KernelUints cells, KernelUints entries,
@@ -767,17 +830,12 @@ inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData d
     for (uint32_t b = 0u; b < kernel.bandCount; ++b) {
         const float size = bandFloats[3u * b];
         const int32_t across = int32_t(bandCells[3u * b]);
-        const int32_t down = int32_t(bandCells[3u * b + 1u]);
-        const int32_t i0 =
-            max(int32_t(floor((px - size - slackX) / size) - bandFloats[3u * b + 1u]), 0);
-        const int32_t i1 =
-            min(int32_t(floor((px + size + slackX) / size) - bandFloats[3u * b + 1u]), across - 1);
-        const int32_t j0 =
-            max(int32_t(floor((py - size - slackY) / size) - bandFloats[3u * b + 2u]), 0);
-        const int32_t j1 =
-            min(int32_t(floor((py + size + slackY) / size) - bandFloats[3u * b + 2u]), down - 1);
-        for (int32_t j = j0; j <= j1; ++j) {
-            for (int32_t i = i0; i <= i1; ++i) {
+        const KernelCellSpan columns =
+            KernelCellsNear(px, size, slackX, bandFloats[3u * b + 1u], across);
+        const KernelCellSpan rows = KernelCellsNear(py, size, slackY, bandFloats[3u * b + 2u],
+                                                    int32_t(bandCells[3u * b + 1u]));
+        for (int32_t j = rows.first; j <= rows.last; ++j) {
+            for (int32_t i = columns.first; i <= columns.last; ++i) {
                 const uint32_t cell = bandCells[3u * b + 2u] + uint32_t(j * across + i);
                 const uint32_t first = cells[2u * cell];
                 const uint32_t end = first + cells[2u * cell + 1u];
@@ -825,15 +883,15 @@ static_assert(sizeof(CraterProfileKernel) == 76,
 static_assert(sizeof(CraterShapeKernel) == 180, "CraterShapeKernel must match its std430 layout");
 static_assert(sizeof(CraterRecord) == 116, "CraterRecord must match its std430 layout");
 static_assert(sizeof(CraterFrame) == 40, "CraterFrame must match its std430 layout");
+static_assert(sizeof(CraterDatumKernel) == 192, "CraterDatumKernel must match its std430 layout");
+static_assert(sizeof(CraterBodyDatumKernel) == 180,
+              "CraterBodyDatumKernel must match its std430 layout");
 
 /// The compiled forms of the crater kernel.
 template <> KernelProgram CompiledKernel<CraterShapeKernel>();
-static_assert(sizeof(CraterDatumKernel) == 196, "CraterDatumKernel must match its std430 layout");
 
 /// The compiled forms of the crater datum kernel.
 template <> KernelProgram CompiledKernel<CraterDatumKernel>();
-static_assert(sizeof(CraterBodyDatumKernel) == 180,
-              "CraterBodyDatumKernel must match its std430 layout");
 
 /// The compiled forms of the crater datum kernel on bodies.
 template <> KernelProgram CompiledKernel<CraterBodyDatumKernel>();

@@ -7,10 +7,12 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdlib>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
+#include <vector>
 
 using terraingen::Backend;
 
@@ -176,4 +178,14 @@ TEST(MetalCompute, OpensOnlyOnApplePlatforms) {
     EXPECT_EQ(terraingen::MetalCompute::Get(), nullptr);
     EXPECT_EQ(terraingen::MetalCompute::Reason(), "Metal runs only on Apple platforms");
 #endif
+}
+
+TEST(MakeKernelBuffer, ViewsTheValuesBytesAndCountsTheElements) {
+    const std::vector<float> values{1.0f, 2.0f, 3.0f};
+    const terraingen::KernelBuffer whole = terraingen::MakeKernelBuffer(values);
+    EXPECT_EQ(whole.bytes.data(), reinterpret_cast<const std::byte*>(values.data()));
+    EXPECT_EQ(whole.bytes.size(), 3 * sizeof(float));
+    EXPECT_EQ(whole.count, 3u);
+    EXPECT_EQ(whole.perCell, 0u);
+    EXPECT_EQ(terraingen::MakeKernelBuffer(values, 3).perCell, 3u);
 }

@@ -294,9 +294,7 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
     if (irregularity.marksShare > 0.0) {
         RandomStream marks(irregularity.seed, kCraterMarkStream, id.low, id.high);
         const double share = marks.NextDouble();
-        const double u1 = marks.NextDouble();
-        const double u2 = marks.NextDouble();
-        const double amplitude = irregularity.marksAmplitude.Sample(u1, u2);
+        const double amplitude = irregularity.marksAmplitude.Draw(marks);
         if (share < irregularity.marksShare && amplitude > 0.0) {
             outline.marks.resize(static_cast<std::size_t>(irregularity.marksKnots));
             for (double& knot : outline.marks) {

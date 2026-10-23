@@ -1,4 +1,4 @@
-#include "terraingen/layers/bisection.h"
+#include "terraingen/util/bisection.h"
 
 #include <gtest/gtest.h>
 

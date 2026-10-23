@@ -9,6 +9,7 @@
 #include "terraingen/util/span.h"
 
 #include <cstddef>
+#include <vector>
 
 namespace terraingen {
 
@@ -21,6 +22,13 @@ struct KernelBuffer {
     /// the heights; 0 for a buffer bound whole in every strip.
     std::size_t perCell = 0;
 };
+
+/// The buffer of `values`, which must outlive it.
+/// @param perCell As `KernelBuffer::perCell`.
+template <typename T>
+KernelBuffer MakeKernelBuffer(const std::vector<T>& values, std::size_t perCell = 0) {
+    return {AsBytes(Span(values)), values.size(), perCell};
+}
 
 /// Runs a kernel compiled by `terraingen_add_kernel` over every cell of `grid` holding data, in
 /// strips of rows, on `backend` (`Vulkan`, `Cuda` or `Metal`).

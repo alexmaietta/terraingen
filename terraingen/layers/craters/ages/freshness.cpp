@@ -24,9 +24,7 @@ FreshnessAges::FreshnessAges(ValueDistribution freshness, double lifetimeGyr)
 }
 
 double FreshnessAges::SampleFreshness(RandomStream& random) const {
-    const double u1 = random.NextDouble();
-    const double u2 = random.NextDouble();
-    return freshness_.Sample(u1, u2);
+    return freshness_.Draw(random);
 }
 
 double FreshnessAges::LifetimeAt(double /*diameter*/) const {

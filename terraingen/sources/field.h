@@ -46,7 +46,7 @@ class ConstantField final : public SurfaceField {
 
 /// The smaller of two fields at each point, the one that has a value where the other is NaN: a
 /// completeness limit that two limits give, such as a catalog's and a DEM's
-/// (`UnresolvedCraterLimit`).
+/// (`SourceResolvedLimit`).
 class MinimumField final : public SurfaceField {
   public:
     /// @throws std::invalid_argument for a null field.

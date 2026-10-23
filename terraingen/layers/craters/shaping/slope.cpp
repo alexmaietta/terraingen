@@ -50,9 +50,7 @@ CraterSlopeShape SlopeShape(const Crater& crater, double east, double north,
     const double strength = Smoothstep(std::atan(gradient) / response.fullSlope);
     const IdWords id = SplitId(crater.id);
     RandomStream random(response.seed, kCraterSlopeStream, id.low, id.high);
-    const double u1 = random.NextDouble();
-    const double u2 = random.NextDouble();
-    const double offset = strength * response.floorOffset.Sample(u1, u2) * crater.diameter;
+    const double offset = strength * response.floorOffset.Draw(random) * crater.diameter;
     const Vec2d up{east / gradient, north / gradient};
     const double removed = strength * (1.0 - response.upslopeRim);
     return {{-offset * up.x, -offset * up.y}, {removed * up.x, removed * up.y}};

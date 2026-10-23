@@ -296,7 +296,24 @@ CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
         tables.Append(p, r, batch.data);
         batch.records.push_back(r);
     }
+    if (batch.data.empty()) {
+        batch.data.push_back(0.0f);
+    }
     return batch;
+}
+
+std::vector<std::uint32_t> FlattenKernelLists(const std::vector<std::vector<std::uint32_t>>& lists,
+                                              std::vector<std::uint32_t>& heads) {
+    std::vector<std::uint32_t> entries;
+    for (const std::vector<std::uint32_t>& list : lists) {
+        heads.push_back(static_cast<std::uint32_t>(entries.size()));
+        heads.push_back(static_cast<std::uint32_t>(list.size()));
+        entries.insert(entries.end(), list.begin(), list.end());
+    }
+    if (entries.empty()) {
+        entries.push_back(0);
+    }
+    return entries;
 }
 
 }  // namespace terraingen

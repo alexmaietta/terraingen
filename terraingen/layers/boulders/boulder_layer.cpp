@@ -481,10 +481,8 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
         generation.manual.Append({boulder.x, boulder.y, boulder.diameter, 0.0, boulder.id, true});
     }
     generation.completeness = options_.completeness;
-    if (cache_) {
-        generation.cellCraters = CachedCellCraters(*cache_, *cells_, *candidates_, ages, seed);
-    }
-    return GenerateCraters(*cells_, region, *candidates_, ages, seed, generation);
+    return GenerateCachedCraters(cache_.get(), *cells_, region, *candidates_, ages, seed,
+                                 std::move(generation));
 }
 
 std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, double spacing,

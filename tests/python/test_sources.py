@@ -266,10 +266,10 @@ def test_geotiff_source_crop_reads_the_same_heights_over_its_grid(tmp_path, coar
         terraingen.GeoTiffSource(tmp_path / "dem.tif", crop=(1e7, 1e7, 1e7 + 1.0, 1e7 + 1.0))
 
 
-def test_unresolved_crater_limit_drops_the_craters_a_dem_resolves():
+def test_source_resolved_limit_drops_the_craters_a_dem_resolves():
     heights = np.zeros((26, 26), dtype=np.float32)
     dem = terraingen.RasterSource(heights, terraingen.GeoTransform.north_up(-65.0, 65.0, 5.0))
-    limit = terraingen.unresolved_crater_limit(dem, 4.0)
+    limit = terraingen.source_resolved_limit(dem, 4.0)
     assert limit.value_at(0.0, 0.0) == 20.0 and limit.value_at(1e6, 0.0) == float("inf")
     both = terraingen.MinimumField(limit, terraingen.ConstantField(12.0))
     assert both.value_at(0.0, 0.0) == 12.0 and both.value_at(1e6, 0.0) == 12.0
@@ -288,7 +288,7 @@ def test_unresolved_crater_limit_drops_the_craters_a_dem_resolves():
     assert any(c.diameter >= 20.0 for c in every)
     assert kept and all(c.diameter < 20.0 for c in kept)
     with pytest.raises(ValueError):
-        terraingen.unresolved_crater_limit(dem, 0.0)
+        terraingen.source_resolved_limit(dem, 0.0)
 
 
 def test_python_sources_resolve_nothing_unless_they_say():
@@ -305,4 +305,4 @@ def test_python_sources_resolve_nothing_unless_they_say():
 
     assert Level().resolution_at(0.0, 0.0) == float("inf")
     assert Measured().resolution_at(0.0, 0.0) == 3.0
-    assert terraingen.unresolved_crater_limit(Measured(), 2.0).value_at(0.0, 0.0) == 6.0
+    assert terraingen.source_resolved_limit(Measured(), 2.0).value_at(0.0, 0.0) == 6.0

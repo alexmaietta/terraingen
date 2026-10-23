@@ -46,7 +46,6 @@ terraingen_add_library(
     craters/degradation/freshness.cpp
     craters/generation/cell_cache.cpp
     craters/generation/population.cpp
-    craters/generation/resolved_limit.cpp
     craters/generation/spacing.cpp
     craters/profiles/complex.cpp
     craters/profiles/fassett_thomson.cpp
@@ -56,6 +55,7 @@ terraingen_add_library(
     craters/shaping/crater_kernel.cpp
     craters/shaping/attributes.cpp
     craters/shaping/datum.cpp
+    craters/shaping/datum_fit.cpp
     craters/shaping/explicit_state.cpp
     craters/shaping/irregularity.cpp
     craters/shaping/morphometry.cpp

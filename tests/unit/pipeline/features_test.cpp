@@ -56,7 +56,7 @@ TEST(PlacedCraters, ListsEachCraterLayerInOrderWithItsAttributes) {
     ASSERT_EQ(placed.attributes.size(), 3u);
     EXPECT_EQ(placed.craters.At(1).x, 10.0);
     EXPECT_EQ(placed.craters.At(2).x, -20.0);
-    EXPECT_EQ(placed.attributes[2], second->Attributes(placed.craters.At(2)));
+    EXPECT_EQ(placed.attributes[2], second->Models().Shape().Attributes(placed.craters.At(2)));
     EXPECT_EQ(placed.craters.Ids(),
               terraingen::PlacedCraters(terrain.layers, grid, 1.0).craters.Ids());
 }
@@ -146,7 +146,7 @@ terraingen::CraterList DemCraters(const std::shared_ptr<const terraingen::Source
     options.generation.dMin = 6.0;
     options.generation.dMax = 40.0;
     if (limited) {
-        options.generation.completeness = terraingen::UnresolvedCraterLimit(source, 4.0);
+        options.generation.completeness = terraingen::SourceResolvedLimit(source, 4.0);
     }
     TerrainGenerator terrain;
     terrain.source = source;

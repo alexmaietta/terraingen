@@ -2,12 +2,43 @@
 /// @brief Keeping craters of similar size apart: conflicts, precedence and thinning.
 #pragma once
 
-#include "terraingen/layers/craters/generation/population.h"
+#include "terraingen/layers/craters/crater.h"
+#include "terraingen/util/surface.h"
 
 #include <limits>
 #include <vector>
 
 namespace terraingen {
+
+/// Keeps craters of similar size apart: two conflict when their diameters differ by at most
+/// `diameterRatio` and their centers are closer than `separation` times the larger diameter.
+struct CraterSpacing {
+    CraterSpacing() = default;
+    /// Spacing with `diameterRatio` `ratio` and `separation` `minSeparation`.
+    CraterSpacing(double ratio, double minSeparation)
+        : diameterRatio(ratio), separation(minSeparation) {}
+
+    double diameterRatio = 1.5;  ///< At least 1.
+    double separation = 0.0;     ///< In larger diameters; 0 disables spacing.
+    /// Craters at least this large (m) take precedence over smaller ones whatever their ages, as a
+    /// crater layer sets for the craters that throw secondaries a total map measures; infinite
+    /// ranks by age first. Not part of a configuration.
+    double outrankFrom = std::numeric_limits<double>::infinity();
+
+    /// Whether spacing applies: a positive `separation`.
+    bool Enabled() const {
+        return separation > 0.0;
+    }
+
+    /// Memberwise equality.
+    bool operator==(const CraterSpacing& other) const {
+        return diameterRatio == other.diameterRatio && separation == other.separation &&
+               outrankFrom == other.outrankFrom;
+    }
+    bool operator!=(const CraterSpacing& other) const {
+        return !(*this == other);
+    }
+};
 
 /// Checks crater spacing settings.
 /// @throws std::invalid_argument unless `diameterRatio` >= 1 and `separation` >= 0 are finite.

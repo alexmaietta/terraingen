@@ -158,7 +158,7 @@ TEST(FreshnessAges, CraterLayersAgreeOnGridsTilesAndPoints) {
                 matched += 1;
             }
         }
-        const double f = layer.Attributes(part.At(i)).freshness;
+        const double f = layer.Models().Shape().Attributes(part.At(i)).freshness;
         EXPECT_GE(f, 0.0);
         EXPECT_LE(f, 1.0);
     }

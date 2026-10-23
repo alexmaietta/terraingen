@@ -37,4 +37,11 @@ void RequireUnitInterval(double value, std::string_view what) {
     }
 }
 
+
+void RequireDiameter(double diameter) {
+    if (!IsPositive(diameter)) {
+        throw std::domain_error("Diameter must be positive and finite");
+    }
+}
+
 }  // namespace terraingen

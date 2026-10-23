@@ -1,6 +1,6 @@
 #include "terraingen/layers/craters/ages/steady_state.h"
 
-#include "terraingen/layers/bisection.h"
+#include "terraingen/util/bisection.h"
 
 #include <cmath>
 #include <stdexcept>

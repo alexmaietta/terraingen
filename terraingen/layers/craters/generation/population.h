@@ -5,6 +5,7 @@
 #include "terraingen/distribution/size_frequency.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/crater.h"
+#include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/sources/field.h"
 #include "terraingen/util/cells.h"
 #include "terraingen/util/surface.h"
@@ -18,36 +19,6 @@
 #include <vector>
 
 namespace terraingen {
-
-/// Keeps craters of similar size apart: two conflict when their diameters differ by at most
-/// `diameterRatio` and their centers are closer than `separation` times the larger diameter.
-struct CraterSpacing {
-    CraterSpacing() = default;
-    /// Spacing with `diameterRatio` `ratio` and `separation` `minSeparation`.
-    CraterSpacing(double ratio, double minSeparation)
-        : diameterRatio(ratio), separation(minSeparation) {}
-
-    double diameterRatio = 1.5;  ///< At least 1.
-    double separation = 0.0;     ///< In larger diameters; 0 disables spacing.
-    /// Craters at least this large (m) take precedence over smaller ones whatever their ages, as a
-    /// crater layer sets for the craters that throw secondaries a total map measures; infinite
-    /// ranks by age first. Not part of a configuration.
-    double outrankFrom = std::numeric_limits<double>::infinity();
-
-    /// Whether spacing applies: a positive `separation`.
-    bool Enabled() const {
-        return separation > 0.0;
-    }
-
-    /// Memberwise equality.
-    bool operator==(const CraterSpacing& other) const {
-        return diameterRatio == other.diameterRatio && separation == other.separation &&
-               outrankFrom == other.outrankFrom;
-    }
-    bool operator!=(const CraterSpacing& other) const {
-        return !(*this == other);
-    }
-};
 
 /// A size band of crater generation: diameters [`low`, `high`) meters, from 2^`exponent` to
 /// 2^(`exponent` + 1) clipped to the requested range.
@@ -92,7 +63,7 @@ struct CraterGenerationOptions {
     /// Largest diameter (m), exclusive; infinity means the top of the density's valid range, which
     /// must then be finite.
     double dMax = std::numeric_limits<double>::infinity();
-    /// Also keep craters centerd outside the region within this many radii of it.
+    /// Also keep craters centered outside the region within this many radii of it.
     double marginRadii = 0.0;
     /// Cell side as a multiple of each band's largest diameter.
     double cellSizeFactor = 16.0;
@@ -124,9 +95,9 @@ struct CraterGenerationOptions {
     /// depend only on the crater; unset keeps every crater.
     CraterKeepShare keepShare{};
     /// The diameter (m) from which `manual` craters are a complete catalog at each point: generated
-    /// craters at least this large centerd there are dropped, so the catalog stands in for them
+    /// craters at least this large centered there are dropped, so the catalog stands in for them
     /// rather than adding to them. Infinite or NaN where there is no catalog; unset keeps every
-    /// generated crater. A DEM's own craters are such a catalog (`UnresolvedCraterLimit`), with
+    /// generated crater. A DEM's own craters are such a catalog (`SourceResolvedLimit`), with
     /// or without `manual` craters.
     std::shared_ptr<const SurfaceField> completeness{};
     /// What the region and margins are measured on: on a sphere, regions are longitude and

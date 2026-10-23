@@ -1,5 +1,8 @@
 #include "terraingen/layers/craters/shaping/attributes.h"
 
+#include "terraingen/layers/craters/shaping/apply.h"
+#include "terraingen/layers/craters/shaping/explicit_state.h"
+
 #include <cmath>
 #include <limits>
 
@@ -18,6 +21,10 @@ CraterAttributes ComputeCraterAttributes(const Crater& crater, const CraterState
         floor = std::fmin(floor, profile.Height(0.005 * step * diameter, diameter, state));
     }
     return {-floor, rim, state.current.depthRatio, state.Freshness(), profile.IsComplex(diameter)};
+}
+
+CraterAttributes CraterShapeModels::Attributes(const Crater& crater) const {
+    return ComputeCraterAttributes(crater, ResolvedCraterState(*this, crater), *profile);
 }
 
 }  // namespace terraingen

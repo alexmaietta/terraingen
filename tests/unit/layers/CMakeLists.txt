@@ -3,7 +3,6 @@ terraingen_add_test_suite(
     SOURCES
     anchored_plane_test.cpp
     bedforms_test.cpp
-    bisection_test.cpp
     density_map_test.cpp
     dunes_test.cpp
     exposure_test.cpp
@@ -32,6 +31,7 @@ terraingen_add_test_suite(
     boulders/boulder_shape_test.cpp
     boulders/ejecta_index_test.cpp
     boulders/manual_boulder_test.cpp
+    craters/band_buckets_test.cpp
     craters/crater_layer_test.cpp
     craters/crater_test.cpp
     craters/secondaries_test.cpp
@@ -44,7 +44,6 @@ terraingen_add_test_suite(
     craters/degradation/freshness_test.cpp
     craters/generation/cell_cache_test.cpp
     craters/generation/population_test.cpp
-    craters/generation/resolved_limit_test.cpp
     craters/generation/spacing_test.cpp
     craters/profiles/complex_test.cpp
     craters/profiles/fassett_thomson_test.cpp

@@ -38,6 +38,18 @@ inline KernelOffset ShapingOffset(const Surface& surface, const Crater& crater,
 /// (`KernelFrameOffset`), with positions measured from `origin` (m).
 CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const Vec3d& origin);
 
+/// Stores `position` (m) as the float triple the GPU reads at `at`.
+inline void StoreKernelPosition(const Vec3d& position, float* at) {
+    at[0] = static_cast<float>(position.x);
+    at[1] = static_cast<float>(position.y);
+    at[2] = static_cast<float>(position.z);
+}
+
+/// `lists` as the kernels read them: each list's first entry and entry count appended to
+/// `heads`, and the entries returned, never empty so a GPU can bind them.
+std::vector<std::uint32_t> FlattenKernelLists(const std::vector<std::vector<std::uint32_t>>& lists,
+                                              std::vector<std::uint32_t>& heads);
+
 /// Craters ready for the kernel: one record per crater, and the values that vary in length.
 struct CraterKernelBatch {
     std::vector<CraterRecord> records;
@@ -52,7 +64,7 @@ struct CraterKernelBatch {
 };
 
 /// The records of `craters` of `prepared`, in order, with their datums as fitted; `profile`
-/// tabulated for each when `kernel` asks for it.
+/// tabulated for each when `kernel` asks for it. The data is never empty, so a GPU can bind it.
 /// @throws std::invalid_argument for a crater state the profile rejects.
 CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
                                         const CraterProfile& profile,

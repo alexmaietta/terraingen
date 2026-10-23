@@ -28,4 +28,14 @@ CellCraterSource CachedCellCraters(CraterCellCache& cache, const SurfaceCells& c
     };
 }
 
+CraterList GenerateCachedCraters(CraterCellCache* cache, const SurfaceCells& cells,
+                                 const Bounds2d& region, const SizeFrequencyDistribution& density,
+                                 const CraterAgeModel& ages, std::uint32_t seed,
+                                 CraterGenerationOptions options) {
+    if (cache != nullptr) {
+        options.cellCraters = CachedCellCraters(*cache, cells, density, ages, seed);
+    }
+    return GenerateCraters(cells, region, density, ages, seed, options);
+}
+
 }  // namespace terraingen

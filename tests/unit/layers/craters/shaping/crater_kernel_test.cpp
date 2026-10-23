@@ -1,19 +1,21 @@
+#include "support/apply_crater.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
-using terraingen::ApplyCraterTo;
 using terraingen::Crater;
 using terraingen::CraterApplyOptions;
 using terraingen::CraterProfile;
 using terraingen::CraterState;
 using terraingen::PreparedCrater;
+using terraingen::testing::ApplyCraterTo;
 
 namespace {
 
@@ -489,4 +491,40 @@ TEST(CraterKernel, ShapesBodyGridsOnEveryAvailableGpuAsOnTheCpu) {
     if (ran == 0) {
         GTEST_SKIP() << "no GPU backend here";
     }
+}
+
+TEST(FlattenKernelLists, AppendsEachListsFirstEntryAndCountAndNeverLeavesNoEntries) {
+    std::vector<std::uint32_t> heads{9u};
+    const std::vector<std::uint32_t> entries =
+        terraingen::FlattenKernelLists({{4u, 5u}, {}, {6u}}, heads);
+    EXPECT_EQ(heads, (std::vector<std::uint32_t>{9u, 0u, 2u, 2u, 0u, 2u, 1u}));
+    EXPECT_EQ(entries, (std::vector<std::uint32_t>{4u, 5u, 6u}));
+    std::vector<std::uint32_t> none;
+    EXPECT_EQ(terraingen::FlattenKernelLists({{}}, none), (std::vector<std::uint32_t>{0u}));
+    EXPECT_EQ(none, (std::vector<std::uint32_t>{0u, 0u}));
+}
+
+TEST(StoreKernelPosition, StoresAFloatTriple) {
+    float at[3] = {0.0f, 0.0f, 0.0f};
+    terraingen::StoreKernelPosition({1.5, -2.0, 1e9 + 0.25}, at);
+    EXPECT_EQ(at[0], 1.5f);
+    EXPECT_EQ(at[1], -2.0f);
+    EXPECT_EQ(at[2], static_cast<float>(1e9 + 0.25));
+}
+
+TEST(KernelPeriodicAt, WrapsTheAngleIntoTheTable) {
+    const terraingen::KernelPeriodicCell quarter = terraingen::KernelPeriodicAt(0.25f, 8u);
+    EXPECT_EQ(quarter.index, 2u);
+    EXPECT_EQ(quarter.t, 0.0f);
+    const terraingen::KernelPeriodicCell behind = terraingen::KernelPeriodicAt(-0.0625f, 8u);
+    EXPECT_EQ(behind.index, 7u);
+    EXPECT_FLOAT_EQ(behind.t, 0.5f);
+}
+
+TEST(KernelEjectaShare, FallsAsTheInverseCubeAndTapersToTheReach) {
+    EXPECT_EQ(terraingen::KernelEjectaShare(0.5f, 3.0f), 1.0f);
+    EXPECT_FLOAT_EQ(terraingen::KernelEjectaShare(2.0f, 3.0f),
+                    (1.0f / 8.0f - 1.0f / 27.0f) / (1.0f - 1.0f / 27.0f));
+    EXPECT_EQ(terraingen::KernelEjectaShare(3.0f, 3.0f), 0.0f);
+    EXPECT_FLOAT_EQ(terraingen::KernelEjectaScale(1.0f), 0.14f);
 }

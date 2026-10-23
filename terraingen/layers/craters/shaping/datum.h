@@ -6,47 +6,19 @@
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/prepared.h"
 #include "terraingen/layers/ground.h"
+#include "terraingen/util/plane_fit.h"
 
 #include <cstddef>
 #include <optional>
-#include <vector>
 
 namespace terraingen {
 
-/// A least-squares plane h = a + b dx + c dy through points added one at a time.
-class PlaneFit {
-  public:
-    /// Adds the point `dx` east and `dy` north (m) at height `h` (m).
-    void Add(double dx, double dy, double h);
-
-    /// Whether no point was added.
-    bool Empty() const {
-        return n_ == 0.0;
-    }
-
-    /// The mean height of the points; call only when not `Empty`.
-    double Mean() const {
-        return sh_ / n_;
-    }
-
-    /// The least-squares plane by Cramer's rule, or the flat plane at the mean for fewer than
-    /// three points or a degenerate layout; call only when not `Empty`.
-    Plane Solve() const;
-
-  private:
-    double n_ = 0.0;
-    double sx_ = 0.0;
-    double sy_ = 0.0;
-    double sxx_ = 0.0;
-    double sxy_ = 0.0;
-    double syy_ = 0.0;
-    double sh_ = 0.0;
-    double sxh_ = 0.0;
-    double syh_ = 0.0;
-};
-
 /// Points per side of the lattice crater datums are fitted over.
 constexpr int kDatumLatticeSide = 7;
+
+/// Points of the lattice crater datums are fitted over, inside the footprint or not.
+constexpr std::size_t kDatumLatticePoints =
+    static_cast<std::size_t>(kDatumLatticeSide * kDatumLatticeSide);
 
 /// The offset (m) from a crater's center of lattice point `index` (0 to `kDatumLatticeSide` - 1)
 /// along one axis of a fit footprint of `fitRadius` (m).
@@ -68,6 +40,10 @@ template <typename Visit> void ForEachDatumPoint(double fitRadius, const Visit& 
         }
     }
 }
+
+/// The datum `fit` gives a crater: its plane for `CraterDatum::Plane`, else flat at its mean;
+/// nothing when it holds no point.
+std::optional<Plane> FittedDatum(const PlaneFit& fit, CraterDatum datum);
 
 /// The datum a crater is cut to, fitted to the ground beneath it; nothing for
 /// `CraterDatum::None` or where the ground has no data.

@@ -7,6 +7,8 @@
 
 namespace terraingen {
 
+class RandomStream;
+
 /// A distribution a parameter is drawn from, clamped to [`min`, `max`].
 struct ValueDistribution {
     /// The family of the distribution, which sets the meaning of `a` and `b`.
@@ -28,6 +30,9 @@ struct ValueDistribution {
     /// A value drawn from two independent uniforms `u1` and `u2` in [0, 1) (Box-Muller for the
     /// normal kinds, inversion of `u1` for piecewise), clamped to [`min`, `max`].
     double Sample(double u1, double u2) const;
+
+    /// `Sample` of the next two uniforms of `random`, in order.
+    double Draw(RandomStream& random) const;
 
     /// The smallest value `Sample` can return.
     double Lowest() const;

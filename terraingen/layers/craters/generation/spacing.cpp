@@ -1,95 +1,45 @@
 #include "terraingen/layers/craters/generation/spacing.h"
 
-#include "terraingen/noise/hash.h"
+#include "terraingen/layers/craters/band_buckets.h"
 #include "terraingen/util/checks.h"
 
-#include <array>
 #include <cmath>
-#include <cstdint>
-#include <map>
 #include <stdexcept>
-#include <unordered_map>
 
 namespace terraingen {
 
 namespace {
 
-using CellKey = std::array<long long, 3>;
-
-struct CellKeyHash {
-    std::size_t operator()(const CellKey& key) const {
-        return HashWords({static_cast<std::uint64_t>(key[0]), static_cast<std::uint64_t>(key[1]),
-                          static_cast<std::uint64_t>(key[2])});
-    }
-};
-
-/// Craters of one diameter band [2^k, 2^(k+1)) hashed into cubic cells (`Surface::Bucket`) at least
-/// as wide as any distance at which a crater can conflict with them.
-struct BandGrid {
-    double cellSize = 0.0;
-    std::unordered_map<CellKey, std::vector<std::size_t>, CellKeyHash> cells;
-};
-
-CellKey BucketKey(const Crater& crater, double size, const Surface& surface) {
-    const BucketIndex bucket = surface.Bucket({crater.x, crater.y}, size);
-    return {bucket.i, bucket.j, bucket.k};
-}
-
-/// The craters of `craters` bucketed by band.
-std::map<int, BandGrid> BandGrids(const CraterList& craters, const CraterSpacing& spacing,
-                                  const Surface& surface) {
-    std::map<int, BandGrid> bands;
-    for (std::size_t n = 0; n < craters.Size(); ++n) {
-        const Crater crater = craters.At(n);
-        const int band = std::ilogb(crater.diameter);
-        BandGrid& grid = bands[band];
-        if (grid.cellSize == 0.0) {
-            grid.cellSize = spacing.separation * spacing.diameterRatio * std::ldexp(1.0, band + 1);
-        }
-        grid.cells[BucketKey(crater, grid.cellSize, surface)].push_back(n);
-    }
-    return bands;
-}
-
-/// Finds whether crater `n` conflicts with a crater that takes precedence over it.
+/// Finds whether crater `n` conflicts with a crater that takes precedence over it, through
+/// buckets per diameter band at least as wide as any distance at which a crater can conflict.
 class ConflictSearch {
   public:
     ConflictSearch(const CraterList& craters, const CraterSpacing& spacing, const Surface& surface)
-        : craters_(craters), spacing_(spacing), surface_(surface),
-          bands_(BandGrids(craters, spacing, surface)) {}
+        : craters_(craters), spacing_(spacing), surface_(surface), buckets_(surface) {
+        for (std::size_t n = 0; n < craters.Size(); ++n) {
+            const Crater crater = craters.At(n);
+            const int band = std::ilogb(crater.diameter);
+            buckets_.Add(band,
+                         spacing.separation * spacing.diameterRatio * std::ldexp(1.0, band + 1),
+                         {crater.x, crater.y}, n);
+        }
+    }
 
     bool Outranked(std::size_t n) const {
         const Crater crater = craters_.At(n);
         const int lowest = std::ilogb(crater.diameter / spacing_.diameterRatio);
         const int highest = std::ilogb(crater.diameter * spacing_.diameterRatio);
-        for (int band = lowest; band <= highest; ++band) {
-            const auto found = bands_.find(band);
-            if (found != bands_.end() && OutrankedIn(found->second, n, crater)) {
-                return true;
-            }
+        bool outranked = false;
+        for (int band = lowest; band <= highest && !outranked; ++band) {
+            buckets_.ForEachAround(band, {crater.x, crater.y}, 1,
+                                   [&](const std::vector<std::size_t>& others) {
+                                       outranked = outranked || OutrankedBy(others, n, crater);
+                                   });
         }
-        return false;
+        return outranked;
     }
 
   private:
-    /// Whether a crater in the cells of `grid` around `crater` outranks it.
-    bool OutrankedIn(const BandGrid& grid, std::size_t n, const Crater& crater) const {
-        const CellKey center = BucketKey(crater, grid.cellSize, surface_);
-        const long long depth = surface_.IsBody() ? 1 : 0;
-        for (long long di = -1; di <= 1; ++di) {
-            for (long long dj = -1; dj <= 1; ++dj) {
-                for (long long dk = -depth; dk <= depth; ++dk) {
-                    const auto cell =
-                        grid.cells.find({center[0] + di, center[1] + dj, center[2] + dk});
-                    if (cell != grid.cells.end() && OutrankedBy(cell->second, n, crater)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
     /// Whether one of `others` conflicts with `crater` and takes precedence over it.
     bool OutrankedBy(const std::vector<std::size_t>& others, std::size_t n,
                      const Crater& crater) const {
@@ -109,7 +59,7 @@ class ConflictSearch {
     const CraterList& craters_;
     const CraterSpacing& spacing_;
     const Surface& surface_;
-    std::map<int, BandGrid> bands_;
+    BandBuckets buckets_;
 };
 
 }  // namespace

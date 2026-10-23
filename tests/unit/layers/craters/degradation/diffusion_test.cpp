@@ -225,6 +225,6 @@ TEST(DiffusionDegradation, CraterLayersAgreeOnGridsAndPoints) {
         EXPECT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {2.0}), heights(col, row));
     }
     for (std::size_t n = 0; n < craters.Size(); ++n) {
-        EXPECT_LE(layer.Attributes(craters.At(n)).freshness, 1.0);
+        EXPECT_LE(layer.Models().Shape().Attributes(craters.At(n)).freshness, 1.0);
     }
 }

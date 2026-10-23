@@ -1,6 +1,7 @@
 #include "terraingen/random/value_distribution.h"
 
 #include "terraingen/random/samplers.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
@@ -54,6 +55,12 @@ void CheckPiecewise(const ValueDistribution& d) {
 }
 
 }  // namespace
+
+double ValueDistribution::Draw(RandomStream& random) const {
+    const double u1 = random.NextDouble();
+    const double u2 = random.NextDouble();
+    return Sample(u1, u2);
+}
 
 double ValueDistribution::Sample(double u1, double u2) const {
     double value = a;

@@ -1,7 +1,7 @@
 // Adds, to the ground under each lattice point of each crater's datum footprint, the relief of the
 // craters applied before it (KernelDatumRelief). A row is one crater (`targets`), a column one
 // lattice point. The host side is FitDatumsWithKernel
-// (terraingen/layers/craters/shaping/apply.cpp).
+// (terraingen/layers/craters/shaping/datum_fit.cpp).
 #include "terraingen/gpu/kernel.slang"
 #include "terraingen/layers/kernels/craters.h"
 

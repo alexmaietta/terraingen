@@ -9,8 +9,6 @@
 
 namespace terraingen {
 
-namespace {}  // namespace
-
 void ValidateRayLayout(const RayLayout& layout) {
     ValidateValueDistribution(layout.count);
     ValidateValueDistribution(layout.widthDegrees);
@@ -25,17 +23,13 @@ void ValidateRayLayout(const RayLayout& layout) {
 std::vector<RayDirection> RayDirections(const Crater& crater, const RayLayout& layout) {
     const IdWords id = SplitId(crater.id);
     RandomStream random(layout.seed, kCraterRayStream, id.low, id.high);
-    const double c1 = random.NextDouble();
-    const double c2 = random.NextDouble();
-    const auto count = static_cast<int>(std::lround(layout.count.Sample(c1, c2)));
+    const auto count = static_cast<int>(std::lround(layout.count.Draw(random)));
     std::vector<RayDirection> rays;
     rays.reserve(static_cast<std::size_t>(std::max(count, 0)));
     for (int i = 0; i < count; ++i) {
         RayDirection ray;
         ray.azimuth = 2.0 * kPi * random.NextDouble();
-        const double w1 = random.NextDouble();
-        const double w2 = random.NextDouble();
-        ray.sinHalfWidth = std::sin(0.5 * layout.widthDegrees.Sample(w1, w2) * kDegree);
+        ray.sinHalfWidth = std::sin(0.5 * layout.widthDegrees.Draw(random) * kDegree);
         ray.key = random.NextU32();
         rays.push_back(ray);
     }

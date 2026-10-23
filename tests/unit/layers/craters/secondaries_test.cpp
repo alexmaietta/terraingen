@@ -131,7 +131,7 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
         const auto secondaries =
             layer.Secondaries(terraingen::RasterGrid::FromRaster(whole).Bounds(), 4.0);
         ASSERT_GT(secondaries.Size(), 3u);
-        EXPECT_LE(layer.Attributes(secondaries.At(0)).freshness, 1.0);
+        EXPECT_LE(Models().Attributes(secondaries.At(0)).freshness, 1.0);
         int changed = 0;
         for (std::size_t i = 0; i < whole.Size(); ++i) {
             EXPECT_EQ(whole.Values()[i], threaded.Values()[i]);

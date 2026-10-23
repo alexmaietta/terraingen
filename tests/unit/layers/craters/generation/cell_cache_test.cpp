@@ -36,10 +36,8 @@ TEST(CraterCellCache, GeneratesEachCellOnceAndReturnsTheHeldCraters) {
     EXPECT_EQ(calls, 1);
     EXPECT_EQ(first, again);
     EXPECT_EQ(first->Size(), 5u);
-    EXPECT_EQ(cache.Size(), 5u);
     cache.Get(3, CellIndex{3, 4}, generate);
     EXPECT_EQ(calls, 2) << "another band is another cell";
-    EXPECT_EQ(cache.Evictions(), 0u);
 }
 
 TEST(CraterCellCache, StaysWithinItsBudgetByEvictingTheLeastRecentlyUsed) {
@@ -47,8 +45,6 @@ TEST(CraterCellCache, StaysWithinItsBudgetByEvictingTheLeastRecentlyUsed) {
     for (int i = 0; i < 400; ++i) {
         cache.Get(0, CellIndex{i, 0}, [&] { return Cell(i, 4); });
     }
-    EXPECT_LE(cache.Size(), 160u);
-    EXPECT_GT(cache.Evictions(), 0u);
     int calls = 0;
     const auto craters = cache.Get(0, CellIndex{0, 0}, [&] {
         ++calls;
@@ -72,5 +68,29 @@ TEST(CachedCellCraters, DrawsEachCellOnceAsGenerateCellCratersWould) {
     EXPECT_EQ(first->Ids(),
               terraingen::GenerateCellCraters(cells, band, cell, density, ages, 4u).Ids());
     EXPECT_EQ(source(band, cell).get(), first.get()) << "held in the cache";
-    EXPECT_EQ(cache.Size(), first->Size());
+}
+
+TEST(GenerateCachedCraters, GeneratesTheSameCratersWithOrWithoutACache) {
+    CraterCellCache cache(100000);
+    const terraingen::PlanarCells cells;
+    const terraingen::PowerLawSfd density(0.05, 2.0);
+    const terraingen::UniformAges ages(1.0);
+    terraingen::CraterGenerationOptions options;
+    options.dMin = 4.0;
+    options.dMax = 16.0;
+    const terraingen::Bounds2d region{-50.0, -50.0, 50.0, 50.0};
+    const CraterList plain = terraingen::GenerateCraters(cells, region, density, ages, 4u, options);
+    ASSERT_GT(plain.Size(), 0u);
+    for (CraterCellCache* held : {static_cast<CraterCellCache*>(nullptr), &cache}) {
+        const CraterList cached =
+            terraingen::GenerateCachedCraters(held, cells, region, density, ages, 4u, options);
+        EXPECT_EQ(cached.Ids(), plain.Ids());
+    }
+    int calls = 0;
+    const auto again =
+        cache.Get(terraingen::CraterBands(4.0, 16.0, 16.0).front().exponent, CellIndex{0, 0}, [&] {
+            ++calls;
+            return CraterList{};
+        });
+    EXPECT_EQ(calls, 0) << "the cached generation filled the cache";
 }

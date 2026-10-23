@@ -6,6 +6,10 @@
 
 namespace terraingen {
 
+/// The depth over diameter at which Fassett et al. (2022, section 4) take a crater to be no longer
+/// recognized, from the left tail of the d/D distributions of Mahanti et al. (2018).
+inline constexpr double kVisibilityDepthRatio = 0.04;
+
 /// A crater's shape measures relative to its diameter.
 struct CraterMorphometry {
     double depthRatio = 0.0;      ///< Rim-to-floor depth / diameter.

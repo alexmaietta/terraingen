@@ -29,16 +29,6 @@ class CraterCellCache {
         return cache_.Get({exponent, cell.i, cell.j}, generate);
     }
 
-    /// The number of craters held across every cell.
-    std::size_t Size() const {
-        return cache_.Size();
-    }
-
-    /// The number of cells evicted since construction.
-    std::size_t Evictions() const {
-        return cache_.Evictions();
-    }
-
   private:
     struct Key {
         int exponent;
@@ -64,5 +54,14 @@ class CraterCellCache {
 CellCraterSource CachedCellCraters(CraterCellCache& cache, const SurfaceCells& cells,
                                    const SizeFrequencyDistribution& density,
                                    const CraterAgeModel& ages, std::uint32_t seed);
+
+/// `GenerateCraters` drawing each cell through `cache` (`CachedCellCraters`), or as `options`
+/// say when `cache` is null.
+/// @throws std::invalid_argument as `GenerateCraters`.
+/// @throws std::domain_error as `GenerateCraters`.
+CraterList GenerateCachedCraters(CraterCellCache* cache, const SurfaceCells& cells,
+                                 const Bounds2d& region, const SizeFrequencyDistribution& density,
+                                 const CraterAgeModel& ages, std::uint32_t seed,
+                                 CraterGenerationOptions options);
 
 }  // namespace terraingen

@@ -10,6 +10,7 @@ terraingen_add_library(
     log.cpp
     parallel.cpp
     planar_cells.cpp
+    plane_fit.cpp
     radial_shape.cpp
     special_functions.cpp
     text.cpp

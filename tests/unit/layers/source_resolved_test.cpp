@@ -1,7 +1,11 @@
 #include "terraingen/layers/source_resolved.h"
 
+#include "terraingen/distribution/power_law.h"
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
+#include "terraingen/layers/craters/crater_layer.h"
+#include "terraingen/layers/craters/profiles/fassett_thomson.h"
+#include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/dunes.h"
 #include "terraingen/layers/noise_relief.h"
 #include "terraingen/sources/raster_source.h"
@@ -202,4 +206,43 @@ TEST(NoiseRelief, LeavesOutTheNoiseLayersTheSourceResolves) {
     }
     EXPECT_EQ(held.SourceResolvesPixels(), 4.0);
     EXPECT_THROW(terraingen::NoiseRelief(params, {}, {}, dem, -1.0), std::invalid_argument);
+}
+
+TEST(CraterLayer, DropsGeneratedCratersTheSourceResolvesWithoutACatalog) {
+    const auto dem = Dem(26, 5.0, -65.0, 65.0);
+    const terraingen::CraterModels models{
+        std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
+        std::make_shared<terraingen::UniformAges>(1.0),
+        std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+        std::make_shared<terraingen::FassettThomsonProfile>()};
+    terraingen::CraterLayerOptions options;
+    options.seed = 3;
+    options.generation.dMin = 6.0;
+    options.generation.dMax = 40.0;
+    const terraingen::CraterLayer every(models, options);
+    options.generation.completeness = SourceResolvedLimit(dem, 4.0);
+    const terraingen::CraterLayer limited(models, options);
+    const terraingen::Bounds2d region{-60.0, -60.0, 60.0, 60.0};
+    const terraingen::CraterList all = every.Craters(region);
+    const terraingen::CraterList kept = limited.Craters(region);
+    std::size_t large = 0;
+    std::size_t small = 0;
+    for (std::size_t n = 0; n < all.Size(); ++n) {
+        const terraingen::Crater crater = all.At(n);
+        const bool resolved =
+            crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y, 5.0));
+        large += resolved ? 1 : 0;
+        small += resolved ? 0 : 1;
+    }
+    ASSERT_GT(large, 0u);
+    ASSERT_GT(small, 0u);
+    ASSERT_EQ(kept.Size(), small);
+    std::size_t next = 0;
+    for (std::size_t n = 0; n < all.Size(); ++n) {
+        const terraingen::Crater crater = all.At(n);
+        if (crater.diameter >= 20.0 && !std::isnan(dem->HeightAt(crater.x, crater.y, 5.0))) {
+            continue;
+        }
+        EXPECT_EQ(kept.At(next++).id, crater.id);
+    }
 }

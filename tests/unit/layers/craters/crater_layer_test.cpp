@@ -55,7 +55,7 @@ TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
     ASSERT_GT(craters.Size(), 0u);
     for (std::size_t n = 0; n < craters.Size(); ++n) {
         const auto crater = craters.At(n);
-        EXPECT_EQ(layer.Attributes(crater),
+        EXPECT_EQ(layer.Models().Shape().Attributes(crater),
                   terraingen::ComputeCraterAttributes(crater, models.degradation->State(crater),
                                                       *models.profile));
     }
@@ -267,7 +267,7 @@ TEST(CraterLayer, ShapesAManualCraterToItsExplicitDepthAndRim) {
     EXPECT_NEAR(static_cast<double>(*high), 1.5, 0.05);
     EXPECT_NEAR(static_cast<double>(*high) - static_cast<double>(*low), 6.0, 0.1);
     const terraingen::CraterAttributes attributes =
-        layer.Attributes(layer.Craters({-50.0, -50.0, 50.0, 50.0}).At(0));
+        layer.Models().Shape().Attributes(layer.Craters({-50.0, -50.0, 50.0, 50.0}).At(0));
     EXPECT_NEAR(attributes.rimHeight, 1.5, 0.05);
     EXPECT_NEAR(attributes.floorDepth + attributes.rimHeight, 6.0, 0.05);
 }
@@ -283,7 +283,8 @@ TEST(CraterLayer, LeavesOtherCratersAsTheyWereBesideAnExplicitOne) {
     ASSERT_GT(before.Size(), 1u);
     for (std::size_t n = 0; n < before.Size(); ++n) {
         if (!before.At(n).manual) {
-            EXPECT_EQ(plain.Attributes(before.At(n)), shaped.Attributes(after.At(n)));
+            EXPECT_EQ(plain.Models().Shape().Attributes(before.At(n)),
+                      shaped.Models().Shape().Attributes(after.At(n)));
         }
     }
     Raster<float> a = Grid();
