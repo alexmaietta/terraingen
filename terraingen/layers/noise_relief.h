@@ -30,8 +30,8 @@ class NoiseRelief final : public Layer {
     /// a noise layer: with a source, each layer of the stack whose `wavelength`, its longest, is
     /// at least that many of the source's cells at a point is left out there
     /// (`SourceResolvedLimit`); unset adds every layer everywhere.
-    /// @throws std::invalid_argument if `params` are invalid, or for a `sourceResolvesPixels` that
-    /// is not positive and finite.
+    /// @throws std::invalid_argument for a stack without layers or otherwise invalid, or for a
+    /// `sourceResolvesPixels` that is not positive and finite.
     explicit NoiseRelief(SyntheticTerrainParams params, Vec2d origin = {}, Surface surface = {},
                          std::shared_ptr<const Source> source = nullptr,
                          std::optional<double> sourceResolvesPixels = std::nullopt);

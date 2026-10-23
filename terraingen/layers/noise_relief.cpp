@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/kernel.h"
 #include "terraingen/layers/source_resolved.h"
+#include "terraingen/noise/validate.h"
 #include "terraingen/raster/cell_loops.h"
 
 #include <algorithm>
@@ -16,7 +17,7 @@ NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin, Surface su
                          std::optional<double> sourceResolvesPixels)
     : params_(std::move(params)), origin_(origin), surface_(surface),
       sourceResolvesPixels_(sourceResolvesPixels) {
-    ValidateSyntheticTerrain(params_);
+    ValidateNoiseLayers(params_.layers, 1);
     ValidateSourceResolvesPixels(sourceResolvesPixels_);
     kernel_ = MakeNoiseReliefKernel(params_.layers);
     limit_ = LayerResolvedLimit(source, sourceResolvesPixels_, surface_);

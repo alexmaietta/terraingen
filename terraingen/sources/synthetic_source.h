@@ -17,7 +17,7 @@ namespace terraingen {
 
 /// A synthetic terrain: a stack of noise layers evaluated with `NoiseLayersAt`.
 struct SyntheticTerrainParams {
-    std::vector<NoiseLayer> layers{NoiseLayer{}};  ///< 1 to `kMaxNoiseLayers`; one Perlin fBm.
+    std::vector<NoiseLayer> layers;  ///< 0 to `kMaxNoiseLayers`; none is flat.
 
     /// Memberwise equality.
     bool operator==(const SyntheticTerrainParams& other) const {
@@ -28,7 +28,7 @@ struct SyntheticTerrainParams {
     }
 };
 
-/// Checks the layer count and every layer (`ValidateNoiseLayers` with at least one layer).
+/// Checks the layer count and every layer (`ValidateNoiseLayers`).
 /// @throws std::invalid_argument naming the first problem.
 void ValidateSyntheticTerrain(const SyntheticTerrainParams& params);
 
@@ -52,8 +52,8 @@ class SyntheticSource final : public Source {
     /// @throws std::invalid_argument for too many or invalid layers, a non-finite `elevation`, a
     /// `pixelSize` that is not positive and finite, an upsampler without a `pixelSize`, or as
     /// `Upsampler::FitTo`.
-    explicit SyntheticSource(SyntheticTerrainParams params = SyntheticTerrainParams{{}},
-                             float elevation = 0.0f, std::optional<double> pixelSize = std::nullopt,
+    explicit SyntheticSource(SyntheticTerrainParams params = {}, float elevation = 0.0f,
+                             std::optional<double> pixelSize = std::nullopt,
                              std::shared_ptr<const Upsampler> upsampler = nullptr,
                              Surface surface = {});
 

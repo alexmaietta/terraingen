@@ -314,15 +314,9 @@ void BindBlastZones(nb::module_& m) {
 }
 
 void BindMaturity(nb::module_& m) {
-    auto origin = nb::class_<OpticalMaturityOrigin>(
-        m, "OpticalMaturityOrigin",
-        "The origin of Lucey et al.'s optical maturity: the reflectance at 750 nm and the 950/750 "
-        "ratio that fully immature material tends to.");
-    BindKwargsInit<OpticalMaturityOrigin>(origin);
-    origin.def_rw("reflectance", &OpticalMaturityOrigin::reflectance)
-        .def_rw("ratio", &OpticalMaturityOrigin::ratio);
+    m.attr("OPTICAL_MATURITY_ORIGIN_REFLECTANCE") = kOpticalMaturityOriginReflectance;
     m.def("reflectance_at_maturity", &ReflectanceAtMaturity, "reflectance"_a, "reference"_a,
-          "maturity"_a, "origin_reflectance"_a = OpticalMaturityOrigin{}.reflectance,
+          "maturity"_a, "origin_reflectance"_a = kOpticalMaturityOriginReflectance,
           "The reflectance of material at `maturity`, from `reflectance` at the `reference` "
           "maturity.");
 }

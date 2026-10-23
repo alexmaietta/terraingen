@@ -222,7 +222,7 @@ def test_noise_layer_fields_are_writable():
 
 def test_synthetic_terrain_params_hold_up_to_eight_layers():
     params = terraingen.SyntheticTerrainParams()
-    assert len(params.layers) == 1
+    assert len(params.layers) == 0
     layer = terraingen.NoiseLayer()
     layer.blend = terraingen.LayerBlend.MASK
     params.layers = [layer, terraingen.NoiseLayer()]
@@ -245,9 +245,12 @@ def test_validate_noise_layer_rejects_a_negative_warp():
         terraingen.validate_noise_layer(terraingen.NoiseLayer(warp_amplitude=-1.0))
 
 
-def test_validate_synthetic_terrain_needs_a_layer():
+def test_validate_synthetic_terrain_allows_an_empty_stack():
+    terraingen.validate_synthetic_terrain(terraingen.SyntheticTerrainParams(layers=[]))
     with pytest.raises(ValueError):
-        terraingen.validate_synthetic_terrain(terraingen.SyntheticTerrainParams(layers=[]))
+        terraingen.validate_synthetic_terrain(
+            terraingen.SyntheticTerrainParams(layers=[terraingen.NoiseLayer()] * 9)
+        )
 
 
 def test_validate_noise_layers_checks_the_count_and_names_the_bad_layer():

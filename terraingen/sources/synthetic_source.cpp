@@ -13,7 +13,7 @@
 namespace terraingen {
 
 void ValidateSyntheticTerrain(const SyntheticTerrainParams& params) {
-    ValidateNoiseLayers(params.layers, 1);
+    ValidateNoiseLayers(params.layers);
 }
 
 SyntheticSource::NoisePosts::NoisePosts(const SyntheticSource& source, double pixelSize)
@@ -36,7 +36,7 @@ SyntheticSource::SyntheticSource(SyntheticTerrainParams params, float elevation,
                                  std::optional<double> pixelSize,
                                  std::shared_ptr<const Upsampler> upsampler, Surface surface)
     : params_(std::move(params)), elevation_(elevation), pixelSize_(pixelSize), surface_(surface) {
-    ValidateNoiseLayers(params_.layers);
+    ValidateSyntheticTerrain(params_);
     RequireFinite(static_cast<double>(elevation_), "Elevation");
     if (!pixelSize_) {
         if (upsampler) {

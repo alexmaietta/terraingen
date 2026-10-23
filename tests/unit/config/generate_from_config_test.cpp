@@ -95,7 +95,7 @@ TEST(GenerateFromConfig, AppliesTheHurstExponentToTheGain) {
     config.layers.pop_back();
     Noise(config).stack[0].hurst = 0.6f;
     const auto terrain = GenerateFromConfig(config);
-    terraingen::SyntheticTerrainParams params;
+    terraingen::SyntheticTerrainParams params{{terraingen::NoiseLayer{}}};
     params.layers[0] = Noise(config).stack[0].EffectiveRelief();
     params.layers[0].fractal.gain = terraingen::GainFromHurst(0.6f, 2.0f);
     terraingen::Raster<float> expected =

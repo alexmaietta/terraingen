@@ -21,7 +21,7 @@ using terraingen::SyntheticTerrainParams;
 namespace {
 
 SyntheticTerrainParams Params() {
-    SyntheticTerrainParams params;
+    SyntheticTerrainParams params{{terraingen::NoiseLayer{}}};
     params.layers[0].fractal.wavelength = 50.0f;
     params.layers[0].fractal.amplitude = 4.0f;
     return params;
@@ -58,7 +58,6 @@ TEST(NoiseRelief, MeasuresPositionsFromItsOriginAndSkipsNoData) {
 
 TEST(NoiseRelief, RejectsInvalidParameters) {
     SyntheticTerrainParams params;
-    params.layers.clear();
     EXPECT_THROW(NoiseRelief{params}, std::invalid_argument);
     EXPECT_EQ(NoiseRelief(Params()).Params(), Params());
 }

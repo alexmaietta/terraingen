@@ -71,7 +71,6 @@ NoiseLayer NoiseStackLayerSpec::EffectiveRelief() const {
 
 SyntheticTerrainParams StackParams(const std::vector<NoiseStackLayerSpec>& stack) {
     SyntheticTerrainParams params;
-    params.layers.clear();
     for (const NoiseStackLayerSpec& layer : stack) {
         params.layers.push_back(layer.EffectiveRelief());
     }
@@ -84,7 +83,6 @@ SyntheticTerrainParams NoiseLayerSpec::Params() const {
 
 SyntheticTerrainParams NoiseLayerSpec::EstimatedParams(const BaseRoughness& source) const {
     SyntheticTerrainParams params;
-    params.layers.clear();
     for (NoiseStackLayerSpec layer : stack) {
         if (!layer.hurst) {
             layer.hurst = static_cast<float>(source.hurst);

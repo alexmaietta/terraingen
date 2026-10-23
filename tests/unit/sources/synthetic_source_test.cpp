@@ -130,10 +130,11 @@ TEST(SyntheticSource, RejectsInvalidSettings) {
         << "an upsampler needs posts";
 }
 
-TEST(ValidateSyntheticTerrain, NeedsALayerAndNamesTheBadLayer) {
+TEST(ValidateSyntheticTerrain, AllowsAnEmptyStackAndNamesTheBadLayer) {
     EXPECT_NO_THROW(terraingen::ValidateSyntheticTerrain(SyntheticTerrainParams{}));
-    EXPECT_THROW(terraingen::ValidateSyntheticTerrain(SyntheticTerrainParams{{}}),
-                 std::invalid_argument);
+    SyntheticTerrainParams many;
+    many.layers.resize(terraingen::kMaxNoiseLayers + 1);
+    EXPECT_THROW(terraingen::ValidateSyntheticTerrain(many), std::invalid_argument);
     SyntheticTerrainParams bad = Hills();
     bad.layers.push_back(NoiseLayer{});
     bad.layers[1].fractal.gain = 0.0f;
@@ -148,4 +149,13 @@ TEST(ValidateSyntheticTerrain, NeedsALayerAndNamesTheBadLayer) {
 TEST(SyntheticTerrainParams, ComparesLayers) {
     EXPECT_EQ(SyntheticTerrainParams{}, SyntheticTerrainParams{});
     EXPECT_NE(Hills(), SyntheticTerrainParams{});
+}
+
+TEST(SyntheticSource, ADefaultStackFillsZeros) {
+    EXPECT_TRUE(SyntheticTerrainParams{}.layers.empty());
+    Raster<float> heights = RasterGrid{5, 4, GeoTransform::NorthUp(-30.0, 20.0, 3.0)}.MakeRaster();
+    SyntheticSource(SyntheticTerrainParams{}).Fill(heights);
+    for (const float value : heights.Values()) {
+        EXPECT_EQ(value, 0.0f);
+    }
 }

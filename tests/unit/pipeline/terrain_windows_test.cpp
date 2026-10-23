@@ -102,7 +102,7 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     TerrainGenerator terrain;
     terrain.surface = moon;
     terrain.source = std::make_shared<terraingen::FlatSource>(96, 64, step, 0.0f);
-    terraingen::SyntheticTerrainParams noise;
+    terraingen::SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 400.0f;
     noise.layers[0].fractal.amplitude = 6.0f;
     terrain.layers.push_back(
@@ -190,7 +190,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     TerrainGenerator terrain;
     terrain.surface = moon;
     terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 100.0f);
-    terraingen::SyntheticTerrainParams noise;
+    terraingen::SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 300000.0f;
     noise.layers[0].fractal.amplitude = 2000.0f;
     terrain.layers.push_back(

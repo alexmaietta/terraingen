@@ -429,8 +429,8 @@ void BindFields(nb::module_& m) {
 
 void BindSyntheticTerrain(nb::module_& m) {
     nb::class_<SyntheticTerrainParams>(m, "SyntheticTerrainParams",
-                                       "A stack of 1 to 8 noise layers. `layers` is copied on "
-                                       "access; assign a new list to change it.")
+                                       "A stack of 0 to 8 noise layers, none flat. `layers` is "
+                                       "copied on access; assign a new list to change it.")
         .def(
             "__init__",
             [](SyntheticTerrainParams* params, std::optional<std::vector<NoiseLayer>> layers) {

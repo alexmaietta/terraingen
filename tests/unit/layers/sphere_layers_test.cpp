@@ -64,7 +64,7 @@ class Flat final : public terraingen::Ground {
 }  // namespace
 
 TEST(SphereLayers, NoiseIsSeamlessAcrossTheAntimeridianAndPoles) {
-    terraingen::SyntheticTerrainParams params;
+    terraingen::SyntheticTerrainParams params{{terraingen::NoiseLayer{}}};
     params.layers[0].fractal.wavelength = 300.0f;
     params.layers[0].fractal.amplitude = 20.0f;
     const terraingen::NoiseRelief noise(params, {}, kSphere);

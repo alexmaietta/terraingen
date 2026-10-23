@@ -322,7 +322,7 @@ struct CraterAlbedoOptions {
     RayRetention retention{};           ///< Retention time T by diameter.
     double fadeExponent = 1.0;          ///< Excesses fade as max(0, 1 - t / T)^this.
     /// Reflectance of the optical maturity origin (`ReflectanceAtMaturity`).
-    double originReflectance = OpticalMaturityOrigin{}.reflectance;
+    double originReflectance = kOpticalMaturityOriginReflectance;
     ResolutionFade fade{};  ///< How craters too small to resolve fade out.
 
     bool operator==(const CraterAlbedoOptions& other) const {

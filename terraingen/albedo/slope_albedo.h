@@ -20,7 +20,7 @@ struct SlopeAlbedoOptions {
     double maxMaturity = 0.42;          ///< Cap on OMAT; >= `backgroundMaturity`.
     double baseline = 10.0;             ///< Meters slopes are measured over; positive.
     /// Reflectance of the optical maturity origin (`ReflectanceAtMaturity`).
-    double originReflectance = OpticalMaturityOrigin{}.reflectance;
+    double originReflectance = kOpticalMaturityOriginReflectance;
 
     bool operator==(const SlopeAlbedoOptions& other) const {
         return onsetDegrees == other.onsetDegrees && maturityPerDegree == other.maturityPerDegree &&

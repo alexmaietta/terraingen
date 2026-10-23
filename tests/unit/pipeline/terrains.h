@@ -24,7 +24,7 @@ inline CraterModels PowerLawCraterModels() {
 inline TerrainGenerator Rolling(const CraterApplyOptions& apply = {}) {
     TerrainGenerator terrain;
     terrain.source = std::make_shared<FlatSource>(96, 64, 2.0, 5.0f);
-    SyntheticTerrainParams noise;
+    SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 80.0f;
     noise.layers[0].fractal.amplitude = 6.0f;
     terrain.layers.push_back(std::make_shared<NoiseRelief>(noise));

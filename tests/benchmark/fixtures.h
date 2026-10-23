@@ -20,7 +20,7 @@ inline TerrainGenerator LunarMare(double size, double pixelSize, double maxDiame
     terrain.surface = body;
     const auto cells = static_cast<std::size_t>(size / pixelSize);
     terrain.source = std::make_shared<FlatSource>(cells, cells, pixelSize / body.UnitLength());
-    SyntheticTerrainParams noise;
+    SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 400.0f;
     noise.layers[0].fractal.amplitude = 8.0f;
     terrain.layers.push_back(std::make_shared<NoiseRelief>(noise, Vec2d{}, body));

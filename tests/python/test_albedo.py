@@ -64,8 +64,8 @@ def test_immature_soil_is_brighter():
     assert terraingen.reflectance_at_maturity(0.11, 0.2, 0.4) > 0.11
 
 
-def test_optical_maturity_origin_keeps_its_ratio():
-    assert terraingen.OpticalMaturityOrigin(ratio=1.2).ratio == 1.2
+def test_optical_maturity_origin_is_the_clementine_reflectance():
+    assert terraingen.OPTICAL_MATURITY_ORIGIN_REFLECTANCE == 0.08
 
 
 def test_hsv_to_rgb_of_half_bright_red():
