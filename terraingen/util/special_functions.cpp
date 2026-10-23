@@ -1,7 +1,5 @@
 #include "terraingen/util/special_functions.h"
 
-#include "terraingen/util/bits.h"
-
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -9,6 +7,9 @@
 namespace terraingen {
 
 namespace {
+
+/// The Euler-Mascheroni constant.
+constexpr double kEulerGamma = 0.577215664901532860606512090082402431;
 
 constexpr int kMaxIterations = 200;
 constexpr double kEpsilon = std::numeric_limits<double>::epsilon();

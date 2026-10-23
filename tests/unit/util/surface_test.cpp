@@ -145,6 +145,20 @@ TEST(CubeFaces, FindTheNearestFaceAndEquiangularCoordinates) {
     EXPECT_DOUBLE_EQ(terraingen::detail::kQuarter, terraingen::kPi / 4.0);
 }
 
+TEST(CubeFaces, FaceCoordinatesGiveTheFaceAndItsEquiangularCoordinates) {
+    using terraingen::detail::kCubeFaces;
+    const terraingen::detail::FacePosition center =
+        terraingen::detail::FaceCoordinates(kCubeFaces, Vec3d{0.0, -2.0, 0.0}, 8.0);
+    EXPECT_EQ(center.face, 3u);
+    EXPECT_DOUBLE_EQ(center.s, 4.0);
+    EXPECT_DOUBLE_EQ(center.t, 4.0);
+    const terraingen::detail::FacePosition edge =
+        terraingen::detail::FaceCoordinates(kCubeFaces, Vec3d{1.0, 1.0, 0.0}, 8.0);
+    EXPECT_EQ(edge.face, 0u);
+    EXPECT_DOUBLE_EQ(edge.s, 8.0);
+    EXPECT_DOUBLE_EQ(edge.t, 4.0);
+}
+
 TEST(CubeSphereCells, CellsTileTheSphereWithExactAreas) {
     const CubeSphereCells cells(kMoon);
     const double size = 300000.0;

@@ -274,15 +274,6 @@ struct CudaCompute::State {
     }
 };
 
-namespace {
-
-LazyDevice<CudaCompute>& SharedDevice() {
-    static LazyDevice<CudaCompute> device("CUDA");
-    return device;
-}
-
-}  // namespace
-
 CudaCompute::CudaCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
 
 CudaCompute::~CudaCompute() = default;
@@ -291,14 +282,6 @@ std::unique_ptr<CudaCompute> CudaCompute::Open() {
     auto state = std::make_unique<State>();
     state->Open();
     return std::unique_ptr<CudaCompute>(new CudaCompute(std::move(state)));
-}
-
-CudaCompute* CudaCompute::Get() {
-    return SharedDevice().Get();
-}
-
-std::string CudaCompute::Reason() {
-    return SharedDevice().Reason();
 }
 
 const std::string& CudaCompute::DeviceName() const {

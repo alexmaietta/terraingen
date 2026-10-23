@@ -62,7 +62,7 @@ class TiffReader {
     }
 
     [[noreturn]] void Fail(const std::string& reason) const {
-        throw GeoTiffError(path_.string() + ": " + reason);
+        ThrowFileError(path_, reason);
     }
 
     void Read(std::uint64_t offset, void* destination, std::uint64_t count) {
@@ -298,6 +298,11 @@ struct Layout {
     }
 };
 
+/// The bytes of one sample.
+std::size_t SampleBytes(const GeoTiffInfo& info) {
+    return static_cast<std::size_t>(info.bitsPerSample) / 8;
+}
+
 void ImageSize(const Ifd& ifd, GeoTiffInfo& info) {
     info.width = static_cast<std::size_t>(ifd.Required(kImageWidth));
     info.height = static_cast<std::size_t>(ifd.Required(kImageLength));
@@ -459,7 +464,7 @@ Layout ReadLayout(TiffReader& reader) {
     info.geoKeys = ReadGeoKeys(ifd);
     ReadTransform(ifd, info);
     const IfdEntry* metadata = ifd.Find(kGdalMetadata);
-    info.bandScaling = ParseGdalBandScaling(
+    info.bandScaling = detail::ParseGdalBandScaling(
         metadata != nullptr ? TiffReader::Ascii(*metadata) : std::string(), info.bands);
     info.noData = ParseNoData(ifd);
     return layout;
@@ -502,7 +507,7 @@ void UndoPredictor(std::vector<std::uint8_t>& bytes, const GeoTiffInfo& info, st
     if (info.predictor != 2 && info.predictor != 3) {
         return;
     }
-    const std::size_t sampleBytes = static_cast<std::size_t>(info.bitsPerSample) / 8;
+    const std::size_t sampleBytes = SampleBytes(info);
     const std::size_t rowBytes = rowSamples * sampleBytes;
     for (std::size_t row = 0; row < rows; ++row) {
         std::uint8_t* p = bytes.data() + row * rowBytes;
@@ -596,7 +601,7 @@ std::vector<std::uint8_t> DecodeChunk(TiffReader& reader, const Layout& layout, 
                                       std::size_t rows) {
     ++decodedChunks;
     const GeoTiffInfo& info = layout.info;
-    const std::size_t sampleBytes = static_cast<std::size_t>(info.bitsPerSample) / 8;
+    const std::size_t sampleBytes = SampleBytes(info);
     const std::size_t rowSamples = layout.chunkWidth * layout.SamplesInChunk();
     std::vector<std::uint8_t> bytes =
         Decompress(reader, layout, chunk, rows * rowSamples * sampleBytes);
@@ -613,7 +618,7 @@ void CopyChunk(const std::vector<std::uint8_t>& bytes, const Layout& layout, std
                std::size_t cy, std::size_t rows, std::size_t sampleIndex, const PixelWindow& window,
                Raster<float>& raster) {
     const GeoTiffInfo& info = layout.info;
-    const std::size_t sampleBytes = static_cast<std::size_t>(info.bitsPerSample) / 8;
+    const std::size_t sampleBytes = SampleBytes(info);
     const std::size_t samplesInChunk = layout.SamplesInChunk();
     const std::size_t rowBytes = layout.chunkWidth * samplesInChunk * sampleBytes;
     const std::size_t x0 = cx * layout.chunkWidth;

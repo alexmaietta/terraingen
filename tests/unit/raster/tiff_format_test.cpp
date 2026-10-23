@@ -121,3 +121,22 @@ TEST(TiffCodecs, FloatPredictorRoundTripsAndGroupsBytePlanes) {
         EXPECT_EQ(row, original);
     }
 }
+
+TEST(TiffFormat, FileErrorsNameTheFile) {
+    try {
+        terraingen::detail::ThrowFileError("dem.tif", "not a TIFF file");
+        FAIL() << "expected a GeoTiffError";
+    } catch (const terraingen::GeoTiffError& error) {
+        EXPECT_STREQ(error.what(), "dem.tif: not a TIFF file");
+    }
+}
+
+TEST(TiffCodecs, ShortOutputSaysHowMuchWasDecoded) {
+    const std::vector<std::uint8_t> literal{1, 7, 9};
+    try {
+        terraingen::detail::DecodePackBits(literal, 4);
+        FAIL() << "expected a GeoTiffError";
+    } catch (const terraingen::GeoTiffError& error) {
+        EXPECT_STREQ(error.what(), "Corrupt PackBits data: decoded 2 of 4 bytes");
+    }
+}

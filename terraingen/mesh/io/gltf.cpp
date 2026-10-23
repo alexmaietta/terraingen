@@ -17,6 +17,24 @@
 
 namespace terraingen::detail {
 
+std::array<double, 4> RotationQuaternion(const std::array<double, 9>& r) {
+    const double trace = r[0] + r[4] + r[8];
+    if (trace > 0.0) {
+        const double s = 2.0 * std::sqrt(1.0 + trace);
+        return {(r[7] - r[5]) / s, (r[2] - r[6]) / s, (r[3] - r[1]) / s, 0.25 * s};
+    }
+    if (r[0] > r[4] && r[0] > r[8]) {
+        const double s = 2.0 * std::sqrt(1.0 + r[0] - r[4] - r[8]);
+        return {0.25 * s, (r[1] + r[3]) / s, (r[2] + r[6]) / s, (r[7] - r[5]) / s};
+    }
+    if (r[4] > r[8]) {
+        const double s = 2.0 * std::sqrt(1.0 + r[4] - r[0] - r[8]);
+        return {(r[1] + r[3]) / s, 0.25 * s, (r[5] + r[7]) / s, (r[2] - r[6]) / s};
+    }
+    const double s = 2.0 * std::sqrt(1.0 + r[8] - r[0] - r[4]);
+    return {(r[2] + r[6]) / s, (r[5] + r[7]) / s, 0.25 * s, (r[3] - r[1]) / s};
+}
+
 namespace {
 
 /// The cgltf document of a scene: every array sized before any pointer into it is taken, and the
@@ -209,6 +227,53 @@ class GltfDocument {
     std::vector<cgltf_node*> roots_;
 };
 
+/// The position accessor of `primitive`, or null.
+const cgltf_accessor* PositionAccessor(const cgltf_primitive& primitive) {
+    const cgltf_accessor* positions = nullptr;
+    for (std::size_t a = 0; a < primitive.attributes_count; ++a) {
+        if (primitive.attributes[a].type == cgltf_attribute_type_position) {
+            positions = primitive.attributes[a].data;
+        }
+    }
+    return positions;
+}
+
+/// Adds the vertices of `positions`, placed by the column-major `world` transform, and the
+/// triangles of `primitive` to `read`.
+void AppendPrimitive(const cgltf_primitive& primitive, const cgltf_accessor& positions,
+                     const cgltf_float (&world)[16], SceneMesh& read) {
+    const auto offset = static_cast<std::uint32_t>(read.mesh.positions.size());
+    for (std::size_t v = 0; v < positions.count; ++v) {
+        cgltf_float q[3] = {};
+        cgltf_accessor_read_float(&positions, v, q, 3);
+        const auto axis = [&](std::size_t c) {
+            return static_cast<double>(world[c] * q[0] + world[4 + c] * q[1] + world[8 + c] * q[2] +
+                                       world[12 + c]);
+        };
+        read.mesh.positions.push_back(ZUp({axis(0), axis(1), axis(2)}));
+    }
+    const std::size_t count = primitive.indices ? primitive.indices->count : positions.count;
+    for (std::size_t i = 0; i + 2 < count; i += 3) {
+        std::array<std::uint32_t, 3> triangle{};
+        for (std::size_t c = 0; c < 3; ++c) {
+            const std::size_t index =
+                primitive.indices ? cgltf_accessor_read_index(primitive.indices, i + c) : i + c;
+            triangle[c] = offset + static_cast<std::uint32_t>(index);
+        }
+        read.mesh.triangles.push_back(triangle);
+    }
+}
+
+/// The name and base color of a glTF material.
+MeshMaterial ReadMaterial(const cgltf_material& material) {
+    MeshMaterial read;
+    read.name = material.name ? material.name : "default";
+    for (std::size_t c = 0; c < 3; ++c) {
+        read.color[c] = static_cast<double>(material.pbr_metallic_roughness.base_color_factor[c]);
+    }
+    return read;
+}
+
 /// Adds the triangles of `node` and its children, placed by their world transforms, to `read`.
 void AppendNodeTriangles(const cgltf_node& node, SceneMesh& read) {
     if (node.mesh != nullptr) {
@@ -216,48 +281,13 @@ void AppendNodeTriangles(const cgltf_node& node, SceneMesh& read) {
         cgltf_node_transform_world(&node, world);
         for (std::size_t p = 0; p < node.mesh->primitives_count; ++p) {
             const cgltf_primitive& primitive = node.mesh->primitives[p];
-            const cgltf_accessor* positions = nullptr;
-            for (std::size_t a = 0; a < primitive.attributes_count; ++a) {
-                if (primitive.attributes[a].type == cgltf_attribute_type_position) {
-                    positions = primitive.attributes[a].data;
-                }
-            }
+            const cgltf_accessor* positions = PositionAccessor(primitive);
             if (primitive.type != cgltf_primitive_type_triangles || positions == nullptr) {
                 continue;
             }
-            const auto offset = static_cast<std::uint32_t>(read.mesh.positions.size());
-            for (std::size_t v = 0; v < positions->count; ++v) {
-                cgltf_float q[3] = {};
-                cgltf_accessor_read_float(positions, v, q, 3);
-                const cgltf_float x =
-                    world[0] * q[0] + world[4] * q[1] + world[8] * q[2] + world[12];
-                const cgltf_float y =
-                    world[1] * q[0] + world[5] * q[1] + world[9] * q[2] + world[13];
-                const cgltf_float z =
-                    world[2] * q[0] + world[6] * q[1] + world[10] * q[2] + world[14];
-                const Vec3d placed{static_cast<double>(x), static_cast<double>(y),
-                                   static_cast<double>(z)};
-                read.mesh.positions.push_back(ZUp(placed));
-            }
-            const std::size_t count =
-                primitive.indices ? primitive.indices->count : positions->count;
-            for (std::size_t i = 0; i + 2 < count; i += 3) {
-                std::array<std::uint32_t, 3> triangle{};
-                for (std::size_t c = 0; c < 3; ++c) {
-                    const std::size_t index =
-                        primitive.indices ? cgltf_accessor_read_index(primitive.indices, i + c)
-                                          : i + c;
-                    triangle[c] = offset + static_cast<std::uint32_t>(index);
-                }
-                read.mesh.triangles.push_back(triangle);
-            }
+            AppendPrimitive(primitive, *positions, world, read);
             if (primitive.material != nullptr && read.material == MeshMaterial{}) {
-                const cgltf_material& material = *primitive.material;
-                read.material.name = material.name ? material.name : "default";
-                for (std::size_t c = 0; c < 3; ++c) {
-                    read.material.color[c] =
-                        static_cast<double>(material.pbr_metallic_roughness.base_color_factor[c]);
-                }
+                read.material = ReadMaterial(*primitive.material);
             }
         }
     }

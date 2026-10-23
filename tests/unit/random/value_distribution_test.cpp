@@ -70,6 +70,19 @@ TEST(ValueDistribution, PiecewiseInvertsTheBinsAndSkipsEmptyOnes) {
     EXPECT_EQ(piecewise.Highest(), 1.5);
 }
 
+TEST(ValueDistribution, EqualityComparesPiecewiseBins) {
+    ValueDistribution first{ValueDistribution::Kind::Piecewise};
+    first.edges = {0.0, 1.0, 2.0};
+    first.weights = {1.0, 1.0};
+    ValueDistribution second = first;
+    EXPECT_EQ(first, second);
+    second.weights = {1.0, 3.0};
+    EXPECT_NE(first, second);
+    second = first;
+    second.edges = {0.0, 1.5, 2.0};
+    EXPECT_NE(first, second);
+}
+
 TEST(ValueDistribution, RejectsMalformedPiecewiseBins) {
     const auto piecewise = [](std::vector<double> edges, std::vector<double> weights) {
         ValueDistribution d{ValueDistribution::Kind::Piecewise};

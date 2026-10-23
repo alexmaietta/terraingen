@@ -12,19 +12,18 @@
 
 namespace terraingen {
 
-/// A shape model in Gaskell's implicitly connected quadrilateral (ICQ) format, in meters: the
-/// vertices v(I, J, F) labeled as grid points on the six faces of a cube, I and J from 0 to Q and
-/// F from 1 to 6, the faces centered on +z, -y, -x, +y, +x and -z. Vertices on the cube's edges and
-/// corners are stored once per face, as in the files. Format: R. W. Gaskell, "The Implicitly
-/// Connected Quadrilateral Format", NASA PDS Small Bodies Node,
+/// A shape model in Gaskell's implicitly connected quadrilateral (ICQ) format, in meters: one
+/// vertex per label (I, J, F) of the cube grid (`RadialShape::LabelDirection`), edge and corner
+/// vertices stored once per face as in the files. R. W. Gaskell, "The Implicitly Connected
+/// Quadrilateral Format",
 /// https://sbnarchive.psi.edu/pds3/dawn/fc/DWNCSPC_4_01/DOCUMENT/ICQMODEL.ASC
 struct IcqModel {
     std::size_t q = 0;            ///< Q, the vertex grid's intervals per face edge.
     std::vector<Vec3d> vertices;  ///< 6 (Q + 1)^2 vertices in file order: F, then J, then I.
 
-    /// The index in `vertices` of v(`i`, `j`, `face`), with `face` from 1 to 6.
+    /// The index in `vertices` of v(`i`, `j`, `face`) (`IcqLabelIndex`).
     std::size_t Index(std::size_t i, std::size_t j, std::size_t face) const {
-        return ((face - 1) * (q + 1) + j) * (q + 1) + i;
+        return IcqLabelIndex(q, i, j, face);
     }
 
     /// Memberwise equality.
@@ -39,11 +38,8 @@ struct IcqModel {
 /// Whether `path` ends in .icq, in any case.
 bool IsIcqPath(const std::filesystem::path& path);
 
-/// The unit direction of label (`i`, `j`, `face`) of a cube with `q` intervals per edge, at
-/// equiangular coordinates, with the faces oriented as in Gaskell's models: on face 1 (+z) I runs
-/// along +x and J along -y; on faces 2 to 5 (-y, -x, +y, +x) J runs along -z; on face 6 (-z) I runs
-/// along +x and J along +y. Labels the format shares between faces get the same direction exactly.
-/// @throws std::invalid_argument unless `q` > 0, `i` and `j` <= `q` and 1 <= `face` <= 6.
+/// The unit direction of ICQ label (`i`, `j`, `face`), as `RadialShape::LabelDirection`.
+/// @throws std::invalid_argument as `RadialShape::LabelDirection`.
 inline Vec3d IcqDirection(std::size_t q, std::size_t i, std::size_t j, std::size_t face) {
     return RadialShape::LabelDirection(q, i, j, face);
 }

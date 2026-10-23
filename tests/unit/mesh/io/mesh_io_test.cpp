@@ -1,11 +1,13 @@
 #include "terraingen/mesh/io/mesh_io.h"
 
 #include "support/temp_path.h"
+#include "terraingen/mesh/io/formats.h"
 #include "terraingen/mesh/polyhedra.h"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -200,4 +202,20 @@ TEST(ReadMesh, TriangulatesObjPolygons) {
     const SceneMesh read = terraingen::ReadMesh(path);
     ExpectSameMesh(read.mesh, {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}}, 2);
     EXPECT_EQ(read.material, MeshMaterial{}) << "no .mtl keeps the default material";
+}
+
+TEST(RotationQuaternion, CoversEveryBranchOfShepperdsMethod) {
+    using terraingen::detail::RotationQuaternion;
+    const auto expect = [](const std::array<double, 4>& q, const std::array<double, 4>& want) {
+        for (std::size_t i = 0; i < 4; ++i) {
+            EXPECT_NEAR(std::fabs(q[i]), std::fabs(want[i]), 1e-12) << i;
+        }
+    };
+    const double pi = std::acos(-1.0);
+    const double h = std::sqrt(0.5);
+    expect(RotationQuaternion(RigidTransform{}.rotation), {0, 0, 0, 1});
+    expect(RotationQuaternion(RigidTransform::RotationX(pi).rotation), {1, 0, 0, 0});
+    expect(RotationQuaternion(RigidTransform::RotationY(pi).rotation), {0, 1, 0, 0});
+    expect(RotationQuaternion(RigidTransform::RotationZ(pi).rotation), {0, 0, 1, 0});
+    expect(RotationQuaternion(RigidTransform::RotationZ(pi / 2).rotation), {0, 0, h, h});
 }

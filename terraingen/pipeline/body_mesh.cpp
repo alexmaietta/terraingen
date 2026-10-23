@@ -102,13 +102,9 @@ IcqModel BodyIcq(const TerrainGenerator& generator, std::size_t q, double spacin
     IcqModel model;
     model.q = q;
     std::vector<Vec3d> directions(6 * (q + 1) * (q + 1));
-    for (std::size_t face = 1; face <= 6; ++face) {
-        for (std::size_t j = 0; j <= q; ++j) {
-            for (std::size_t i = 0; i <= q; ++i) {
-                directions[model.Index(i, j, face)] = IcqDirection(q, i, j, face);
-            }
-        }
-    }
+    ForEachIcqLabel(q, [&](std::size_t i, std::size_t j, std::size_t face, std::size_t k) {
+        directions[k] = IcqDirection(q, i, j, face);
+    });
     model.vertices = BodyPositions(generator, directions, sampled, threads);
     return model;
 }

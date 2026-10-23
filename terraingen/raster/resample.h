@@ -9,7 +9,6 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <limits>
 #include <optional>
 
 namespace terraingen {
@@ -34,9 +33,13 @@ enum class ResampleMethod {
 /// 2 for the cubic kernels, 3 for Lanczos.
 int KernelRadius(ResampleMethod method);
 
-/// The weight of `method`'s kernel at an offset of `x` cells, before any normalization: 1 at 0 and
-/// 0 at the other whole offsets for the interpolating kernels.
+namespace detail {
+
+/// The weight of a cubic, Catmull-Rom, Lanczos or B-spline kernel at an offset of `x` cells,
+/// before any normalization: 1 at 0 and 0 at the other whole offsets for the interpolating ones.
 double KernelWeight(ResampleMethod method, double x);
+
+}  // namespace detail
 
 /// The weights of the 2 `KernelRadius` cells around a point `fraction` of the way from cell 0 to
 /// cell 1, for cells -radius + 1 to radius, as the interpolation applies them; nearest is not a
@@ -114,24 +117,6 @@ struct RasterPlacement {
     }
 };
 
-/// `SampleRaster` of the larger raster `window` is placed in, read from `window` alone: the same
-/// bits wherever every cell interpolated lies in `window` or beyond the larger raster's edge
-/// where `window` reaches it; NaN outside the larger raster.
-/// @param window The window; not empty and not rotated.
-/// @throws std::invalid_argument for an empty or rotated window.
-/// @throws std::domain_error if the larger raster's transform is not invertible.
-float SampleRasterWindow(const Raster<float>& window, const RasterPlacement& placement, double x,
-                         double y, ResampleMethod method);
-
-/// The cells `cells` of `Resample` of the larger raster `window` is placed in, read from `window`
-/// alone, on their grid of the resampled lattice: the same bits wherever every cell interpolated
-/// lies in `window` or beyond the larger raster's edge where `window` reaches it.
-/// @param cells A non-empty window of `ResampledGrid(placement.whole, pixelSize)`.
-/// @throws std::invalid_argument as `Resample`, or for `cells` empty or beyond the resampled
-/// grid.
-Raster<float> ResampleWindow(const Raster<float>& window, const RasterPlacement& placement,
-                             double pixelSize, ResampleMethod method, const PixelWindow& cells);
-
 /// A raster resampled onto a non-empty grid, each cell `SampleRaster` at its center.
 ///
 /// Cells giving NaN hold `raster`'s no-data value, or NaN, which then becomes the no-data value
@@ -146,24 +131,5 @@ Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
 /// missing cells hold `noData` or, without one, NaN: `noData` if set; otherwise NaN if a cell
 /// was `missing`, else none.
 std::optional<float> FilledNoData(std::optional<float> noData, bool missing);
-
-/// Sets each cell of `target` to `sample` at the cell's center; cells where it gives NaN
-/// hold `noData`, or NaN without one, and `target` gets `FilledNoData`.
-/// @tparam Sample Callable as `float(double x, double y)` with world coordinates; returns NaN
-/// where missing.
-template <typename Sample>
-void SampleAtCenters(Raster<float>& target, std::optional<float> noData, Sample&& sample) {
-    const float fill = noData.value_or(std::numeric_limits<float>::quiet_NaN());
-    bool missing = false;
-    for (std::size_t row = 0; row < target.Height(); ++row) {
-        for (std::size_t col = 0; col < target.Width(); ++col) {
-            const Vec2d center = target.CellCenter(col, row);
-            const float value = sample(center.x, center.y);
-            missing = missing || std::isnan(value);
-            target(col, row) = std::isnan(value) ? fill : value;
-        }
-    }
-    target.SetNoData(FilledNoData(noData, missing));
-}
 
 }  // namespace terraingen

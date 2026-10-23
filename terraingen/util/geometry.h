@@ -129,6 +129,12 @@ struct Bounds2d {
     double maxX = 0.0;
     double maxY = 0.0;
 
+    /// Whether every bound is finite.
+    bool IsFinite() const {
+        return std::isfinite(minX) && std::isfinite(minY) && std::isfinite(maxX) &&
+               std::isfinite(maxY);
+    }
+
     /// Whether the half-open box holds the point (`x`, `y`).
     bool Contains(double x, double y) const {
         return x >= minX && x < maxX && y >= minY && y < maxY;

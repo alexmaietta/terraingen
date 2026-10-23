@@ -489,15 +489,6 @@ struct VulkanCompute::State {
     }
 };
 
-namespace {
-
-LazyDevice<VulkanCompute>& SharedDevice() {
-    static LazyDevice<VulkanCompute> device("Vulkan");
-    return device;
-}
-
-}  // namespace
-
 std::optional<std::size_t> PickDevice(Span<const DeviceKind> kinds) {
     for (const DeviceKind kind :
          {DeviceKind::Discrete, DeviceKind::Integrated, DeviceKind::Virtual, DeviceKind::Other}) {
@@ -529,14 +520,6 @@ std::unique_ptr<VulkanCompute> VulkanCompute::Open() {
     auto state = std::make_unique<State>();
     state->Open();
     return std::unique_ptr<VulkanCompute>(new VulkanCompute(std::move(state)));
-}
-
-VulkanCompute* VulkanCompute::Get() {
-    return SharedDevice().Get();
-}
-
-std::string VulkanCompute::Reason() {
-    return SharedDevice().Reason();
 }
 
 const std::string& VulkanCompute::DeviceName() const {

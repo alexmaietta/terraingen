@@ -1,5 +1,5 @@
 /// @file
-/// @brief Mathematical constants, bit casts and byte order, in C++17.
+/// @brief Pi, bit casts and byte order, in C++17.
 #pragma once
 
 #include <cstring>
@@ -7,10 +7,7 @@
 
 namespace terraingen {
 
-inline constexpr double kPi = 3.141592653589793238462643383279502884;     ///< pi.
-inline constexpr double kSqrt2 = 1.414213562373095048801688724209698079;  ///< sqrt(2).
-/// The Euler-Mascheroni constant.
-inline constexpr double kEulerGamma = 0.577215664901532860606512090082402431;
+inline constexpr double kPi = 3.141592653589793238462643383279502884;  ///< pi.
 
 /// The bits of `from` read as a `To` of the same size, as `std::bit_cast` does.
 template <typename To, typename From> To BitCast(const From& from) noexcept {

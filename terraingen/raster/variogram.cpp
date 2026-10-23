@@ -1,21 +1,22 @@
 #include "terraingen/raster/variogram.h"
 
 #include <cmath>
+#include <utility>
 
 namespace terraingen {
-
-namespace {
-
-/// The longest lag, in cells, the deviogram is fitted over.
-constexpr std::size_t kMaxVariogramLag = 8;
-
-}  // namespace
 
 bool HasData(const Raster<float>& heights, std::size_t col, std::size_t row) {
     const float value = heights(col, row);
     return std::isfinite(value) && !heights.IsNoData(value);
 }
 
+namespace {
+
+/// The longest lag, in cells, the deviogram is fitted over.
+constexpr std::size_t kMaxVariogramLag = 8;
+
+/// The mean squared difference of cells `lag` apart along rows and columns where both hold data,
+/// and how many pairs gave it.
 std::pair<double, std::size_t> Variogram(const Raster<float>& heights, std::size_t lag) {
     double sum = 0.0;
     std::size_t count = 0;
@@ -39,6 +40,8 @@ std::pair<double, std::size_t> Variogram(const Raster<float>& heights, std::size
     }
     return {count > 0 ? sum / static_cast<double>(count) : 0.0, count};
 }
+
+}  // namespace
 
 DeviogramFit FitDeviogram(const Raster<float>& heights) {
     double sumX = 0.0;

@@ -43,9 +43,6 @@ struct PixelWindow {
 /// @throws std::domain_error if the grid's transform is not invertible.
 PixelWindow PixelWindowIn(const RasterGrid& grid, const Bounds2d& box);
 
-/// `PixelWindowIn` the raster's grid.
-PixelWindow PixelWindowIn(const Raster<float>& raster, const Bounds2d& box);
-
 /// The window of every cell of a grid.
 inline PixelWindow WholeWindow(const RasterGrid& grid) {
     return {0, grid.width, 0, grid.height};

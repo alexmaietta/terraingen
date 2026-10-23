@@ -138,6 +138,13 @@ static const float kOctaveTurnCos = -0.7373688780783197f;
 /// Sine of the golden-angle turn; see `kOctaveTurnCos`.
 static const float kOctaveTurnSin = 0.6754902942615238f;
 
+/// The golden-angle turn about the axis (1, 2, 3) / sqrt(14) between successive 3D octave
+/// lattices, row-major, in single precision for `Fractal3Float`.
+static const float kOctaveTurn3[3][3] = {
+    {-0.6132711010727254f, -0.293401570821183f, 0.7333580809050306f},
+    {0.7897926788435601f, -0.24097777005594262f, 0.5640542870894418f},
+    {0.011228581128535142f, 0.9251190369776896f, 0.37951111497202883f}};
+
 /// The running sums of a fractal over its octaves.
 struct FractalSums {
     float weight = 1.0f;       ///< Weight of the next octave, `gain^i`.
@@ -230,53 +237,35 @@ inline float Fractal2(float x, float y, FractalParams params) {
 /// float rounding for coordinates of moderate size, such as a crater's local frame.
 /// @return Height in [-amplitude, amplitude] world units.
 inline float Fractal3Float(float x, float y, float z, FractalParams params) {
-    const float k00 = -0.6132711010727254f;
-    const float k01 = -0.293401570821183f;
-    const float k02 = 0.7333580809050306f;
-    const float k10 = 0.7897926788435601f;
-    const float k11 = -0.24097777005594262f;
-    const float k12 = 0.5640542870894418f;
-    const float k20 = 0.011228581128535142f;
-    const float k21 = 0.9251190369776896f;
-    const float k22 = 0.37951111497202883f;
-    float t00 = 1.0f;
-    float t01 = 0.0f;
-    float t02 = 0.0f;
-    float t10 = 0.0f;
-    float t11 = 1.0f;
-    float t12 = 0.0f;
-    float t20 = 0.0f;
-    float t21 = 0.0f;
-    float t22 = 1.0f;
+    float turn[3][3] = {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
     float frequency = 1.0f / params.wavelength;
     detail::FractalSums sums = {};
     for (int octave = 0; octave < params.octaves; ++octave) {
         const UVec3 h = Pcg3dHash(detail::OctaveKey(params.seed, uint32_t(octave), 0u));
         const UVec3 g = Pcg3dHash(detail::OctaveKey(params.seed, uint32_t(octave), 1u));
-        const float px = (t00 * x + t01 * y + t02 * z) * frequency + HashToUnitFloat(h.y);
-        const float py = (t10 * x + t11 * y + t12 * z) * frequency + HashToUnitFloat(h.z);
-        const float pz = (t20 * x + t21 * y + t22 * z) * frequency + HashToUnitFloat(g.x);
-        const float n = BasisNoise3(params.basis, SplitLattice3(px, py, pz), h.x);
+        const float rx = turn[0][0] * x + turn[0][1] * y + turn[0][2] * z;
+        const float ry = turn[1][0] * x + turn[1][1] * y + turn[1][2] * z;
+        const float rz = turn[2][0] * x + turn[2][1] * y + turn[2][2] * z;
+        const float n = BasisNoise3(params.basis,
+                                    SplitLattice3(rx * frequency + HashToUnitFloat(h.y),
+                                                  ry * frequency + HashToUnitFloat(h.z),
+                                                  rz * frequency + HashToUnitFloat(g.x)),
+                                    h.x);
         sums = detail::AddFractalOctave(sums, params, octave, n);
         frequency *= params.lacunarity;
-        const float n00 = k00 * t00 + k01 * t10 + k02 * t20;
-        const float n01 = k00 * t01 + k01 * t11 + k02 * t21;
-        const float n02 = k00 * t02 + k01 * t12 + k02 * t22;
-        const float n10 = k10 * t00 + k11 * t10 + k12 * t20;
-        const float n11 = k10 * t01 + k11 * t11 + k12 * t21;
-        const float n12 = k10 * t02 + k11 * t12 + k12 * t22;
-        const float n20 = k20 * t00 + k21 * t10 + k22 * t20;
-        const float n21 = k20 * t01 + k21 * t11 + k22 * t21;
-        const float n22 = k20 * t02 + k21 * t12 + k22 * t22;
-        t00 = n00;
-        t01 = n01;
-        t02 = n02;
-        t10 = n10;
-        t11 = n11;
-        t12 = n12;
-        t20 = n20;
-        t21 = n21;
-        t22 = n22;
+        float next[3][3] = {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
+        for (int row = 0; row < 3; ++row) {
+            for (int column = 0; column < 3; ++column) {
+                next[row][column] = detail::kOctaveTurn3[row][0] * turn[0][column] +
+                                    detail::kOctaveTurn3[row][1] * turn[1][column] +
+                                    detail::kOctaveTurn3[row][2] * turn[2][column];
+            }
+        }
+        for (int row = 0; row < 3; ++row) {
+            for (int column = 0; column < 3; ++column) {
+                turn[row][column] = next[row][column];
+            }
+        }
     }
     return detail::FinishFractal(sums, params);
 }

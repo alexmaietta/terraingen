@@ -87,11 +87,6 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         return Sum([](const Shard& shard) { return shard.evictions; });
     }
 
-    /// The capacity given at construction, in `Cost` units.
-    std::size_t Capacity() const {
-        return capacity_;
-    }
-
   private:
     struct Entry {
         std::shared_ptr<const Value> value;

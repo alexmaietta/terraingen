@@ -10,21 +10,13 @@
 
 namespace terraingen {
 
-/// The CUDA device TerrainGen uses, opened on first use.
-///
-/// The NVIDIA driver (libcuda.so.1, nvcuda.dll) is opened at run time and only the driver API is
-/// called, so nothing of the CUDA toolkit is needed to run. The device is the first CUDA device,
-/// used through its primary context. Kernels run their PTX (entry point "main_0"); Slang passes a
-/// kernel's global parameters in the constant block `SLANG_globalParams`: each structured buffer as
-/// its device address and element count, in declaration order, then the address of the push
-/// constants.
-class CudaCompute final : public ComputeDevice {
+/// The first CUDA device, through its primary context and the driver API of the NVIDIA driver
+/// opened at run time. Kernels run their PTX (entry point "main_0") with `SLANG_globalParams`
+/// holding each buffer's device address and element count, then the push constants' address.
+class CudaCompute final : public SharedComputeDevice<CudaCompute> {
   public:
-    /// The shared device, opened on the first call; null when CUDA is unavailable (see `Reason`).
-    static CudaCompute* Get();
-
-    /// Why CUDA is unavailable; empty when it is available.
-    static std::string Reason();
+    /// The API name log messages show.
+    static constexpr const char* kApi = "CUDA";
 
     const std::string& DeviceName() const override;
     bool CanRun(const KernelProgram& program) const override;

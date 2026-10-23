@@ -58,57 +58,26 @@ double BSplineWeight(double x) {
     return 0.0;
 }
 
-/// The index in a window of cell `index` of the whole it lies in, clamped to the whole and then to
-/// the window.
-std::size_t WindowIndex(double index, std::size_t wholeSize, std::size_t first, std::size_t size) {
-    const std::size_t whole = ClampIndex(index, wholeSize);
-    return whole < first ? 0 : std::min(whole - first, size - 1);
-}
-
-/// The larger raster `raster` is placed in interpolated at pixel coordinates (`u`, `v`) measured
-/// from the center of its first cell, read from `raster`, or nothing where a contributing cell
-/// holds no data.
-std::optional<float> Interpolate(const Raster<float>& raster, const RasterPlacement& placement,
-                                 double u, double v, ResampleMethod method) {
+/// `raster` interpolated at pixel coordinates (`u`, `v`) measured from the center of its first
+/// cell, with cells beyond the edge read from the nearest edge cell; nothing where a contributing
+/// cell holds no data.
+std::optional<float> Interpolate(const Raster<float>& raster, double u, double v,
+                                 ResampleMethod method) {
     const auto value = [&](double col, double row) {
-        return raster(WindowIndex(col, placement.whole.width, placement.col, raster.Width()),
-                      WindowIndex(row, placement.whole.height, placement.row, raster.Height()));
+        return raster(ClampIndex(col, raster.Width()), ClampIndex(row, raster.Height()));
     };
-    if (method == ResampleMethod::Nearest) {
-        return value(std::round(u), std::round(v));
-    }
     return InterpolateLattice(u, v, method, value,
                               [&](float cell) { return raster.IsNoData(cell); });
 }
 
+/// Checks that a raster can be resampled: not empty and not rotated.
 void CheckSource(const Raster<float>& raster) {
     if (raster.Empty()) {
         throw std::invalid_argument("Cannot resample an empty raster");
     }
-    const GeoTransform& source = raster.Transform();
-    if (source.IsRotated()) {
+    if (raster.Transform().IsRotated()) {
         throw std::invalid_argument("Cannot resample a rotated raster");
     }
-}
-
-/// `ResampleWindow` without checks: `cells` of the resampled grid `resampled`.
-Raster<float> ResampleCells(const Raster<float>& window, const RasterPlacement& placement,
-                            const RasterGrid& resampled, double pixelSize, ResampleMethod method,
-                            const PixelWindow& cells) {
-    Raster<float> result = Subgrid(resampled, cells).MakeRaster();
-    result.SetNoData(window.NoData());
-    const double scaleX = std::fabs(placement.whole.transform.pixelWidth) / pixelSize;
-    const double scaleY = std::fabs(placement.whole.transform.pixelHeight) / pixelSize;
-    const float fill = window.NoData().value_or(std::nanf(""));
-    for (std::size_t row = 0; row < result.Height(); ++row) {
-        const double v = (static_cast<double>(cells.rowBegin + row) + 0.5) / scaleY - 0.5;
-        for (std::size_t col = 0; col < result.Width(); ++col) {
-            const double u = (static_cast<double>(cells.colBegin + col) + 0.5) / scaleX - 0.5;
-            const std::optional<float> value = Interpolate(window, placement, u, v, method);
-            result(col, row) = value.value_or(fill);
-        }
-    }
-    return result;
 }
 
 }  // namespace
@@ -128,21 +97,15 @@ int KernelRadius(ResampleMethod method) {
     return 2;
 }
 
-double KernelWeight(ResampleMethod method, double x) {
+double detail::KernelWeight(ResampleMethod method, double x) {
     switch (method) {
-    case ResampleMethod::Nearest:
-        return std::fabs(x) < 0.5 ? 1.0 : 0.0;
-    case ResampleMethod::Bilinear:
-        return std::fmax(0.0, 1.0 - std::fabs(x));
     case ResampleMethod::Lanczos3:
         return Lanczos3Weight(x);
     case ResampleMethod::CubicBSpline:
         return BSplineWeight(x);
-    case ResampleMethod::Cubic:
-    case ResampleMethod::CatmullRom:
-        break;
+    default:
+        return CubicWeight(x);
     }
-    return CubicWeight(x);
 }
 
 std::array<double, 6> KernelWeights(ResampleMethod method, double fraction) {
@@ -158,7 +121,7 @@ std::array<double, 6> KernelWeights(ResampleMethod method, double fraction) {
     const int radius = KernelRadius(method);
     double total = 0.0;
     for (int i = 1 - radius; i <= radius; ++i) {
-        const double weight = KernelWeight(method, fraction - i);
+        const double weight = detail::KernelWeight(method, fraction - i);
         weights[static_cast<std::size_t>(i + radius - 1)] = weight;
         total += weight;
     }
@@ -171,37 +134,17 @@ std::array<double, 6> KernelWeights(ResampleMethod method, double fraction) {
 }
 
 float SampleRaster(const Raster<float>& raster, double x, double y, ResampleMethod method) {
-    return SampleRasterWindow(raster, RasterPlacement::Whole(raster), x, y, method);
-}
-
-float SampleRasterWindow(const Raster<float>& window, const RasterPlacement& placement, double x,
-                         double y, ResampleMethod method) {
-    CheckSource(window);
-    const Vec2d pixel = placement.whole.transform.WorldToPixel(x, y);
-    if (!(pixel.x >= 0.0 && pixel.y >= 0.0 &&
-          pixel.x < static_cast<double>(placement.whole.width) &&
-          pixel.y < static_cast<double>(placement.whole.height))) {
+    CheckSource(raster);
+    const Vec2d pixel = raster.Transform().WorldToPixel(x, y);
+    if (!(pixel.x >= 0.0 && pixel.y >= 0.0 && pixel.x < static_cast<double>(raster.Width()) &&
+          pixel.y < static_cast<double>(raster.Height()))) {
         return std::numeric_limits<float>::quiet_NaN();
     }
-    const std::optional<float> value =
-        Interpolate(window, placement, pixel.x - 0.5, pixel.y - 0.5, method);
-    if (!value || window.IsNoData(*value)) {
+    const std::optional<float> value = Interpolate(raster, pixel.x - 0.5, pixel.y - 0.5, method);
+    if (!value || raster.IsNoData(*value)) {
         return std::numeric_limits<float>::quiet_NaN();
     }
     return *value;
-}
-
-Raster<float> ResampleWindow(const Raster<float>& window, const RasterPlacement& placement,
-                             double pixelSize, ResampleMethod method, const PixelWindow& cells) {
-    if (window.Empty()) {
-        throw std::invalid_argument("Cannot resample an empty raster");
-    }
-    const RasterGrid resampled = ResampledGrid(placement.whole, pixelSize);
-    if (cells.Empty() || cells.colEnd > resampled.width || cells.rowEnd > resampled.height) {
-        throw std::invalid_argument("The cells to resample must be a non-empty window of the "
-                                    "resampled grid");
-    }
-    return ResampleCells(window, placement, resampled, pixelSize, method, cells);
 }
 
 Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
@@ -211,8 +154,17 @@ Raster<float> ResampleTo(const Raster<float>& raster, const RasterGrid& grid,
         throw std::invalid_argument("Cannot resample onto an empty grid");
     }
     Raster<float> result = grid.MakeRaster();
-    SampleAtCenters(result, raster.NoData(),
-                    [&](double x, double y) { return SampleRaster(raster, x, y, method); });
+    const float fill = raster.NoData().value_or(std::numeric_limits<float>::quiet_NaN());
+    bool missing = false;
+    for (std::size_t row = 0; row < result.Height(); ++row) {
+        for (std::size_t col = 0; col < result.Width(); ++col) {
+            const Vec2d center = result.CellCenter(col, row);
+            const float value = SampleRaster(raster, center.x, center.y, method);
+            missing = missing || std::isnan(value);
+            result(col, row) = std::isnan(value) ? fill : value;
+        }
+    }
+    result.SetNoData(FilledNoData(raster.NoData(), missing));
     return result;
 }
 
@@ -224,12 +176,20 @@ std::optional<float> FilledNoData(std::optional<float> noData, bool missing) {
 }
 
 Raster<float> Resample(const Raster<float>& raster, double pixelSize, ResampleMethod method) {
-    if (raster.Empty()) {
-        throw std::invalid_argument("Cannot resample an empty raster");
+    CheckSource(raster);
+    Raster<float> result = ResampledGrid(RasterGrid::FromRaster(raster), pixelSize).MakeRaster();
+    result.SetNoData(raster.NoData());
+    const double scaleX = std::fabs(raster.Transform().pixelWidth) / pixelSize;
+    const double scaleY = std::fabs(raster.Transform().pixelHeight) / pixelSize;
+    const float fill = raster.NoData().value_or(std::nanf(""));
+    for (std::size_t row = 0; row < result.Height(); ++row) {
+        const double v = (static_cast<double>(row) + 0.5) / scaleY - 0.5;
+        for (std::size_t col = 0; col < result.Width(); ++col) {
+            const double u = (static_cast<double>(col) + 0.5) / scaleX - 0.5;
+            result(col, row) = Interpolate(raster, u, v, method).value_or(fill);
+        }
     }
-    const RasterGrid resampled = ResampledGrid(RasterGrid::FromRaster(raster), pixelSize);
-    return ResampleCells(raster, RasterPlacement::Whole(raster), resampled, pixelSize, method,
-                         WholeWindow(resampled));
+    return result;
 }
 
 }  // namespace terraingen

@@ -1,6 +1,7 @@
 #include "terraingen/util/radial_shape.h"
 
 #include "terraingen/util/arithmetic.h"
+#include "terraingen/util/checks.h"
 #include "terraingen/util/cube_faces.h"
 
 #include <algorithm>
@@ -50,14 +51,9 @@ RadialShape RadialShape::Sample(std::size_t q, const std::function<double(const 
         throw std::invalid_argument("A radial shape needs Q > 0");
     }
     std::vector<double> radii(6 * (q + 1) * (q + 1));
-    for (std::size_t face = 1; face <= 6; ++face) {
-        for (std::size_t j = 0; j <= q; ++j) {
-            for (std::size_t i = 0; i <= q; ++i) {
-                radii[((face - 1) * (q + 1) + j) * (q + 1) + i] =
-                    radius(LabelDirection(q, i, j, face));
-            }
-        }
-    }
+    ForEachIcqLabel(q, [&](std::size_t i, std::size_t j, std::size_t face, std::size_t k) {
+        radii[k] = radius(LabelDirection(q, i, j, face));
+    });
     return RadialShape(q, std::move(radii));
 }
 
@@ -69,10 +65,8 @@ RadialShape::RadialShape(std::size_t q, std::vector<double> radii)
     if (radii_.size() != 6 * (q_ + 1) * (q_ + 1)) {
         throw std::invalid_argument("A radial shape needs 6 (Q + 1)^2 label radii");
     }
-    for (const double r : radii_) {
-        if (!(std::isfinite(r) && r > 0.0)) {
-            throw std::invalid_argument("A radial shape's radii must be positive and finite");
-        }
+    if (!std::all_of(radii_.begin(), radii_.end(), IsPositive)) {
+        throw std::invalid_argument("A radial shape's radii must be positive and finite");
     }
     const auto [lo, hi] = std::minmax_element(radii_.begin(), radii_.end());
     min_ = *lo;
@@ -83,22 +77,17 @@ RadialShape::RadialShape(std::size_t q, std::vector<double> radii)
 
 void RadialShape::CheckSharedLabels() const {
     std::map<std::array<double, 3>, double> shared;
-    for (std::size_t face = 1; face <= 6; ++face) {
-        for (std::size_t j = 0; j <= q_; ++j) {
-            for (std::size_t i = 0; i <= q_; ++i) {
-                if (i != 0 && i != q_ && j != 0 && j != q_) {
-                    continue;
-                }
-                const Vec3d d = LabelDirection(q_, i, j, face);
-                const double r = radii_[LabelIndex(i, j, face)];
-                const auto [it, inserted] = shared.emplace(std::array<double, 3>{d.x, d.y, d.z}, r);
-                if (!inserted && std::fabs(it->second - r) > 1e-9 * max_) {
-                    throw std::invalid_argument(
-                        "A radial shape's labels shared between faces must have equal radii");
-                }
-            }
+    ForEachIcqLabel(q_, [&](std::size_t i, std::size_t j, std::size_t face, std::size_t k) {
+        if (i != 0 && i != q_ && j != 0 && j != q_) {
+            return;
         }
-    }
+        const Vec3d d = LabelDirection(q_, i, j, face);
+        const auto [it, inserted] = shared.emplace(std::array<double, 3>{d.x, d.y, d.z}, radii_[k]);
+        if (!inserted && std::fabs(it->second - radii_[k]) > 1e-9 * max_) {
+            throw std::invalid_argument(
+                "A radial shape's labels shared between faces must have equal radii");
+        }
+    });
 }
 
 double RadialShape::CornerAreaBound() const {
@@ -136,18 +125,15 @@ double RadialShape::QuadAreaBound(std::size_t i, std::size_t j, std::size_t face
 }
 
 double RadialShape::At(const Vec3d& direction) const {
-    const std::size_t index = detail::NearestFace(detail::kIcqFaces, direction);
-    const detail::CubeFace& f = detail::kIcqFaces[index];
-    const double along = Dot(direction, f.normal);
-    const auto position = [&](const Vec3d& axis) {
-        const double s =
-            detail::EquiangularCoordinate(Dot(direction, axis) / along, static_cast<double>(q_));
+    const detail::FacePosition at =
+        detail::FaceCoordinates(detail::kIcqFaces, direction, static_cast<double>(q_));
+    const auto position = [&](double s) {
         const std::size_t k = ClampIndex(std::floor(s), q_);
         return std::pair<std::size_t, double>{k, std::clamp(s - static_cast<double>(k), 0.0, 1.0)};
     };
-    const auto [i, fi] = position(f.u);
-    const auto [j, fj] = position(f.v);
-    const std::size_t face = index + 1;
+    const auto [i, fi] = position(at.s);
+    const auto [j, fj] = position(at.t);
+    const std::size_t face = at.face + 1;
     const double r00 = radii_[LabelIndex(i, j, face)];
     const double r10 = radii_[LabelIndex(i + 1, j, face)];
     const double r01 = radii_[LabelIndex(i, j + 1, face)];

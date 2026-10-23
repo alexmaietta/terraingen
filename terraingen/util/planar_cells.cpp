@@ -20,8 +20,7 @@ std::int32_t CellCoordinate(double value) {
 
 /// Checks a region: finite and not empty.
 void CheckRegion(const Bounds2d& region) {
-    if (!(std::isfinite(region.minX) && std::isfinite(region.minY) && std::isfinite(region.maxX) &&
-          std::isfinite(region.maxY) && region.maxX > region.minX && region.maxY > region.minY)) {
+    if (!(region.IsFinite() && region.maxX > region.minX && region.maxY > region.minY)) {
         throw std::invalid_argument("Region must be finite and not empty");
     }
 }

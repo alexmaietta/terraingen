@@ -6,7 +6,6 @@
 
 #include <array>
 #include <cmath>
-#include <cstring>
 #include <functional>
 #include <limits>
 #include <stdexcept>
@@ -139,6 +138,10 @@ TEST(ResampleTo, SamplesEachCellCenterAndMarksCellsBeyondTheRaster) {
     EXPECT_FLOAT_EQ(resampled(2, 2), 5.0f);
     EXPECT_TRUE(resampled.IsNoData(resampled(0, 0)));
     EXPECT_TRUE(std::isnan(resampled(5, 3)));
+    raster.SetNoData(-1.0f);
+    const Raster<float> filled = terraingen::ResampleTo(raster, grid, ResampleMethod::Nearest);
+    EXPECT_EQ(filled(0, 0), -1.0f);
+    EXPECT_EQ(filled.NoData(), -1.0f);
     EXPECT_THROW(terraingen::ResampleTo(raster, terraingen::RasterGrid{}, ResampleMethod::Cubic),
                  std::invalid_argument);
     EXPECT_THROW(terraingen::ResampleTo(Raster<float>(), grid, ResampleMethod::Cubic),
@@ -148,139 +151,10 @@ TEST(ResampleTo, SamplesEachCellCenterAndMarksCellsBeyondTheRaster) {
                  std::invalid_argument);
 }
 
-namespace {
-
-/// A 30 x 20 raster of uneven heights on an awkward lattice, with a no-data hole.
-Raster<float> Bumpy() {
-    Raster<float> raster(30, 20);
-    raster.SetTransform(GeoTransform::NorthUp(100.3, 200.7, 1.7));
-    for (std::size_t row = 0; row < raster.Height(); ++row) {
-        for (std::size_t col = 0; col < raster.Width(); ++col) {
-            raster(col, row) = static_cast<float>(std::sin(0.7 * static_cast<double>(col)) * 9.1 +
-                                                  std::cos(0.37 * static_cast<double>(row * col)));
-        }
-    }
-    raster.SetNoData(-9999.0f);
-    raster(12, 9) = -9999.0f;
-    return raster;
-}
-
-/// The cells of `raster` in `window`, placed where they lie.
-Raster<float> Crop(const Raster<float>& raster, const terraingen::PixelWindow& window) {
-    Raster<float> part =
-        terraingen::Subgrid(terraingen::RasterGrid::FromRaster(raster), window).MakeRaster();
-    part.SetNoData(raster.NoData());
-    for (std::size_t row = 0; row < part.Height(); ++row) {
-        for (std::size_t col = 0; col < part.Width(); ++col) {
-            part(col, row) = raster(window.colBegin + col, window.rowBegin + row);
-        }
-    }
-    return part;
-}
-
-/// Whether two floats have the same bits, NaNs included.
-bool SameBits(float a, float b) {
-    return std::memcmp(&a, &b, sizeof(float)) == 0;
-}
-
-}  // namespace
-
-TEST(SampleRasterWindow, GivesTheWholesBitsWithinTheWindow) {
-    const Raster<float> whole = Bumpy();
-    for (const terraingen::PixelWindow& window :
-         {terraingen::PixelWindow{8, 22, 5, 15}, terraingen::PixelWindow{0, 10, 0, 8},
-          terraingen::PixelWindow{20, 30, 12, 20}}) {
-        const Raster<float> part = Crop(whole, window);
-        const terraingen::RasterPlacement placement{terraingen::RasterGrid::FromRaster(whole),
-                                                    window.colBegin, window.rowBegin};
-        const auto inner = [](std::size_t index, std::size_t edge, double inward) {
-            return static_cast<double>(index) + (index == edge ? 0.0 : inward);
-        };
-        const double colBegin = inner(window.colBegin, 0, 3.0);
-        const double colEnd = inner(window.colEnd, whole.Width(), -3.0);
-        const double rowBegin = inner(window.rowBegin, 0, 3.0);
-        const double rowEnd = inner(window.rowEnd, whole.Height(), -3.0);
-        for (const ResampleMethod method :
-             {ResampleMethod::Nearest, ResampleMethod::Bilinear, ResampleMethod::Cubic}) {
-            for (double col = colBegin; col < colEnd; col += 0.37) {
-                for (double row = rowBegin; row < rowEnd; row += 0.41) {
-                    const auto p = whole.Transform().PixelToWorld(col, row);
-                    ASSERT_TRUE(
-                        SameBits(terraingen::SampleRasterWindow(part, placement, p.x, p.y, method),
-                                 terraingen::SampleRaster(whole, p.x, p.y, method)))
-                        << col << "," << row;
-                }
-            }
-        }
-        EXPECT_TRUE(std::isnan(
-            terraingen::SampleRasterWindow(part, placement, 90.0, 190.0, ResampleMethod::Cubic)));
-    }
-}
-
-TEST(ResampleWindow, GivesTheWholesCellsWithinTheWindow) {
-    const Raster<float> whole = Bumpy();
-    const terraingen::RasterGrid fine =
-        terraingen::ResampledGrid(terraingen::RasterGrid::FromRaster(whole), 0.6);
-    const terraingen::PixelWindow window{8, 22, 5, 15};
-    const Raster<float> part = Crop(whole, window);
-    const terraingen::RasterPlacement placement{terraingen::RasterGrid::FromRaster(whole),
-                                                window.colBegin, window.rowBegin};
-    const double scale = 1.7 / 0.6;
-    const terraingen::PixelWindow cells{static_cast<std::size_t>(std::ceil(11 * scale)),
-                                        static_cast<std::size_t>(std::floor(19 * scale)),
-                                        static_cast<std::size_t>(std::ceil(8 * scale)),
-                                        static_cast<std::size_t>(std::floor(12 * scale))};
-    for (const ResampleMethod method :
-         {ResampleMethod::Nearest, ResampleMethod::Bilinear, ResampleMethod::Cubic}) {
-        const Raster<float> expected = Crop(Resample(whole, 0.6, method), cells);
-        const Raster<float> resampled =
-            terraingen::ResampleWindow(part, placement, 0.6, method, cells);
-        EXPECT_EQ(terraingen::RasterGrid::FromRaster(resampled), terraingen::Subgrid(fine, cells));
-        EXPECT_EQ(resampled.NoData(), whole.NoData());
-        for (std::size_t i = 0; i < expected.Size(); ++i) {
-            ASSERT_TRUE(SameBits(resampled.Values()[i], expected.Values()[i])) << i;
-        }
-    }
-    const terraingen::PixelWindow corner{0, 10, 0, 8};
-    const terraingen::PixelWindow cornerCells{0, static_cast<std::size_t>(std::floor(7 * scale)), 0,
-                                              static_cast<std::size_t>(std::floor(5 * scale))};
-    const Raster<float> expected = Crop(Resample(whole, 0.6, ResampleMethod::Cubic), cornerCells);
-    const Raster<float> resampled = terraingen::ResampleWindow(
-        Crop(whole, corner), {terraingen::RasterGrid::FromRaster(whole), 0, 0}, 0.6,
-        ResampleMethod::Cubic, cornerCells);
-    for (std::size_t i = 0; i < expected.Size(); ++i) {
-        ASSERT_TRUE(SameBits(resampled.Values()[i], expected.Values()[i])) << i;
-    }
-    EXPECT_THROW(
-        terraingen::ResampleWindow(part, placement, 0.6, ResampleMethod::Cubic, {3, 3, 0, 4}),
-        std::invalid_argument);
-    EXPECT_THROW(terraingen::ResampleWindow(part, placement, 0.6, ResampleMethod::Cubic,
-                                            {0, fine.width + 1, 0, 4}),
-                 std::invalid_argument);
-    EXPECT_THROW(
-        terraingen::ResampleWindow(Raster<float>(), placement, 0.6, ResampleMethod::Cubic, cells),
-        std::invalid_argument);
-}
-
 TEST(FilledNoData, KeepsTheSourceValueOrMarksMissingCellsNan) {
     EXPECT_EQ(terraingen::FilledNoData(-5.0f, true), -5.0f);
     EXPECT_FALSE(terraingen::FilledNoData(std::nullopt, false).has_value());
     EXPECT_TRUE(std::isnan(*terraingen::FilledNoData(std::nullopt, true)));
-}
-
-TEST(SampleAtCenters, CallsTheSamplerAtEachCellCenter) {
-    Raster<float> target(3, 2);
-    target.SetTransform(GeoTransform::NorthUp(0.0, 2.0, 1.0));
-    terraingen::SampleAtCenters(target, std::nullopt, [](double x, double y) {
-        return x > 2.0 ? std::numeric_limits<float>::quiet_NaN() : static_cast<float>(x + 10 * y);
-    });
-    EXPECT_FLOAT_EQ(target(0, 0), 15.5f);
-    EXPECT_FLOAT_EQ(target(1, 1), 6.5f);
-    EXPECT_TRUE(std::isnan(target(2, 0)));
-    EXPECT_TRUE(target.NoData().has_value());
-    terraingen::SampleAtCenters(target, -1.0f, [](double, double) { return 1.0f; });
-    EXPECT_EQ(target(2, 0), 1.0f);
-    EXPECT_EQ(target.NoData(), -1.0f);
 }
 
 namespace {
@@ -316,20 +190,22 @@ TEST(Kernels, HaveTheirRadiiAndWeightsThatSumToOne) {
             EXPECT_NEAR(total, 1.0, 1e-12) << static_cast<int>(method) << " " << fraction;
         }
     }
-    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::Lanczos3, 0.0), 1.0);
-    EXPECT_NEAR(terraingen::KernelWeight(ResampleMethod::Lanczos3, 1.0), 0.0, 1e-15);
-    EXPECT_NEAR(terraingen::KernelWeight(ResampleMethod::Lanczos3, 0.5),
+    EXPECT_EQ(terraingen::detail::KernelWeight(ResampleMethod::Lanczos3, 0.0), 1.0);
+    EXPECT_NEAR(terraingen::detail::KernelWeight(ResampleMethod::Lanczos3, 1.0), 0.0, 1e-15);
+    EXPECT_NEAR(terraingen::detail::KernelWeight(ResampleMethod::Lanczos3, 0.5),
                 std::sin(terraingen::kPi / 2.0) / (terraingen::kPi / 2.0) *
                     std::sin(terraingen::kPi / 6.0) / (terraingen::kPi / 6.0),
                 1e-15);
-    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::Lanczos3, 3.0), 0.0);
-    EXPECT_DOUBLE_EQ(terraingen::KernelWeight(ResampleMethod::CubicBSpline, 0.0), 2.0 / 3.0);
-    EXPECT_DOUBLE_EQ(terraingen::KernelWeight(ResampleMethod::CubicBSpline, 1.0), 1.0 / 6.0);
-    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::CubicBSpline, 2.0), 0.0);
-    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::Bilinear, 0.25), 0.75);
+    EXPECT_EQ(terraingen::detail::KernelWeight(ResampleMethod::Lanczos3, 3.0), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::detail::KernelWeight(ResampleMethod::CubicBSpline, 0.0),
+                     2.0 / 3.0);
+    EXPECT_DOUBLE_EQ(terraingen::detail::KernelWeight(ResampleMethod::CubicBSpline, 1.0),
+                     1.0 / 6.0);
+    EXPECT_EQ(terraingen::detail::KernelWeight(ResampleMethod::CubicBSpline, 2.0), 0.0);
+    EXPECT_EQ(terraingen::KernelWeights(ResampleMethod::Bilinear, 0.25)[0], 0.75);
     for (const double x : {0.0, 0.3, 1.0, 1.6, 2.0}) {
-        EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::CatmullRom, x),
-                  terraingen::KernelWeight(ResampleMethod::Cubic, x))
+        EXPECT_EQ(terraingen::detail::KernelWeight(ResampleMethod::CatmullRom, x),
+                  terraingen::detail::KernelWeight(ResampleMethod::Cubic, x))
             << "Catmull-Rom is Keys cubic convolution with a = -0.5";
     }
 }

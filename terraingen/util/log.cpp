@@ -13,6 +13,14 @@ namespace terraingen {
 
 namespace {
 
+/// The default sink: one line per record on standard error.
+LogSink StandardErrorLogSink() {
+    return [](const LogRecord& record) {
+        std::cerr << "[terraingen] " << LogLevelName(record.level) << ' ' << record.category << ": "
+                  << record.message << '\n';
+    };
+}
+
 struct LogState {
     std::mutex mutex;
     LogSink sink = StandardErrorLogSink();
@@ -70,13 +78,6 @@ std::optional<LogLevel> ParseLogLevel(std::string_view name) {
         }
     }
     return std::nullopt;
-}
-
-LogSink StandardErrorLogSink() {
-    return [](const LogRecord& record) {
-        std::cerr << "[terraingen] " << LogLevelName(record.level) << ' ' << record.category << ": "
-                  << record.message << '\n';
-    };
 }
 
 void SetLogSink(LogSink sink) {

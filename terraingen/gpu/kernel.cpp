@@ -22,11 +22,17 @@ constexpr std::size_t kGroupSide = 16;
 /// Most workgroups Vulkan guarantees in one dimension of a dispatch; CUDA and Metal allow more.
 constexpr std::size_t kMaxGroups = 65535;
 
+/// The no-data modes of `KernelParams::noData`, as `terraingen/gpu/kernel.slang` reads them: no
+/// no-data value, NaN, or `noDataValue`.
+constexpr std::uint32_t kNoDataNone = 0;
+constexpr std::uint32_t kNoDataNan = 1;
+constexpr std::uint32_t kNoDataValue = 2;
+
 /// The push constants of kernels (`terraingen/gpu/kernel.slang`).
 struct KernelParams {
     std::uint32_t width = 0;
     std::uint32_t rows = 0;
-    std::uint32_t noData = 0;  ///< 0 for none, 1 for NaN, 2 for `noDataValue`.
+    std::uint32_t noData = kNoDataNone;  ///< How no-data cells are marked.
     float noDataValue = 0.0f;
     std::uint32_t firstRow = 0;  ///< The strip's first row in the grid.
 };
@@ -66,7 +72,7 @@ KernelParams GridParams(const Raster<float>& grid) {
     KernelParams params;
     params.width = static_cast<std::uint32_t>(grid.Width());
     if (const auto& noData = grid.NoData()) {
-        params.noData = std::isnan(*noData) ? 1u : 2u;
+        params.noData = std::isnan(*noData) ? kNoDataNan : kNoDataValue;
         params.noDataValue = *noData;
     }
     return params;

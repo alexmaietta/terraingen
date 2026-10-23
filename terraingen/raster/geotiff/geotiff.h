@@ -43,9 +43,6 @@ struct GeoKeys {
     /// linear units.
     bool IsGeographic() const;
 
-    /// The value of the SHORT GeoKey `key` stored inline in the directory, if present.
-    std::optional<std::uint16_t> ShortKey(std::uint16_t key) const;
-
     /// Memberwise equality.
     bool operator==(const GeoKeys& other) const {
         return directory == other.directory && doubleParams == other.doubleParams &&
@@ -86,13 +83,6 @@ struct BandScaling {
         return !(*this == other);
     }
 };
-
-/// The band scaling a GDAL_METADATA tag (42112) gives, one per band; scale 1 and offset 0 for
-/// bands not mentioned.
-///
-/// Reads `<Item name="SCALE" sample="n" role="scale">` and `role="offset"` items; items for bands
-/// beyond `bands`, without a band, or whose value is not a number are ignored.
-std::vector<BandScaling> ParseGdalBandScaling(const std::string& xml, std::size_t bands);
 
 /// The layout and georeferencing of a GeoTIFF's first image.
 struct GeoTiffInfo {

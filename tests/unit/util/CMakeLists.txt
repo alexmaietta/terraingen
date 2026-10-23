@@ -1,9 +1,12 @@
 terraingen_add_test_suite(
     util
     SOURCES
+    arithmetic_test.cpp
+    bits_test.cpp
     cells_test.cpp
     checks_test.cpp
     fft_test.cpp
+    files_test.cpp
     geometry_test.cpp
     log_test.cpp
     lru_cache_test.cpp

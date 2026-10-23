@@ -3,7 +3,7 @@
 #pragma once
 
 #include "terraingen/noise/hash.h"
-#include "terraingen/noise/perlin.h"
+#include "terraingen/noise/lattice.h"
 
 namespace terraingen {
 

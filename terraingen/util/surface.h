@@ -1,6 +1,6 @@
 /// @file
-/// @brief `Surface`, the plane, sphere or triaxial ellipsoid a terrain lies on, with local frames
-/// and distances.
+/// @brief `Surface`, the plane, sphere, triaxial ellipsoid or shape model a terrain lies on, with
+/// local frames and distances.
 #pragma once
 
 #include "terraingen/util/geometry.h"
@@ -32,16 +32,10 @@ struct BucketIndex {
     }
 };
 
-/// The shape a terrain lies on, a plane or a body (a sphere, a triaxial ellipsoid of which the
-/// sphere is the special case of equal radii, or a star-shaped shape model), measuring distances
-/// and directions between surface coordinates.
-///
-/// On a plane, surface coordinates are meters in a projected frame. On a body they are
-/// planetocentric longitude and latitude in degrees (east and north positive): the direction from
-/// the center, with heights along it. On a sphere of radius R the local frame of a point is its
-/// azimuthal equidistant projection in meters; on an ellipsoid or shape model it is the tangent
-/// plane at the point, onto which offsets are projected along the normal, exact for features small
-/// next to the local curvature radius.
+/// The plane or body a terrain lies on, measuring distances and directions between surface
+/// coordinates: meters on a plane, planetocentric longitude and latitude in degrees on a body.
+/// Local frames are azimuthal equidistant on a sphere and tangent planes on an ellipsoid or shape
+/// model, offsets projected along the normal.
 class Surface {
   public:
     /// A plane, the default.
@@ -215,6 +209,9 @@ class Surface {
     Vec2d TangentOffset(const Vec2d& center, const Vec2d& point) const;
     Vec2d EllipsoidLocate(const Vec2d& center, const Vec2d& offset) const;
     Vec2d ShapeLocate(const Vec2d& center, const Vec2d& offset) const;
+    /// The distance from `q` along -`up` to the shape model's surface, by bracketing and
+    /// bisection.
+    double ShapeDepth(const Vec3d& q, const Vec3d& up) const;
     /// The outward unit normal at surface coordinates `point`, whose position is `p`, on an
     /// ellipsoid or shape model.
     Vec3d Normal(const Vec2d& point, const Vec3d& p) const;

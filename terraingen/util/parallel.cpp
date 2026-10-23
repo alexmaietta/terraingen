@@ -110,14 +110,16 @@ Pool& SharedPool() {
     return *pool;
 }
 
-}  // namespace
-
+/// The number of threads a request resolves to: `threads` when positive, otherwise the hardware
+/// thread count (at least 1).
 unsigned ResolveThreads(unsigned threads) {
     if (threads > 0) {
         return threads;
     }
     return std::max(1u, std::thread::hardware_concurrency());
 }
+
+}  // namespace
 
 void ParallelFor(std::size_t count, unsigned threads,
                  const std::function<void(std::size_t index)>& task) {

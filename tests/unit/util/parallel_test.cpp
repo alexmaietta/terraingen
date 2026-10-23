@@ -34,11 +34,6 @@ TEST(ParallelFor, RethrowsTheFirstFailure) {
     }
 }
 
-TEST(ResolveThreads, UsesTheRequestOrEveryHardwareThread) {
-    EXPECT_EQ(terraingen::ResolveThreads(5), 5u);
-    EXPECT_GE(terraingen::ResolveThreads(0), 1u);
-}
-
 TEST(ParallelFor, NestsAndOverlapsWithoutDeadlock) {
     std::atomic<int> total{0};
     ParallelFor(16, 0,

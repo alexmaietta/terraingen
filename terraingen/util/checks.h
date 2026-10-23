@@ -1,5 +1,6 @@
 /// @file
-/// @brief Predicates and argument checks for numeric parameters.
+/// @brief Predicates and argument checks for numeric parameters; each check's `what` names the
+/// value and starts its error message.
 #pragma once
 
 #include <cmath>
@@ -23,28 +24,19 @@ inline bool IsInUnitInterval(double value) {
 }
 
 /// Checks that a value is positive and finite.
-/// @param what The value's name, which starts the error message.
 /// @throws std::invalid_argument "<what> must be positive and finite" otherwise.
 void RequirePositive(double value, std::string_view what);
 
 /// Checks that a value is finite and not negative.
-/// @param what The value's name, which starts the error message.
 /// @throws std::invalid_argument "<what> must be finite and not negative" otherwise.
 void RequireNonNegative(double value, std::string_view what);
 
 /// Checks that a value is finite.
-/// @param what The value's name, which starts the error message.
 /// @throws std::invalid_argument "<what> must be finite" for an infinite or NaN `value`.
 void RequireFinite(double value, std::string_view what);
 
 /// Checks that a value lies in [0, 1].
-/// @param what The value's name, which starts the error message.
 /// @throws std::invalid_argument "<what> must be in [0, 1]" otherwise.
 void RequireUnitInterval(double value, std::string_view what);
-
-/// Checks that `low` is below `high`, such as the ends of a range; infinite ends are allowed.
-/// @param what The pair's name, which starts the error message.
-/// @throws std::invalid_argument "<what> must be increasing" unless `low` < `high`.
-void RequireIncreasing(double low, double high, std::string_view what);
 
 }  // namespace terraingen

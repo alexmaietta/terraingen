@@ -89,28 +89,23 @@ TileGrid MakeTileGrid(const Raster<float>& raster, std::size_t tile) {
     return {tile, CeilDiv(raster.Width(), tile), CeilDiv(raster.Height(), tile)};
 }
 
-/// Throws a `GeoTiffError` naming the file written, as the reader's errors do.
-[[noreturn]] void Fail(const std::filesystem::path& path, const std::string& reason) {
-    throw GeoTiffError(path.string() + ": " + reason);
-}
-
 void CheckBands(const std::filesystem::path& path, const std::vector<const Raster<float>*>& bands,
                 const GeoTiffWriteOptions& options) {
     if (bands.empty() || bands.front()->Empty()) {
-        Fail(path, "cannot write an empty raster");
+        ThrowFileError(path, "cannot write an empty raster");
     }
     const Raster<float>& first = *bands.front();
     for (const Raster<float>* band : bands) {
         if (band->Width() != first.Width() || band->Height() != first.Height() ||
             !(band->Transform() == first.Transform())) {
-            Fail(path, "the bands written must share one grid");
+            ThrowFileError(path, "the bands written must share one grid");
         }
     }
     if (options.compression == TiffCompression::PackBits) {
-        Fail(path, "writing PackBits is not supported; use None, Lzw or Deflate");
+        ThrowFileError(path, "writing PackBits is not supported; use None, Lzw or Deflate");
     }
     if (options.tileSize == 0 || options.tileSize % 16 != 0) {
-        Fail(path, "the tile size must be a positive multiple of 16");
+        ThrowFileError(path, "the tile size must be a positive multiple of 16");
     }
 }
 
@@ -273,17 +268,17 @@ void WriteGeoTiff(const std::filesystem::path& path, const std::vector<const Ras
 
     std::ofstream file(path, std::ios::binary);
     if (!file) {
-        Fail(path, "cannot open the file for writing");
+        ThrowFileError(path, "cannot open the file for writing");
     }
     const std::uint64_t ifdOffsetAt = WriteHeader(file, bigTiff);
     TileIndex index;
     try {
         index = WriteTiles(file, bands, tiles, options.compression, ifdOffsetAt + format.wordSize);
     } catch (const GeoTiffError& error) {
-        Fail(path, error.what());
+        ThrowFileError(path, error.what());
     }
     if (!bigTiff && index.end >= (std::uint64_t{1} << 32) - (1u << 20)) {
-        Fail(path, "data too large for classic TIFF; set bigTiff");
+        ThrowFileError(path, "data too large for classic TIFF; set bigTiff");
     }
     IfdWriter ifd(bigTiff);
     AddImageTags(ifd, raster, bands.size(), options, index, bigTiff);
@@ -295,7 +290,7 @@ void WriteGeoTiff(const std::filesystem::path& path, const std::vector<const Ras
     file.write(reinterpret_cast<const char*>(&index.end),
                static_cast<std::streamsize>(format.wordSize));
     if (!file) {
-        Fail(path, "write error");
+        ThrowFileError(path, "write error");
     }
     LogInfo("raster", "Wrote ", raster.Width(), "x", raster.Height(), "x", bands.size(),
             " GeoTIFF ", path.string(), " in ", FormatDuration(stopwatch.Milliseconds()));

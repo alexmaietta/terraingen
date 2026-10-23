@@ -1,11 +1,8 @@
 #include "terraingen/util/span.h"
 
-#include "terraingen/util/bits.h"
-
 #include <gtest/gtest.h>
 
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -116,24 +113,4 @@ TEST(Span, ViewsTheBytesOfItsElements) {
     EXPECT_EQ(words[2], 0u);
     const std::vector<double> doubles(5, 1.0);
     EXPECT_EQ(terraingen::AsBytes(Span(doubles)).size(), 5u * sizeof(double));
-}
-
-TEST(Bits, BitCastRoundTripsADouble) {
-    const double value = -1234.5678e-9;
-    const auto bits = terraingen::BitCast<std::uint64_t>(value);
-    EXPECT_EQ(terraingen::BitCast<double>(bits), value);
-    EXPECT_EQ(terraingen::BitCast<std::uint64_t>(1.0), 0x3FF0000000000000ull);
-    EXPECT_EQ(terraingen::BitCast<std::uint32_t>(1.0f), 0x3F800000u);
-}
-
-TEST(Bits, ConstantsMatchTheirDefinitions) {
-    EXPECT_DOUBLE_EQ(terraingen::kPi, std::acos(-1.0));
-    EXPECT_DOUBLE_EQ(terraingen::kSqrt2, std::sqrt(2.0));
-    EXPECT_NEAR(terraingen::kEulerGamma, 0.5772156649, 1e-10);
-}
-
-TEST(Bits, KnowsTheByteOrder) {
-    const std::uint16_t one = 1u;
-    const auto lowByte = terraingen::BitCast<std::array<std::uint8_t, 2>>(one)[0];
-    EXPECT_EQ(terraingen::kLittleEndian, lowByte == 1u);
 }

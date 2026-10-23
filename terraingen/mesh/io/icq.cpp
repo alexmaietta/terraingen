@@ -184,19 +184,16 @@ RadialShape ToRadialShape(const IcqModel& model) {
     CheckModel(model);
     constexpr double kRadial = 1e-6;
     std::vector<double> radii(model.vertices.size());
-    for (std::size_t face = 1; face <= 6; ++face) {
-        for (std::size_t j = 0; j <= model.q; ++j) {
-            for (std::size_t i = 0; i <= model.q; ++i) {
-                const std::size_t k = model.Index(i, j, face);
-                const Vec3d& v = model.vertices[k];
-                const double r = Length(v);
-                const Vec3d d = IcqDirection(model.q, i, j, face);
-                if (!(r > 0.0) || Length(Cross(v, d)) > kRadial * r || Dot(v, d) < 0.0) {
-                    return ShapeModelFromMesh(IcqToMesh(model), model.q);
-                }
-                radii[k] = r;
-            }
-        }
+    bool radial = true;
+    ForEachIcqLabel(model.q, [&](std::size_t i, std::size_t j, std::size_t face, std::size_t k) {
+        const Vec3d& v = model.vertices[k];
+        const double r = Length(v);
+        const Vec3d d = IcqDirection(model.q, i, j, face);
+        radial = radial && r > 0.0 && Length(Cross(v, d)) <= kRadial * r && Dot(v, d) >= 0.0;
+        radii[k] = r;
+    });
+    if (!radial) {
+        return ShapeModelFromMesh(IcqToMesh(model), model.q);
     }
     return RadialShape(model.q, std::move(radii));
 }
@@ -205,14 +202,9 @@ IcqModel ToIcq(const RadialShape& shape) {
     IcqModel model;
     model.q = shape.Q();
     model.vertices.resize(shape.Radii().size());
-    for (std::size_t face = 1; face <= 6; ++face) {
-        for (std::size_t j = 0; j <= model.q; ++j) {
-            for (std::size_t i = 0; i <= model.q; ++i) {
-                const std::size_t k = model.Index(i, j, face);
-                model.vertices[k] = IcqDirection(model.q, i, j, face) * shape.Radii()[k];
-            }
-        }
-    }
+    ForEachIcqLabel(model.q, [&](std::size_t i, std::size_t j, std::size_t face, std::size_t k) {
+        model.vertices[k] = IcqDirection(model.q, i, j, face) * shape.Radii()[k];
+    });
     return model;
 }
 

@@ -237,7 +237,7 @@ TEST(ReadGeoTiffWindow, RejectsWindowsMissingTheImageAndMissingBands) {
 
 TEST(ParseGdalBandScaling, ReadsEachBandsScaleAndOffsetAndSkipsTheRest) {
     using terraingen::BandScaling;
-    using terraingen::ParseGdalBandScaling;
+    using terraingen::detail::ParseGdalBandScaling;
     EXPECT_EQ(ParseGdalBandScaling("", 2), (std::vector<BandScaling>{{}, {}}));
     const std::string xml = R"(<GDALMetadata>
   <Item name="OFFSET" sample="1" role="offset">-12.5</Item>
@@ -274,8 +274,9 @@ TEST(ReadGeoTiffInfo, DescribesTheLayout) {
     EXPECT_TRUE(point.geoKeys.PixelIsPoint());
     EXPECT_FALSE(lzw.geoKeys.PixelIsPoint());
     EXPECT_FALSE(lzw.geoKeys.IsGeographic());
-    EXPECT_EQ(lzw.geoKeys.ShortKey(1024), 1) << "GTModelTypeGeoKey: projected";
-    EXPECT_EQ(lzw.geoKeys.ShortKey(4321), std::nullopt);
+    EXPECT_EQ(terraingen::detail::ShortGeoKey(lzw.geoKeys, 1024), 1)
+        << "GTModelTypeGeoKey: projected";
+    EXPECT_EQ(terraingen::detail::ShortGeoKey(lzw.geoKeys, 4321), std::nullopt);
     EXPECT_FALSE(GeoKeys{}.IsGeographic());
     EXPECT_TRUE((GeoKeys{{1, 1, 0, 1, 1024, 0, 1, 2}, {}, {}}.IsGeographic()));
 }
@@ -358,7 +359,7 @@ TEST(GeographicSphereKeys, DescribeLongitudeAndLatitudeOnTheBody) {
     const auto keys = terraingen::GeographicSphereKeys(3389500.0);
     EXPECT_TRUE(keys.IsGeographic());
     EXPECT_FALSE(keys.PixelIsPoint());
-    EXPECT_EQ(keys.ShortKey(2054), 9102);
+    EXPECT_EQ(terraingen::detail::ShortGeoKey(keys, 2054), 9102);
     EXPECT_EQ(keys.doubleParams, (std::vector<double>{3389500.0, 3389500.0}));
     Raster<float> raster = Sample(17, 9);
     raster.SetTransform(GeoTransform::NorthUp(-10.0, 5.0, 0.25));

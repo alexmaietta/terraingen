@@ -37,10 +37,4 @@ void RequireUnitInterval(double value, std::string_view what) {
     }
 }
 
-void RequireIncreasing(double low, double high, std::string_view what) {
-    if (!(low < high)) {
-        Fail(what, "increasing");
-    }
-}
-
 }  // namespace terraingen

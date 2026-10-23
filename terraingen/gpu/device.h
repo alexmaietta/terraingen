@@ -100,4 +100,25 @@ template <typename Device> class LazyDevice {
     std::string reason_;
 };
 
+/// A `ComputeDevice` with one process-wide instance, opened by `Device::Open` on first use and
+/// named `Device::kApi` in log messages.
+template <typename Device> class SharedComputeDevice : public ComputeDevice {
+  public:
+    /// The shared device, opened on the first call; null when it is unavailable (see `Reason`).
+    static Device* Get() {
+        return Shared().Get();
+    }
+
+    /// Why the device is unavailable; empty when it is available.
+    static std::string Reason() {
+        return Shared().Reason();
+    }
+
+  private:
+    static LazyDevice<Device>& Shared() {
+        static LazyDevice<Device> device(Device::kApi);
+        return device;
+    }
+};
+
 }  // namespace terraingen

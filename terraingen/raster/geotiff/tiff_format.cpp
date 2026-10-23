@@ -2,6 +2,10 @@
 
 namespace terraingen::detail {
 
+void ThrowFileError(const std::filesystem::path& path, const std::string& reason) {
+    throw GeoTiffError(path.string() + ": " + reason);
+}
+
 std::size_t FieldSize(std::uint16_t type) {
     switch (type) {
     case kByte:

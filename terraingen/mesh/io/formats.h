@@ -36,6 +36,9 @@ inline std::array<double, 9> YUp(const std::array<double, 9>& r) {
     return {r[0], r[2], -r[1], r[6], r[8], -r[7], -r[3], -r[5], r[4]};
 }
 
+/// The unit quaternion (x, y, z, w) of a proper rotation, row-major 3 x 3, as glTF nodes store it.
+std::array<double, 4> RotationQuaternion(const std::array<double, 9>& rotation);
+
 /// `p` of mesh `node.mesh` placed by the node: scaled, then posed.
 Vec3d Placed(const SceneNode& node, const Vec3d& p);
 

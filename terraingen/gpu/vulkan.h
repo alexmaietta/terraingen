@@ -31,20 +31,13 @@ std::optional<std::size_t> PickDevice(Span<const DeviceKind> kinds);
 /// the GPU driver on Windows.
 std::string VulkanInstallHint();
 
-/// The Vulkan compute device TerrainGen uses, opened on first use.
-///
-/// volk opens the Vulkan loader at run time. The device is the one `TERRAINGEN_DEVICE` (an index
-/// into the physical devices) names, otherwise the one `PickDevice` picks; software devices such
-/// as Mesa's lavapipe are used only when `TERRAINGEN_DEVICE` names them. Kernels run their SPIR-V
-/// (entry point "main") with the buffers as storage buffers 0, 1, ... of set 0 and the workgroup
-/// size the SPIR-V declares.
-class VulkanCompute final : public ComputeDevice {
+/// The Vulkan device `TERRAINGEN_DEVICE` (an index into the physical devices) names, otherwise
+/// the one `PickDevice` picks, through the loader volk opens at run time. Kernels run their SPIR-V
+/// (entry point "main") with the buffers as storage buffers 0, 1, ... of set 0.
+class VulkanCompute final : public SharedComputeDevice<VulkanCompute> {
   public:
-    /// The shared device, opened on the first call; null when Vulkan is unavailable (see `Reason`).
-    static VulkanCompute* Get();
-
-    /// Why Vulkan is unavailable; empty when it is available.
-    static std::string Reason();
+    /// The API name log messages show.
+    static constexpr const char* kApi = "Vulkan";
 
     const std::string& DeviceName() const override;
     bool CanRun(const KernelProgram& program) const override;

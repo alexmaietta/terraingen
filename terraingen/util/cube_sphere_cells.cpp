@@ -52,8 +52,7 @@ void SortUnique(std::vector<CellIndex>& cells) {
 
 /// Checks a region of longitudes and latitudes: finite and not inverted; a point is allowed.
 void CheckRegion(const Bounds2d& region) {
-    if (!(std::isfinite(region.minX) && std::isfinite(region.minY) && std::isfinite(region.maxX) &&
-          std::isfinite(region.maxY) && region.maxX >= region.minX && region.maxY >= region.minY)) {
+    if (!(region.IsFinite() && region.maxX >= region.minX && region.maxY >= region.minY)) {
         throw std::invalid_argument("Region must be finite and not inverted");
     }
 }
@@ -121,16 +120,12 @@ std::int32_t CubeSphereCells::CellsPerEdge(double cellSize) const {
 
 CellIndex CubeSphereCells::CellAt(double lonDeg, double latDeg, double cellSize) const {
     const std::int32_t n = CellsPerEdge(cellSize);
-    const Vec3d p = UnitVector(lonDeg, latDeg);
-    const std::size_t face = detail::NearestFace(detail::kCubeFaces, p);
-    const double best = Dot(p, detail::kCubeFaces[face].normal);
-    const auto index = [&](const Vec3d& axis) {
-        const auto k = static_cast<std::int32_t>(
-            std::floor(detail::EquiangularCoordinate(Dot(p, axis) / best, static_cast<double>(n))));
-        return std::clamp<std::int32_t>(k, 0, n - 1);
+    const detail::FacePosition at = detail::FaceCoordinates(
+        detail::kCubeFaces, UnitVector(lonDeg, latDeg), static_cast<double>(n));
+    const auto index = [&](double s) {
+        return std::clamp<std::int32_t>(static_cast<std::int32_t>(std::floor(s)), 0, n - 1);
     };
-    return {static_cast<std::int32_t>(face) * n + index(detail::kCubeFaces[face].u),
-            index(detail::kCubeFaces[face].v)};
+    return {static_cast<std::int32_t>(at.face) * n + index(at.s), index(at.t)};
 }
 
 std::vector<CellIndex> CubeSphereCells::Neighbors(const CellIndex& cell, double cellSize,

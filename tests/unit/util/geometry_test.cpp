@@ -61,3 +61,9 @@ TEST(Geometry, BoundsAPointByTheNextRepresentableValues) {
     EXPECT_EQ(box.minX, 1.5);
     EXPECT_EQ(box.maxY, std::nextafter(-2.0, 0.0));
 }
+
+TEST(Geometry, BoundsAreFiniteOnlyWithEveryBoundFinite) {
+    EXPECT_TRUE((terraingen::Bounds2d{-1.0, -2.0, 3.0, 4.0}.IsFinite()));
+    EXPECT_FALSE((terraingen::Bounds2d{-1.0, -2.0, INFINITY, 4.0}.IsFinite()));
+    EXPECT_FALSE((terraingen::Bounds2d{-1.0, NAN, 3.0, 4.0}.IsFinite()));
+}

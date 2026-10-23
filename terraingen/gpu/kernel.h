@@ -27,7 +27,6 @@ struct KernelBuffer {
 ///
 /// Each cell gets the kernel's `ApplyCell` at its center measured from `origin`, which the host
 /// works out per column and per row in double, so cells see the same positions as on the CPU.
-/// @param program The compiled kernel.
 /// @param kernel The kernel's parameter block, laid out as in the kernel header.
 /// @param extra Further buffers, bound in order after the parameter block: whole in every strip,
 /// or the strip's rows of a buffer with `perCell` elements for each of the grid's cells.

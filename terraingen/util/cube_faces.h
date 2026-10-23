@@ -70,4 +70,22 @@ inline double EquiangularCoordinate(double g, double cells) {
     return (std::atan(g) + kQuarter) / (2.0 * kQuarter) * cells;
 }
 
+/// A direction's cube face and its equiangular coordinates along the face's `u` and `v`.
+struct FacePosition {
+    std::size_t face = 0;  ///< Index of the face in its layout.
+    double s = 0.0;        ///< Equiangular coordinate along `u`, in [0, cells].
+    double t = 0.0;        ///< Equiangular coordinate along `v`, in [0, cells].
+};
+
+/// The face of `faces` a nonzero `direction` points through (`NearestFace`) and the direction's
+/// equiangular coordinates on it, for faces split into `cells` equal angles per edge.
+inline FacePosition FaceCoordinates(const std::array<CubeFace, 6>& faces, const Vec3d& direction,
+                                    double cells) {
+    const std::size_t face = NearestFace(faces, direction);
+    const CubeFace& f = faces[face];
+    const double along = Dot(direction, f.normal);
+    return {face, EquiangularCoordinate(Dot(direction, f.u) / along, cells),
+            EquiangularCoordinate(Dot(direction, f.v) / along, cells)};
+}
+
 }  // namespace terraingen::detail

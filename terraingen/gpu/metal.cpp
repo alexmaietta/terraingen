@@ -168,26 +168,9 @@ void MetalCompute::Run(const KernelProgram& /*program*/, Span<const DeviceBuffer
 
 namespace terraingen {
 
-namespace {
-
-LazyDevice<MetalCompute>& SharedDevice() {
-    static LazyDevice<MetalCompute> device("Metal");
-    return device;
-}
-
-}  // namespace
-
 MetalCompute::MetalCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
 
 MetalCompute::~MetalCompute() = default;
-
-MetalCompute* MetalCompute::Get() {
-    return SharedDevice().Get();
-}
-
-std::string MetalCompute::Reason() {
-    return SharedDevice().Reason();
-}
 
 bool MetalCompute::CanRun(const KernelProgram& program) const {
     return !program.metal.empty();

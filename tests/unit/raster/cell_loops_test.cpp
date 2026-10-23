@@ -31,11 +31,11 @@ Raster<float> Globe() {
 }  // namespace
 
 TEST(PixelWindowIn, CoversTheBoxAndClampsToTheRaster) {
-    const Raster<float> raster = Grid(10, 8);
-    EXPECT_EQ(terraingen::PixelWindowIn(raster, {2.5, 3.5, 4.5, 5.5}), (PixelWindow{2, 5, 2, 5}));
-    EXPECT_EQ(terraingen::PixelWindowIn(raster, {-5.0, -5.0, 50.0, 50.0}),
+    const terraingen::RasterGrid grid = terraingen::RasterGrid::FromRaster(Grid(10, 8));
+    EXPECT_EQ(terraingen::PixelWindowIn(grid, {2.5, 3.5, 4.5, 5.5}), (PixelWindow{2, 5, 2, 5}));
+    EXPECT_EQ(terraingen::PixelWindowIn(grid, {-5.0, -5.0, 50.0, 50.0}),
               (PixelWindow{0, 10, 0, 8}));
-    EXPECT_TRUE(terraingen::PixelWindowIn(raster, {20.0, 20.0, 30.0, 30.0}).Empty());
+    EXPECT_TRUE(terraingen::PixelWindowIn(grid, {20.0, 20.0, 30.0, 30.0}).Empty());
 }
 
 TEST(Subgrid, StartsAtTheWindowsFirstCellOnTheSameLattice) {

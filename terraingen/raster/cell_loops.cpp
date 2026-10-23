@@ -33,10 +33,6 @@ PixelWindow PixelWindowIn(const RasterGrid& grid, const Bounds2d& box) {
             ClampTo(std::floor(rowMin), grid.height), ClampTo(std::ceil(rowMax), grid.height)};
 }
 
-PixelWindow PixelWindowIn(const Raster<float>& raster, const Bounds2d& box) {
-    return PixelWindowIn(RasterGrid::FromRaster(raster), box);
-}
-
 RasterGrid Subgrid(const RasterGrid& grid, const PixelWindow& cells) {
     RasterGrid result{cells.Empty() ? 0 : cells.colEnd - cells.colBegin,
                       cells.Empty() ? 0 : cells.rowEnd - cells.rowBegin, grid.transform};
@@ -51,20 +47,15 @@ RasterGrid Subgrid(const RasterGrid& grid, const PixelWindow& cells) {
 
 std::vector<PixelWindow> PixelWindowsIn(const RasterGrid& grid, const Bounds2d& box,
                                         const Surface& surface) {
+    const std::vector<double> shifts =
+        surface.IsBody() ? std::vector<double>{-360.0, 0.0, 360.0} : std::vector<double>{0.0};
     std::vector<PixelWindow> windows;
-    const auto add = [&](double shift) {
+    for (const double shift : shifts) {
         const PixelWindow window =
             PixelWindowIn(grid, {box.minX + shift, box.minY, box.maxX + shift, box.maxY});
         if (!window.Empty()) {
             windows.push_back(window);
         }
-    };
-    if (!surface.IsBody()) {
-        add(0.0);
-        return windows;
-    }
-    for (const double shift : {-360.0, 0.0, 360.0}) {
-        add(shift);
     }
     return windows;
 }

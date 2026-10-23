@@ -10,13 +10,27 @@
 
 namespace terraingen {
 
-/// The radius of a star-shaped body (one every ray from its center crosses once) along each
-/// direction: a radial ICQ grid, the vertex labels (I, J, F) of Gaskell's implicitly connected
-/// quadrilateral format (I and J from 0 to Q, faces F from 1 to 6 centered on +z, -y, -x, +y, +x
-/// and -z) each at a fixed equiangular direction, holding the radius there. Within each of a
-/// face's Q^2 quadrilaterals the radius is interpolated bilinearly in those angles. Labels the
-/// format shares between faces have the same direction and radius, so the radius is continuous;
-/// it never leaves the range of the label radii.
+/// The index of ICQ label (`i`, `j`, `face`) of a grid of `q` intervals per face edge, `face` from
+/// 1 to 6: ICQ file order, face, then J, then I.
+constexpr std::size_t IcqLabelIndex(std::size_t q, std::size_t i, std::size_t j, std::size_t face) {
+    return ((face - 1) * (q + 1) + j) * (q + 1) + i;
+}
+
+/// Calls `visit(i, j, face, index)` for every label of a grid of `q` intervals per face edge, in
+/// ICQ file order (`IcqLabelIndex`).
+template <typename Visit> void ForEachIcqLabel(std::size_t q, const Visit& visit) {
+    for (std::size_t face = 1; face <= 6; ++face) {
+        for (std::size_t j = 0; j <= q; ++j) {
+            for (std::size_t i = 0; i <= q; ++i) {
+                visit(i, j, face, IcqLabelIndex(q, i, j, face));
+            }
+        }
+    }
+}
+
+/// The radius of a star-shaped body along each direction: the radius at every label of Gaskell's
+/// ICQ grid (`LabelDirection`), interpolated bilinearly in equiangular coordinates within each
+/// quadrilateral, so it is continuous and stays within the range of the label radii.
 class RadialShape {
   public:
     /// The shape of `q` intervals per face edge from a radius in meters along each unit direction,
@@ -37,10 +51,9 @@ class RadialShape {
     /// @throws std::invalid_argument unless `q` > 0, `i` and `j` <= `q` and 1 <= `face` <= 6.
     static Vec3d LabelDirection(std::size_t q, std::size_t i, std::size_t j, std::size_t face);
 
-    /// The index of label (`i`, `j`, `face`) in the label radii, `face` from 1 to 6: ICQ file
-    /// order, face, then J, then I.
+    /// The index of label (`i`, `j`, `face`) in the label radii (`IcqLabelIndex`).
     std::size_t LabelIndex(std::size_t i, std::size_t j, std::size_t face) const {
-        return ((face - 1) * (q_ + 1) + j) * (q_ + 1) + i;
+        return IcqLabelIndex(q_, i, j, face);
     }
 
     /// The radius in meters along a nonzero `direction`.
@@ -76,8 +89,7 @@ class RadialShape {
 
     /// Whether two shapes have the same Q and label radii.
     bool operator==(const RadialShape& other) const {
-        return q_ == other.q_ && radii_ == other.radii_ && min_ == other.min_ &&
-               max_ == other.max_ && maxArea_ == other.maxArea_;
+        return q_ == other.q_ && radii_ == other.radii_;
     }
     bool operator!=(const RadialShape& other) const {
         return !(*this == other);

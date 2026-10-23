@@ -8,7 +8,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace terraingen::detail {
@@ -150,8 +152,18 @@ ModelTags EncodeTransform(const GeoTransform& transform, bool pixelIsPoint);
 /// @throws GeoTiffError for tags with too few values or several tiepoints.
 std::optional<GeoTransform> DecodeTransform(const ModelTags& tags, bool pixelIsPoint);
 
+/// Throws a `GeoTiffError` "<path>: <reason>" for a file read or written.
+[[noreturn]] void ThrowFileError(const std::filesystem::path& path, const std::string& reason);
+
 /// How many strips or tiles the GeoTIFF reader has decoded on the calling thread, for tests of
 /// windowed reads.
 std::size_t DecodedChunkCount();
+
+/// The value of the SHORT GeoKey `key` stored inline in the directory of `keys`, if present.
+std::optional<std::uint16_t> ShortGeoKey(const GeoKeys& keys, std::uint16_t key);
+
+/// The band scaling a GDAL_METADATA tag (42112) gives, one per band; scale 1 and offset 0 for
+/// bands not mentioned, nor for items without a band, beyond `bands` or not a number.
+std::vector<BandScaling> ParseGdalBandScaling(const std::string& xml, std::size_t bands);
 
 }  // namespace terraingen::detail

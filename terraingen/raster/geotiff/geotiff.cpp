@@ -46,12 +46,13 @@ std::optional<std::string> XmlAttribute(const std::string& tag, const std::strin
 
 }  // namespace
 
-std::optional<std::uint16_t> GeoKeys::ShortKey(std::uint16_t key) const {
+std::optional<std::uint16_t> detail::ShortGeoKey(const GeoKeys& keys, std::uint16_t key) {
+    const std::vector<std::uint16_t>& directory = keys.directory;
     if (directory.size() < 4) {
         return std::nullopt;
     }
-    const std::size_t keys = directory[3];
-    for (std::size_t k = 0; k < keys && 4 + 4 * k + 3 < directory.size(); ++k) {
+    const std::size_t count = directory[3];
+    for (std::size_t k = 0; k < count && 4 + 4 * k + 3 < directory.size(); ++k) {
         const std::size_t at = 4 + 4 * k;
         if (directory[at] == key && directory[at + 1] == 0) {
             return directory[at + 3];
@@ -61,14 +62,14 @@ std::optional<std::uint16_t> GeoKeys::ShortKey(std::uint16_t key) const {
 }
 
 bool GeoKeys::PixelIsPoint() const {
-    return ShortKey(detail::kGtRasterTypeGeoKey) == detail::kRasterPixelIsPoint;
+    return detail::ShortGeoKey(*this, detail::kGtRasterTypeGeoKey) == detail::kRasterPixelIsPoint;
 }
 
 bool GeoKeys::IsGeographic() const {
-    return ShortKey(detail::kGtModelTypeGeoKey) == detail::kModelTypeGeographic;
+    return detail::ShortGeoKey(*this, detail::kGtModelTypeGeoKey) == detail::kModelTypeGeographic;
 }
 
-std::vector<BandScaling> ParseGdalBandScaling(const std::string& xml, std::size_t bands) {
+std::vector<BandScaling> detail::ParseGdalBandScaling(const std::string& xml, std::size_t bands) {
     std::vector<BandScaling> scaling(bands);
     std::size_t position = 0;
     while ((position = xml.find("<Item", position)) != std::string::npos) {

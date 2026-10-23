@@ -130,24 +130,6 @@ TEST(RequireRotation, AcceptsRotationsAndRejectsReflectionsAndSkews) {
     EXPECT_THROW(terraingen::RequireRotation(skew), std::invalid_argument);
 }
 
-TEST(RotationQuaternion, CoversEveryBranchOfShepperdsMethod) {
-    const auto expect = [](const std::array<double, 4>& q, const std::array<double, 4>& want) {
-        for (std::size_t i = 0; i < 4; ++i) {
-            EXPECT_NEAR(std::fabs(q[i]), std::fabs(want[i]), 1e-12) << i;
-        }
-    };
-    const double h = std::sqrt(0.5);
-    expect(terraingen::RotationQuaternion(RigidTransform{}.rotation), {0, 0, 0, 1});
-    expect(terraingen::RotationQuaternion(RigidTransform::RotationX(terraingen::kPi).rotation),
-           {1, 0, 0, 0});
-    expect(terraingen::RotationQuaternion(RigidTransform::RotationY(terraingen::kPi).rotation),
-           {0, 1, 0, 0});
-    expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(terraingen::kPi).rotation),
-           {0, 0, 1, 0});
-    expect(terraingen::RotationQuaternion(RigidTransform::RotationZ(terraingen::kPi / 2).rotation),
-           {0, 0, h, h});
-}
-
 TEST(TriangleMesh, RejectsTrianglesIndexingPastTheVertices) {
     TriangleMesh mesh;
     mesh.positions = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}};

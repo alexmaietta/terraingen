@@ -71,6 +71,12 @@ class BitWriter {
     throw GeoTiffError(std::string("Corrupt LZW data: ") + what);
 }
 
+/// Throws for `codec` data that decoded to `decoded` of the `size` bytes expected.
+[[noreturn]] void ShortOutput(const char* codec, std::size_t decoded, std::size_t size) {
+    throw GeoTiffError(std::string("Corrupt ") + codec + " data: decoded " +
+                       std::to_string(decoded) + " of " + std::to_string(size) + " bytes");
+}
+
 /// The LZW string table for decoding: each code's string as its prefix code and last byte.
 class LzwDecodeTable {
   public:
@@ -250,8 +256,7 @@ std::vector<std::uint8_t> DecodeLzw(Span<const std::uint8_t> data, std::size_t s
         previous = code;
     }
     if (out.size() < size) {
-        throw GeoTiffError("Corrupt LZW data: decoded " + std::to_string(out.size()) + " of " +
-                           std::to_string(size) + " bytes");
+        ShortOutput("LZW", out.size(), size);
     }
     out.resize(size);
     return out;
@@ -293,8 +298,7 @@ std::vector<std::uint8_t> DecodeDeflate(Span<const std::uint8_t> data, std::size
         throw GeoTiffError("Corrupt Deflate data");
     }
     if (written != size) {
-        throw GeoTiffError("Corrupt Deflate data: decoded " + std::to_string(written) + " of " +
-                           std::to_string(size) + " bytes");
+        ShortOutput("Deflate", written, size);
     }
     return out;
 }
@@ -338,8 +342,7 @@ std::vector<std::uint8_t> DecodePackBits(Span<const std::uint8_t> data, std::siz
         }
     }
     if (out.size() < size) {
-        throw GeoTiffError("Corrupt PackBits data: decoded " + std::to_string(out.size()) + " of " +
-                           std::to_string(size) + " bytes");
+        ShortOutput("PackBits", out.size(), size);
     }
     out.resize(size);
     return out;

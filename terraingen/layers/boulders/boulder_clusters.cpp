@@ -26,7 +26,7 @@ double MeanThomasField(const BoulderClusters& clusters, bool body) {
     const double perArea = 1.0 / (clusters.spacing * clusters.spacing);
     if (body) {
         const double perVolume = perArea / (std::sqrt(2.0 * kPi) * sigma);
-        const double inside = std::erf(reach / kSqrt2) -
+        const double inside = std::erf(reach / std::sqrt(2.0)) -
                               std::sqrt(2.0 / kPi) * reach * std::exp(-0.5 * reach * reach);
         return perVolume * std::pow(2.0 * kPi * sigma * sigma, 1.5) * inside;
     }

@@ -9,17 +9,6 @@ namespace terraingen {
 
 namespace detail {
 
-/// Perlin's quintic fade 6t^5 - 15t^4 + 10t^3 of a fraction `t` in [0, 1], C^2 across cell
-/// edges.
-constexpr float PerlinFade(float t) {
-    return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
-}
-
-/// Linear interpolation, a + t (b - a).
-constexpr float Lerp(float t, float a, float b) {
-    return a + t * (b - a);
-}
-
 /// Dot product of an offset with one of eight unit gradients: the axis directions and the
 /// diagonals.
 /// @param hash Corner hash; its low three bits pick the gradient.
@@ -48,7 +37,7 @@ inline float PerlinGradient2(uint32_t hash, float x, float y) {
 /// The hash of a 2D lattice corner, shared by Perlin and simplex noise.
 /// @param ix Corner x, wrapped to 32 bits.
 /// @param iy Corner y, wrapped to 32 bits.
-inline uint32_t PerlinCornerHash(uint32_t ix, uint32_t iy, uint32_t seed) {
+inline uint32_t PerlinCornerHash2(uint32_t ix, uint32_t iy, uint32_t seed) {
     return Pcg3dHash(SeededLatticeKey2(ix, iy, seed)).x;
 }
 
@@ -95,13 +84,13 @@ inline float PerlinNoise2(int32_t ix, int32_t iy, float fx, float fy, uint32_t s
     const uint32_t x1 = x0 + 1u;
     const uint32_t y1 = y0 + 1u;
 
-    const float n00 = detail::PerlinGradient2(detail::PerlinCornerHash(x0, y0, seed), fx, fy);
+    const float n00 = detail::PerlinGradient2(detail::PerlinCornerHash2(x0, y0, seed), fx, fy);
     const float n10 =
-        detail::PerlinGradient2(detail::PerlinCornerHash(x1, y0, seed), fx - 1.0f, fy);
+        detail::PerlinGradient2(detail::PerlinCornerHash2(x1, y0, seed), fx - 1.0f, fy);
     const float n01 =
-        detail::PerlinGradient2(detail::PerlinCornerHash(x0, y1, seed), fx, fy - 1.0f);
+        detail::PerlinGradient2(detail::PerlinCornerHash2(x0, y1, seed), fx, fy - 1.0f);
     const float n11 =
-        detail::PerlinGradient2(detail::PerlinCornerHash(x1, y1, seed), fx - 1.0f, fy - 1.0f);
+        detail::PerlinGradient2(detail::PerlinCornerHash2(x1, y1, seed), fx - 1.0f, fy - 1.0f);
 
     const float u = detail::PerlinFade(fx);
     const float v = detail::PerlinFade(fy);

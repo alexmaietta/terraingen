@@ -26,6 +26,21 @@ double Ellipsoid(const Vec3d& u) {
 
 }  // namespace
 
+TEST(IcqLabels, AreIndexedAndVisitedInFileOrder) {
+    EXPECT_EQ(terraingen::IcqLabelIndex(2, 0, 0, 1), 0u);
+    EXPECT_EQ(terraingen::IcqLabelIndex(2, 1, 0, 1), 1u);
+    EXPECT_EQ(terraingen::IcqLabelIndex(2, 0, 1, 1), 3u);
+    EXPECT_EQ(terraingen::IcqLabelIndex(2, 0, 0, 2), 9u);
+    std::size_t visited = 0;
+    terraingen::ForEachIcqLabel(
+        2, [&](std::size_t i, std::size_t j, std::size_t face, std::size_t index) {
+            EXPECT_EQ(index, visited);
+            EXPECT_EQ(index, terraingen::IcqLabelIndex(2, i, j, face));
+            ++visited;
+        });
+    EXPECT_EQ(visited, 54u);
+}
+
 TEST(RadialShape, LabelsTheFormatSharesHaveTheSameDirection) {
     const std::size_t q = 6;
     for (std::size_t k = 0; k <= q; ++k) {

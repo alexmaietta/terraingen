@@ -1,5 +1,7 @@
 #include "terraingen/random/stream.h"
 
+#include "terraingen/noise/hash.h"
+
 namespace terraingen {
 
 RandomStream::RandomStream(std::uint32_t seed, std::uint32_t stream, std::uint32_t a,
@@ -17,7 +19,7 @@ std::uint32_t RandomStream::NextU32() {
 }
 
 float RandomStream::NextFloat() {
-    return static_cast<float>(NextU32() >> 8u) * 0x1p-24f;
+    return HashToUnitFloat(NextU32());
 }
 
 double RandomStream::NextDouble() {

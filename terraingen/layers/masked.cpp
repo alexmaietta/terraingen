@@ -100,8 +100,7 @@ void ValidateRegionShape(const RegionShape& shape) {
         return;
     }
     const Bounds2d& r = shape.rectangle;
-    if (!(std::isfinite(r.minX) && std::isfinite(r.minY) && std::isfinite(r.maxX) &&
-          std::isfinite(r.maxY) && r.minX <= r.maxX && r.minY <= r.maxY)) {
+    if (!(r.IsFinite() && r.minX <= r.maxX && r.minY <= r.maxY)) {
         throw std::invalid_argument("A rectangular region needs finite bounds with min <= max");
     }
 }

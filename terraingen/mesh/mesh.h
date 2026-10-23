@@ -99,9 +99,6 @@ struct RigidTransform {
 /// @throws std::invalid_argument otherwise.
 void RequireRotation(const std::array<double, 9>& rotation);
 
-/// The unit quaternion (x, y, z, w) of a proper rotation, row-major 3 x 3.
-std::array<double, 4> RotationQuaternion(const std::array<double, 9>& rotation);
-
 /// A mesh with every vertex moved by a transform.
 TriangleMesh Transformed(const TriangleMesh& mesh, const RigidTransform& transform);
 

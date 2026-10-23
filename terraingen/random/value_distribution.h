@@ -38,7 +38,7 @@ struct ValueDistribution {
     /// Memberwise equality.
     bool operator==(const ValueDistribution& other) const {
         return kind == other.kind && a == other.a && b == other.b && min == other.min &&
-               max == other.max;
+               max == other.max && edges == other.edges && weights == other.weights;
     }
     bool operator!=(const ValueDistribution& other) const {
         return !(*this == other);

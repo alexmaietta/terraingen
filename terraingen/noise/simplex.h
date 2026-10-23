@@ -19,7 +19,7 @@ inline float SimplexCorner(uint32_t ci, uint32_t cj, float dx, float dy, uint32_
         return 0.0f;
     }
     const float t2 = t * t;
-    return t2 * t2 * PerlinGradient2(PerlinCornerHash(ci, cj, seed), dx, dy);
+    return t2 * t2 * PerlinGradient2(PerlinCornerHash2(ci, cj, seed), dx, dy);
 }
 
 /// The contribution (0.5 - r^2)^4 dot(g, d) of one corner of a 3D simplex, with `PerlinNoise3`'s
@@ -86,39 +86,12 @@ inline float SimplexNoise3(LatticePoint3 point, uint32_t seed) {
     const float y0 = point.fy - stepY + unskew;
     const float z0 = point.fz - stepZ + unskew;
 
-    uint32_t i1 = 0u;
-    uint32_t j1 = 0u;
-    uint32_t k1 = 0u;
-    uint32_t i2 = 0u;
-    uint32_t j2 = 0u;
-    uint32_t k2 = 0u;
-    if (x0 >= y0) {
-        if (y0 >= z0) {
-            i1 = 1u;
-            i2 = 1u;
-            j2 = 1u;
-        } else if (x0 >= z0) {
-            i1 = 1u;
-            i2 = 1u;
-            k2 = 1u;
-        } else {
-            k1 = 1u;
-            i2 = 1u;
-            k2 = 1u;
-        }
-    } else if (y0 < z0) {
-        k1 = 1u;
-        j2 = 1u;
-        k2 = 1u;
-    } else if (x0 < z0) {
-        j1 = 1u;
-        j2 = 1u;
-        k2 = 1u;
-    } else {
-        j1 = 1u;
-        i2 = 1u;
-        j2 = 1u;
-    }
+    const uint32_t i1 = x0 >= y0 && x0 >= z0 ? 1u : 0u;
+    const uint32_t j1 = y0 > x0 && y0 >= z0 ? 1u : 0u;
+    const uint32_t k1 = z0 > x0 && z0 > y0 ? 1u : 0u;
+    const uint32_t i2 = x0 >= y0 || x0 >= z0 ? 1u : 0u;
+    const uint32_t j2 = y0 > x0 || y0 >= z0 ? 1u : 0u;
+    const uint32_t k2 = z0 > x0 || z0 > y0 ? 1u : 0u;
     constexpr float kUnskew = 1.0f / 6.0f;
     const float x1 = x0 - float(i1) + kUnskew;
     const float y1 = y0 - float(j1) + kUnskew;

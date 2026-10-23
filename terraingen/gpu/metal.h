@@ -10,17 +10,13 @@
 
 namespace terraingen {
 
-/// The Metal device TerrainGen uses, opened on first use: the system's default device, which every
-/// Mac has. Elsewhere it is always unavailable. Kernels run their Metal source (entry point
-/// "main_0"), compiled once per process, with buffers at indices 0, 1, ... and the push constants
-/// at the next index, as Slang assigns them.
-class MetalCompute final : public ComputeDevice {
+/// The system's default Metal device, on Apple platforms only. Kernels run their Metal source
+/// (entry point "main_0"), compiled once per process, with buffers at indices 0, 1, ... and the
+/// push constants at the next index.
+class MetalCompute final : public SharedComputeDevice<MetalCompute> {
   public:
-    /// The shared device, opened on the first call; null when Metal is unavailable (see `Reason`).
-    static MetalCompute* Get();
-
-    /// Why Metal is unavailable; empty when it is available.
-    static std::string Reason();
+    /// The API name log messages show.
+    static constexpr const char* kApi = "Metal";
 
     const std::string& DeviceName() const override;
     bool CanRun(const KernelProgram& program) const override;

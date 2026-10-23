@@ -23,8 +23,7 @@ RasterSourceOptions SamplingOptions(const GeoTiffSourceOptions& options) {
 /// The cells of `lattice` that meet `crop`.
 /// @throws std::invalid_argument for a crop that is not finite, is empty or misses the lattice.
 PixelWindow CropCells(const RasterGrid& lattice, const Bounds2d& crop) {
-    if (!(std::isfinite(crop.minX) && std::isfinite(crop.minY) && std::isfinite(crop.maxX) &&
-          std::isfinite(crop.maxY))) {
+    if (!crop.IsFinite()) {
         throw std::invalid_argument("The crop must be finite");
     }
     if (!(crop.minX < crop.maxX && crop.minY < crop.maxY)) {

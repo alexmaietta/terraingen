@@ -1,5 +1,6 @@
 /// @file
-/// @brief Points split into a lattice cell and a fraction, and the frozen lattice hash keys.
+/// @brief Points split into a lattice cell and a fraction, interpolation helpers, and the frozen
+/// lattice hash keys.
 #pragma once
 
 #include "terraingen/noise/hash.h"
@@ -67,6 +68,17 @@ inline LatticePoint3 SplitLatticePrecise3(double x, double y, double z) {
 #endif
 
 namespace detail {
+
+/// Perlin's quintic fade 6t^5 - 15t^4 + 10t^3 of a fraction `t` in [0, 1], C^2 across cell
+/// edges.
+constexpr float PerlinFade(float t) {
+    return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+}
+
+/// Linear interpolation, a + t (b - a).
+constexpr float Lerp(float t, float a, float b) {
+    return a + t * (b - a);
+}
 
 /// The `pcg3d` key of 2D lattice point (`x`, `y`): the seed is the third word. Frozen for
 /// reproducibility: Perlin, value and Worley noise in 2D and simplex noise hash this key.

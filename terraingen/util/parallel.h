@@ -1,15 +1,11 @@
 /// @file
-/// @brief Thread counts and a parallel for loop.
+/// @brief A parallel for loop over a shared thread pool.
 #pragma once
 
 #include <cstddef>
 #include <functional>
 
 namespace terraingen {
-
-/// The number of threads a request resolves to: `threads` when positive, otherwise the
-/// hardware thread count (at least 1).
-unsigned ResolveThreads(unsigned threads);
 
 /// Calls `task(i)` exactly once for every i in [0, `count`) on up to `threads` threads and
 /// returns when all are done; tasks are handed out in order, so results must not depend on which

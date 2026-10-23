@@ -1,5 +1,5 @@
 /// @file
-/// @brief Levelled logging to a replaceable sink, and timing helpers for log messages.
+/// @brief Leveled logging to a replaceable sink, and timing helpers for log messages.
 #pragma once
 
 #include <array>
@@ -38,12 +38,8 @@ struct LogRecord {
 /// itself (such messages are dropped).
 using LogSink = std::function<void(const LogRecord&)>;
 
-/// The default sink: one line per record on standard error, "[terraingen] warning
-/// craters: ...".
-LogSink StandardErrorLogSink();
-
-/// Routes every record at or above the threshold to `sink`; an empty sink restores
-/// `StandardErrorLogSink`.
+/// Routes every record at or above the threshold to `sink`; an empty sink restores the default,
+/// one line per record on standard error: "[terraingen] warning craters: ...".
 void SetLogSink(LogSink sink);
 
 /// Sets the lowest level that is logged; the default is `Warning`.
@@ -56,13 +52,12 @@ LogLevel GetLogLevel();
 /// before building expensive messages.
 bool LogEnabled(LogLevel level);
 
-/// Sends a message to the sink if its level is enabled.
-/// @param category The part of TerrainGen logging it.
+/// Sends a message from `category`, the part of TerrainGen logging it, to the sink if its level
+/// is enabled.
 void Log(LogLevel level, std::string_view category, std::string message);
 
 /// Builds a message from `parts` with `operator<<` and logs it, doing no formatting work when
 /// the level is disabled.
-/// @param category The part of TerrainGen logging it.
 template <typename... Parts>
 void Log(LogLevel level, std::string_view category, const Parts&... parts) {
     if (!LogEnabled(level)) {

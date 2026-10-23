@@ -54,13 +54,3 @@ TEST(Checks, RequirementsNameTheValueInTheirMessages) {
     EXPECT_EQ(MessageOf([] { terraingen::RequireUnitInterval(-0.5, "Shares"); }),
               "Shares must be in [0, 1]");
 }
-
-TEST(Checks, RequireIncreasingAcceptsOrderedPairsIncludingInfiniteEnds) {
-    EXPECT_NO_THROW(terraingen::RequireIncreasing(1.0, 2.0, "x"));
-    EXPECT_NO_THROW(terraingen::RequireIncreasing(0.0, kInf, "x"));
-    EXPECT_EQ(MessageOf([] { terraingen::RequireIncreasing(2.0, 2.0, "Diameter range"); }),
-              "Diameter range must be increasing");
-    EXPECT_THROW(terraingen::RequireIncreasing(3.0, 1.0, "x"), std::invalid_argument);
-    EXPECT_THROW(terraingen::RequireIncreasing(kNaN, 1.0, "x"), std::invalid_argument);
-    EXPECT_THROW(terraingen::RequireIncreasing(0.0, kNaN, "x"), std::invalid_argument);
-}

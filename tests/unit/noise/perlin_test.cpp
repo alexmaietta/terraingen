@@ -40,12 +40,12 @@ TEST(PerlinNoise2, StaysWithinUnitRange) {
 }
 
 TEST(PerlinNoise2, ReachesOneWhereAllGradientsPointAtTheCellCenter) {
-    using terraingen::detail::PerlinCornerHash;
+    using terraingen::detail::PerlinCornerHash2;
     for (std::uint32_t ix = 0; ix < 1000000u; ++ix) {
-        const bool outward = (PerlinCornerHash(ix, 0u, kSeed) & 7u) == 4u &&
-                             (PerlinCornerHash(ix + 1u, 0u, kSeed) & 7u) == 5u &&
-                             (PerlinCornerHash(ix, 1u, kSeed) & 7u) == 6u &&
-                             (PerlinCornerHash(ix + 1u, 1u, kSeed) & 7u) == 7u;
+        const bool outward = (PerlinCornerHash2(ix, 0u, kSeed) & 7u) == 4u &&
+                             (PerlinCornerHash2(ix + 1u, 0u, kSeed) & 7u) == 5u &&
+                             (PerlinCornerHash2(ix, 1u, kSeed) & 7u) == 6u &&
+                             (PerlinCornerHash2(ix + 1u, 1u, kSeed) & 7u) == 7u;
         if (outward) {
             EXPECT_NEAR(PerlinNoise2(static_cast<std::int32_t>(ix), 0, 0.5f, 0.5f, kSeed), 1.0f,
                         1e-6f);

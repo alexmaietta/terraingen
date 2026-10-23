@@ -162,12 +162,14 @@ Vec2d Surface::ShapeLocate(const Vec2d& center, const Vec2d& offset) const {
     if (offset.x == 0.0 && offset.y == 0.0) {
         return center;
     }
-    const Vec3d c = Position(center);
     const LocalFrame frame = Frame(center);
-    const Vec3d q = c + frame.east * offset.x + frame.north * offset.y;
-    const auto along = [&](double s) { return q - frame.up * s; };
+    const Vec3d q = Position(center) + frame.east * offset.x + frame.north * offset.y;
+    return Coordinates(q - frame.up * ShapeDepth(q, frame.up));
+}
+
+double Surface::ShapeDepth(const Vec3d& q, const Vec3d& up) const {
     const auto excess = [&](double s) {
-        const Vec3d x = along(s);
+        const Vec3d x = q - up * s;
         const double r = Length(x);
         return r - shape_->At(x / r);
     };
@@ -191,7 +193,7 @@ Vec2d Surface::ShapeLocate(const Vec2d& center, const Vec2d& offset) const {
         const double middle = 0.5 * (inside + outside);
         (excess(middle) >= 0.0 ? outside : inside) = middle;
     }
-    return Coordinates(along(0.5 * (inside + outside)));
+    return 0.5 * (inside + outside);
 }
 
 Vec2d Surface::EllipsoidLocate(const Vec2d& center, const Vec2d& offset) const {
