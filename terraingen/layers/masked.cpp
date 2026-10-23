@@ -17,7 +17,7 @@ namespace terraingen {
 
 namespace {
 
-/// `height` moved towards `inner` by `weight` in [0, 1].
+/// `height` moved toward `inner` by `weight` in [0, 1].
 float Blend(float height, float inner, double weight) {
     if (weight >= 1.0) {
         return inner;

@@ -116,7 +116,7 @@ void ValidateSpectralContinuationOptions(const SpectralContinuationOptions& opti
 /// position, direction, phase and log-uniform frequency within the band. Impulse amplitudes are
 /// set from the target PSD at their frequency, so the noise's spectrum is the target smoothed by
 /// the impulses' Gaussian bandwidth (a seventh of the band's lowest frequency), isotropic and
-/// free of lattice artefacts.
+/// free of lattice artifacts.
 ///
 /// Heights are a function of position, seed and sample spacing alone, so grids, tiles and points
 /// agree. Each impulse fades out by its wavelength over the sample spacing (`fade`), so at the

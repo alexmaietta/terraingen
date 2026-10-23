@@ -1,4 +1,4 @@
-> 🚧 **This project is in active beta development.** This means the API is unstable, features may be added or removed, and breaking changes are likely to occur frequently and without notice as the design is refined.
+> **This project is in active beta development.** This means the API is unstable, features may be added or removed, and breaking changes are likely to occur frequently and without notice as the design is refined.
 
 [![pipeline](https://img.shields.io/github/actions/workflow/status/alexmaietta/terraingen/ci.yml?branch=main&label=pipeline)](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml)
 [![coverage](https://img.shields.io/endpoint?url=https://alexmaietta.github.io/terraingen/coverage/badge.json)](https://alexmaietta.github.io/terraingen/coverage/)
@@ -25,7 +25,7 @@ TerrainGen can:
 - Write GeoTIFF heightmaps and albedo, material and photometry maps, crater and boulder lists as CSV or JSON, and terrain, boulder and body meshes as glTF, OBJ or STL.
 - Model complex geologic features such as complex and secondary craters, boulder ejecta fields, dunes and wind ripples, layered strata terraced into benches and cliffs, fractured bedrock pavement, wind-carved ventifacts, and sand pooled in lows or trailing behind boulders.
 - Be extended through base classes in C++ or Python with custom size-frequency distributions, crater ages, profiles and degradation, albedo, sources, and layers.
-- Perform GPU-accelerated operations for generating noise, craters, boulders, albedo, and more.
+- Run noise and crater shaping on the GPU (Vulkan, CUDA or Metal), with everything else on the CPU.
 - Generate deterministic results for the same seed on any grid, point query or thread count.
 - Integrate into simulations and other external workflows.
 
@@ -34,21 +34,24 @@ We also provide:
 - A C++17 library with Python bindings and minimal dependencies.
 - Smart and tested defaults for various surface features.
 - A command-line interface that generates terrain from JSON configuration files.
-- A GUI for editing configurations and viewing the results in 3D.
+- A GUI for editing configurations and viewing the results in 3D, in builds made with Ernie, the renderer.
 - Examples in C++, Python and JSON.
-- A standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
-- Example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
+- Planned: a standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
+- Planned: example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
 
 For more information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
 
 ## Quick Start
 
-We recommended getting started by installing `terraingenpy` from PyPi and running the GUI.
+We recommend getting started by installing `terraingenpy` from PyPI and generating one of the example configurations.
 
 ```sh
 pip install terraingenpy
-terraingen --gui
+git clone https://github.com/alexmaietta/terraingen
+terraingen terraingen/examples/config/craters/example_craters_simple.json --output-dir output
 ```
+
+The wheels leave out the GUI; `terraingen --gui` needs a build from source with Ernie (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Requirements
 
@@ -142,7 +145,7 @@ terraingen examples/config/craters/example_craters_simple.json
 
 ### Demos
 
-[demos/](demos/) has larger showcases, such as terrain over a whole asteroid built from the Itokawa shape model.
+Planned: larger showcases, such as terrain over a whole asteroid built from the Itokawa shape model.
 
 ## Contributing
 

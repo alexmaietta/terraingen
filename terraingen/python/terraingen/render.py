@@ -5,17 +5,19 @@ into an Ernie scene without copying its cells (Ernie reads them through DLPack a
 alive), and add a sun and a camera looking at it, so a script can generate and render headlessly::
 
     import ernie
-    import terraingen as tg
+    import terraingen
     from terraingen import render
 
-    raster = tg.generate_synthetic_terrain(...)
+    raster = terraingen.generate_synthetic_terrain(...)
     scene = ernie.Scene()
     render.add_terrain(scene, raster)
     render.add_sun(scene, azimuth_deg=315.0, elevation_deg=20.0)
     render.frame_terrain(scene, raster)
     image = ernie.Renderer().render(scene)
 
-Directions follow TerrainGen: x east, y north, z up, azimuths clockwise from north.
+Positions follow TerrainGen: x east, y north, z up. Sun azimuths here are compass bearings,
+clockwise from north, unlike the angles of TerrainGen's configurations and options, which are
+counter-clockwise from +x (east).
 """
 
 import math
@@ -48,7 +50,7 @@ def _check_north_up(raster):
 
 
 def direction(azimuth_deg, elevation_deg):
-    """Unit vector towards azimuth (clockwise from north) and elevation above the horizon."""
+    """Unit vector toward azimuth (clockwise from north) and elevation above the horizon."""
     azimuth = math.radians(azimuth_deg)
     elevation = math.radians(elevation_deg)
     return (
@@ -192,10 +194,10 @@ def add_sun(scene, path=SUN_PATH, *, azimuth_deg=315.0, elevation_deg=35.0, inte
     """Defines a DistantLight shining from the given azimuth and elevation."""
     ernie = _ernie()
     tokens = ernie.tokens
-    towards = direction(azimuth_deg, elevation_deg)
+    toward = direction(azimuth_deg, elevation_deg)
     return (
         scene.define(path, tokens.DISTANT_LIGHT)
-        .set(tokens.TRANSFORM, ernie.distant_light_transform(towards))
+        .set(tokens.TRANSFORM, ernie.distant_light_transform(toward))
         .set(tokens.INTENSITY, float(intensity))
     )
 

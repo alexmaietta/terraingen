@@ -31,7 +31,7 @@ SIZE = 257
 
 
 class InclinedPlane(terraingen.Source):
-    """A plane rising `slope` meters per meter towards the north-east."""
+    """A plane rising `slope` meters per meter toward the north-east."""
 
     def __init__(self, slope=0.02):
         super().__init__()

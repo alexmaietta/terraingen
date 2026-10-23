@@ -16,7 +16,7 @@
 
 namespace {
 
-/// A plane rising `slope` meters per meter towards the north-east over a 257 x 257 grid of 2 m.
+/// A plane rising `slope` meters per meter toward the north-east over a 257 x 257 grid of 2 m.
 class InclinedPlane final : public terraingen::Source {
   public:
     explicit InclinedPlane(double slope) : slope_(slope) {}

@@ -223,8 +223,8 @@ class Surface {
     std::shared_ptr<const RadialShape> shape_;
 };
 
-/// The unit vector of a longitude and latitude: x towards longitude 0 on the equator, y
-/// towards longitude 90 and z towards the north pole.
+/// The unit vector of a longitude and latitude: x toward longitude 0 on the equator, y
+/// toward longitude 90 and z toward the north pole.
 /// Both angles are in degrees.
 Vec3d UnitVector(double lonDeg, double latDeg);
 

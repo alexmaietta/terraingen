@@ -2,11 +2,11 @@
 #   util          logging, version, build info header, geometry and surface cells
 #   raster        rasters, geotransforms, interpolation and GeoTIFF files in geotiff/
 #   noise         noise kernels, header-only and portable to GPU shading languages, and their checks
-#   gpu           backend selection and the Vulkan compute device, opened at run time
+#   gpu           backend selection and the Vulkan, CUDA and Metal devices, opened at run time
 #   random        the Philox generator (portable to GPUs), random streams and samplers
 #   mesh          triangle meshes, base solids, subdivision and mesh files
 #   distribution  size-frequency distributions
-#   sources       where heights come from: synthetic terrain from layered noise
+#   sources       where heights come from: rasters, GeoTIFFs, chains and noise, and their upsampling
 #   layers        relief added on top of a source: craters (populations, profiles, degradation)
 #   albedo        surface albedo: orbital maps upscaled, synthetic color and bright crater rays
 #   pipeline      terrains evaluated over grids, tiles, points and whole-body meshes
