@@ -186,10 +186,10 @@ TEST(NoiseRelief, LeavesOutTheNoiseLayersTheSourceResolves) {
     terraingen::SyntheticTerrainParams fine = params;
     fine.layers[0].enabled = false;
     const auto dem = Dem(20, 100.0, 0.0, 2000.0);
-    const terraingen::NoiseRelief held(params, {}, {}, dem, 4.0);
-    const terraingen::NoiseRelief small(fine);
-    const terraingen::NoiseRelief all(params);
-    const terraingen::NoiseRelief unset(params, {}, {}, dem);
+    const terraingen::NoiseRelief held(params.layers, {}, {}, dem, 4.0);
+    const terraingen::NoiseRelief small(fine.layers);
+    const terraingen::NoiseRelief all(params.layers);
+    const terraingen::NoiseRelief unset(params.layers, {}, {}, dem);
     for (double x = 5.0; x < 1900.0; x += 97.0) {
         EXPECT_EQ(held.ApplyAt(0.0f, x, 300.0, {1.0}), small.ApplyAt(0.0f, x, 300.0, {1.0}))
             << "the 1000 m layer is in the 400 m limit";
@@ -207,7 +207,7 @@ TEST(NoiseRelief, LeavesOutTheNoiseLayersTheSourceResolves) {
         }
     }
     EXPECT_EQ(held.SourceResolvesPixels(), 4.0);
-    EXPECT_THROW(terraingen::NoiseRelief(params, {}, {}, dem, -1.0), std::invalid_argument);
+    EXPECT_THROW(terraingen::NoiseRelief(params.layers, {}, {}, dem, -1.0), std::invalid_argument);
 }
 
 TEST(CraterLayer, DropsGeneratedCratersTheSourceResolvesWithoutACatalog) {

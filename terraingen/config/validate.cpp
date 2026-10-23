@@ -608,18 +608,18 @@ void CheckExtentUnit(const OutputAreaSpec& area, const std::string& path, bool b
 /// body.
 void CheckAreaGrid(const config::AreaCells& cells, const std::string& sizePath,
                    const std::string& extentPath, bool body) {
-    const double columns = config::SnappedCells(cells.box.maxX - cells.box.minX, cells.cell);
-    const double rows = config::SnappedCells(cells.box.maxY - cells.box.minY, cells.cell);
+    const double columns = SnappedCells(cells.box.maxX - cells.box.minX, cells.cell);
+    const double rows = SnappedCells(cells.box.maxY - cells.box.minY, cells.cell);
     const auto limit = static_cast<double>(kMaxConfigGridSize);
     if (columns > limit || rows > limit) {
         throw ConfigError(sizePath, "gives " + FormatNumber(columns, 17) + "x" +
                                         FormatNumber(rows, 17) + " cells; each side must be " +
                                         config::CountText(kMinConfigGridSize, kMaxConfigGridSize));
     }
-    const RasterGrid grid = config::SnappedGrid(cells.box, cells.cell);
+    const RasterGrid grid = RasterGrid::Covering(cells.box, cells.cell);
     CheckGridSize(grid.width, grid.height, sizePath);
     const Bounds2d bounds = grid.Bounds();
-    const double slack = config::kExtentSnapTolerance * cells.cell;
+    const double slack = kGridSnapTolerance * cells.cell;
     if (body && !(bounds.minY >= -90.0 - slack && bounds.maxY <= 90.0 + slack &&
                   bounds.maxX - bounds.minX <= 360.0 + slack)) {
         throw ConfigError(extentPath,

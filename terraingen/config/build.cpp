@@ -434,7 +434,7 @@ LayerPtr BuildLayerSpec(const NoiseLayerSpec& s, const std::string& path,
         return s.estimateFromSource ? s.EstimatedParams(SourceRoughness(context)) : s.Params();
     });
     return At(path, [&] {
-        return std::make_shared<NoiseRelief>(params, context.referencePoint, context.surface,
+        return std::make_shared<NoiseRelief>(params.layers, context.referencePoint, context.surface,
                                              context.measured, s.sourceResolvesPixels);
     });
 }
@@ -815,17 +815,6 @@ std::optional<Bounds2d> ExtentBox(const ExtentSpec& extent) {
     return std::nullopt;
 }
 
-double SnappedCells(double span, double cell) {
-    return std::max(1.0, std::ceil(span / cell - kExtentSnapTolerance));
-}
-
-RasterGrid SnappedGrid(const Bounds2d& box, double cell) {
-    const double columns = SnappedCells(box.maxX - box.minX, cell);
-    const double rows = SnappedCells(box.maxY - box.minY, cell);
-    return {static_cast<std::size_t>(columns), static_cast<std::size_t>(rows),
-            GeoTransform::NorthUp(box.minX, box.minY + rows * cell, cell)};
-}
-
 const OutputAreaSpec* OutputArea(const OutputSpec& output) {
     return std::visit(Overloaded{
                           [](const GeoTiffOutput& o) { return &o.area; },
@@ -894,7 +883,8 @@ std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
         return source;
     }
     const std::optional<AreaCells> cells = CoveredCells(*area, source, surface);
-    return cells ? std::optional<RasterGrid>(SnappedGrid(cells->box, cells->cell)) : std::nullopt;
+    return cells ? std::optional<RasterGrid>(RasterGrid::Covering(cells->box, cells->cell))
+                 : std::nullopt;
 }
 
 double OutputSpacing(const OutputSpec& output, const std::optional<RasterGrid>& source,

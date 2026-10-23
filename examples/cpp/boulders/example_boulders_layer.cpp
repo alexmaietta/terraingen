@@ -58,7 +58,7 @@ class BouldersLayer : public terraingen::examples::Example {
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(401, 401, 0.1);
         terrain.layers.push_back(
-            std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));
+            std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{fbm}));
         terrain.layers.push_back(craters);
         terrain.layers.push_back(
             std::make_shared<terraingen::BoulderLayer>(boulderOptions, craters));

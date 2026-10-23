@@ -35,7 +35,7 @@ class Example(_common.Example):
             ]
         )
         exposure = terraingen.ExposureParams(reach=6.0)
-        grid = terraingen.RasterGrid.centered(SIZE, SIZE, PIXEL)
+        grid = terraingen.RasterGrid.centered((0, 0), (SIZE * PIXEL, SIZE * PIXEL), PIXEL)
         ground = terraingen.TerrainGenerator(terraingen.FlatSource(SIZE, SIZE, PIXEL), [relief])
         self.exposure_map = terraingen.ExposureField(exposure).fill(ground, 1, grid, PIXEL).values
 

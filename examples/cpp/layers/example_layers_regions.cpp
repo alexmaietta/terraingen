@@ -62,7 +62,7 @@ class LayersRegions : public terraingen::examples::Example {
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 4.0);
         terrain.layers = {
-            std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
+            std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{fbm}),
             mare_,
             std::make_shared<terraingen::MaskedLayer>(
                 Craters(3.9, 9), terraingen::RegionShape::Rectangle({-kHalf, -kHalf, 0.0, kHalf}),

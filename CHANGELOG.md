@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `RasterGrid::Centered(center, size, pixelSize)` and `RasterGrid::Covering(box, pixelSize)`: the north-up grid covering a box, snapped outward to whole cells as configuration outputs snap their extents (`SnappedCells`, `kGridSnapTolerance`).
+- `ManualCrater(x, y, diameter, depth, rimHeight)` (`manual_crater`) and a `CraterList` built from a list of craters, `CraterList{a, b, c}`.
+
 ### Changed
+
+- `NoiseRelief` takes its noise layers as `std::vector<NoiseLayer>` and returns them from `Layers()`, as the Python binding always did (it took `SyntheticTerrainParams` and had `Params()`).
+- Python `RasterGrid.centered(center, size, pixel_size)` takes the C++ arguments, a center and a size in world units, instead of cell counts (`centered(width, height, pixel_size, center)`).
+- `config::SnappedGrid`, `config::SnappedCells` and `config::kExtentSnapTolerance` give way to `RasterGrid::Covering`, `SnappedCells` and `kGridSnapTolerance` in `raster/grid.h`.
 
 - Point queries on a body find the cells around them directly from the neighbors of the cell holding the point, instead of sampling the region: about 1.8x faster on a sphere, within 1.2x of a plane.
 - Generated cells keep their craters indexed by y, so a point query visits only the craters in its rows instead of copying every crater of the cells around it: point queries about 2x faster on a plane and 1.5x on a sphere.

@@ -69,7 +69,7 @@ TEST(SphereLayers, NoiseIsSeamlessAcrossTheAntimeridianAndPoles) {
     terraingen::SyntheticTerrainParams params{{terraingen::NoiseLayer{}}};
     params.layers[0].fractal.wavelength = 300.0f;
     params.layers[0].fractal.amplitude = 20.0f;
-    const terraingen::NoiseRelief noise(params, {}, kSphere);
+    const terraingen::NoiseRelief noise(params.layers, {}, kSphere);
     const Raster<float> grid = CheckGridAndPoints(noise, Geographic(179.99, 10.0, 20.0, 32), 20.0);
     EXPECT_NE(grid(0, 0), grid(31, 31));
     EXPECT_FLOAT_EQ(noise.ApplyAt(0.0f, 180.0, 10.0, {1.0}),
@@ -80,7 +80,7 @@ TEST(SphereLayers, NoiseIsSeamlessAcrossTheAntimeridianAndPoles) {
         SCOPED_TRACE(b);
         terraingen::SyntheticTerrainParams basis = params;
         basis.layers[0].fractal.basis = static_cast<terraingen::NoiseBasis>(b);
-        const terraingen::NoiseRelief relief(basis, {}, kSphere);
+        const terraingen::NoiseRelief relief(basis.layers, {}, kSphere);
         EXPECT_FLOAT_EQ(relief.ApplyAt(0.0f, 180.0, 10.0, {1.0}),
                         relief.ApplyAt(0.0f, -180.0, 10.0, {1.0}));
     }

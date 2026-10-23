@@ -24,7 +24,7 @@ def generate_lunar_craters(lunar_craters, region=REGION):
 
 def carved_raster(craters, options=None):
     """A 200 x 200 raster at 2 m with `craters` applied with `options`."""
-    raster = terraingen.RasterGrid.centered(200, 200, 2.0).make_raster()
+    raster = terraingen.RasterGrid.centered((0, 0), (200 * 2.0, 200 * 2.0), 2.0).make_raster()
     terraingen.apply_craters(
         raster,
         craters,
@@ -122,7 +122,7 @@ def test_crater_list_reads_depth_and_rim_height_columns():
 
 
 def test_apply_craters_carves_an_explicit_depth():
-    raster = terraingen.RasterGrid.centered(200, 200, 0.5).make_raster()
+    raster = terraingen.RasterGrid.centered((0, 0), (200 * 0.5, 200 * 0.5), 0.5).make_raster()
     craters = terraingen.CraterList(
         [terraingen.Crater(0.0, 0.0, 40.0, age_gyr=1.5, depth=6.0, rim_height=1.5)]
     )
@@ -152,6 +152,14 @@ def test_min_diameter_for_count_exceeds_the_lower_bound(lunar_craters):
 
 def test_manual_crater_id_is_deterministic():
     assert terraingen.manual_crater_id(1.0, 2.0, 3.0) == terraingen.manual_crater_id(1.0, 2.0, 3.0)
+
+
+def test_manual_crater_flags_a_hand_placed_crater():
+    plain = terraingen.manual_crater(1.0, -2.0, 30.0)
+    assert plain.manual and math.isnan(plain.depth) and math.isnan(plain.rim_height)
+    deep = terraingen.manual_crater(1.0, -2.0, 30.0, depth=6.0, rim_height=1.2)
+    assert (deep.x, deep.y, deep.diameter, deep.depth, deep.rim_height) == (1.0, -2.0, 30.0, 6.0, 1.2)
+    assert len(terraingen.CraterList([plain, deep])) == 2
 
 
 def test_apply_craters_carves_the_raster(lunar_craters):

@@ -129,3 +129,24 @@ TEST(AppendManualCraters, RejectsInvalidDepthsAndRimHeights) {
         }
     }
 }
+
+TEST(ManualCrater, FlagsAHandPlacedCraterWithItsDepthAndRim) {
+    const Crater plain = terraingen::ManualCrater(1.0, -2.0, 30.0);
+    EXPECT_EQ(plain, (Crater{1.0, -2.0, 30.0, 0.0, 0u, true}));
+    EXPECT_TRUE(std::isnan(plain.depth));
+    EXPECT_TRUE(std::isnan(plain.rimHeight));
+    const Crater deep = terraingen::ManualCrater(1.0, -2.0, 30.0, 6.0, 1.2);
+    EXPECT_TRUE(deep.manual);
+    EXPECT_EQ(deep.depth, 6.0);
+    EXPECT_EQ(deep.rimHeight, 1.2);
+}
+
+TEST(CraterList, BuildsFromAListOfCratersInOrder) {
+    const terraingen::CraterList empty{};
+    EXPECT_TRUE(empty.Empty());
+    const terraingen::CraterList list{terraingen::ManualCrater(0.0, 0.0, 10.0, 2.0),
+                                      Crater{5.0, 6.0, 7.0, 1.5, 42u}};
+    ASSERT_EQ(list.Size(), 2u);
+    EXPECT_EQ(list.At(0), terraingen::ManualCrater(0.0, 0.0, 10.0, 2.0));
+    EXPECT_EQ(list.At(1), (Crater{5.0, 6.0, 7.0, 1.5, 42u}));
+}

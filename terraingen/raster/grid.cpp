@@ -48,6 +48,34 @@ double RasterGrid::Spacing(const Surface& surface) const {
     return std::hypot(transform.rowRotation, transform.pixelHeight) * surface.UnitLength();
 }
 
+RasterGrid RasterGrid::Covering(const Bounds2d& box, double pixelSize) {
+    RequirePositive(pixelSize, "Pixel size");
+    if (!box.IsFinite() || box.maxX < box.minX || box.maxY < box.minY) {
+        throw std::invalid_argument(
+            "A grid must cover a finite box with its max at or above its min");
+    }
+    const double columns = SnappedCells(box.maxX - box.minX, pixelSize);
+    const double rows = SnappedCells(box.maxY - box.minY, pixelSize);
+    if (columns > 2147483647.0 || rows > 2147483647.0) {
+        throw std::invalid_argument("The grid would be too large");
+    }
+    return {static_cast<std::size_t>(columns), static_cast<std::size_t>(rows),
+            GeoTransform::NorthUp(box.minX, box.minY + rows * pixelSize, pixelSize)};
+}
+
+RasterGrid RasterGrid::Centered(const Vec2d& center, const Vec2d& size, double pixelSize) {
+    RequireNonNegative(size.x, "Grid width");
+    RequireNonNegative(size.y, "Grid height");
+    const double halfX = 0.5 * size.x;
+    const double halfY = 0.5 * size.y;
+    return Covering({center.x - halfX, center.y - halfY, center.x + halfX, center.y + halfY},
+                    pixelSize);
+}
+
+double SnappedCells(double span, double cell) {
+    return std::max(1.0, std::ceil(span / cell - kGridSnapTolerance));
+}
+
 RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize) {
     RequirePositive(pixelSize, "Pixel size");
     const GeoTransform& source = grid.transform;

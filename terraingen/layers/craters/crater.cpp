@@ -51,6 +51,13 @@ void AppendManualCraters(const CraterList& manual, CraterList& craters,
     }
 }
 
+CraterList::CraterList(std::initializer_list<Crater> craters) {
+    Reserve(craters.size());
+    for (const Crater& crater : craters) {
+        Append(crater);
+    }
+}
+
 void CraterList::Reserve(std::size_t count) {
     x_.reserve(count);
     y_.reserve(count);

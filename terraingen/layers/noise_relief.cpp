@@ -4,6 +4,7 @@
 
 #include "terraingen/layers/kernel.h"
 #include "terraingen/layers/source_resolved.h"
+#include "terraingen/noise/surface_noise.h"
 #include "terraingen/noise/validate.h"
 #include "terraingen/raster/cell_loops.h"
 
@@ -14,32 +15,32 @@
 
 namespace terraingen {
 
-NoiseRelief::NoiseRelief(SyntheticTerrainParams params, Vec2d origin, Surface surface,
+NoiseRelief::NoiseRelief(std::vector<NoiseLayer> layers, Vec2d origin, Surface surface,
                          std::shared_ptr<const Source> source,
                          std::optional<double> sourceResolvesPixels)
-    : params_(std::move(params)), origin_(origin), surface_(surface),
+    : layers_(std::move(layers)), origin_(origin), surface_(surface),
       sourceResolvesPixels_(sourceResolvesPixels) {
-    ValidateNoiseLayers(params_.layers, 1);
+    ValidateNoiseLayers(layers_, 1);
     ValidateSourceResolvesPixels(sourceResolvesPixels_);
-    kernel_ = MakeNoiseReliefKernel(params_.layers);
+    kernel_ = MakeNoiseReliefKernel(layers_);
     limit_ = LayerResolvedLimit(source, sourceResolvesPixels_, surface_);
     if (!limit_) {
         return;
     }
-    for (const NoiseLayer& layer : params_.layers) {
+    for (const NoiseLayer& layer : layers_) {
         wavelengths_.push_back(static_cast<double>(layer.fractal.wavelength));
     }
     std::sort(wavelengths_.begin(), wavelengths_.end());
     wavelengths_.erase(std::unique(wavelengths_.begin(), wavelengths_.end()), wavelengths_.end());
     for (std::size_t kept = 0; kept <= wavelengths_.size(); ++kept) {
-        std::vector<NoiseLayer> layers = params_.layers;
-        for (NoiseLayer& layer : layers) {
+        std::vector<NoiseLayer> stack = layers_;
+        for (NoiseLayer& layer : stack) {
             if (kept < wavelengths_.size() &&
                 static_cast<double>(layer.fractal.wavelength) >= wavelengths_[kept]) {
                 layer.enabled = false;
             }
         }
-        stacks_.push_back(std::move(layers));
+        stacks_.push_back(std::move(stack));
     }
 }
 
@@ -62,7 +63,7 @@ void NoiseRelief::ApplySamples(SampleBlock& samples, const LayerContext& context
         return;
     }
     MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
-        return height + NoiseLayersAt(params_.layers, origin_, surface_, p.x, p.y);
+        return height + NoiseLayersAt(layers_, origin_, surface_, p.x, p.y);
     });
 }
 

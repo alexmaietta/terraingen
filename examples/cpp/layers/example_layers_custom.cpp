@@ -111,7 +111,7 @@ class LayersCustom : public terraingen::examples::Example {
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<InclinedPlane>(0.02);
         terrain.layers = {
-            std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
+            std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{fbm}),
             std::make_shared<Rille>(),
             std::make_shared<terraingen::CraterLayer>(
                 terraingen::CraterModels{density, ages,

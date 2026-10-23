@@ -98,22 +98,9 @@ std::shared_ptr<const SizeFrequencyDistribution> BuildProduction(ProductionFunct
 Albedo BuildValidAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
                         const std::filesystem::path& directory);
 
-/// Fraction of a cell an extent may exceed a whole number of cells by without gaining a cell.
-inline constexpr double kExtentSnapTolerance = 1e-6;
-
 /// The box an extent describes, unchecked: its `min` and `max` corners, or else `center` -
 /// `size` / 2 to `center` + `size` / 2. None when neither pair has two numbers each.
 std::optional<Bounds2d> ExtentBox(const ExtentSpec& extent);
-
-/// The cells of side `cell` that cover `span` snapped outward: ceil(`span` / `cell` -
-/// `kExtentSnapTolerance`), at least 1, as a double so callers can check it before converting.
-double SnappedCells(double span, double cell);
-
-/// The north-up grid of square cells of side `cell` covering `box`, snapped outward to whole cells:
-/// it starts at the box's min corner, its cells number `SnappedCells` along each axis, and it is
-/// sampled at the cells' centers, so its max corner lies at or beyond the box's. Unchecked.
-/// @param cell In the box's units: meters on a plane, degrees on a body.
-RasterGrid SnappedGrid(const Bounds2d& box, double cell);
 
 /// The area an output covers, or null for one without an area, a body mesh or a report.
 const OutputAreaSpec* OutputArea(const OutputSpec& output);
@@ -142,7 +129,7 @@ std::optional<AreaCells> CoveredCells(const OutputAreaSpec& area,
                                       const std::optional<RasterGrid>& source,
                                       const Surface& surface);
 
-/// The grid an output covers, unchecked: its `CoveredCells` snapped outward by `SnappedGrid`, or
+/// The grid an output covers: its `CoveredCells` snapped outward by `RasterGrid::Covering`, or
 /// `source` itself when the area gives neither an extent nor a pixel size. A feature list without
 /// an extent or `source` on a body covers the whole body at its pixel size (`WholeBodyGrid`). None
 /// for an output without an area, or for one without a grid to cover, which `ValidateConfig`

@@ -89,3 +89,47 @@ TEST(RasterGrid, SurfaceAreaIntegratesAnEllipsoid) {
     const RasterGrid empty{10, 0, GeoTransform::NorthUp(0.0, 10.0, 1.0)};
     EXPECT_EQ(empty.SurfaceArea(spheroid), 0.0);
 }
+
+TEST(RasterGrid, CoveringSnapsABoxOutwardToWholeCellsFromItsMinCorner) {
+    const RasterGrid exact = RasterGrid::Covering({-10.0, -4.0, 10.0, 4.0}, 0.5);
+    EXPECT_EQ(exact, (RasterGrid{40, 16, GeoTransform::NorthUp(-10.0, 4.0, 0.5)}));
+
+    const RasterGrid snapped = RasterGrid::Covering({1.0, 2.0, 3.3, 3.0}, 1.0);
+    EXPECT_EQ(snapped, (RasterGrid{3, 1, GeoTransform::NorthUp(1.0, 3.0, 1.0)}));
+    EXPECT_GE(snapped.Bounds().maxX, 3.3);
+
+    const RasterGrid rounding = RasterGrid::Covering({0.0, 0.0, 0.3, 0.3}, 0.1);
+    EXPECT_EQ(rounding.width, 3u) << "a span a rounding error past whole cells gains no cell";
+    EXPECT_EQ(rounding.height, 3u);
+
+    const RasterGrid point = RasterGrid::Covering({5.0, 5.0, 5.0, 5.0}, 2.0);
+    EXPECT_EQ(point.width, 1u);
+    EXPECT_EQ(point.height, 1u);
+}
+
+TEST(RasterGrid, CoveringRejectsBadBoxesAndPixelSizes) {
+    const double nan = std::nan("");
+    EXPECT_THROW(RasterGrid::Covering({0.0, 0.0, 1.0, 1.0}, 0.0), std::invalid_argument);
+    EXPECT_THROW(RasterGrid::Covering({0.0, 0.0, 1.0, 1.0}, nan), std::invalid_argument);
+    EXPECT_THROW(RasterGrid::Covering({1.0, 0.0, 0.0, 1.0}, 1.0), std::invalid_argument);
+    EXPECT_THROW(RasterGrid::Covering({0.0, 0.0, nan, 1.0}, 1.0), std::invalid_argument);
+    EXPECT_THROW(RasterGrid::Covering({0.0, 0.0, 1e12, 1.0}, 1e-3), std::invalid_argument);
+}
+
+TEST(RasterGrid, CenteredCoversABoxAboutItsCenter) {
+    const RasterGrid grid = RasterGrid::Centered({3.0, -2.0}, {20.0, 10.0}, 0.1);
+    EXPECT_EQ(grid, RasterGrid::Covering({-7.0, -7.0, 13.0, 3.0}, 0.1));
+    EXPECT_EQ(grid.width, 200u);
+    EXPECT_EQ(grid.height, 100u);
+    const auto bounds = grid.Bounds();
+    EXPECT_NEAR(0.5 * (bounds.minX + bounds.maxX), 3.0, 1e-9);
+    EXPECT_NEAR(0.5 * (bounds.minY + bounds.maxY), -2.0, 1e-9);
+    EXPECT_THROW(RasterGrid::Centered({0.0, 0.0}, {-1.0, 1.0}, 0.1), std::invalid_argument);
+}
+
+TEST(SnappedCells, RoundsUpPastTheToleranceAndKeepsOneCell) {
+    EXPECT_EQ(terraingen::SnappedCells(10.0, 1.0), 10.0);
+    EXPECT_EQ(terraingen::SnappedCells(10.0 + 1e-9, 1.0), 10.0);
+    EXPECT_EQ(terraingen::SnappedCells(10.01, 1.0), 11.0);
+    EXPECT_EQ(terraingen::SnappedCells(0.0, 1.0), 1.0);
+}

@@ -71,7 +71,7 @@ class QueriesRoverContacts : public terraingen::examples::Example {
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(64, 64, 1.0);
         terrain.layers = {
-            std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}),
+            std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{fbm}),
             craters, std::make_shared<terraingen::BoulderLayer>(boulderOptions, craters)};
 
         char line[160];

@@ -70,7 +70,7 @@ TEST(GenerateFromConfig, MatchesComposingTheLibraryCalls) {
     };
     const CraterList craters = generate(bounds);
     const double margin = terraingen::DatumMargin(Craters(config).apply, *models.profile, 60.0);
-    const terraingen::NoiseRelief noise(Noise(config).Params());
+    const terraingen::NoiseRelief noise(Noise(config).Params().layers);
     const terraingen::HeightSampler ground = [&](double x, double y) {
         return noise.ApplyAt(0.0f, x, y, {2.0});
     };
@@ -854,10 +854,10 @@ TEST(GenerateFromConfig, EstimatesRoughnessAndNoiseFromTheBaseAlikeForGridsTiles
                                         ->Options());
     const auto noise =
         std::dynamic_pointer_cast<const terraingen::NoiseRelief>(generated.generator.layers[0]);
-    EXPECT_GT(noise->Params().layers[0].fractal.amplitude, 0.0f);
-    EXPECT_EQ(noise->Params(),
+    EXPECT_GT(noise->Layers()[0].fractal.amplitude, 0.0f);
+    EXPECT_EQ(noise->Layers(),
               std::dynamic_pointer_cast<const terraingen::NoiseRelief>(shifted.generator.layers[0])
-                  ->Params());
+                  ->Layers());
 
     const terraingen::Raster<float>& grid = generated.grids[0].heights;
     const terraingen::RasterGrid lattice = terraingen::RasterGrid::FromRaster(grid);

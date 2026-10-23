@@ -29,7 +29,7 @@ inline TerrainGenerator Rolling(const CraterApplyOptions& apply = {}) {
     SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 80.0f;
     noise.layers[0].fractal.amplitude = 6.0f;
-    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise));
+    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise.layers));
     CraterLayerOptions options;
     options.generation.dMin = 6.0;
     options.generation.dMax = 50.0;

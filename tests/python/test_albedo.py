@@ -89,7 +89,9 @@ def test_crater_albedo_impact_has_a_valid_angle_and_speed(lunar_models):
 def test_albedo_at_a_point_matches_the_evaluated_band(lunar_models):
     bright = terraingen.CraterAlbedo(manual_crater_layer(lunar_models))
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [bright])
-    band = terraingen.evaluate_albedo(albedo, terraingen.RasterGrid.centered(9, 9, 8.0))[0].values
+    band = terraingen.evaluate_albedo(
+        albedo, terraingen.RasterGrid.centered((0, 0), (9 * 8.0, 9 * 8.0), 8.0)
+    )[0].values
     assert terraingen.evaluate_albedo_at(albedo, 0.0, 0.0, 8.0) == pytest.approx([band[4, 4]])
 
 
@@ -114,7 +116,7 @@ def test_albedo_keeps_its_layers(lunar_models):
 def test_rgb_synthetic_albedo_has_three_bands():
     rgb = terraingen.evaluate_albedo(
         terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue_deg=30.0, saturation=0.2)),
-        terraingen.RasterGrid.centered(129, 129, 8.0),
+        terraingen.RasterGrid.centered((0, 0), (129 * 8.0, 129 * 8.0), 8.0),
     )
     assert len(rgb) == 3
     on_a_plane = terraingen.SyntheticAlbedo(
@@ -126,7 +128,7 @@ def test_rgb_synthetic_albedo_has_three_bands():
 def albedo_map():
     values = 0.12 + 0.01 * np.random.default_rng(1).random((33, 33))
     return terraingen.Raster.from_array(
-        values.astype(np.float32), terraingen.RasterGrid.centered(33, 33, 8.0).transform
+        values.astype(np.float32), terraingen.RasterGrid.centered((0, 0), (33 * 8.0, 33 * 8.0), 8.0).transform
     )
 
 
@@ -144,7 +146,8 @@ def test_raster_albedo_measures_its_roughness():
 
 def test_raster_albedo_keeps_the_map_mean_on_a_finer_grid():
     band = terraingen.evaluate_albedo(
-        terraingen.Albedo(raster_albedo()), terraingen.RasterGrid.centered(132, 132, 2.0)
+        terraingen.Albedo(raster_albedo()),
+        terraingen.RasterGrid.centered((0, 0), (132 * 2.0, 132 * 2.0), 2.0),
     )[0].values
     assert np.nanmean(band) == pytest.approx(0.125, abs=0.01)
 
@@ -182,7 +185,9 @@ def test_albedo_validators_reject_bad_options(validate, bad):
 
 def test_python_albedo_source_and_layer_evaluate():
     albedo = terraingen.Albedo(Stripes(), [Halve()])
-    band = terraingen.evaluate_albedo(albedo, terraingen.RasterGrid.centered(8, 8, 5.0))[0].values
+    band = terraingen.evaluate_albedo(
+        albedo, terraingen.RasterGrid.centered((0, 0), (8 * 5.0, 8 * 5.0), 5.0)
+    )[0].values
     assert set(np.unique(band)) == {np.float32(0.05), np.float32(0.1)}
 
 
@@ -226,7 +231,9 @@ def test_splotches_darken_most_of_their_ground():
         0.907
     )
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [layer])
-    band = terraingen.evaluate_albedo(albedo, terraingen.RasterGrid.centered(64, 64, 1.0))[0].values
+    band = terraingen.evaluate_albedo(
+        albedo, terraingen.RasterGrid.centered((0, 0), (64 * 1.0, 64 * 1.0), 1.0)
+    )[0].values
     assert (band < 0.1099).sum() > (band > 0.1101).sum() > 0
     with pytest.raises(ValueError):
         terraingen.validate_splotch_albedo_options(terraingen.SplotchAlbedoOptions(softness=0.0))
@@ -245,7 +252,7 @@ def test_albedo_layers_read_the_terrain_heights(lunar_models):
         terraingen.SplotchAlbedoOptions(min_diameter=2.0, steep_bright_share=1.0)
     )
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [layer, splotches])
-    grid = terraingen.RasterGrid.centered(16, 16, 2.0)
+    grid = terraingen.RasterGrid.centered((0, 0), (16 * 2.0, 16 * 2.0), 2.0)
     with_terrain = terraingen.evaluate_albedo(albedo, grid, generator=flat)[0].values
     assert np.array_equal(with_terrain, terraingen.evaluate_albedo(albedo, grid)[0].values)
     assert terraingen.evaluate_albedo_at(albedo, 1.0, 1.0, 2.0, generator=flat) == pytest.approx(

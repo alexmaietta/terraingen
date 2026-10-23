@@ -116,22 +116,16 @@ void BindTransforms(nb::module_& m) {
     nb::class_<NoiseRelief, Layer>(m, "NoiseRelief",
                                    "A stack of 1 to 8 noise layers added to the terrain, measured "
                                    "from `origin`.")
-        .def(
-            "__init__",
-            [](NoiseRelief* self, std::vector<NoiseLayer> layers, const Vec2d& origin,
-               const Surface& surface, std::shared_ptr<const Source> source,
-               std::optional<double> sourceResolvesPixels) {
-                new (self) NoiseRelief(SyntheticTerrainParams{std::move(layers)}, origin, surface,
-                                       std::move(source), sourceResolvesPixels);
-            },
-            "layers"_a, "origin"_a = Vec2d{}, "surface"_a = Surface{}, "source"_a = nb::none(),
-            "source_resolves_px"_a = nb::none(),
-            "On a sphere the noise is 3D at each point's position, seamless everywhere, and "
-            "`origin` is unused. With a `source` and `source_resolves_px`, each layer whose "
-            "wavelength is at least that many of the source's cells at a point is left out there.")
-        .def_prop_ro(
-            "layers", [](const NoiseRelief& relief) { return relief.Params().layers; },
-            "The noise layers, with any Hurst exponents and amplitudes applied.")
+        .def(nb::init<std::vector<NoiseLayer>, Vec2d, Surface, std::shared_ptr<const Source>,
+                      std::optional<double>>(),
+             "layers"_a, "origin"_a = Vec2d{}, "surface"_a = Surface{}, "source"_a = nb::none(),
+             "source_resolves_px"_a = nb::none(),
+             "On a sphere the noise is 3D at each point's position, seamless everywhere, and "
+             "`origin` is unused. With a `source` and `source_resolves_px`, each layer whose "
+             "wavelength is at least that many of the source's cells at a point is left out "
+             "there.")
+        .def_prop_ro("layers", &NoiseRelief::Layers,
+                     "The noise layers, with any Hurst exponents and amplitudes applied.")
         .def_prop_ro("source_resolves_px", &NoiseRelief::SourceResolvesPixels,
                      "Source cells across from which the source holds a noise layer; None for "
                      "none.");

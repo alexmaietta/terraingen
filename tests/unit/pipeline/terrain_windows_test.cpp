@@ -108,7 +108,7 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     noise.layers[0].fractal.wavelength = 400.0f;
     noise.layers[0].fractal.amplitude = 6.0f;
     terrain.layers.push_back(
-        std::make_shared<terraingen::NoiseRelief>(noise, terraingen::Vec2d{}, moon));
+        std::make_shared<terraingen::NoiseRelief>(noise.layers, terraingen::Vec2d{}, moon));
     terraingen::CraterLayerOptions options;
     options.seed = 4;
     options.surface = moon;
@@ -196,7 +196,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     noise.layers[0].fractal.wavelength = 300000.0f;
     noise.layers[0].fractal.amplitude = 2000.0f;
     terrain.layers.push_back(
-        std::make_shared<terraingen::NoiseRelief>(noise, terraingen::Vec2d{}, moon));
+        std::make_shared<terraingen::NoiseRelief>(noise.layers, terraingen::Vec2d{}, moon));
     const std::size_t n = 8;
     const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, n, 0.0, 2);
     ASSERT_EQ(mesh.positions.size(), 6 * (n + 1) * (n + 1));

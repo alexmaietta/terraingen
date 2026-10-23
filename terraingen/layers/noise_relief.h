@@ -9,7 +9,6 @@
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/sources/field.h"
 #include "terraingen/sources/source.h"
-#include "terraingen/sources/synthetic_source.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/surface.h"
 
@@ -34,13 +33,13 @@ class NoiseRelief final : public Layer {
     /// (`SourceResolvedLimit`); unset adds every layer everywhere.
     /// @throws std::invalid_argument for a stack without layers or otherwise invalid, or for a
     /// `sourceResolvesPixels` that is not positive and finite.
-    explicit NoiseRelief(SyntheticTerrainParams params, Vec2d origin = {}, Surface surface = {},
+    explicit NoiseRelief(std::vector<NoiseLayer> layers, Vec2d origin = {}, Surface surface = {},
                          std::shared_ptr<const Source> source = nullptr,
                          std::optional<double> sourceResolvesPixels = std::nullopt);
 
     /// The noise layers the layer was made with.
-    const SyntheticTerrainParams& Params() const {
-        return params_;
+    const std::vector<NoiseLayer>& Layers() const {
+        return layers_;
     }
 
     /// The source cells across from which the source holds a noise layer; unset for none.
@@ -52,7 +51,7 @@ class NoiseRelief final : public Layer {
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
-    SyntheticTerrainParams params_;
+    std::vector<NoiseLayer> layers_;
     Vec2d origin_;
     Surface surface_;
     std::optional<double> sourceResolvesPixels_;

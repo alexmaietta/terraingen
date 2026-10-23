@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <limits>
 #include <string_view>
 #include <vector>
@@ -54,6 +55,16 @@ struct Crater {
 /// @param diameter In meters.
 std::uint64_t ManualCraterId(double x, double y, double diameter);
 
+/// A crater placed by hand at (`x`, `y`), `diameter` meters across, flagged `manual`, with its ID
+/// left 0 for the layer to hash.
+/// @param depth Rim-to-floor depth in meters; NaN takes it from the degradation model.
+/// @param rimHeight Rim crest above the surface in meters; NaN derives it from the depth.
+inline Crater ManualCrater(double x, double y, double diameter,
+                           double depth = std::numeric_limits<double>::quiet_NaN(),
+                           double rimHeight = std::numeric_limits<double>::quiet_NaN()) {
+    return Crater{x, y, diameter, 0.0, 0u, true, depth, rimHeight};
+}
+
 /// The 32-bit key that seeds crater `id`'s noise or texture under `seed`, the same on the CPU and
 /// the GPU, which is handed it.
 constexpr std::uint32_t CraterKey(std::uint64_t id, std::uint32_t seed) {
@@ -64,6 +75,12 @@ constexpr std::uint32_t CraterKey(std::uint64_t id, std::uint32_t seed) {
 /// without copying.
 class CraterList {
   public:
+    /// An empty list.
+    CraterList() = default;
+
+    /// A list of `craters`, in order.
+    CraterList(std::initializer_list<Crater> craters);
+
     /// The number of craters.
     std::size_t Size() const {
         return id_.size();

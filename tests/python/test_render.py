@@ -113,7 +113,7 @@ def boulder_models():
     options = tg.BoulderLayerOptions(coverage=0.1, min_diameter_m=0.5, max_diameter_m=2.0, shape_prototypes=4)
     options.models = tg.BoulderModelThreshold(min_diameter_m=0.5)
     terrain = tg.TerrainGenerator(None, [tg.BoulderLayer(options)])
-    grid = tg.RasterGrid.centered(80, 80, 0.25)
+    grid = tg.RasterGrid.centered((0, 0), (80 * 0.25, 80 * 0.25), 0.25)
     return tg.placed_boulders(terrain, grid, 0.25).models
 
 

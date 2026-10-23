@@ -34,8 +34,8 @@ class SourcesRasterRoughness : public terraingen::examples::Example {
         relief.fractal.gain = terraingen::GainFromHurst(0.8f, 2.0f);
         terraingen::TerrainGenerator coarse;
         coarse.source = std::make_shared<terraingen::FlatSource>(33, 33, 8.0);
-        coarse.layers = {std::make_shared<terraingen::NoiseRelief>(
-            terraingen::SyntheticTerrainParams{{relief}})};
+        coarse.layers = {
+            std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{relief})};
         coarse_ = terraingen::Evaluate(coarse);
 
         const std::filesystem::path temp = std::filesystem::temp_directory_path() /

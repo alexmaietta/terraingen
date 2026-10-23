@@ -19,13 +19,6 @@
 
 namespace {
 
-/// A manual crater at (`x`, `y`), `diameter` across, `depth` deep from rim to floor, with its
-/// rim `rimHeight` above the surface (NaN derives it from the depth).
-terraingen::Crater Deep(double x, double y, double diameter, double depth,
-                        double rimHeight = std::nan("")) {
-    return terraingen::Crater{x, y, diameter, 0.0, 0u, true, depth, rimHeight};
-}
-
 class CratersManualDepth : public terraingen::examples::Example {
   public:
     using Example::Example;
@@ -40,9 +33,9 @@ class CratersManualDepth : public terraingen::examples::Example {
         terraingen::CraterLayerOptions options;
         options.generateRandom = false;
         manual_ = {
-            Deep(-22.0, 20.0, 20.0, 3.0, 0.8),
-            Deep(22.0, 22.0, 16.0, 1.2),
-            Deep(-20.0, -22.0, 24.0, 2.0, 0.3),
+            terraingen::ManualCrater(-22.0, 20.0, 20.0, 3.0, 0.8),
+            terraingen::ManualCrater(22.0, 22.0, 16.0, 1.2),
+            terraingen::ManualCrater(-20.0, -22.0, 24.0, 2.0, 0.3),
             terraingen::Crater{22.0, -20.0, 18.0},
         };
         for (const terraingen::Crater& crater : manual_) {

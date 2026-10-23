@@ -51,12 +51,12 @@ class TerrainLayered : public terraingen::examples::Example {
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
         terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(
-            terraingen::SyntheticTerrainParams{{rolling, crests, mask}}));
+            std::vector<terraingen::NoiseLayer>{rolling, crests, mask}));
 
         terraingen::TerrainGenerator rollingOnly;
         rollingOnly.source = terrain.source;
         rollingOnly.layers.push_back(std::make_shared<terraingen::NoiseRelief>(
-            terraingen::SyntheticTerrainParams{{rolling}}));
+            std::vector<terraingen::NoiseLayer>{rolling}));
 
         evaluated_ = terraingen::Evaluate(terrain);
         rolling_ = terraingen::Evaluate(rollingOnly);

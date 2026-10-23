@@ -144,15 +144,6 @@ void BindStats(nb::module_& m) {
           "Statistics over cells that are finite and not the nodata value.");
 }
 
-RasterGrid CenteredGrid(std::size_t width, std::size_t height, double pixelSize,
-                        const Vec2d& center) {
-    const double halfWidth = 0.5 * static_cast<double>(width) * pixelSize;
-    const double halfHeight = 0.5 * static_cast<double>(height) * pixelSize;
-    return RasterGrid{
-        width, height,
-        GeoTransform::NorthUp(center.x - halfWidth, center.y + halfHeight, pixelSize)};
-}
-
 void BindGrid(nb::module_& m) {
     nb::class_<RasterGrid>(m, "RasterGrid",
                            "A `width` x `height` grid of cells placed by a geotransform.")
@@ -162,8 +153,11 @@ void BindGrid(nb::module_& m) {
                 new (self) RasterGrid{width, height, transform};
             },
             "width"_a, "height"_a, "transform"_a)
-        .def_static("centered", &CenteredGrid, "width"_a, "height"_a, "pixel_size"_a,
-                    "center"_a = Vec2d{}, "A north-up grid of square cells centered on `center`.")
+        .def_static("covering", &RasterGrid::Covering, "box"_a, "pixel_size"_a,
+                    "The north-up grid of square cells covering `box`, from its min corner, "
+                    "snapped outward to whole cells.")
+        .def_static("centered", &RasterGrid::Centered, "center"_a, "size"_a, "pixel_size"_a,
+                    "The grid covering the box `size` across centered on `center`.")
         .def_static("from_raster", &RasterGrid::FromRaster, "raster"_a,
                     "The grid `raster` covers: its size and transform.")
         .def_rw("width", &RasterGrid::width)

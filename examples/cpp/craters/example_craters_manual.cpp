@@ -47,7 +47,7 @@ class CratersManual : public terraingen::examples::Example {
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
         terrain.layers.push_back(
-            std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{fbm}}));
+            std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{fbm}));
         terrain.layers.push_back(terraingen::CraterLayer::Manual(models, manual));
 
         evaluated_ = terraingen::Evaluate(terrain);

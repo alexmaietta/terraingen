@@ -14,7 +14,8 @@ import terraingen
 def ramp_raster():
     """An 8 x 8 ramp 0..63 on a centered 2 m grid."""
     return terraingen.Raster.from_array(
-        np.arange(64, dtype=np.float32).reshape(8, 8), terraingen.RasterGrid.centered(8, 8, 2.0).transform
+        np.arange(64, dtype=np.float32).reshape(8, 8),
+        terraingen.RasterGrid.centered((0, 0), (8 * 2.0, 8 * 2.0), 2.0).transform,
     )
 
 
@@ -174,18 +175,32 @@ def test_compute_stats_of_an_empty_raster_has_no_mean():
 
 
 def test_grid_area_and_pixel_size():
-    grid = terraingen.RasterGrid.centered(10, 20, 2.0)
+    grid = terraingen.RasterGrid.centered((0, 0), (20.0, 40.0), 2.0)
     assert grid.area == pytest.approx(800.0) and grid.pixel_size == 2.0
 
 
 def test_grid_on_a_plane_has_its_flat_area_and_spacing():
-    grid = terraingen.RasterGrid.centered(10, 20, 2.0)
+    grid = terraingen.RasterGrid.centered((0, 0), (20.0, 40.0), 2.0)
     assert grid.surface_area(terraingen.Surface()) == pytest.approx(800.0)
     assert grid.spacing(terraingen.Surface()) == 2.0
 
 
 def test_grid_makes_filled_rasters():
-    assert terraingen.RasterGrid.centered(10, 20, 2.0).make_raster(3.0).values.mean() == 3.0
+    assert terraingen.RasterGrid.centered((0, 0), (20.0, 40.0), 2.0).make_raster(3.0).values.mean() == 3.0
+
+
+def test_grid_covering_snaps_a_box_outward_from_its_min_corner():
+    grid = terraingen.RasterGrid.covering((1.0, 2.0, 3.3, 3.0), 1.0)
+    assert (grid.width, grid.height) == (3, 1)
+    assert grid.bounds == (1.0, 2.0, 4.0, 3.0)
+    with pytest.raises(ValueError):
+        terraingen.RasterGrid.covering((1.0, 0.0, 0.0, 1.0), 1.0)
+
+
+def test_grid_centered_covers_a_box_about_its_center():
+    grid = terraingen.RasterGrid.centered((3.0, -2.0), (20.0, 10.0), 0.1)
+    assert (grid.width, grid.height) == (200, 100)
+    assert grid.bounds == terraingen.RasterGrid.covering((-7.0, -7.0, 13.0, 3.0), 0.1).bounds
 
 
 def test_geographic_sphere_keys_are_geographic():
@@ -221,7 +236,7 @@ def test_geotiff_heights_round_trip(tmp_path, lunar_models, crater_layer):
 def test_geotiff_bands_round_trip_and_out_of_range_bands_raise(tmp_path):
     rgb = terraingen.evaluate_albedo(
         terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue_deg=30.0, saturation=0.2)),
-        terraingen.RasterGrid.centered(129, 129, 8.0),
+        terraingen.RasterGrid.centered((0, 0), (129 * 8.0, 129 * 8.0), 8.0),
     )
     terraingen.write_geotiff(tmp_path / "rgb.tif", rgb)
     np.testing.assert_array_equal(terraingen.read_geotiff(tmp_path / "rgb.tif", band=2).values, rgb[2].values)

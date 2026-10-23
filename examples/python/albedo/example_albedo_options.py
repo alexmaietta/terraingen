@@ -30,7 +30,7 @@ PIXEL = 8.0
 
 class Example(_common.Example):
     def generate(self):
-        grid = terraingen.RasterGrid.centered(257, 257, PIXEL)
+        grid = terraingen.RasterGrid.centered((0, 0), (257 * PIXEL, 257 * PIXEL), PIXEL)
 
         hue_noise = terraingen.NoiseLayer(
             terraingen.FractalParams(seed=5, wavelength=900.0, amplitude=25.0, octaves=4)
@@ -51,7 +51,7 @@ class Example(_common.Example):
         )
         print(f"RGB albedo, mean per band {self.rgb.reshape(-1, 3).mean(axis=0).round(3)}")
 
-        coarse_grid = terraingen.RasterGrid.centered(17, 17, 128.0)
+        coarse_grid = terraingen.RasterGrid.centered((0, 0), (17 * 128.0, 17 * 128.0), 128.0)
         mottling = terraingen.NoiseLayer(
             terraingen.FractalParams(
                 seed=3, wavelength=1500.0, amplitude=0.02, gain=terraingen.gain_from_hurst(0.6)

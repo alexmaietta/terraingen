@@ -192,7 +192,7 @@ class Paraboloid(terraingen.Source):
     """A 65 x 65 bowl at 2 m spacing, 0.001 r^2 high."""
 
     def grid(self):
-        return terraingen.RasterGrid.centered(65, 65, 2.0)
+        return terraingen.RasterGrid.centered((0, 0), (65 * 2.0, 65 * 2.0), 2.0)
 
     def height_at(self, x, y, spacing):
         return 0.001 * (x * x + y * y)

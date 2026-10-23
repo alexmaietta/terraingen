@@ -54,7 +54,7 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         terraingen::TerrainGenerator coarse;
         coarse.source = std::make_shared<terraingen::FlatSource>(65, 65, 16.0);
         coarse.layers = {
-            std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{broad}}),
+            std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{broad}),
             std::make_shared<terraingen::CraterLayer>(LunarModels(), large)};
         coarse_ = terraingen::Evaluate(coarse);
 
@@ -85,7 +85,7 @@ class SourcesRasterDetail : public terraingen::examples::Example {
         terraingen::TerrainGenerator terrain;
         terrain.source = chain;
         terrain.layers = {
-            std::make_shared<terraingen::NoiseRelief>(terraingen::SyntheticTerrainParams{{detail}}),
+            std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{detail}),
             std::make_shared<terraingen::CraterLayer>(LunarModels(), small)};
         evaluated_ = terraingen::Evaluate(terrain, grid);
         craters_ =

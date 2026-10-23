@@ -25,7 +25,7 @@ inline TerrainGenerator LunarMare(double size, double pixelSize, double maxDiame
     SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 400.0f;
     noise.layers[0].fractal.amplitude = 8.0f;
-    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise, Vec2d{}, body));
+    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise.layers, Vec2d{}, body));
     const auto density = testing::LunarCraterDensity(3.5);
     const auto ages = testing::LunarCraterAges(3.5);
     CraterLayerOptions options;

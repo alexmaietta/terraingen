@@ -70,7 +70,7 @@ void BM_EvaluateNoiseGrid(benchmark::State& state) {
     noise.layers[2].fractal.amplitude = 2.0f;
     TerrainGenerator terrain;
     terrain.source = std::make_shared<FlatSource>(cells, cells, 1.0);
-    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise));
+    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise.layers));
     const RasterGrid grid = terrain.source->Grid();
     const EvaluationOptions options{0.0, 0, backend};
     for (auto _ : state) {

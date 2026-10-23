@@ -97,7 +97,9 @@ class Example(_common.Example):
                 f"{color_name(i)} {n}" for i, n in enumerate(("body height (m)", "pitch (deg)", "roll (deg)"))
             ),
         )
-        self.ground = terraingen.evaluate(terrain, grid=terraingen.RasterGrid.centered(192, 48, 0.25))
+        self.ground = terraingen.evaluate(
+            terrain, grid=terraingen.RasterGrid.centered((0, 0), (192 * 0.25, 48 * 0.25), 0.25)
+        )
         self.show("ground along the path", self.ground)
 
     def save(self, out):

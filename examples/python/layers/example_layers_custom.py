@@ -40,7 +40,7 @@ class InclinedPlane(terraingen.Source):
         self.slope = slope
 
     def grid(self):
-        return terraingen.RasterGrid.centered(SIZE, SIZE, PIXEL)
+        return terraingen.RasterGrid.centered((0, 0), (SIZE * PIXEL, SIZE * PIXEL), PIXEL)
 
     def height_at(self, x, y, spacing):
         return self.slope * (x + y) / math.sqrt(2.0)

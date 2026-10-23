@@ -26,6 +26,18 @@ struct RasterGrid {
         return {raster.Width(), raster.Height(), raster.Transform()};
     }
 
+    /// The north-up grid of square cells of side `pixelSize` covering `box`, snapped outward to
+    /// whole cells: it starts at the box's min corner and has `SnappedCells` cells along each axis,
+    /// so its max corner lies at or beyond the box's. Configuration outputs snap their extents so.
+    /// @param pixelSize In the box's units: meters on a plane, degrees on a body.
+    /// @throws std::invalid_argument for a box that is not finite or has a max below its min, a
+    /// `pixelSize` that is not positive and finite, or more than 2^31 - 1 cells a side.
+    static RasterGrid Covering(const Bounds2d& box, double pixelSize);
+
+    /// The grid `Covering` the box `size` across centered on `center`.
+    /// @throws std::invalid_argument as `Covering`, or for a negative size.
+    static RasterGrid Centered(const Vec2d& center, const Vec2d& size, double pixelSize);
+
     /// The axis-aligned box the grid covers, in world coordinates.
     Bounds2d Bounds() const;
 
@@ -57,6 +69,13 @@ struct RasterGrid {
         return !(*this == other);
     }
 };
+
+/// Fraction of a cell a span may exceed a whole number of cells by without gaining a cell.
+inline constexpr double kGridSnapTolerance = 1e-6;
+
+/// The cells of side `cell` that cover `span` snapped outward: ceil(`span` / `cell` -
+/// `kGridSnapTolerance`), at least 1, as a double so callers can check it before converting.
+double SnappedCells(double span, double cell);
 
 /// A grid with square cells over the same extent, origin and axis directions as an unrotated
 /// `grid`: round(width * |pixelWidth| / `pixelSize`) x round(height * |pixelHeight| /

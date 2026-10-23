@@ -40,7 +40,7 @@ class PlanetsMoon : public terraingen::examples::Example {
         fine.fractal.wavelength = 20000.0f;
         fine.fractal.amplitude = 300.0f;
         const auto noise = std::make_shared<terraingen::NoiseRelief>(
-            terraingen::SyntheticTerrainParams{{broad, fine}}, terraingen::Vec2d{}, moon_);
+            std::vector<terraingen::NoiseLayer>{broad, fine}, terraingen::Vec2d{}, moon_);
 
         const auto production = std::make_shared<terraingen::SplicedSfd>(
             terraingen::ExtendedNeukumProductionFunction());
