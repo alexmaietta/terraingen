@@ -7,6 +7,7 @@ terraingen_add_test_suite(
     noise_layers_test.cpp
     perlin_test.cpp
     simplex_test.cpp
+    surface_noise_test.cpp
     validate_test.cpp
     value_test.cpp
     worley_test.cpp

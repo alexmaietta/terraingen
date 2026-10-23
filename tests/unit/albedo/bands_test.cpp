@@ -6,8 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 #include <vector>
 
 using terraingen::AlbedoSample;
@@ -58,10 +60,26 @@ TEST(RingNoise, IsPeriodicAroundTheRing) {
     EXPECT_NE(terraingen::RingNoise(2.0, 0.3, 0.5, 8u, 3), here);
 }
 
-TEST(LobeFactor, PullsTheEdgeInWhereTheNoiseIsLow) {
-    EXPECT_EQ(terraingen::LobeFactor(0.6, 0.2), 1.0);
-    EXPECT_DOUBLE_EQ(terraingen::LobeFactor(0.0, 0.2), 0.9);
-    EXPECT_DOUBLE_EQ(terraingen::LobeFactor(-1.0, 0.2), 0.8);
+TEST(EdgeLobe, PullsTheEdgeInWhereTheRingNoiseIsLow) {
+    EXPECT_EQ(terraingen::EdgeLobe(0.0, 2.0, 0.3, 0.0, 7u, 3), 1.0);
+    for (double angle = 0.0; angle < 6.0; angle += 0.25) {
+        const double noise = terraingen::RingNoise(2.0, angle, 0.5, 7u, 3);
+        EXPECT_DOUBLE_EQ(terraingen::EdgeLobe(0.2, 2.0, angle, 0.5, 7u, 3),
+                         1.0 - 0.2 * std::clamp(0.5 - noise, 0.0, 1.0));
+    }
+}
+
+TEST(ValidateRelativeChange, NeedsChangesAboveMinusOneAndBounded) {
+    using terraingen::ValueDistribution;
+    EXPECT_NO_THROW(terraingen::ValidateRelativeChange(
+        ValueDistribution{ValueDistribution::Kind::Uniform, -0.5, 0.5}, "A change"));
+    try {
+        terraingen::ValidateRelativeChange(
+            ValueDistribution{ValueDistribution::Kind::Constant, -1.0}, "A change");
+        FAIL() << "a change of -1 accepted";
+    } catch (const std::invalid_argument& error) {
+        EXPECT_STREQ(error.what(), "A change must be above -1 and bounded");
+    }
 }
 
 TEST(LifeLeft, FallsFromOneToZeroOverTheLifetime) {

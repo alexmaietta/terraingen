@@ -3,10 +3,12 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
+#include "terraingen/random/value_distribution.h"
 #include "terraingen/util/geometry.h"
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 namespace terraingen {
 
@@ -38,9 +40,16 @@ double SoftEdge(double t, double feather);
 /// `ring` sin `angle`, `z`): noise around a circle, `ring` / (2 pi) features per radian.
 double RingNoise(double ring, double angle, double z, std::uint32_t seed, int octaves);
 
-/// The share of its radius a lobed edge keeps where `RingNoise` reads `noise`: 1 less
-/// `raggedness` times `noise` below 0.5, clamped to [0, 1].
-double LobeFactor(double noise, double raggedness);
+/// The share of its radius a lobed edge keeps at `angle` radians: 1 less `raggedness` times how
+/// far `RingNoise(ring, angle, z, seed, octaves)` reads below 0.5; 1 without raggedness.
+double EdgeLobe(double raggedness, double ring, double angle, double z, std::uint32_t seed,
+                int octaves);
+
+/// Checks a distribution of relative reflectance changes.
+/// @param what The change, for messages, such as "A dark splotch's change".
+/// @throws std::invalid_argument for an invalid distribution, or one that can reach -1 or is
+/// unbounded.
+void ValidateRelativeChange(const ValueDistribution& change, const std::string& what);
 
 /// The share of its life left to something `ageGyr` old that lasts `lifetimeMyr`: 1 when new, 0
 /// at the end and negative after.

@@ -14,17 +14,6 @@
 
 namespace terraingen {
 
-namespace {
-
-/// Multiplies every band of `value` by 1 + `share` (`ratio` - 1); NaN stays NaN.
-void Brighten(AlbedoSample& value, std::size_t bands, double share, double ratio) {
-    if (share != 0.0) {
-        ScaleBands(value, bands, 1.0 + share * (ratio - 1.0));
-    }
-}
-
-}  // namespace
-
 void ValidateRockAlbedoOptions(const RockAlbedoOptions& options) {
     RequirePositive(options.reflectanceRatio, "Rock reflectance ratio");
 }
@@ -76,7 +65,7 @@ double RockAlbedo::ShareAt(double x, double y, const AlbedoContext& context) con
 
 void RockAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                          const AlbedoContext& context) const {
-    Brighten(value, bands, ShareAt(x, y, context), options_.reflectanceRatio);
+    ChangeBands(value, bands, ShareAt(x, y, context) * (options_.reflectanceRatio - 1.0));
 }
 
 std::vector<double> RockAlbedo::BareShares(const Raster<float>& first,
@@ -114,7 +103,8 @@ void RockAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& c
     const std::size_t count = bands.size();
     ForEachAlbedoPixel(
         bands, context.threads, [&](AlbedoSample& value, std::size_t col, std::size_t row) {
-            Brighten(value, count, 1.0 - bare[row * width + col], options_.reflectanceRatio);
+            ChangeBands(value, count,
+                        (1.0 - bare[row * width + col]) * (options_.reflectanceRatio - 1.0));
         });
 }
 

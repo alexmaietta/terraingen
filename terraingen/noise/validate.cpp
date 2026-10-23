@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <stdexcept>
+#include <string>
 
 namespace terraingen {
 
@@ -33,6 +34,20 @@ void ValidateNoiseLayer(const NoiseLayer& layer) {
     }
     RequireNonNegative(static_cast<double>(layer.warpAmplitude), "Warp amplitude");
     RequirePositive(static_cast<double>(layer.warpWavelength), "Warp wavelength");
+}
+
+void ValidateNoiseLayers(const std::vector<NoiseLayer>& layers, std::size_t minLayers) {
+    if (layers.size() < minLayers || layers.size() > kMaxNoiseLayers) {
+        throw std::invalid_argument("A noise stack needs between " + std::to_string(minLayers) +
+                                    " and " + std::to_string(kMaxNoiseLayers) + " layers");
+    }
+    for (std::size_t i = 0; i < layers.size(); ++i) {
+        try {
+            ValidateNoiseLayer(layers[i]);
+        } catch (const std::invalid_argument& error) {
+            throw std::invalid_argument("Layer " + std::to_string(i + 1) + ": " + error.what());
+        }
+    }
 }
 
 }  // namespace terraingen

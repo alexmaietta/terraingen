@@ -1,6 +1,7 @@
 #include "terraingen/sources/field.h"
 
 #include "terraingen/raster/geotiff/geotiff.h"
+#include "terraingen/raster/variogram.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
@@ -67,16 +68,11 @@ double RasterField::Sample(double x, double y) const {
                                                       : SampleBilinear(pixel);
 }
 
-bool RasterField::IsValid(std::size_t col, std::size_t row) const {
-    const float value = raster_(col, row);
-    return std::isfinite(value) && !raster_.IsNoData(value);
-}
-
 double RasterField::SampleNearest(const Vec2d& pixel) const {
     const auto col = static_cast<std::size_t>(pixel.x);
     const auto row = static_cast<std::size_t>(pixel.y);
-    return IsValid(col, row) ? static_cast<double>(raster_(col, row))
-                             : std::numeric_limits<double>::quiet_NaN();
+    return HasData(raster_, col, row) ? static_cast<double>(raster_(col, row))
+                                      : std::numeric_limits<double>::quiet_NaN();
 }
 
 double RasterField::SampleBilinear(const Vec2d& pixel) const {
@@ -95,7 +91,7 @@ double RasterField::SampleBilinear(const Vec2d& pixel) const {
     for (const auto& [c, r, w] :
          {std::tuple{col, row, (1.0 - tx) * (1.0 - ty)}, std::tuple{right, row, tx * (1.0 - ty)},
           std::tuple{col, below, (1.0 - tx) * ty}, std::tuple{right, below, tx * ty}}) {
-        if (w > 0.0 && IsValid(c, r)) {
+        if (w > 0.0 && HasData(raster_, c, r)) {
             sum += w * static_cast<double>(raster_(c, r));
             weights += w;
         }

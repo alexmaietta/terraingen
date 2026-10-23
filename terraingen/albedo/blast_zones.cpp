@@ -82,11 +82,8 @@ double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y) const 
     const double heading = zone.headingDegrees * kDegree;
     const double u = (offset.x * std::cos(heading) + offset.y * std::sin(heading)) / major;
     const double v = (offset.y * std::cos(heading) - offset.x * std::sin(heading)) / minor;
-    const double lobe = zone.raggedness > 0.0
-                            ? LobeFactor(RingNoise(kLobeRing, std::atan2(v, u), 0.0,
-                                                   zone.seed ^ kBlastZoneStream, 3),
-                                         zone.raggedness)
-                            : 1.0;
+    const double lobe = EdgeLobe(zone.raggedness, kLobeRing, std::atan2(v, u), 0.0,
+                                 zone.seed ^ kBlastZoneStream, 3);
     const double rho = std::hypot(u, v) / lobe;
     const double share = BlastZoneMeanShare();
     const double peak = (zone.change - zone.haloChange * (1.0 - share)) / share;

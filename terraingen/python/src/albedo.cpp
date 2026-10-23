@@ -310,8 +310,7 @@ void BindBlastZones(nb::module_& m) {
         .def("change", &BlastZoneAlbedo::Change, "zone"_a, "x"_a, "y"_a,
              "The relative reflectance change `zone` gives (x, y).")
         .def_static("reach", &BlastZoneAlbedo::Reach, "zone"_a,
-                    "How far (m) from its lander a zone changes the ground.")
-        .def_prop_ro("zones", &BlastZoneAlbedo::Zones);
+                    "How far (m) from its lander a zone changes the ground.");
 }
 
 void BindMaturity(nb::module_& m) {
@@ -322,9 +321,6 @@ void BindMaturity(nb::module_& m) {
     BindKwargsInit<OpticalMaturityOrigin>(origin);
     origin.def_rw("reflectance", &OpticalMaturityOrigin::reflectance)
         .def_rw("ratio", &OpticalMaturityOrigin::ratio);
-    m.def("optical_maturity", &OpticalMaturity, "r750"_a, "r950"_a,
-          "origin"_a = OpticalMaturityOrigin{},
-          "Lucey et al.'s (2000) optical maturity of reflectances at 750 and 950 nm.");
     m.def("reflectance_at_maturity", &ReflectanceAtMaturity, "reflectance"_a, "reference"_a,
           "maturity"_a, "origin_reflectance"_a = OpticalMaturityOrigin{}.reflectance,
           "The reflectance of material at `maturity`, from `reflectance` at the `reference` "

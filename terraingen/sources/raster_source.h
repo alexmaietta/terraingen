@@ -47,6 +47,11 @@ std::shared_ptr<const Upsampler> OptionUpsampler(const RasterSourceOptions& opti
 /// rounding, clamped to `native`.
 PixelWindow NativeWindow(const RasterGrid& native, int reach, const PixelWindow& cells);
 
+/// The top-left corner of `lattice`, a raster source's reference point.
+inline Vec2d Corner(const RasterGrid& lattice) {
+    return {lattice.transform.originX, lattice.transform.originY};
+}
+
 /// The heights of a raster source: a window of a raster giving the cells `cells` of its lattice,
 /// upsampled between them as the options say.
 class RasterHeights {
@@ -142,7 +147,9 @@ class RasterSource final : public Source {
     }
 
     /// The top-left corner of the grid.
-    Vec2d ReferencePoint() const override;
+    Vec2d ReferencePoint() const override {
+        return detail::Corner(heights_.Lattice());
+    }
 
     /// The projection given at construction.
     GeoKeys Keys() const override {

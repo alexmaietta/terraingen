@@ -118,33 +118,15 @@ def test_python_source_fills_the_heights(paraboloid):
     assert plain[32, 32] == pytest.approx(0.0, abs=1e-6) and plain[0, 0] > 4.0
 
 
-def test_synthetic_terrain_is_centered_on_the_origin():
-    raster = terraingen.generate_synthetic_terrain(17, 9, 1.5, synthetic_params())
-    assert raster.shape == (9, 17)
-    assert raster.transform == terraingen.GeoTransform.north_up(-12.75, 6.75, 1.5)
-
-
-def test_synthetic_terrain_matches_fill():
+def test_synthetic_source_samples_the_noise_layers_at_cell_centers():
     params = synthetic_params()
-    raster = terraingen.generate_synthetic_terrain(17, 9, 1.5, params)
-    filled = terraingen.Raster(17, 9)
-    filled.transform = raster.transform
-    terraingen.fill_synthetic_terrain(filled, params)
-    np.testing.assert_array_equal(raster.values, filled.values)
-
-
-def test_synthetic_terrain_samples_the_noise_layers_at_cell_centers():
-    params = synthetic_params()
-    raster = terraingen.generate_synthetic_terrain(17, 9, 1.5, params)
+    raster = terraingen.Raster(17, 9)
+    raster.transform = terraingen.GeoTransform.north_up(-12.75, 6.75, 1.5)
+    terraingen.SyntheticSource(params.layers).fill(raster)
     cols, rows = np.meshgrid(np.arange(17), np.arange(9))
     x = (-12.75 + (cols + 0.5) * 1.5).astype(np.float32)
     y = (6.75 - (rows + 0.5) * 1.5).astype(np.float32)
     np.testing.assert_array_equal(raster.values, terraingen.evaluate_noise_layers(x, y, params))
-
-
-def test_synthetic_terrain_rejects_an_empty_grid():
-    with pytest.raises(ValueError):
-        terraingen.generate_synthetic_terrain(0, 4, 1.0, terraingen.SyntheticTerrainParams())
 
 
 def test_synthetic_sources_evaluate_noise_or_upsample_it_from_posts():
@@ -198,7 +180,8 @@ def test_kernel_upsamplers_match_sample_raster():
         upsampler = terraingen.KernelUpsampler(method)
         assert upsampler.height_at(posts, 2.3, 3.1, 0.1) == terraingen.sample_raster(raster, 2.3, 3.1, method)
     assert terraingen.kernel_upsampler_names()[2] == "cubic"
-    assert terraingen.default_upsampler().method == terraingen.ResampleMethod.CUBIC
+    cubic = terraingen.sample_raster(raster, 2.3, 3.1, terraingen.ResampleMethod.CUBIC)
+    assert terraingen.default_upsampler().height_at(posts, 2.3, 3.1, 0.1) == cubic
 
 
 def test_raster_fields_interpolate_and_fall_back():

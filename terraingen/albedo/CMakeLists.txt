@@ -6,6 +6,7 @@ terraingen_add_library(
     blast_zones.cpp
     brightness_statistics.cpp
     crater_albedo.cpp
+    crater_albedo_options.cpp
     maturity.cpp
     photometry.cpp
     raster_albedo.cpp
@@ -13,6 +14,7 @@ terraingen_add_library(
     slope_albedo.cpp
     splotches.cpp
     synthetic.cpp
+    zone_shadows.cpp
     PUBLIC
     terraingen_layers
     terraingen_noise

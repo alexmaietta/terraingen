@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 using terraingen::GeoTransform;
@@ -58,10 +59,14 @@ TEST(SyntheticSource, EvaluatesTheNoiseAtEveryPointWithoutAPixelSize) {
     }
     Raster<float> filled = RasterGrid{64, 48, GeoTransform::NorthUp(-50.0, 40.0, 2.0)}.MakeRaster();
     source.Fill(filled);
-    Raster<float> expected = RasterGrid::FromRaster(filled).MakeRaster();
-    terraingen::FillSyntheticTerrain(expected, Hills());
-    for (std::size_t i = 0; i < filled.Size(); ++i) {
-        ASSERT_EQ(filled.Values()[i], 3.0f + expected.Values()[i]) << i;
+    const std::vector<NoiseLayer> layers = Hills().layers;
+    for (std::size_t row = 0; row < filled.Height(); ++row) {
+        for (std::size_t col = 0; col < filled.Width(); ++col) {
+            const terraingen::Vec2d c = filled.CellCenter(col, row);
+            ASSERT_EQ(filled(col, row), 3.0f + terraingen::EvaluateNoiseLayers(
+                                                   static_cast<float>(c.x), static_cast<float>(c.y),
+                                                   layers.data(), layers.size()));
+        }
     }
     ExpectPointsTilesAndGridAgree(source, {20, 15, GeoTransform::NorthUp(13.1, 7.7, 0.9)});
     const RasterGrid grid = source.Grid();
@@ -123,4 +128,24 @@ TEST(SyntheticSource, RejectsInvalidSettings) {
                                  std::make_shared<terraingen::KernelUpsampler>()),
                  std::invalid_argument)
         << "an upsampler needs posts";
+}
+
+TEST(ValidateSyntheticTerrain, NeedsALayerAndNamesTheBadLayer) {
+    EXPECT_NO_THROW(terraingen::ValidateSyntheticTerrain(SyntheticTerrainParams{}));
+    EXPECT_THROW(terraingen::ValidateSyntheticTerrain(SyntheticTerrainParams{{}}),
+                 std::invalid_argument);
+    SyntheticTerrainParams bad = Hills();
+    bad.layers.push_back(NoiseLayer{});
+    bad.layers[1].fractal.gain = 0.0f;
+    try {
+        terraingen::ValidateSyntheticTerrain(bad);
+        FAIL() << "expected std::invalid_argument";
+    } catch (const std::invalid_argument& error) {
+        EXPECT_EQ(std::string(error.what()).rfind("Layer 2:", 0), 0u) << error.what();
+    }
+}
+
+TEST(SyntheticTerrainParams, ComparesLayers) {
+    EXPECT_EQ(SyntheticTerrainParams{}, SyntheticTerrainParams{});
+    EXPECT_NE(Hills(), SyntheticTerrainParams{});
 }

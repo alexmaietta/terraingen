@@ -52,6 +52,21 @@ inline PixelWindow WholeWindow(const RasterGrid& grid) {
 /// first cell, and is `grid`'s own when that is the first cell of `grid`.
 RasterGrid Subgrid(const RasterGrid& grid, const PixelWindow& cells);
 
+/// Calls `visit(tile)` for each tile of up to `side` x `side` cells of a `width` x `height` grid,
+/// row by row of tiles, the tiles split over threads.
+/// @param threads Threads to split the tiles over; 0 for every hardware thread.
+template <typename Visit>
+void ForEachTile(std::size_t width, std::size_t height, std::size_t side, unsigned threads,
+                 const Visit& visit) {
+    const std::size_t tilesX = CeilDiv(width, side);
+    ParallelFor(tilesX * CeilDiv(height, side), threads, [&](std::size_t tile) {
+        const std::size_t colBegin = (tile % tilesX) * side;
+        const std::size_t rowBegin = (tile / tilesX) * side;
+        visit(PixelWindow{colBegin, std::min(colBegin + side, width), rowBegin,
+                          std::min(rowBegin + side, height)});
+    });
+}
+
 /// The non-empty windows of a grid (in `surface`'s coordinates) covering a box: one on a plane,
 /// up to three on a sphere, none off the grid.
 /// @param box The box: on a sphere a longitude-latitude box, which is also taken a turn either way

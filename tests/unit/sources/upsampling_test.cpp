@@ -113,7 +113,6 @@ TEST(KernelUpsampler, GivesSampleRastersBitsForEveryKernel) {
          {ResampleMethod::Nearest, ResampleMethod::Bilinear, ResampleMethod::Cubic,
           ResampleMethod::CatmullRom, ResampleMethod::Lanczos3, ResampleMethod::CubicBSpline}) {
         const KernelUpsampler upsampler(method);
-        EXPECT_EQ(upsampler.Method(), method);
         EXPECT_EQ(upsampler.Reach(), terraingen::KernelRadius(method));
         for (double x = -3.0; x < 28.0; x += 1.37) {
             for (double y = 4.0; y < 29.0; y += 1.13) {
@@ -229,5 +228,40 @@ TEST(KernelUpsamplerNames, NameEveryKernel) {
     const auto cubic =
         std::dynamic_pointer_cast<const KernelUpsampler>(terraingen::DefaultUpsampler());
     ASSERT_NE(cubic, nullptr);
-    EXPECT_EQ(cubic->Method(), ResampleMethod::Cubic);
+    const RasterPosts posts = Posts(Heights());
+    EXPECT_EQ(cubic->HeightAt(posts, 4.3, 17.2, 1.0),
+              KernelUpsampler(ResampleMethod::Cubic).HeightAt(posts, 4.3, 17.2, 1.0));
+}
+
+TEST(ReadPosts, ReadsAnIndexBoxOfPosts) {
+    const Raster<float> raster = Heights();
+    const RasterPosts posts = Posts(raster);
+    terraingen::detail::IndexBox box;
+    box.Include(2, 4, 1, 3);
+    box.Include(3, 5, 2, 2);
+    EXPECT_EQ(box.Columns(), 4u);
+    EXPECT_EQ(box.Rows(), 3u);
+    EXPECT_EQ(box.Area(), 12.0);
+    const auto window = terraingen::detail::ReadPosts(posts, box);
+    EXPECT_EQ(window.width, 4u);
+    EXPECT_EQ(window.At(3, 2), raster(3, 2));
+    EXPECT_EQ(window.At(5, 3), raster(5, 3));
+}
+
+TEST(MarkMissing, FillsNaNCellsWithTheNoDataValue) {
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    Raster<float> heights(2, 1);
+    heights(0, 0) = 1.0f;
+    heights(1, 0) = nan;
+    terraingen::MarkMissing(heights, -9999.0f);
+    EXPECT_EQ(heights(1, 0), -9999.0f);
+    EXPECT_EQ(heights.NoData(), -9999.0f);
+    heights(1, 0) = nan;
+    terraingen::MarkMissing(heights, std::nullopt);
+    EXPECT_TRUE(std::isnan(heights(1, 0)));
+    ASSERT_TRUE(heights.NoData().has_value());
+    EXPECT_TRUE(std::isnan(*heights.NoData()));
+    Raster<float> full(1, 1, 2.0f);
+    terraingen::MarkMissing(full, std::nullopt);
+    EXPECT_FALSE(full.NoData().has_value());
 }

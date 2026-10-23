@@ -57,12 +57,9 @@ class Source {
     /// there at that spacing, to the same bits.
     virtual float HeightAt(double x, double y, double spacing) const = 0;
 
-    /// The cell size of the data that gives the height at world point (`x`, `y`), before any
-    /// upsampling, in CRS units (meters on a plane, degrees for a source in longitude and
-    /// latitude, which `Surface::UnitLength` converts along a meridian): the scale below which the
-    /// source resolves no features, so a 240 m DEM upsampled to 2 m still resolves only what 240 m
-    /// cells do. Infinity where no measured data gives the height, as for synthetic noise, the
-    /// default.
+    /// The cell size in CRS units (degrees in longitude and latitude) of the data giving the
+    /// height at world point (`x`, `y`) before any upsampling, below which the source resolves
+    /// no features; infinity where no measured data gives it, the default.
     virtual double ResolutionAt(double /*x*/, double /*y*/) const {
         return std::numeric_limits<double>::infinity();
     }

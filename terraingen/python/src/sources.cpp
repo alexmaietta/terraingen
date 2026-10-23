@@ -12,7 +12,6 @@
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_source.h"
-#include "terraingen/sources/synthetic_terrain.h"
 #include "terraingen/sources/upsampling.h"
 
 #include <nanobind/operators.h>
@@ -216,8 +215,7 @@ void BindKernelUpsampler(nb::module_& m) {
         m, "KernelUpsampler",
         "Interpolation of the posts with a kernel at every spacing: cubic, the default, gives the "
         "same heights as `sample_raster`.")
-        .def(nb::init<ResampleMethod>(), "method"_a = ResampleMethod::Cubic)
-        .def_prop_ro("method", &KernelUpsampler::Method);
+        .def(nb::init<ResampleMethod>(), "method"_a = ResampleMethod::Cubic);
 }
 
 void BindDiamondSquare(nb::module_& m) {
@@ -249,8 +247,6 @@ void BindDiamondSquare(nb::module_& m) {
         "Random midpoint displacement (diamond-square) of the posts: each level halves the node "
         "spacing down to the sample spacing, adding fractal detail without changing the posts.")
         .def(nb::init<DiamondSquareOptions>(), "options"_a = DiamondSquareOptions{})
-        .def("levels", &DiamondSquareUpsampler::Levels, "post_spacing"_a, "spacing"_a,
-             "The levels refined at a sample spacing over posts `post_spacing` apart.")
         .def_prop_ro("options", &DiamondSquareUpsampler::Options);
 }
 
@@ -306,7 +302,6 @@ void BindGeneratedSources(nb::module_& m) {
             "layers"_a = std::vector<NoiseLayer>{}, "elevation"_a = 0.0f,
             "pixel_size"_a = nb::none(), "upsampler"_a = nb::none(), "surface"_a = Surface{})
         .def_prop_ro("layers", [](const SyntheticSource& s) { return s.Params().layers; })
-        .def_prop_ro("elevation", &SyntheticSource::Elevation)
         .def_prop_ro("pixel_size", [](const SyntheticSource& s) { return s.PixelSize(); })
         .def_prop_ro(
             "upsampler", [](const SyntheticSource& s) { return Mutable(s.UpsamplerInUse()); },
@@ -448,13 +443,6 @@ void BindSyntheticTerrain(nb::module_& m) {
         .def_rw("layers", &SyntheticTerrainParams::layers)
         .def(nb::self == nb::self);
     m.def("validate_synthetic_terrain", &ValidateSyntheticTerrain, "params"_a, kValidateDoc);
-    m.def("fill_synthetic_terrain", &FillSyntheticTerrain, "raster"_a, "params"_a,
-          nb::call_guard<nb::gil_scoped_release>(),
-          "Set every cell of `raster` to the synthetic terrain height at its center.");
-    m.def("generate_synthetic_terrain", &GenerateSyntheticTerrain, "width"_a, "height"_a,
-          "pixel_size"_a, "params"_a, nb::call_guard<nb::gil_scoped_release>(),
-          "Generate a north-up synthetic terrain centered on the world origin, with square pixels "
-          "of `pixel_size` meters.");
 }
 
 }  // namespace

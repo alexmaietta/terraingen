@@ -47,33 +47,33 @@ def test_log_level_round_trips_and_rejects_unknown_names():
 
 
 @pytest.mark.usefixtures("restore_logging")
-def test_log_records_reach_the_logging_module(caplog):
+def test_log_records_reach_the_logging_module(caplog, tmp_path):
     terraingen.set_log_level("info")
     with caplog.at_level(logging.INFO, logger="terraingen"):
-        terraingen.generate_synthetic_terrain(9, 7, 1.0, terraingen.SyntheticTerrainParams())
-    records = [r for r in caplog.records if r.name == "terraingen.sources"]
+        terraingen.write_geotiff(tmp_path / "log.tif", terraingen.Raster(9, 7))
+    records = [r for r in caplog.records if r.name == "terraingen.raster"]
     assert len(records) == 1
     assert records[0].levelno == logging.INFO
-    assert records[0].getMessage().startswith("Filled 9x7 synthetic terrain (1 layer) in ")
+    assert records[0].getMessage().startswith("Wrote 9x7x1 GeoTIFF ")
 
 
 @pytest.mark.usefixtures("restore_logging")
-def test_nothing_is_logged_below_the_threshold(caplog):
+def test_nothing_is_logged_below_the_threshold(caplog, tmp_path):
     with caplog.at_level(logging.DEBUG, logger="terraingen"):
-        terraingen.generate_synthetic_terrain(4, 4, 1.0, terraingen.SyntheticTerrainParams())
+        terraingen.write_geotiff(tmp_path / "quiet.tif", terraingen.Raster(4, 4))
     assert not [r for r in caplog.records if r.name.startswith("terraingen")]
 
 
 @pytest.mark.usefixtures("restore_logging")
-def test_custom_log_sinks_receive_level_category_and_message():
+def test_custom_log_sinks_receive_level_category_and_message(tmp_path):
     received = []
     terraingen.set_log_sink(lambda level, category, message: received.append((level, category, message)))
     terraingen.set_log_level("info")
-    terraingen.generate_synthetic_terrain(3, 3, 1.0, terraingen.SyntheticTerrainParams())
+    terraingen.write_geotiff(tmp_path / "sink.tif", terraingen.Raster(3, 3))
     assert len(received) == 1
     level, category, message = received[0]
-    assert (level, category) == ("info", "sources")
-    assert message.startswith("Filled 3x3")
+    assert (level, category) == ("info", "raster")
+    assert message.startswith("Wrote 3x3x1")
 
 
 def test_sphere_unit_length_is_one_degree_of_arc(moon):

@@ -24,16 +24,7 @@ namespace terraingen {
 
 namespace {
 
-constexpr std::size_t kBlockRows = 32;
 constexpr double kBinCells = 16.0;
-
-/// Checks that a splotch change is above -1 and bounded.
-void CheckChange(const ValueDistribution& change, const char* what) {
-    ValidateValueDistribution(change);
-    if (!(change.Lowest() > -1.0 && std::isfinite(change.Highest()))) {
-        throw std::invalid_argument(std::string(what) + " must be above -1 and bounded");
-    }
-}
 
 /// Checks that two shares are in [0, 1] and sum to at most 1.
 void CheckShares(double dark, double bright, const char* what) {
@@ -57,8 +48,8 @@ void CheckSwarms(const SplotchSwarms& s) {
     if (!(s.splotchDiameter.Lowest() > 0.0 && std::isfinite(s.splotchDiameter.Highest()))) {
         throw std::invalid_argument("Swarm splotch diameters must be positive and bounded");
     }
-    CheckChange(s.darkChange, "A dark swarm splotch's change");
-    CheckChange(s.brightChange, "A bright swarm splotch's change");
+    ValidateRelativeChange(s.darkChange, "A dark swarm splotch's change");
+    ValidateRelativeChange(s.brightChange, "A bright swarm splotch's change");
     for (const Crater& crater : s.craters) {
         if (!(std::isfinite(crater.x) && std::isfinite(crater.y) && IsPositive(crater.diameter) &&
               IsNonNegative(crater.ageGyr))) {
@@ -96,10 +87,7 @@ double Cover(const Splotch& splotch, const Vec2d& offset, const SplotchAlbedoOpt
     if (distance >= 1.0) {
         return 0.0;
     }
-    const double lobe =
-        options.raggedness > 0.0
-            ? LobeFactor(RingNoise(kLobeRing, angle, 0.0, splotch.key, 3), options.raggedness)
-            : 1.0;
+    const double lobe = EdgeLobe(options.raggedness, kLobeRing, angle, 0.0, splotch.key, 3);
     return SoftEdge(distance / lobe, options.softness);
 }
 
@@ -217,8 +205,8 @@ void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options) {
         throw std::invalid_argument("Splotch diameters must be positive and increasing");
     }
     CheckShares(options.darkShare, options.brightShare, "Splotch");
-    CheckChange(options.darkChange, "A dark splotch's change");
-    CheckChange(options.brightChange, "A bright splotch's change");
+    ValidateRelativeChange(options.darkChange, "A dark splotch's change");
+    ValidateRelativeChange(options.brightChange, "A bright splotch's change");
     if (!(options.softness > 0.0 && options.softness <= 1.0 && options.raggedness >= 0.0 &&
           options.raggedness < 1.0)) {
         throw std::invalid_argument("Splotch softness must be in (0, 1] and raggedness in [0, 1)");
@@ -451,10 +439,8 @@ void SplotchAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext
     const SplotchBins bins(grid, splotches, surface_);
     const std::size_t count = bands.size();
     const double spacing = context.spacing;
-    ForEachAlbedoBlock(bands, context.threads, kBlockRows, [&](std::size_t, std::size_t) {
-        return AlbedoCellVisitor([&](AlbedoSample& value, double x, double y) {
-            ChangeBands(value, count, ChangeAt(bins.Near(x, y), x, y, spacing));
-        });
+    ForEachAlbedoCell(bands, context.threads, [&](AlbedoSample& value, double x, double y) {
+        ChangeBands(value, count, ChangeAt(bins.Near(x, y), x, y, spacing));
     });
 }
 

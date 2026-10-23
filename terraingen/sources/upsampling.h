@@ -8,9 +8,11 @@
 #include "terraingen/raster/resample.h"
 #include "terraingen/util/span.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -41,6 +43,65 @@ class PostLattice {
                       Span<float> heights) const = 0;
 };
 
+namespace detail {
+
+/// An inclusive box of lattice indices, columns [`col0`, `col1`] and rows [`row0`, `row1`];
+/// empty until it includes a span.
+struct IndexBox {
+    std::int64_t col0 = std::numeric_limits<std::int64_t>::max();
+    std::int64_t row0 = std::numeric_limits<std::int64_t>::max();
+    std::int64_t col1 = std::numeric_limits<std::int64_t>::min();
+    std::int64_t row1 = std::numeric_limits<std::int64_t>::min();
+
+    /// Grows the box to hold columns [`first`, `last`] and rows [`top`, `bottom`].
+    void Include(std::int64_t first, std::int64_t last, std::int64_t top, std::int64_t bottom) {
+        col0 = std::min(col0, first);
+        col1 = std::max(col1, last);
+        row0 = std::min(row0, top);
+        row1 = std::max(row1, bottom);
+    }
+
+    /// Columns in a non-empty box.
+    std::size_t Columns() const {
+        return static_cast<std::size_t>(col1 - col0 + 1);
+    }
+
+    /// Rows in a non-empty box.
+    std::size_t Rows() const {
+        return static_cast<std::size_t>(row1 - row0 + 1);
+    }
+
+    /// The number of indices the box holds, as a double so that it cannot overflow.
+    double Area() const {
+        return static_cast<double>(col1 - col0 + 1) * static_cast<double>(row1 - row0 + 1);
+    }
+};
+
+/// Values over an `IndexBox` of a lattice, row by row.
+template <typename T> struct LatticeWindow {
+    IndexBox box;
+    std::size_t width = 0;
+    std::vector<T> values;
+
+    /// The window over a non-empty `over`, every value `T{}`.
+    explicit LatticeWindow(const IndexBox& over)
+        : box(over), width(over.Columns()), values(over.Columns() * over.Rows()) {}
+
+    T& At(std::int64_t col, std::int64_t row) {
+        return values[static_cast<std::size_t>(row - box.row0) * width +
+                      static_cast<std::size_t>(col - box.col0)];
+    }
+    const T& At(std::int64_t col, std::int64_t row) const {
+        return values[static_cast<std::size_t>(row - box.row0) * width +
+                      static_cast<std::size_t>(col - box.col0)];
+    }
+};
+
+/// The posts of `posts` over `box`, NaN where they have no data.
+LatticeWindow<float> ReadPosts(const PostLattice& posts, const IndexBox& box);
+
+}  // namespace detail
+
 /// The posts of a raster that is a window of a larger lattice, such as a window read from a
 /// file: posts beyond the larger lattice repeat its edge, and those beyond the window its edge, so
 /// reads within the window give the same values as the whole.
@@ -61,14 +122,6 @@ class RasterPosts final : public PostLattice {
 
     void Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
               Span<float> heights) const override;
-
-    /// The window and where it lies.
-    const Raster<float>& Window() const {
-        return *window_;
-    }
-    const RasterPlacement& Placement() const {
-        return placement_;
-    }
 
   private:
     std::shared_ptr<const Raster<float>> window_;
@@ -124,6 +177,10 @@ float UpsampledHeight(const Upsampler& upsampler, const PostLattice& posts, doub
 void FillUpsampled(const Upsampler& upsampler, const PostLattice& posts, Raster<float>& heights,
                    double spacing);
 
+/// Gives the NaN cells of `heights`, filled from a source with no-data value `noData`, that value
+/// (NaN without one), and `heights` the no-data value that leaves (`FilledNoData`).
+void MarkMissing(Raster<float>& heights, std::optional<float> noData);
+
 /// Interpolation of the posts with a kernel (`ResampleMethod`), at every spacing alike: `Cubic`,
 /// the default, gives the same bits as `SampleRaster` of the posts.
 class KernelUpsampler final : public Upsampler {
@@ -142,11 +199,6 @@ class KernelUpsampler final : public Upsampler {
     /// The kernel's radius (`KernelRadius`).
     int Reach() const override {
         return KernelRadius(method_);
-    }
-
-    /// The kernel.
-    ResampleMethod Method() const {
-        return method_;
     }
 
   private:

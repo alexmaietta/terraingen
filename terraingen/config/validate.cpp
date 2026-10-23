@@ -16,6 +16,7 @@
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/validate.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/sources/upsampling.h"
 #include "terraingen/util/overloaded.h"

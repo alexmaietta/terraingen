@@ -18,17 +18,6 @@ struct OpticalMaturityOrigin {
     }
 };
 
-/// Lucey et al.'s (2000) origin for laboratory spectra, used by their Table 1 of returned soils.
-inline constexpr OpticalMaturityOrigin kLaboratoryMaturityOrigin{0.01, 1.26};
-
-/// Lucey et al.'s (2000, eq. 1) optical maturity parameter (OMAT): the distance from
-/// `origin` in the plane of reflectance and ratio, sqrt((r750 - x0)^2 + (r950/r750 - y0)^2).
-/// Higher is less mature.
-/// @param r750 Reflectance at 750 nm.
-/// @param r950 Reflectance at 950 nm.
-/// @throws std::invalid_argument unless `r750` is positive and both are finite.
-double OpticalMaturity(double r750, double r950, const OpticalMaturityOrigin& origin = {});
-
 /// The reflectance of the same material at another optical maturity, at fixed iron
 /// content: x0 + (`reflectance` - x0) `maturity` / `reference`, with x0 `originReflectance`.
 /// Below x0, which the relation does not cover, `reflectance` is kept.

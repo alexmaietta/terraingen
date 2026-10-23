@@ -1,7 +1,7 @@
 #include "terraingen/albedo/synthetic.h"
 
-#include "terraingen/layers/noise_relief.h"
-#include "terraingen/sources/synthetic_terrain.h"
+#include "terraingen/noise/surface_noise.h"
+#include "terraingen/noise/validate.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
@@ -11,28 +11,14 @@
 
 namespace terraingen {
 
-namespace {
-
-/// Checks one noise stack's size and layers.
-void ValidateStack(const std::vector<NoiseLayer>& layers) {
-    if (layers.size() > kMaxNoiseLayers) {
-        throw std::invalid_argument("Too many albedo noise layers");
-    }
-    for (const NoiseLayer& layer : layers) {
-        ValidateNoiseLayer(layer);
-    }
-}
-
-}  // namespace
-
 void ValidateSyntheticAlbedoOptions(const SyntheticAlbedoOptions& options) {
     RequireFinite(options.hue, "The albedo hue");
     if (!(IsInUnitInterval(options.saturation) && IsInUnitInterval(options.value))) {
         throw std::invalid_argument("The albedo saturation and value must be in [0, 1]");
     }
-    ValidateStack(options.hueNoise);
-    ValidateStack(options.saturationNoise);
-    ValidateStack(options.valueNoise);
+    ValidateNoiseLayers(options.hueNoise);
+    ValidateNoiseLayers(options.saturationNoise);
+    ValidateNoiseLayers(options.valueNoise);
 }
 
 AlbedoSample HsvToRgb(double hue, double saturation, double value) {
@@ -65,9 +51,6 @@ SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoOptions options, Vec2d origin, S
 }
 
 double SyntheticAlbedo::Noise(const std::vector<NoiseLayer>& layers, double x, double y) const {
-    if (layers.empty()) {
-        return 0.0;
-    }
     return static_cast<double>(NoiseLayersAt(layers, origin_, surface_, x, y));
 }
 

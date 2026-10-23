@@ -19,7 +19,6 @@ using terraingen::EvaluateAlbedoAt;
 using terraingen::GeoTransform;
 using terraingen::HsvToRgb;
 using terraingen::NoiseLayer;
-using terraingen::OpticalMaturity;
 using terraingen::Raster;
 using terraingen::RasterAlbedo;
 using terraingen::RasterAlbedoOptions;
@@ -80,14 +79,6 @@ Raster<float> Ramp(std::size_t side, double gradient) {
 }
 
 }  // namespace
-
-TEST(OpticalMaturity, MatchesLuceyTable1WithTheLaboratoryOrigin) {
-    EXPECT_NEAR(OpticalMaturity(0.072, 0.080, terraingen::kLaboratoryMaturityOrigin), 0.162, 1e-3);
-    EXPECT_NEAR(OpticalMaturity(0.354, 0.370, terraingen::kLaboratoryMaturityOrigin), 0.405, 1e-3);
-    EXPECT_NEAR(OpticalMaturity(0.08, 0.08 * 1.19), 0.0, 1e-12);
-    EXPECT_THROW(OpticalMaturity(0.0, 0.1), std::invalid_argument);
-    EXPECT_THROW(OpticalMaturity(0.1, kNaN), std::invalid_argument);
-}
 
 TEST(ReflectanceAtMaturity, MovesFromTheOriginInProportionToMaturity) {
     EXPECT_NEAR(ReflectanceAtMaturity(0.2, 0.2, 0.2), 0.2, 1e-15);

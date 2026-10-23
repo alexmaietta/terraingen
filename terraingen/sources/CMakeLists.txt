@@ -8,7 +8,6 @@ terraingen_add_library(
     raster_source.cpp
     source_chain.cpp
     synthetic_source.cpp
-    synthetic_terrain.cpp
     upsampling.cpp
     PUBLIC
     terraingen_noise

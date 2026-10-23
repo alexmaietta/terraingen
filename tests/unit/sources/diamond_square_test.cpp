@@ -25,9 +25,10 @@ using terraingen::DiamondSquareOptions;
 using terraingen::DiamondSquareUpsampler;
 using terraingen::EstimateMidpointRoughness;
 using terraingen::GeoTransform;
-using terraingen::MidpointNodes;
 using terraingen::Raster;
 using terraingen::RasterGrid;
+using terraingen::detail::MidpointNodes;
+using terraingen::detail::MidpointRefiner;
 
 namespace {
 
@@ -57,6 +58,15 @@ class FunctionPosts final : public terraingen::PostLattice {
   private:
     std::function<float(double, double)> height_;
 };
+
+/// The nodes of `level` over columns [`col0`, `col1`] and rows [`row0`, `row1`].
+MidpointNodes RefinedNodes(const DiamondSquareOptions& options,
+                           const terraingen::PostLattice& posts, int level, std::int64_t col0,
+                           std::int64_t row0, std::int64_t col1, std::int64_t row1) {
+    terraingen::detail::IndexBox box;
+    box.Include(col0, col1, row0, row1);
+    return MidpointRefiner(options).Nodes(posts, level, box);
+}
 
 /// Gentle hills, with no data west of x = -1000.
 float Hills(double x, double y) {
@@ -135,17 +145,17 @@ TEST(DiamondSquareOptions, CompareMemberwise) {
 
 TEST(DiamondSquareUpsampler, RefinesAsManyLevelsAsTheSpacingResolves) {
     const DiamondSquareUpsampler upsampler(Options());
-    EXPECT_EQ(upsampler.Levels(4.0, 8.0), 0);
-    EXPECT_EQ(upsampler.Levels(4.0, 4.0), 0);
-    EXPECT_EQ(upsampler.Levels(4.0, 3.0), 1);
-    EXPECT_EQ(upsampler.Levels(4.0, 2.0), 1);
-    EXPECT_EQ(upsampler.Levels(4.0, 1.0), 2);
-    EXPECT_EQ(upsampler.Levels(4.0, 0.01), 9);
+    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 8.0), 0);
+    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 4.0), 0);
+    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 3.0), 1);
+    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 2.0), 1);
+    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 1.0), 2);
+    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 0.01), 9);
     DiamondSquareOptions capped = Options();
     capped.minPixelSize = 1.0;
-    EXPECT_EQ(DiamondSquareUpsampler(capped).Levels(4.0, 0.01), 2);
+    EXPECT_EQ(MidpointRefiner(capped).Levels(4.0, 0.01), 2);
     capped.minPixelSize = 8.0;
-    EXPECT_EQ(DiamondSquareUpsampler(capped).Levels(4.0, 0.01), 0);
+    EXPECT_EQ(MidpointRefiner(capped).Levels(4.0, 0.01), 0);
     EXPECT_EQ(upsampler.Reach(), 4);
     EXPECT_EQ(DiamondSquareUpsampler(Options(DiamondSquareInterp::CatmullRom)).Reach(), 8);
 }
@@ -154,12 +164,11 @@ TEST(DiamondSquareUpsampler, KeepsEveryCoarserNodeAndAgreesAcrossWindows) {
     const FunctionPosts posts(Hills);
     for (const DiamondSquareInterp interp :
          {DiamondSquareInterp::Bilinear, DiamondSquareInterp::CatmullRom}) {
-        const DiamondSquareUpsampler upsampler(Options(interp));
-        const MidpointNodes base = upsampler.Nodes(posts, 0, -3, -2, 4, 5);
+        const MidpointNodes base = RefinedNodes(Options(interp), posts, 0, -3, -2, 4, 5);
         EXPECT_EQ(base.At(1, 2), static_cast<double>(Hills(6.0, 2.0)))
             << "node (1, 2) is 1 post east and 2 north of post (0, 0)";
-        const MidpointNodes coarse = upsampler.Nodes(posts, 2, -12, -8, 16, 20);
-        const MidpointNodes fine = upsampler.Nodes(posts, 3, -24, -16, 32, 40);
+        const MidpointNodes coarse = RefinedNodes(Options(interp), posts, 2, -12, -8, 16, 20);
+        const MidpointNodes fine = RefinedNodes(Options(interp), posts, 3, -24, -16, 32, 40);
         for (std::int64_t row = -2; row <= 5; ++row) {
             for (std::int64_t col = -3; col <= 4; ++col) {
                 EXPECT_EQ(coarse.At(4 * col, 4 * row), base.At(col, row));
@@ -170,7 +179,7 @@ TEST(DiamondSquareUpsampler, KeepsEveryCoarserNodeAndAgreesAcrossWindows) {
                 EXPECT_EQ(fine.At(2 * col, 2 * row), coarse.At(col, row));
             }
         }
-        const MidpointNodes shifted = upsampler.Nodes(posts, 3, 5, 7, 9, 12);
+        const MidpointNodes shifted = RefinedNodes(Options(interp), posts, 3, 5, 7, 9, 12);
         for (std::int64_t row = 7; row <= 12; ++row) {
             for (std::int64_t col = 5; col <= 9; ++col) {
                 EXPECT_EQ(shifted.At(col, row), fine.At(col, row));
@@ -182,8 +191,7 @@ TEST(DiamondSquareUpsampler, KeepsEveryCoarserNodeAndAgreesAcrossWindows) {
 TEST(DiamondSquareUpsampler, DisplacesNewNodesByTheStepScale) {
     const FunctionPosts flat([](double, double) { return 0.0f; });
     const DiamondSquareOptions options = Options();
-    const DiamondSquareUpsampler upsampler(options);
-    const MidpointNodes nodes = upsampler.Nodes(flat, 1, -200, -200, 200, 200);
+    const MidpointNodes nodes = RefinedNodes(options, flat, 1, -200, -200, 200, 200);
     double squares = 0.0;
     std::size_t count = 0;
     for (std::int64_t row = -199; row <= 199; row += 2) {
@@ -291,7 +299,7 @@ TEST(DiamondSquareUpsampler, NeedsItsRoughnessAndAnUnrotatedLattice) {
     const FunctionPosts posts(Hills);
     const DiamondSquareUpsampler unfitted{DiamondSquareOptions{}};
     EXPECT_THROW(static_cast<void>(unfitted.HeightAt(posts, 1.0, 1.0, 1.0)), std::invalid_argument);
-    EXPECT_THROW(unfitted.Nodes(posts, 1, 0, 0, 1, 1), std::invalid_argument);
+    EXPECT_THROW(RefinedNodes(DiamondSquareOptions{}, posts, 1, 0, 0, 1, 1), std::invalid_argument);
     Raster<float> rotated(8, 8, 1.0f);
     rotated.SetTransform(GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
     const auto shared = std::make_shared<const Raster<float>>(rotated);
@@ -313,8 +321,8 @@ TEST(DiamondSquareUpsampler, FitsAnUnsetRoughnessToThePosts) {
         const DiamondSquareUpsampler expander(source);
         const FunctionPosts flat([](double, double) { return 0.0f; });
         constexpr int kLevels = 6;
-        const MidpointNodes nodes = expander.Nodes(flat, kLevels, 0, 0, 511, 511);
-        auto raster = std::make_shared<Raster<float>>(nodes.width, nodes.height);
+        const MidpointNodes nodes = RefinedNodes(source, flat, kLevels, 0, 0, 511, 511);
+        auto raster = std::make_shared<Raster<float>>(nodes.width, nodes.box.Rows());
         raster->SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
         for (std::size_t i = 0; i < nodes.values.size(); ++i) {
             (*raster)(i % nodes.width, i / nodes.width) = static_cast<float>(nodes.values[i]);

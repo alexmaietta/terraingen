@@ -10,14 +10,9 @@
 
 namespace terraingen {
 
-/// How steep ground stays immature. Downslope movement keeps regolith on steep slopes fresh:
-/// Ikeda et al. (2022, Figs. 6d and 11d) found the optical maturity parameter (OMAT) of crater
-/// walls in Schrodinger and Laue rising with slope from about 0.10 at 20 degrees, about 0.0065 per
-/// degree, on slopes from the 10 m KAGUYA terrain camera DTM; Lucey et al. (2014) found slopes
-/// steeper than 20 degrees 0.02 brighter than those below 10, where mass wasting is ineffective,
-/// and Boyd and Robinson (2019) immature, brighter material on slopes steeper than 25 degrees. OMAT
-/// rises by `maturityPerDegree` beyond `onsetDegrees`, capped at `maxMaturity`, and the albedo
-/// moves with it (`ReflectanceAtMaturity`).
+/// How steep ground stays immature as regolith moves downslope (Ikeda et al. 2022; Lucey et al.
+/// 2014; Boyd and Robinson 2019): OMAT rises by `maturityPerDegree` beyond `onsetDegrees`, capped
+/// at `maxMaturity`, and the albedo moves with it (`ReflectanceAtMaturity`).
 struct SlopeAlbedoOptions {
     double onsetDegrees = 20.0;         ///< Slope from which ground freshens, in [0, 90).
     double maturityPerDegree = 0.0065;  ///< OMAT gained per degree beyond the onset; >= 0.

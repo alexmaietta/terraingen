@@ -30,11 +30,8 @@ struct HapkeParameters {
 /// Hapke parameters per `MaterialClass`; a class without any cannot be mixed.
 using MaterialPhotometry = std::array<std::optional<HapkeParameters>, kMaterialClasses>;
 
-/// Hapke parameters of Martian surfaces at 753 nm from Pancam (Johnson et al. 2006a, b, as
-/// tabulated by Fernando et al. 2013, and Johnson et al. 2006b Table 2a): soil from Spirit's
-/// landing site soil, sand from Opportunity's Purgatory ripples, dust from its dusty soil, bedrock
-/// from its Eagle crater outcrop (w 0.90; 0.84 +- 0.06 averaged over sites, Table 11) and rock from
-/// Spirit's dust-free gray rocks.
+/// Hapke parameters of Martian soil, sand, dust, bedrock and rock at 753 nm from Pancam (Johnson
+/// et al. 2006a, b; Fernando et al. 2013).
 MaterialPhotometry MarsPancamPhotometry();
 
 /// Checks photometry parameters.

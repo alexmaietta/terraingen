@@ -3,15 +3,34 @@
 /// plane or a whole body.
 #pragma once
 
+#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/surface_noise.h"
 #include "terraingen/sources/source.h"
-#include "terraingen/sources/synthetic_terrain.h"
 #include "terraingen/sources/upsampling.h"
 #include "terraingen/util/surface.h"
 
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace terraingen {
+
+/// A synthetic terrain: a stack of noise layers evaluated with `NoiseLayersAt`.
+struct SyntheticTerrainParams {
+    std::vector<NoiseLayer> layers{NoiseLayer{}};  ///< 1 to `kMaxNoiseLayers`; one Perlin fBm.
+
+    /// Memberwise equality.
+    bool operator==(const SyntheticTerrainParams& other) const {
+        return layers == other.layers;
+    }
+    bool operator!=(const SyntheticTerrainParams& other) const {
+        return !(*this == other);
+    }
+};
+
+/// Checks the layer count and every layer (`ValidateNoiseLayers` with at least one layer).
+/// @throws std::invalid_argument naming the first problem.
+void ValidateSyntheticTerrain(const SyntheticTerrainParams& params);
 
 /// Heights generated rather than loaded: `elevation` plus a stack of noise layers
 /// (`NoiseLayersAt`, measured from the origin on a plane, in 3D on a body), with no bounds.
@@ -57,11 +76,6 @@ class SyntheticSource final : public Source {
     /// The noise stack.
     const SyntheticTerrainParams& Params() const {
         return params_;
-    }
-
-    /// Meters added everywhere.
-    float Elevation() const {
-        return elevation_;
     }
 
     /// The spacing of the posts, if the noise is sampled at posts.

@@ -4,6 +4,8 @@
 
 #include <limits>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 using terraingen::FractalParams;
 using terraingen::FractalType;
@@ -12,6 +14,7 @@ using terraingen::NoiseBasis;
 using terraingen::NoiseLayer;
 using terraingen::ValidateFractalParams;
 using terraingen::ValidateNoiseLayer;
+using terraingen::ValidateNoiseLayers;
 
 namespace {
 
@@ -57,4 +60,19 @@ TEST(ValidateNoiseLayer, RejectsInvalidBlendAndWarp) {
     rejects([](NoiseLayer& l) { l.warpAmplitude = kNaN; });
     rejects([](NoiseLayer& l) { l.warpWavelength = 0.0f; });
     EXPECT_NO_THROW(ValidateNoiseLayer(NoiseLayer{}));
+}
+
+TEST(ValidateNoiseLayers, ChecksTheCountAndNamesTheBadLayer) {
+    EXPECT_NO_THROW(ValidateNoiseLayers({}));
+    EXPECT_THROW(ValidateNoiseLayers({}, 1), std::invalid_argument);
+    EXPECT_THROW(ValidateNoiseLayers(std::vector<NoiseLayer>(terraingen::kMaxNoiseLayers + 1)),
+                 std::invalid_argument);
+    std::vector<NoiseLayer> layers(2);
+    layers[1].fractal.gain = 0.0f;
+    try {
+        ValidateNoiseLayers(layers);
+        FAIL() << "expected std::invalid_argument";
+    } catch (const std::invalid_argument& error) {
+        EXPECT_EQ(std::string(error.what()).rfind("Layer 2:", 0), 0u) << error.what();
+    }
 }

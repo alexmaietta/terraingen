@@ -1,5 +1,5 @@
 #include "terraingen/raster/raster_stats.h"
-#include "terraingen/sources/synthetic_terrain.h"
+#include "terraingen/sources/synthetic_source.h"
 #include "terraingen/util/build_info.h"
 #include "terraingen/util/version.h"
 
@@ -17,7 +17,10 @@ int main() {
 
     terraingen::SyntheticTerrainParams params;
     params.layers[0].fractal.amplitude = 10.0f;
-    const auto terrain = terraingen::GenerateSyntheticTerrain(32, 32, 1.0, params);
+    terraingen::Raster<float> terrain =
+        terraingen::RasterGrid{32, 32, terraingen::GeoTransform::NorthUp(-16.0, 16.0, 1.0)}
+            .MakeRaster();
+    terraingen::SyntheticSource(params).Fill(terrain);
     const terraingen::RasterStats stats = terraingen::ComputeStats(terrain);
     std::printf("synthetic terrain: %zu cells, %.3f to %.3f m\n", stats.validCount, stats.min,
                 stats.max);

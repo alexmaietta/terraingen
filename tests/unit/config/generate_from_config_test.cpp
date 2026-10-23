@@ -49,7 +49,10 @@ TEST(GenerateFromConfig, MatchesComposingTheLibraryCalls) {
     Craters(config).apply.rimSmoothing.sigmaRadii = 0.05;
     const auto terrain = GenerateFromConfig(config);
 
-    auto expected = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Noise(config).Params());
+    terraingen::Raster<float> expected =
+        terraingen::RasterGrid{65, 49, terraingen::GeoTransform::NorthUp(-65.0, 49.0, 2.0)}
+            .MakeRaster();
+    terraingen::SyntheticSource(Noise(config).Params()).Fill(expected);
     const auto models = BuildCraterModels(Craters(config));
     CraterList manual;
     manual.Append({4.0, -3.0, 40.0, 0.0, terraingen::ManualCraterId(4.0, -3.0, 40.0), true});
@@ -95,7 +98,10 @@ TEST(GenerateFromConfig, AppliesTheHurstExponentToTheGain) {
     terraingen::SyntheticTerrainParams params;
     params.layers[0] = Noise(config).stack[0].EffectiveRelief();
     params.layers[0].fractal.gain = terraingen::GainFromHurst(0.6f, 2.0f);
-    const auto expected = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, params);
+    terraingen::Raster<float> expected =
+        terraingen::RasterGrid{65, 49, terraingen::GeoTransform::NorthUp(-65.0, 49.0, 2.0)}
+            .MakeRaster();
+    terraingen::SyntheticSource(params).Fill(expected);
     EXPECT_TRUE(std::equal(HeightsOf(terrain).Values().begin(), HeightsOf(terrain).Values().end(),
                            expected.Values().begin()));
 }
@@ -112,7 +118,10 @@ TEST(GenerateFromConfig, SupportsNoLayersNoCratersAndManualCratersOnly) {
     config.layers.pop_back();
     const auto plain = GenerateFromConfig(config);
     EXPECT_TRUE(CratersOf(plain).craters.Empty());
-    const auto noise = terraingen::GenerateSyntheticTerrain(65, 49, 2.0, Noise(config).Params());
+    terraingen::Raster<float> noise =
+        terraingen::RasterGrid{65, 49, terraingen::GeoTransform::NorthUp(-65.0, 49.0, 2.0)}
+            .MakeRaster();
+    terraingen::SyntheticSource(Noise(config).Params()).Fill(noise);
     EXPECT_TRUE(std::equal(HeightsOf(plain).Values().begin(), HeightsOf(plain).Values().end(),
                            noise.Values().begin()));
 

@@ -62,64 +62,90 @@ struct MidpointRoughness {
     double fractalDimension = 2.5;  ///< F in [2, 3].
 };
 
-/// The roughness of `heights` on its own cells: the scale is the RMS of each cell minus the mean of
-/// its four neighbors, what a last diamond step would have displaced it by, and the fractal
-/// dimension 3 - H, H the slope of the log RMS height difference over log lag at lags of 1, 2, 4
-/// and 8 cells along rows and columns (the variogram method), clamped to [0, 1]. Cells with no
-/// data are skipped; a raster without relief gives a scale of 0 and dimension 2.5.
-///
-/// Rough fBm surfaces (F near 3) read about 0.2 low, and expansions, not being stationary fBm,
-/// read up to about 0.25 off their dimension.
+/// The roughness of `heights` on its own cells: the scale is the RMS of each cell minus the mean
+/// of its four neighbors, and the fractal dimension 3 - H from the variogram at lags of 1 to 8
+/// cells; a raster without relief gives a scale of 0 and dimension 2.5.
 /// @throws std::invalid_argument for a raster with no cell whose four neighbors hold data.
 MidpointRoughness EstimateMidpointRoughness(const Raster<float>& heights);
 
-/// Node heights of a diamond-square lattice at one level over a window of node indices.
-struct MidpointNodes {
-    std::int64_t col0 = 0;  ///< First node column.
-    std::int64_t row0 = 0;  ///< First node row.
-    std::size_t width = 0;
-    std::size_t height = 0;
-    std::vector<double> values;  ///< Row by row; NaN where the posts have no data.
+namespace detail {
 
-    double At(std::int64_t col, std::int64_t row) const {
-        return values[static_cast<std::size_t>(row - row0) * width +
-                      static_cast<std::size_t>(col - col0)];
-    }
-};
+/// Node heights of a diamond-square lattice at one level over a box of node indices; NaN where
+/// the posts have no data.
+using MidpointNodes = LatticeWindow<double>;
 
-/// Random midpoint displacement of a source's posts (Martin, Parkes and Dunstan 2014; Peitgen and
-/// Saupe 1988): each level halves the node spacing, setting square nodes from their four corners
-/// and then diamond nodes from their four neighbors (`DiamondSquareInterp`), each plus a Gaussian
-/// displacement that shrinks by 2^-((3 - F) / 2) per step.
-///
-/// The level-0 nodes are the posts: node (c, r) lies at post (0, 0) plus c posts along the
-/// lattice's columns and r posts against its rows, north for a north-up lattice, and holds post
-/// (c, -r). A sample at spacing s refines ceil(log2(post spacing / s)) levels, up to
-/// `minPixelSize`, and reads the nodes of that level between them. Displacements are keyed by
-/// node and level and nodes never change once made, so a grid on a lattice twice as fine holds
-/// the coarser one's heights at every other node, and grids, tiles and points agree. At spacings
-/// no finer than the posts it interpolates the posts.
-class DiamondSquareUpsampler final : public Upsampler {
+/// The diamond-square refinement of posts that a `DiamondSquareUpsampler` reads its samples from.
+class MidpointRefiner {
   public:
-    /// @throws std::invalid_argument as `ValidateDiamondSquareOptions`.
-    explicit DiamondSquareUpsampler(DiamondSquareOptions options = {});
+    /// @param options Options with a fractal dimension and scale, or `Nodes` throws.
+    explicit MidpointRefiner(const DiamondSquareOptions& options);
 
     /// The levels refined at a sample spacing of `spacing` over posts `postSpacing` apart, both in
     /// the posts' units.
     int Levels(double postSpacing, double spacing) const;
 
-    /// The nodes of `level` over columns [`col0`, `col1`] and rows [`row0`, `row1`] of the
-    /// lattice of `posts` refined `level` times.
+    /// The nodes of `level` over `box` of the lattice of `posts` refined `level` times.
+    /// @throws std::invalid_argument without a fractal dimension and scale, or for a rotated
+    /// lattice.
+    MidpointNodes Nodes(const PostLattice& posts, int level, const IndexBox& box) const;
+
+    /// The heights at `positions` at a sample spacing of `spacing`, from one box of nodes.
+    /// @throws std::invalid_argument as `Nodes`.
+    std::vector<float> Expand(const PostLattice& posts, const std::vector<Vec2d>& positions,
+                              double spacing) const;
+
+    /// The heights at the cell centers of `heights`, tile by tile over every hardware thread.
+    /// @throws std::invalid_argument as `Nodes`.
+    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const;
+
+  private:
+    /// Where the nodes lie: post (0, 0) and the node steps of level 0 along x and y.
+    struct NodeFrame {
+        double originX = 0.0;
+        double originY = 0.0;
+        double stepX = 1.0;
+        double stepY = 1.0;
+    };
+
+    /// The node frame of `posts`.
+    /// @throws std::invalid_argument for a rotated lattice.
+    static NodeFrame Frame(const PostLattice& posts);
+    /// The posts as nodes of level 0 over `box`.
+    static MidpointNodes BaseNodes(const PostLattice& posts, const IndexBox& box);
+    /// The Gaussian displacement of node (`col`, `row`) made by the square (`diamond` false) or
+    /// diamond step of `level`.
+    double Displacement(std::int64_t col, std::int64_t row, int level, bool diamond) const;
+    /// The kept coarser nodes and the displaced square-step nodes of `level` over `box`; diamond
+    /// nodes left 0.
+    MidpointNodes SquareStep(const MidpointNodes& parents, int level, const IndexBox& box) const;
+    /// The nodes of `level` over `box`, adding the displaced diamond-step nodes to `squares`.
+    MidpointNodes DiamondStep(const MidpointNodes& squares, int level, const IndexBox& box) const;
+    /// The box of nodes of `level` that the samples at `positions` read.
+    IndexBox ReadBox(const NodeFrame& frame, int level, const std::vector<Vec2d>& positions) const;
+    /// The height at (`x`, `y`) from nodes of `level` covering it.
+    double Interpolate(const NodeFrame& frame, const MidpointNodes& nodes, int level, double x,
+                       double y) const;
+
+    DiamondSquareOptions options_;
+    double stepFactor_ = 1.0;
+};
+
+}  // namespace detail
+
+/// Random midpoint displacement of a source's posts (Martin, Parkes and Dunstan 2014; Peitgen and
+/// Saupe 1988): each level halves the node spacing and displaces new nodes by a Gaussian that
+/// shrinks by 2^-((3 - F) / 2) per step, keyed by node and level so grids, tiles and points agree.
+class DiamondSquareUpsampler final : public Upsampler {
+  public:
+    /// @throws std::invalid_argument as `ValidateDiamondSquareOptions`.
+    explicit DiamondSquareUpsampler(DiamondSquareOptions options = {});
+
     /// @throws std::invalid_argument without a fractal dimension and scale (`FitTo`), or for a
     /// rotated lattice.
-    MidpointNodes Nodes(const PostLattice& posts, int level, std::int64_t col0, std::int64_t row0,
-                        std::int64_t col1, std::int64_t row1) const;
-
-    /// @throws std::invalid_argument as `Nodes`.
     float HeightAt(const PostLattice& posts, double x, double y, double spacing) const override;
 
-    /// Refines the nodes once per block of cells, blocks over every hardware thread.
-    /// @throws std::invalid_argument as `Nodes`.
+    /// Refines the nodes once per tile of cells, tiles over every hardware thread.
+    /// @throws std::invalid_argument as `HeightAt`.
     void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const override;
 
     /// Posts either side of a sample its nodes are refined from.
@@ -137,36 +163,8 @@ class DiamondSquareUpsampler final : public Upsampler {
     }
 
   private:
-    /// Where the nodes lie: post (0, 0) and the node steps of level 0 along x and y.
-    struct NodeFrame {
-        double originX = 0.0;
-        double originY = 0.0;
-        double stepX = 1.0;
-        double stepY = 1.0;
-    };
-
-    /// The node frame of `posts`.
-    /// @throws std::invalid_argument for a rotated lattice.
-    static NodeFrame Frame(const PostLattice& posts);
-    /// The standard deviation of the displacement of the square (`diamond` false) or diamond step
-    /// that makes `level`.
-    double StepScale(int level, bool diamond) const;
-    /// The posts as nodes of level 0 over a window.
-    static MidpointNodes BaseNodes(const PostLattice& posts, std::int64_t col0, std::int64_t row0,
-                                   std::int64_t col1, std::int64_t row1);
-    /// The window of node indices at `level` that the samples at `positions` read.
-    void Window(const NodeFrame& frame, int level, const std::vector<Vec2d>& positions,
-                std::int64_t& col0, std::int64_t& row0, std::int64_t& col1,
-                std::int64_t& row1) const;
-    /// The height at (`x`, `y`) from nodes of `level` covering it.
-    double Interpolate(const NodeFrame& frame, const MidpointNodes& nodes, int level, double x,
-                       double y) const;
-    /// The heights at `positions` into `heights`, from one window of nodes.
-    void Expand(const PostLattice& posts, const std::vector<Vec2d>& positions,
-                std::vector<float>& heights, double spacing) const;
-
     DiamondSquareOptions options_;
-    double stepFactor_ = 1.0;
+    detail::MidpointRefiner refiner_;
 };
 
 }  // namespace terraingen

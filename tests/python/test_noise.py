@@ -248,3 +248,13 @@ def test_validate_noise_layer_rejects_a_negative_warp():
 def test_validate_synthetic_terrain_needs_a_layer():
     with pytest.raises(ValueError):
         terraingen.validate_synthetic_terrain(terraingen.SyntheticTerrainParams(layers=[]))
+
+
+def test_validate_noise_layers_checks_the_count_and_names_the_bad_layer():
+    terraingen.validate_noise_layers([])
+    with pytest.raises(ValueError):
+        terraingen.validate_noise_layers([], min_layers=1)
+    with pytest.raises(ValueError, match="^Layer 2: "):
+        terraingen.validate_noise_layers(
+            [terraingen.NoiseLayer(), terraingen.NoiseLayer(warp_amplitude=-1.0)]
+        )

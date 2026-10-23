@@ -11,7 +11,7 @@
 #include "terraingen/noise/validate.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/noise/worley.h"
-#include "terraingen/sources/synthetic_terrain.h"
+#include "terraingen/sources/synthetic_source.h"
 
 #include <nanobind/operators.h>
 
@@ -245,6 +245,8 @@ void BindNoiseLayer(nb::module_& m) {
         .def(nb::self == nb::self);
     m.attr("MAX_NOISE_LAYERS") = kMaxNoiseLayers;
     m.def("validate_noise_layer", &ValidateNoiseLayer, "layer"_a, kValidateDoc);
+    m.def("validate_noise_layers", &ValidateNoiseLayers, "layers"_a, "min_layers"_a = 0,
+          kValidateDoc);
 }
 
 void BindLayerEvaluation(nb::module_& m) {

@@ -480,7 +480,7 @@ def test_diamond_square_upsampling_expands_posts_keeping_them():
     options = terraingen.DiamondSquareOptions(fractal_dimension=2.3, scale=0.5)
     options.validate()
     upsampler = terraingen.DiamondSquareUpsampler(options)
-    assert upsampler.levels(4.0, 1.0) == 2 and upsampler.reach() == 4
+    assert upsampler.reach() == 4
     assert upsampler.options.interp == terraingen.DiamondSquareInterp.BILINEAR
     source = terraingen.RasterSource(posts, upsampler=upsampler)
     grid = terraingen.RasterGrid(63, 63, terraingen.GeoTransform.north_up(0.5, 63.5, 1.0))

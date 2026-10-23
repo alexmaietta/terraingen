@@ -35,7 +35,7 @@ TEST(NoiseRelief, AddsTheSyntheticTerrainAtTheOrigin) {
     NoiseRelief(Params()).Apply(heights, {2.0});
     Raster<float> expected(24, 16);
     expected.SetTransform(heights.Transform());
-    terraingen::FillSyntheticTerrain(expected, Params());
+    terraingen::SyntheticSource(Params()).Fill(expected);
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], 10.0f + expected.Values()[i]) << i;
     }

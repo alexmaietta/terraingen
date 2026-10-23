@@ -7,7 +7,7 @@
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/sources/field.h"
 #include "terraingen/sources/source.h"
-#include "terraingen/sources/synthetic_terrain.h"
+#include "terraingen/sources/synthetic_source.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/surface.h"
 

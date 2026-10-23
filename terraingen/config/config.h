@@ -40,7 +40,7 @@
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/diamond_square.h"
 #include "terraingen/sources/geotiff_source.h"
-#include "terraingen/sources/synthetic_terrain.h"
+#include "terraingen/sources/synthetic_source.h"
 
 #include <cstddef>
 #include <cstdint>

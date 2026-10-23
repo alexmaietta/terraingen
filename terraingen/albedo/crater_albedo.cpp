@@ -1,7 +1,9 @@
 #include "terraingen/albedo/crater_albedo.h"
 
 #include "terraingen/albedo/bands.h"
+#include "terraingen/albedo/zone_shadows.h"
 #include "terraingen/layers/craters/secondaries.h"
+#include "terraingen/layers/craters/shaping/irregularity.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/random/stream.h"
@@ -21,180 +23,6 @@ namespace terraingen {
 namespace {
 
 constexpr std::size_t kBlockRows = 32;
-
-}  // namespace
-
-double RayRetention::Myr(double diameter) const {
-    double myr = largeMyr;
-    if (diameter <= smallDiameter) {
-        myr = smallMyr;
-    } else if (diameter < midDiameter) {
-        const double t = std::log(diameter / smallDiameter) / std::log(midDiameter / smallDiameter);
-        myr = smallMyr * std::pow(midMyr / smallMyr, t);
-    } else if (diameter <= largeDiameter) {
-        myr = midMyr;
-    }
-    return scale * myr;
-}
-
-void ValidateRayRetention(const RayRetention& retention) {
-    if (!(IsPositive(retention.smallDiameter) && IsPositive(retention.midDiameter) &&
-          IsPositive(retention.largeDiameter) && retention.smallDiameter < retention.midDiameter &&
-          retention.midDiameter <= retention.largeDiameter)) {
-        throw std::invalid_argument("Ray retention diameters must be positive and increasing");
-    }
-    if (!(IsPositive(retention.smallMyr) && IsPositive(retention.midMyr) &&
-          IsPositive(retention.largeMyr) && IsPositive(retention.scale))) {
-        throw std::invalid_argument("Ray retention times and their scale must be positive");
-    }
-}
-
-double ObliqueImpacts::MaxStretch() const {
-    if (!enabled) {
-        return 1.0;
-    }
-    const double ratio = downrangeSpeedRatio.Highest();
-    const double a = (ratio - 1.0) / (ratio + 1.0);
-    return (1.0 + a) * (1.0 + a) / (1.0 + 0.5 * a * a);
-}
-
-void ValidateObliqueImpacts(const ObliqueImpacts& oblique) {
-    ValidateValueDistribution(oblique.downrangeSpeedRatio);
-    if (oblique.downrangeSpeedRatio.Lowest() < 1.0 ||
-        !std::isfinite(oblique.downrangeSpeedRatio.Highest())) {
-        throw std::invalid_argument("The downrange speed ratio must be at least 1 and bounded");
-    }
-    if (!(oblique.butterflyDegrees >= 0.0 && oblique.butterflyDegrees <= oblique.forbiddenDegrees &&
-          oblique.forbiddenDegrees <= oblique.asymmetricDegrees &&
-          oblique.asymmetricDegrees <= 90.0)) {
-        throw std::invalid_argument(
-            "Oblique impact angles must satisfy 0 <= butterfly <= forbidden <= asymmetric <= 90");
-    }
-    if (!(oblique.zoneHalfWidthDegrees >= 0.0 && oblique.zoneHalfWidthDegrees <= 180.0)) {
-        throw std::invalid_argument("A forbidden zone's half width must be in [0, 180] degrees");
-    }
-    if (oblique.heading && !std::isfinite(*oblique.heading)) {
-        throw std::invalid_argument("An impact heading must be finite");
-    }
-}
-
-double CraterRays::MedianLength(double diameter) const {
-    return ElliottMedianRayLength(diameter, lengthCoefficient, lengthExponent);
-}
-
-void ValidateCraterRays(const CraterRays& rays) {
-    ValidateValueDistribution(rays.count);
-    ValidateValueDistribution(rays.lengthSpread);
-    ValidateValueDistribution(rays.widthDegrees);
-    if (rays.count.Lowest() < 0.0 || rays.count.Highest() > 64.0) {
-        throw std::invalid_argument("Craters must have 0 to 64 rays");
-    }
-    if (!(rays.widthDegrees.Lowest() > 0.0 && rays.widthDegrees.Highest() < 180.0)) {
-        throw std::invalid_argument("Ray widths must be in (0, 180) degrees");
-    }
-    if (!(IsPositive(rays.lengthCoefficient) && IsPositive(rays.lengthExponent))) {
-        throw std::invalid_argument("The ray length law needs a positive coefficient and exponent");
-    }
-    if (!IsNonNegative(rays.excess)) {
-        throw std::invalid_argument("The ray maturity excess must not be negative");
-    }
-    if (!(IsInUnitInterval(rays.patchiness) && IsPositive(rays.patchRadii))) {
-        throw std::invalid_argument(
-            "Ray patchiness must be in [0, 1] with a positive patch wavelength");
-    }
-    ValidateObliqueImpacts(rays.oblique);
-    if (rays.layout) {
-        ValidateRayLayout(*rays.layout);
-    }
-}
-
-void ValidateCraterAlbedoTexture(const CraterAlbedoTexture& texture) {
-    if (!(IsInUnitInterval(texture.streaks) && IsInUnitInterval(texture.floorShare))) {
-        throw std::invalid_argument("Crater albedo streaks and floor share must be in [0, 1]");
-    }
-    if (!(texture.lobes >= 0.0 && texture.lobes <= 0.9 && texture.lobeCount >= 1 &&
-          texture.lobeCount <= 64)) {
-        throw std::invalid_argument(
-            "Crater albedo lobes must be in [0, 0.9] with a lobe count of 1 to 64");
-    }
-    RequirePositive(texture.streakWidthDegrees, "Crater albedo streak width");
-    RequirePositive(texture.streakLengthRadii, "Crater albedo streak length");
-    RequireNonNegative(texture.continuousRadii, "Crater albedo continuous ejecta reach");
-}
-
-void ValidateReflectanceZone(const ReflectanceZone& zone) {
-    RequireUnitInterval(zone.share, "The share of craters with a reflectance zone");
-    ValidateValueDistribution(zone.change);
-    ValidateValueDistribution(zone.scale);
-    if (!(zone.change.Lowest() > -1.0 && std::isfinite(zone.change.Highest()))) {
-        throw std::invalid_argument("A reflectance zone's change must be above -1 and bounded");
-    }
-    if (!(IsPositive(zone.coefficient) && IsPositive(zone.exponent) && zone.scale.Lowest() > 0.0 &&
-          std::isfinite(zone.scale.Highest()))) {
-        throw std::invalid_argument(
-            "A reflectance zone needs a positive reach law and a positive, bounded reach scale");
-    }
-    if (!(zone.raggedness >= 0.0 && zone.raggedness < 1.0 && zone.feather > 0.0 &&
-          zone.feather <= 1.0)) {
-        throw std::invalid_argument(
-            "A reflectance zone's raggedness must be in [0, 1) and its feather in (0, 1]");
-    }
-    RequirePositive(zone.fingerWidthDegrees, "A reflectance zone's finger width");
-    if (zone.retentionMyr) {
-        RequirePositive(*zone.retentionMyr, "A reflectance zone's retention time");
-    }
-}
-
-double CraterReflectanceZones::MaxReach(double diameter) const {
-    double reach = 0.0;
-    for (const ReflectanceZone* zone : All()) {
-        reach = std::fmax(reach, zone->coefficient * std::pow(diameter, zone->exponent) *
-                                     zone->scale.Highest());
-    }
-    return reach;
-}
-
-void ValidateCraterReflectanceZones(const CraterReflectanceZones& zones) {
-    for (const ReflectanceZone* zone : zones.All()) {
-        ValidateReflectanceZone(*zone);
-    }
-    RequirePositive(zones.maxDiameter, "The largest crater with reflectance zones");
-    RequirePositive(zones.excavationRatio, "The excavation depth ratio");
-    RequireNonNegative(zones.matureDepth, "The mature regolith depth");
-    const ZoneShadows& s = zones.shadows;
-    if (!(s.jetAngleDegrees > 0.0 && s.jetAngleDegrees < 90.0 && IsPositive(s.depth) &&
-          s.azimuths >= 8 && s.azimuths <= 8192 && s.radialSamples >= 8 &&
-          s.radialSamples <= 8192)) {
-        throw std::invalid_argument("Zone shadows need a jet angle in (0, 90) degrees, a positive "
-                                    "depth and 8 to 8192 azimuths and samples");
-    }
-}
-
-void ValidateCraterAlbedoOptions(const CraterAlbedoOptions& options) {
-    ValidateCraterReflectanceZones(options.zones);
-    ValidateCraterAlbedoTexture(options.texture);
-    ValidateCraterRays(options.rays);
-    ValidateRayRetention(options.retention);
-    ValidateResolutionFade(options.fade);
-    ValidateCraterSelection(options.selection, "Crater albedo");
-    RequireUnitInterval(options.share, "The share of craters with bright material");
-    if (!(IsPositive(options.backgroundMaturity) && std::isfinite(options.maxMaturity) &&
-          options.maxMaturity >= options.backgroundMaturity)) {
-        throw std::invalid_argument(
-            "The background maturity must be positive and the cap at least as high");
-    }
-    if (!(IsNonNegative(options.interiorExcess) && IsNonNegative(options.ejectaExcess))) {
-        throw std::invalid_argument("Crater maturity excesses must not be negative");
-    }
-    if (!(IsPositive(options.ejectaExponent) && std::isfinite(options.ejectaReachRadii) &&
-          options.ejectaReachRadii > 1.0 && IsPositive(options.fadeExponent) &&
-          std::isfinite(options.originReflectance))) {
-        throw std::invalid_argument("Crater albedo needs a positive ejecta exponent and fade "
-                                    "exponent and a reach over 1 radius");
-    }
-}
-
-namespace {
 
 /// How far `crater`'s ejecta edge reaches at `angle` radians around it, over its mean reach.
 double LobeScale(double angle, std::uint32_t key, const CraterAlbedoTexture& texture) {
@@ -219,149 +47,6 @@ double StreakShare(double radii, double angle, std::uint32_t key,
     return 1.0 - texture.streaks * (1.0 - filament);
 }
 
-/// How far a jet from a crater's rim runs above the ground, on `azimuths` rays of `samples`
-/// samples around the crater, of which `rays` rays from `first` and their first `used` samples
-/// are held: those reaching the region evaluated.
-struct ShadowProfile {
-    std::size_t azimuths = 0;
-    std::size_t samples = 0;
-    std::size_t first = 0;
-    std::size_t rays = 0;
-    std::size_t used = 0;
-    double start = 0.0;
-    double step = 0.0;
-    double depth = 1.0;
-    std::vector<float> gap;
-
-    /// How deep in shadow the ground is at `distance` meters and `angle` radians from the
-    /// crater's center, from 0 in the open to 1 in full shadow.
-    double Shade(double distance, double angle) const {
-        if (distance <= start) {
-            return 0.0;
-        }
-        const auto rings = static_cast<double>(azimuths);
-        const double r = std::fmin((distance - start) / step, static_cast<double>(samples - 1));
-        double a = angle / (2.0 * kPi) * rings;
-        a -= std::floor(a / rings) * rings;
-        const std::size_t a0 = std::min(static_cast<std::size_t>(a), azimuths - 1);
-        const std::size_t a1 = (a0 + 1) % azimuths;
-        const std::size_t r0 = std::min(static_cast<std::size_t>(r), samples - 1);
-        const std::size_t r1 = std::min(r0 + 1, samples - 1);
-        const double fa = a - static_cast<double>(a0);
-        const double fr = r - static_cast<double>(r0);
-        const auto at = [&](std::size_t i, std::size_t j) {
-            const std::size_t k = (i + azimuths - first) % azimuths;
-            return k < rays ? static_cast<double>(gap[k * used + std::min(j, used - 1)]) : 0.0;
-        };
-        const double g = (1.0 - fa) * ((1.0 - fr) * at(a0, r0) + fr * at(a0, r1)) +
-                         fa * ((1.0 - fr) * at(a1, r0) + fr * at(a1, r1));
-        return Smoothstep(g / depth);
-    }
-
-    /// The surface points of the held samples around `center`, row-major by ray.
-    std::vector<Vec2d> Points(const Vec2d& center, const Surface& surface) const {
-        std::vector<Vec2d> points;
-        points.reserve(rays * used);
-        for (std::size_t k = 0; k < rays; ++k) {
-            const std::size_t i = (first + k) % azimuths;
-            const double angle = 2.0 * kPi * static_cast<double>(i) / static_cast<double>(azimuths);
-            for (std::size_t j = 0; j < used; ++j) {
-                const double distance = start + static_cast<double>(j) * step;
-                points.push_back(surface.Locate(
-                    center, {distance * std::cos(angle), distance * std::sin(angle)}));
-            }
-        }
-        return points;
-    }
-
-    /// Sets the samples along each held ray from the ground's `heights` there, row-major by ray:
-    /// how far a jet from the rim, dropping by at most `drop` meters per sample, runs above them.
-    void TraceJets(const std::vector<float>& heights, double drop) {
-        gap.assign(heights.size(), 0.0f);
-        for (std::size_t k = 0; k < rays; ++k) {
-            const std::size_t row = k * used;
-            double jet = static_cast<double>(heights[row]);
-            for (std::size_t j = 1; j < used; ++j) {
-                const double h = static_cast<double>(heights[row + j]);
-                if (std::isnan(h) || std::isnan(jet)) {
-                    jet = h;
-                    continue;
-                }
-                jet = std::fmax(h, jet - drop);
-                gap[row + j] = static_cast<float>(jet - h);
-            }
-        }
-    }
-};
-
-/// The rays, of `azimuths` around `center`, that reach `region`, with one more on each side, and
-/// the farthest distance in meters of the region from `center`.
-struct RayWindow {
-    std::size_t first = 0;
-    std::size_t rays = 0;
-    double far = 0.0;
-};
-
-RayWindow RaysOver(const Vec2d& center, const Bounds2d& region, const Surface& surface,
-                   std::size_t azimuths) {
-    RayWindow window;
-    window.rays = azimuths;
-    constexpr double kInf = std::numeric_limits<double>::infinity();
-    double minX = kInf;
-    double maxX = -kInf;
-    double minY = kInf;
-    double maxY = -kInf;
-    std::vector<Vec2d> corners;
-    for (const double x : {region.minX, region.maxX}) {
-        for (const double y : {region.minY, region.maxY}) {
-            const Vec2d c = surface.Offset(center, {x, y});
-            corners.push_back(c);
-            minX = std::fmin(minX, c.x);
-            maxX = std::fmax(maxX, c.x);
-            minY = std::fmin(minY, c.y);
-            maxY = std::fmax(maxY, c.y);
-            window.far = std::fmax(window.far, std::hypot(c.x, c.y));
-        }
-    }
-    if (minX <= 0.0 && maxX >= 0.0 && minY <= 0.0 && maxY >= 0.0) {
-        return window;
-    }
-    const double mid = std::atan2(0.5 * (minY + maxY), 0.5 * (minX + maxX));
-    double half = 0.0;
-    for (const Vec2d& c : corners) {
-        half = std::fmax(half, std::fabs(std::remainder(std::atan2(c.y, c.x) - mid, 2.0 * kPi)));
-    }
-    const double ray = 2.0 * kPi / static_cast<double>(azimuths);
-    const double from = std::floor((mid - half) / ray) - 1.0;
-    const double to = std::ceil((mid + half) / ray) + 1.0;
-    if (to - from + 1.0 >= static_cast<double>(azimuths)) {
-        return window;
-    }
-    const auto n = static_cast<std::int64_t>(azimuths);
-    window.first = static_cast<std::size_t>(((static_cast<std::int64_t>(from) % n) + n) % n);
-    window.rays = static_cast<std::size_t>(to - from) + 1;
-    return window;
-}
-
-/// The shadow profile of `shadows` from the rim of a crater `radius` meters across to `reach`
-/// meters, holding the rays of `window` and the samples out to its far side; heights not yet
-/// traced.
-ShadowProfile MakeShadowProfile(const ZoneShadows& shadows, double radius, double reach,
-                                const RayWindow& window) {
-    ShadowProfile profile;
-    profile.azimuths = static_cast<std::size_t>(shadows.azimuths);
-    profile.samples = static_cast<std::size_t>(shadows.radialSamples);
-    profile.start = radius;
-    profile.step = (reach - radius) / static_cast<double>(profile.samples - 1);
-    profile.depth = shadows.depth;
-    const double used = std::ceil((window.far - radius) / profile.step) + 2.0;
-    profile.first = window.first;
-    profile.rays = window.rays;
-    profile.used =
-        static_cast<std::size_t>(std::clamp(used, 2.0, static_cast<double>(profile.samples)));
-    return profile;
-}
-
 /// One reflectance zone of a crater, drawn.
 struct DrawnZone {
     double change = 0.0;
@@ -382,10 +67,7 @@ struct DrawnZone {
         if (distance >= reach) {
             return 0.0;
         }
-        const double finger =
-            raggedness > 0.0
-                ? LobeFactor(RingNoise(ring, angle, 3.0 * distance / reach, key, 4), raggedness)
-                : 1.0;
+        const double finger = EdgeLobe(raggedness, ring, angle, 3.0 * distance / reach, key, 4);
         return SoftEdge(distance / (reach * finger), feather);
     }
 };
@@ -432,7 +114,7 @@ struct CraterAlbedo::Prepared {
     double reach = 0.0;
     std::vector<Ray> rays;
     std::vector<DrawnZone> zones;
-    std::shared_ptr<const ShadowProfile> shadow;
+    std::shared_ptr<const detail::ShadowProfile> shadow;
 
     /// The relative reflectance change of the zones at (`x`, `y`), inner zones covering outer as
     /// long as they last, the bright proximal zone broken by `texture`'s filaments.
@@ -688,9 +370,10 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
     }
     const Vec2d center{crater.x, crater.y};
     const Surface& surface = craters_->Options().surface;
-    const RayWindow window =
-        RaysOver(center, region, surface, static_cast<std::size_t>(s.azimuths));
-    auto profile = std::make_shared<ShadowProfile>(MakeShadowProfile(s, radius, reach, window));
+    const detail::RayWindow window =
+        detail::RaysOver(center, region, surface, static_cast<std::size_t>(s.azimuths));
+    auto profile = std::make_shared<detail::ShadowProfile>(
+        detail::MakeShadowProfile(s, radius, reach, window));
     const std::vector<Vec2d> points = profile->Points(center, surface);
     std::vector<float> heights(points.size());
     ground.HeightsAt(points, heights, profile->step);

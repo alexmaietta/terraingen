@@ -133,24 +133,16 @@ void RasterHeights::Fill(Raster<float>& heights, double spacing) const {
                                     " cannot be filled");
     }
     FillUpsampled(*upsampler_, posts_, heights, spacing);
-    const std::optional<float> noData = native_->NoData();
-    const float fill = noData.value_or(std::numeric_limits<float>::quiet_NaN());
-    bool missing = false;
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             const Vec2d center = heights.CellCenter(col, row);
             const Vec2d pixel = lattice_.transform.WorldToPixel(center.x, center.y);
-            float& cell = heights(col, row);
             if (!Covers(pixel.x, pixel.y)) {
-                cell = std::numeric_limits<float>::quiet_NaN();
-            }
-            if (std::isnan(cell)) {
-                cell = fill;
-                missing = true;
+                heights(col, row) = std::numeric_limits<float>::quiet_NaN();
             }
         }
     }
-    heights.SetNoData(FilledNoData(noData, missing));
+    MarkMissing(heights, native_->NoData());
 }
 
 float RasterHeights::HeightAt(double x, double y, double spacing) const {
@@ -177,10 +169,5 @@ RasterSource::RasterSource(std::shared_ptr<const Raster<float>> heights,
                            RasterSourceOptions options, GeoKeys keys)
     : options_(std::move(options)), keys_(std::move(keys)),
       heights_(WholeHeights(std::move(heights), options_)) {}
-
-Vec2d RasterSource::ReferencePoint() const {
-    const GeoTransform& transform = heights_.Lattice().transform;
-    return {transform.originX, transform.originY};
-}
 
 }  // namespace terraingen

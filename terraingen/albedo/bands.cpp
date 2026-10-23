@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace terraingen {
 
@@ -55,8 +56,19 @@ double RingNoise(double ring, double angle, double z, std::uint32_t seed, int oc
     return static_cast<double>(Fractal3(ring * std::cos(angle), ring * std::sin(angle), z, params));
 }
 
-double LobeFactor(double noise, double raggedness) {
-    return 1.0 - raggedness * std::clamp(0.5 - noise, 0.0, 1.0);
+double EdgeLobe(double raggedness, double ring, double angle, double z, std::uint32_t seed,
+                int octaves) {
+    if (!(raggedness > 0.0)) {
+        return 1.0;
+    }
+    return 1.0 - raggedness * std::clamp(0.5 - RingNoise(ring, angle, z, seed, octaves), 0.0, 1.0);
+}
+
+void ValidateRelativeChange(const ValueDistribution& change, const std::string& what) {
+    ValidateValueDistribution(change);
+    if (!(change.Lowest() > -1.0 && std::isfinite(change.Highest()))) {
+        throw std::invalid_argument(what + " must be above -1 and bounded");
+    }
 }
 
 double LifeLeft(double ageGyr, double lifetimeMyr) {

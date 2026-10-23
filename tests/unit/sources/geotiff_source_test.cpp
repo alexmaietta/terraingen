@@ -182,7 +182,6 @@ TEST(GeoTiffSource, ScalesSamplesByTheBandsMetadataOrOverrides) {
     const GdalFixture& single = terraingen::testing::int16_scaled_nodata;
     const auto expect = [&](const GeoTiffSource& source, const GdalFixture& fixture, double scale,
                             double offset) {
-        EXPECT_EQ(source.Scaling(), (terraingen::BandScaling{scale, offset}));
         auto heights = source.Grid().MakeRaster();
         source.Fill(heights);
         for (std::size_t i = 0; i < heights.Size(); ++i) {
@@ -215,7 +214,6 @@ TEST(GeoTiffSource, ScalesSamplesByTheBandsMetadataOrOverrides) {
     GeoTiffSourceOptions secondBand;
     secondBand.band = 1;
     expect(GeoTiffSource(write(bands), secondBand), bands, 0.25, 10.0);
-    EXPECT_EQ(GeoTiffSource(write(bands)).Scaling(), terraingen::BandScaling{});
 
     GeoTiffSourceOptions notANumber;
     notANumber.scale = std::nan("");

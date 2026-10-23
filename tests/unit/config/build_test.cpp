@@ -824,13 +824,15 @@ TEST(BuildGenerator, BuildsASyntheticSourceOrAFlatOneWithoutASource) {
     const terraingen::TerrainGenerator noise = terraingen::BuildGenerator(config);
     const auto made = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(noise.source);
     ASSERT_NE(made, nullptr);
-    EXPECT_EQ(made->Elevation(), -20.0f);
+    const terraingen::SyntheticSource bilinearPosts(
+        terraingen::StackParams(synthetic.stack), -20.0f, 16.0,
+        std::make_shared<terraingen::KernelUpsampler>(terraingen::ResampleMethod::Bilinear));
+    EXPECT_EQ(made->HeightAt(5.0, 3.0, 1.0), bilinearPosts.HeightAt(5.0, 3.0, 1.0));
     EXPECT_EQ(made->PixelSize(), 16.0);
     EXPECT_EQ(made->Params(), terraingen::StackParams(synthetic.stack));
     const auto kernel =
         std::dynamic_pointer_cast<const terraingen::KernelUpsampler>(made->UpsamplerInUse());
     ASSERT_NE(kernel, nullptr);
-    EXPECT_EQ(kernel->Method(), terraingen::ResampleMethod::Bilinear);
 }
 
 TEST(BuildGenerator, MakesRegisteredUpsamplersWithTheirSettings) {

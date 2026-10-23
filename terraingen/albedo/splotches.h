@@ -16,17 +16,8 @@
 
 namespace terraingen {
 
-/// Swarms of splotches around new craters, the low-velocity secondaries of their ejecta (Robinson
-/// et al. 2015); off by default. New craters from `minCraterDiameter` to `maxCraterDiameter` form
-/// at `craterRate` (D / 10 m)^-`craterSlope` per km^2 per year (Speyerer et al. 2016: 16 a year of
-/// at least 10 m over 3.305e6 km^2 yr, with the Neukum slope of 2.97 to 3.15), each throwing
-/// `referenceCount` (D / `referenceDiameter`)^(3 + 1.5 `mu`) splotches, as the ejecta mass faster
-/// than a speed grows (Housen and Holsapple 2011, `mu` 0.41 for sand), landing between `minRange`
-/// and `maxRange` with N(> r) ~ r^(-1.5 `mu`) for launches at 45 degrees. Robinson et al. counted
-/// 248 splotches 2 to 22 m across (median 6 m) within 30 km of an 18.8 m crater, at a median
-/// distance of 8.7 km, which sets `minRange`; 239 were darker (median -4%), 3 brighter (+4% to
-/// +12%), and some wedges pointing back to the crater. The spread of sizes, the share of wedges and
-/// their elongation are illustrative. The swarms fade with the splotches' lifetime.
+/// Swarms of splotches thrown by new craters, the low-velocity secondaries of their ejecta
+/// (Robinson et al. 2015; Speyerer et al. 2016; Housen and Holsapple 2011), off by default.
 struct SplotchSwarms {
     bool enabled = false;             ///< Whether new craters throw swarms.
     double craterRate = 4.84e-6;      ///< New craters of at least 10 m, per km^2 per year.
@@ -75,10 +66,8 @@ struct SplotchSwarms {
     }
 };
 
-/// Splotches after Speyerer et al. (2016): formed at a cumulative rate of `rateCoefficient`
-/// d^-`rateExponent` per km^2 per year for diameter d in km, each lasting `lifetimeMyr`, the
-/// time splotches take to churn the top centimeters. Most are dark, some bright and the rest mixed,
-/// each nearly round; a younger splotch covers older ones as it fades.
+/// Splotches after Speyerer et al. (2016): formed at `rateCoefficient` d^-`rateExponent` per km^2
+/// per year (d in km), each lasting `lifetimeMyr`; dark, bright or mixed.
 struct SplotchAlbedoOptions {
     std::uint32_t seed = 0;              ///< Seed of where splotches fall and what they are.
     double rateCoefficient = 1.483e-11;  ///< Formation rate coefficient, per km^2 per year.

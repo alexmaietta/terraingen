@@ -118,8 +118,6 @@ class RasterField final : public SurfaceField {
     /// The raster at (x, y) before scaling: its nearest cell, or the bilinear mean of the valid
     /// cells around it; NaN outside its extent or where every cell read is invalid.
     double Sample(double x, double y) const;
-    /// Whether a cell is finite and not no-data.
-    bool IsValid(std::size_t col, std::size_t row) const;
     /// The cell holding `pixel` (pixel coordinates inside the raster), NaN where invalid.
     double SampleNearest(const Vec2d& pixel) const;
     /// The weighted mean of the valid cells around `pixel`, NaN where none is.

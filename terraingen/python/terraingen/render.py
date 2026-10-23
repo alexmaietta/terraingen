@@ -8,7 +8,8 @@ alive), and add a sun and a camera looking at it, so a script can generate and r
     import terraingen
     from terraingen import render
 
-    raster = terraingen.generate_synthetic_terrain(...)
+    raster = terraingen.Raster(...)
+    terraingen.SyntheticSource(...).fill(raster)
     scene = ernie.Scene()
     render.add_terrain(scene, raster)
     render.add_sun(scene, azimuth_deg=315.0, elevation_deg=20.0)

@@ -43,15 +43,9 @@ struct GeoTiffSourceOptions {
     }
 };
 
-/// Heights from one band of a GeoTIFF in a projected CRS: a `RasterSource` of the file's band.
-///
-/// The cells the source needs are read on first use and kept: the whole file, or with a `crop`
-/// a window of it, the cells under the crop's grid and enough around them for the upsampler, so
-/// that the source gives the same bits there as without the crop. On the source's own lattice
-/// at its cell size or coarser `Fill` copies cells exactly; elsewhere, and at finer spacings,
-/// the upsampler gives each cell. Cells beyond the file, or beyond the crop's grid, are no-data.
-/// Samples are scaled with the band's scale and offset, which `scale` and `offset` replace; when
-/// that changes the samples, cells without data become NaN.
+/// Heights from one band of a GeoTIFF in a projected CRS, read on first use (only a window around
+/// `crop` when set, giving the same bits as the whole file) and served as a `RasterSource` serves
+/// its raster; samples take the band's scale and offset, or `scale` and `offset`.
 class GeoTiffSource final : public Source {
   public:
     using Source::Fill;
@@ -70,7 +64,9 @@ class GeoTiffSource final : public Source {
     }
 
     /// The top-left corner of the file's grid, in CRS units, with or without a crop.
-    Vec2d ReferencePoint() const override;
+    Vec2d ReferencePoint() const override {
+        return detail::Corner(lattice_);
+    }
 
     /// Copies cells on the source's lattice at its cell size or coarser, otherwise upsamples.
     /// @throws std::invalid_argument for a rotated grid off the source's lattice.
@@ -91,11 +87,6 @@ class GeoTiffSource final : public Source {
     /// The file's projection.
     GeoKeys Keys() const override {
         return info_.geoKeys;
-    }
-
-    /// The scale and offset the samples are read with.
-    const BandScaling& Scaling() const {
-        return scaling_;
     }
 
   private:

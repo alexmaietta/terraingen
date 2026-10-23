@@ -63,10 +63,6 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
     cells_ = options_.crop ? CropCells(lattice_, *options_.crop) : WholeWindow(lattice_);
 }
 
-Vec2d GeoTiffSource::ReferencePoint() const {
-    return {lattice_.transform.originX, lattice_.transform.originY};
-}
-
 const detail::RasterHeights& GeoTiffSource::Heights() const {
     std::call_once(loaded_, [this] {
         const RasterSourceOptions sampling = SamplingOptions(options_);

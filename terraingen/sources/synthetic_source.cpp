@@ -12,6 +12,10 @@
 
 namespace terraingen {
 
+void ValidateSyntheticTerrain(const SyntheticTerrainParams& params) {
+    ValidateNoiseLayers(params.layers, 1);
+}
+
 SyntheticSource::NoisePosts::NoisePosts(const SyntheticSource& source, double pixelSize)
     : source_(source),
       transform_(GeoTransform::NorthUp(-0.5 * pixelSize, 0.5 * pixelSize, pixelSize)) {}
@@ -32,17 +36,7 @@ SyntheticSource::SyntheticSource(SyntheticTerrainParams params, float elevation,
                                  std::optional<double> pixelSize,
                                  std::shared_ptr<const Upsampler> upsampler, Surface surface)
     : params_(std::move(params)), elevation_(elevation), pixelSize_(pixelSize), surface_(surface) {
-    if (params_.layers.size() > kMaxNoiseLayers) {
-        throw std::invalid_argument("A synthetic source holds at most " +
-                                    std::to_string(kMaxNoiseLayers) + " noise layers");
-    }
-    for (std::size_t i = 0; i < params_.layers.size(); ++i) {
-        try {
-            ValidateNoiseLayer(params_.layers[i]);
-        } catch (const std::invalid_argument& error) {
-            throw std::invalid_argument("Layer " + std::to_string(i + 1) + ": " + error.what());
-        }
-    }
+    ValidateNoiseLayers(params_.layers);
     RequireFinite(static_cast<double>(elevation_), "Elevation");
     if (!pixelSize_) {
         if (upsampler) {
@@ -60,9 +54,6 @@ SyntheticSource::SyntheticSource(SyntheticTerrainParams params, float elevation,
 }
 
 float SyntheticSource::NoiseAt(double x, double y) const {
-    if (params_.layers.empty()) {
-        return elevation_;
-    }
     return elevation_ + NoiseLayersAt(params_.layers, {}, surface_, x, y);
 }
 
@@ -81,11 +72,7 @@ void SyntheticSource::Fill(Raster<float>& heights, double spacing) const {
             }
         });
     }
-    bool missing = false;
-    for (const float value : heights.Values()) {
-        missing = missing || std::isnan(value);
-    }
-    heights.SetNoData(FilledNoData(std::nullopt, missing));
+    MarkMissing(heights, std::nullopt);
 }
 
 float SyntheticSource::HeightAt(double x, double y, double spacing) const {

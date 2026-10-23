@@ -107,3 +107,22 @@ TEST(ResolvedSpacing, RaisesTheSpacingToTheRastersOwn) {
     flat.SetTransform({0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
     EXPECT_THROW(terraingen::ResolvedSpacing(flat, 0.0, Surface()), std::domain_error);
 }
+
+TEST(ForEachTile, CoversEveryCellOnceInTilesOfTheSide) {
+    std::vector<int> visits(10 * 7, 0);
+    terraingen::ForEachTile(10, 7, 4, 0, [&](const PixelWindow& tile) {
+        EXPECT_LE(tile.colEnd - tile.colBegin, 4u);
+        EXPECT_LE(tile.rowEnd - tile.rowBegin, 4u);
+        for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
+            for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
+                ++visits[row * 10 + col];
+            }
+        }
+    });
+    for (const int count : visits) {
+        EXPECT_EQ(count, 1);
+    }
+    bool called = false;
+    terraingen::ForEachTile(0, 5, 4, 1, [&](const PixelWindow&) { called = true; });
+    EXPECT_FALSE(called);
+}
