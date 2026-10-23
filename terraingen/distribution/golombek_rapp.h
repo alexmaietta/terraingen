@@ -34,4 +34,8 @@ class GolombekRappSfd final : public SizeFrequencyDistribution {
     double q_;
 };
 
+/// The Golombek-Rapp density -dN/dD per m^2 per meter of diameter at `diameter` meters, for
+/// coverage k and q = qa + qb / k per meter.
+double GolombekRappIncremental(double diameter, double coverage, double q);
+
 }  // namespace terraingen

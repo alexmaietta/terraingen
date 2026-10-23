@@ -12,10 +12,8 @@
 namespace terraingen {
 
 /// The size in meters from which `source` resolves features at each point: `pixelsAcross` times
-/// `Source::ResolutionAt` there, converted from the source's coordinates to meters with
-/// `Surface::UnitLength`; infinity where the source resolves nothing, as over synthetic noise
-/// without posts, outside a crop or in no-data holes. Its `Max` is infinity, a bound valid for any
-/// source.
+/// `Source::ResolutionAt` there in meters (`Surface::UnitLength`); infinity where it resolves
+/// nothing, such as synthetic noise without posts or no-data holes.
 /// @param pixelsAcross The source cells across from which its data holds a feature; positive and
 /// finite.
 /// @param surface What the source's coordinates lie on: on a body they are degrees.

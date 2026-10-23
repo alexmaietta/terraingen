@@ -6,6 +6,7 @@ terraingen_add_library(
     cell_loops.cpp
     grid.cpp
     resample.cpp
+    spectrum.cpp
     variogram.cpp
     geotiff/geotiff.cpp
     geotiff/geotiff_read.cpp

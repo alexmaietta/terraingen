@@ -1,9 +1,9 @@
 #include "terraingen/albedo/raster_albedo.h"
 
 #include "terraingen/albedo/brightness_statistics.h"
-#include "terraingen/layers/roughness.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/perlin.h"
+#include "terraingen/noise/structure_function.h"
 #include "terraingen/random/streams.h"
 #include "terraingen/util/checks.h"
 

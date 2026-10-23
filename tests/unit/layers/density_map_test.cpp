@@ -133,3 +133,11 @@ TEST(SizeSlopeAt, ReadsExponentsAndMeanDiametersWithinTheirBounds) {
         EXPECT_THROW(terraingen::ValidateSizeSlopeMap(bad), std::invalid_argument);
     }
 }
+
+TEST(MapMax, IsTheLargestValueInTheMapsUnits) {
+    const auto three = std::make_shared<ConstantField>(3.0);
+    EXPECT_EQ(terraingen::MapMax(Map(three, DensityMeasure::Scale)), 3.0);
+    DensityMap perSquareKilometer = Map(three, DensityMeasure::Count, 1.0);
+    perSquareKilometer.areaUnit = 1e6;
+    EXPECT_DOUBLE_EQ(terraingen::MapMax(perSquareKilometer), 3e-6);
+}

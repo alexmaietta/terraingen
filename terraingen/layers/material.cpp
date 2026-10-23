@@ -1,6 +1,6 @@
 #include "terraingen/layers/material.h"
 
-#include "terraingen/util/parallel.h"
+#include "terraingen/raster/cell_loops.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -25,11 +25,8 @@ Raster<double> MaterialSource::MaterialCoverOver(const RasterGrid& grid, double 
                                                  const Ground* ground, unsigned threads) const {
     Raster<double> cover(grid.width, grid.height);
     cover.SetTransform(grid.transform);
-    ParallelFor(grid.height, threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < grid.width; ++col) {
-            const Vec2d center = cover.CellCenter(col, row);
-            cover(col, row) = MaterialCoverAt(center.x, center.y, spacing, ground);
-        }
+    FillCells(cover, threads, [&](const Vec2d& center) {
+        return MaterialCoverAt(center.x, center.y, spacing, ground);
     });
     return cover;
 }

@@ -22,11 +22,13 @@ terraingen_add_library(
     strata.cpp
     sample_block.cpp
     transforms.cpp
-    boulders/abundance.cpp
+    boulders/boulder_layer_abundance.cpp
     boulders/boulder_abundance.cpp
     boulders/boulder_clusters.cpp
     boulders/ejecta_index.cpp
     boulders/boulder_layer.cpp
+    boulders/boulder_pose.cpp
+    boulders/boulder_relief.cpp
     boulders/boulder_models.cpp
     boulders/boulder_options.cpp
     boulders/boulder_fragments.cpp

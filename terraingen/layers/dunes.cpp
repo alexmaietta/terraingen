@@ -53,7 +53,7 @@ constexpr double kForkOuter = 4.0;
 constexpr double kForkCore = 0.5;
 /// Distance in wavelengths over which a crest falls to nothing at a break.
 constexpr double kBreakTaper = 1.0;
-/// Grainflows: the share of a scarp's length its theatre head takes to reach full depth, the share
+/// Grainflows: the share of a scarp's length its theater head takes to reach full depth, the share
 /// of a lobe's length it takes to rise, and the share after which its toe rounds off.
 constexpr double kGrainflowHead = 0.15;
 constexpr double kGrainflowRise = 0.25;
@@ -62,6 +62,21 @@ constexpr double kGrainflowToe = 0.6;
 /// A cos^alpha bump falling from 1 at s = 0 to 0 at s = 1.
 double Bump(double s, double alpha) {
     return s >= 1.0 ? 0.0 : std::pow(std::cos(kHalfPi * s), alpha);
+}
+
+/// Whether dunes of `shape` stand apart (barchans and domes) rather than along crests.
+bool IsIsolated(DuneShape shape) {
+    return shape == DuneShape::Barchan || shape == DuneShape::Dome;
+}
+
+/// Whether `ripples` add any relief.
+bool HasRipples(const DuneRipples& ripples) {
+    return ripples.wavelength > 0.0 && ripples.height > 0.0;
+}
+
+/// 2D Perlin noise at `p` / `scale`, as a double.
+double Noise(const Vec2d& p, double scale, std::uint32_t seed) {
+    return static_cast<double>(PerlinNoise2Precise(p.x / scale, p.y / scale, seed));
 }
 
 /// The fractional part of `x`, in [0, 1).
@@ -340,9 +355,7 @@ double DuneLayer::CrestPhase(const Vec2d& p) const {
     const double lambda = options_.wavelength;
     const Vec2d normal = options_.shape == DuneShape::Linear ? Vec2d{-wind_.y, wind_.x} : wind_;
     double value = (p.x * normal.x + p.y * normal.y) / lambda +
-                   options_.sinuosity * static_cast<double>(PerlinNoise2Precise(
-                                            p.x / (kWanderWavelengths * lambda),
-                                            p.y / (kWanderWavelengths * lambda), options_.seed));
+                   options_.sinuosity * Noise(p, kWanderWavelengths * lambda, options_.seed);
     if (options_.shape == DuneShape::Barchanoid) {
         value += kBarchanoidBend * CrestSegment(p);
     }
@@ -352,10 +365,7 @@ double DuneLayer::CrestPhase(const Vec2d& p) const {
 double DuneLayer::CrestAmplitude(const Vec2d& q, double psi) const {
     const double lambda = options_.wavelength;
     double amplitude =
-        1.0 -
-        options_.defects * (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
-                                            q.x / (kDefectWavelengths * lambda),
-                                            q.y / (kDefectWavelengths * lambda), defectSeed_)));
+        1.0 - options_.defects * (0.5 + 0.5 * Noise(q, kDefectWavelengths * lambda, defectSeed_));
     if (options_.shape == DuneShape::Barchanoid) {
         amplitude *= 0.6 + 0.4 * CrestSegment(q);
     }
@@ -510,19 +520,12 @@ double DuneLayer::Ripples(const Vec2d& q, double dune) const {
                                Smoothstep(grade / std::tan(options_.stossSlope)) * (1.0 - stoss);
     }
     double core = 1.0;
-    const double psi =
-        (q.x * wind_.x + q.y * wind_.y - ripples.slopeCoupling * dune) / lambda +
-        sinuosity *
-            (static_cast<double>(PerlinNoise2Precise(q.x / (kRippleWander * lambda),
-                                                     q.y / (kRippleWander * lambda), wanderSeed_)) +
-             kRippleKinks * static_cast<double>(PerlinNoise2Precise(
-                                q.x / (kRippleKinkScale * lambda),
-                                q.y / (kRippleKinkScale * lambda), kinkSeed_))) +
-        Forks(q, lambda, ripples.defectDensity, core);
+    const double psi = (q.x * wind_.x + q.y * wind_.y - ripples.slopeCoupling * dune) / lambda +
+                       sinuosity * (Noise(q, kRippleWander * lambda, wanderSeed_) +
+                                    kRippleKinks * Noise(q, kRippleKinkScale * lambda, kinkSeed_)) +
+                       Forks(q, lambda, ripples.defectDensity, core);
     const double fading =
-        1.0 - kRippleFading * (0.5 + 0.5 * static_cast<double>(PerlinNoise2Precise(
-                                               q.x / (kRippleFadeScale * lambda),
-                                               q.y / (kRippleFadeScale * lambda), fadeSeed_)));
+        1.0 - kRippleFading * (0.5 + 0.5 * Noise(q, kRippleFadeScale * lambda, fadeSeed_));
     const double sand = SandDepth(dune);
     const double steep = std::hypot(gx, gy) / std::tan(options_.slipFaceAngle);
     const double avalanche = 1.0 - (1.0 - kSlipFaceRipples) * Smoothstep(2.0 * steep - 1.0);
@@ -577,9 +580,7 @@ void DuneLayer::AddFork(double& phase, double& core, RandomStream& random, const
 
 double DuneLayer::SandDepth(double dune) const {
     const double reference =
-        options_.shape == DuneShape::Barchan || options_.shape == DuneShape::Dome
-            ? options_.heightRatio * options_.width
-            : options_.height;
+        IsIsolated(options_.shape) ? options_.heightRatio * options_.width : options_.height;
     return Smoothstep(dune / std::max(1e-9, kSandEdge * reference));
 }
 
@@ -591,7 +592,7 @@ double DuneLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
     }
     const double sand = SandDepth(Height(*q));
     const DuneRipples& ripples = options_.ripples;
-    if (ripples.wavelength <= 0.0 || ripples.height <= 0.0) {
+    if (!HasRipples(ripples)) {
         return sand;
     }
     return ripples.interduneCover + (1.0 - ripples.interduneCover) * sand;
@@ -608,8 +609,7 @@ float DuneLayer::HeightAt(float height, double x, double y, double spacing,
     if (!q) {
         return height;
     }
-    const bool isolated = options_.shape == DuneShape::Barchan || options_.shape == DuneShape::Dome;
-    const double size = isolated ? options_.width : options_.wavelength;
+    const double size = IsIsolated(options_.shape) ? options_.width : options_.wavelength;
     const double resolved =
         limit_ ? limit_->ValueAt(x, y) : std::numeric_limits<double>::infinity();
     const auto weight = [&](double feature, const ResolutionFade& fade) {
@@ -617,9 +617,8 @@ float DuneLayer::HeightAt(float height, double x, double y, double spacing,
     };
     const double duneWeight = weight(size, options_.fade);
     const DuneRipples& ripples = options_.ripples;
-    const double rippleWeight = ripples.wavelength > 0.0 && ripples.height > 0.0
-                                    ? weight(ripples.wavelength, ripples.fade)
-                                    : 0.0;
+    const double rippleWeight =
+        HasRipples(ripples) ? weight(ripples.wavelength, ripples.fade) : 0.0;
     const DuneGrainflows& flows = options_.grainflows;
     const double flowWeight =
         flows.cover > 0.0 && flows.thickness > 0.0 ? weight(flows.minLobeWidth, flows.fade) : 0.0;

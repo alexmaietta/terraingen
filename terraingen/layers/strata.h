@@ -5,6 +5,7 @@
 #include "terraingen/layers/anchored_plane.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/util/geometry.h"
 
 #include <cstdint>
@@ -43,9 +44,6 @@ struct StrataOptions {
                anchor == other.anchor && hardShare == other.hardShare &&
                softSharpness == other.softSharpness;
     }
-    bool operator!=(const StrataOptions& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks strata options.
@@ -67,12 +65,6 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
     /// On a body, the dip is measured in the tangent frame of `options.anchor`.
     /// @throws std::invalid_argument as `ValidateStrataOptions`.
     explicit StrataLayer(StrataOptions options, Surface surface = {});
-
-    /// The terraced height of ground `height` meters high at world (x, y) (m).
-    double TerracedAt(double height, double x, double y) const;
-
-    /// How far through its bed ground `height` meters high at world (x, y) lies, in [0, 1).
-    double BedPositionAt(double height, double x, double y) const;
 
     /// The options the layer was made with.
     const StrataOptions& Options() const {
@@ -99,7 +91,11 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
         bool hard = true;
     };
     Bed BedAt(double level) const;
+    /// The terraced height of ground `height` meters high at world (x, y) (m).
+    double TerracedAt(double height, double x, double y) const;
     double BedBoundary(std::int64_t k) const;
+    /// The random stream `stream` of bed `k`.
+    RandomStream BedStream(std::uint32_t stream, std::int64_t k) const;
     /// The stratigraphic level of ground `height` meters high at (x, y): its height less the
     /// dipping bed plane. False on the far hemisphere of a body, where the layer does nothing.
     bool StratigraphicLevel(double height, double x, double y, double& level) const;

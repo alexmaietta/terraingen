@@ -1,17 +1,13 @@
 #include "terraingen/layers/spectral_continuation.h"
 
 #include "terraingen/layers/sample_block.h"
-#include "terraingen/random/samplers.h"
-#include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/fft.h"
 #include "terraingen/util/span.h"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -23,7 +19,7 @@ using terraingen::Raster;
 using terraingen::RasterGrid;
 using terraingen::SpectralContinuationLayer;
 using terraingen::SpectralContinuationOptions;
-using terraingen::SpectrumBin;
+using terraingen::detail::SpectrumBin;
 
 namespace {
 
@@ -87,109 +83,20 @@ double LogSlope(const std::vector<SpectrumBin>& bins, double low, double high) {
     return (n * sxy - sx * sy) / (n * sxx - sx * sx);
 }
 
-/// A periodic `size` x `size` surface of unit cells whose PSD is `coefficient` f^-`slope`, by
-/// inverse FFT of random phases, taken `crop` cells a side from its corner.
-Raster<float> PowerLawSurface(double slope, double coefficient, std::size_t size, std::size_t crop,
-                              std::uint32_t seed) {
-    std::vector<std::complex<double>> spectrum(size * size);
-    const auto n = static_cast<double>(size);
-    for (std::size_t v = 0; v < size; ++v) {
-        for (std::size_t u = 0; u < size; ++u) {
-            const double fu = static_cast<double>(u <= size / 2 ? u : size - u) / n;
-            const double fv = static_cast<double>(v <= size / 2 ? v : size - v) / n;
-            const double f = std::hypot(fu, fv);
-            if (f == 0.0) {
-                continue;
-            }
-            terraingen::RandomStream random(seed, 0, static_cast<std::uint32_t>(u),
-                                            static_cast<std::uint32_t>(v));
-            const double sigma = std::sqrt(coefficient * std::pow(f, -slope) / (n * n));
-            spectrum[v * size + u] = {sigma * terraingen::StandardNormal(random),
-                                      sigma * terraingen::StandardNormal(random)};
-        }
+/// The PSD in m^4 the layer of `options` targets at `frequency` cycles per meter: the power law,
+/// tapered in above the base's Nyquist frequency, up to 1 / `minWavelength`.
+double TargetPsd(const SpectralContinuationOptions& options, double frequency) {
+    const double nyquist = 0.5 / options.pixelSize;
+    if (!(frequency > nyquist) || frequency > 1.0 / options.minWavelength) {
+        return 0.0;
     }
-    terraingen::Fft2(spectrum, size, size, 1.0);
-    Raster<float> heights(crop, crop);
-    for (std::size_t row = 0; row < crop; ++row) {
-        for (std::size_t col = 0; col < crop; ++col) {
-            heights(col, row) = static_cast<float>(spectrum[row * size + col].real());
-        }
-    }
-    return heights;
+    const double coefficient =
+        terraingen::PowerLawSpectrum{options.slope, options.octaveRms}.Coefficient(nyquist);
+    return coefficient * std::pow(frequency, -options.slope) *
+           terraingen::Smoothstep(std::log2(frequency / nyquist) / options.taperOctaves);
 }
 
 }  // namespace
-
-TEST(RadialPowerSpectrum, PeaksAtAWaveAndIntegratesToTheVariance) {
-    Raster<float> heights = Grid(64, 0.5).MakeRaster();
-    for (std::size_t row = 0; row < 64; ++row) {
-        for (std::size_t col = 0; col < 64; ++col) {
-            heights(col, row) = static_cast<float>(
-                2.0 * std::cos(2.0 * terraingen::kPi * static_cast<double>(col) / 8.0) +
-                0.1 * static_cast<double>(col));
-        }
-    }
-    const std::vector<SpectrumBin> bins = terraingen::RadialPowerSpectrum(heights);
-    ASSERT_FALSE(bins.empty());
-    std::size_t peak = 0;
-    for (std::size_t i = 0; i < bins.size(); ++i) {
-        if (bins[i].power > bins[peak].power) {
-            peak = i;
-        }
-    }
-    EXPECT_NEAR(bins[peak].frequency, 0.25, 0.03) << "8 cells of 0.5 m";
-    EXPECT_NEAR(bins.back().frequency, 1.0, 0.1) << "the Nyquist frequency";
-}
-
-TEST(RadialPowerSpectrum, RejectsSmallRotatedOrEmptyRasters) {
-    EXPECT_THROW(terraingen::RadialPowerSpectrum(Grid(7, 1.0).MakeRaster()), std::invalid_argument);
-    Raster<float> rotated = Grid(16, 1.0).MakeRaster();
-    GeoTransform transform = rotated.Transform();
-    transform.rowRotation = 0.1;
-    rotated.SetTransform(transform);
-    EXPECT_THROW(terraingen::RadialPowerSpectrum(rotated), std::invalid_argument);
-    Raster<float> empty = Grid(16, 1.0).MakeRaster(std::numeric_limits<float>::quiet_NaN());
-    EXPECT_THROW(terraingen::RadialPowerSpectrum(empty), std::invalid_argument);
-}
-
-TEST(EstimatePowerLawSpectrum, RecoversTheSlopeAndOctaveRmsOfPowerLawSurfaces) {
-    for (const double slope : {2.4, 3.0, 3.6}) {
-        constexpr double kCoefficient = 1e-3;
-        const Raster<float> heights = PowerLawSurface(slope, kCoefficient, 1024, 256, 3);
-        const terraingen::PowerLawSpectrum fit = terraingen::EstimatePowerLawSpectrum(heights);
-        EXPECT_NEAR(fit.slope, slope, 0.12) << slope;
-        const double integral =
-            (std::pow(0.5, 2.0 - slope) * (std::pow(2.0, 2.0 - slope) - 1.0)) / (2.0 - slope);
-        const double expected = std::sqrt(2.0 * terraingen::kPi * kCoefficient * integral);
-        EXPECT_NEAR(fit.octaveRms / expected, 1.0, 0.15) << slope;
-    }
-}
-
-TEST(EstimatePowerLawSpectrum, HandlesFlatRastersHolesAndBadBands) {
-    const terraingen::PowerLawSpectrum flat =
-        terraingen::EstimatePowerLawSpectrum(Grid(64, 1.0).MakeRaster(4.0f));
-    EXPECT_EQ(flat.slope, 3.0);
-    EXPECT_EQ(flat.octaveRms, 0.0);
-
-    Raster<float> holed = PowerLawSurface(3.0, 1e-3, 256, 128, 4);
-    holed.SetNoData(-9999.0f);
-    holed(10, 10) = -9999.0f;
-    holed(60, 70) = std::numeric_limits<float>::quiet_NaN();
-    EXPECT_NEAR(terraingen::EstimatePowerLawSpectrum(holed).slope, 3.0, 0.2);
-
-    terraingen::SpectrumFitBand narrow;
-    narrow.minPixels = 4.0;
-    narrow.maxPixels = 4.5;
-    EXPECT_THROW(terraingen::EstimatePowerLawSpectrum(holed, narrow), std::invalid_argument);
-    terraingen::SpectrumFitBand bad;
-    bad.minPixels = 1.0;
-    EXPECT_THROW(terraingen::ValidateSpectrumFitBand(bad), std::invalid_argument);
-    bad.minPixels = 8.0;
-    bad.maxPixels = 6.0;
-    EXPECT_THROW(terraingen::ValidateSpectrumFitBand(bad), std::invalid_argument);
-    EXPECT_EQ(terraingen::SpectrumFitBand{}, terraingen::SpectrumFitBand{});
-    EXPECT_NE(terraingen::SpectrumFitBand{}, bad);
-}
 
 TEST(SpectralContinuationOptions, RejectInvalidValues) {
     EXPECT_NO_THROW(terraingen::ValidateSpectralContinuationOptions(Options()));
@@ -212,29 +119,6 @@ TEST(SpectralContinuationOptions, RejectInvalidValues) {
     EXPECT_EQ(Options(), other);
     other.seed = 6;
     EXPECT_NE(Options(), other);
-}
-
-TEST(SpectralContinuationLayer, TargetsThePowerLawAboveTheBaseNyquistFrequency) {
-    const SpectralContinuationLayer layer(Options());
-    EXPECT_EQ(layer.BandFrequencies(), (std::vector<double>{0.5, 1.0, 2.0}));
-    EXPECT_EQ(layer.TargetPsd(0.4), 0.0);
-    EXPECT_EQ(layer.TargetPsd(0.5), 0.0);
-    EXPECT_EQ(layer.TargetPsd(4.5), 0.0);
-    EXPECT_GT(layer.TargetPsd(0.6), 0.0);
-    EXPECT_NEAR(layer.TargetPsd(3.0) / layer.TargetPsd(1.5), std::pow(2.0, -3.0), 1e-12);
-    EXPECT_LT(layer.TargetPsd(0.6) / std::pow(0.6, -3.0),
-              layer.TargetPsd(1.5) / std::pow(1.5, -3.0))
-        << "tapered in over the first octave";
-
-    double variance = 0.0;
-    for (double f = 0.5; f < 1.0; f += 1e-5) {
-        variance += 2.0 * terraingen::kPi * (f + 0.5e-5) * layer.TargetPsd(f + 0.5e-5) * 1e-5;
-    }
-    EXPECT_LT(variance, 0.2 * 0.2) << "the taper takes power from the first octave";
-
-    SpectralContinuationOptions coarse = Options();
-    coarse.minWavelength = 2.5;
-    EXPECT_TRUE(SpectralContinuationLayer(coarse).BandFrequencies().empty());
 }
 
 TEST(SpectralContinuationLayer, AddsNothingAtTheBaseSpacing) {
@@ -260,7 +144,7 @@ TEST(SpectralContinuationLayer, MatchesTheTargetSpectrumAndAddsNoResolvedPower) 
             options.seed = 11 + static_cast<std::uint32_t>(s);
             const Raster<float> detail =
                 Detail(SpectralContinuationLayer(options), Grid(512, kStep), 0.0, 0);
-            const std::vector<SpectrumBin> bins = terraingen::RadialPowerSpectrum(detail);
+            const std::vector<SpectrumBin> bins = terraingen::detail::RadialPowerSpectrum(detail);
             if (mean.empty()) {
                 mean = bins;
                 for (SpectrumBin& bin : mean) {
@@ -274,11 +158,12 @@ TEST(SpectralContinuationLayer, MatchesTheTargetSpectrumAndAddsNoResolvedPower) 
         EXPECT_NEAR(-LogSlope(mean, 1.1, 3.0), slope, 0.15) << slope;
         for (const SpectrumBin& bin : mean) {
             if (bin.frequency > 1.1 && bin.frequency < 3.0) {
-                EXPECT_NEAR(bin.power / layer.TargetPsd(bin.frequency), 1.0, 0.25)
+                EXPECT_NEAR(bin.power / TargetPsd(layer.Options(), bin.frequency), 1.0, 0.25)
                     << slope << " at " << bin.frequency;
             }
             if (bin.frequency < 0.4) {
-                const double resolved = layer.TargetPsd(1.0) * std::pow(bin.frequency, -slope);
+                const double resolved =
+                    TargetPsd(layer.Options(), 1.0) * std::pow(bin.frequency, -slope);
                 EXPECT_LT(bin.power, 1e-2 * resolved) << slope << " at " << bin.frequency;
             }
         }
@@ -289,7 +174,8 @@ TEST(SpectralContinuationLayer, HoldsTheTargetVarianceAndFadesWithSpacing) {
     const SpectralContinuationLayer layer(Options());
     double target = 0.0;
     for (double f = 0.5; f < 4.0; f += 1e-4) {
-        target += 2.0 * terraingen::kPi * (f + 0.5e-4) * layer.TargetPsd(f + 0.5e-4) * 1e-4;
+        target +=
+            2.0 * terraingen::kPi * (f + 0.5e-4) * TargetPsd(layer.Options(), f + 0.5e-4) * 1e-4;
     }
     const double fine = Variance(Detail(layer, Grid(512, 1.0 / 16.0), 0.0, 0));
     EXPECT_NEAR(fine / target, 1.0, 0.1);

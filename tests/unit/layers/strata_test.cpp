@@ -30,16 +30,27 @@ class Level final : public terraingen::Ground {
     double height_;
 };
 
-/// The heights where the bed position wraps from near 1 back to near 0 along a vertical profile.
+/// The terraced height of ground `height` meters high at (x, y).
+double Terraced(const StrataLayer& layer, double height, double x, double y) {
+    return static_cast<double>(layer.ApplyAt(static_cast<float>(height), x, y, {1.0}));
+}
+
+/// The heights of the bed boundaries along a vertical profile: where the terracing, which lowers
+/// the ground everywhere but at a boundary, peaks back to the ground.
 std::vector<double> Boundaries(const StrataLayer& layer, double from, double to, double step) {
+    const auto lowered = [&](double h) {
+        return Terraced(layer, h, 0.3, 0.7) - static_cast<double>(static_cast<float>(h));
+    };
     std::vector<double> boundaries;
-    double previous = layer.BedPositionAt(from, 0.3, 0.7);
-    for (double h = from + step; h < to; h += step) {
-        const double u = layer.BedPositionAt(h, 0.3, 0.7);
-        if (u < previous) {
+    double before = lowered(from);
+    double here = lowered(from + step);
+    for (double h = from + step; h + step < to; h += step) {
+        const double after = lowered(h + step);
+        if (here > -0.01 && here >= before && here > after) {
             boundaries.push_back(h);
         }
-        previous = u;
+        before = here;
+        here = after;
     }
     return boundaries;
 }
@@ -48,17 +59,17 @@ std::vector<double> Boundaries(const StrataLayer& layer, double from, double to,
 
 TEST(StrataLayer, TerracingIsContinuousRisingAndKeepsBedBoundaries) {
     const StrataLayer layer(StrataOptions{});
-    double previous = layer.TerracedAt(-20.0, 0.3, 0.7);
+    double previous = Terraced(layer, -20.0, 0.3, 0.7);
     double jump = 0.0;
     for (double h = -20.0 + 1e-3; h < 20.0; h += 1e-3) {
-        const double terraced = layer.TerracedAt(h, 0.3, 0.7);
-        EXPECT_GE(terraced, previous - 1e-12);
+        const double terraced = Terraced(layer, h, 0.3, 0.7);
+        EXPECT_GE(terraced, previous - 1e-5);
         jump = std::max(jump, terraced - previous);
         previous = terraced;
     }
     EXPECT_LT(jump, 0.02) << "no steps where one bed meets the next";
     for (const double boundary : Boundaries(layer, -20.0, 20.0, 1e-3)) {
-        EXPECT_NEAR(layer.TerracedAt(boundary, 0.3, 0.7), boundary, 2e-3);
+        EXPECT_NEAR(Terraced(layer, boundary, 0.3, 0.7), boundary, 2e-3);
     }
 }
 
@@ -67,17 +78,15 @@ TEST(StrataLayer, BenchesAreFlatAndCliffsSteepAtTheTopOfEachBed) {
     options.thicknessVariation = 0.0;
     options.sharpness = 4.0;
     const StrataLayer layer(options);
-    const double d = 1e-4;
+    const double d = 1e-3;
     const auto rate = [&](double h) {
-        return (layer.TerracedAt(h + d, 0.0, 0.0) - layer.TerracedAt(h - d, 0.0, 0.0)) / (2.0 * d);
+        return (Terraced(layer, h + d, 0.0, 0.0) - Terraced(layer, h - d, 0.0, 0.0)) / (2.0 * d);
     };
     EXPECT_LT(rate(4.2), 0.01) << "the bench low in a bed";
     EXPECT_GT(rate(5.9), 3.0) << "the cliff at its top";
-    EXPECT_NEAR(layer.TerracedAt(5.0, 0.0, 0.0), 4.0 + 2.0 * std::pow(0.5, 4.0), 1e-12);
-    EXPECT_NEAR(layer.BedPositionAt(5.0, 0.0, 0.0), 0.5, 1e-12);
-    EXPECT_NEAR(layer.BedPositionAt(-1.0, 0.0, 0.0), 0.5, 1e-12);
+    EXPECT_NEAR(Terraced(layer, 5.0, 0.0, 0.0), 4.0 + 2.0 * std::pow(0.5, 4.0), 1e-6);
+    EXPECT_NEAR(Terraced(layer, -1.0, 0.0, 0.0), -2.0 + 2.0 * std::pow(0.5, 4.0), 1e-6);
 }
-
 TEST(StrataLayer, SharpnessOneAndStrengthZeroLeaveTheGround) {
     StrataOptions options;
     options.sharpness = 1.0;
@@ -90,9 +99,11 @@ TEST(StrataLayer, SharpnessOneAndStrengthZeroLeaveTheGround) {
     options.strength = 1.0;
     const StrataLayer full(options);
     for (double h = -5.0; h < 5.0; h += 0.37) {
-        EXPECT_NEAR(flat.TerracedAt(h, 1.0, 2.0), h, 1e-12);
-        EXPECT_EQ(off.TerracedAt(h, 1.0, 2.0), h);
-        EXPECT_NEAR(half.TerracedAt(h, 1.0, 2.0), 0.5 * (h + full.TerracedAt(h, 1.0, 2.0)), 1e-12);
+        const double ground = static_cast<double>(static_cast<float>(h));
+        EXPECT_NEAR(Terraced(flat, h, 1.0, 2.0), ground, 1e-6);
+        EXPECT_EQ(Terraced(off, h, 1.0, 2.0), ground);
+        EXPECT_NEAR(Terraced(half, h, 1.0, 2.0), 0.5 * (ground + Terraced(full, h, 1.0, 2.0)),
+                    1e-6);
     }
 }
 
@@ -123,10 +134,9 @@ TEST(StrataLayer, BedsDipTowardTheirAzimuth) {
     options.dipAzimuth = 0.5 * terraingen::kPi;
     const StrataLayer layer(options);
     const double drop = std::tan(options.dip) * 7.0;
-    EXPECT_NEAR(layer.BedPositionAt(3.3, 2.0, 1.0), layer.BedPositionAt(3.3 - drop, 2.0, 8.0),
-                1e-9);
-    EXPECT_NEAR(layer.BedPositionAt(3.3, 2.0, 1.0), layer.BedPositionAt(3.3, 9.0, 1.0), 1e-12)
-        << "level along the strike";
+    const double here = Terraced(layer, 3.3, 2.0, 1.0) - 3.3;
+    EXPECT_NEAR(here, Terraced(layer, 3.3 - drop, 2.0, 8.0) - (3.3 - drop), 1e-5);
+    EXPECT_NEAR(here, Terraced(layer, 3.3, 9.0, 1.0) - 3.3, 1e-6) << "level along the strike";
 }
 
 TEST(StrataLayer, CliffsAreBedrockAndBenchesAreNot) {
@@ -181,10 +191,8 @@ TEST(StrataLayer, DipsInTheAnchorsFrameOnABody) {
     const StrataLayer plane(options);
     const terraingen::Vec2d point{137.4003, -4.5998};
     const terraingen::Vec2d offset = mars.Offset(options.anchor, point);
-    EXPECT_NEAR(body.TerracedAt(1.3, point.x, point.y), plane.TerracedAt(1.3, offset.x, offset.y),
-                1e-9);
-    EXPECT_EQ(body.TerracedAt(1.3, -42.6, 4.6), 1.3);
-    EXPECT_EQ(body.BedPositionAt(1.3, -42.6, 4.6), 0.0);
+    EXPECT_NEAR(Terraced(body, 1.3, point.x, point.y), Terraced(plane, 1.3, offset.x, offset.y),
+                1e-6);
     EXPECT_EQ(body.ApplyAt(2.0f, -42.6, 4.6, {0.01}), 2.0f);
 }
 
@@ -218,10 +226,10 @@ TEST(StrataLayer, SoftBedsSlopeWithoutCliffsOrBedrock) {
     int soft = 0;
     for (int k = 0; k < 400; ++k) {
         const double mid = (static_cast<double>(k) + 0.6) * options.bedThickness;
-        const double terraced = layer.TerracedAt(mid, 0.0, 0.0);
+        const double terraced = Terraced(layer, mid, 0.0, 0.0);
         const Level ground(mid + 0.3 * options.bedThickness);
         const double cover = layer.MaterialCoverAt(0.0, 0.0, 0.1, &ground);
-        if (std::fabs(terraced - mid) < 1e-12) {
+        if (terraced == static_cast<double>(static_cast<float>(mid))) {
             ++soft;
             EXPECT_EQ(cover, 0.0) << "no bedrock on a soft bed";
         } else {
@@ -233,11 +241,11 @@ TEST(StrataLayer, SoftBedsSlopeWithoutCliffsOrBedrock) {
     EXPECT_GT(hard, 0);
     options.hardShare = 1.0;
     const StrataLayer allHard(options);
-    EXPECT_NE(allHard.TerracedAt(0.6 * options.bedThickness, 0.0, 0.0), 0.6 * options.bedThickness);
+    EXPECT_NE(Terraced(allHard, 0.6 * options.bedThickness, 0.0, 0.0), 0.6 * options.bedThickness);
     options.hardShare = 0.0;
     options.softSharpness = 2.0;
     const StrataLayer allSoft(options);
-    EXPECT_NEAR(allSoft.TerracedAt(0.5 * options.bedThickness, 0.0, 0.0),
-                0.25 * options.bedThickness, 1e-12)
+    EXPECT_NEAR(Terraced(allSoft, 0.5 * options.bedThickness, 0.0, 0.0),
+                0.25 * options.bedThickness, 1e-6)
         << "soft beds cut at their own sharpness";
 }

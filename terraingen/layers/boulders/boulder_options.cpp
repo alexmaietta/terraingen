@@ -57,27 +57,8 @@ void CheckThrownBlocks(const BoulderEjecta& ejecta, const BoulderSizes& sizes) {
     }
 }
 
-}  // namespace
-
-bool BoulderModelThreshold::IsModel(double diameter, double spacing) const {
-    const bool large = (minDiameter && diameter >= *minDiameter) ||
-                       (minSamples && spacing > 0.0 && diameter >= *minSamples * spacing);
-    return large && !(maxDiameter && diameter >= *maxDiameter) &&
-           !(maxSamples && spacing > 0.0 && diameter >= *maxSamples * spacing);
-}
-
-double BoulderEjecta::MinCraterDiameter() const {
-    const double excavated = regolithThickness ? *regolithThickness / excavationDepthRatio : 0.0;
-    return std::fmax(minCraterDiameter, excavated);
-}
-
-double BoulderThrowDistance(double craterDiameter, double regolithThickness, double gravity) {
-    for (const double value : {craterDiameter, regolithThickness, gravity}) {
-        RequirePositive(value, "Crater diameter, regolith thickness and gravity");
-    }
-    return 138.5 / gravity * std::pow(craterDiameter / regolithThickness, 0.7086);
-}
-
+/// Checks boulder sizes: 0 < min < max diameter, and a density distribution covering them or a
+/// coverage in (0, 1).
 void ValidateBoulderSizes(const BoulderSizes& sizes) {
     if (!(IsPositive(sizes.minDiameter) && std::isfinite(sizes.maxDiameter) &&
           sizes.maxDiameter > sizes.minDiameter)) {
@@ -90,12 +71,7 @@ void ValidateBoulderSizes(const BoulderSizes& sizes) {
     }
 }
 
-void ValidateBoulderPatches(const BoulderPatches& patches) {
-    if (!(std::isfinite(patches.spread) && patches.spread >= 1.0 && IsPositive(patches.size))) {
-        throw std::invalid_argument("Boulder patches need spread >= 1 and a positive size");
-    }
-}
-
+/// Checks crater blocks, whose distribution must cover `sizes`.
 void ValidateBoulderEjecta(const BoulderEjecta& ejecta, const BoulderSizes& sizes) {
     RequireNonNegative(ejecta.minCraterDiameter, "Boulder ejecta minCraterDiameter");
     if (ejecta.regolithThickness) {
@@ -109,6 +85,7 @@ void ValidateBoulderEjecta(const BoulderEjecta& ejecta, const BoulderSizes& size
     }
 }
 
+/// Checks bedrock boulders.
 void ValidateBoulderBedrock(const BoulderBedrock& bedrock) {
     RequirePositive(bedrock.abundance, "Boulder bedrock abundance");
     if (bedrock.exposure) {
@@ -117,6 +94,7 @@ void ValidateBoulderBedrock(const BoulderBedrock& bedrock) {
     RequirePositive(bedrock.meanSize, "Boulder bedrock meanSize");
 }
 
+/// Checks boulder poses.
 void ValidateBoulderPose(const BoulderPose& pose) {
     if (!(pose.minHeightRatio > 0.0 && pose.maxHeightRatio >= pose.minHeightRatio &&
           std::isfinite(pose.maxHeightRatio))) {
@@ -141,6 +119,50 @@ void ValidateBoulderPose(const BoulderPose& pose) {
         !(pose.maxSlope && *pose.rollDistance > 0.0 && std::isfinite(*pose.rollDistance))) {
         throw std::invalid_argument("Boulder rollDistance must be positive and finite, with a "
                                     "maxSlope");
+    }
+}
+
+/// Checks how boulders are drawn.
+void ValidateBoulderRendering(const BoulderRendering& rendering) {
+    const BoulderModelThreshold& models = rendering.models;
+    for (const auto& threshold :
+         {models.minDiameter, models.minSamples, models.maxDiameter, models.maxSamples}) {
+        if (threshold) {
+            RequirePositive(*threshold, "Boulder model thresholds");
+        }
+    }
+    const BoulderReliefRange& range = rendering.reliefRange;
+    RequireNonNegative(range.minDiameter, "Boulder relief minDiameter");
+    if (range.maxDiameter && !(*range.maxDiameter > range.minDiameter)) {
+        throw std::invalid_argument("Boulder relief maxDiameter must exceed its minDiameter");
+    }
+    ValidateBoulderShapeOptions(rendering.shapes);
+}
+
+}  // namespace
+
+bool BoulderModelThreshold::IsModel(double diameter, double spacing) const {
+    const bool large = (minDiameter && diameter >= *minDiameter) ||
+                       (minSamples && spacing > 0.0 && diameter >= *minSamples * spacing);
+    return large && !(maxDiameter && diameter >= *maxDiameter) &&
+           !(maxSamples && spacing > 0.0 && diameter >= *maxSamples * spacing);
+}
+
+double BoulderEjecta::MinCraterDiameter() const {
+    const double excavated = regolithThickness ? *regolithThickness / excavationDepthRatio : 0.0;
+    return std::fmax(minCraterDiameter, excavated);
+}
+
+double BoulderThrowDistance(double craterDiameter, double regolithThickness, double gravity) {
+    for (const double value : {craterDiameter, regolithThickness, gravity}) {
+        RequirePositive(value, "Crater diameter, regolith thickness and gravity");
+    }
+    return 138.5 / gravity * std::pow(craterDiameter / regolithThickness, 0.7086);
+}
+
+void ValidateBoulderPatches(const BoulderPatches& patches) {
+    if (!(std::isfinite(patches.spread) && patches.spread >= 1.0 && IsPositive(patches.size))) {
+        throw std::invalid_argument("Boulder patches need spread >= 1 and a positive size");
     }
 }
 
@@ -214,22 +236,6 @@ double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet
     }
     const double t = (distance - radius) / (fillet.widthRatio * boulder.diameter);
     return t >= 1.0 ? 0.0 : top * (1.0 - t) * (1.0 - t);
-}
-
-void ValidateBoulderRendering(const BoulderRendering& rendering) {
-    const BoulderModelThreshold& models = rendering.models;
-    for (const auto& threshold :
-         {models.minDiameter, models.minSamples, models.maxDiameter, models.maxSamples}) {
-        if (threshold) {
-            RequirePositive(*threshold, "Boulder model thresholds");
-        }
-    }
-    const BoulderReliefRange& range = rendering.reliefRange;
-    RequireNonNegative(range.minDiameter, "Boulder relief minDiameter");
-    if (range.maxDiameter && !(*range.maxDiameter > range.minDiameter)) {
-        throw std::invalid_argument("Boulder relief maxDiameter must exceed its minDiameter");
-    }
-    ValidateBoulderShapeOptions(rendering.shapes);
 }
 
 void ValidateManualBoulder(const ManualBoulder& boulder) {

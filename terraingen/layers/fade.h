@@ -30,9 +30,6 @@ struct ResolutionFade {
         return startSamples == other.startSamples && endSamples == other.endSamples &&
                shape == other.shape;
     }
-    bool operator!=(const ResolutionFade& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks a resolution fade.

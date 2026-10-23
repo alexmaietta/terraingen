@@ -18,17 +18,9 @@ enum class DensityMeasure {
     ArealFraction,  ///< Share of the ground covered by features in [`minDiameter`, `maxDiameter`).
 };
 
-/// A map of a crater or boulder population that sets a layer's density point by point.
-///
-/// The layer's size distribution keeps its shape and is scaled at each point until it measures
-/// what the map does, so a map of the larger, detectable features also sets the smaller ones
-/// below its detection limit. Features the layer places by other means are not counted twice:
-/// manual catalog features stand in for generated ones above the catalog's completeness limit
-/// (`CraterGenerationOptions::completeness`). With `total`, a crater layer takes the secondaries
-/// thrown from its craters (`CraterLayerOptions::secondaries`) out of the map for craters too
-/// small to throw them, and a boulder layer takes out the blocks it throws around craters. Under a
-/// map, boulder patches, clusters and bedrock only move boulders within it, keeping its mean.
-/// Where the map has no value the layer's density applies as given.
+/// A map of a crater or boulder population that sets a layer's density point by point: the size
+/// distribution keeps its shape and is scaled to measure what the map does, and applies as given
+/// where the map has no value.
 struct DensityMap {
     std::shared_ptr<const SurfaceField> field;       ///< The map; not null.
     DensityMeasure measure = DensityMeasure::Scale;  ///< What its values measure.
@@ -45,9 +37,6 @@ struct DensityMap {
         return field == other.field && measure == other.measure &&
                minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
                areaUnit == other.areaUnit && total == other.total;
-    }
-    bool operator!=(const DensityMap& other) const {
-        return !(*this == other);
     }
 };
 
@@ -78,9 +67,6 @@ struct SizeSlopeMap {
                referenceDiameter == other.referenceDiameter && minExponent == other.minExponent &&
                maxExponent == other.maxExponent;
     }
-    bool operator!=(const SizeSlopeMap& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks a size slope map.
@@ -105,6 +91,9 @@ double MapMeasure(const DensityMap& map, const SizeFrequencyDistribution& distri
 
 /// The map's value at surface (x, y) in square meters for a `Count`; NaN where it has none.
 double MapValueAt(const DensityMap& map, double x, double y);
+
+/// The largest value the map reads anywhere, in the units of `MapValueAt`.
+double MapMax(const DensityMap& map);
 
 /// The local scale a density map gives a size distribution: the map's value over its measure of
 /// the distribution, 1 where the map has no value.

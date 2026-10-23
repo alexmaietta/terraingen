@@ -39,9 +39,6 @@ struct BoulderFacet {
     bool operator==(const BoulderFacet& other) const {
         return azimuth == other.azimuth && angle == other.angle && reach == other.reach;
     }
-    bool operator!=(const BoulderFacet& other) const {
-        return !(*this == other);
-    }
 };
 
 /// One boulder: where it stands, how large it is and how it lies, in surface coordinates
@@ -99,9 +96,6 @@ struct Boulder {
                wear == other.wear && parent == other.parent && piece == other.piece &&
                facets == other.facets && facetCount == other.facetCount &&
                shapeSeed == other.shapeSeed;
-    }
-    bool operator!=(const Boulder& other) const {
-        return !(*this == other);
     }
 };
 

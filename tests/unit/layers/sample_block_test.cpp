@@ -11,6 +11,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <vector>
@@ -124,4 +125,24 @@ TEST(MapSamples, MapsCellsAndPointsHoldingData) {
         points, 1, [](float height, const Vec2d& p) { return height + static_cast<float>(p.y); });
     EXPECT_EQ(heights[0], 3.0f);
     EXPECT_TRUE(std::isnan(heights[1]));
+}
+
+TEST(DrawFeatures, DrawsEachFeatureOverItsBoxFromTheHeightBefore) {
+    const std::vector<terraingen::Bounds2d> boxes{{0.0, 0.0, 2.0, 2.0}, {1.0, 1.0, 3.0, 3.0}};
+    const auto draw = [](float height, float base, const Vec2d& /*p*/, std::size_t n) {
+        return std::max(height, base + static_cast<float>(n + 1));
+    };
+    Raster<float> heights(4, 4, 1.0f);
+    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 4.0, 1.0));
+    SampleBlock grid(heights);
+    terraingen::DrawFeatures(grid, 2, boxes, terraingen::Surface{}, draw);
+    EXPECT_EQ(heights(0, 3), 2.0f);
+    EXPECT_EQ(heights(1, 2), 3.0f) << "the deeper of two features from the same base";
+    EXPECT_EQ(heights(3, 0), 1.0f);
+
+    const std::vector<Vec2d> points{{0.5, 0.5}, {1.5, 1.5}, {3.5, 3.5}};
+    std::vector<float> values(points.size(), 1.0f);
+    SampleBlock scattered(points, values);
+    terraingen::DrawFeatures(scattered, 1, boxes, terraingen::Surface{}, draw);
+    EXPECT_EQ(values, (std::vector<float>{2.0f, 3.0f, 1.0f})) << "points agree with the grid";
 }

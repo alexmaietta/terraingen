@@ -23,9 +23,6 @@ struct SandFillOptions {
         return reach == other.reach && fill == other.fill && maxThickness == other.maxThickness &&
                coverThickness == other.coverThickness;
     }
-    bool operator!=(const SandFillOptions& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks sand fill options.

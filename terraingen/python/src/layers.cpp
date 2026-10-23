@@ -20,6 +20,7 @@
 #include "terraingen/layers/spectral_continuation.h"
 #include "terraingen/layers/strata.h"
 #include "terraingen/layers/transforms.h"
+#include "terraingen/noise/structure_function.h"
 
 #include <utility>
 #include <vector>
@@ -290,13 +291,6 @@ void BindSandFill(nb::module_& m) {
 }
 
 void BindSpectrumFit(nb::module_& m) {
-    nb::class_<SpectrumBin>(m, "SpectrumBin", "One annulus of a radially averaged power spectrum.")
-        .def_ro("frequency", &SpectrumBin::frequency, "Mean radial frequency, cycles per unit.")
-        .def_ro("power", &SpectrumBin::power, "Mean power spectral density.")
-        .def_ro("count", &SpectrumBin::count, "Frequency samples averaged.");
-    m.def("radial_power_spectrum", &RadialPowerSpectrum, "heights"_a,
-          "The radially averaged power spectral density of a raster on its own cells, Hann "
-          "windowed and detrended.");
     auto band = nb::class_<SpectrumFitBand>(
         m, "SpectrumFitBand",
         "The wavelengths, in base pixels, a power-law spectrum is fitted over.");
@@ -327,10 +321,6 @@ void BindSpectralContinuation(nb::module_& m) {
         m, "SpectralContinuationLayer",
         "Detail finer than a base continuing its power-law spectrum, as sparse Gabor noise.")
         .def(nb::init<SpectralContinuationOptions, Surface>(), "options"_a, "surface"_a = Surface{})
-        .def("target_psd", &SpectralContinuationLayer::TargetPsd, "frequency"_a,
-             "The target PSD in m^4 at a frequency in cycles per meter.")
-        .def("band_frequencies", &SpectralContinuationLayer::BandFrequencies,
-             "The lowest frequencies of the bands, in cycles per meter.")
         .def_prop_ro("options", &SpectralContinuationLayer::Options);
 }
 
@@ -346,9 +336,6 @@ void BindRoughnessEstimate(nb::module_& m) {
              "The RMS height difference in meters at a lag in meters.")
         .def("rms_slope", &BaseRoughness::RmsSlope, "baseline"_a,
              "The RMS slope (rise over run) over a baseline in meters.");
-    m.def("estimate_base_roughness", &EstimateBaseRoughness, "heights"_a, "cell_size"_a,
-          "The Hurst exponent and RMS height difference of a raster's heights by the variogram "
-          "method, at lags of 1 to 8 cells of `cell_size` meters.");
     m.def("estimate_source_roughness", &EstimateSourceRoughness, "source"_a,
           "surface"_a = Surface{},
           "The roughness of a source on a lattice of its native cells about its grid's center.");
@@ -368,10 +355,6 @@ void BindPavement(nb::module_& m) {
           "The desiccation ridges of Gale crater's Old Soaker slab (Stein et al. 2018).");
     auto layer = nb::class_<PavementLayer, Layer>(m, "PavementLayer", "Fractured bedrock plates.");
     layer.def(nb::init<PavementOptions, Surface>(), "options"_a, "surface"_a = Surface{})
-        .def("relief_at", &PavementLayer::ReliefAt, "x"_a, "y"_a,
-             "The pavement's relief at (x, y) in meters, before exposure and fading.")
-        .def("edge_distance_at", &PavementLayer::EdgeDistanceAt, "x"_a, "y"_a,
-             "The distance from (x, y) to the nearest plate edge, in meters.")
         .def_prop_ro("options", &PavementLayer::Options);
     BindMaterialCover<PavementLayer>(layer);
 }
@@ -386,10 +369,6 @@ void BindStrata(nb::module_& m) {
     auto layer = nb::class_<StrataLayer, Layer>(m, "StrataLayer",
                                                 "Layered rock terraced into benches and cliffs.");
     layer.def(nb::init<StrataOptions, Surface>(), "options"_a, "surface"_a = Surface{})
-        .def("terraced_at", &StrataLayer::TerracedAt, "height"_a, "x"_a, "y"_a,
-             "The terraced height of ground `height` meters high at (x, y).")
-        .def("bed_position_at", &StrataLayer::BedPositionAt, "height"_a, "x"_a, "y"_a,
-             "How far through its bed ground `height` meters high at (x, y) lies, in [0, 1].")
         .def_prop_ro("options", &StrataLayer::Options);
     BindMaterialCover<StrataLayer>(layer);
 }

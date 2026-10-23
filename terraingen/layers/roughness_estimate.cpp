@@ -23,16 +23,7 @@ constexpr int kNoisePoints = 64;
 /// every phase of the layer's octave lattices.
 constexpr double kNoiseStep = 0.6180339887498949;
 
-}  // namespace
-
-double BaseRoughness::Deviation(double lag) const {
-    return deviation * std::pow(lag / cellSize, hurst);
-}
-
-double BaseRoughness::RmsSlope(double baseline) const {
-    return Deviation(baseline) / baseline;
-}
-
+/// The roughness of `heights` on cells `cellSize` meters across by the variogram method.
 BaseRoughness EstimateBaseRoughness(const Raster<float>& heights, double cellSize) {
     RequirePositive(cellSize, "Base roughness cell size");
     const DeviogramFit fit = FitDeviogram(heights);
@@ -51,6 +42,16 @@ BaseRoughness EstimateBaseRoughness(const Raster<float>& heights, double cellSiz
     roughness.deviation = std::exp2(fit.intercept);
     roughness.cellSize = cellSize;
     return roughness;
+}
+
+}  // namespace
+
+double BaseRoughness::Deviation(double lag) const {
+    return deviation * std::pow(lag / cellSize, hurst);
+}
+
+double BaseRoughness::RmsSlope(double baseline) const {
+    return Deviation(baseline) / baseline;
 }
 
 Raster<float> SampleSourceWindow(const Source& source, double cellSize, const Vec2d& origin) {

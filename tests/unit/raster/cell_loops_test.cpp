@@ -126,3 +126,25 @@ TEST(ForEachTile, CoversEveryCellOnceInTilesOfTheSide) {
     terraingen::ForEachTile(0, 5, 4, 1, [&](const PixelWindow&) { called = true; });
     EXPECT_FALSE(called);
 }
+
+TEST(ForEachFeatureCell, VisitsTheCellsOfEachFeaturesBox) {
+    Raster<double> raster(10, 10, 0.0);
+    raster.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 10.0, 1.0));
+    const std::vector<terraingen::Bounds2d> boxes{{0.0, 0.0, 2.0, 2.0}, {1.0, 1.0, 3.0, 3.0}};
+    terraingen::ForEachFeatureCell(raster, 2, boxes, Surface{},
+                                   [](double& cell, const terraingen::FeatureCell& at) {
+                                       cell += static_cast<double>(at.feature + 1);
+                                   });
+    EXPECT_EQ(raster(0, 9), 1.0) << "only in the first box";
+    EXPECT_EQ(raster(1, 8), 3.0) << "in both";
+    EXPECT_EQ(raster(2, 7), 2.0) << "only in the second";
+    EXPECT_EQ(raster(5, 5), 0.0);
+}
+
+TEST(FillCells, SetsEveryCellFromItsCenter) {
+    Raster<double> raster(4, 3, 7.0);
+    raster.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 3.0, 1.0));
+    terraingen::FillCells(raster, 2, [](const terraingen::Vec2d& center) { return center.x; });
+    EXPECT_EQ(raster(0, 0), 0.5);
+    EXPECT_EQ(raster(3, 2), 3.5);
+}

@@ -64,10 +64,6 @@ void BindBoulderShapes(nb::module_& m) {
         .def_ro("material", &BoulderShape::material)
         .def_ro("intermediate", &BoulderShape::intermediate)
         .def_ro("short_axis", &BoulderShape::shortAxis);
-    m.def(
-        "normalized_boulder_shape", &NormalizedBoulderShape, "mesh"_a,
-        "A rock mesh in the unit form of BoulderShape: centered, its longer horizontal side along "
-        "x and 1 long.");
     m.def("generate_boulder_shape", &GenerateBoulderShape, "shape_seed"_a,
           "options"_a = BoulderShapeOptions{},
           "The shape `shape_seed` gives: the same seed always gives the same shape.");
@@ -305,16 +301,6 @@ void BindLayerQueries(nb::class_<BoulderLayer, Layer>& layer) {
             "The boulder abundance at (x, y): (background, ejecta). With the exposure field, give "
             "the ground beneath the boulders: `generator`'s source and its first `layers` layers.")
         .def(
-            "density_at",
-            [](const BoulderLayer& boulders, double diameter, double x, double y,
-               const PyTerrainGenerator* generator, std::size_t layers) {
-                return WithGround(generator, layers, [&](const Ground* g) {
-                    return boulders.DensityAt(diameter, x, y, g);
-                });
-            },
-            "diameter"_a, "x"_a, "y"_a, "generator"_a = nb::none(), "layers"_a = 0,
-            "Boulders at least `diameter` across per square meter at (x, y).")
-        .def(
             "unresolved_cover_at",
             [](const BoulderLayer& boulders, double x, double y, double spacing,
                const PyTerrainGenerator* generator, std::size_t layers) {
@@ -355,12 +341,6 @@ void BindLayer(nb::module_& m) {
         .def_prop_ro("options", &BoulderLayer::Options);
     BindLayerQueries(layer);
     BindMaterialCover<BoulderLayer>(layer);
-    m.def("add_boulder", &AddBoulder, "height"_a, "x"_a, "y"_a, "boulder"_a, "weight"_a = 1.0,
-          "surface"_a = Surface{}, "width"_a = 0.0,
-          "`height` at (x, y) with `boulder` drawn into it at `weight`, its dome averaged over "
-          "`width` meters.");
-    m.def("dome_height", &DomeHeight, "boulder"_a, "distance"_a, "width"_a = 0.0,
-          "A boulder's dome `distance` meters from its center, averaged over `width` meters.");
 }
 
 void BindPlacement(nb::module_& m) {
@@ -393,8 +373,6 @@ void BindModels(nb::module_& m) {
         .def_prop_ro(
             "mesh", [](const BoulderModel& b) { return PlaceMesh(b.shape->mesh, b.placement); },
             "The boulder's mesh placed in the world.");
-    m.def("boulder_mesh", &BoulderMesh, "boulder"_a, "options"_a, "ground_height"_a,
-          "prototypes"_a = 0, "`boulder` as a mesh in the world, standing on the ground.");
     m.def("top_surface", &TopSurface, "placed"_a, "x"_a, "y"_a,
           "The height of a placed mesh's top above (x, y), or None outside it.");
 }

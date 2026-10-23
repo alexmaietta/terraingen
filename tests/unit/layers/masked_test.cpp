@@ -116,16 +116,6 @@ TEST(MaskedLayer, HoldsTheFeaturesCenteredInTheRegionOrItsFeather) {
     EXPECT_TRUE(layer.Holds(0.0, 0.0));
     EXPECT_TRUE(layer.Holds(6.5, 0.0)) << "inside the feather";
     EXPECT_FALSE(layer.Holds(7.5, 0.0));
-    const terraingen::RasterGrid grid = terraingen::RasterGrid::FromRaster(Slope());
-    const auto inner = layer.InnerGrid(grid);
-    ASSERT_TRUE(inner.has_value());
-    const auto bounds = inner->Bounds();
-    EXPECT_LE(bounds.minX, -7.0);
-    EXPECT_GE(bounds.maxX, 7.0);
-    EXPECT_LT(inner->width, grid.width) << "only the cells near the region";
-    EXPECT_EQ(inner->transform.pixelWidth, grid.transform.pixelWidth);
-    const MaskedLayer away(ManualCraters(), RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}));
-    EXPECT_FALSE(away.InnerGrid(grid).has_value());
 }
 
 TEST(MaskedLayer, SkipsTheInnerLayerAwayFromTheRegion) {

@@ -2,6 +2,7 @@
 
 #include "terraingen/util/checks.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <map>
@@ -190,6 +191,54 @@ TriangleMesh Scaled(const TriangleMesh& mesh, const Vec3d& scale) {
         }
     }
     return scaled;
+}
+
+void CutAtPlane(TriangleMesh& mesh, const Vec3d& normal, std::vector<double> distances) {
+    std::map<std::pair<std::uint32_t, std::uint32_t>, std::uint32_t> crossings;
+    const auto crossing = [&](std::uint32_t a, std::uint32_t b) {
+        const auto key = std::minmax(a, b);
+        const auto found = crossings.find(key);
+        if (found != crossings.end()) {
+            return found->second;
+        }
+        const double t = distances[a] / (distances[a] - distances[b]);
+        const Vec3d& pa = mesh.positions[a];
+        mesh.positions.push_back(pa + (mesh.positions[b] - pa) * t);
+        distances.push_back(0.0);
+        const auto index = static_cast<std::uint32_t>(mesh.positions.size() - 1);
+        crossings.emplace(key, index);
+        return index;
+    };
+    std::vector<std::array<std::uint32_t, 3>> triangles;
+    triangles.reserve(mesh.triangles.size());
+    for (const auto& triangle : mesh.triangles) {
+        const auto above = [&](std::uint32_t v) { return distances[v] > 0.0; };
+        const int count = static_cast<int>(above(triangle[0])) +
+                          static_cast<int>(above(triangle[1])) +
+                          static_cast<int>(above(triangle[2]));
+        if (count == 0 || count == 3) {
+            triangles.push_back(triangle);
+            continue;
+        }
+        std::size_t lone = 0;
+        while (above(triangle[lone]) == (count == 2)) {
+            ++lone;
+        }
+        const std::uint32_t a = triangle[lone];
+        const std::uint32_t b = triangle[(lone + 1) % 3];
+        const std::uint32_t c = triangle[(lone + 2) % 3];
+        const std::uint32_t ab = crossing(a, b);
+        const std::uint32_t ac = crossing(a, c);
+        triangles.push_back({a, ab, ac});
+        triangles.push_back({ab, b, c});
+        triangles.push_back({ab, c, ac});
+    }
+    mesh.triangles = std::move(triangles);
+    for (std::size_t i = 0; i < distances.size(); ++i) {
+        if (distances[i] > 0.0) {
+            mesh.positions[i] = mesh.positions[i] - normal * distances[i];
+        }
+    }
 }
 
 }  // namespace terraingen

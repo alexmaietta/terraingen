@@ -27,9 +27,6 @@ struct ValueRange {
     bool operator==(const ValueRange& other) const {
         return min == other.min && max == other.max;
     }
-    bool operator!=(const ValueRange& other) const {
-        return !(*this == other);
-    }
 };
 
 /// One kind of boulder: the solid it starts from and the ranges its shape is drawn from.
@@ -67,9 +64,6 @@ struct BoulderStyle {
                noiseWavelength == other.noiseWavelength && noiseOctaves == other.noiseOctaves &&
                edgeSoftness == other.edgeSoftness && faceRoughness == other.faceRoughness;
     }
-    bool operator!=(const BoulderStyle& other) const {
-        return !(*this == other);
-    }
 };
 
 /// The default mix of boulder styles, every one cut irregularly, weathered at its edges and rough
@@ -93,9 +87,6 @@ struct BoulderShapeOptions {
         return styles == other.styles && subdivisions == other.subdivisions && seed == other.seed &&
                weathering == other.weathering && library == other.library;
     }
-    bool operator!=(const BoulderShapeOptions& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks boulder shape options.
@@ -115,11 +106,6 @@ struct BoulderShape {
     double shortAxis = 1.0;     ///< Extent along z, in long-axis lengths.
     MeshMaterial material{"rock", {0.5, 0.5, 0.5}};  ///< The library mesh's, or plain gray.
 };
-
-/// `mesh` in the unit form of `BoulderShape`: centerd on its box, turned about z so its longer
-/// horizontal side lies along x, and scaled so that side is 1 long.
-/// @throws std::invalid_argument for a mesh that is invalid or flat along an axis.
-BoulderShape NormalizedBoulderShape(const SceneMesh& mesh);
 
 /// The shape a seed gives, a pure function of the seed and options; every subdivision level
 /// gives the same shape in finer detail.

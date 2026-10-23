@@ -145,10 +145,6 @@ TEST(BoulderLayer, AddsBlocksAroundFreshCraters) {
     EXPECT_LT(halfway, 1.0);
     EXPECT_EQ(layer.AbundanceAt(160.0, 0.0).ejecta, 0.0) << "beyond 3 radii";
     EXPECT_EQ(layer.AbundanceAt(160.0, 0.0).background, 1.0);
-    EXPECT_DOUBLE_EQ(layer.DensityAt(1.0, 50.0, 0.0),
-                     terraingen::GolombekRappSfd(0.02).Incremental(1.0) +
-                         terraingen::GolombekRappSfd(0.15).Incremental(1.0))
-        << "crater blocks add to the boulders between craters";
     const auto nearRim = layer.Boulders({40.0, -10.0, 60.0, 10.0});
     const auto far = layer.Boulders({300.0, -10.0, 320.0, 10.0});
     EXPECT_GT(nearRim.size(), 3 * far.size());
@@ -227,11 +223,6 @@ TEST(BoulderLayer, DrawsBouldersAndCraterBlocksFromAnyDistribution) {
     options.ejecta.distribution = std::make_shared<terraingen::TabulatedSfd>(
         terraingen::Sp8023CraterBlocks(terraingen::SpecificationCurve::Nominal));
     const BoulderLayer layer(options, Craters({{0.0, 0.0, 100.0, 0.0, 0u}}));
-    EXPECT_DOUBLE_EQ(layer.DensityAt(2.0, 400.0, 0.0),
-                     options.sizes.distribution->Incremental(2.0));
-    EXPECT_DOUBLE_EQ(layer.DensityAt(2.0, 50.0, 0.0),
-                     options.sizes.distribution->Incremental(2.0) +
-                         options.ejecta.distribution->Incremental(2.0));
     const auto boulders = layer.Boulders({-100.0, -100.0, 100.0, 100.0});
     ASSERT_FALSE(boulders.empty());
     for (const Boulder& boulder : boulders) {
@@ -287,14 +278,6 @@ TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
     layer.Apply(serial, {0.5, 1});
     EXPECT_TRUE(
         std::equal(serial.Values().begin(), serial.Values().end(), heights.Values().begin()));
-}
-
-TEST(AddBoulder, IsADomeOfTheExposedHeight) {
-    const Boulder boulder{0.0, 0.0, 2.0, 1.0, 0.25, 0.0, 0.0, 1u};
-    EXPECT_FLOAT_EQ(terraingen::AddBoulder(5.0f, 0.0, 0.0, boulder, 1.0), 5.75f);
-    EXPECT_FLOAT_EQ(terraingen::AddBoulder(5.0f, 0.6, 0.0, boulder, 1.0), 5.0f + 0.75f * 0.8f);
-    EXPECT_FLOAT_EQ(terraingen::AddBoulder(5.0f, 0.0, 0.0, boulder, 0.5), 5.375f);
-    EXPECT_EQ(terraingen::AddBoulder(5.0f, 1.0, 0.0, boulder, 1.0), 5.0f);
 }
 
 TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
@@ -686,25 +669,6 @@ TEST(BoulderLayer, DrawsNoBoulderNarrowerThanTheFadeStartButListsEveryOne) {
             }
         }
     }
-}
-
-TEST(DomeHeight, AveragesTheDomeOverASampleSoItsRimSlopes) {
-    const Boulder boulder{0.0, 0.0, 2.0, 1.0, 0.25, 0.0, 0.0, 1u};
-    EXPECT_DOUBLE_EQ(terraingen::DomeHeight(boulder, 0.6), 0.75 * 0.8) << "a point sample";
-    EXPECT_NEAR(terraingen::DomeHeight(boulder, 0.0, 0.1), 0.75, 1e-3);
-    EXPECT_GT(terraingen::DomeHeight(boulder, 1.02, 0.1), 0.0) << "the rim spreads half a sample";
-    EXPECT_EQ(terraingen::DomeHeight(boulder, 1.06, 0.1), 0.0);
-    double previous = terraingen::DomeHeight(boulder, 0.8, 0.1);
-    double steepest = 0.0;
-    for (double r = 0.81; r <= 1.05; r += 0.01) {
-        const double h = terraingen::DomeHeight(boulder, r, 0.1);
-        ASSERT_LE(h, previous + 1e-12);
-        steepest = std::fmax(steepest, (previous - h) / 0.01);
-        previous = h;
-    }
-    EXPECT_LT(steepest, 15.0) << "no wall at the rim";
-    EXPECT_FLOAT_EQ(terraingen::AddBoulder(5.0f, 0.6, 0.0, boulder, 1.0),
-                    5.0f + static_cast<float>(0.75 * 0.8));
 }
 
 TEST(BoulderLayer, DrawsOverlappingBouldersAsTheirUnion) {
@@ -1218,10 +1182,6 @@ TEST(BoulderLayer, BendsTheSizesIntoTheSlopeAMapGives) {
     const BoulderLayer layer(options);
     EXPECT_EQ(*layer.AbundanceAt(-5.0, 0.0).exponent, 2.0);
     for (const double d : {0.5, 1.0, 3.0, 7.0}) {
-        EXPECT_NEAR(layer.DensityAt(d, -5.0, 0.0), 0.05 * 2.0 * std::pow(d, -3.0),
-                    1e-12 * std::pow(d, -3.0));
-        EXPECT_NEAR(layer.DensityAt(d, 5.0, 0.0), 0.05 * 4.0 * std::pow(d, -5.0),
-                    1e-12 * std::pow(d, -5.0));
         const auto candidates = terraingen::BoulderCandidates(options);
         for (const double alpha : {1.5, 2.7, 5.0}) {
             const double local = 0.05 * alpha * std::pow(d, -alpha - 1.0);

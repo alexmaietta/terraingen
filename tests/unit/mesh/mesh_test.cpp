@@ -11,6 +11,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <vector>
 
 using terraingen::RigidTransform;
 using terraingen::TriangleMesh;
@@ -140,4 +141,18 @@ TEST(TriangleMesh, RejectsTrianglesIndexingPastTheVertices) {
     EXPECT_THROW(terraingen::testing::SurfaceArea(mesh), std::invalid_argument);
     EXPECT_THROW(terraingen::VertexNormals(mesh), std::invalid_argument);
     EXPECT_THROW(terraingen::WithCreases(mesh, 0.5), std::invalid_argument);
+}
+
+TEST(TriangleMesh, CutsAtAPlaneAndStaysClosed) {
+    TriangleMesh cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
+    const double before = terraingen::Volume(cube);
+    const double top = terraingen::Bounds(cube).max.z;
+    std::vector<double> distances;
+    for (const Vec3d& p : cube.positions) {
+        distances.push_back(p.z - 0.5 * top);
+    }
+    terraingen::CutAtPlane(cube, {0.0, 0.0, 1.0}, distances);
+    EXPECT_NO_THROW(terraingen::ValidateMesh(cube));
+    EXPECT_NEAR(terraingen::Bounds(cube).max.z, 0.5 * top, 1e-12);
+    EXPECT_NEAR(terraingen::Volume(cube), 0.75 * before, 1e-9 * before);
 }

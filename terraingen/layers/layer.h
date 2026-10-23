@@ -28,10 +28,6 @@ struct LayerContext {
     EvaluationCache* cache = nullptr;
 };
 
-/// Checks the context of a point query (`Layer::ApplyAt`).
-/// @throws std::invalid_argument if `context.spacing` is not positive and finite.
-void ValidatePointContext(const LayerContext& context);
-
 /// Checks that a layer that reads the ground beneath it was given one.
 /// @param what What reads it, which starts the error message ("<what> need the ground").
 /// @throws std::invalid_argument if `ground` is null.
@@ -40,7 +36,7 @@ void RequireGround(const Ground* ground, std::string_view what);
 /// Relief added on top of a source: noise, craters, or a layer of your own.
 ///
 /// A layer implements `ApplySamples` over a `SampleBlock` (a grid's cells or scattered points), so
-/// a point gets the same height as a grid cell centerd there. Implementations must be
+/// a point gets the same height as a grid cell centered there. Implementations must be
 /// deterministic and thread-safe. Layers that place features list them on request
 /// (`CraterPlacer`, `BoulderPlacer`).
 class Layer {

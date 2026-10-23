@@ -29,9 +29,6 @@ struct RoughnessOptions {
                maxWavelength == other.maxWavelength && minWavelength == other.minWavelength &&
                seed == other.seed && fade == other.fade;
     }
-    bool operator!=(const RoughnessOptions& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks roughness options.
@@ -39,14 +36,6 @@ struct RoughnessOptions {
 /// (0, 1], wavelengths that do not satisfy 0 < `minWavelength` <= `maxWavelength` or that span more
 /// than 40 octaves, or an invalid `fade`.
 void ValidateRoughnessOptions(const RoughnessOptions& options);
-
-/// The structure function of `PerlinNoise2`: mean squared difference of values a lag `r` apart
-/// (lattice units), over positions, directions and seeds; 0 for `r` <= 0.
-double PerlinStructureFunction(double r);
-
-/// The structure function of `PerlinNoise3` at a lag `r` (lattice units) in a random 3D
-/// direction; 0 for `r` <= 0.
-double Perlin3StructureFunction(double r);
 
 /// Fine roughness: octaves of Perlin noise halving in wavelength from `maxWavelength` to
 /// `minWavelength`, amplitudes growing as wavelength^H.

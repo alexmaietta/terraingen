@@ -227,158 +227,170 @@ void ApplyFractures(TriangleMesh& mesh, std::size_t corners, const BoulderStyle&
     }
 }
 
+/// `rock` in the unit form of `BoulderShape`: centered on its box, turned about z so its longer
+/// horizontal side lies along x, and scaled so that side is 1 long.
+BoulderShape NormalizedBoulderShape(const SceneMesh& rock) {
+    const Vec3d extents = CheckRock(rock.mesh);
+    const Box3d box = Bounds(rock.mesh);
+    const Vec3d center = (box.min + box.max) * 0.5;
+    const bool turned = extents.y > extents.x;
+    const double length = std::fmax(extents.x, extents.y);
+    BoulderShape shape;
+    shape.mesh.triangles = rock.mesh.triangles;
+    for (const Vec3d& p : rock.mesh.positions) {
+        const Vec3d q = (p - center) * (1.0 / length);
+        shape.mesh.positions.push_back(turned ? Vec3d{q.y, -q.x, q.z} : q);
+    }
+    shape.intermediate = std::fmin(extents.x, extents.y) / length;
+    shape.shortAxis = extents.z / length;
+    shape.material = rock.material;
+    return shape;
+}
+
 }  // namespace
 
 std::vector<BoulderStyle> DefaultBoulderStyles() {
-    BoulderStyle angular;
-    angular.name = "angular";
-    angular.weight = 0.2;
-    angular.solid = BaseSolid::Icosahedron;
-    angular.intermediate = {0.6, 0.9};
-    angular.shortAxis = {0.45, 0.7};
-    angular.minFractures = 7;
-    angular.maxFractures = 12;
-    angular.fractureDepth = {0.55, 0.85};
-    angular.maxFractureTilt = 1.0;
-    angular.noiseAmplitude = 0.06;
-    angular.noiseWavelength = 0.9;
-    angular.noiseOctaves = 4;
-    angular.edgeSoftness = {0.02, 0.06};
-    angular.faceRoughness = 0.03;
-
-    BoulderStyle platy;
-    platy.name = "platy";
-    platy.weight = 0.12;
-    platy.solid = BaseSolid::Icosahedron;
-    platy.intermediate = {0.6, 0.9};
-    platy.shortAxis = {0.22, 0.38};
-    platy.minFractures = 5;
-    platy.maxFractures = 9;
-    platy.fractureDepth = {0.6, 0.88};
-    platy.maxFractureTilt = 0.7;
-    platy.noiseAmplitude = 0.05;
-    platy.noiseWavelength = 0.9;
-    platy.noiseOctaves = 4;
-    platy.edgeSoftness = {0.02, 0.05};
-    platy.faceRoughness = 0.03;
-
-    BoulderStyle subrounded;
-    subrounded.name = "subrounded";
-    subrounded.weight = 0.15;
-    subrounded.solid = BaseSolid::Icosahedron;
-    subrounded.intermediate = {0.65, 0.9};
-    subrounded.shortAxis = {0.45, 0.7};
-    subrounded.minFractures = 4;
-    subrounded.maxFractures = 7;
-    subrounded.fractureDepth = {0.65, 0.9};
-    subrounded.maxFractureTilt = 1.0;
-    subrounded.noiseAmplitude = 0.07;
-    subrounded.noiseWavelength = 0.8;
-    subrounded.noiseOctaves = 4;
-    subrounded.edgeSoftness = {0.06, 0.12};
-    subrounded.faceRoughness = 0.02;
-
-    BoulderStyle rounded;
-    rounded.name = "rounded";
-    rounded.weight = 0.1;
-    rounded.solid = BaseSolid::Icosahedron;
-    rounded.intermediate = {0.7, 0.95};
-    rounded.shortAxis = {0.5, 0.75};
-    rounded.minFractures = 0;
-    rounded.maxFractures = 3;
-    rounded.fractureDepth = {0.75, 0.95};
-    rounded.maxFractureTilt = 1.0;
-    rounded.noiseAmplitude = 0.1;
-    rounded.noiseWavelength = 0.7;
-    rounded.noiseOctaves = 4;
-    rounded.edgeSoftness = {0.1, 0.18};
-    rounded.faceRoughness = 0.02;
-
-    BoulderStyle block;
-    block.name = "block";
-    block.weight = 0.13;
-    block.solid = BaseSolid::Cube;
-    block.intermediate = {0.6, 0.85};
-    block.shortAxis = {0.4, 0.6};
-    block.rounding = {0.0, 0.15};
-    block.minFractures = 3;
-    block.maxFractures = 7;
-    block.fractureDepth = {0.6, 0.85};
-    block.maxFractureTilt = 1.0;
-    block.noiseAmplitude = 0.07;
-    block.noiseWavelength = 0.8;
-    block.noiseOctaves = 4;
-    block.edgeSoftness = {0.06, 0.12};
-    block.faceRoughness = 0.06;
-
-    BoulderStyle wedge;
-    wedge.name = "wedge";
-    wedge.weight = 0.1;
-    wedge.solid = BaseSolid::Prism;
-    wedge.intermediate = {0.55, 0.85};
-    wedge.shortAxis = {0.4, 0.6};
-    wedge.rounding = {0.0, 0.2};
-    wedge.minFractures = 2;
-    wedge.maxFractures = 5;
-    wedge.fractureDepth = {0.65, 0.9};
-    wedge.maxFractureTilt = 1.0;
-    wedge.noiseAmplitude = 0.07;
-    wedge.noiseWavelength = 0.8;
-    wedge.noiseOctaves = 4;
-    wedge.edgeSoftness = {0.06, 0.12};
-    wedge.faceRoughness = 0.06;
-
-    BoulderStyle pyramid;
-    pyramid.name = "pyramid";
-    pyramid.weight = 0.1;
-    pyramid.solid = BaseSolid::Pyramid;
-    pyramid.intermediate = {0.7, 0.95};
-    pyramid.shortAxis = {0.45, 0.7};
-    pyramid.rounding = {0.0, 0.2};
-    pyramid.minFractures = 2;
-    pyramid.maxFractures = 4;
-    pyramid.fractureDepth = {0.7, 0.92};
-    pyramid.maxFractureTilt = 1.0;
-    pyramid.noiseAmplitude = 0.07;
-    pyramid.noiseWavelength = 0.8;
-    pyramid.noiseOctaves = 4;
-    pyramid.edgeSoftness = {0.06, 0.12};
-    pyramid.faceRoughness = 0.06;
-
-    BoulderStyle shard;
-    shard.name = "shard";
-    shard.weight = 0.05;
-    shard.solid = BaseSolid::Tetrahedron;
-    shard.intermediate = {0.6, 0.9};
-    shard.shortAxis = {0.4, 0.6};
-    shard.rounding = {0.0, 0.2};
-    shard.minFractures = 2;
-    shard.maxFractures = 4;
-    shard.fractureDepth = {0.7, 0.92};
-    shard.maxFractureTilt = 1.0;
-    shard.noiseAmplitude = 0.04;
-    shard.noiseWavelength = 0.8;
-    shard.noiseOctaves = 4;
-    shard.edgeSoftness = {0.02, 0.05};
-    shard.faceRoughness = 0.03;
-
-    BoulderStyle sphere;
-    sphere.name = "sphere";
-    sphere.weight = 0.05;
-    sphere.solid = BaseSolid::Icosahedron;
-    sphere.intermediate = {0.85, 1.0};
-    sphere.shortAxis = {0.7, 0.9};
-    sphere.minFractures = 0;
-    sphere.maxFractures = 1;
-    sphere.fractureDepth = {0.8, 0.95};
-    sphere.maxFractureTilt = 1.0;
-    sphere.noiseAmplitude = 0.08;
-    sphere.noiseWavelength = 0.7;
-    sphere.noiseOctaves = 4;
-    sphere.edgeSoftness = {0.12, 0.2};
-    sphere.faceRoughness = 0.02;
-
-    return {angular, platy, subrounded, rounded, block, wedge, pyramid, shard, sphere};
+    constexpr BaseSolid kIcosahedron = BaseSolid::Icosahedron;
+    // Fields in order: name, weight, solid, intermediate, shortAxis, rounding, min and max
+    // fractures, fractureDepth, maxFractureTilt, noise amplitude, wavelength and octaves,
+    // edgeSoftness, faceRoughness.
+    return {
+        {"angular",
+         0.2,
+         kIcosahedron,
+         {0.6, 0.9},
+         {0.45, 0.7},
+         {0.0, 0.0},
+         7,
+         12,
+         {0.55, 0.85},
+         1.0,
+         0.06,
+         0.9,
+         4,
+         {0.02, 0.06},
+         0.03},
+        {"platy",
+         0.12,
+         kIcosahedron,
+         {0.6, 0.9},
+         {0.22, 0.38},
+         {0.0, 0.0},
+         5,
+         9,
+         {0.6, 0.88},
+         0.7,
+         0.05,
+         0.9,
+         4,
+         {0.02, 0.05},
+         0.03},
+        {"subrounded",
+         0.15,
+         kIcosahedron,
+         {0.65, 0.9},
+         {0.45, 0.7},
+         {0.0, 0.0},
+         4,
+         7,
+         {0.65, 0.9},
+         1.0,
+         0.07,
+         0.8,
+         4,
+         {0.06, 0.12},
+         0.02},
+        {"rounded",
+         0.1,
+         kIcosahedron,
+         {0.7, 0.95},
+         {0.5, 0.75},
+         {0.0, 0.0},
+         0,
+         3,
+         {0.75, 0.95},
+         1.0,
+         0.1,
+         0.7,
+         4,
+         {0.1, 0.18},
+         0.02},
+        {"block",
+         0.13,
+         BaseSolid::Cube,
+         {0.6, 0.85},
+         {0.4, 0.6},
+         {0.0, 0.15},
+         3,
+         7,
+         {0.6, 0.85},
+         1.0,
+         0.07,
+         0.8,
+         4,
+         {0.06, 0.12},
+         0.06},
+        {"wedge",
+         0.1,
+         BaseSolid::Prism,
+         {0.55, 0.85},
+         {0.4, 0.6},
+         {0.0, 0.2},
+         2,
+         5,
+         {0.65, 0.9},
+         1.0,
+         0.07,
+         0.8,
+         4,
+         {0.06, 0.12},
+         0.06},
+        {"pyramid",
+         0.1,
+         BaseSolid::Pyramid,
+         {0.7, 0.95},
+         {0.45, 0.7},
+         {0.0, 0.2},
+         2,
+         4,
+         {0.7, 0.92},
+         1.0,
+         0.07,
+         0.8,
+         4,
+         {0.06, 0.12},
+         0.06},
+        {"shard",
+         0.05,
+         BaseSolid::Tetrahedron,
+         {0.6, 0.9},
+         {0.4, 0.6},
+         {0.0, 0.2},
+         2,
+         4,
+         {0.7, 0.92},
+         1.0,
+         0.04,
+         0.8,
+         4,
+         {0.02, 0.05},
+         0.03},
+        {"sphere",
+         0.05,
+         kIcosahedron,
+         {0.85, 1.0},
+         {0.7, 0.9},
+         {0.0, 0.0},
+         0,
+         1,
+         {0.8, 0.95},
+         1.0,
+         0.08,
+         0.7,
+         4,
+         {0.12, 0.2},
+         0.02},
+    };
 }
 
 void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
@@ -425,28 +437,10 @@ void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
     }
 }
 
-BoulderShape NormalizedBoulderShape(const SceneMesh& rock) {
-    const Vec3d extents = CheckRock(rock.mesh);
-    const Box3d box = Bounds(rock.mesh);
-    const Vec3d center = (box.min + box.max) * 0.5;
-    const bool turned = extents.y > extents.x;
-    const double length = std::fmax(extents.x, extents.y);
-    BoulderShape shape;
-    shape.mesh.triangles = rock.mesh.triangles;
-    for (const Vec3d& p : rock.mesh.positions) {
-        const Vec3d q = (p - center) * (1.0 / length);
-        shape.mesh.positions.push_back(turned ? Vec3d{q.y, -q.x, q.z} : q);
-    }
-    shape.intermediate = std::fmin(extents.x, extents.y) / length;
-    shape.shortAxis = extents.z / length;
-    shape.material = rock.material;
-    return shape;
-}
-
 BoulderShape GenerateBoulderShape(std::uint64_t shapeSeed, const BoulderShapeOptions& options) {
     ValidateBoulderShapeOptions(options);
-    RandomStream random(options.seed, kBoulderShapeStream, static_cast<std::uint32_t>(shapeSeed),
-                        static_cast<std::uint32_t>(shapeSeed >> 32));
+    const IdWords words = SplitId(shapeSeed);
+    RandomStream random(options.seed, kBoulderShapeStream, words.low, words.high);
     if (!options.library.empty()) {
         const std::size_t index = random.NextU32() % options.library.size();
         BoulderShape shape = NormalizedBoulderShape(*options.library[index]);
@@ -485,8 +479,8 @@ std::uint64_t BoulderShapeSeed(std::uint64_t id, std::uint32_t prototypes) {
     if (prototypes == 0) {
         return id;
     }
-    const UVec3 hash = Pcg3dHash({static_cast<std::uint32_t>(id),
-                                  static_cast<std::uint32_t>(id >> 32), kBoulderPrototypeStream});
+    const IdWords words = SplitId(id);
+    const UVec3 hash = Pcg3dHash({words.low, words.high, kBoulderPrototypeStream});
     return hash.x % prototypes;
 }
 

@@ -100,4 +100,10 @@ void RequireScaleFactors(const Vec3d& scale, std::string_view what);
 /// @throws std::invalid_argument for a zero or non-finite factor.
 TriangleMesh Scaled(const TriangleMesh& mesh, const Vec3d& scale);
 
+/// Cuts `mesh` flat at a plane: triangles crossing it are split along it, sharing the new points
+/// between neighbors so the mesh stays closed, and points above it are moved down onto it.
+/// @param normal The plane's unit normal, pointing to the side cut away.
+/// @param distances Each vertex's signed distance along `normal` from the plane, positive above.
+void CutAtPlane(TriangleMesh& mesh, const Vec3d& normal, std::vector<double> distances);
+
 }  // namespace terraingen

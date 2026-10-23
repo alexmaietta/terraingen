@@ -7,10 +7,26 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
 using terraingen::Boulder;
+
+namespace {
+
+/// `boulder` as a mesh in world coordinates on ground `groundHeight` meters high, its shape drawn
+/// from its ID among `prototypes` shared shapes.
+terraingen::TriangleMesh BoulderMesh(const Boulder& boulder,
+                                     const terraingen::BoulderShapeOptions& options,
+                                     double groundHeight, std::uint32_t prototypes = 0) {
+    const terraingen::BoulderShape shape =
+        terraingen::GenerateBoulderShape(terraingen::ShapeSeed(boulder, prototypes), options);
+    return terraingen::PlaceMesh(shape.mesh,
+                                 terraingen::PlaceBoulderModel(boulder, shape, groundHeight));
+}
+
+}  // namespace
 
 TEST(PlaceMesh, MovesEveryPointByThePlacement) {
     terraingen::TriangleMesh mesh;
@@ -38,7 +54,7 @@ TEST(PlaceBoulderModel, StandsTheShapeAtTheBouldersSizeBurialAndHeading) {
     const terraingen::BoulderShapeOptions options;
     const Boulder boulder{5.0, -3.0, 2.0, 1.0, 0.25, 0.4, 0.0, 42u};
     const auto shape = terraingen::GenerateBoulderShape(boulder.id, options);
-    const auto mesh = terraingen::BoulderMesh(boulder, options, 10.0);
+    const auto mesh = BoulderMesh(boulder, options, 10.0);
     const auto box = terraingen::Bounds(mesh);
     EXPECT_NEAR(box.min.z, 10.0 - 0.25, 1e-12) << "a quarter of its height below the ground";
     EXPECT_NEAR(box.max.z - 10.0, boulder.ExposedHeight(), 1e-12);
@@ -63,15 +79,15 @@ TEST(PlaceBoulderModel, StandsTheShapeAtTheBouldersSizeBurialAndHeading) {
 TEST(PlaceBoulderModel, BuriesItsShareOfTheLeanedHeightAndSharesPrototypes) {
     const terraingen::BoulderShapeOptions options;
     const Boulder boulder{0.0, 0.0, 1.0, 0.5, 0.4, 0.0, terraingen::kPi / 6.0, 7u};
-    const auto box = terraingen::Bounds(terraingen::BoulderMesh(boulder, options, 0.0));
+    const auto box = terraingen::Bounds(BoulderMesh(boulder, options, 0.0));
     const double extent = box.max.z - box.min.z;
     EXPECT_GT(extent, boulder.height) << "leaning raises the long axis";
     EXPECT_NEAR(box.min.z, -0.4 * extent, 1e-12);
 
     Boulder other = boulder;
     other.id = 8u;
-    const auto a = terraingen::BoulderMesh(boulder, options, 0.0, 1);
-    const auto b = terraingen::BoulderMesh(other, options, 0.0, 1);
+    const auto a = BoulderMesh(boulder, options, 0.0, 1);
+    const auto b = BoulderMesh(other, options, 0.0, 1);
     EXPECT_EQ(a.positions, b.positions) << "one prototype for every boulder";
 }
 
@@ -201,4 +217,16 @@ TEST(PlacementAtSite, MovesLocalPlacementsIntoTheSitesFrame) {
     EXPECT_LT(atSite.z, 3.5);
     const auto flat = terraingen::PlacementAtSite(local, {5.0, 5.0}, {0.0, 0.0}, {});
     EXPECT_EQ(flat.pose.translation, local.pose.translation);
+}
+
+TEST(BoulderPlacement, UnappliesWhatItApplies) {
+    terraingen::BoulderPlacement placement;
+    placement.scale = {2.0, 3.0, 0.5};
+    placement.pose = terraingen::TiltRotation(0.3, 1.1);
+    placement.pose.translation = {4.0, -2.0, 7.0};
+    const terraingen::Vec3d p{0.2, -0.4, 0.1};
+    const terraingen::Vec3d back = placement.Unapply(placement.Apply(p));
+    EXPECT_NEAR(back.x, p.x, 1e-12);
+    EXPECT_NEAR(back.y, p.y, 1e-12);
+    EXPECT_NEAR(back.z, p.z, 1e-12);
 }

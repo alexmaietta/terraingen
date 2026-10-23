@@ -43,13 +43,7 @@ PixelWindow MergeWindows(const std::vector<PixelWindow>& windows) {
 
 /// The cells of `window` of `heights` as a raster of their own, on the same lattice.
 Raster<float> CopyWindow(const Raster<float>& heights, const PixelWindow& window) {
-    Raster<float> copy(window.colEnd - window.colBegin, window.rowEnd - window.rowBegin);
-    GeoTransform transform = heights.Transform();
-    const Vec2d origin = transform.PixelToWorld(static_cast<double>(window.colBegin),
-                                                static_cast<double>(window.rowBegin));
-    transform.originX = origin.x;
-    transform.originY = origin.y;
-    copy.SetTransform(transform);
+    Raster<float> copy = Subgrid(RasterGrid::FromRaster(heights), window).MakeRaster();
     copy.SetNoData(heights.NoData());
     for (std::size_t row = window.rowBegin; row < window.rowEnd; ++row) {
         for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {
@@ -140,12 +134,7 @@ std::optional<RasterGrid> MaskedLayer::InnerGrid(const RasterGrid& grid) const {
     if (window.Empty()) {
         return std::nullopt;
     }
-    GeoTransform transform = grid.transform;
-    const Vec2d origin = transform.PixelToWorld(static_cast<double>(window.colBegin),
-                                                static_cast<double>(window.rowBegin));
-    transform.originX = origin.x;
-    transform.originY = origin.y;
-    return RasterGrid{window.colEnd - window.colBegin, window.rowEnd - window.rowBegin, transform};
+    return Subgrid(grid, window);
 }
 
 CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) const {

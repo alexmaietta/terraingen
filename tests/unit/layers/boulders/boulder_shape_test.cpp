@@ -184,14 +184,16 @@ TEST(BoulderShapeSeed, GivesUniqueOrSharedShapes) {
     EXPECT_EQ(shared.size(), 16u);
 }
 
-TEST(NormalizedBoulderShape, TurnsAndScalesARockToTheUnitForm) {
+TEST(GenerateBoulderShape, TurnsAndScalesALibraryRockToTheUnitForm) {
     terraingen::SceneMesh rock{
         terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube), {}, {"granite", {0.6, 0.6, 0.55}}};
     rock.mesh = terraingen::Scaled(rock.mesh, {2.0, 6.0, 3.0});
     for (auto& p : rock.mesh.positions) {
         p = p + terraingen::Vec3d{10.0, -4.0, 7.0};
     }
-    const auto shape = terraingen::NormalizedBoulderShape(rock);
+    BoulderShapeOptions options;
+    options.library = {std::make_shared<const terraingen::SceneMesh>(rock)};
+    const auto shape = terraingen::GenerateBoulderShape(1, options);
     const auto box = terraingen::Bounds(shape.mesh);
     EXPECT_NEAR(box.Extents().x, 1.0, 1e-12) << "the longer horizontal side along x";
     EXPECT_NEAR(shape.intermediate, 2.0 / 6.0, 1e-12);
@@ -204,7 +206,8 @@ TEST(NormalizedBoulderShape, TurnsAndScalesARockToTheUnitForm) {
     for (auto& p : flat.mesh.positions) {
         p.z = 0.0;
     }
-    EXPECT_THROW(terraingen::NormalizedBoulderShape(flat), std::invalid_argument);
+    options.library = {std::make_shared<const terraingen::SceneMesh>(flat)};
+    EXPECT_THROW(terraingen::ValidateBoulderShapeOptions(options), std::invalid_argument);
 }
 
 TEST(GenerateBoulderShape, DrawsFromTheLibraryWhenItHasRocks) {

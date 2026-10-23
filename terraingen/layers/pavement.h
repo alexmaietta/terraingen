@@ -49,9 +49,6 @@ struct PavementOptions {
                exposure == other.exposure && exposureSpacing == other.exposureSpacing &&
                anchor == other.anchor && fade == other.fade;
     }
-    bool operator!=(const PavementOptions& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks pavement options.
@@ -70,21 +67,14 @@ PavementOptions MarsDesiccationRidges();
 /// Fractured bedrock pavement added to the terrain: Voronoi plates, each flat with its own tilt
 /// and height step, parted by cracks (or ridges) with rounded shoulders, and split again by finer
 /// octaves of cracks that end at the cracks before them; each octave fades out where too fine for
-/// the spacing. Plate heights blend
-/// across each crack, so the surface has no steps. A function of position only, so grids, tiles
-/// and points agree; it lays bedrock over the material map.
+/// the spacing. Plate heights blend across each crack, so the surface has no steps; it lays
+/// bedrock over the material map.
 class PavementLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, plates are laid out in the tangent frame of `options.anchor`. Applying the layer
     /// with the exposure field enabled needs `context.ground`.
     /// @throws std::invalid_argument as `ValidatePavementOptions`.
     explicit PavementLayer(PavementOptions options, Surface surface = {});
-
-    /// The pavement's relief at world (x, y), every octave summed, without exposure or fading (m).
-    double ReliefAt(double x, double y) const;
-
-    /// The distance from world (x, y) to the nearest edge of the coarsest plates (m).
-    double EdgeDistanceAt(double x, double y) const;
 
     /// The options the layer was made with.
     const PavementOptions& Options() const {
@@ -114,24 +104,23 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
         double maxStep = 0.0;
         std::uint32_t seed = 0;
     };
-    /// The plate of one octave containing planar point `q`: its relief, distance to its nearest
-    /// edge, how far it lies inside the plate rather than in its crack (0 on an edge, 1 past the
-    /// shoulder), and an id that seeds the finer octave's plates within it.
+    /// The plate of one octave containing planar point `q`: its relief, how far it lies inside the
+    /// plate rather than in its crack (0 on an edge, 1 past the shoulder), and an id that seeds the
+    /// finer octave's plates within it.
     struct Plate {
         double relief = 0.0;
-        double edge = 0.0;
         double interior = 1.0;
         std::uint32_t id = 0;
     };
     /// Planar point `q` moved by the edge warp of plates `size` across.
     Vec2d Warp(const Vec2d& q, double size, std::uint32_t seed) const;
     Plate PlateAt(const Vec2d& q, const Level& level, std::uint32_t seed, double crackWeight) const;
-    /// The relief of every octave at planar point `q`, each faded at `spacing`; 0 for none.
+    /// The relief of every octave at planar point `q`, each faded at `spacing`.
     double Relief(const Vec2d& q, double spacing) const;
     double ExposureWeight(double x, double y, const Ground* ground) const;
 
     PavementOptions options_;
-    std::optional<ExposureField> exposure_;
+    LayerExposure exposure_;
     AnchoredPlane plane_;
     std::vector<Level> levels_;
 };

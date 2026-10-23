@@ -50,9 +50,6 @@ struct RegionShape {
                rectangle.maxY == other.rectangle.maxY && center == other.center &&
                radius == other.radius;
     }
-    bool operator!=(const RegionShape& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks a region shape.
@@ -85,10 +82,6 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
     /// Whether a feature centered at (x, y) belongs to the region: within it or its feather.
     bool Holds(double x, double y) const;
 
-    /// The part of `grid` the inner layer is applied to, the cells near the region; nothing when no
-    /// cell is.
-    std::optional<RasterGrid> InnerGrid(const RasterGrid& grid) const;
-
     /// The inner layer's craters over its part of `grid` that the region `Holds`; none when the
     /// inner layer places no craters.
     CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const override;
@@ -106,6 +99,8 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
     void ApplyToGrid(Raster<float>& heights, const LayerContext& context) const;
     void ApplyToPoints(SampleBlock& samples, const LayerContext& context) const;
     PixelWindow InnerWindow(const RasterGrid& grid) const;
+    /// The part of `grid` the inner layer is applied to; nothing when no cell is near the region.
+    std::optional<RasterGrid> InnerGrid(const RasterGrid& grid) const;
 
     std::shared_ptr<const Layer> inner_;
     RegionShape shape_;

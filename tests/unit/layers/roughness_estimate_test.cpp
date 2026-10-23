@@ -14,7 +14,6 @@
 #include <vector>
 
 using terraingen::BaseRoughness;
-using terraingen::EstimateBaseRoughness;
 using terraingen::GeoTransform;
 using terraingen::Raster;
 
@@ -104,16 +103,23 @@ double LayerDeviation(const terraingen::NoiseLayer& layer) {
     return std::sqrt(sum / count);
 }
 
+/// `EstimateSourceRoughness` of `heights` read as a raster source of `cellSize` cells.
+BaseRoughness Estimate(Raster<float> heights, double cellSize) {
+    heights.SetTransform(
+        GeoTransform::NorthUp(0.0, cellSize * static_cast<double>(heights.Height()), cellSize));
+    return terraingen::EstimateSourceRoughness(terraingen::RasterSource(heights));
+}
+
 }  // namespace
 
-TEST(EstimateBaseRoughness, ReadsARampAsSmoothWithItsSlope) {
+TEST(EstimateSourceRoughness, ReadsARampAsSmoothWithItsSlope) {
     Raster<float> ramp(32, 32);
     for (std::size_t row = 0; row < ramp.Height(); ++row) {
         for (std::size_t col = 0; col < ramp.Width(); ++col) {
             ramp(col, row) = 0.5f * static_cast<float>(col);
         }
     }
-    const BaseRoughness roughness = EstimateBaseRoughness(ramp, 2.0);
+    const BaseRoughness roughness = Estimate(ramp, 2.0);
     EXPECT_NEAR(roughness.hurst, 1.0, 1e-9);
     EXPECT_NEAR(roughness.deviation, 0.5 / std::sqrt(2.0), 1e-9);
     EXPECT_EQ(roughness.cellSize, 2.0);
@@ -121,10 +127,10 @@ TEST(EstimateBaseRoughness, ReadsARampAsSmoothWithItsSlope) {
     EXPECT_NEAR(roughness.RmsSlope(0.1), 0.25 / std::sqrt(2.0), 1e-9);
 }
 
-TEST(EstimateBaseRoughness, RecoversTheHurstExponentAndRmsSlopeOfSelfAffineSurfaces) {
+TEST(EstimateSourceRoughness, RecoversTheHurstExponentAndRmsSlopeOfSelfAffineSurfaces) {
     for (const double hurst : {0.5, 0.7, 0.9}) {
         const SelfAffineSurface surface(hurst);
-        const BaseRoughness roughness = EstimateBaseRoughness(surface.Sample(128, 1.0), 1.0);
+        const BaseRoughness roughness = Estimate(surface.Sample(128, 1.0), 1.0);
         EXPECT_NEAR(roughness.hurst, hurst, 0.08) << hurst;
         EXPECT_NEAR(roughness.deviation, surface.Deviation(1.0), 0.15 * surface.Deviation(1.0));
         for (const double baseline : {0.5, 0.25, 0.1}) {
@@ -135,27 +141,24 @@ TEST(EstimateBaseRoughness, RecoversTheHurstExponentAndRmsSlopeOfSelfAffineSurfa
     }
 }
 
-TEST(EstimateBaseRoughness, RejectsFlatBasesAndCellSizesThatAreNotPositive) {
-    EXPECT_THROW(EstimateBaseRoughness(Raster<float>(16, 16, 3.0f), 1.0), std::invalid_argument);
+TEST(EstimateSourceRoughness, RejectsFlatBases) {
+    EXPECT_THROW(Estimate(Raster<float>(16, 16, 3.0f), 1.0), std::invalid_argument);
     Raster<float> checkerboard(16, 16);
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {
             checkerboard(col, row) = static_cast<float>((col + row) % 2);
         }
     }
-    EXPECT_THROW(EstimateBaseRoughness(checkerboard, 1.0), std::invalid_argument);
-    const Raster<float> rough = SelfAffineSurface(0.7).Sample(16, 1.0);
-    EXPECT_THROW(EstimateBaseRoughness(rough, 0.0), std::invalid_argument);
-    EXPECT_THROW(EstimateBaseRoughness(rough, std::nan("")), std::invalid_argument);
+    EXPECT_THROW(Estimate(checkerboard, 1.0), std::invalid_argument);
 }
 
-TEST(EstimateBaseRoughness, SkipsCellsWithoutData) {
+TEST(EstimateSourceRoughness, SkipsCellsWithoutData) {
     Raster<float> heights = SelfAffineSurface(0.7).Sample(64, 1.0);
-    const BaseRoughness whole = EstimateBaseRoughness(heights, 1.0);
+    const BaseRoughness whole = Estimate(heights, 1.0);
     heights.SetNoData(-9999.0f);
     heights(10, 10) = -9999.0f;
     heights(20, 30) = std::nanf("");
-    const BaseRoughness holed = EstimateBaseRoughness(heights, 1.0);
+    const BaseRoughness holed = Estimate(heights, 1.0);
     EXPECT_NEAR(holed.hurst, whole.hurst, 0.01);
     EXPECT_NEAR(holed.deviation, whole.deviation, 0.01 * whole.deviation);
 }
@@ -163,7 +166,7 @@ TEST(EstimateBaseRoughness, SkipsCellsWithoutData) {
 TEST(EstimateSourceRoughness, ReadsTheSourceOnItsNativeCells) {
     const Raster<float> heights = SelfAffineSurface(0.6).Sample(96, 2.0);
     const terraingen::RasterSource source(heights);
-    const BaseRoughness direct = EstimateBaseRoughness(heights, 2.0);
+    const BaseRoughness direct = Estimate(heights, 2.0);
     const BaseRoughness read = terraingen::EstimateSourceRoughness(source);
     EXPECT_NEAR(read.hurst, direct.hurst, 0.01) << "the lattice is centered on the grid";
     EXPECT_NEAR(read.deviation, direct.deviation, 0.01 * direct.deviation);

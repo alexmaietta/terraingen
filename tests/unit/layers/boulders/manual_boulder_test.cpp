@@ -238,11 +238,6 @@ TEST(ManualBoulder, ShapeSeedPicksTheShapeAGeneratedBoulderDerives) {
     Boulder unseeded = *placed;
     unseeded.shapeSeed.reset();
     EXPECT_NE(layer.Shape(unseeded)->mesh.positions, plain.Shape(g)->mesh.positions);
-    const terraingen::BoulderShape shape = terraingen::GenerateBoulderShape(seed, {});
-    EXPECT_EQ(terraingen::BoulderMesh(*placed, {}, 0.0).positions,
-              terraingen::PlaceMesh(shape.mesh, terraingen::PlaceBoulderModel(*placed, shape, 0.0))
-                  .positions)
-        << "a free-standing mesh takes the seed too";
 }
 
 TEST(ManualBoulder, BouldersFixingAnyFieldNeverBreak) {
@@ -357,7 +352,6 @@ TEST(ManualOnlyBoulderLayer, NeedsNoSizesCraterLayerOrGroundAndHasNoAbundance) {
     const BoulderLayer layer(options);
     EXPECT_EQ(layer.Boulders(kRegion).size(), 1u) << "no ground needed for the exposure field";
     EXPECT_EQ(layer.AbundanceAt(1.0, 1.0), (terraingen::BoulderAbundance{0.0, 0.0, 0.0, {}}));
-    EXPECT_EQ(layer.DensityAt(0.5, 1.0, 1.0), 0.0);
     EXPECT_EQ(layer.UnresolvedCoverAt(1.0, 1.0, 0.5), terraingen::UnresolvedCover{});
     const terraingen::RasterGrid grid{8, 8, terraingen::GeoTransform::NorthUp(-2.0, 2.0, 0.5)};
     for (const auto& cover : layer.UnresolvedCoverOver(grid, 0.5, nullptr, 1)) {

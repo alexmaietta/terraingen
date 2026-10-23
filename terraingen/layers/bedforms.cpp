@@ -91,9 +91,8 @@ BedformLayer::BedformLayer(BedformOptions options, Surface surface,
                             (3.0 * (kRadiusMax - kRadiusMin));
     density_ = std::min(1.0, -std::log1p(-options_.cover) / meanArea);
     wanderSeed_ = SubstreamSeed(options_.seed, kBedformWanderStream);
-    if (options_.exposure) {
-        exposure_.emplace(*options_.exposure, surface_);
-    }
+    exposure_ =
+        LayerExposure(options_.exposure, options_.exposureSpacing, surface_, kExposureReader);
     if (surface_.IsBody()) {
         cells_.emplace(surface_);
     }
@@ -118,8 +117,7 @@ void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& ce
     if (inside <= 0.0) {
         return;
     }
-    if (exposure_ &&
-        barren < exposure_->Exposure(*ground, center.x, center.y, options_.exposureSpacing)) {
+    if (exposure_ && barren < exposure_.At(center.x, center.y, ground)) {
         return;
     }
     const double cover = Smoothstep(inside / kEdgeShare);
@@ -143,9 +141,7 @@ BedformLayer::FieldSum BedformLayer::SumFields(double x, double y, const Ground*
     if (density_ <= 0.0) {
         return sum;
     }
-    if (exposure_) {
-        RequireGround(ground, kExposureReader);
-    }
+    exposure_.Require(ground);
     if (cells_) {
         const CellIndex home = cells_->CellAt(x, y, cell_);
         for (const CellIndex& cell : cells_->Neighbors(home, cell_, 2)) {
@@ -196,9 +192,7 @@ float BedformLayer::HeightAt(float height, double x, double y, double spacing,
 }
 
 void BedformLayer::CheckContext(const LayerContext& context) const {
-    if (exposure_) {
-        RequireGround(context.ground, kExposureReader);
-    }
+    exposure_.Require(context.ground);
 }
 
 }  // namespace terraingen

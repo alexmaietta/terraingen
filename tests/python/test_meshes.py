@@ -102,7 +102,7 @@ def test_boulder_shapes_draw_from_a_library_of_rocks(cube):
     assert shape.intermediate == pytest.approx(1.0 / 3.0)
     assert shape.short_axis == pytest.approx(2.0 / 3.0)
     assert len(options.library) == 1
-    normalized = terraingen.normalized_boulder_shape(rock)
+    normalized = shape
     assert np.ptp(normalized.mesh.arrays[0][:, 0]) == pytest.approx(1.0)
 
 

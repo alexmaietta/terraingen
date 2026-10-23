@@ -29,13 +29,6 @@ class Level final : public terraingen::Ground {
 
 }  // namespace
 
-TEST(ValidatePointContext, NeedsAPositiveFiniteSpacing) {
-    EXPECT_NO_THROW(terraingen::ValidatePointContext({0.5}));
-    EXPECT_THROW(terraingen::ValidatePointContext({}), std::invalid_argument);
-    EXPECT_THROW(terraingen::ValidatePointContext({std::numeric_limits<double>::infinity()}),
-                 std::invalid_argument);
-}
-
 TEST(RequireGround, NamesWhatNeedsIt) {
     const Level level;
     EXPECT_NO_THROW(terraingen::RequireGround(&level, "Rocks"));
@@ -45,11 +38,12 @@ TEST(RequireGround, NamesWhatNeedsIt) {
     } catch (const std::invalid_argument& error) {
         EXPECT_EQ(std::string(error.what()), "Rocks need the ground");
     }
-    EXPECT_EQ(level.Sampler(1.0)(3.0, 4.0), 2.0f);
 }
 
 TEST(Layer, AppliesToOneCellForPointQueriesByDefault) {
     const Plus plus;
     EXPECT_EQ(plus.ApplyAt(1.5f, 10.0, 20.0, {2.0}), 2.5f);
     EXPECT_THROW(plus.ApplyAt(1.5f, 10.0, 20.0, {}), std::invalid_argument);
+    EXPECT_THROW(plus.ApplyAt(1.5f, 10.0, 20.0, {std::numeric_limits<double>::infinity()}),
+                 std::invalid_argument);
 }

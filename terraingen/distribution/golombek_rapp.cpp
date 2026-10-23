@@ -32,7 +32,11 @@ double GolombekRappSfd::CumulativeAt(double diameter) const {
 }
 
 double GolombekRappSfd::IncrementalAt(double diameter) const {
-    return coverage_ * q_ * std::exp(-q_ * diameter) / (kPi * diameter * diameter / 4.0);
+    return GolombekRappIncremental(diameter, coverage_, q_);
+}
+
+double GolombekRappIncremental(double diameter, double coverage, double q) {
+    return coverage * q * std::exp(-q * diameter) / (kPi * diameter * diameter / 4.0);
 }
 
 }  // namespace terraingen

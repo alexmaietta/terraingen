@@ -10,15 +10,6 @@
 
 namespace terraingen {
 
-/// The position a kernel sees for surface point (x, y): measured from `origin`, in single
-/// precision.
-inline CellPosition MakeCellPosition(double x, double y, const Vec2d& origin) {
-    CellPosition position;
-    position.x = static_cast<float>(x - origin.x);
-    position.y = static_cast<float>(y - origin.y);
-    return position;
-}
-
 /// Applies `kernel` (`ApplyCell` in its kernel header) to every sample holding data.
 ///
 /// A grid runs on the context's GPU backend when it has one and `RunKernel` can take the grid,
@@ -35,7 +26,9 @@ void ApplyKernel(SampleBlock& samples, const LayerContext& context, const Kernel
         return;
     }
     MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
-        return ApplyCell(kernel, height, MakeCellPosition(p.x, p.y, origin));
+        return ApplyCell(
+            kernel, height,
+            CellPosition{static_cast<float>(p.x - origin.x), static_cast<float>(p.y - origin.y)});
     });
 }
 

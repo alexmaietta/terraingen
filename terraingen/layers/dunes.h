@@ -55,12 +55,9 @@ struct DuneRipples {
                defectDensity == other.defectDensity &&
                flankStraightening == other.flankStraightening && fade == other.fade;
     }
-    bool operator!=(const DuneRipples& other) const {
-        return !(*this == other);
-    }
 };
 
-/// Grainflows on slip faces: avalanches that leave a theatre-headed scarp below the brink and a
+/// Grainflows on slip faces: avalanches that leave a theater-headed scarp below the brink and a
 /// tongue-shaped lobe of sand below it. Each is drawn on a lattice aligned with the wind, its sizes
 /// uniform between the bounds, and shown only where the ground faces downwind near the slip face
 /// angle. Lengths are in meters, along the slope; widths across it.
@@ -84,9 +81,6 @@ struct DuneGrainflows {
                maxLobeWidth == other.maxLobeWidth && minLobeLength == other.minLobeLength &&
                maxLobeLength == other.maxLobeLength && thickness == other.thickness &&
                fade == other.fade;
-    }
-    bool operator!=(const DuneGrainflows& other) const {
-        return !(*this == other);
     }
 };
 
@@ -154,9 +148,6 @@ struct DuneOptions {
                seed == other.seed && anchor == other.anchor && fade == other.fade &&
                ripples == other.ripples && grainflows == other.grainflows &&
                sourceResolvesPixels == other.sourceResolvesPixels;
-    }
-    bool operator!=(const DuneOptions& other) const {
-        return !(*this == other);
     }
 };
 
@@ -251,7 +242,7 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     /// crest, add near planar point `q`, in wavelengths; `core` becomes the weight in [0, 1] that
     /// fades the crests out at the forks' ends.
     double Forks(const Vec2d& q, double wavelength, double density, double& core) const;
-    /// Adds to `phase` and `core` the fork centerd at `center`, its shape drawn from `random`.
+    /// Adds to `phase` and `core` the fork centered at `center`, its shape drawn from `random`.
     static void AddFork(double& phase, double& core, RandomStream& random, const Vec2d& q,
                         const Vec2d& center, double wavelength);
     /// The dunes' gradient at planar point `q`, by central differences `step` meters apart.

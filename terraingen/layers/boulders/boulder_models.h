@@ -7,6 +7,7 @@
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/util/surface.h"
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -26,6 +27,15 @@ struct BoulderPlacement {
     /// Where point `p` of the unit shape lands in the world.
     Vec3d Apply(const Vec3d& p) const {
         return pose.Apply({p.x * scale.x, p.y * scale.y, p.z * scale.z});
+    }
+
+    /// The point of the unit shape that lands at world point `p`.
+    Vec3d Unapply(const Vec3d& p) const {
+        const std::array<double, 9>& r = pose.rotation;
+        const Vec3d d = p - pose.translation;
+        return {(r[0] * d.x + r[3] * d.y + r[6] * d.z) / scale.x,
+                (r[1] * d.x + r[4] * d.y + r[7] * d.z) / scale.y,
+                (r[2] * d.x + r[5] * d.y + r[8] * d.z) / scale.z};
     }
 };
 
@@ -87,13 +97,5 @@ BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& s
 /// when set, else `BoulderShapeSeed` of its ID, or its parent's.
 /// @param prototypes Number of shared shapes, or 0 for a shape per boulder.
 std::uint64_t ShapeSeed(const Boulder& boulder, std::uint32_t prototypes = 0);
-
-/// A boulder as a mesh in world coordinates, its own shape placed by `PlaceBoulderModel`.
-/// @param groundHeight Height of the ground under its center, in meters.
-/// @param prototypes Number of shared shapes, or 0 for a shape per boulder (`BoulderShapeSeed`);
-/// a set `shapeSeed` is used instead.
-/// @throws std::invalid_argument as `ValidateBoulderShapeOptions`.
-TriangleMesh BoulderMesh(const Boulder& boulder, const BoulderShapeOptions& options,
-                         double groundHeight, std::uint32_t prototypes = 0);
 
 }  // namespace terraingen

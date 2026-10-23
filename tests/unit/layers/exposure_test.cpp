@@ -144,3 +144,15 @@ TEST(PatchNoise, IsSmoothNoiseOnASphere) {
     EXPECT_NEAR(here, near, 1e-3);
     EXPECT_NE(terraingen::PatchNoise(moon, 10.0, 20.0, 1000.0, 4u), here);
 }
+
+TEST(LayerExposure, ReadsTheFieldAtItsSpacingAndNeedsTheGround) {
+    const terraingen::LayerExposure none;
+    EXPECT_FALSE(none);
+    EXPECT_NO_THROW(none.Require(nullptr));
+    const terraingen::LayerExposure exposure(ExposureParams{}, 2.0, {}, "Rocks");
+    ASSERT_TRUE(exposure);
+    const Analytic steep([](double x, double) { return static_cast<float>(0.8 * x); });
+    EXPECT_EQ(exposure.At(3.0, 4.0, &steep), ExposureField().Exposure(steep, 3.0, 4.0, 2.0));
+    EXPECT_THROW(exposure.Require(nullptr), std::invalid_argument);
+    EXPECT_THROW(exposure.At(3.0, 4.0, nullptr), std::invalid_argument);
+}

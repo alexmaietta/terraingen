@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 
 namespace terraingen {
 
@@ -23,13 +24,13 @@ double PatchNoise(const Surface& surface, double x, double y, double size, std::
 /// measurement.
 struct ExposureParams {
     double reach = 12.0;  ///< How far around a point its surroundings are read (m).
-    double riseSoil =
-        0.010;  ///< Standing this share of the reach above the surroundings or less: soil.
+    /// Standing this share of the reach above the surroundings or less: soil.
+    double riseSoil = 0.010;
     double riseBoulder = 0.035;  ///< Standing this share of the reach above them or more: bedrock.
     double slopeSoil = 0.20;     ///< Slope (rise over run) at or under which soil holds.
     double slopeBoulder = 0.40;  ///< Slope at or over which none does.
-    double floorCover =
-        0.0;  ///< Share of level ground that is bedrock too, in patches; 0 for none.
+    /// Share of level ground that is bedrock too, in patches; 0 for none.
+    double floorCover = 0.0;
     double floorPatch = 60.0;  ///< How far across those patches are (m).
     std::uint32_t seed = 0;    ///< Varies the floor patches.
 
@@ -38,9 +39,6 @@ struct ExposureParams {
                riseBoulder == other.riseBoulder && slopeSoil == other.slopeSoil &&
                slopeBoulder == other.slopeBoulder && floorCover == other.floorCover &&
                floorPatch == other.floorPatch && seed == other.seed;
-    }
-    bool operator!=(const ExposureParams& other) const {
-        return !(*this == other);
     }
 };
 
@@ -81,6 +79,35 @@ class ExposureField {
     Surface surface_;
     /// The surroundings read around a point, in meters east and north of it.
     std::array<Vec2d, 8> ring_{};
+};
+
+/// The exposure field a layer may read, at a fixed ground spacing; empty when the layer has none.
+class LayerExposure {
+  public:
+    LayerExposure() = default;
+
+    /// @param spacing Sample spacing in meters the ground is read at.
+    /// @param reader What reads the field, which starts the error message without a ground.
+    LayerExposure(const std::optional<ExposureParams>& params, double spacing,
+                  const Surface& surface, const char* reader);
+
+    /// Whether the layer reads an exposure field.
+    explicit operator bool() const {
+        return field_.has_value();
+    }
+
+    /// Checks that a layer reading the field was given a ground.
+    /// @throws std::invalid_argument if the field is set and `ground` is null.
+    void Require(const Ground* ground) const;
+
+    /// The field's exposure at world (x, y) on `ground`; call only when set.
+    /// @throws std::invalid_argument if `ground` is null.
+    double At(double x, double y, const Ground* ground) const;
+
+  private:
+    std::optional<ExposureField> field_;
+    double spacing_ = 1.0;
+    const char* reader_ = "";
 };
 
 }  // namespace terraingen

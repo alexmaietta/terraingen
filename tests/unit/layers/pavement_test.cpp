@@ -39,6 +39,11 @@ class Tilted final : public terraingen::Ground {
     double slope_;
 };
 
+/// The pavement's relief at (x, y) with every octave and crack resolved.
+double Relief(const PavementLayer& layer, double x, double y) {
+    return static_cast<double>(layer.ApplyAt(0.0f, x, y, {1e-4}));
+}
+
 }  // namespace
 
 TEST(PavementLayer, PlatesAreFlatAndCracksCutBetweenThem) {
@@ -47,19 +52,12 @@ TEST(PavementLayer, PlatesAreFlatAndCracksCutBetweenThem) {
     int interiors = 0;
     double deepest = 0.0;
     for (double x = 0.0; x < 6.0; x += 0.005) {
-        const double edge = layer.EdgeDistanceAt(x, 0.37);
-        const double relief = layer.ReliefAt(x, 0.37);
-        if (edge > 0.1) {
-            const double beside = layer.ReliefAt(x + 0.01, 0.37 + 0.01);
-            if (layer.EdgeDistanceAt(x + 0.01, 0.37 + 0.01) > 0.1) {
-                EXPECT_NEAR(relief, beside, 1e-12) << "a flat, untilted plate";
-                ++interiors;
-            }
-            EXPECT_LE(std::fabs(relief), options.maxStep + 1e-12);
+        const double relief = Relief(layer, x, 0.37);
+        if (relief == Relief(layer, x + 0.01, 0.37 + 0.01)) {
+            EXPECT_LE(std::fabs(relief), options.maxStep + 1e-7) << "a flat, untilted plate";
+            ++interiors;
         }
-        if (edge < 0.002) {
-            deepest = std::min(deepest, relief);
-        }
+        deepest = std::min(deepest, relief);
     }
     EXPECT_GT(interiors, 100);
     EXPECT_LT(deepest, -options.crackDepth + options.maxStep);
@@ -72,10 +70,10 @@ TEST(PavementLayer, PlatesMeetWithoutStepsAndRidgesRise) {
     options.warp = 0.15;
     options.octaves = 3;
     const PavementLayer layer(options);
-    double previous = layer.ReliefAt(0.0, 1.23);
+    double previous = Relief(layer, 0.0, 1.23);
     double jump = 0.0;
     for (double x = 0.0005; x < 8.0; x += 0.0005) {
-        const double relief = layer.ReliefAt(x, 1.23);
+        const double relief = Relief(layer, x, 1.23);
         jump = std::max(jump, std::fabs(relief - previous));
         previous = relief;
     }
@@ -88,8 +86,8 @@ TEST(PavementLayer, PlatesMeetWithoutStepsAndRidgesRise) {
     double highest = 0.0;
     double lowest = 0.0;
     for (double x = 0.0; x < 6.0; x += 0.002) {
-        highest = std::max(highest, ridges.ReliefAt(x, 0.5));
-        lowest = std::min(lowest, ridges.ReliefAt(x, 0.5));
+        highest = std::max(highest, Relief(ridges, x, 0.5));
+        lowest = std::min(lowest, Relief(ridges, x, 0.5));
     }
     EXPECT_NEAR(highest, options.crackDepth, 0.01);
     EXPECT_EQ(lowest, 0.0);
@@ -103,7 +101,7 @@ TEST(PavementLayer, FinerOctavesSplitPlatesAndFadeWithSpacing) {
     const PavementLayer four(options);
     int split = 0;
     for (double x = 0.0; x < 6.0; x += 0.01) {
-        if (one.ReliefAt(x, 2.1) == 0.0 && four.ReliefAt(x, 2.1) < -0.01) {
+        if (Relief(one, x, 2.1) == 0.0 && Relief(four, x, 2.1) < -0.01) {
             ++split;
         }
     }
@@ -133,7 +131,7 @@ TEST(PavementLayer, ShowsOnExposedBedrockAndLaysIt) {
     }
     EXPECT_EQ(change, 0.0) << "no plates on soil";
     const float on = layer.ApplyAt(0.0f, 0.3, 0.3, {0.01, 1, &steep});
-    EXPECT_FLOAT_EQ(on, static_cast<float>(layer.ReliefAt(0.3, 0.3)));
+    EXPECT_EQ(on, PavementLayer(Stepped()).ApplyAt(0.0f, 0.3, 0.3, {0.01}));
     EXPECT_THROW(layer.ApplyAt(0.0f, 0.3, 0.3, {0.01}), std::invalid_argument);
     EXPECT_EQ(PavementLayer(Stepped()).MaterialCoverAt(0.3, 0.3, 0.01, nullptr), 1.0);
 }
@@ -162,8 +160,8 @@ TEST(PavementLayer, LaysPlatesOutInTheAnchorsFrameOnABody) {
     const PavementLayer plane(options);
     const terraingen::Vec2d point{137.40001, -4.59998};
     const terraingen::Vec2d offset = mars.Offset(options.anchor, point);
-    EXPECT_NEAR(body.ReliefAt(point.x, point.y), plane.ReliefAt(offset.x, offset.y), 1e-9);
-    EXPECT_EQ(body.ReliefAt(-42.6, 4.6), 0.0);
+    EXPECT_NEAR(Relief(body, point.x, point.y), Relief(plane, offset.x, offset.y), 1e-7);
+    EXPECT_EQ(Relief(body, -42.6, 4.6), 0.0);
     EXPECT_EQ(body.ApplyAt(2.0f, -42.6, 4.6, {0.01}), 2.0f);
 }
 

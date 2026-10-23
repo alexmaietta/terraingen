@@ -1,10 +1,11 @@
 #include "terraingen/layers/exposure.h"
 
 #include "terraingen/layers/fade.h"
+#include "terraingen/layers/layer.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/checks.h"
-#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <array>
@@ -78,12 +79,27 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
 
 void ExposureField::Fill(Raster<float>& raster, const Ground& ground, double spacing,
                          unsigned threads) const {
-    ParallelFor(raster.Height(), threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < raster.Width(); ++col) {
-            const Vec2d center = raster.CellCenter(col, row);
-            raster(col, row) = static_cast<float>(Exposure(ground, center.x, center.y, spacing));
-        }
-    });
+    FillCells(raster, threads,
+              [&](const Vec2d& center) { return Exposure(ground, center.x, center.y, spacing); });
+}
+
+LayerExposure::LayerExposure(const std::optional<ExposureParams>& params, double spacing,
+                             const Surface& surface, const char* reader)
+    : spacing_(spacing), reader_(reader) {
+    if (params) {
+        field_.emplace(*params, surface);
+    }
+}
+
+void LayerExposure::Require(const Ground* ground) const {
+    if (field_) {
+        RequireGround(ground, reader_);
+    }
+}
+
+double LayerExposure::At(double x, double y, const Ground* ground) const {
+    RequireGround(ground, reader_);
+    return field_->Exposure(*ground, x, y, spacing_);
 }
 
 double PatchNoise(const Surface& surface, double x, double y, double size, std::uint32_t seed) {

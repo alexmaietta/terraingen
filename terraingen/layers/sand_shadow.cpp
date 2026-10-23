@@ -3,7 +3,6 @@
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
-#include "terraingen/util/span.h"
 
 #include <algorithm>
 #include <cmath>
@@ -75,6 +74,15 @@ double SandShadowLayer::ShadowDepth(const Shadow& shadow, double x, double y) co
     return shadow.weight * crest * (1.0 - across / half);
 }
 
+std::vector<Bounds2d> SandShadowLayer::Boxes(const std::vector<Shadow>& shadows) {
+    std::vector<Bounds2d> boxes;
+    boxes.reserve(shadows.size());
+    for (const Shadow& shadow : shadows) {
+        boxes.push_back(shadow.box);
+    }
+    return boxes;
+}
+
 double SandShadowLayer::ThicknessAt(double x, double y, double spacing,
                                     const Ground* ground) const {
     double depth = 0.0;
@@ -96,55 +104,25 @@ Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid, double
     Raster<double> cover(grid.width, grid.height);
     cover.SetTransform(grid.transform);
     const std::vector<Shadow> shadows = ShadowsOver(grid.Bounds(), spacing, ground);
-    std::vector<std::vector<PixelWindow>> windows;
-    for (const Shadow& shadow : shadows) {
-        windows.push_back(PixelWindowsIn(grid, shadow.box, surface_));
-    }
     ForEachFeatureCell(
-        cover, threads, shadows.size(),
-        [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
-        [&](double& cell, const FeatureCell& at) {
+        cover, threads, Boxes(shadows), surface_, [&](double& cell, const FeatureCell& at) {
             cell = std::max(cell, ShadowDepth(shadows[at.feature], at.center.x, at.center.y));
         });
-    for (std::size_t row = 0; row < grid.height; ++row) {
-        for (std::size_t col = 0; col < grid.width; ++col) {
-            cover(col, row) = Smoothstep(cover(col, row) / options_.coverThickness);
-        }
+    for (double& cell : cover.Values()) {
+        cell = Smoothstep(cell / options_.coverThickness);
     }
     return cover;
 }
 
 void SandShadowLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
-    Raster<float>* heights = samples.Grid();
     const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
     const std::vector<Shadow> shadows = ShadowsOver(samples.Bounds(), spacing, context.ground);
-    if (heights != nullptr) {
-        const Span<const float> values = std::as_const(*heights).Values();
-        const std::vector<float> beneath(values.begin(), values.end());
-        const std::size_t width = heights->Width();
-        std::vector<std::vector<PixelWindow>> windows;
-        for (const Shadow& shadow : shadows) {
-            windows.push_back(PixelWindowsIn(*heights, shadow.box, surface_));
-        }
-        ForEachFeatureCell(
-            *heights, context.threads, shadows.size(),
-            [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; },
-            [&](float& cell, const FeatureCell& at) {
-                const double depth = ShadowDepth(shadows[at.feature], at.center.x, at.center.y);
-                const double base = static_cast<double>(beneath[at.row * width + at.col]);
-                cell = static_cast<float>(std::max(static_cast<double>(cell), base + depth));
-            });
-        return;
-    }
-    MapPoints(samples, [&](float height, const Vec2d& p) {
-        double depth = 0.0;
-        for (const Shadow& shadow : shadows) {
-            if (surface_.Contains(shadow.box, p)) {
-                depth = std::max(depth, ShadowDepth(shadow, p.x, p.y));
-            }
-        }
-        return static_cast<float>(static_cast<double>(height) + depth);
-    });
+    DrawFeatures(samples, context.threads, Boxes(shadows), surface_,
+                 [&](float height, float base, const Vec2d& p, std::size_t n) {
+                     const double depth = ShadowDepth(shadows[n], p.x, p.y);
+                     return static_cast<float>(
+                         std::max(static_cast<double>(height), static_cast<double>(base) + depth));
+                 });
 }
 
 }  // namespace terraingen

@@ -43,9 +43,6 @@ struct BoulderModelThreshold {
         return minDiameter == other.minDiameter && minSamples == other.minSamples &&
                maxDiameter == other.maxDiameter && maxSamples == other.maxSamples;
     }
-    bool operator!=(const BoulderModelThreshold& other) const {
-        return !(*this == other);
-    }
 };
 
 /// The sizes of the boulders between craters: Golombek and Rapp (1997) boulders of
@@ -67,9 +64,6 @@ struct BoulderSizes {
                distribution == other.distribution && minDiameter == other.minDiameter &&
                maxDiameter == other.maxDiameter;
     }
-    bool operator!=(const BoulderSizes& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Patches of richer and poorer boulder cover.
@@ -80,9 +74,6 @@ struct BoulderPatches {
 
     bool operator==(const BoulderPatches& other) const {
         return spread == other.spread && size == other.size;
-    }
-    bool operator!=(const BoulderPatches& other) const {
-        return !(*this == other);
     }
 };
 
@@ -112,9 +103,6 @@ struct BoulderClusters {
         return share == other.share && spacing == other.spacing && radius == other.radius &&
                model == other.model;
     }
-    bool operator!=(const BoulderClusters& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Boulders broken by wear into pieces that replace them. From `splitWear` a boulder at least
@@ -143,9 +131,6 @@ struct BoulderFragmentation {
                rubbleWear == other.rubbleWear && minPieces == other.minPieces &&
                maxPieces == other.maxPieces && gapRatio == other.gapRatio &&
                spreadRatio == other.spreadRatio && slabShare == other.slabShare;
-    }
-    bool operator!=(const BoulderFragmentation& other) const {
-        return !(*this == other);
     }
 };
 
@@ -209,9 +194,6 @@ struct BoulderEjecta {
                minFreshness == other.minFreshness && lifetimeGyr == other.lifetimeGyr &&
                agingExponent == other.agingExponent && gravity == other.gravity;
     }
-    bool operator!=(const BoulderEjecta& other) const {
-        return !(*this == other);
-    }
 };
 
 /// The greatest throw (m) of blocks from a crater's center over a regolith blanket: Bart and
@@ -235,9 +217,6 @@ struct BoulderBedrock {
     bool operator==(const BoulderBedrock& other) const {
         return exposure == other.exposure && abundance == other.abundance &&
                meanSize == other.meanSize;
-    }
-    bool operator!=(const BoulderBedrock& other) const {
-        return !(*this == other);
     }
 };
 
@@ -287,9 +266,6 @@ struct BoulderPose {
                settle == other.settle && maxSlope == other.maxSlope &&
                rollDistance == other.rollDistance;
     }
-    bool operator!=(const BoulderPose& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Regolith piled against each boulder's base, drawn into the heights around boulders drawn
@@ -302,9 +278,6 @@ struct BoulderFillet {
 
     bool operator==(const BoulderFillet& other) const {
         return heightShare == other.heightShare && widthRatio == other.widthRatio;
-    }
-    bool operator!=(const BoulderFillet& other) const {
-        return !(*this == other);
     }
 };
 
@@ -327,9 +300,6 @@ struct BoulderVentifacts {
         return share == other.share && windAzimuth == other.windAzimuth &&
                minAngle == other.minAngle && maxAngle == other.maxAngle &&
                secondWindAzimuth == other.secondWindAzimuth && keelShare == other.keelShare;
-    }
-    bool operator!=(const BoulderVentifacts& other) const {
-        return !(*this == other);
     }
 };
 
@@ -367,9 +337,6 @@ struct BoulderReliefRange {
         return minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
                models == other.models;
     }
-    bool operator!=(const BoulderReliefRange& other) const {
-        return !(*this == other);
-    }
 };
 
 /// How boulders are drawn: as relief in the heights or as 3D models, and with which shapes.
@@ -387,9 +354,6 @@ struct BoulderRendering {
         return relief == other.relief && models == other.models &&
                reliefRange == other.reliefRange && shapes == other.shapes &&
                shapePrototypes == other.shapePrototypes;
-    }
-    bool operator!=(const BoulderRendering& other) const {
-        return !(*this == other);
     }
 };
 
@@ -437,7 +401,7 @@ struct BoulderLayerOptions {
     /// orientation are not tipped over by `pose.settle`.
     std::vector<ManualBoulder> manual{};
     /// The diameter (m) from which `manual` is a complete catalog at each point: generated boulders
-    /// at least this large centerd there are dropped, so the catalog stands in for them. Infinite
+    /// at least this large centered there are dropped, so the catalog stands in for them. Infinite
     /// or NaN where there is no catalog; unset keeps every generated boulder.
     std::shared_ptr<const SurfaceField> completeness{};
     /// Source cells across from which the source's measured data already holds a boulder: with a
@@ -458,40 +422,11 @@ struct BoulderLayerOptions {
                completeness == other.completeness &&
                sourceResolvesPixels == other.sourceResolvesPixels;
     }
-    bool operator!=(const BoulderLayerOptions& other) const {
-        return !(*this == other);
-    }
 };
-
-/// Checks boulder sizes.
-/// @throws std::invalid_argument unless 0 < `minDiameter` < `maxDiameter` are finite, and either
-/// the distribution is a density covering the diameters (or extrapolating) or 0 < `coverage` < 1.
-void ValidateBoulderSizes(const BoulderSizes& sizes);
 
 /// Checks boulder patches.
 /// @throws std::invalid_argument unless `spread` >= 1 is finite and `size` positive.
 void ValidateBoulderPatches(const BoulderPatches& patches);
-
-/// Checks crater blocks.
-/// @param sizes The boulder sizes the blocks' distribution must cover.
-/// @throws std::invalid_argument for a negative `minCraterDiameter`, a non-positive regolith
-/// thickness, an excavation depth ratio outside (0, 1], and when blocks are enabled, an invalid
-/// distribution or coverage, a reach of 1 radius or less, a non-positive decay, a floor share
-/// outside [0, 1], a freshness outside [0, 1), a non-positive lifetime, a negative aging exponent
-/// or a non-positive gravity.
-void ValidateBoulderEjecta(const BoulderEjecta& ejecta, const BoulderSizes& sizes);
-
-/// Checks bedrock boulders.
-/// @throws std::invalid_argument for a non-positive abundance or mean size, or invalid
-/// exposure parameters.
-void ValidateBoulderBedrock(const BoulderBedrock& bedrock);
-
-/// Checks boulder poses.
-/// @throws std::invalid_argument unless 0 < min <= max height ratio, 0 <= min <= max burial < 1,
-/// the lean is finite and not negative, the burial by wear is in [0, 1], the side and end shares
-/// are not negative and sum to at most 1, the tilt is in [0, pi], and any max slope is in
-/// (0, pi / 2).
-void ValidateBoulderPose(const BoulderPose& pose);
 
 /// Checks boulder clusters.
 /// @throws std::invalid_argument unless the share is in [0, 1], the spacing is finite and the
@@ -508,10 +443,6 @@ void ValidateBoulderFragmentation(const BoulderFragmentation& fragmentation);
 /// @throws std::invalid_argument unless the height share is in [0, 1] and the width ratio is
 /// positive and finite.
 void ValidateBoulderFillet(const BoulderFillet& fillet);
-
-/// Checks how boulders are drawn.
-/// @throws std::invalid_argument for a non-positive model threshold or invalid shapes.
-void ValidateBoulderRendering(const BoulderRendering& rendering);
 
 /// Checks a manual boulder.
 /// @throws std::invalid_argument unless the position is finite, the diameter positive and finite,

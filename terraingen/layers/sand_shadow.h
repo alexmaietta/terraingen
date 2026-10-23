@@ -33,9 +33,6 @@ struct SandShadowOptions {
                flankAngle == other.flankAngle && minDiameter == other.minDiameter &&
                coverThickness == other.coverThickness && fade == other.fade;
     }
-    bool operator!=(const SandShadowOptions& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks sand shadow options.
@@ -44,17 +41,8 @@ struct SandShadowOptions {
 /// diameter, or an invalid fade.
 void ValidateSandShadowOptions(const SandShadowOptions& options);
 
-/// Sand shadows: a sand tail in the lee of each boulder of a boulder layer, after Hesp (1981).
-///
-/// A tail is a pyramid starting at the boulder's downwind edge as wide as the boulder (its
-/// diameter), its flanks at `flankAngle`, so its crest is (width / 2) tan(flankAngle) high; where
-/// that is higher than the boulder stands, the crest is lowered to the boulder's top and the flanks
-/// eased. It narrows and lowers to a point `lengthRatio` widths downwind. Overlapping tails take
-/// the deepest sand. The tails are added to the height beneath, so place the layer after the
-/// boulder layer; it lays sand over the material map.
-///
-/// The boulders are those the boulder layer places, read with this layer's ground; with the
-/// boulder layer's bedrock exposure field that ground includes the boulders' relief.
+/// Sand shadows: a pyramidal sand tail in the lee of each boulder of a boulder layer, as wide as
+/// the boulder and `lengthRatio` widths long (Hesp 1981); place it after the boulder layer.
 class SandShadowLayer final : public Layer, public MaterialSource {
   public:
     /// @param boulders The boulder layer whose boulders cast shadows; on `surface`.
@@ -97,6 +85,7 @@ class SandShadowLayer final : public Layer, public MaterialSource {
     std::vector<Shadow> ShadowsOver(const Bounds2d& region, double spacing,
                                     const Ground* ground) const;
     double ShadowDepth(const Shadow& shadow, double x, double y) const;
+    static std::vector<Bounds2d> Boxes(const std::vector<Shadow>& shadows);
 
     std::shared_ptr<const BoulderLayer> boulders_;
     SandShadowOptions options_;

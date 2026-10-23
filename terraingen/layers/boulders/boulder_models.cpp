@@ -105,19 +105,6 @@ std::pair<Vec2d, bool> NearestOnHull(const std::vector<Vec2d>& hull, const Vec2d
     return {best, inside};
 }
 
-/// The product `a` `b` of two row-major 3 x 3 matrices.
-std::array<double, 9> Multiply(const std::array<double, 9>& a, const std::array<double, 9>& b) {
-    std::array<double, 9> product{};
-    for (std::size_t r = 0; r < 3; ++r) {
-        for (std::size_t k = 0; k < 3; ++k) {
-            for (std::size_t j = 0; j < 3; ++j) {
-                product[3 * r + k] += a[3 * r + j] * b[3 * j + k];
-            }
-        }
-    }
-    return product;
-}
-
 /// One tip of a settling shape: a turn by `angle` radians about the horizontal axis `axis`
 /// through `origin`, the side `toward` (a horizontal unit vector square to it) going down.
 struct PivotStep {
@@ -196,7 +183,7 @@ std::optional<PivotStep> NextPivot(const std::vector<Vec3d>& points, const Vec3d
 /// the edge or corner of the ground contact nearest the center of mass, toward it, until another
 /// point touches, and stops once the center of mass stands over the contact.
 std::array<double, 9> SettleRotation(std::vector<Vec3d> points, Vec3d center) {
-    std::array<double, 9> total{1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+    RigidTransform total;
     double extent = 0.0;
     for (const Vec3d& p : points) {
         extent =
@@ -212,9 +199,11 @@ std::array<double, 9> SettleRotation(std::vector<Vec3d> points, Vec3d center) {
             p = step->Turn(p);
         }
         center = step->Turn(center);
-        total = Multiply(step->Rotation(), total);
+        RigidTransform turn;
+        turn.rotation = step->Rotation();
+        total = turn.After(total);
     }
-    return total;
+    return total.rotation;
 }
 
 }  // namespace
@@ -307,13 +296,6 @@ std::uint64_t ShapeSeed(const Boulder& boulder, std::uint32_t prototypes) {
         return *boulder.shapeSeed;
     }
     return BoulderShapeSeed(boulder.parent != 0 ? boulder.parent : boulder.id, prototypes);
-}
-
-TriangleMesh BoulderMesh(const Boulder& boulder, const BoulderShapeOptions& options,
-                         double groundHeight, std::uint32_t prototypes) {
-    const BoulderShape shape = GenerateBoulderShape(
-        boulder.shapeSeed ? *boulder.shapeSeed : BoulderShapeSeed(boulder.id, prototypes), options);
-    return PlaceMesh(shape.mesh, PlaceBoulderModel(boulder, shape, groundHeight));
 }
 
 TriangleMesh PlaceMesh(TriangleMesh mesh, const BoulderPlacement& placement) {

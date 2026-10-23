@@ -90,6 +90,11 @@ double MapValueAt(const DensityMap& map, double x, double y) {
     return map.measure == DensityMeasure::Count ? value / map.areaUnit : value;
 }
 
+double MapMax(const DensityMap& map) {
+    const double top = map.field->Max();
+    return map.measure == DensityMeasure::Count ? top / map.areaUnit : top;
+}
+
 DensityScale::DensityScale(DensityMap map, const SizeFrequencyDistribution& distribution)
     : map_(std::move(map)) {
     ValidateDensityMap(map_);
@@ -97,11 +102,7 @@ DensityScale::DensityScale(DensityMap map, const SizeFrequencyDistribution& dist
     if (!(measure_ > 0.0 && std::isfinite(measure_))) {
         throw std::invalid_argument("A density map must measure some of its size distribution");
     }
-    const double top = map_.field->Max();
-    const double largest = map_.measure == DensityMeasure::Count ? top / map_.areaUnit : top;
-    if (largest / measure_ > max_) {
-        max_ = largest / measure_;
-    }
+    max_ = std::fmax(1.0, MapMax(map_) / measure_);
 }
 
 double DensityScale::At(double x, double y) const {

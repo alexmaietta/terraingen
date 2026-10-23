@@ -145,9 +145,8 @@ PavementOptions MarsDesiccationRidges() {
 PavementLayer::PavementLayer(PavementOptions options, Surface surface)
     : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
     ValidatePavementOptions(options_);
-    if (options_.exposure) {
-        exposure_.emplace(*options_.exposure, surface_);
-    }
+    exposure_ =
+        LayerExposure(options_.exposure, options_.exposureSpacing, surface_, kExposureReader);
     double size = 1.0;
     double relief = 1.0;
     for (int k = 0; k < options_.octaves; ++k) {
@@ -185,7 +184,7 @@ PavementLayer::Plate PavementLayer::PlateAt(const Vec2d& q, const Level& level, 
     const double ownHeight = own.HeightAt(p);
     const double plate = ownHeight + 0.5 * crack * (around.sites[neighbor].HeightAt(p) - ownHeight);
     const double sign = options_.raised ? 1.0 : -1.0;
-    return {plate + crackWeight * sign * level.crackDepth * crack, edge, 1.0 - crack, own.id};
+    return {plate + crackWeight * sign * level.crackDepth * crack, 1.0 - crack, own.id};
 }
 
 double PavementLayer::Relief(const Vec2d& q, double spacing) const {
@@ -193,15 +192,12 @@ double PavementLayer::Relief(const Vec2d& q, double spacing) const {
     double interior = 1.0;
     std::uint32_t parent = 0;
     for (const Level& level : levels_) {
-        const double plateWeight =
-            spacing > 0.0 ? ResolutionWeight(level.size, spacing, options_.fade) : 1.0;
+        const double plateWeight = ResolutionWeight(level.size, spacing, options_.fade);
         if (plateWeight <= 0.0 || interior <= 0.0) {
             break;
         }
         const double crackWeight =
-            spacing > 0.0
-                ? ResolutionWeight(level.crackWidth + 2.0 * level.rounding, spacing, options_.fade)
-                : 1.0;
+            ResolutionWeight(level.crackWidth + 2.0 * level.rounding, spacing, options_.fade);
         const Plate plate = PlateAt(
             q, level, SubstreamSeed(level.seed, kPavementParentStream, parent), crackWeight);
         relief += interior * plateWeight * plate.relief;
@@ -212,24 +208,7 @@ double PavementLayer::Relief(const Vec2d& q, double spacing) const {
 }
 
 double PavementLayer::ExposureWeight(double x, double y, const Ground* ground) const {
-    if (!exposure_) {
-        return 1.0;
-    }
-    RequireGround(ground, kExposureReader);
-    return exposure_->Exposure(*ground, x, y, options_.exposureSpacing);
-}
-
-double PavementLayer::ReliefAt(double x, double y) const {
-    const std::optional<Vec2d> q = plane_.Project(x, y);
-    return q ? Relief(*q, 0.0) : 0.0;
-}
-
-double PavementLayer::EdgeDistanceAt(double x, double y) const {
-    const std::optional<Vec2d> q = plane_.Project(x, y);
-    return q ? PlateAt(*q, levels_.front(),
-                       SubstreamSeed(levels_.front().seed, kPavementParentStream, 0u), 1.0)
-                   .edge
-             : std::numeric_limits<double>::infinity();
+    return exposure_ ? exposure_.At(x, y, ground) : 1.0;
 }
 
 double PavementLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
@@ -251,9 +230,7 @@ float PavementLayer::HeightAt(float height, double x, double y, double spacing,
 }
 
 void PavementLayer::CheckContext(const LayerContext& context) const {
-    if (exposure_) {
-        RequireGround(context.ground, kExposureReader);
-    }
+    exposure_.Require(context.ground);
 }
 
 }  // namespace terraingen

@@ -363,11 +363,11 @@ def test_pavement_plates_crack_in_octaves_and_lay_bedrock():
     assert layered.material == terraingen.MaterialClass.BEDROCK
     assert layered.material_cover_at(0.2, 0.3) == 1.0
     xs = [0.01 * i for i in range(600)]
-    assert min(single.relief_at(x, 1.7) for x in xs) < -0.05
-    assert sum(layered.relief_at(x, 1.7) < -0.01 for x in xs) > sum(
-        single.relief_at(x, 1.7) < -0.01 for x in xs
+    fine = terraingen.LayerContext(1e-4, 1)
+    assert min(single.apply_at(0.0, x, 1.7, fine) for x in xs) < -0.05
+    assert sum(layered.apply_at(0.0, x, 1.7, fine) < -0.01 for x in xs) > sum(
+        single.apply_at(0.0, x, 1.7, fine) < -0.01 for x in xs
     )
-    assert single.edge_distance_at(0.5, 0.5) >= 0.0
     ridges = terraingen.mars_desiccation_ridges()
     assert ridges.raised and ridges.plate_size == pytest.approx(0.02)
     with pytest.raises(ValueError):
@@ -387,9 +387,9 @@ def test_strata_terrace_hills_into_benches_and_cliffs():
     assert options.hard_share == 1.0 and options.soft_sharpness == 1.0
     layer = terraingen.StrataLayer(options)
     assert layer.material == terraingen.MaterialClass.BEDROCK
-    assert layer.terraced_at(5.0, 0.0, 0.0) == pytest.approx(4.0 + 2.0 * 0.5**4)
-    assert layer.bed_position_at(5.0, 0.0, 0.0) == pytest.approx(0.5)
-    assert layer.terraced_at(6.0, 0.0, 0.0) == pytest.approx(6.0)
+    context = terraingen.LayerContext(1.0, 1)
+    assert layer.apply_at(5.0, 0.0, 0.0, context) == pytest.approx(4.0 + 2.0 * 0.5**4)
+    assert layer.apply_at(6.0, 0.0, 0.0, context) == pytest.approx(6.0)
     with pytest.raises(ValueError):
         terraingen.StrataLayer(terraingen.StrataOptions(sharpness=0.5))
     config = terraingen.TerrainGenConfig.from_dict(
@@ -503,8 +503,6 @@ def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum
     )
     options.validate()
     layer = terraingen.SpectralContinuationLayer(options)
-    assert layer.band_frequencies() == pytest.approx([0.5, 1.0, 2.0])
-    assert layer.target_psd(0.4) == 0.0 and layer.target_psd(2.0) > 0.0
     assert layer.options.slope == 3.0
     heights = terraingen.evaluate(terraingen.TerrainGenerator(None, [layer]), grid=grid)
     assert heights.values.std() > 0.05
@@ -515,8 +513,6 @@ def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum
     coarse = terraingen.evaluate(terraingen.TerrainGenerator(None, [layer]), grid=coarse_grid)
     assert np.all(coarse.values == 0.0)
 
-    bins = terraingen.radial_power_spectrum(heights)
-    assert bins[-1].frequency == pytest.approx(4.0, rel=0.1) and bins[0].count > 0
     band = terraingen.SpectrumFitBand(min_pixels=3.0, max_pixels=6.0)
     fit = terraingen.estimate_power_law_spectrum(heights, band)
     assert 2.0 <= fit.slope <= 4.0 and fit.octave_rms > 0.0
@@ -559,16 +555,16 @@ def test_base_roughness_recovers_the_hurst_exponent_and_continues_it():
     heights = terraingen.Raster.from_array(
         self_affine_heights(0.7), terraingen.GeoTransform.north_up(0.0, 96.0, 1.0)
     )
-    roughness = terraingen.estimate_base_roughness(heights, 1.0)
+    roughness = terraingen.estimate_source_roughness(terraingen.RasterSource(heights))
     assert roughness.hurst == pytest.approx(0.7, abs=0.1)
     assert roughness.cell_size == 1.0 and roughness.deviation > 0.0
     assert roughness.deviation_at(0.25) == pytest.approx(roughness.deviation * 0.25**roughness.hurst)
     assert roughness.rms_slope(0.25) == pytest.approx(roughness.deviation_at(0.25) / 0.25)
     with pytest.raises(ValueError):
-        terraingen.estimate_base_roughness(terraingen.Raster.from_array(np.zeros((8, 8), np.float32)), 1.0)
-    from_source = terraingen.estimate_source_roughness(terraingen.RasterSource(heights))
-    assert from_source.cell_size == 1.0
-    assert from_source.hurst == pytest.approx(roughness.hurst, abs=0.02)
+        flat = terraingen.Raster.from_array(
+            np.zeros((8, 8), np.float32), terraingen.GeoTransform.north_up(0.0, 8.0, 1.0)
+        )
+        terraingen.estimate_source_roughness(terraingen.RasterSource(flat))
 
     layer = terraingen.NoiseLayer()
     layer.fractal.wavelength = 1.0

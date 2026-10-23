@@ -44,9 +44,6 @@ class EvaluationCache {
         bool operator==(const Key& other) const {
             return owner == other.owner && id == other.id && spacing == other.spacing;
         }
-        bool operator!=(const Key& other) const {
-            return !(*this == other);
-        }
     };
     struct KeyHash {
         std::size_t operator()(const Key& key) const {

@@ -126,6 +126,32 @@ void ForEachFeatureCell(Raster<T>& raster, unsigned threads, std::size_t feature
     });
 }
 
+/// `ForEachFeatureCell` over the cells of each feature's box (`PixelWindowsIn` on `surface`).
+template <typename T, typename Visit>
+void ForEachFeatureCell(Raster<T>& raster, unsigned threads, const std::vector<Bounds2d>& boxes,
+                        const Surface& surface, const Visit& visit) {
+    const RasterGrid grid{raster.Width(), raster.Height(), raster.Transform()};
+    std::vector<std::vector<PixelWindow>> windows;
+    windows.reserve(boxes.size());
+    for (const Bounds2d& box : boxes) {
+        windows.push_back(PixelWindowsIn(grid, box, surface));
+    }
+    ForEachFeatureCell(
+        raster, threads, boxes.size(),
+        [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; }, visit);
+}
+
+/// Sets every cell of `raster` to `value(center)`, rows over several threads.
+/// @param threads Threads to split the rows over; 0 for every hardware thread.
+template <typename T, typename Value>
+void FillCells(Raster<T>& raster, unsigned threads, const Value& value) {
+    ParallelFor(raster.Height(), threads, [&](std::size_t row) {
+        for (std::size_t col = 0; col < raster.Width(); ++col) {
+            raster(col, row) = static_cast<T>(value(raster.CellCenter(col, row)));
+        }
+    });
+}
+
 /// Sets each cell of a raster holding data to a function of its height and center, rows
 /// over several threads.
 /// @param threads Threads to split the rows over; 0 for every hardware thread.

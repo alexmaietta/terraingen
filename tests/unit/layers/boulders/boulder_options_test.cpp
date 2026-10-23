@@ -9,17 +9,18 @@
 using terraingen::BoulderLayerOptions;
 
 TEST(ValidateBoulderOptions, ChecksEachGroupOnItsOwn) {
-    EXPECT_NO_THROW(terraingen::ValidateBoulderSizes({}));
-    terraingen::BoulderSizes pointSize;
-    pointSize.minDiameter = 0.0;
-    EXPECT_THROW(terraingen::ValidateBoulderSizes(pointSize), std::invalid_argument);
-    terraingen::BoulderSizes fullCover;
-    fullCover.coverage = 1.0;
-    EXPECT_THROW(terraingen::ValidateBoulderSizes(fullCover), std::invalid_argument);
-    terraingen::BoulderSizes rate;
-    rate.distribution =
-        std::make_shared<terraingen::PowerLawSfd>(1.0, 2.0, terraingen::SfdKind::ProductionRate);
-    EXPECT_THROW(terraingen::ValidateBoulderSizes(rate), std::invalid_argument);
+    EXPECT_NO_THROW(terraingen::ValidateBoulderLayerOptions({}));
+    const auto rejects = [](auto change) {
+        BoulderLayerOptions options;
+        change(options);
+        EXPECT_THROW(terraingen::ValidateBoulderLayerOptions(options), std::invalid_argument);
+    };
+    rejects([](BoulderLayerOptions& o) { o.sizes.minDiameter = 0.0; });
+    rejects([](BoulderLayerOptions& o) { o.sizes.coverage = 1.0; });
+    rejects([](BoulderLayerOptions& o) {
+        o.sizes.distribution = std::make_shared<terraingen::PowerLawSfd>(
+            1.0, 2.0, terraingen::SfdKind::ProductionRate);
+    });
 
     EXPECT_NO_THROW(terraingen::ValidateBoulderPatches({}));
     terraingen::BoulderPatches narrow;
@@ -29,33 +30,18 @@ TEST(ValidateBoulderOptions, ChecksEachGroupOnItsOwn) {
     pointPatches.size = 0.0;
     EXPECT_THROW(terraingen::ValidateBoulderPatches(pointPatches), std::invalid_argument);
 
-    EXPECT_NO_THROW(terraingen::ValidateBoulderEjecta({}, {}));
-    terraingen::BoulderEjecta shortReach;
-    shortReach.minCraterDiameter = 10.0;
-    shortReach.reach = 1.0;
-    EXPECT_THROW(terraingen::ValidateBoulderEjecta(shortReach, {}), std::invalid_argument);
-
-    EXPECT_NO_THROW(terraingen::ValidateBoulderBedrock({}));
-    terraingen::BoulderBedrock barren;
-    barren.abundance = 0.0;
-    EXPECT_THROW(terraingen::ValidateBoulderBedrock(barren), std::invalid_argument);
-    terraingen::BoulderBedrock negativeSize;
-    negativeSize.meanSize = -1.0;
-    EXPECT_THROW(terraingen::ValidateBoulderBedrock(negativeSize), std::invalid_argument);
-
-    EXPECT_NO_THROW(terraingen::ValidateBoulderPose({}));
-    terraingen::BoulderPose flat;
-    flat.minHeightRatio = 0.0;
-    EXPECT_THROW(terraingen::ValidateBoulderPose(flat), std::invalid_argument);
-    terraingen::BoulderPose inverted;
-    inverted.minBurial = 0.5;
-    inverted.maxBurial = 0.4;
-    EXPECT_THROW(terraingen::ValidateBoulderPose(inverted), std::invalid_argument);
-
-    EXPECT_NO_THROW(terraingen::ValidateBoulderRendering({}));
-    terraingen::BoulderRendering noSamples;
-    noSamples.models.minSamples = 0.0;
-    EXPECT_THROW(terraingen::ValidateBoulderRendering(noSamples), std::invalid_argument);
+    rejects([](BoulderLayerOptions& o) {
+        o.ejecta.minCraterDiameter = 10.0;
+        o.ejecta.reach = 1.0;
+    });
+    rejects([](BoulderLayerOptions& o) { o.bedrock.abundance = 0.0; });
+    rejects([](BoulderLayerOptions& o) { o.bedrock.meanSize = -1.0; });
+    rejects([](BoulderLayerOptions& o) { o.pose.minHeightRatio = 0.0; });
+    rejects([](BoulderLayerOptions& o) {
+        o.pose.minBurial = 0.5;
+        o.pose.maxBurial = 0.4;
+    });
+    rejects([](BoulderLayerOptions& o) { o.rendering.models.minSamples = 0.0; });
 }
 
 TEST(BoulderCandidates, CoverTheRichestBackgroundPlusCraterBlocks) {

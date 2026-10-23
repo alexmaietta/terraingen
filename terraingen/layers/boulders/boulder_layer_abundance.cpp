@@ -1,5 +1,6 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
+#include "terraingen/distribution/golombek_rapp.h"
 #include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/craters/shaping/explicit_state.h"
 #include "terraingen/layers/exposure.h"
@@ -20,12 +21,6 @@
 namespace terraingen {
 
 namespace {
-
-/// Golombek-Rapp boulders per m^2 per meter of diameter at `diameter` for coverage `k`.
-double GolombekRappDensity(double diameter, double k, double qa, double qb) {
-    const double q = qa + qb / k;
-    return k * q * std::exp(-q * diameter) / (kPi * diameter * diameter / 4.0);
-}
 
 /// How far, in radii from its center, a crater's blocks reach.
 double EjectaReach(const BoulderEjecta& ejecta, double diameter) {
@@ -115,42 +110,27 @@ struct ThomasLattice {
         return squared < side * side ? std::exp(-0.5 * squared / (sigma * sigma)) : 0.0;
     }
 
-    /// The field at `p` from centers scattered through space.
-    double Sum3(const Vec3d& p) const {
+    /// The field at `p` from centers scattered through space, or over the plane when `planar`
+    /// (`p.z` unused).
+    double Sum(const Vec3d& p, bool planar) const {
         double sum = 0.0;
         const double cx = std::floor(p.x / side);
         const double cy = std::floor(p.y / side);
-        const double cz = std::floor(p.z / side);
-        for (double k = cz - 1.0; k <= cz + 1.0; k += 1.0) {
+        const double cz = planar ? 0.0 : std::floor(p.z / side);
+        const double layers = planar ? 0.0 : 1.0;
+        for (double k = cz - layers; k <= cz + layers; k += 1.0) {
             for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
                 for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
-                    RandomStream random(seed, kThomasSpaceStream, Word(i), Word(j), Word(k));
+                    RandomStream random =
+                        planar ? RandomStream(seed, kThomasPlaneStream, Word(i), Word(j))
+                               : RandomStream(seed, kThomasSpaceStream, Word(i), Word(j), Word(k));
                     const std::uint64_t count = SamplePoisson(random, perCell);
                     for (std::uint64_t n = 0; n < count; ++n) {
                         const double dx = (i + random.NextDouble()) * side - p.x;
                         const double dy = (j + random.NextDouble()) * side - p.y;
-                        const double dz = (k + random.NextDouble()) * side - p.z;
+                        const double dz = planar ? 0.0 : (k + random.NextDouble()) * side - p.z;
                         sum += Bump(dx * dx + dy * dy + dz * dz);
                     }
-                }
-            }
-        }
-        return sum;
-    }
-
-    /// The field at (`x`, `y`) from centers scattered over the plane.
-    double Sum2(double x, double y) const {
-        double sum = 0.0;
-        const double cx = std::floor(x / side);
-        const double cy = std::floor(y / side);
-        for (double j = cy - 1.0; j <= cy + 1.0; j += 1.0) {
-            for (double i = cx - 1.0; i <= cx + 1.0; i += 1.0) {
-                RandomStream random(seed, kThomasPlaneStream, Word(i), Word(j));
-                const std::uint64_t count = SamplePoisson(random, perCell);
-                for (std::uint64_t n = 0; n < count; ++n) {
-                    const double dx = (i + random.NextDouble()) * side - x;
-                    const double dy = (j + random.NextDouble()) * side - y;
-                    sum += Bump(dx * dx + dy * dy);
                 }
             }
         }
@@ -170,20 +150,21 @@ double BoulderLayer::ThomasClusterField(double x, double y) const {
     const double side = lattice.side;
     if (surface_.IsBody()) {
         lattice.perCell = perArea / (std::sqrt(2.0 * kPi) * lattice.sigma) * side * side * side;
-        return lattice.Sum3(surface_.Position({x, y}));
+        return lattice.Sum(surface_.Position({x, y}), false);
     }
     lattice.perCell = perArea * side * side;
-    return lattice.Sum2(x, y);
+    return lattice.Sum({x, y, 0.0}, true);
 }
 
 double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* ground,
                                          double ejecta) const {
-    double background =
-        mapAbundance_ ? mapAbundance_->At(MapValueAt(*options_.densityMap, x, y), ejecta) : 1.0;
+    double background = background_->map
+                            ? background_->map->At(MapValueAt(*options_.densityMap, x, y), ejecta)
+                            : 1.0;
     const BoulderPatches& patches = options_.patches;
     if (patches.spread > 1.0) {
         const double noise = PatchNoise(surface_, x, y, patches.size, patchSeed_);
-        background *= std::pow(patches.spread, noise) / patchMean_;
+        background *= std::pow(patches.spread, noise) / background_->patchMean;
     }
     const BoulderClusters& clusters = options_.clusters;
     if (clusters.share > 0.0) {
@@ -193,14 +174,13 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
         background *= 1.0 - clusters.share + clusters.share * field / clusterMean_;
     }
     if (exposure_) {
-        RequireGround(ground, "Boulders that read the exposure field");
-        const double bedrock = exposure_->Exposure(*ground, x, y, options_.groundSpacing);
+        const double bedrock = exposure_.At(x, y, ground);
         background *= 1.0 + bedrock * (options_.bedrock.abundance - 1.0);
         if (bedrockMeans_) {
             background /= BedrockMean(x, y, *ground);
         }
     }
-    return std::min(background, maxBackground_);
+    return std::min(background, background_->max);
 }
 
 std::size_t BoulderLayer::BedrockCellHash::operator()(const BedrockCell& cell) const {
@@ -222,7 +202,7 @@ double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const
                     const double py =
                         bedrockOrigin_.y +
                         (static_cast<double>(j) + (b + 0.5) / kSide) * bedrockCellSize_.y;
-                    sum += 1.0 + gain * exposure_->Exposure(ground, px, py, options_.groundSpacing);
+                    sum += 1.0 + gain * exposure_.At(px, py, &ground);
                 }
             }
             return sum / (kSide * kSide);
@@ -301,20 +281,17 @@ double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance)
         const double d0 = options_.slopeMap->referenceDiameter;
         density = abundance.background * referenceCount_ * alpha * std::pow(d0, alpha) *
                   std::pow(diameter, -alpha - 1.0);
+    } else if (sizes.distribution) {
+        density = abundance.background * sizes.distribution->Incremental(diameter);
     } else {
-        density = sizes.distribution
-                      ? abundance.background * sizes.distribution->Incremental(diameter)
-                      : GolombekRappDensity(diameter, sizes.coverage * abundance.background,
-                                            sizes.qConstant, sizes.qCoverageCoefficient);
+        const double k = sizes.coverage * abundance.background;
+        density =
+            GolombekRappIncremental(diameter, k, sizes.qConstant + sizes.qCoverageCoefficient / k);
     }
     if (abundance.ejecta > 0.0) {
         density += abundance.ejecta * ejectaSizes_->Incremental(diameter);
     }
     return density;
-}
-
-double BoulderLayer::DensityAt(double diameter, double x, double y, const Ground* ground) const {
-    return Density(diameter, AbundanceAt(x, y, ground));
 }
 
 std::vector<BoulderLayer::UnresolvedNode> BoulderLayer::UnresolvedNodes(double spacing) const {
@@ -356,11 +333,15 @@ UnresolvedCover BoulderLayer::UnresolvedCoverWith(const BoulderAbundance& abunda
     return cover;
 }
 
+bool BoulderLayer::LeavesUnresolved(double spacing) const {
+    RequirePositive(spacing, "Unresolved cover spacing");
+    return options_.generateRandom &&
+           options_.sizes.minDiameter < options_.fade.endSamples * spacing;
+}
+
 UnresolvedCover BoulderLayer::UnresolvedCoverAt(double x, double y, double spacing,
                                                 const Ground* ground) const {
-    RequirePositive(spacing, "Unresolved cover spacing");
-    if (!options_.generateRandom ||
-        options_.sizes.minDiameter >= options_.fade.endSamples * spacing) {
+    if (!LeavesUnresolved(spacing)) {
         return {};
     }
     return UnresolvedCoverWith(AbundanceAt(x, y, ground), UnresolvedNodes(spacing), spacing);
@@ -369,10 +350,8 @@ UnresolvedCover BoulderLayer::UnresolvedCoverAt(double x, double y, double spaci
 std::vector<UnresolvedCover> BoulderLayer::UnresolvedCoverOver(const RasterGrid& grid,
                                                                double spacing, const Ground* ground,
                                                                unsigned threads) const {
-    RequirePositive(spacing, "Unresolved cover spacing");
     std::vector<UnresolvedCover> cover(grid.width * grid.height);
-    if (!options_.generateRandom ||
-        options_.sizes.minDiameter >= options_.fade.endSamples * spacing) {
+    if (!LeavesUnresolved(spacing)) {
         return cover;
     }
     const EjectaIndex ejecta = EjectaCraters(grid.Bounds());

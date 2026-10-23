@@ -10,10 +10,6 @@
 
 namespace terraingen {
 
-void ValidatePointContext(const LayerContext& context) {
-    RequirePositive(context.spacing, "Sample spacing");
-}
-
 void RequireGround(const Ground* ground, std::string_view what) {
     if (ground == nullptr) {
         throw std::invalid_argument(std::string(what) + " need the ground");
@@ -27,7 +23,7 @@ void Layer::Apply(Raster<float>& heights, const LayerContext& context) const {
 
 void Layer::Apply(SampleBlock& samples, const LayerContext& context) const {
     if (!samples.IsGrid()) {
-        ValidatePointContext(context);
+        RequirePositive(context.spacing, "Sample spacing");
     }
     ApplySamples(samples, context);
 }

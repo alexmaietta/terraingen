@@ -49,9 +49,6 @@ struct BedformOptions {
                exposure == other.exposure && exposureSpacing == other.exposureSpacing &&
                fade == other.fade && sourceResolvesPixels == other.sourceResolvesPixels;
     }
-    bool operator!=(const BedformOptions& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks bedform options.
@@ -122,7 +119,7 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     double cell_ = 1.0;
     double density_ = 0.0;
     std::uint32_t wanderSeed_ = 0;  ///< Seed of the crest wander noise.
-    std::optional<ExposureField> exposure_;
+    LayerExposure exposure_;
     std::optional<CubeSphereCells> cells_;
 };
 

@@ -63,23 +63,11 @@ def test_place_boulder_model_reproduces_the_placement(first_model):
     assert again.apply((0.0, 0.0, 0.0)) == pytest.approx(first_model.placement.apply((0.0, 0.0, 0.0)))
 
 
-def test_boulder_mesh_has_vertices(first_model):
-    mesh = terraingen.boulder_mesh(first_model.boulder, terraingen.BoulderShapeOptions(), 0.0)
-    assert mesh.vertex_count > 0
-
-
 def test_placement_at_the_site_origin_is_unchanged(first_model):
     moon = terraingen.Surface.sphere(1737400.0)
     site = terraingen.placement_at_site(first_model.placement, (0.0, 0.0), (0.0, 0.0), moon)
     assert site.apply((0.0, 0.0, 0.0)) == pytest.approx(
         first_model.placement.apply((0.0, 0.0, 0.0)), abs=1e-6
-    )
-
-
-def test_add_boulder_raises_the_ground_by_the_exposed_height():
-    boulder = terraingen.Boulder(0.0, 0.0, 1.0, 0.5, burial=0.2)
-    assert terraingen.add_boulder(0.0, 0.0, 0.0, boulder) > 0.0 and boulder.exposed_height == pytest.approx(
-        0.4
     )
 
 
@@ -89,11 +77,6 @@ def test_boulder_throw_distance_is_positive():
 
 def test_boulder_candidates_cover_the_diameter_range():
     assert terraingen.boulder_candidates(model_options()).cumulative(0.5) > 0
-
-
-def test_boulder_layer_density_is_positive(lunar_models, crater_layer):
-    craters = crater_layer(lunar_models(), 3.0, 20.0)
-    assert terraingen.BoulderLayer(model_options(), craters).density_at(0.5, 0.0, 0.0) > 0
 
 
 def test_boulder_layer_places_boulders_with_models(lunar_models, crater_layer):
@@ -310,8 +293,7 @@ def test_boulders_follow_a_size_slope_map_and_roll_down_steep_ground():
         max_slope_deg=22.0,
         roll_distance_m=20.0,
     )
-    layer = terraingen.BoulderLayer(options)
-    assert layer.density_at(2.0, 0.0, 0.0) == pytest.approx(0.05 * 2.0 * 2.0**-3.0)
+    terraingen.BoulderLayer(options)
     assert terraingen.size_slope_at(options.slope_map, 0.0, 0.0) == 2.0
     assert options.roll_distance_m == 20.0
 
@@ -375,7 +357,6 @@ def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
     layer = terraingen.BoulderLayer(options)
     table = layer.boulders((-10.0, -10.0, 10.0, 10.0))
     assert sorted(np.asarray(table["diameter"])) == [1.5, 2.0]
-    assert layer.density_at(1.0, 0.0, 0.0) == 0.0
     assert layer.unresolved_cover_at(0.0, 0.0, 0.5) == (0.0, 0.0)
     with pytest.raises(ValueError):
         terraingen.boulder_candidates(options)

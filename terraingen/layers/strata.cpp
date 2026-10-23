@@ -51,10 +51,13 @@ StrataLayer::StrataLayer(StrataOptions options, Surface surface)
     dipSlope_ = std::tan(options_.dip);
 }
 
+RandomStream StrataLayer::BedStream(std::uint32_t stream, std::int64_t k) const {
+    const IdWords bed = SplitId(static_cast<std::uint64_t>(k));
+    return RandomStream(options_.seed, stream, bed.low, bed.high);
+}
+
 double StrataLayer::BedBoundary(std::int64_t k) const {
-    const auto bits = static_cast<std::uint64_t>(k);
-    RandomStream random(options_.seed, kStrataStream, static_cast<std::uint32_t>(bits),
-                        static_cast<std::uint32_t>(bits >> 32));
+    RandomStream random = BedStream(kStrataStream, k);
     const double offset = options_.thicknessVariation * (random.NextDouble() - 0.5);
     return options_.bedThickness * (static_cast<double>(k) + offset);
 }
@@ -72,13 +75,8 @@ StrataLayer::Bed StrataLayer::BedAt(double level) const {
         bottom = top;
         top = BedBoundary(k + 1);
     }
-    bool hard = options_.hardShare >= 1.0;
-    if (!hard) {
-        const auto bits = static_cast<std::uint64_t>(k);
-        RandomStream random(options_.seed, kStrataHardnessStream, static_cast<std::uint32_t>(bits),
-                            static_cast<std::uint32_t>(bits >> 32));
-        hard = random.NextDouble() < options_.hardShare;
-    }
+    const bool hard = options_.hardShare >= 1.0 ||
+                      BedStream(kStrataHardnessStream, k).NextDouble() < options_.hardShare;
     return {bottom, top, hard};
 }
 
@@ -89,15 +87,6 @@ bool StrataLayer::StratigraphicLevel(double height, double x, double y, double& 
     }
     level = height + dipSlope_ * (q->x * dipDirection_.x + q->y * dipDirection_.y);
     return std::isfinite(level);
-}
-
-double StrataLayer::BedPositionAt(double height, double x, double y) const {
-    double level = 0.0;
-    if (!StratigraphicLevel(height, x, y, level)) {
-        return 0.0;
-    }
-    const Bed bed = BedAt(level);
-    return std::clamp((level - bed.bottom) / (bed.top - bed.bottom), 0.0, 1.0);
 }
 
 double StrataLayer::TerracedAt(double height, double x, double y) const {

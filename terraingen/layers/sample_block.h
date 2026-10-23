@@ -9,6 +9,7 @@
 #include "terraingen/util/surface.h"
 
 #include <cstddef>
+#include <vector>
 
 namespace terraingen {
 
@@ -80,6 +81,36 @@ template <typename Map> void MapSamples(SampleBlock& samples, unsigned threads, 
         return;
     }
     MapPoints(samples, map);
+}
+
+/// Draws features into `samples`: each sample holding data inside feature n's box is set to
+/// `draw(height, base, position, n)`, feature by feature in order, where `base` is its height
+/// before any feature. A grid's cells run over `threads` threads (`ForEachFeatureCell`).
+/// @param boxes Each feature's box in `surface`'s coordinates.
+template <typename Draw>
+void DrawFeatures(SampleBlock& samples, unsigned threads, const std::vector<Bounds2d>& boxes,
+                  const Surface& surface, const Draw& draw) {
+    if (Raster<float>* grid = samples.Grid()) {
+        const Span<const float> values = static_cast<const Raster<float>&>(*grid).Values();
+        const std::vector<float> base(values.begin(), values.end());
+        const std::size_t width = grid->Width();
+        ForEachFeatureCell(*grid, threads, boxes, surface, [&](float& cell, const FeatureCell& at) {
+            cell = draw(cell, base[at.row * width + at.col], at.center, at.feature);
+        });
+        return;
+    }
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        if (samples.IsNoData(i)) {
+            continue;
+        }
+        const Vec2d p = samples.Position(i);
+        const float base = samples.Height(i);
+        for (std::size_t n = 0; n < boxes.size(); ++n) {
+            if (surface.Contains(boxes[n], p)) {
+                samples.Height(i) = draw(samples.Height(i), base, p, n);
+            }
+        }
+    }
 }
 
 }  // namespace terraingen
