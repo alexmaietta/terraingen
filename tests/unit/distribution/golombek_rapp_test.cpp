@@ -58,6 +58,7 @@ TEST(GolombekRappSfd, RejectsInvalidParameters) {
 TEST(GolombekRappIncremental, IsTheDistributionsDensity) {
     const terraingen::GolombekRappSfd rapp(0.05, 1.79, 0.152);
     for (const double d : {0.1, 0.7, 3.0}) {
-        EXPECT_EQ(terraingen::GolombekRappIncremental(d, 0.05, rapp.Q()), rapp.Incremental(d));
+        EXPECT_EQ(terraingen::GolombekRappIncremental(d, 0.05, 1.79 + 0.152 / 0.05),
+                  rapp.Incremental(d));
     }
 }

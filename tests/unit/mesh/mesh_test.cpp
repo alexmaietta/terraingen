@@ -145,7 +145,7 @@ TEST(TriangleMesh, RejectsTrianglesIndexingPastTheVertices) {
 
 TEST(TriangleMesh, CutsAtAPlaneAndStaysClosed) {
     TriangleMesh cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
-    const double before = terraingen::Volume(cube);
+    const double before = terraingen::testing::Volume(cube);
     const double top = terraingen::Bounds(cube).max.z;
     std::vector<double> distances;
     for (const Vec3d& p : cube.positions) {
@@ -154,5 +154,5 @@ TEST(TriangleMesh, CutsAtAPlaneAndStaysClosed) {
     terraingen::CutAtPlane(cube, {0.0, 0.0, 1.0}, distances);
     EXPECT_NO_THROW(terraingen::ValidateMesh(cube));
     EXPECT_NEAR(terraingen::Bounds(cube).max.z, 0.5 * top, 1e-12);
-    EXPECT_NEAR(terraingen::Volume(cube), 0.75 * before, 1e-9 * before);
+    EXPECT_NEAR(terraingen::testing::Volume(cube), 0.75 * before, 1e-9 * before);
 }
