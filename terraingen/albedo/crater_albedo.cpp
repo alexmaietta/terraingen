@@ -136,6 +136,7 @@ struct CraterAlbedo::Ray {
 struct CraterAlbedo::Prepared {
     Crater crater;
     CraterOutline outline;
+    KernelOutline profile;  ///< `outline` as the crater kernel reads it.
     double weight = 0.0;
     double reach = 0.0;
     std::vector<Ray> rays;
@@ -173,8 +174,8 @@ struct CraterAlbedo::Prepared {
         if (weight == 0.0) {
             return 0.0;
         }
-        const double radii =
-            CraterProfileDistance(crater, outline, x, y, surface) / (0.5 * crater.diameter);
+        const double radii = profile.ProfileDistance(surface.Offset({crater.x, crater.y}, {x, y})) /
+                             (0.5 * crater.diameter);
         const CraterAlbedoTexture& texture = o.texture;
         const bool textured = texture.streaks > 0.0 || texture.lobes > 0.0;
         const Vec2d offset = surface.Offset({crater.x, crater.y}, {x, y});
@@ -343,6 +344,7 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
     }
     prepared.weight = std::pow(left, o.fadeExponent) * resolution;
     prepared.outline = IrregularOutline(crater, craters_->Options().apply.irregularity);
+    prepared.profile = KernelOutline(prepared.outline, crater.diameter);
     prepared.reach = o.ejectaReachRadii * (0.5 * crater.diameter) * prepared.outline.MaxScale() *
                      (1.0 + o.texture.lobes);
     if (o.rays.enabled) {

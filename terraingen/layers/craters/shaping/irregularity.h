@@ -3,6 +3,7 @@
 #pragma once
 
 #include "terraingen/layers/craters/crater.h"
+#include "terraingen/layers/kernels/craters.h"
 #include "terraingen/random/value_distribution.h"
 #include "terraingen/util/surface.h"
 
@@ -116,12 +117,12 @@ struct CraterOutline {
     double marksFadeRadii = 0.1;   ///< Width of the fades, in radii.
 
     /// The factor the rim radius is stretched by toward (`dx`, `dy`) meters east and north of the
-    /// center; 1 for a round crater. In double precision, which the outline's area and mean tests
-    /// need; the crater kernel evaluates it as `KernelOutlineScale`.
+    /// center, as `KernelOutlineScale` in single precision; 1 for a round crater.
     double Scale(double dx, double dy) const;
 
-    /// The shift in radii the marks add at `radii` from the center toward (`dx`, `dy`); 0 outside
-    /// the marks' window, which ends inside the rim.
+    /// The shift in radii the marks add at `radii` from the center toward (`dx`, `dy`), as
+    /// `KernelMarkShift` in single precision; 0 outside the marks' window, which ends inside the
+    /// rim.
     double MarkShift(double dx, double dy, double radii) const;
 
     /// An upper bound of `Scale` in any direction.
@@ -140,9 +141,45 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
 /// The largest stretch any crater's outline can have, to widen footprints by; 1 when disabled.
 double MaxOutlineScale(const CraterIrregularity& irregularity);
 
+/// Appends `outline`'s harmonics, deviations and marks to `data` as the crater kernel reads them,
+/// noting where, and its ellipse, on `record`.
+void AppendKernelOutline(const CraterOutline& outline, CraterRecord& record,
+                         std::vector<float>& data);
+
+/// A crater's outline in the crater kernel's form, to read many points with.
+class KernelOutline {
+  public:
+    /// A round outline.
+    KernelOutline() : KernelOutline(CraterOutline{}, 1.0) {}
+
+    /// `outline` of a crater of `diameter` meters.
+    KernelOutline(const CraterOutline& outline, double diameter);
+
+    /// `KernelOutlineScale` toward `offset` (m).
+    double Scale(const Vec2d& offset) const;
+
+    /// `KernelMarkShift` at `radii` toward `offset` (m); 0 without marks.
+    double MarkShift(const Vec2d& offset, double radii) const;
+
+    /// `KernelProfileDistance` (m) at `offset` meters east and north of the center; the exact
+    /// distance for a round outline.
+    double ProfileDistance(const Vec2d& offset) const;
+
+  private:
+    CraterData Data() const {
+        CraterData view;
+        view.values = data_.data();
+        return view;
+    }
+
+    bool round_ = true;
+    CraterRecord record_;
+    std::vector<float> data_{0.0f};
+};
+
 /// The distance in meters at which a crater's round profile is read at surface (x, y): the true
 /// distance over the stretch of its `outline` (`IrregularOutline`) in that direction, shifted by
-/// its marks.
+/// its marks; `KernelOutline::ProfileDistance`.
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
                              const Surface& surface = {});
 

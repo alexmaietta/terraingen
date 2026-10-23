@@ -10,6 +10,7 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 
 namespace terraingen {
@@ -210,53 +211,11 @@ void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
 }
 
 double CraterOutline::Scale(double dx, double dy) const {
-    if (Round()) {
-        return 1.0;
-    }
-    const double theta = std::atan2(dy, dx);
-    double scale = 1.0;
-    if (ellipticity != 1.0) {
-        const double along = std::sqrt(ellipticity);
-        const double across = 1.0 / along;
-        const double c = std::cos(theta - heading) / along;
-        const double s = std::sin(theta - heading) / across;
-        scale = 1.0 / std::sqrt(c * c + s * s);
-    }
-    double wobble = 1.0;
-    if (!table.empty()) {
-        const double turns = theta / (2.0 * kPi);
-        const double position = (turns - std::floor(turns)) * static_cast<double>(table.size());
-        const auto index = std::min(static_cast<std::size_t>(position), table.size() - 1);
-        const double t = position - static_cast<double>(index);
-        wobble += (1.0 - t) * table[index] + t * table[(index + 1) % table.size()];
-    }
-    for (std::size_t n = 0; n < amplitudes.size(); ++n) {
-        const double k = static_cast<double>(firstHarmonic) + static_cast<double>(n);
-        wobble += amplitudes[n] * std::cos(k * theta + phases[n]);
-    }
-    return scale * wobble;
+    return Round() ? 1.0 : KernelOutline(*this, 1.0).Scale({dx, dy});
 }
 
 double CraterOutline::MarkShift(double dx, double dy, double radii) const {
-    if (marks.empty() || !(radii > marksInnerRadii - marksFadeRadii) ||
-        !(radii < marksOuterRadii + marksFadeRadii)) {
-        return 0.0;
-    }
-    const double window = Smoothstep((radii - marksInnerRadii + marksFadeRadii) / marksFadeRadii) *
-                          Smoothstep((marksOuterRadii + marksFadeRadii - radii) / marksFadeRadii);
-    const double turns = (dx == 0.0 && dy == 0.0) ? 0.0 : std::atan2(dy, dx) / (2.0 * kPi);
-    const std::size_t size = marks.size();
-    const double position = (turns - std::floor(turns)) * static_cast<double>(size);
-    const auto index = std::min(static_cast<std::size_t>(position), size - 1);
-    const double t = position - static_cast<double>(index);
-    const double p0 = marks[(index + size - 1) % size];
-    const double p1 = marks[index];
-    const double p2 = marks[(index + 1) % size];
-    const double p3 = marks[(index + 2) % size];
-    const double shift =
-        0.5 * (2.0 * p1 + (p2 - p0) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t +
-               (3.0 * (p1 - p2) + p3 - p0) * t * t * t);
-    return window * shift;
+    return marks.empty() ? 0.0 : KernelOutline(*this, 1.0).MarkShift({dx, dy}, radii);
 }
 
 double CraterOutline::MaxScale() const {
@@ -324,6 +283,67 @@ double MaxOutlineScale(const CraterIrregularity& irregularity) {
     return rough * elongated;
 }
 
+void AppendKernelOutline(const CraterOutline& outline, CraterRecord& record,
+                         std::vector<float>& data) {
+    record.ellipticity = static_cast<float>(outline.ellipticity);
+    record.heading = static_cast<float>(outline.heading);
+    record.firstHarmonic = static_cast<std::uint32_t>(outline.firstHarmonic);
+    record.harmonicCount = static_cast<std::uint32_t>(outline.amplitudes.size());
+    record.harmonicOffset = static_cast<std::uint32_t>(data.size());
+    for (std::size_t n = 0; n < outline.amplitudes.size(); ++n) {
+        data.push_back(static_cast<float>(outline.amplitudes[n]));
+        data.push_back(static_cast<float>(outline.phases[n]));
+    }
+    record.tableCount = static_cast<std::uint32_t>(outline.table.size());
+    record.tableOffset = static_cast<std::uint32_t>(data.size());
+    for (const double deviation : outline.table) {
+        data.push_back(static_cast<float>(deviation));
+    }
+    record.markCount = static_cast<std::uint32_t>(outline.marks.size());
+    record.markOffset = static_cast<std::uint32_t>(data.size());
+    if (!outline.marks.empty()) {
+        for (const double radii :
+             {outline.marksInnerRadii, outline.marksOuterRadii, outline.marksFadeRadii}) {
+            data.push_back(static_cast<float>(radii));
+        }
+        for (const double knot : outline.marks) {
+            data.push_back(static_cast<float>(knot));
+        }
+    }
+}
+
+KernelOutline::KernelOutline(const CraterOutline& outline, double diameter)
+    : round_(outline.Round()) {
+    record_.diameter = static_cast<float>(diameter);
+    data_.clear();
+    AppendKernelOutline(outline, record_, data_);
+    if (data_.empty()) {
+        data_.push_back(0.0f);
+    }
+}
+
+double KernelOutline::Scale(const Vec2d& offset) const {
+    return static_cast<double>(KernelOutlineScale(Data(), record_, static_cast<float>(offset.x),
+                                                  static_cast<float>(offset.y)));
+}
+
+double KernelOutline::MarkShift(const Vec2d& offset, double radii) const {
+    if (record_.markCount == 0u) {
+        return 0.0;
+    }
+    return static_cast<double>(KernelMarkShift(Data(), record_, static_cast<float>(offset.x),
+                                               static_cast<float>(offset.y),
+                                               static_cast<float>(radii)));
+}
+
+double KernelOutline::ProfileDistance(const Vec2d& offset) const {
+    if (round_) {
+        return std::sqrt(offset.x * offset.x + offset.y * offset.y);
+    }
+    return static_cast<double>(KernelProfileDistance(Data(), record_, static_cast<float>(offset.x),
+                                                     static_cast<float>(offset.y)));
+}
+
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline, double x, double y,
                              const Surface& surface) {
     return CraterProfileDistance(crater, outline, surface.Offset({crater.x, crater.y}, {x, y}));
@@ -331,13 +351,7 @@ double CraterProfileDistance(const Crater& crater, const CraterOutline& outline,
 
 double CraterProfileDistance(const Crater& crater, const CraterOutline& outline,
                              const Vec2d& offset) {
-    const double distance = std::sqrt(offset.x * offset.x + offset.y * offset.y);
-    if (outline.Round()) {
-        return distance;
-    }
-    const double scaled = distance / outline.Scale(offset.x, offset.y);
-    const double radius = 0.5 * crater.diameter;
-    return scaled + radius * outline.MarkShift(offset.x, offset.y, scaled / radius);
+    return KernelOutline(outline, crater.diameter).ProfileDistance(offset);
 }
 
 }  // namespace terraingen

@@ -240,7 +240,7 @@ def test_equilibrium_diffusion_ages_wear_craters_to_the_cutoff_at_their_lifetime
     lifetime = steady.equilibrium_lifetime_gyr(20.0)
     degradation = terraingen.DiffusionDegradation(fresh, ages, diffused)
     state = degradation.state(terraingen.Crater(0.0, 0.0, 20.0, age_gyr=lifetime))
-    assert state.current.depth_ratio == pytest.approx(terraingen.VISIBILITY_DEPTH_RATIO, abs=1e-9)
+    assert state.current.depth_ratio == pytest.approx(terraingen.VISIBILITY_DEPTH_RATIO, abs=1e-8)
     tau = diffused.age_at_depth_ratio(fresh(20.0), 20.0, terraingen.VISIBILITY_DEPTH_RATIO)
     assert ages(20.0, lifetime) == pytest.approx(tau * 400.0)
 

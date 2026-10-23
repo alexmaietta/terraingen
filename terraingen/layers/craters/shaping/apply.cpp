@@ -33,13 +33,6 @@ Bounds2d Footprint(const PreparedCrater& prepared, double reachRadii, const Surf
 struct ReachingCrater {
     PreparedCrater* prepared;
     Bounds2d footprint;
-    double reach;
-
-    bool Reaches(const Vec2d& p, const Surface& surface) const {
-        return surface.Contains(footprint, p) &&
-               CraterProfileDistance(prepared->crater, prepared->outline, p.x, p.y, surface) <
-                   reach;
-    }
 };
 
 /// The craters of `prepared` reaching `reachRadii` radii that reach any of `samples`, in order.
@@ -48,10 +41,14 @@ std::vector<ReachingCrater> CratersReaching(const SampleBlock& samples,
                                             double reachRadii, const Surface& surface) {
     std::vector<ReachingCrater> reaching;
     for (PreparedCrater& crater : prepared) {
-        const ReachingCrater candidate{&crater, Footprint(crater, reachRadii, surface),
-                                       reachRadii * 0.5 * crater.crater.diameter};
+        const Crater& c = crater.crater;
+        const ReachingCrater candidate{&crater, Footprint(crater, reachRadii, surface)};
+        const KernelOutline outline(crater.outline, c.diameter);
+        const double reach = reachRadii * 0.5 * c.diameter;
         for (std::size_t i = 0; i < samples.Size(); ++i) {
-            if (candidate.Reaches(samples.Position(i), surface)) {
+            const Vec2d p = samples.Position(i);
+            if (surface.Contains(candidate.footprint, p) &&
+                outline.ProfileDistance(surface.Offset({c.x, c.y}, p)) < reach) {
                 reaching.push_back(candidate);
                 break;
             }

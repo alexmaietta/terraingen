@@ -9,8 +9,9 @@
 namespace terraingen {
 
 double KilometerPowerLaw::At(double diameter, bool volume) const {
-    const double kilometers = coefficient * std::pow(diameter / 1000.0, exponent);
-    return volume ? kilometers * 1e9 : kilometers * 1000.0;
+    return static_cast<double>(KilometerLaw(static_cast<float>(coefficient),
+                                            static_cast<float>(exponent),
+                                            static_cast<float>(diameter), volume));
 }
 
 void ValidateComplexCraterShape(const ComplexCraterShape& shape) {

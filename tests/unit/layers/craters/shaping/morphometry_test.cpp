@@ -35,8 +35,8 @@ TEST(LunarFreshCraterMorphometry, PairsTheDepthRatioWithTheRimRatio) {
 
 TEST(LunarFreshCraterMorphometry, FollowsPikesComplexLawsFromFifteenKilometers) {
     const auto complex = terraingen::LunarFreshCraterMorphometry(30000.0);
-    EXPECT_NEAR(complex.depthRatio * 30.0, 1.044 * std::pow(30.0, 0.301), 1e-12);
-    EXPECT_NEAR(complex.rimHeightRatio * 30.0, 0.236 * std::pow(30.0, 0.399), 1e-12);
+    EXPECT_NEAR(complex.depthRatio * 30.0, 1.044 * std::pow(30.0, 0.301), 1e-6);
+    EXPECT_NEAR(complex.rimHeightRatio * 30.0, 0.236 * std::pow(30.0, 0.399), 1e-6);
     EXPECT_EQ(terraingen::LunarFreshCraterMorphometry(14999.0).depthRatio, 0.21);
     const auto shape = terraingen::LunarComplexCraterShape();
     EXPECT_EQ(shape.transitionDiameter, terraingen::kLunarComplexCraterDiameter);
@@ -48,15 +48,15 @@ TEST(MarsFreshCraterMorphometry, FollowsSmallFreshCratersThenGarvinsFits) {
     EXPECT_EQ(MarsFreshCraterMorphometry(30.0).depthRatio, 0.23) << "Daubar et al. 2014";
     EXPECT_EQ(MarsFreshCraterMorphometry(30.0).rimHeightRatio, 0.03) << "Sweeney et al. 2018";
     EXPECT_NEAR(MarsFreshCraterMorphometry(3000.0).depthRatio * 3.0, 0.21 * std::pow(3.0, 0.81),
-                1e-12);
+                1e-6);
     EXPECT_NEAR(MarsFreshCraterMorphometry(3000.0).rimHeightRatio * 3.0, 0.04 * std::pow(3.0, 0.31),
-                1e-12);
+                1e-6);
     EXPECT_NEAR(MarsFreshCraterMorphometry(20000.0).depthRatio * 20.0, 0.36 * std::pow(20.0, 0.49),
-                1e-12);
+                1e-6);
     EXPECT_NEAR(MarsFreshCraterMorphometry(20000.0).rimHeightRatio * 20.0,
-                0.02 * std::pow(20.0, 0.84), 1e-12);
+                0.02 * std::pow(20.0, 0.84), 1e-6);
     EXPECT_NEAR(MarsFreshCraterMorphometry(200000.0).rimHeightRatio * 200.0,
-                0.12 * std::pow(200.0, 0.35), 1e-12);
+                0.12 * std::pow(200.0, 0.35), 1e-6);
     double previous = 1.0;
     for (double d = 10.0; d < 6900.0; d *= 1.1) {
         const double ratio = MarsFreshCraterMorphometry(d).depthRatio;

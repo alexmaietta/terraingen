@@ -15,8 +15,8 @@ struct KilometerPowerLaw {
     double coefficient = 0.0;  ///< y of a 1 km crater, in km (or km^3).
     double exponent = 0.0;     ///< Power of the diameter.
 
-    /// y in meters (m^3 with `volume`) for a crater of `diameter` meters, in double precision for
-    /// the fresh morphometry laws; profiles read the laws through `KilometerLaw`.
+    /// y in meters (m^3 with `volume`) for a crater of `diameter` meters: `KilometerLaw` in single
+    /// precision.
     double At(double diameter, bool volume = false) const;
 
     /// Memberwise equality.

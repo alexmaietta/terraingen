@@ -138,7 +138,7 @@ TEST(ResolvedCraterState, SolvesTheDiffusionAgeForADepthUnderDiffusion) {
     const CraterState state = ResolvedCraterState(*Diffused(), Diffusion(), crater);
     EXPECT_EQ(state.fresh, fresh);
     EXPECT_GT(state.diffusion, 0.0);
-    EXPECT_NEAR(state.current.depthRatio, 0.5 * fresh.depthRatio, 1e-9);
+    EXPECT_NEAR(state.current.depthRatio, 0.5 * fresh.depthRatio, 1e-8);
     EXPECT_LT(state.current.rimHeightRatio, fresh.rimHeightRatio);
     const CraterAttributes shaped = terraingen::ComputeCraterAttributes(crater, state, *Diffused());
     EXPECT_NEAR(shaped.floorDepth + shaped.rimHeight, crater.depth, 0.02 * crater.depth);

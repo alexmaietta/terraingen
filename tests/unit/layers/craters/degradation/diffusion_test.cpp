@@ -115,7 +115,7 @@ TEST(DiffusedProfile, FindsTheAgeAtWhichACraterWearsToADepth) {
     for (const double depth : {0.09, 0.06, 0.04, 0.02}) {
         const double tau = profile.AgeAtDepthRatio(fresh, 20.0, depth);
         ASSERT_GT(tau, 0.0);
-        EXPECT_NEAR(profile.Morphometry(fresh, 20.0, tau).depthRatio, depth, 1e-9) << depth;
+        EXPECT_NEAR(profile.Morphometry(fresh, 20.0, tau).depthRatio, depth, 1e-8) << depth;
     }
     EXPECT_LT(profile.AgeAtDepthRatio(fresh, 20.0, 0.06),
               profile.AgeAtDepthRatio(fresh, 20.0, 0.04));

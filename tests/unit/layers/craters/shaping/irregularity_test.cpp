@@ -104,9 +104,9 @@ TEST(CraterOutline, StretchesEllipsesAlongTheirHeadingKeepingTheirArea) {
     terraingen::CraterOutline ellipse;
     ellipse.ellipticity = 2.0;
     ellipse.heading = terraingen::kPi / 4.0;
-    EXPECT_NEAR(ellipse.Scale(1.0, 1.0), std::sqrt(2.0), 1e-12);
-    EXPECT_NEAR(ellipse.Scale(-1.0, 1.0), 1.0 / std::sqrt(2.0), 1e-12);
-    EXPECT_NEAR(ellipse.Scale(1.0, 1.0) / ellipse.Scale(-1.0, 1.0), 2.0, 1e-12);
+    EXPECT_NEAR(ellipse.Scale(1.0, 1.0), std::sqrt(2.0), 1e-6);
+    EXPECT_NEAR(ellipse.Scale(-1.0, 1.0), 1.0 / std::sqrt(2.0), 1e-6);
+    EXPECT_NEAR(ellipse.Scale(1.0, 1.0) / ellipse.Scale(-1.0, 1.0), 2.0, 1e-6);
     double area = 0.0;
     constexpr int kSteps = 4096;
     for (int n = 0; n < kSteps; ++n) {
@@ -114,7 +114,7 @@ TEST(CraterOutline, StretchesEllipsesAlongTheirHeadingKeepingTheirArea) {
         area += 0.5 * std::pow(ellipse.Scale(std::cos(theta), std::sin(theta)), 2.0) * 2.0 *
                 terraingen::kPi / kSteps;
     }
-    EXPECT_NEAR(area, terraingen::kPi, 1e-9);
+    EXPECT_NEAR(area, terraingen::kPi, 1e-6) << "to single precision, in which the kernel reads it";
     EXPECT_NEAR(ellipse.MaxScale(), std::sqrt(2.0), 1e-12);
     EXPECT_EQ(terraingen::CraterOutline{}.Scale(3.0, 4.0), 1.0);
 }
@@ -128,7 +128,7 @@ TEST(CraterOutline, HasTheRoughnessAskedForAndStaysWithinItsBounds) {
         const auto outline = IrregularOutline(At(id), irregularity);
         const auto [rms, mean] = Stretch(outline);
         EXPECT_NEAR(rms, 0.04, 1e-6) << id;
-        EXPECT_NEAR(mean, 1.0, 1e-9);
+        EXPECT_NEAR(mean, 1.0, 1e-7) << "to single precision, in which the kernel reads it";
         for (int n = 0; n < 360; ++n) {
             const double theta = n * terraingen::kPi / 180.0;
             EXPECT_LE(outline.Scale(std::cos(theta), std::sin(theta)), outline.MaxScale() + 1e-12);
@@ -177,10 +177,10 @@ TEST(IrregularOutline, FollowsDuEtAlsFittedRimSpectra) {
     const double at200 = std::log10(2.0 * terraingen::kPi / 200.0);
     EXPECT_NEAR(amplitude(200),
                 expected(logPower2 + (-0.022 * 10.0 + 3.3) * (at200 - logWavelength2)), 1e-12);
-    EXPECT_NEAR(outline.Scale(1.0, 0.0), 1.0 + outline.table[0], 1e-12);
+    EXPECT_NEAR(outline.Scale(1.0, 0.0), 1.0 + outline.table[0], 1e-6);
     EXPECT_NEAR(outline.Scale(std::cos(2.0 * terraingen::kPi * 5.0 / 1024.0),
                               std::sin(2.0 * terraingen::kPi * 5.0 / 1024.0)),
-                1.0 + outline.table[5], 1e-9);
+                1.0 + outline.table[5], 1e-6);
     EXPECT_NEAR(terraingen::MaxOutlineScale(irregularity), 1.3, 1e-12);
 
     irregularity.scatter = true;
@@ -233,10 +233,10 @@ TEST(CraterOutline, ShiftsOnlyTheWallSmoothlyAroundTheCrater) {
     EXPECT_DOUBLE_EQ(outline.Scale(1.0, 2.0), 1.0);
     EXPECT_EQ(outline.MarkShift(1.0, 0.0, 0.15), 0.0);
     EXPECT_EQ(outline.MarkShift(1.0, 0.0, 1.0), 0.0);
-    EXPECT_DOUBLE_EQ(outline.MarkShift(0.0, 0.0, 0.5), 0.01) << "the center reads angle 0";
-    EXPECT_DOUBLE_EQ(outline.MarkShift(1.0, 0.0, 0.5), 0.01) << "passes through its knots";
-    EXPECT_NEAR(outline.MarkShift(-1.0, std::sqrt(3.0), 0.5), 0.005, 1e-12);
-    EXPECT_NEAR(outline.MarkShift(1.0, 0.0, 0.25), 0.005, 1e-12) << "half way up the fade";
+    EXPECT_NEAR(outline.MarkShift(0.0, 0.0, 0.5), 0.01, 1e-8) << "the center reads angle 0";
+    EXPECT_NEAR(outline.MarkShift(1.0, 0.0, 0.5), 0.01, 1e-8) << "passes through its knots";
+    EXPECT_NEAR(outline.MarkShift(-1.0, std::sqrt(3.0), 0.5), 0.005, 1e-8);
+    EXPECT_NEAR(outline.MarkShift(1.0, 0.0, 0.25), 0.005, 1e-8) << "half way up the fade";
     double largest = 0.0;
     double previous = outline.MarkShift(1.0, -1e-6, 0.6);
     for (int n = 0; n <= 3600; ++n) {
@@ -272,9 +272,9 @@ TEST(CraterProfileDistance, ShiftsTheWallByTheMarksAndKeepsItInOrder) {
             ASSERT_GT(distance, previous) << "the wall cannot fold, at " << r << " m";
             previous = distance;
             if (r < 10.0 || r > 50.0) {
-                ASSERT_DOUBLE_EQ(distance, r) << "floor and rim stay put";
+                ASSERT_NEAR(distance, r, 1e-5) << "floor and rim stay put";
             } else {
-                ASSERT_NEAR(distance, r + 50.0 * outline.MarkShift(x, y, r / 50.0), 1e-12);
+                ASSERT_NEAR(distance, r + 50.0 * outline.MarkShift(x, y, r / 50.0), 1e-5);
             }
         }
     }
@@ -360,4 +360,18 @@ TEST(ApplyCraters, StretchesElongatedCratersAndKeepsPointQueriesOnTheGrid) {
         << "inside the bowl along the long axis";
     EXPECT_GT(layer.ApplyAt(0.0f, 0.5, 0.5 + 1.05 * across, {1.0, 1, &flat}), 0.0)
         << "beyond the rim across it";
+}
+
+TEST(KernelOutline, ReadsTheOutlineAsTheCraterKernelDoes) {
+    terraingen::CraterOutline outline;
+    outline.ellipticity = 2.0;
+    outline.marks = {0.01, -0.01, 0.005, 0.0};
+    const terraingen::KernelOutline kernel(outline, 20.0);
+    const terraingen::Vec2d offset{3.0, 4.0};
+    EXPECT_EQ(kernel.Scale(offset), outline.Scale(3.0, 4.0));
+    EXPECT_EQ(kernel.MarkShift(offset, 0.5), outline.MarkShift(3.0, 4.0, 0.5));
+    EXPECT_EQ(kernel.ProfileDistance(offset),
+              terraingen::CraterProfileDistance(At(1, 20.0), outline, offset));
+    EXPECT_EQ(terraingen::KernelOutline().ProfileDistance({3.0, 4.0}), 5.0) << "exact when round";
+    EXPECT_EQ(terraingen::KernelOutline().MarkShift(offset, 0.5), 0.0);
 }

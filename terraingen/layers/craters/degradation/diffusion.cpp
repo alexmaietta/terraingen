@@ -57,22 +57,6 @@ CraterData KernelAges() {
     return data;
 }
 
-/// The row below `tau` and the weight of the row above it, as `KernelAgeRowAt` finds them but in
-/// double precision, so `Morphometry` and `AgeAtDepthRatio` invert each other exactly.
-std::pair<std::size_t, double> AgeRow(double tau) {
-    const std::vector<double>& ages = TableAges();
-    if (tau >= ages.back()) {
-        return {ages.size() - 1, 0.0};
-    }
-    if (tau < ages[1]) {
-        return {0, tau / ages[1]};
-    }
-    const auto above =
-        static_cast<std::size_t>(std::upper_bound(ages.begin(), ages.end(), tau) - ages.begin());
-    const std::size_t below = above - 1;
-    return {below, std::log(tau / ages[below]) / std::log(ages[above] / ages[below])};
-}
-
 /// A tridiagonal system lower[i] x[i-1] + diag[i] x[i] + upper[i] x[i+1] = rhs[i] for rows i < n,
 /// with x[n] given.
 struct Tridiagonal {
@@ -274,10 +258,11 @@ CraterMorphometry DiffusedProfile::Morphometry(const CraterMorphometry& fresh, d
         return fresh;
     }
     const auto table = CachedTable(fresh, diameter);
-    const auto [row, weight] = AgeRow(tau);
-    CraterMorphometry result = table->morphometry[row];
-    if (weight > 0.0) {
-        const CraterMorphometry& next = table->morphometry[row + 1];
+    const KernelAgeRow age = KernelAgeRowAt(kernel_, KernelAges(), static_cast<float>(tau));
+    CraterMorphometry result = table->morphometry[age.row];
+    if (age.weight > 0.0f) {
+        const auto weight = static_cast<double>(age.weight);
+        const CraterMorphometry& next = table->morphometry[age.row + 1];
         result.depthRatio += weight * (next.depthRatio - result.depthRatio);
         result.rimHeightRatio += weight * (next.rimHeightRatio - result.rimHeightRatio);
     }

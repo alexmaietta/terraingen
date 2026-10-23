@@ -107,35 +107,6 @@ void CheckProfileState(const CraterShapeKernel& kernel, double diameter, const C
     }
 }
 
-/// Appends `outline`'s harmonics, deviations and marks to `data`, noting where on `r`.
-void AppendOutline(const CraterOutline& outline, CraterRecord& r, std::vector<float>& data) {
-    r.ellipticity = static_cast<float>(outline.ellipticity);
-    r.heading = static_cast<float>(outline.heading);
-    r.firstHarmonic = static_cast<std::uint32_t>(outline.firstHarmonic);
-    r.harmonicCount = static_cast<std::uint32_t>(outline.amplitudes.size());
-    r.harmonicOffset = static_cast<std::uint32_t>(data.size());
-    for (std::size_t n = 0; n < outline.amplitudes.size(); ++n) {
-        data.push_back(static_cast<float>(outline.amplitudes[n]));
-        data.push_back(static_cast<float>(outline.phases[n]));
-    }
-    r.tableCount = static_cast<std::uint32_t>(outline.table.size());
-    r.tableOffset = static_cast<std::uint32_t>(data.size());
-    for (const double deviation : outline.table) {
-        data.push_back(static_cast<float>(deviation));
-    }
-    r.markCount = static_cast<std::uint32_t>(outline.marks.size());
-    r.markOffset = static_cast<std::uint32_t>(data.size());
-    if (!outline.marks.empty()) {
-        for (const double radii :
-             {outline.marksInnerRadii, outline.marksOuterRadii, outline.marksFadeRadii}) {
-            data.push_back(static_cast<float>(radii));
-        }
-        for (const double knot : outline.marks) {
-            data.push_back(static_cast<float>(knot));
-        }
-    }
-}
-
 /// The record of prepared crater `p`, without its outline and profile tables.
 CraterRecord BaseRecord(const PreparedCrater& p, const CraterApplyOptions& options) {
     const CraterState& state = p.state;
@@ -265,7 +236,7 @@ CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
         const PreparedCrater& p = prepared[k];
         CheckProfileState(kernel, p.crater.diameter, p.state);
         CraterRecord r = BaseRecord(p, options);
-        AppendOutline(p.outline, r, batch.data);
+        AppendKernelOutline(p.outline, r, batch.data);
         tables.Append(p, r, batch.data);
         batch.records.push_back(r);
     }
