@@ -14,12 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `terraingen/config/report.h` is now `terraingen/pipeline/report.h`; `WriteCraterList`, `WriteBoulderList`, `WriteBoulderModels` and `ListFormat` move to `terraingen/pipeline/feature_lists.h`, and `PlacedCraters` and `PlacedBoulders` to `terraingen/pipeline/generator.h` (`pipeline/features.h` is gone).
 - C++ renames: `NoiseLayerConfig` to `NoiseStackLayerSpec`, `SyntheticAlbedoSpec::Params` to `Options`, `estimateFromBase` to `estimateFromSource` (the config key stays `estimate_from_base`); `CheckConfigRanges` and `ValidateAlbedo` move into `terraingen::config`.
 - `TerrainGenConfig` compares equal when its JSON does; the nested specs no longer have `operator==`.
+- Headers moved: `sources/synthetic_terrain.h` into `sources/synthetic_source.h`; `layers/bisection.h` to `util/bisection.h`; `Plane` and `PlaneFit` to `util/plane_fit.h`; the power spectrum fit (`EstimatePowerLawSpectrum`, `PowerLawSpectrum`) to `raster/spectrum.h`; the Perlin structure functions to `noise/structure_function.h`; `NoiseLayersAt` to `noise/surface_noise.h`; the crater albedo options to `albedo/crater_albedo_options.h`; `CutAtPlane` (was boulder-internal) to `mesh/mesh.h`.
+- `ValidateNoiseLayers` (`validate_noise_layers`) checks a noise stack for synthetic sources, noise relief and synthetic albedo alike.
 
 ### Removed
 
 - APIs the library itself never used, in C++ and Python alike: `GaussianBlur` (`gaussian_blur`), `Resample` and `ResampleTo` (`resample`, `resample_to`), `SampleTruncatedPowerLaw`, `SampleExponential`, `SampleNormal` and `TabulatedDistribution`, `RandomStream::NextFloat` and `NextDoubleOpenBelow`, the mesh `Volume`, `SurfaceArea` and `Transformed` (`volume`, `surface_area`, `transformed`), `Icosphere` (`icosphere`; subdivide the icosahedron base solid onto the unit sphere instead), and the `WriteGeoTiff` overload taking band pointers.
 - C++ declarations only tests used: `ResampleWindow`, `SampleRasterWindow`, `SampleAtCenters`, `RequireIncreasing`, `ResolveThreads`, `StandardErrorLogSink`, `Variogram`, `LruCache::Capacity`, the `PixelWindowIn` overload taking a raster, `kSqrt2`, `kEulerGamma` and `TERRAINGEN_VERSION_STRING`; `KernelWeight`, `ParseGdalBandScaling`, `RotationQuaternion` and `GeoKeys::ShortKey` (now `ShortGeoKey`) moved to `detail`.
 - `DescribeSource` and Python `TerrainGenConfig.source_grid` (use `ValidateConfig(...).source`), `LayerAt` and `LayerTimer::Callback`.
+- `FillSyntheticTerrain` and `GenerateSyntheticTerrain` (`fill_synthetic_terrain`, `generate_synthetic_terrain`; use `SyntheticSource(params).Fill`), `OpticalMaturity`, `SyntheticSource::Elevation`, `KernelUpsampler::Method`, `GolombekRappSfd::Coverage` and `Q`, `BlastZoneAlbedo::Zones`, `DiamondSquareUpsampler::Levels`, `RasterPosts::Window` and `Placement`, `GeoTiffSource::Scaling`.
+- `UnresolvedCraterLimit` (`unresolved_crater_limit`; use `SourceResolvedLimit`), `CraterBlend::Weight`, `RimSmoothing::Weight`, `EjectaThicknessShare`, `CraterLayer::Attributes` and `SecondaryCraterLayer::Attributes`, `ApplyCraterTo`, `CraterCellCache::Size` and `Evictions`, `SecondaryDensity::Diameter`.
+- `AddBoulder`, `BoulderLayer::DensityAt`, `BoulderMesh`, `BandFrequencies`, `EdgeDistanceAt`, `ReliefAt`, `BedPositionAt`; `DomeHeight`, `NormalizedBoulderShape`, `TargetPsd`, `TerracedAt`, `EstimateBaseRoughness`, `RadialPowerSpectrum` and the five boulder sub-validators are internal.
 
 ## [0.2.0] - 2026-10-23
 
