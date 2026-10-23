@@ -179,11 +179,6 @@ def test_a_terrain_without_a_source_starts_at_the_datum():
 
 
 @pytest.fixture
-def moon():
-    return terraingen.Surface.sphere(1737400.0)
-
-
-@pytest.fixture
 def lunar_site(moon, lunar_models, noise_relief):
     """Noise and 20 to 300 km craters on a 65 x 65 site at 4 km near Mons Mouton's longitude."""
     noise = noise_relief(1, 400000.0, 3000.0, surface=moon)

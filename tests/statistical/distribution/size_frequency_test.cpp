@@ -1,3 +1,4 @@
+#include "support/sfd_sampling.h"
 #include "support/statistics.h"
 #include "terraingen/terraingen.h"
 
@@ -15,31 +16,18 @@ using terraingen::TabulatedSfd;
 using terraingen::testing::KolmogorovSmirnov;
 using terraingen::testing::KolmogorovSmirnovCritical;
 using terraingen::testing::PowerLawExponentMle;
+using terraingen::testing::SampleDiameters;
+using terraingen::testing::TruncatedCdf;
 
 namespace {
 
-constexpr std::size_t kSamples = 40000;
-
-std::vector<double> Sample(const SizeFrequencyDistribution& sfd, std::uint32_t seed, double dMin,
-                           double dMax) {
-    RandomStream stream(seed, 77u);
-    std::vector<double> samples(kSamples);
-    for (double& d : samples) {
-        d = sfd.SampleDiameter(stream, dMin, dMax);
-    }
-    return samples;
-}
-
-double TruncatedCdf(const SizeFrequencyDistribution& sfd, double dMin, double dMax, double d) {
-    const double top = sfd.Cumulative(dMin);
-    return (top - sfd.Cumulative(d)) / (top - sfd.Cumulative(dMax));
-}
+constexpr std::size_t kSamples = terraingen::testing::kSfdSamples;
 
 }  // namespace
 
 TEST(SfdStatistics, MaximumLikelihoodRecoversThePowerLawExponentWithBootstrapInterval) {
     const PowerLawSfd law(1.0, 2.7);
-    const auto samples = Sample(law, 1u, 1.0, std::numeric_limits<double>::infinity());
+    const auto samples = SampleDiameters(law, 1u, 1.0, std::numeric_limits<double>::infinity());
     const double estimate = PowerLawExponentMle(samples, 1.0);
     EXPECT_NEAR(estimate, 2.7, 4.0 * 2.7 / std::sqrt(static_cast<double>(kSamples)));
 
@@ -59,7 +47,7 @@ TEST(SfdStatistics, MaximumLikelihoodRecoversThePowerLawExponentWithBootstrapInt
 
 TEST(SfdStatistics, TruncatedPowerLawSamplesMatchTheirCdf) {
     const PowerLawSfd law(1.0, 1.9);
-    const auto samples = Sample(law, 3u, 1.0, 100.0);
+    const auto samples = SampleDiameters(law, 3u, 1.0, 100.0);
     EXPECT_LT(
         KolmogorovSmirnov(samples, [&](double d) { return TruncatedCdf(law, 1.0, 100.0, d); }),
         KolmogorovSmirnovCritical(kSamples));
@@ -67,7 +55,7 @@ TEST(SfdStatistics, TruncatedPowerLawSamplesMatchTheirCdf) {
 
 TEST(SfdStatistics, TabulatedSamplesMatchTheirCdf) {
     const TabulatedSfd table({1.0, 3.0, 10.0, 40.0, 100.0}, {1.0, 0.2, 0.01, 1e-3, 2e-5});
-    const auto samples = Sample(table, 7u, 1.0, 100.0);
+    const auto samples = SampleDiameters(table, 7u, 1.0, 100.0);
     EXPECT_LT(
         KolmogorovSmirnov(samples, [&](double d) { return TruncatedCdf(table, 1.0, 100.0, d); }),
         KolmogorovSmirnovCritical(kSamples));

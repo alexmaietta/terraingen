@@ -1,3 +1,4 @@
+#include "support/temp_path.h"
 #include "terraingen/app/gui/gui_app.h"
 #include "terraingen/app/gui/terrain_scene.h"
 #include "terraingen/config/json.h"
@@ -28,11 +29,7 @@ const char* const kConfig = R"({
 })";
 
 std::filesystem::path Directory(const std::string& name) {
-    const std::filesystem::path directory =
-        std::filesystem::path(::testing::TempDir()) / ("terraingen_gui_" + name);
-    std::filesystem::remove_all(directory);
-    std::filesystem::create_directories(directory);
-    return directory;
+    return terraingen::testing::TempDirectory("terraingen_gui_" + name);
 }
 
 /// Steps `app` until no generation runs, for at most a minute.

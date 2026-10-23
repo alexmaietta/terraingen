@@ -6,7 +6,7 @@ terraingen_add_test_suite(
     ranges_test.cpp
     config_test.cpp
     feature_lists_test.cpp
-    generate_terrain_test.cpp
+    generate_from_config_test.cpp
     angles_test.cpp
     json_io_test.cpp
     json_parse_errors_test.cpp

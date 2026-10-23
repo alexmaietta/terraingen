@@ -1,3 +1,4 @@
+#include "support/raster_equality.h"
 #include "terraingen/sources/upsampling.h"
 
 #include "terraingen/raster/resample.h"
@@ -21,6 +22,7 @@ using terraingen::RasterGrid;
 using terraingen::RasterPlacement;
 using terraingen::RasterPosts;
 using terraingen::ResampleMethod;
+using terraingen::testing::SameBits;
 
 namespace {
 
@@ -40,10 +42,6 @@ Raster<float> Heights() {
 RasterPosts Posts(const Raster<float>& raster) {
     const auto shared = std::make_shared<const Raster<float>>(raster);
     return RasterPosts(shared, RasterPlacement::Whole(*shared));
-}
-
-bool SameBits(float a, float b) {
-    return std::memcmp(&a, &b, sizeof(float)) == 0;
 }
 
 /// Heights rising by 1 per post: col + 100 row.

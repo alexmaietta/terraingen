@@ -1,3 +1,5 @@
+/// @file
+/// @brief Mesh checks shared by the mesh and boulder shape tests.
 #pragma once
 
 #include "terraingen/mesh/mesh.h"

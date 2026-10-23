@@ -1,3 +1,4 @@
+#include "support/temp_path.h"
 #include "terraingen/app/cli.h"
 #include "terraingen/app/gui/run.h"
 #include "terraingen/raster/geotiff/geotiff.h"
@@ -35,11 +36,7 @@ Result Cli(const std::vector<std::string>& args) {
 
 /// A fresh directory for one test.
 std::filesystem::path Directory(const std::string& name) {
-    const std::filesystem::path directory =
-        std::filesystem::path(::testing::TempDir()) / ("terraingen_cli_" + name);
-    std::filesystem::remove_all(directory);
-    std::filesystem::create_directories(directory);
-    return directory;
+    return terraingen::testing::TempDirectory("terraingen_cli_" + name);
 }
 
 std::filesystem::path Write(const std::filesystem::path& path, const std::string& text) {

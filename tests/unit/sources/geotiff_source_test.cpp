@@ -1,12 +1,13 @@
+#include "support/raster_equality.h"
 #include "terraingen/sources/geotiff_source.h"
 
 #include "support/resample.h"
+#include "support/gdal_fixtures.h"
 #include "support/temp_path.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/geotiff/tiff_format.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/diamond_square.h"
-#include "tests/unit/raster/gdal_fixtures.h"
 
 #include <gtest/gtest.h>
 
@@ -27,6 +28,7 @@ using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::RasterGrid;
 using terraingen::ResampleMethod;
+using terraingen::testing::SameBits;
 using terraingen::testing::TempPath;
 
 namespace {
@@ -266,10 +268,6 @@ void WriteLargeDem(const std::filesystem::path& path) {
     terraingen::GeoTiffWriteOptions tiles;
     tiles.tileSize = 16;
     terraingen::WriteGeoTiff(path, dem, Keys(), tiles);
-}
-
-bool SameBits(float a, float b) {
-    return std::memcmp(&a, &b, sizeof(float)) == 0;
 }
 
 }  // namespace

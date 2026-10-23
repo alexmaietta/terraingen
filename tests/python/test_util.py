@@ -16,11 +16,6 @@ def restore_logging():
     terraingen.set_log_level("warning")
 
 
-@pytest.fixture
-def moon():
-    return terraingen.Surface.sphere(1737400.0)
-
-
 def test_version_matches_cmake(repo_root):
     cmake = (repo_root / "CMakeLists.txt").read_text()
     expected = re.search(r'set\(TERRAINGEN_FULL_VERSION "([^"]+)"\)', cmake).group(1)

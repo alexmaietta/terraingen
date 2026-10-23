@@ -1,3 +1,5 @@
+/// @file
+/// @brief GeoTIFFs written by GDAL, with what GDAL reads back, for hermetic GeoTIFF tests.
 #pragma once
 
 #include <array>

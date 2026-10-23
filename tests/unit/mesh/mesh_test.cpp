@@ -2,9 +2,9 @@
 
 #include "support/mesh_measures.h"
 
+#include "support/mesh_checks.h"
 #include "terraingen/mesh/polyhedra.h"
 #include "terraingen/util/bits.h"
-#include "tests/unit/mesh/support.h"
 
 #include <gtest/gtest.h>
 

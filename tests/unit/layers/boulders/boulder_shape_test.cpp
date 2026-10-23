@@ -2,7 +2,7 @@
 
 #include "support/mesh_measures.h"
 
-#include "tests/unit/mesh/support.h"
+#include "support/mesh_checks.h"
 
 #include <gtest/gtest.h>
 

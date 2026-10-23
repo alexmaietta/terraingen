@@ -1,3 +1,4 @@
+#include "support/source_agreement.h"
 #include "terraingen/sources/synthetic_source.h"
 
 #include "terraingen/sources/diamond_square.h"
@@ -17,6 +18,7 @@ using terraingen::Raster;
 using terraingen::RasterGrid;
 using terraingen::SyntheticSource;
 using terraingen::SyntheticTerrainParams;
+using terraingen::testing::ExpectPointsTilesAndGridAgree;
 
 namespace {
 
@@ -27,30 +29,6 @@ SyntheticTerrainParams Hills() {
     layer.fractal.amplitude = 6.0f;
     layer.fractal.octaves = 4;
     return SyntheticTerrainParams{{layer}};
-}
-
-bool SameBits(float a, float b) {
-    return std::memcmp(&a, &b, sizeof(float)) == 0;
-}
-
-/// Checks that points, tiles and the whole of `grid` agree to the bit at the grid's spacing.
-void ExpectPointsTilesAndGridAgree(const terraingen::Source& source, const RasterGrid& grid) {
-    const double spacing = grid.PixelSize();
-    Raster<float> whole = grid.MakeRaster();
-    source.Fill(whole, spacing);
-    Raster<float> tile = terraingen::Subgrid(grid, {3, 11, 2, 9}).MakeRaster();
-    source.Fill(tile, spacing);
-    for (std::size_t row = 0; row < tile.Height(); ++row) {
-        for (std::size_t col = 0; col < tile.Width(); ++col) {
-            ASSERT_TRUE(SameBits(tile(col, row), whole(3 + col, 2 + row)));
-        }
-    }
-    for (std::size_t row = 0; row < whole.Height(); ++row) {
-        for (std::size_t col = 0; col < whole.Width(); ++col) {
-            const terraingen::Vec2d center = whole.CellCenter(col, row);
-            ASSERT_TRUE(SameBits(source.HeightAt(center.x, center.y, spacing), whole(col, row)));
-        }
-    }
 }
 
 }  // namespace

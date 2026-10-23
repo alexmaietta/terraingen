@@ -1,5 +1,5 @@
 /// @file
-/// @brief Bit-for-bit comparison of rasters in tests.
+/// @brief Bit-for-bit comparison of floats and rasters in tests.
 #pragma once
 
 #include "terraingen/raster/raster.h"
@@ -7,8 +7,14 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <cstring>
 
 namespace terraingen::testing {
+
+/// Whether two floats have the same bits, NaNs included.
+inline bool SameBits(float a, float b) {
+    return std::memcmp(&a, &b, sizeof(float)) == 0;
+}
 
 /// @brief Asserts that two rasters have the same size and equal values, cell by cell.
 /// @param a The first raster.

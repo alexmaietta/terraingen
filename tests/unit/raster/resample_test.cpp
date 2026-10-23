@@ -1,3 +1,4 @@
+#include "support/raster_equality.h"
 #include "terraingen/raster/resample.h"
 
 #include "support/resample.h"
@@ -16,6 +17,7 @@ using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::ResampleMethod;
 using terraingen::testing::Resample;
+using terraingen::testing::SameBits;
 
 namespace {
 

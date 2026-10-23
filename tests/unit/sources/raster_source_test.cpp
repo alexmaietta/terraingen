@@ -1,3 +1,5 @@
+#include "support/raster_equality.h"
+#include "support/source_agreement.h"
 #include "terraingen/sources/raster_source.h"
 
 #include "support/resample.h"
@@ -27,6 +29,8 @@ using terraingen::RasterGrid;
 using terraingen::RasterSource;
 using terraingen::RasterSourceOptions;
 using terraingen::ResampleMethod;
+using terraingen::testing::ExpectPointsTilesAndGridAgree;
+using terraingen::testing::SameBits;
 using terraingen::testing::TempPath;
 
 namespace {
@@ -48,10 +52,6 @@ Raster<float> Dem() {
         }
     }
     return dem;
-}
-
-bool SameBits(float a, float b) {
-    return std::memcmp(&a, &b, sizeof(float)) == 0;
 }
 
 /// Diamond-square with its roughness given.
@@ -81,34 +81,6 @@ void ExpectSameHeights(const terraingen::Source& a, const terraingen::Source& b,
             ASSERT_TRUE(SameBits(a.HeightAt(x, y, spacing), b.HeightAt(x, y, spacing)))
                 << x << "," << y;
             ASSERT_EQ(a.ResolutionAt(x, y), b.ResolutionAt(x, y)) << x << "," << y;
-        }
-    }
-}
-
-/// Checks that points, tiles and the whole of `grid` at its own spacing agree to the bit.
-void ExpectPointsTilesAndGridAgree(const terraingen::Source& source, const RasterGrid& grid) {
-    const double spacing = grid.PixelSize();
-    Raster<float> whole = grid.MakeRaster();
-    source.Fill(whole, spacing);
-    const terraingen::PixelWindow tiles[] = {
-        {0, 7, 0, 5}, {7, grid.width, 0, 5}, {0, grid.width, 5, grid.height}};
-    for (const terraingen::PixelWindow& cells : tiles) {
-        Raster<float> tile = terraingen::Subgrid(grid, cells).MakeRaster();
-        source.Fill(tile, spacing);
-        for (std::size_t row = 0; row < tile.Height(); ++row) {
-            for (std::size_t col = 0; col < tile.Width(); ++col) {
-                ASSERT_TRUE(
-                    SameBits(tile(col, row), whole(cells.colBegin + col, cells.rowBegin + row)));
-            }
-        }
-    }
-    for (std::size_t row = 0; row < whole.Height(); ++row) {
-        for (std::size_t col = 0; col < whole.Width(); ++col) {
-            const terraingen::Vec2d center = whole.CellCenter(col, row);
-            const float point = source.HeightAt(center.x, center.y, spacing);
-            const float cell = whole(col, row);
-            ASSERT_TRUE(SameBits(point, cell) || (std::isnan(point) && whole.IsNoData(cell)))
-                << col << "," << row;
         }
     }
 }

@@ -65,6 +65,12 @@ def repo_root():
 
 
 @pytest.fixture
+def moon():
+    """The Moon as a sphere of its mean radius."""
+    return terraingen.Surface.sphere(1737400.0)
+
+
+@pytest.fixture
 def small_config():
     """A fresh copy of a small config dict: noise, craters and boulders, with two outputs."""
     return copy.deepcopy(SMALL_CONFIG)
