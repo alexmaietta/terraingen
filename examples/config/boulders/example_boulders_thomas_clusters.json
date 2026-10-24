@@ -24,7 +24,7 @@
             "max_diameter_m": 3,
             "clusters": {
                 "share": 1.0,
-                "spacing_m": 5.0,
+                "center_spacing_m": 5.0,
                 "radius_m": 1.5,
                 "model": "thomas"
             }

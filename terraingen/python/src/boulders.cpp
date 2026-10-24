@@ -239,7 +239,7 @@ void BindClustersAndFragments(nb::module_& m) {
         "least `min_diameter` across split into `min_pieces` to `max_pieces` fitting pieces, "
         "their cracks opening to `gap_ratio` diameters; from `rubble_wear` the pieces scatter up "
         "to `spread_ratio` diameters further, turn and sink. Unset on a layer, none break.",
-        {&ValidateBoulderFragmentation, "validate_boulder_fragmentation", "fragmentation"})
+        {&ValidateBoulderFragmentation, "validate_boulder_fragmentation", "fragmentation"});
 }
 
 void BindFillet(nb::module_& m) {

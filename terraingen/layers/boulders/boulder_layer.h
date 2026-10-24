@@ -132,6 +132,19 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         return options_;
     }
 
+    std::optional<Surface> LayerSurface() const override {
+        return surface_;
+    }
+
+    /// The crater layers whose craters throw blocks, which must come before this layer.
+    std::vector<const Layer*> Dependencies() const override {
+        std::vector<const Layer*> layers;
+        for (const std::shared_ptr<const CraterLayer>& craters : craters_) {
+            layers.push_back(craters.get());
+        }
+        return layers;
+    }
+
     /// The 3D shape of a boulder, shared between boulders with the same shape seed; for a
     /// fragment, its piece of its parent's shape.
     std::shared_ptr<const BoulderShape> Shape(const Boulder& boulder) const;

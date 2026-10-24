@@ -49,14 +49,14 @@ struct RayRetention {
 void ValidateRayRetention(const RayRetention& retention);
 
 /// How oblique impacts shape a crater's rays. Each crater gets an impact angle from the
-/// horizontal with P(< theta) = sin^2 theta and a downrange direction, `heading` or uniform at
-/// random.
+/// horizontal with P(< theta) = sin^2 theta and a downrange direction, `headingDegrees` or uniform
+/// at random.
 struct ObliqueImpacts {
-    bool enabled = true;              ///< Whether impacts can be oblique; otherwise all vertical.
-    std::optional<double> heading;    ///< Downrange, radians counter-clockwise from east.
-    double asymmetricDegrees = 45.0;  ///< Below this angle rays are longer downrange.
-    double forbiddenDegrees = 25.0;   ///< Below this angle rays near uprange are dropped.
-    double butterflyDegrees = 10.0;   ///< Below this angle rays near downrange are dropped too.
+    bool enabled = true;  ///< Whether impacts can be oblique; otherwise all vertical.
+    std::optional<double> headingDegrees;  ///< Downrange, degrees counter-clockwise from east.
+    double asymmetricDegrees = 45.0;       ///< Below this angle rays are longer downrange.
+    double forbiddenDegrees = 25.0;        ///< Below this angle rays near uprange are dropped.
+    double butterflyDegrees = 10.0;  ///< Below this angle rays near downrange are dropped too.
     /// Downrange over uprange ejection speed, at least 1.
     ValueDistribution downrangeSpeedRatio{ValueDistribution::Uniform(1.2, 1.4)};
     double zoneHalfWidthDegrees = 45.0;  ///< Half width of a forbidden zone, in [0, 180].
@@ -66,7 +66,7 @@ struct ObliqueImpacts {
     double MaxStretch() const;
 
     bool operator==(const ObliqueImpacts& other) const {
-        return enabled == other.enabled && heading == other.heading &&
+        return enabled == other.enabled && headingDegrees == other.headingDegrees &&
                asymmetricDegrees == other.asymmetricDegrees &&
                forbiddenDegrees == other.forbiddenDegrees &&
                butterflyDegrees == other.butterflyDegrees &&

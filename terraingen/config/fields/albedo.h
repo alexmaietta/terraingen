@@ -92,7 +92,7 @@ template <typename IO> void Fields(IO& io, ObliqueImpacts& oblique) {
     io("enabled", oblique.enabled,
        "Draws an impact angle and direction per crater that shape its rays; off treats every "
        "impact as vertical.");
-    RadianField(io, "heading_deg", oblique.heading,
+    DegreeField(io, "heading_deg", oblique.headingDegrees,
                 "Downrange direction of every impact, in degrees counter-clockwise from +x "
                 "(local east on a body); unset draws a random heading per crater.");
     io("asymmetric_deg", oblique.asymmetricDegrees,

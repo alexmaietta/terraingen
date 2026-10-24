@@ -23,7 +23,7 @@ PavementOptions Stepped() {
     options.crackWidth = 0.04;
     options.crackDepth = 0.1;
     options.edgeRounding = 0.01;
-    options.maxTilt = 0.0;
+    options.maxTiltDegrees = 0.0 * terraingen::kRadian;
     options.maxStep = 0.05;
     options.warp = 0.0;
     return options;
@@ -68,7 +68,7 @@ TEST(PavementLayer, PlatesAreFlatAndCracksCutBetweenThem) {
 
 TEST(PavementLayer, PlatesMeetWithoutStepsAndRidgesRise) {
     PavementOptions options = Stepped();
-    options.maxTilt = 0.1;
+    options.maxTiltDegrees = 0.1 * terraingen::kRadian;
     options.warp = 0.15;
     options.octaves = 3;
     const PavementLayer layer(options);
@@ -141,7 +141,7 @@ TEST(PavementLayer, ShowsOnExposedBedrockAndLaysIt) {
 TEST(PavementLayer, GridsAndPointsAgree) {
     PavementOptions options = Stepped();
     options.octaves = 3;
-    options.maxTilt = 0.05;
+    options.maxTiltDegrees = 0.05 * terraingen::kRadian;
     const PavementLayer layer(options);
     const terraingen::RasterGrid grid{40, 30, terraingen::GeoTransform::NorthUp(-1.0, 2.0, 0.02)};
     terraingen::Raster<float> heights = grid.MakeRaster();
@@ -181,7 +181,7 @@ TEST(PavementLayer, OldSoakerRidgesAndRejectsBadOptions) {
     rejects([](PavementOptions& o) { o.plateSize = 0.0; });
     rejects([](PavementOptions& o) { o.crackWidth = -1.0; });
     rejects([](PavementOptions& o) { o.crackDepth = -0.1; });
-    rejects([](PavementOptions& o) { o.maxTilt = 2.0; });
+    rejects([](PavementOptions& o) { o.maxTiltDegrees = 2.0 * terraingen::kRadian; });
     rejects([](PavementOptions& o) { o.jitter = 1.5; });
     rejects([](PavementOptions& o) { o.octaves = 0; });
     rejects([](PavementOptions& o) { o.octaves = 9; });

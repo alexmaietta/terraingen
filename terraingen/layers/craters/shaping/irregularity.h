@@ -56,10 +56,10 @@ struct CraterIrregularity {
     double elongatedShare = 0.054;  ///< Share of selected craters that are elliptical.
     /// Long over short rim-to-rim diameter of elliptical craters; at least 1.
     ValueDistribution ellipticity{ValueDistribution::Kind::Uniform, 1.1, 1.5};
-    /// Heading of the long axis, radians counter-clockwise from +x, spread by up to
-    /// `headingSpread` either way; unset for random headings.
-    std::optional<double> heading;
-    double headingSpread = 0.0;  ///< Spread of `heading` either way, in radians.
+    /// Heading of the long axis, degrees counter-clockwise from +x, spread by up to
+    /// `headingSpreadDegrees` either way; unset for random headings.
+    std::optional<double> headingDegrees;
+    double headingSpreadDegrees = 0.0;  ///< Spread of `headingDegrees` either way.
 
     /// Share of selected craters with radial marks: the wall's profile is read nearer to or
     /// farther from the center by a shift that varies smoothly around the crater, leaving ridges
@@ -80,10 +80,10 @@ struct CraterIrregularity {
                maxDeviation == other.maxDeviation && roughness == other.roughness &&
                spectralSlope == other.spectralSlope && minHarmonic == other.minHarmonic &&
                maxHarmonic == other.maxHarmonic && elongatedShare == other.elongatedShare &&
-               ellipticity == other.ellipticity && heading == other.heading &&
-               headingSpread == other.headingSpread && marksShare == other.marksShare &&
-               marksAmplitude == other.marksAmplitude && marksKnots == other.marksKnots &&
-               marksInnerRadii == other.marksInnerRadii &&
+               ellipticity == other.ellipticity && headingDegrees == other.headingDegrees &&
+               headingSpreadDegrees == other.headingSpreadDegrees &&
+               marksShare == other.marksShare && marksAmplitude == other.marksAmplitude &&
+               marksKnots == other.marksKnots && marksInnerRadii == other.marksInnerRadii &&
                marksOuterRadii == other.marksOuterRadii && marksFadeRadii == other.marksFadeRadii;
     }
     bool operator!=(const CraterIrregularity& other) const {

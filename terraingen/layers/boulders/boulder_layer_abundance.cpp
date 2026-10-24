@@ -80,7 +80,7 @@ EjectaIndex BoulderLayer::EjectaCraters(const Bounds2d& region) const {
 }
 
 double BoulderLayer::NearestClusterDistance(double x, double y) const {
-    const double spacing = options_.clusters.spacing;
+    const double spacing = options_.clusters.centerSpacing;
     if (surface_.IsBody()) {
         const Vec3d p = surface_.Position({x, y});
         const double s = 1.0 / spacing;
@@ -149,7 +149,7 @@ double BoulderLayer::ThomasClusterField(double x, double y) const {
     lattice.sigma = clusters.radius;
     lattice.side = kThomasReachRadii * lattice.sigma;
     lattice.seed = options_.seed;
-    const double perArea = 1.0 / (clusters.spacing * clusters.spacing);
+    const double perArea = 1.0 / (clusters.centerSpacing * clusters.centerSpacing);
     const double side = lattice.side;
     if (surface_.IsBody()) {
         lattice.perCell = perArea / (std::sqrt(2.0 * kPi) * lattice.sigma) * side * side * side;

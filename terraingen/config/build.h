@@ -39,7 +39,8 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string
 
 /// The terrain generator a configuration describes, ready to `Evaluate` over any grid or at
 /// points. Checks the configuration with `ValidateConfig` first.
-/// @param directory Folder relative input paths resolve against.
+/// @param directory Folder relative input paths resolve against; empty for the folder the
+/// configuration was read from (`TerrainGenConfig::directory`).
 /// @throws ConfigError if the configuration is invalid.
 TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
                                 const std::filesystem::path& directory = {});
@@ -56,7 +57,8 @@ TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
 /// The albedo `config.albedo` describes for `generator`, whose top-level crater layers crater
 /// albedo layers read. Checks the albedo with `config::ValidateAlbedo` first.
 /// @param generator The generator `BuildGenerator` built from `config`.
-/// @param directory Folder relative input paths resolve against.
+/// @param directory Folder relative input paths resolve against; empty for the folder the
+/// configuration was read from (`TerrainGenConfig::directory`).
 /// @throws ConfigError if the albedo is invalid, the configuration has none, or `generator`'s
 /// layers are not the ones `config` builds.
 /// @throws GeoTiffError if an albedo map cannot be read.

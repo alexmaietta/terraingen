@@ -14,7 +14,7 @@ def model_options(max_diameter=3.0):
         coverage=0.08,
         min_diameter_m=0.2,
         max_diameter_m=max_diameter,
-        models=terraingen.BoulderModelThreshold(min_diameter_m=0.6),
+        model_threshold=terraingen.BoulderModelThreshold(min_diameter_m=0.6),
     )
 
 
@@ -172,7 +172,7 @@ def test_worn_boulders_break_into_pieces_that_replace_them():
 
 
 def test_boulder_clusters_raise_the_abundance_near_their_centers():
-    clusters = terraingen.BoulderClusters(share=0.8, spacing_m=40.0, radius_m=4.0)
+    clusters = terraingen.BoulderClusters(share=0.8, center_spacing_m=40.0, radius_m=4.0)
     layer = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(clusters=clusters))
     abundances = [layer.abundance_at(x + 0.5, y + 0.5)[0] for x in range(0, 200, 2) for y in range(0, 200, 2)]
     assert max(abundances) > 5.0 > 0.25 > min(abundances)
@@ -183,14 +183,16 @@ def test_boulder_clusters_raise_the_abundance_near_their_centers():
 
 def test_thomas_boulder_clusters_may_overlap():
     clusters = terraingen.BoulderClusters(
-        share=1.0, spacing_m=10.0, radius_m=3.0, model=terraingen.BoulderClusterModel.THOMAS
+        share=1.0, center_spacing_m=10.0, radius_m=3.0, model=terraingen.BoulderClusterModel.THOMAS
     )
     layer = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(clusters=clusters))
     abundances = [layer.abundance_at(x + 0.5, y + 0.5)[0] for x in range(0, 200, 2) for y in range(0, 200, 2)]
     assert max(abundances) > 3.0 > 0.4 > min(abundances)
     assert max(abundances) <= terraingen.max_cluster_abundance(clusters) + 1e-9
     terraingen.validate_boulder_clusters(
-        terraingen.BoulderClusters(spacing_m=10.0, radius_m=15.0, model=terraingen.BoulderClusterModel.THOMAS)
+        terraingen.BoulderClusters(
+            center_spacing_m=10.0, radius_m=15.0, model=terraingen.BoulderClusterModel.THOMAS
+        )
     )
 
 
@@ -216,7 +218,7 @@ def unburied_options():
         min_burial=0.0,
         max_burial=0.0,
         relief=terraingen.BoulderRelief.DOME,
-        models=terraingen.BoulderModelThreshold(min_diameter_m=1.0),
+        model_threshold=terraingen.BoulderModelThreshold(min_diameter_m=1.0),
         exposure=terraingen.ExposureParams(reach=6.0),
     )
 

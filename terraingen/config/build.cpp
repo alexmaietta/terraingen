@@ -324,10 +324,7 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
                 return At(path, [&] { return std::make_shared<SourceChain>(std::move(sources)); });
             },
             [&](const SyntheticSourceSpec& s) -> Result {
-                std::optional<double> pixelSize = s.pixelSize;
-                if (pixelSize) {
-                    *pixelSize /= unit;
-                }
+                const std::optional<double> pixelSize = s.pixelSize;
                 const std::shared_ptr<const Upsampler> upsampler =
                     s.upsampling ? BuildUpsampler(*s.upsampling, surface, Child(path, "upsampling"))
                                  : nullptr;
@@ -1012,14 +1009,16 @@ Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& direc
 }
 
 TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
-                                const std::filesystem::path& directory) {
+                                const std::filesystem::path& given) {
+    const std::filesystem::path directory = ConfigDirectory(config, given);
     ValidateConfig(config, directory);
     return BuildValidGenerator(config, directory);
 }
 
 TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
                                 std::shared_ptr<const Source> source,
-                                const std::filesystem::path& directory) {
+                                const std::filesystem::path& given) {
+    const std::filesystem::path directory = ConfigDirectory(config, given);
     if (!source) {
         throw std::invalid_argument("BuildGenerator needs a source");
     }
@@ -1031,7 +1030,8 @@ TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
 }
 
 Albedo BuildAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
-                   const std::filesystem::path& directory) {
+                   const std::filesystem::path& given) {
+    const std::filesystem::path directory = ConfigDirectory(config, given);
     if (!config.albedo) {
         throw ConfigError("albedo", "the configuration has no albedo");
     }

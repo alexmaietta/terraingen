@@ -28,8 +28,8 @@ void ValidateStrataOptions(const StrataOptions& options) {
     if (!(options.thicknessVariation >= 0.0 && options.thicknessVariation < 1.0)) {
         throw std::invalid_argument("Strata thicknessVariation must be in [0, 1)");
     }
-    if (!(options.dip >= 0.0 && options.dip < 0.5 * kPi)) {
-        throw std::invalid_argument("Strata dip must be in [0, 90) deg");
+    if (!((options.dipDegrees * kDegree) >= 0.0 && (options.dipDegrees * kDegree) < 0.5 * kPi)) {
+        throw std::invalid_argument("Strata dipDegrees must be in [0, 90) deg");
     }
     if (!(options.sharpness >= 1.0 && std::isfinite(options.sharpness) &&
           options.softSharpness >= 1.0 && std::isfinite(options.softSharpness))) {
@@ -41,7 +41,7 @@ void ValidateStrataOptions(const StrataOptions& options) {
     if (!(options.cliffShare > 0.0 && options.cliffShare <= 1.0)) {
         throw std::invalid_argument("Strata cliffShare must be in (0, 1]");
     }
-    RequireFinite(options.dipAzimuth, "Strata dipAzimuth");
+    RequireFinite((options.dipAzimuthDegrees * kDegree), "Strata dipAzimuthDegrees");
     RequireFinite(options.anchor.x, "Strata anchor x");
     RequireFinite(options.anchor.y, "Strata anchor y");
 }
@@ -49,8 +49,9 @@ void ValidateStrataOptions(const StrataOptions& options) {
 StrataLayer::StrataLayer(StrataOptions options, Surface surface)
     : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
     ValidateStrataOptions(options_);
-    dipDirection_ = {std::cos(options_.dipAzimuth), std::sin(options_.dipAzimuth)};
-    dipSlope_ = std::tan(options_.dip);
+    dipDirection_ = {std::cos(options_.dipAzimuthDegrees * kDegree),
+                     std::sin(options_.dipAzimuthDegrees * kDegree)};
+    dipSlope_ = std::tan(options_.dipDegrees * kDegree);
 }
 
 RandomStream StrataLayer::BedStream(std::uint32_t stream, std::int64_t k) const {

@@ -138,6 +138,10 @@ class CraterLayer final : public Layer, public CraterPlacer {
         return options_;
     }
 
+    std::optional<Surface> LayerSurface() const override {
+        return options_.surface;
+    }
+
   protected:
     /// Generates and applies the craters reaching the samples. Datums are fitted to
     /// `context.ground` where given, otherwise to a grid's heights as passed in.

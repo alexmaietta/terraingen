@@ -75,7 +75,8 @@ struct GeneratedOutputs {
 /// photometry, terrain mesh, and the craters and boulders placed there, the whole body's mesh and,
 /// with a report output, the report (`GeneratedOutputs::report`). Nothing is written
 /// (`WriteOutputs`).
-/// @param directory Folder relative input paths resolve against.
+/// @param directory Folder relative input paths resolve against; empty for the folder the
+/// configuration was read from (`TerrainGenConfig::directory`).
 /// @param threads Threads to use, 0 for every hardware thread; the result does not depend on it.
 /// @param backend Where the heights are evaluated; empty for `DefaultBackend()`.
 /// @throws ConfigError if the configuration is invalid.

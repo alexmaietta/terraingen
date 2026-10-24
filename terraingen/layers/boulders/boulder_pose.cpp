@@ -55,12 +55,12 @@ Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing,
     }
     const double burial = ValueRange{pose.minBurial, pose.maxBurial}.Lerp(share);
     const double yaw = 2.0 * kPi * random.NextDouble();
-    const double lean = pose.maxLean * random.NextDouble();
+    const double lean = (pose.maxLeanDegrees * kDegree) * random.NextDouble();
     Boulder boulder{
         candidate.x, candidate.y, candidate.diameter, ratio * candidate.diameter, burial,
         yaw,         lean,        candidate.id};
     boulder.wear = wear;
-    boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
+    boulder.model = options_.rendering.modelThreshold.IsModel(boulder.diameter, spacing);
     if (fixed != nullptr) {
         boulder.height = fixed->height.value_or(boulder.height);
         boulder.burial = fixed->burial.value_or(boulder.burial);
@@ -81,13 +81,13 @@ std::optional<Boulder> BoulderLayer::PlaceCandidate(const ThinnedCandidate& thin
     const ManualBoulder* fixed = thinned.candidate.manual ? Fixed(thinned.candidate.id) : nullptr;
     Boulder boulder = DrawPose(thinned, spacing, fixed);
     const BoulderPose& pose = options_.pose;
-    if (pose.maxSlope && ground != nullptr && !thinned.candidate.manual &&
+    if (pose.maxSlopeDegrees && ground != nullptr && !thinned.candidate.manual &&
         !Roll(boulder, *ground)) {
         return std::nullopt;
     }
     ReadGround(boulder, ground);
-    if (pose.sideShare > 0.0 || pose.endShare > 0.0 || pose.maxTilt > 0.0 || pose.followSlope ||
-        (fixed != nullptr && fixed->FixesOrientation())) {
+    if (pose.sideShare > 0.0 || pose.endShare > 0.0 || (pose.maxTiltDegrees * kDegree) > 0.0 ||
+        pose.followSlope || (fixed != nullptr && fixed->FixesOrientation())) {
         Settle(boulder, ground, fixed);
     }
     if (options_.ventifacts.share > 0.0) {
@@ -116,14 +116,17 @@ void BoulderLayer::Abrade(Boulder& boulder) const {
     const double reach = 0.5 * boulder.diameter * (1.0 - boulder.wear);
     const auto facet = [&](double wind, double pick) {
         return BoulderFacet{wind + kPi,
-                            ValueRange{ventifacts.minAngle, ventifacts.maxAngle}.Lerp(pick), reach};
+                            ValueRange{(ventifacts.minAngleDegrees * kDegree),
+                                       (ventifacts.maxAngleDegrees * kDegree)}
+                                .Lerp(pick),
+                            reach};
     };
-    boulder.facets[0] = facet(ventifacts.windAzimuth, random.NextDouble());
+    boulder.facets[0] = facet((ventifacts.windAzimuthDegrees * kDegree), random.NextDouble());
     boulder.facetCount = 1;
     const double keel = random.NextDouble();
     const double second = random.NextDouble();
-    if (ventifacts.secondWindAzimuth && keel < ventifacts.keelShare) {
-        boulder.facets[1] = facet(*ventifacts.secondWindAzimuth, second);
+    if (ventifacts.secondWindAzimuthDegrees && keel < ventifacts.keelShare) {
+        boulder.facets[1] = facet((*ventifacts.secondWindAzimuthDegrees * kDegree), second);
         boulder.facetCount = 2;
     }
 }
@@ -131,7 +134,7 @@ void BoulderLayer::Abrade(Boulder& boulder) const {
 bool BoulderLayer::Roll(Boulder& boulder, const Ground& ground) const {
     constexpr double kMaxSteps = 128.0;
     const BoulderPose& pose = options_.pose;
-    const double limit = std::tan(*pose.maxSlope);
+    const double limit = std::tan((*pose.maxSlopeDegrees * kDegree));
     const double reach = pose.rollDistance.value_or(0.0);
     const double step = std::fmax(boulder.diameter, reach / kMaxSteps);
     double rolled = 0.0;
@@ -162,8 +165,8 @@ Vec3d BoulderLayer::UpAxis(RandomStream& random, const ManualBoulder* fixedTilt)
     Vec3d up{0.0, 0.0, 1.0};
     double cosine = 1.0;
     double azimuth = 0.0;
-    if (pose.maxTilt > 0.0) {
-        cosine = 1.0 - random.NextDouble() * (1.0 - std::cos(pose.maxTilt));
+    if ((pose.maxTiltDegrees * kDegree) > 0.0) {
+        cosine = 1.0 - random.NextDouble() * (1.0 - std::cos(pose.maxTiltDegrees * kDegree));
         const double sine = std::sqrt(std::fmax(0.0, 1.0 - cosine * cosine));
         azimuth = 2.0 * kPi * random.NextDouble();
         up = {sine * std::cos(azimuth), sine * std::sin(azimuth), cosine};
@@ -171,7 +174,7 @@ Vec3d BoulderLayer::UpAxis(RandomStream& random, const ManualBoulder* fixedTilt)
     if (fixedTilt == nullptr) {
         return up;
     }
-    if (!(pose.maxTilt > 0.0)) {
+    if (!((pose.maxTiltDegrees * kDegree) > 0.0)) {
         azimuth = 2.0 * kPi * random.NextDouble();
     }
     const double tilt =
@@ -315,7 +318,7 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
         if (piece.diameter < smallest) {
             continue;
         }
-        piece.model = options_.rendering.models.IsModel(piece.diameter, spacing);
+        piece.model = options_.rendering.modelThreshold.IsModel(piece.diameter, spacing);
         pieces.push_back(piece);
     }
     return pieces;

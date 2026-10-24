@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <stdexcept>
@@ -147,9 +148,10 @@ TEST(EquilibriumDiffusionAges, WearCratersToTheCutoffAtTheEndOfTheirLifetimes) {
                  std::invalid_argument);
     EXPECT_THROW(terraingen::EquilibriumDiffusionAges(profile, {}, lifetime),
                  std::invalid_argument);
-    EXPECT_THROW(
-        terraingen::EquilibriumDiffusionAges(profile, terraingen::LunarFreshCraterMorphometry, {}),
-        std::invalid_argument);
+    EXPECT_THROW(terraingen::EquilibriumDiffusionAges(profile,
+                                                      terraingen::LunarFreshCraterMorphometry,
+                                                      std::function<double(double)>{}),
+                 std::invalid_argument);
     EXPECT_THROW(terraingen::EquilibriumDiffusionAges(
                      profile, terraingen::LunarFreshCraterMorphometry, lifetime, 1.0),
                  std::invalid_argument);

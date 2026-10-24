@@ -8,12 +8,14 @@
 #include "terraingen/layers/boulders/boulder_placer.h"
 #include "terraingen/layers/craters/crater_placer.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/util/span.h"
 
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -136,8 +138,20 @@ void FillHeights(const TerrainGenerator& generator, const RasterGrid& grid, Span
                  const EvaluationOptions& options = {});
 
 /// Checks that a generator can be evaluated.
-/// @throws std::invalid_argument if `generator` holds a null layer.
+/// @throws std::invalid_argument if `generator` holds a null layer, a layer built for another
+/// surface than `generator.surface` (`Layer::LayerSurface`), or a layer whose
+/// `Layer::Dependencies` do not all come before it.
 void ValidateGenerator(const TerrainGenerator& generator);
+
+/// The projection a raster of `generator`'s heights is written with: its source's, or
+/// geographic keys on its body (`GeographicSphereKeys`) without one.
+GeoKeys TerrainGeoKeys(const TerrainGenerator& generator);
+
+/// Writes `raster`, evaluated from `generator`, as a GeoTIFF in the terrain's projection
+/// (`TerrainGeoKeys`).
+/// @throws GeoTiffError as `WriteGeoTiff`.
+void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
+                  const TerrainGenerator& generator);
 
 /// The heights of `generator` over its source's grid.
 /// @throws std::invalid_argument as `Evaluate` over a grid, or for a generator without a source or

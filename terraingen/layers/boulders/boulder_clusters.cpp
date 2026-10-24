@@ -18,14 +18,14 @@ double MeanClusterBump(const BoulderClusters& clusters) {
     return LatticeMean(16.0, [&](double u, double v) {
         const WorleyDistances d =
             Worley2(static_cast<float>(u), static_cast<float>(v), kBoulderClusterStream);
-        return ClusterBump(static_cast<double>(d.f1) * clusters.spacing, clusters);
+        return ClusterBump(static_cast<double>(d.f1) * clusters.centerSpacing, clusters);
     });
 }
 
 double MeanThomasField(const BoulderClusters& clusters, bool body) {
     const double sigma = clusters.radius;
     const double reach = kThomasReachRadii;
-    const double perArea = 1.0 / (clusters.spacing * clusters.spacing);
+    const double perArea = 1.0 / (clusters.centerSpacing * clusters.centerSpacing);
     if (body) {
         const double perVolume = perArea / (std::sqrt(2.0 * kPi) * sigma);
         const double inside = std::erf(reach / std::sqrt(2.0)) -
@@ -43,7 +43,7 @@ double MaxClusterAbundance(const BoulderClusters& clusters) {
         return 1.0 - clusters.share + clusters.share / MeanClusterBump(clusters);
     }
     constexpr double kChance = 1e-6;
-    const double ratio = clusters.radius / clusters.spacing;
+    const double ratio = clusters.radius / clusters.centerSpacing;
     const double mean = 9.0 * kPi * ratio * ratio;
     double term = std::exp(-mean);
     double above = 1.0 - term;

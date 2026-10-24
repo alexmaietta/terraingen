@@ -47,7 +47,7 @@ class ConfigError : public std::runtime_error {
 /// key, or a value of the wrong type.
 TerrainGenConfig ParseConfig(std::string_view json);
 
-/// `ParseConfig` on the contents of a file.
+/// `ParseConfig` on the contents of a file, remembering its folder in `directory`.
 /// @throws ConfigError as `ParseConfig`, or when the file cannot be read.
 TerrainGenConfig LoadConfig(const std::filesystem::path& path);
 

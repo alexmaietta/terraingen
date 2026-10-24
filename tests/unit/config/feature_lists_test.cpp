@@ -133,7 +133,7 @@ TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;
-    boulders.boulders.rendering.models.minDiameter = 1.5;
+    boulders.boulders.rendering.modelThreshold.minDiameter = 1.5;
     boulders.boulders.rendering.shapes.subdivisions = 0;
     config.layers.push_back(boulders);
     const auto models =

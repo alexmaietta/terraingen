@@ -27,7 +27,7 @@
             "max_burial": 0.1,
             "max_lean_deg": 30.0,
             "relief": "shape",
-            "models": {
+            "model_threshold": {
                 "min_diameter_m": 0.6
             }
         }

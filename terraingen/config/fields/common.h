@@ -122,6 +122,13 @@ inline double RadiansFromDegrees(double degrees) {
 
 /// Reads or writes an angle stored in radians as degrees, the unit "deg": its key ends in "_deg"
 /// and `range` is in degrees. Unchanged degrees leave the radians exactly as they were.
+/// An angle field in degrees, as the library stores it; `range` is in degrees.
+template <typename IO, typename Degrees>
+void DegreeField(IO& io, std::string_view key, Degrees& degrees, std::string_view description,
+                 const FieldRange& range = {}) {
+    io(key, degrees, description, "deg", range);
+}
+
 template <typename IO>
 void RadianField(IO& io, std::string_view key, double& radians, std::string_view description,
                  const FieldRange& range = {}) {

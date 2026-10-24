@@ -63,7 +63,7 @@ TEST(SandShadowLayer, LaysATaperingTailBehindEachBoulder) {
     const double w = b.diameter;
     const double edge = b.x + 0.5 * w;
     const double length = options.lengthRatio * w;
-    const double slope = std::tan(options.flankAngle);
+    const double slope = std::tan(options.flankAngleDegrees * terraingen::kDegree);
     const double crest = std::min(0.5 * w * slope, b.ExposedHeight());
     EXPECT_NEAR(layer.ThicknessAt(edge + 1e-6, b.y), crest, 1e-5);
     EXPECT_NEAR(layer.ThicknessAt(edge + 0.5 * length, b.y), 0.5 * crest, 1e-9);
@@ -77,7 +77,7 @@ TEST(SandShadowLayer, LaysATaperingTailBehindEachBoulder) {
 TEST(SandShadowLayer, NoHigherThanTheBoulderStands) {
     const auto boulders = Sparse();
     SandShadowOptions options;
-    options.flankAngle = 80.0 * kDegree;
+    options.flankAngleDegrees = 80.0;
     const SandShadowLayer layer(boulders, options);
     const Boulder b = Isolated(*boulders, 12.0);
     const double edge = b.x + 0.5 * b.diameter;
@@ -89,7 +89,7 @@ TEST(SandShadowLayer, NoHigherThanTheBoulderStands) {
 TEST(SandShadowLayer, TailsPointDownwind) {
     const auto boulders = Sparse();
     SandShadowOptions options;
-    options.windAzimuth = 0.5 * terraingen::kPi;
+    options.windAzimuthDegrees = (0.5 * terraingen::kPi) * terraingen::kRadian;
     const SandShadowLayer layer(boulders, options);
     const Boulder b = Isolated(*boulders, 12.0);
     EXPECT_GT(layer.ThicknessAt(b.x, b.y + 0.5 * b.diameter + 0.05), 0.0);
@@ -160,10 +160,14 @@ TEST(SandShadowLayer, RejectsBadOptions) {
         change(options);
         EXPECT_THROW(SandShadowLayer(boulders, options), std::invalid_argument);
     };
-    rejects([](SandShadowOptions& o) { o.windAzimuth = std::numeric_limits<double>::quiet_NaN(); });
+    rejects([](SandShadowOptions& o) {
+        o.windAzimuthDegrees = (std::numeric_limits<double>::quiet_NaN()) * terraingen::kRadian;
+    });
     rejects([](SandShadowOptions& o) { o.lengthRatio = 0.0; });
-    rejects([](SandShadowOptions& o) { o.flankAngle = 0.0; });
-    rejects([](SandShadowOptions& o) { o.flankAngle = 0.5 * terraingen::kPi; });
+    rejects([](SandShadowOptions& o) { o.flankAngleDegrees = 0.0 * terraingen::kRadian; });
+    rejects([](SandShadowOptions& o) {
+        o.flankAngleDegrees = (0.5 * terraingen::kPi) * terraingen::kRadian;
+    });
     rejects([](SandShadowOptions& o) { o.minDiameter = -1.0; });
     rejects([](SandShadowOptions& o) { o.coverThickness = 0.0; });
     rejects([](SandShadowOptions& o) { o.fade.startSamples = -1.0; });

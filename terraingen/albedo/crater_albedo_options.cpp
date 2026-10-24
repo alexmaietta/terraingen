@@ -60,7 +60,7 @@ void ValidateObliqueImpacts(const ObliqueImpacts& oblique) {
     if (!(oblique.zoneHalfWidthDegrees >= 0.0 && oblique.zoneHalfWidthDegrees <= 180.0)) {
         throw std::invalid_argument("A forbidden zone's half width must be in [0, 180] degrees");
     }
-    if (oblique.heading && !std::isfinite(*oblique.heading)) {
+    if (oblique.headingDegrees && !std::isfinite(*oblique.headingDegrees)) {
         throw std::invalid_argument("An impact heading must be finite");
     }
 }

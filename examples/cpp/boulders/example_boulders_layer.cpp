@@ -50,7 +50,7 @@ class BouldersLayer : public terraingen::examples::Example {
         boulderOptions.sizes.coverage = 0.05;
         boulderOptions.sizes.minDiameter = 0.2;
         boulderOptions.sizes.maxDiameter = 3.0;
-        boulderOptions.rendering.models.minDiameter = 0.6;
+        boulderOptions.rendering.modelThreshold.minDiameter = 0.6;
 
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(401, 401, 0.1);

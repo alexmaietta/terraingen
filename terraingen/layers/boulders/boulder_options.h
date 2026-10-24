@@ -116,16 +116,16 @@ enum class BoulderClusterModel {
 /// cluster centers about `spacing` apart and the rest stay scattered. The mean abundance is kept:
 /// the mean count with a size distribution, the mean coverage with Golombek-Rapp boulders.
 struct BoulderClusters {
-    double share = 0.0;     ///< Share of the boulders in clusters, in [0, 1]; 0 for none.
-    double spacing = 50.0;  ///< Typical distance between cluster centers (m).
+    double share = 0.0;           ///< Share of the boulders in clusters, in [0, 1]; 0 for none.
+    double centerSpacing = 50.0;  ///< Typical distance between cluster centers (m).
     /// Gaussian radius of a cluster (m): below `spacing` for `Nearest`, at most twice it for
     /// `Thomas`.
     double radius = 5.0;
     BoulderClusterModel model = BoulderClusterModel::Nearest;  ///< How the clusters are laid out.
 
     bool operator==(const BoulderClusters& other) const {
-        return share == other.share && spacing == other.spacing && radius == other.radius &&
-               model == other.model;
+        return share == other.share && centerSpacing == other.centerSpacing &&
+               radius == other.radius && model == other.model;
     }
 };
 
@@ -248,11 +248,11 @@ struct BoulderBedrock {
 
 /// How each boulder stands, drawn per boulder uniformly between these.
 struct BoulderPose {
-    double minHeightRatio = 0.4;  ///< Least boulder height over diameter.
-    double maxHeightRatio = 0.6;  ///< Greatest boulder height over diameter.
-    double minBurial = 0.1;       ///< Least buried share of the height.
-    double maxBurial = 0.4;       ///< Greatest buried share of the height.
-    double maxLean = 0.26;        ///< Largest tilt from the vertical (radians, about 15 degrees).
+    double minHeightRatio = 0.4;             ///< Least boulder height over diameter.
+    double maxHeightRatio = 0.6;             ///< Greatest boulder height over diameter.
+    double minBurial = 0.1;                  ///< Least buried share of the height.
+    double maxBurial = 0.4;                  ///< Greatest buried share of the height.
+    double maxLeanDegrees = 0.26 * kRadian;  ///< Largest tilt from the vertical, about 15 deg.
     /// How far wear sets burial, from 0 to 1: the buried share is drawn at (1 - b) u + b w of the
     /// way from `minBurial` to `maxBurial`, with u uniform and w the boulder's wear. A crater's
     /// blocks wear with it (0 fresh to 1 gone); boulders between craters span every stage, their
@@ -263,8 +263,8 @@ struct BoulderPose {
     /// Share of boulders standing on an end, their long axis up; with `sideShare`, at most 1.
     double endShare = 0.0;
     /// Largest tilt of a boulder's up axis from the vertical in a random direction, after its lean
-    /// (radians); drawn uniformly in the cosine, so steep tilts are as likely as on a sphere cap.
-    double maxTilt = 0.0;
+    /// (degrees); drawn uniformly in the cosine, so steep tilts are as likely as on a sphere cap.
+    double maxTiltDegrees = 0.0;
     /// Settles each boulder on the slope of the ground beneath it, its up axis along the ground's
     /// normal before the tilt; needs the ground.
     bool followSlope = false;
@@ -272,11 +272,11 @@ struct BoulderPose {
     /// (`PlaceBoulderModel`), before the tilt and the slope; off leaves shapes as drawn, some
     /// balanced on an edge or corner.
     bool settle = true;
-    /// Steepest ground, measured across a boulder's diameter, that boulders stay on (radians);
+    /// Steepest ground, measured across a boulder's diameter, that boulders stay on (degrees);
     /// boulders on steeper ground are left out, models and boulders drawn into the heights alike,
     /// so which boulders exist does not depend on the spacing. Unset keeps boulders on any slope;
     /// needs the ground.
-    std::optional<double> maxSlope{};
+    std::optional<double> maxSlopeDegrees{};
     /// With `maxSlope`, boulders on steeper ground roll down it instead, in steps along the
     /// steepest descent, and come to rest where it is no steeper than `maxSlope`, gathering at the
     /// foot of slopes; those that would roll farther than this many meters are left out. Unset
@@ -286,10 +286,10 @@ struct BoulderPose {
     bool operator==(const BoulderPose& other) const {
         return minHeightRatio == other.minHeightRatio && maxHeightRatio == other.maxHeightRatio &&
                minBurial == other.minBurial && maxBurial == other.maxBurial &&
-               maxLean == other.maxLean && burialByWear == other.burialByWear &&
+               maxLeanDegrees == other.maxLeanDegrees && burialByWear == other.burialByWear &&
                sideShare == other.sideShare && endShare == other.endShare &&
-               maxTilt == other.maxTilt && followSlope == other.followSlope &&
-               settle == other.settle && maxSlope == other.maxSlope &&
+               maxTiltDegrees == other.maxTiltDegrees && followSlope == other.followSlope &&
+               settle == other.settle && maxSlopeDegrees == other.maxSlopeDegrees &&
                rollDistance == other.rollDistance;
     }
 };
@@ -310,22 +310,24 @@ struct BoulderFillet {
 /// Ventifacts: windward facets planed on boulders by sand-laden wind, set once the boulder has
 /// settled. A facet faces upwind at `minAngle` to `maxAngle` from horizontal and meets the ground
 /// at the boulder's upwind edge when fresh, moving in to its center as it wears; boulders with a
-/// keel carry a second facet facing the second wind. Angles are in radians.
+/// keel carry a second facet facing the second wind. Angles are in degrees.
 struct BoulderVentifacts {
     double share = 0.0;  ///< Share of boulders with a facet, in [0, 1]; 0 for none.
-    /// Where the wind blows toward, radians counter-clockwise from east.
-    double windAzimuth = 0.0;
-    double minAngle = 0.8726646259971648;  ///< Gentlest facet slope; 50 deg.
-    double maxAngle = 1.0471975511965976;  ///< Steepest facet slope; 60 deg.
+    /// Where the wind blows toward, degrees counter-clockwise from east.
+    double windAzimuthDegrees = 0.0;
+    double minAngleDegrees = 50.0;  ///< Gentlest facet slope.
+    double maxAngleDegrees = 60.0;  ///< Steepest facet slope.
     /// A second formative wind, where it blows toward; unset gives no keels.
-    std::optional<double> secondWindAzimuth{};
+    std::optional<double> secondWindAzimuthDegrees{};
     /// Share of faceted boulders with a second facet and a keel between, in [0, 1].
     double keelShare = 0.0;
 
     bool operator==(const BoulderVentifacts& other) const {
-        return share == other.share && windAzimuth == other.windAzimuth &&
-               minAngle == other.minAngle && maxAngle == other.maxAngle &&
-               secondWindAzimuth == other.secondWindAzimuth && keelShare == other.keelShare;
+        return share == other.share && windAzimuthDegrees == other.windAzimuthDegrees &&
+               minAngleDegrees == other.minAngleDegrees &&
+               maxAngleDegrees == other.maxAngleDegrees &&
+               secondWindAzimuthDegrees == other.secondWindAzimuthDegrees &&
+               keelShare == other.keelShare;
     }
 };
 
@@ -351,24 +353,24 @@ double FilletReach(const Boulder& boulder, const BoulderFillet& fillet);
 struct BoulderReliefRange {
     double minDiameter = 0.0;             ///< Smallest boulder drawn (m).
     std::optional<double> maxDiameter{};  ///< Boulders this wide (m) or wider are not drawn.
-    bool models = false;  ///< Draw models into the heights as well, as a stand-in for far views.
+    bool includeModels = false;  ///< Draw models into the heights as well, as for far views.
 
     /// Whether a boulder of `diameter` meters, a model or not, is drawn into the heights.
     bool Holds(double diameter, bool model) const {
         return diameter >= minDiameter && (!maxDiameter || diameter < *maxDiameter) &&
-               (!model || models);
+               (!model || includeModels);
     }
 
     bool operator==(const BoulderReliefRange& other) const {
         return minDiameter == other.minDiameter && maxDiameter == other.maxDiameter &&
-               models == other.models;
+               includeModels == other.includeModels;
     }
 };
 
 /// How boulders are drawn: as relief in the heights or as 3D models, and with which shapes.
 struct BoulderRendering {
     BoulderRelief relief = BoulderRelief::Dome;  ///< Look of boulders drawn into the heights.
-    BoulderModelThreshold models{};              ///< Which boulders are 3D models.
+    BoulderModelThreshold modelThreshold{};      ///< Which boulders are 3D models.
     BoulderReliefRange reliefRange{};            ///< Which boulders are drawn into the heights.
     /// The 3D shapes of the boulders, for `BoulderRelief::Shape` and for models.
     BoulderShapeOptions shapes{};
@@ -377,7 +379,7 @@ struct BoulderRendering {
     std::uint32_t shapePrototypes = 64;
 
     bool operator==(const BoulderRendering& other) const {
-        return relief == other.relief && models == other.models &&
+        return relief == other.relief && modelThreshold == other.modelThreshold &&
                reliefRange == other.reliefRange && shapes == other.shapes &&
                shapePrototypes == other.shapePrototypes;
     }

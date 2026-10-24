@@ -60,9 +60,9 @@ TEST(ConfigAngles, ReadDegreesIntoRadians) {
     const TerrainGenConfig config = ParseConfig(OneLayer(
         R"({"type": "dunes", "wind_azimuth_deg": 90, "slip_face_angle_deg": 30, "stoss_slope_deg": 10})"));
     const auto& dunes = std::get<DuneLayerSpec>(config.layers.at(0)).dunes;
-    EXPECT_EQ(dunes.windAzimuth, 90.0 * kDegree);
-    EXPECT_EQ(dunes.slipFaceAngle, 30.0 * kDegree);
-    EXPECT_EQ(dunes.stossSlope, 10.0 * kDegree);
+    EXPECT_EQ((dunes.windAzimuthDegrees * terraingen::kDegree), 90.0 * kDegree);
+    EXPECT_EQ((dunes.slipFaceAngleDegrees * terraingen::kDegree), 30.0 * kDegree);
+    EXPECT_EQ((dunes.stossSlopeDegrees * terraingen::kDegree), 10.0 * kDegree);
 }
 
 TEST(ConfigAngles, LeaveUnreadAnglesExactlyAsTheyWere) {
@@ -73,13 +73,13 @@ TEST(ConfigAngles, LeaveUnreadAnglesExactlyAsTheyWere) {
 TEST(ConfigAngles, WriteDegreesAndRoundTripExactly) {
     TerrainGenConfig config;
     StrataLayerSpec strata;
-    strata.strata.dip = 0.03;
-    strata.strata.dipAzimuth = 0.8;
+    strata.strata.dipDegrees = 1.7;
+    strata.strata.dipAzimuthDegrees = 45.8;
     config.layers.push_back(strata);
     const std::string json = ConfigToJson(config);
     const Json layer = Json::parse(json)["layers"][0];
-    EXPECT_EQ(layer["dip_deg"].get<double>(), DegreesFromRadians(0.03)) << json;
-    EXPECT_EQ(layer["dip_azimuth_deg"].get<double>(), DegreesFromRadians(0.8)) << json;
+    EXPECT_EQ(layer["dip_deg"].get<double>(), 1.7) << json;
+    EXPECT_EQ(layer["dip_azimuth_deg"].get<double>(), 45.8) << json;
     EXPECT_EQ(layer.find("dip"), layer.end()) << json;
     EXPECT_EQ(ParseConfig(json), config);
     EXPECT_EQ(ConfigToJson(ParseConfig(json)), json);
@@ -93,12 +93,13 @@ TEST(ConfigAngles, ReadOptionalAnglesAndUnsetThemWithNull) {
         R"({"type": "boulders", "ventifacts": {"second_wind_azimuth_deg": 180}, "max_slope_deg": 30})");
     const TerrainGenConfig config = ParseConfig(set);
     const auto& boulders = std::get<terraingen::BoulderLayerSpec>(config.layers.at(0)).boulders;
-    ASSERT_TRUE(boulders.ventifacts.secondWindAzimuth.has_value());
-    EXPECT_EQ(*boulders.ventifacts.secondWindAzimuth, 180.0 * kDegree);
-    EXPECT_EQ(boulders.pose.maxSlope, std::optional<double>(30.0 * kDegree));
+    ASSERT_TRUE(boulders.ventifacts.secondWindAzimuthDegrees.has_value());
+    EXPECT_EQ(*boulders.ventifacts.secondWindAzimuthDegrees, 180.0);
+    EXPECT_EQ(boulders.pose.maxSlopeDegrees, std::optional<double>(30.0));
     const TerrainGenConfig unset =
         ParseConfig(OneLayer(R"({"type": "boulders", "max_slope_deg": null})"));
-    EXPECT_FALSE(std::get<terraingen::BoulderLayerSpec>(unset.layers.at(0)).boulders.pose.maxSlope);
+    EXPECT_FALSE(
+        std::get<terraingen::BoulderLayerSpec>(unset.layers.at(0)).boulders.pose.maxSlopeDegrees);
 }
 
 TEST(ConfigAngles, CheckRangesInDegreesAtTheKey) {

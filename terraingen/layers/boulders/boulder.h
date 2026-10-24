@@ -271,8 +271,9 @@ struct ManualBoulder {
     std::optional<bool> model{};
 
     ManualBoulder() = default;
-    /// A boulder `diameter` meters long centered at surface (`x`, `y`), the rest drawn.
-    ManualBoulder(double x, double y, double diameter) : x(x), y(y), diameter(diameter) {}
+    /// A boulder `length` meters long centered at surface (`centerX`, `centerY`), the rest drawn.
+    ManualBoulder(double centerX, double centerY, double length)
+        : x(centerX), y(centerY), diameter(length) {}
 
     ManualBoulder& Id(std::uint64_t value) {
         id = value;
@@ -324,9 +325,9 @@ struct ManualBoulder {
         return leanDegrees || tiltDegrees || tiltAzimuthDegrees || rest;
     }
 
-    /// Whether any of its pose or shape is fixed.
+    /// Whether any of its pose, shape or model choice is fixed.
     bool FixesAny() const {
-        return FixesOrientation() || height || burial || yawDegrees || wear || shapeSeed;
+        return FixesOrientation() || height || burial || yawDegrees || wear || shapeSeed || model;
     }
 
     bool operator==(const ManualBoulder& other) const {

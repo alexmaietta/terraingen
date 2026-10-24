@@ -51,6 +51,10 @@ class NoiseRelief final : public Layer {
         return layers_;
     }
 
+    std::optional<Surface> LayerSurface() const override {
+        return surface_;
+    }
+
     /// The source cells across from which the source holds a noise layer; unset for none.
     const std::optional<double>& SourceResolvesPixels() const {
         return sourceResolvesPixels_;

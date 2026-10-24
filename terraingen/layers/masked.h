@@ -81,6 +81,15 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
         return *inner_;
     }
 
+    std::optional<Surface> LayerSurface() const override {
+        return surface_;
+    }
+
+    /// The layers the confined layer reads.
+    std::vector<const Layer*> Dependencies() const override {
+        return inner_->Dependencies();
+    }
+
     /// Whether a feature centered at (x, y) belongs to the region: within it or its feather.
     bool Holds(double x, double y) const;
 

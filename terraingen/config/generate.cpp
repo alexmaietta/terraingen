@@ -35,11 +35,7 @@ namespace {
 
 /// The projection of a terrain's raster source, or geographic keys on a body without one.
 GeoKeys OutputGeoKeys(const TerrainGenerator& generator) {
-    GeoKeys keys = generator.source ? generator.source->Keys() : GeoKeys{};
-    if (generator.surface.IsBody() && keys.Empty()) {
-        keys = GeographicSphereKeys(generator.surface.Radius());
-    }
-    return keys;
+    return TerrainGeoKeys(generator);
 }
 
 /// The grid of the terrain's source, or none without one or for one without bounds.
@@ -518,8 +514,9 @@ GeneratedGrid* GeneratedOutputs::Find(const RasterGrid& grid) {
 }
 
 GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& config,
-                                    const std::filesystem::path& directory, unsigned threads,
+                                    const std::filesystem::path& given, unsigned threads,
                                     std::optional<Backend> backend) {
+    const std::filesystem::path directory = ConfigDirectory(config, given);
     GeneratedOutputs generated{BuildGenerator(config, directory)};
     generated.backend = ResolveBackend(backend.value_or(DefaultBackend()));
     const Stopwatch stopwatch;

@@ -130,20 +130,21 @@ void ValidateBoulderPose(const BoulderPose& pose) {
     if (!(pose.minBurial >= 0.0 && pose.maxBurial >= pose.minBurial && pose.maxBurial < 1.0)) {
         throw std::invalid_argument("Boulder burial must satisfy 0 <= min <= max < 1");
     }
-    RequireNonNegative(pose.maxLean, "Boulder maxLean");
+    RequireNonNegative((pose.maxLeanDegrees * kDegree), "Boulder maxLean");
     RequireUnitInterval(pose.burialByWear, "Boulder burialByWear");
     if (!(pose.sideShare >= 0.0 && pose.endShare >= 0.0 && pose.sideShare + pose.endShare <= 1.0)) {
         throw std::invalid_argument(
             "Boulder sideShare and endShare must not be negative and must sum to at most 1");
     }
-    if (!(pose.maxTilt >= 0.0 && pose.maxTilt <= kPi)) {
+    if (!((pose.maxTiltDegrees * kDegree) >= 0.0 && (pose.maxTiltDegrees * kDegree) <= kPi)) {
         throw std::invalid_argument("Boulder maxTilt must be in [0, pi]");
     }
-    if (pose.maxSlope && !(*pose.maxSlope > 0.0 && *pose.maxSlope < 0.5 * kPi)) {
-        throw std::invalid_argument("Boulder maxSlope must be in (0, pi / 2)");
+    if (pose.maxSlopeDegrees && !((*pose.maxSlopeDegrees * kDegree) > 0.0 &&
+                                  (*pose.maxSlopeDegrees * kDegree) < 0.5 * kPi)) {
+        throw std::invalid_argument("Boulder maxSlopeDegrees must be in (0, 90)");
     }
     if (pose.rollDistance &&
-        !(pose.maxSlope && *pose.rollDistance > 0.0 && std::isfinite(*pose.rollDistance))) {
+        !(pose.maxSlopeDegrees && *pose.rollDistance > 0.0 && std::isfinite(*pose.rollDistance))) {
         throw std::invalid_argument("Boulder rollDistance must be positive and finite, with a "
                                     "maxSlope");
     }
@@ -151,7 +152,7 @@ void ValidateBoulderPose(const BoulderPose& pose) {
 
 /// Checks how boulders are drawn.
 void ValidateBoulderRendering(const BoulderRendering& rendering) {
-    const BoulderModelThreshold& models = rendering.models;
+    const BoulderModelThreshold& models = rendering.modelThreshold;
     for (const auto& threshold :
          {models.minDiameter, models.minSamples, models.maxDiameter, models.maxSamples}) {
         if (threshold) {
@@ -208,15 +209,15 @@ void ValidateBoulderFillet(const BoulderFillet& fillet) {
 void ValidateBoulderClusters(const BoulderClusters& clusters) {
     RequireUnitInterval(clusters.share, "Boulder cluster share");
     if (clusters.model == BoulderClusterModel::Thomas) {
-        if (!(clusters.radius > 0.0 && clusters.radius <= 2.0 * clusters.spacing &&
-              std::isfinite(clusters.spacing))) {
+        if (!(clusters.radius > 0.0 && clusters.radius <= 2.0 * clusters.centerSpacing &&
+              std::isfinite(clusters.centerSpacing))) {
             throw std::invalid_argument(
                 "Thomas boulder clusters must satisfy 0 < radius <= 2 spacing");
         }
         return;
     }
-    if (!(clusters.radius > 0.0 && clusters.radius < clusters.spacing &&
-          std::isfinite(clusters.spacing))) {
+    if (!(clusters.radius > 0.0 && clusters.radius < clusters.centerSpacing &&
+          std::isfinite(clusters.centerSpacing))) {
         throw std::invalid_argument("Boulder clusters must satisfy 0 < radius < spacing");
     }
 }
@@ -240,13 +241,15 @@ void ValidateBoulderFragmentation(const BoulderFragmentation& fragmentation) {
 void ValidateBoulderVentifacts(const BoulderVentifacts& ventifacts) {
     RequireUnitInterval(ventifacts.share, "Boulder ventifact share");
     RequireUnitInterval(ventifacts.keelShare, "Boulder ventifact keelShare");
-    if (!(ventifacts.minAngle > 0.0 && ventifacts.minAngle <= ventifacts.maxAngle &&
-          ventifacts.maxAngle < 0.5 * kPi)) {
+    if (!((ventifacts.minAngleDegrees * kDegree) > 0.0 &&
+          (ventifacts.minAngleDegrees * kDegree) <= (ventifacts.maxAngleDegrees * kDegree) &&
+          (ventifacts.maxAngleDegrees * kDegree) < 0.5 * kPi)) {
         throw std::invalid_argument(
             "Boulder ventifact facet angles must satisfy 0 < minAngle <= maxAngle < 90 deg");
     }
-    if (!(std::isfinite(ventifacts.windAzimuth) &&
-          (!ventifacts.secondWindAzimuth || std::isfinite(*ventifacts.secondWindAzimuth)))) {
+    if (!(std::isfinite(ventifacts.windAzimuthDegrees * kDegree) &&
+          (!ventifacts.secondWindAzimuthDegrees ||
+           std::isfinite((*ventifacts.secondWindAzimuthDegrees * kDegree))))) {
         throw std::invalid_argument("Boulder ventifact wind azimuths must be finite");
     }
 }

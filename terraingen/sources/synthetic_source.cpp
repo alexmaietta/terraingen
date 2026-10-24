@@ -37,7 +37,10 @@ void SyntheticSource::NoisePosts::Read(std::int64_t col0, std::int64_t row0, std
 SyntheticSource::SyntheticSource(SyntheticTerrainParams params, float elevation,
                                  std::optional<double> pixelSize,
                                  std::shared_ptr<const Upsampler> upsampler, Surface surface)
-    : params_(std::move(params)), elevation_(elevation), pixelSize_(pixelSize), surface_(surface) {
+    : params_(std::move(params)), elevation_(elevation),
+      pixelSize_(pixelSize ? std::optional<double>(*pixelSize / surface.UnitLength())
+                           : std::nullopt),
+      surface_(surface) {
     ValidateSyntheticTerrain(params_);
     RequireFinite(static_cast<double>(elevation_), "Elevation");
     if (!pixelSize_) {

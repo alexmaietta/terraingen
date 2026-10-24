@@ -21,7 +21,7 @@
             },
             "min_diameter_m": 0.2,
             "max_diameter_m": 3,
-            "models": {
+            "model_threshold": {
                 "min_diameter_m": 0.6
             }
         }

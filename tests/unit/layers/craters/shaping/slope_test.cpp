@@ -48,7 +48,7 @@ TEST(SlopeShape, OffsetsTheFloorDownslopeAndLowersTheRimUpslope) {
     EXPECT_DOUBLE_EQ(shape.shift.y, -10.0) << "downslope is south";
     EXPECT_NEAR(shape.upslope.x, 0.0, 1e-12);
     EXPECT_DOUBLE_EQ(shape.upslope.y, 0.75);
-    const double half = std::tan(0.5 * Enabled().fullSlope);
+    const double half = std::tan(0.5 * Enabled().fullSlopeDegrees * terraingen::kDegree);
     EXPECT_DOUBLE_EQ(SlopeShape(crater, half, 0.0, Enabled()).shift.x, -10.0 * 0.5)
         << "half way up the ramp at half the full slope";
 }
@@ -95,7 +95,7 @@ TEST(ValidateCraterSlopeResponse, RejectsInvalidSettings) {
     EXPECT_THROW(terraingen::ValidateCraterSlopeResponse(Enabled(-0.01)), std::invalid_argument);
     EXPECT_THROW(terraingen::ValidateCraterSlopeResponse(Enabled(0.1, 1.5)), std::invalid_argument);
     CraterSlopeResponse flat = Enabled();
-    flat.fullSlope = 0.0;
+    flat.fullSlopeDegrees = 0.0 * terraingen::kRadian;
     EXPECT_THROW(terraingen::ValidateCraterSlopeResponse(flat), std::invalid_argument);
     terraingen::CraterApplyOptions options;
     options.slope = Enabled();

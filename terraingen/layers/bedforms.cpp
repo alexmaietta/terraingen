@@ -45,8 +45,9 @@ void ValidateBedformOptions(const BedformOptions& options) {
     if (!(options.cover >= 0.0 && options.cover <= 0.9)) {
         throw std::invalid_argument("Bedform cover must be in [0, 0.9]");
     }
-    if (!(IsNonNegative(options.sinuosity) && IsNonNegative(options.azimuthSpread) &&
-          std::isfinite(options.windAzimuth))) {
+    if (!(IsNonNegative(options.sinuosity) &&
+          IsNonNegative(options.azimuthSpreadDegrees * kDegree) &&
+          std::isfinite(options.windAzimuthDegrees * kDegree))) {
         throw std::invalid_argument(
             "Bedform sinuosity and azimuth spread must be finite and not negative");
     }
@@ -106,7 +107,8 @@ void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& ce
     const double radius = (kRadiusMin + (kRadiusMax - kRadiusMin) * random.NextDouble()) * cell_;
     const double scale = kWavelengthMin + kWavelengthSpan * random.NextDouble();
     const double azimuth =
-        options_.windAzimuth + options_.azimuthSpread * (2.0 * random.NextDouble() - 1.0);
+        (options_.windAzimuthDegrees * kDegree) +
+        (options_.azimuthSpreadDegrees * kDegree) * (2.0 * random.NextDouble() - 1.0);
     const double phase = random.NextDouble();
     const double dx = offset.x;
     const double dy = offset.y;

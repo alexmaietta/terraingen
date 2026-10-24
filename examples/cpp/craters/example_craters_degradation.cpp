@@ -111,7 +111,7 @@ class CratersDegradation : public terraingen::examples::Example {
             const terraingen::CraterList& craters = degraded.craters.craters;
             std::size_t count = 0;
             for (std::size_t n = 0; n < craters.Size(); ++n) {
-                count += bounds.Contains(craters.At(n).x, craters.At(n).y) ? 1 : 0;
+                count += bounds.Contains(craters.At(n).x, craters.At(n).y) ? 1u : 0u;
             }
             return count;
         };

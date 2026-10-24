@@ -557,6 +557,10 @@ std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
     return std::visit(
         Overloaded{
             [&](const RasterSourceSpec& s) -> std::optional<RasterGrid> {
+                if (s.read.upsampler) {
+                    throw ConfigError(Child(path, "upsampling"),
+                                      "gives the raster's upsampler; leave read.upsampler unset");
+                }
                 return DescribeRaster(s, directory, path, surface);
             },
             [&](const ChainSourceSpec& s) { return DescribeChain(s, directory, path, surface); },
@@ -1015,8 +1019,8 @@ void ValidateAlbedo(const TerrainGenConfig& config, const std::filesystem::path&
 
 }  // namespace config
 
-ConfigSummary ValidateConfig(const TerrainGenConfig& config,
-                             const std::filesystem::path& directory) {
+ConfigSummary ValidateConfig(const TerrainGenConfig& config, const std::filesystem::path& given) {
+    const std::filesystem::path directory = ConfigDirectory(config, given);
     config::CheckConfigRanges(config);
     CheckBody(config.body, "body");
     ConfigSummary summary;

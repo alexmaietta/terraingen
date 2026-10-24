@@ -25,7 +25,7 @@ void ValidateCraterSlopeResponse(const CraterSlopeResponse& response) {
         throw std::invalid_argument("Crater floor offset must be in [0, 0.23) diameters");
     }
     RequireUnitInterval(response.upslopeRim, "Crater upslopeRim");
-    RequirePositive(response.fullSlope, "Crater fullSlope");
+    RequirePositive(response.fullSlopeDegrees, "Crater fullSlopeDegrees");
     if (response.criticalGradient) {
         RequirePositive(*response.criticalGradient, "Crater criticalGradient");
     }
@@ -49,7 +49,7 @@ CraterSlopeShape SlopeShape(const Crater& crater, double east, double north,
     if (!response.asymmetric || !(gradient > 0.0)) {
         return {};
     }
-    const double strength = Smoothstep(std::atan(gradient) / response.fullSlope);
+    const double strength = Smoothstep(std::atan(gradient) / (response.fullSlopeDegrees * kDegree));
     const IdWords id = SplitId(crater.id);
     RandomStream random(response.seed.value_or(0u), kCraterSlopeStream, id.low, id.high);
     const double offset = strength * response.floorOffset.Draw(random) * crater.diameter;

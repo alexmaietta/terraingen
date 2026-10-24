@@ -547,3 +547,30 @@ TEST(EvaluationOptions, SetsItsFieldsByName) {
     EXPECT_EQ(options.threads, 3u);
     EXPECT_EQ(options.backend, terraingen::Backend::Cpu);
 }
+
+TEST(ValidateGenerator, RejectsLayersOfAnotherSurfaceAndDependenciesOutOfOrder) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    terraingen::TerrainGenerator terrain;
+    terrain.source = std::make_shared<terraingen::FlatSource>(9, 9, 1.0);
+    terrain.layers = {std::make_shared<terraingen::NoiseRelief>(
+        terraingen::NoiseLayer::Fbm(1, 100.0, 1.0), terraingen::Vec2d{}, moon)};
+    EXPECT_THROW(terraingen::ValidateGenerator(terrain), std::invalid_argument)
+        << "a layer for the Moon on a plane";
+    terrain.surface = moon;
+    EXPECT_NO_THROW(terraingen::ValidateGenerator(terrain));
+
+    terraingen::TerrainGenerator plane;
+    plane.source = std::make_shared<terraingen::FlatSource>(9, 9, 1.0);
+    const auto craters = terraingen::CraterLayer::Manual({terraingen::ManualCrater(0.0, 0.0, 4.0)});
+    const auto boulders =
+        std::make_shared<terraingen::BoulderLayer>(terraingen::BoulderLayerOptions{}, craters);
+    EXPECT_EQ(boulders->Dependencies(), std::vector<const terraingen::Layer*>{craters.get()});
+    plane.layers = {boulders};
+    EXPECT_THROW(terraingen::ValidateGenerator(plane), std::invalid_argument)
+        << "the crater layer is missing";
+    plane.layers = {boulders, craters};
+    EXPECT_THROW(terraingen::ValidateGenerator(plane), std::invalid_argument)
+        << "the crater layer comes after";
+    plane.layers = {craters, boulders};
+    EXPECT_NO_THROW(terraingen::ValidateGenerator(plane));
+}

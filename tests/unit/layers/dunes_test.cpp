@@ -30,7 +30,7 @@ DuneOptions OneBarchan(double width = 400.0) {
     options.width = width;
     options.minWidth = 200.0;
     options.widthSpread = 0.0;
-    options.spacing = 6000.0;
+    options.latticeSpacing = 6000.0;
     options.density = 1.0;
     options.seed = 7;
     return options;
@@ -91,17 +91,19 @@ double SteepestSlope(const DuneLayer& layer, const Vec2d& center, double half, d
 TEST(DuneLayer, BarchansHaveSlipFacesAtTheirAngleAndHornsDownwind) {
     const DuneOptions options = OneBarchan();
     const DuneLayer layer(options);
-    const Vec2d peak = Peak(layer, options.spacing, 50.0);
+    const Vec2d peak = Peak(layer, options.latticeSpacing, 50.0);
     const double height = options.heightRatio * options.width;
     EXPECT_NEAR(layer.DuneHeightAt(peak.x, peak.y), height, 0.01 * height);
 
     const double lee =
         (layer.DuneHeightAt(peak.x + 4.0, peak.y) - layer.DuneHeightAt(peak.x + 6.0, peak.y)) / 2.0;
-    EXPECT_NEAR(std::atan(lee), options.slipFaceAngle, 0.2 * kDegree) << "the slip face";
-    const double foot = peak.x + height / std::tan(options.slipFaceAngle);
+    EXPECT_NEAR(std::atan(lee), (options.slipFaceAngleDegrees * terraingen::kDegree), 0.2 * kDegree)
+        << "the slip face";
+    const double foot =
+        peak.x + height / std::tan(options.slipFaceAngleDegrees * terraingen::kDegree);
     EXPECT_EQ(layer.DuneHeightAt(foot + 1.0, peak.y), 0.0);
 
-    const double toe = peak.x - height / std::tan(options.stossSlope);
+    const double toe = peak.x - height / std::tan(options.stossSlopeDegrees * terraingen::kDegree);
     EXPECT_GT(layer.DuneHeightAt(toe + 2.0, peak.y), 0.0);
     EXPECT_EQ(layer.DuneHeightAt(toe - 2.0, peak.y), 0.0) << "the stoss is H / tan(stoss) long";
 
@@ -120,14 +122,15 @@ TEST(DuneLayer, SmallDunesAndDomesHaveNoSlipFace) {
         DuneOptions options = OneBarchan(150.0);
         options.shape = shape;
         const DuneLayer layer(options);
-        const Vec2d peak = Peak(layer, options.spacing, 50.0);
+        const Vec2d peak = Peak(layer, options.latticeSpacing, 50.0);
         EXPECT_GT(layer.DuneHeightAt(peak.x, peak.y), 0.0);
         EXPECT_LT(SteepestSlope(layer, peak, 160.0, 2.0), 15.0 * kDegree);
     }
     DuneOptions dome = OneBarchan(500.0);
     dome.shape = DuneShape::Dome;
     const DuneLayer layer(dome);
-    EXPECT_LT(SteepestSlope(layer, Peak(layer, dome.spacing, 50.0), 400.0, 4.0), 15.0 * kDegree)
+    EXPECT_LT(SteepestSlope(layer, Peak(layer, dome.latticeSpacing, 50.0), 400.0, 4.0),
+              15.0 * kDegree)
         << "domes of any size";
 }
 
@@ -166,10 +169,12 @@ TEST(DuneLayer, TransverseCrestsKeepTheirSpacingAndTheSlipFaceAngle) {
         }
     }
     std::sort(slopes.begin(), slopes.end());
-    EXPECT_LT(slopes[slopes.size() * 995 / 1000], options.slipFaceAngle + 3.0 * kDegree)
+    EXPECT_LT(slopes[slopes.size() * 995 / 1000],
+              (options.slipFaceAngleDegrees * terraingen::kDegree) + 3.0 * kDegree)
         << "warped lee faces stay within a few degrees of the slip face angle";
-    EXPECT_GT(slopes[slopes.size() * 995 / 1000], options.slipFaceAngle - 2.0 * kDegree);
-    EXPECT_LT(slopes.back(), options.slipFaceAngle + 6.0 * kDegree);
+    EXPECT_GT(slopes[slopes.size() * 995 / 1000],
+              (options.slipFaceAngleDegrees * terraingen::kDegree) - 2.0 * kDegree);
+    EXPECT_LT(slopes.back(), (options.slipFaceAngleDegrees * terraingen::kDegree) + 6.0 * kDegree);
 }
 
 TEST(DuneLayer, LinearCrestsRunAlongTheWind) {
@@ -177,7 +182,7 @@ TEST(DuneLayer, LinearCrestsRunAlongTheWind) {
     options.shape = DuneShape::Linear;
     options.sinuosity = 0.0;
     options.defects = 0.0;
-    options.windAzimuth = 0.0;
+    options.windAzimuthDegrees = 0.0 * terraingen::kRadian;
     const DuneLayer layer(options);
     EXPECT_NEAR(layer.DuneHeightAt(-800.0, 75.0), layer.DuneHeightAt(1300.0, 75.0), 1e-9);
     double top = 0.0;
@@ -198,7 +203,7 @@ TEST(DuneLayer, RipplesLieOnDuneSandAndForkWithoutSeams) {
     options.ripples = terraingen::MarsDuneRipples();
     options.ripples.defectDensity = 0.2;
     const auto layer = std::make_shared<DuneLayer>(options);
-    const Vec2d peak = Peak(*layer, options.spacing, 50.0);
+    const Vec2d peak = Peak(*layer, options.latticeSpacing, 50.0);
     const Vec2d stoss{peak.x - 60.0, peak.y};
     double low = 1e9;
     double high = -1e9;
@@ -232,7 +237,7 @@ TEST(DuneLayer, RipplesLieOnDuneSandAndForkWithoutSeams) {
 
 TEST(DuneLayer, GridsAndPointsAgreeAndCoarseSpacingsFadeTheDunesOut) {
     DuneOptions options = OneBarchan();
-    options.spacing = 500.0;
+    options.latticeSpacing = 500.0;
     options.ripples = terraingen::MarsDuneRipples();
     const DuneLayer layer(options);
     const terraingen::RasterGrid grid{64, 48, terraingen::GeoTransform::NorthUp(-40.0, 300.0, 0.5)};
@@ -271,11 +276,13 @@ TEST(DuneLayer, RejectsBadOptions) {
         change(options);
         EXPECT_THROW(DuneLayer{options}, std::invalid_argument);
     };
-    rejects([](DuneOptions& o) { o.slipFaceAngle = 0.0; });
-    rejects([](DuneOptions& o) { o.slipFaceAngle = 2.0; });
-    rejects([](DuneOptions& o) { o.stossSlope = o.slipFaceAngle; });
+    rejects([](DuneOptions& o) { o.slipFaceAngleDegrees = 0.0 * terraingen::kRadian; });
+    rejects([](DuneOptions& o) { o.slipFaceAngleDegrees = 2.0 * terraingen::kRadian; });
+    rejects([](DuneOptions& o) {
+        o.stossSlopeDegrees = (o.slipFaceAngleDegrees * terraingen::kDegree) * terraingen::kRadian;
+    });
     rejects([](DuneOptions& o) { o.width = 0.0; });
-    rejects([](DuneOptions& o) { o.spacing = -1.0; });
+    rejects([](DuneOptions& o) { o.latticeSpacing = -1.0; });
     rejects([](DuneOptions& o) { o.density = 1.5; });
     rejects([](DuneOptions& o) { o.widthSpread = 1.0; });
     rejects([](DuneOptions& o) { o.defects = -0.1; });
@@ -292,8 +299,8 @@ TEST(DuneLayer, RejectsBadOptions) {
 TEST(DuneLayer, MarsPresetsCarryTheirPublishedValues) {
     const DuneOptions barchans = terraingen::MarsBarchans();
     EXPECT_EQ(barchans.shape, DuneShape::Barchan);
-    EXPECT_NEAR(barchans.slipFaceAngle, 29.0 * kDegree, 1e-12);
-    EXPECT_NEAR(barchans.stossSlope, 8.0 * kDegree, 1e-12);
+    EXPECT_NEAR((barchans.slipFaceAngleDegrees * terraingen::kDegree), 29.0 * kDegree, 1e-12);
+    EXPECT_NEAR((barchans.stossSlopeDegrees * terraingen::kDegree), 8.0 * kDegree, 1e-12);
     EXPECT_EQ(barchans.minWidth, 200.0);
     EXPECT_EQ(barchans.domeLength, 2.0);
     const DuneOptions transverse = terraingen::MarsTransverseDunes();
@@ -331,7 +338,7 @@ TEST(DuneLayer, GrainflowsCutScarpsAndLayLobesOnlyOnSlipFaces) {
     flowing.grainflows = terraingen::MarsDuneGrainflows();
     const DuneLayer without(plain);
     const DuneLayer with(flowing);
-    const double slip = std::tan(plain.slipFaceAngle);
+    const double slip = std::tan(plain.slipFaceAngleDegrees * terraingen::kDegree);
     double deepest = 0.0;
     double highest = 0.0;
     int onStoss = 0;
@@ -390,7 +397,7 @@ TEST(DuneLayer, RippleCrestsStraightenOffTheStossOnly) {
     straightened.ripples.flankStraightening = 1.0;
     const DuneLayer a(sinuous);
     const DuneLayer b(straightened);
-    const double slip = std::tan(sinuous.slipFaceAngle);
+    const double slip = std::tan(sinuous.slipFaceAngleDegrees * terraingen::kDegree);
     int leeDiffers = 0;
     for (double x = 0.0; x < 250.0; x += 0.21) {
         const double step = 0.25 * sinuous.ripples.wavelength;
@@ -462,7 +469,7 @@ TEST(DuneLayer, CrestLineDunesBreakAtTheirDefectDensity) {
         }
     }
     EXPECT_LT(*std::max_element(slopes.begin(), slopes.end()),
-              options.slipFaceAngle + 0.5 * kDegree)
+              (options.slipFaceAngleDegrees * terraingen::kDegree) + 0.5 * kDegree)
         << "breaks keep every slip face at its angle";
     EXPECT_EQ(terraingen::MarsTransverseDunes().defectDensity, 0.0027);
     EXPECT_EQ(terraingen::MarsDuneRipples().defectDensity, 0.099);

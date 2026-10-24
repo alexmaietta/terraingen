@@ -59,6 +59,10 @@ class SpectralContinuationLayer final : public Layer {
         return options_;
     }
 
+    std::optional<Surface> LayerSurface() const override {
+        return surface_;
+    }
+
   protected:
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 

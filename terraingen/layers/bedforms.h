@@ -25,9 +25,9 @@ namespace terraingen {
 struct BedformOptions {
     double wavelength = 4.0;  ///< Crest to crest (m); each field's varies from 0.8 to 1.2 times it.
     double height = 0.4;      ///< Trough to crest (m), scaled with each field's wavelength.
-    /// Where the wind blows toward, radians counter-clockwise from +x; crests lie across it.
-    double windAzimuth = 0.0;
-    double azimuthSpread = 0.0;  ///< Each field's wind differs by up to this (radians).
+    /// Where the wind blows toward, degrees counter-clockwise from +x; crests lie across it.
+    double windAzimuthDegrees = 0.0;
+    double azimuthSpreadDegrees = 0.0;  ///< Each field's wind differs by up to this.
     /// Share of a wavelength the lee face takes, in (0, 1): 0.5 is symmetric, less is steeper.
     double leeFraction = 0.5;
     double sinuosity = 0.5;    ///< How far a crest wanders along its length, in wavelengths.
@@ -47,7 +47,8 @@ struct BedformOptions {
 
     bool operator==(const BedformOptions& other) const {
         return wavelength == other.wavelength && height == other.height &&
-               windAzimuth == other.windAzimuth && azimuthSpread == other.azimuthSpread &&
+               windAzimuthDegrees == other.windAzimuthDegrees &&
+               azimuthSpreadDegrees == other.azimuthSpreadDegrees &&
                leeFraction == other.leeFraction && sinuosity == other.sinuosity &&
                cover == other.cover && fieldSize == other.fieldSize && seed == other.seed &&
                exposure == other.exposure && exposureSpacing == other.exposureSpacing &&

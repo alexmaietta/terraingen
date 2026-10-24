@@ -90,7 +90,7 @@ TEST(BoulderLayerStatistics, ClustersKeepTheCountOfADistribution) {
     options.sizes.distribution = distribution;
     options.sizes.minDiameter = 0.2;
     options.clusters.share = 0.7;
-    options.clusters.spacing = 30.0;
+    options.clusters.centerSpacing = 30.0;
     options.clusters.radius = 4.0;
     const BoulderLayer layer(options);
     const terraingen::Bounds2d region{-150.0, -150.0, 150.0, 150.0};

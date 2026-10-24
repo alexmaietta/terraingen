@@ -104,7 +104,7 @@ double BarchanAt(double x, double y, const Dune& dune, const DuneOptions& option
     const double bend = options.hornLength * dune.height / (half * half);
     const double brink = bend * y * y;
     if (x <= brink) {
-        const double stoss = dune.height / std::tan(options.stossSlope);
+        const double stoss = dune.height / std::tan(options.stossSlopeDegrees * kDegree);
         return crest * Bump((brink - x) / stoss, options.stossExponent);
     }
     double t = y;
@@ -118,8 +118,8 @@ double BarchanAt(double x, double y, const Dune& dune, const DuneOptions& option
     }
     const double tau = t / half;
     const double distance = std::hypot(x - bend * t * t, y - t);
-    return std::max(0.0,
-                    dune.height * (1.0 - tau * tau) - std::tan(options.slipFaceAngle) * distance);
+    return std::max(0.0, dune.height * (1.0 - tau * tau) -
+                             std::tan(options.slipFaceAngleDegrees * kDegree) * distance);
 }
 
 /// The height of a dome at (x, y) about its center in its wind frame.
@@ -133,8 +133,9 @@ double DomeAt(double x, double y, const Dune& dune, const DuneOptions& options) 
 double Reach(double width, const DuneOptions& options) {
     const double height = options.heightRatio * width;
     const double barchan = std::max(
-        {height / std::tan(options.stossSlope),
-         options.hornLength * height + height / std::tan(options.slipFaceAngle), 0.5 * width});
+        {height / std::tan(options.stossSlopeDegrees * kDegree),
+         options.hornLength * height + height / std::tan(options.slipFaceAngleDegrees * kDegree),
+         0.5 * width});
     const double dome = 0.5 * width * std::max(1.0, options.domeLength);
     return std::max(barchan, dome);
 }
@@ -150,9 +151,12 @@ double RippleProfile(double t, double lee) {
 /// @throws std::invalid_argument unless the slip face and flank are in (0, 90) deg and the stoss
 /// slope is positive and below the slip face.
 void ValidateDuneSlopes(const DuneOptions& options) {
-    if (!(options.slipFaceAngle > 0.0 && options.slipFaceAngle < kHalfPi &&
-          options.stossSlope > 0.0 && options.stossSlope < options.slipFaceAngle &&
-          options.flankSlope > 0.0 && options.flankSlope < kHalfPi)) {
+    if (!((options.slipFaceAngleDegrees * kDegree) > 0.0 &&
+          (options.slipFaceAngleDegrees * kDegree) < kHalfPi &&
+          (options.stossSlopeDegrees * kDegree) > 0.0 &&
+          (options.stossSlopeDegrees * kDegree) < (options.slipFaceAngleDegrees * kDegree) &&
+          (options.flankSlopeDegrees * kDegree) > 0.0 &&
+          (options.flankSlopeDegrees * kDegree) < kHalfPi)) {
         throw std::invalid_argument(
             "Dune slopes must be positive and below 90 deg, the stoss below the slip face");
     }
@@ -163,7 +167,7 @@ void ValidateDuneSlopes(const DuneOptions& options) {
 void ValidateDuneSizes(const DuneOptions& options) {
     RequirePositive(options.stossExponent, "Dune stossExponent");
     RequirePositive(options.domeExponent, "Dune domeExponent");
-    RequirePositive(options.spacing, "Dune spacing");
+    RequirePositive(options.latticeSpacing, "Dune spacing");
     RequirePositive(options.width, "Dune width");
     RequireNonNegative(options.minWidth, "Dune minWidth");
     RequirePositive(options.heightRatio, "Dune heightRatio");
@@ -177,9 +181,9 @@ void ValidateDuneSizes(const DuneOptions& options) {
         throw std::invalid_argument("Dune widthSpread must be in [0, 1)");
     }
     RequireNonNegative(options.sinuosity, "Dune sinuosity");
-    RequireNonNegative(options.azimuthSpread, "Dune azimuthSpread");
+    RequireNonNegative((options.azimuthSpreadDegrees * kDegree), "Dune azimuthSpread");
     RequireNonNegative(options.defectDensity, "Dune defectDensity");
-    RequireFinite(options.windAzimuth, "Dune windAzimuth");
+    RequireFinite((options.windAzimuthDegrees * kDegree), "Dune windAzimuth");
     RequireFinite(options.anchor.x, "Dune anchor x");
     RequireFinite(options.anchor.y, "Dune anchor y");
 }
@@ -278,12 +282,12 @@ DuneGrainflows MarsDuneGrainflows() {
 DuneOptions MarsBarchans() {
     DuneOptions dunes;
     dunes.shape = DuneShape::Barchan;
-    dunes.slipFaceAngle = 29.0 * kDegree;
-    dunes.stossSlope = 8.0 * kDegree;
+    dunes.slipFaceAngleDegrees = 29.0;
+    dunes.stossSlopeDegrees = 8.0;
     dunes.width = 370.0;
     dunes.minWidth = 200.0;
     dunes.domeLength = 2.0;
-    dunes.spacing = 900.0;
+    dunes.latticeSpacing = 900.0;
     dunes.density = 0.5;
     dunes.ripples = MarsDuneRipples();
     return dunes;
@@ -292,8 +296,8 @@ DuneOptions MarsBarchans() {
 DuneOptions MarsTransverseDunes() {
     DuneOptions dunes;
     dunes.shape = DuneShape::Transverse;
-    dunes.slipFaceAngle = 29.0 * kDegree;
-    dunes.stossSlope = 8.0 * kDegree;
+    dunes.slipFaceAngleDegrees = 29.0;
+    dunes.stossSlopeDegrees = 8.0;
     dunes.wavelength = 248.0;
     dunes.height = 28.0;
     dunes.defectDensity = 0.0027;
@@ -305,9 +309,11 @@ DuneLayer::DuneLayer(DuneOptions options, Surface surface, std::shared_ptr<const
     : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
     ValidateDuneOptions(options_);
     limit_ = LayerResolvedLimit(source, options_.sourceResolvesPixels, surface);
-    wind_ = {std::cos(options_.windAzimuth), std::sin(options_.windAzimuth)};
+    wind_ = {std::cos(options_.windAzimuthDegrees * kDegree),
+             std::sin(options_.windAzimuthDegrees * kDegree)};
     const double widest = options_.width * (1.0 + options_.widthSpread);
-    rings_ = static_cast<std::int64_t>(std::ceil(Reach(widest, options_) / options_.spacing));
+    rings_ =
+        static_cast<std::int64_t>(std::ceil(Reach(widest, options_) / options_.latticeSpacing));
     defectSeed_ = SubstreamSeed(options_.seed, kDuneDefectStream);
     wanderSeed_ = SubstreamSeed(options_.seed, kRippleWanderStream);
     kinkSeed_ = SubstreamSeed(options_.seed, kRippleKinkStream);
@@ -316,7 +322,7 @@ DuneLayer::DuneLayer(DuneOptions options, Surface surface, std::shared_ptr<const
 
 double DuneLayer::Barchans(const Vec2d& q) const {
     double highest = 0.0;
-    ForEachLatticeCell(q, {options_.spacing, options_.spacing}, rings_,
+    ForEachLatticeCell(q, {options_.latticeSpacing, options_.latticeSpacing}, rings_,
                        [&](std::int64_t gx, std::int64_t gy) {
                            RandomStream random = LatticeStream(options_.seed, kDuneStream, gx, gy);
                            if (random.NextDouble() >= options_.density) {
@@ -329,13 +335,14 @@ double DuneLayer::Barchans(const Vec2d& q) const {
 
 double DuneLayer::BarchanCell(RandomStream& random, std::int64_t gx, std::int64_t gy,
                               const Vec2d& q) const {
-    const double cx = (static_cast<double>(gx) + random.NextDouble()) * options_.spacing;
-    const double cy = (static_cast<double>(gy) + random.NextDouble()) * options_.spacing;
+    const double cx = (static_cast<double>(gx) + random.NextDouble()) * options_.latticeSpacing;
+    const double cy = (static_cast<double>(gy) + random.NextDouble()) * options_.latticeSpacing;
     Dune dune;
     dune.width = options_.width * (1.0 + options_.widthSpread * (2.0 * random.NextDouble() - 1.0));
     dune.height = options_.heightRatio * dune.width;
     const double azimuth =
-        options_.windAzimuth + options_.azimuthSpread * (2.0 * random.NextDouble() - 1.0);
+        (options_.windAzimuthDegrees * kDegree) +
+        (options_.azimuthSpreadDegrees * kDegree) * (2.0 * random.NextDouble() - 1.0);
     dune.barchan = options_.shape == DuneShape::Dome
                        ? 0.0
                        : Smoothstep((dune.width - options_.minWidth) /
@@ -396,13 +403,13 @@ double DuneLayer::Crests(const Vec2d& q) const {
 double DuneLayer::CrestProfile(double u, double height, double stretch) const {
     const double lambda = options_.wavelength;
     if (options_.shape == DuneShape::Linear) {
-        const double flank =
-            std::min(0.5, height * stretch / (std::tan(options_.flankSlope) * lambda));
+        const double flank = std::min(
+            0.5, height * stretch / (std::tan(options_.flankSlopeDegrees * kDegree) * lambda));
         const double offset = std::fabs(u - 0.5);
         return offset >= flank ? 0.0 : height * Bump(offset / flank, 2.0);
     }
-    const double leeSlope = std::tan(options_.slipFaceAngle);
-    const double stossSlope = std::tan(options_.stossSlope);
+    const double leeSlope = std::tan(options_.slipFaceAngleDegrees * kDegree);
+    const double stossSlope = std::tan(options_.stossSlopeDegrees * kDegree);
     const double tallest = options_.height * stretch / lambda;
     const double brink = std::min(1.0 - std::min(1.0, tallest / leeSlope), tallest / stossSlope);
     const double stoss = std::min(brink, height * stretch / (stossSlope * lambda));
@@ -451,7 +458,7 @@ double DuneLayer::SlipFaceWeight(const Vec2d& g) const {
     }
     const double facing = -(g.x * wind_.x + g.y * wind_.y) / grade;
     return Smoothstep(2.0 * facing) *
-           Smoothstep(2.0 * grade / std::tan(options_.slipFaceAngle) - 1.0);
+           Smoothstep(2.0 * grade / std::tan(options_.slipFaceAngleDegrees * kDegree) - 1.0);
 }
 
 double DuneLayer::Grainflows(const Vec2d& q, double face) const {
@@ -519,7 +526,8 @@ double DuneLayer::Ripples(const Vec2d& q, double dune) const {
         const double stoss =
             grade > 0.0 ? std::max(0.0, (gx * wind_.x + gy * wind_.y) / grade) : 1.0;
         sinuosity *= 1.0 - ripples.flankStraightening *
-                               Smoothstep(grade / std::tan(options_.stossSlope)) * (1.0 - stoss);
+                               Smoothstep(grade / std::tan(options_.stossSlopeDegrees * kDegree)) *
+                               (1.0 - stoss);
     }
     double core = 1.0;
     const double psi = (q.x * wind_.x + q.y * wind_.y - ripples.slopeCoupling * dune) / lambda +
@@ -529,7 +537,7 @@ double DuneLayer::Ripples(const Vec2d& q, double dune) const {
     const double fading =
         1.0 - kRippleFading * (0.5 + 0.5 * Noise(q, kRippleFadeScale * lambda, fadeSeed_));
     const double sand = SandDepth(dune);
-    const double steep = std::hypot(gx, gy) / std::tan(options_.slipFaceAngle);
+    const double steep = std::hypot(gx, gy) / std::tan(options_.slipFaceAngleDegrees * kDegree);
     const double avalanche = 1.0 - (1.0 - kSlipFaceRipples) * Smoothstep(2.0 * steep - 1.0);
     const double share =
         (ripples.interduneCover + (1.0 - ripples.interduneCover) * sand) * avalanche;

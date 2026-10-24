@@ -43,7 +43,7 @@ terraingen::BoulderLayerOptions Models() {
     terraingen::BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.minDiameter = 1.0;
     options.sizes.coverage = 0.3;
-    options.rendering.models.minDiameter = 1.0;
+    options.rendering.modelThreshold.minDiameter = 1.0;
     return options;
 }
 

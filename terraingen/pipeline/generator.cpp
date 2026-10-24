@@ -16,6 +16,7 @@
 #include <mutex>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -237,6 +238,36 @@ void ValidateGenerator(const TerrainGenerator& generator) {
                     [](const auto& l) { return !l; })) {
         throw std::invalid_argument("A terrain's layers must not be null");
     }
+    for (std::size_t i = 0; i < generator.layers.size(); ++i) {
+        const Layer& layer = *generator.layers[i];
+        const std::optional<Surface> surface = layer.LayerSurface();
+        if (surface && !(*surface == generator.surface)) {
+            throw std::invalid_argument("Layer " + std::to_string(i) +
+                                        " was built for another surface than the terrain's");
+        }
+        for (const Layer* dependency : layer.Dependencies()) {
+            const auto before = generator.layers.begin() + static_cast<std::ptrdiff_t>(i);
+            if (std::none_of(generator.layers.begin(), before,
+                             [dependency](const auto& l) { return l.get() == dependency; })) {
+                throw std::invalid_argument(
+                    "Layer " + std::to_string(i) +
+                    " reads a layer that does not come before it in the terrain's layers");
+            }
+        }
+    }
+}
+
+GeoKeys TerrainGeoKeys(const TerrainGenerator& generator) {
+    GeoKeys keys = generator.source ? generator.source->Keys() : GeoKeys{};
+    if (generator.surface.IsBody() && keys.Empty()) {
+        keys = GeographicSphereKeys(generator.surface.Radius());
+    }
+    return keys;
+}
+
+void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
+                  const TerrainGenerator& generator) {
+    WriteGeoTiff(path, raster, TerrainGeoKeys(generator));
 }
 
 std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d> points,

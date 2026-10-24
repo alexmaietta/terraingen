@@ -14,25 +14,25 @@
 
 namespace terraingen {
 
-/// The sand shadows a `SandShadowLayer` lays behind boulders. Angles are in radians.
+/// The sand shadows a `SandShadowLayer` lays behind boulders. Angles are in degrees.
 struct SandShadowOptions {
-    /// Where the wind blows toward, radians counter-clockwise from +x (local east on a body).
-    double windAzimuth = 0.0;
+    /// Where the wind blows toward, degrees counter-clockwise from +x (local east on a body).
+    double windAzimuthDegrees = 0.0;
     /// Length of a shadow beyond the boulder over the boulder's width. 1.1 is the reattachment
     /// length behind a dome (Savory and Toy 1986, after Hesp and Smyth 2017); their modeled
     /// shadow dunes run 1.3 to 5.6 widths, longer in lighter winds.
     double lengthRatio = 1.1;
     /// Slope of a shadow's flanks, below 90 deg; at most the angle of repose, about 32 deg for dry
     /// medium sand (Hesp 1981).
-    double flankAngle = 0.5585053606381855;
+    double flankAngleDegrees = 32.0;
     double minDiameter = 0.0;  ///< Smallest boulder (m) with a shadow.
     /// Sand depth (m) that fully covers the ground in the material map.
     double coverThickness = 0.02;
     ResolutionFade fade{};  ///< Fade of shadows behind boulders too small for the spacing.
 
     bool operator==(const SandShadowOptions& other) const {
-        return windAzimuth == other.windAzimuth && lengthRatio == other.lengthRatio &&
-               flankAngle == other.flankAngle && minDiameter == other.minDiameter &&
+        return windAzimuthDegrees == other.windAzimuthDegrees && lengthRatio == other.lengthRatio &&
+               flankAngleDegrees == other.flankAngleDegrees && minDiameter == other.minDiameter &&
                coverThickness == other.coverThickness && fade == other.fade;
     }
 };
@@ -61,6 +61,15 @@ class SandShadowLayer final : public Layer, public MaterialSource {
     /// The options the layer was made with.
     const SandShadowOptions& Options() const {
         return options_;
+    }
+
+    std::optional<Surface> LayerSurface() const override {
+        return surface_;
+    }
+
+    /// The boulder layer the shadows trail, which must come before this layer.
+    std::vector<const Layer*> Dependencies() const override {
+        return {boulders_.get()};
     }
 
     MaterialClass Material() const override {

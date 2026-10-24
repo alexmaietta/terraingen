@@ -132,10 +132,10 @@ TEST(StrataLayer, BedThicknessesVaryWithinTheirBounds) {
 
 TEST(StrataLayer, BedsDipTowardTheirAzimuth) {
     StrataOptions options;
-    options.dip = 10.0 * kDegree;
-    options.dipAzimuth = 0.5 * terraingen::kPi;
+    options.dipDegrees = 10.0;
+    options.dipAzimuthDegrees = (0.5 * terraingen::kPi) * terraingen::kRadian;
     const StrataLayer layer(options);
-    const double drop = std::tan(options.dip) * 7.0;
+    const double drop = std::tan(options.dipDegrees * terraingen::kDegree) * 7.0;
     const double here = Terraced(layer, 3.3, 2.0, 1.0) - 3.3;
     EXPECT_NEAR(here, Terraced(layer, 3.3 - drop, 2.0, 8.0) - (3.3 - drop), 1e-5);
     EXPECT_NEAR(here, Terraced(layer, 3.3, 9.0, 1.0) - 3.3, 1e-6) << "level along the strike";
@@ -162,8 +162,8 @@ TEST(StrataLayer, CliffsAreBedrockAndBenchesAreNot) {
 
 TEST(StrataLayer, GridsAndPointsAgree) {
     StrataOptions options;
-    options.dip = 3.0 * kDegree;
-    options.dipAzimuth = 1.1;
+    options.dipDegrees = 3.0;
+    options.dipAzimuthDegrees = 1.1 * terraingen::kRadian;
     const StrataLayer layer(options);
     const terraingen::RasterGrid grid{40, 30, terraingen::GeoTransform::NorthUp(-10.0, 20.0, 0.5)};
     terraingen::Raster<float> heights = grid.MakeRaster();
@@ -187,7 +187,7 @@ TEST(StrataLayer, GridsAndPointsAgree) {
 TEST(StrataLayer, DipsInTheAnchorsFrameOnABody) {
     const terraingen::Surface mars = terraingen::Surface::Sphere(3389500.0);
     StrataOptions options;
-    options.dip = 5.0 * kDegree;
+    options.dipDegrees = 5.0;
     options.anchor = {137.4, -4.6};
     const StrataLayer body(options, mars);
     const StrataLayer plane(options);
@@ -207,12 +207,12 @@ TEST(StrataLayer, RejectsBadOptions) {
     rejects([](StrataOptions& o) { o.bedThickness = 0.0; });
     rejects([](StrataOptions& o) { o.thicknessVariation = 1.0; });
     rejects([](StrataOptions& o) { o.thicknessVariation = -0.1; });
-    rejects([](StrataOptions& o) { o.dip = 0.5 * terraingen::kPi; });
+    rejects([](StrataOptions& o) { o.dipDegrees = (0.5 * terraingen::kPi) * terraingen::kRadian; });
     rejects([](StrataOptions& o) { o.sharpness = 0.9; });
     rejects([](StrataOptions& o) { o.sharpness = std::numeric_limits<double>::infinity(); });
     rejects([](StrataOptions& o) { o.strength = 1.1; });
     rejects([](StrataOptions& o) { o.cliffShare = 0.0; });
-    rejects([](StrataOptions& o) { o.dipAzimuth = kNaN; });
+    rejects([](StrataOptions& o) { o.dipAzimuthDegrees = (kNaN)*terraingen::kRadian; });
     rejects([](StrataOptions& o) { o.anchor = {kNaN, 0.0}; });
     rejects([](StrataOptions& o) { o.hardShare = 1.5; });
     rejects([](StrataOptions& o) { o.softSharpness = 0.5; });

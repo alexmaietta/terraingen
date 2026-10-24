@@ -17,7 +17,7 @@
 
 namespace terraingen {
 
-/// The plates and cracks of a `PavementLayer`. Lengths are in meters, angles in radians.
+/// The plates and cracks of a `PavementLayer`. Lengths are in meters, angles in degrees.
 struct PavementOptions {
     double plateSize = 1.0;      ///< Mean plate width: the spacing of the plates' Voronoi sites.
     double jitter = 1.0;         ///< How far sites stray from a square lattice, in [0, 1].
@@ -26,8 +26,8 @@ struct PavementOptions {
     double crackDepth = 0.05;    ///< Depth of a crack, or height of a ridge with `raised`.
     bool raised = false;         ///< Whether plates are parted by raised ridges, not cracks.
     double edgeRounding = 0.02;  ///< Width of the rounded shoulder beside each crack.
-    double maxTilt = 0.05;       ///< Largest tilt of a plate.
-    double maxStep = 0.03;       ///< Largest height offset of a plate, up or down.
+    double maxTiltDegrees = 0.05 * kRadian;  ///< Largest tilt of a plate.
+    double maxStep = 0.03;                   ///< Largest height offset of a plate, up or down.
     /// Crack octaves: each finer octave splits the plates again into plates `lacunarity` times
     /// smaller, with cracks, rounding, tilts and steps `gain` times the octave before.
     int octaves = 1;
@@ -46,10 +46,11 @@ struct PavementOptions {
         return plateSize == other.plateSize && jitter == other.jitter && warp == other.warp &&
                crackWidth == other.crackWidth && crackDepth == other.crackDepth &&
                raised == other.raised && edgeRounding == other.edgeRounding &&
-               maxTilt == other.maxTilt && maxStep == other.maxStep && octaves == other.octaves &&
-               lacunarity == other.lacunarity && gain == other.gain && seed == other.seed &&
-               exposure == other.exposure && exposureSpacing == other.exposureSpacing &&
-               anchor == other.anchor && fade == other.fade;
+               maxTiltDegrees == other.maxTiltDegrees && maxStep == other.maxStep &&
+               octaves == other.octaves && lacunarity == other.lacunarity && gain == other.gain &&
+               seed == other.seed && exposure == other.exposure &&
+               exposureSpacing == other.exposureSpacing && anchor == other.anchor &&
+               fade == other.fade;
     }
 };
 

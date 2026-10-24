@@ -32,9 +32,9 @@ struct CraterSlopeResponse {
     /// the squared cosine of the angle from upslope falls, all of it across the slope and
     /// downslope.
     double upslopeRim = 0.0;
-    /// Slope (radians) at which the asymmetry is complete, rising from none on level ground along
+    /// Slope (degrees) at which the asymmetry is complete, rising from none on level ground along
     /// a smoothstep; 5 degrees, the "few degrees" of Plescia et al. (2019).
-    double fullSlope = 0.08726646259971647;
+    double fullSlopeDegrees = 5.0;
     /// The critical gradient Sc (rise over run): a crater on a regional gradient S wears
     /// 1 / (1 - (S / Sc)^2) times as fast (Roering et al. 1999,
     /// https://doi.org/10.1029/1998WR900090); unset wears craters alike on any slope. Applies
@@ -48,8 +48,8 @@ struct CraterSlopeResponse {
     bool operator==(const CraterSlopeResponse& other) const {
         return asymmetric == other.asymmetric && seed == other.seed &&
                floorOffset == other.floorOffset && upslopeRim == other.upslopeRim &&
-               fullSlope == other.fullSlope && criticalGradient == other.criticalGradient &&
-               maxWearRate == other.maxWearRate;
+               fullSlopeDegrees == other.fullSlopeDegrees &&
+               criticalGradient == other.criticalGradient && maxWearRate == other.maxWearRate;
     }
     bool operator!=(const CraterSlopeResponse& other) const {
         return !(*this == other);

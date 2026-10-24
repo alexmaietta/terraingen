@@ -77,6 +77,15 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
         return options_;
     }
 
+    std::optional<Surface> LayerSurface() const override {
+        return apply_.surface;
+    }
+
+    /// The primaries, which must come before this layer.
+    std::vector<const Layer*> Dependencies() const override {
+        return {primaries_.get()};
+    }
+
   protected:
     /// Applies the secondaries reaching the samples.
     /// @throws std::invalid_argument if more than `maxExpected` secondaries are expected.

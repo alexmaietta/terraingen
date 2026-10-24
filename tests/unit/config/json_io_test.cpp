@@ -45,7 +45,7 @@ TerrainGenConfig Everything() {
     terraingen::PavementOptions plates;
     plates.plateSize = 0.8;
     plates.crackWidth = 0.03;
-    plates.maxTilt = 0.05;
+    plates.maxTiltDegrees = 0.05 * terraingen::kRadian;
     plates.octaves = 3;
     plates.lacunarity = 2.5;
     plates.gain = 0.6;
@@ -102,8 +102,8 @@ TerrainGenConfig Everything() {
     irregularity.elongatedShare = 0.1;
     irregularity.ellipticity = {terraingen::ValueDistribution::Kind::LogNormal, 1.2, 0.1, 1.0,
                                 2.23};
-    irregularity.heading = 0.3;
-    irregularity.headingSpread = 10.0 * terraingen::kDegree;
+    irregularity.headingDegrees = 0.3 * terraingen::kRadian;
+    irregularity.headingSpreadDegrees = 10.0;
     craters.apply.rimSmoothing.sigmaRadii = 0.1;
     craters.apply.rimSmoothing.strength = 0.5;
     craters.apply.noise.amplitude = 0.01;
@@ -121,7 +121,7 @@ TerrainGenConfig Everything() {
     craters.apply.slope.seed = 6;
     craters.apply.slope.floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1};
     craters.apply.slope.upslopeRim = 0.2;
-    craters.apply.slope.fullSlope = 6.0 * terraingen::kDegree;
+    craters.apply.slope.fullSlopeDegrees = 6.0;
     craters.apply.slope.criticalGradient = 0.7;
     craters.apply.slope.maxWearRate = 5.0;
     terraingen::DensityMapSpec craterMap;
@@ -170,18 +170,18 @@ TerrainGenConfig Everything() {
     options.pose.maxHeightRatio = 0.7;
     options.pose.minBurial = 0.0;
     options.pose.maxBurial = 0.5;
-    options.pose.maxLean = 6.0 * terraingen::kDegree;
-    options.pose.maxSlope = 0.6;
+    options.pose.maxLeanDegrees = 6.0;
+    options.pose.maxSlopeDegrees = 0.6 * terraingen::kRadian;
     options.pose.rollDistance = 25.0;
     options.ventifacts.share = 0.39;
-    options.ventifacts.windAzimuth = 0.8;
-    options.ventifacts.minAngle = 0.9;
-    options.ventifacts.maxAngle = 1.0;
-    options.ventifacts.secondWindAzimuth = 4.0;
+    options.ventifacts.windAzimuthDegrees = 0.8 * terraingen::kRadian;
+    options.ventifacts.minAngleDegrees = 0.9 * terraingen::kRadian;
+    options.ventifacts.maxAngleDegrees = 1.0 * terraingen::kRadian;
+    options.ventifacts.secondWindAzimuthDegrees = 4.0 * terraingen::kRadian;
     options.ventifacts.keelShare = 0.3;
     options.rendering.relief = terraingen::BoulderRelief::Shape;
-    options.rendering.models.minDiameter = 2.0;
-    options.rendering.models.minSamples = 6.0;
+    options.rendering.modelThreshold.minDiameter = 2.0;
+    options.rendering.modelThreshold.minSamples = 6.0;
     terraingen::BoulderStyle slab;
     slab.name = "slab";
     slab.weight = 2.0;
@@ -529,7 +529,7 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     craters.options.rays.count = {terraingen::ValueDistribution::Kind::Uniform, 4.0, 9.0};
     craters.options.retention.largeMyr = 2000.0;
     craters.options.fadeExponent = 2.0;
-    craters.options.rays.oblique.heading = 1.2;
+    craters.options.rays.oblique.headingDegrees = 1.2 * terraingen::kRadian;
     craters.options.rays.oblique.zoneHalfWidthDegrees = 30.0;
     craters.options.rays.oblique.downrangeSpeedRatio = {
         terraingen::ValueDistribution::Kind::Constant, 1.3};
@@ -849,6 +849,10 @@ TEST(LoadConfig, ReadsFilesAndReportsUnreadableOnes) {
         file << ConfigToJson(Everything());
     }
     EXPECT_EQ(LoadConfig(path), Everything());
+    const TerrainGenConfig loaded = LoadConfig(path);
+    EXPECT_EQ(loaded.directory, path.parent_path()) << "relative paths resolve against it";
+    EXPECT_EQ(terraingen::ConfigDirectory(loaded, {}), path.parent_path());
+    EXPECT_EQ(terraingen::ConfigDirectory(loaded, "elsewhere"), "elsewhere");
     std::filesystem::remove(path);
     EXPECT_THROW(LoadConfig(path), ConfigError);
 }

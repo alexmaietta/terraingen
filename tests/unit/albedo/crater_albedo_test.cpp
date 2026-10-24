@@ -41,7 +41,8 @@ std::shared_ptr<const terraingen::CraterLayer> Craters(const std::vector<Crater>
         options.apply.irregularity.selection.manual = true;
         options.apply.irregularity.elongatedShare = 1.0;
         options.apply.irregularity.ellipticity = {ValueDistribution::Kind::Constant, 1.5};
-        options.apply.irregularity.heading = 0.0;
+        options.apply.irregularity.headingDegrees = 0.0;
+        options.apply.irregularity.seed = 0u;
     }
     return std::make_shared<terraingen::CraterLayer>(
         terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
@@ -386,7 +387,7 @@ TEST(CraterAlbedo, ObliqueImpactsLengthenRaysDownrangeAndClearThemUprange) {
     options.rays.count = {ValueDistribution::Kind::Constant, 64.0};
     options.rays.widthDegrees = {ValueDistribution::Kind::Constant, 6.0};
     options.rays.lengthSpread = {ValueDistribution::Kind::Constant, 0.0};
-    options.rays.oblique.heading = 0.0;
+    options.rays.oblique.headingDegrees = 0.0;
     double downrange = 0.0;
     double uprange = 0.0;
     int forbiddenCraters = 0;
@@ -433,7 +434,7 @@ TEST(ObliqueImpacts, RejectsInvalidSettings) {
     rejects([](auto& o) { o.butterflyDegrees = 30.0; });
     rejects([](auto& o) { o.asymmetricDegrees = 95.0; });
     rejects([](auto& o) { o.zoneHalfWidthDegrees = 200.0; });
-    rejects([](auto& o) { o.heading = NAN; });
+    rejects([](auto& o) { o.headingDegrees = NAN; });
     terraingen::ObliqueImpacts off;
     off.enabled = false;
     EXPECT_EQ(off.MaxStretch(), 1.0);

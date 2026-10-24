@@ -62,6 +62,12 @@ void WriteScene(const std::filesystem::path& path, const std::vector<SceneMesh>&
 /// @throws std::invalid_argument and std::runtime_error as `WriteScene`.
 void WriteMesh(const std::filesystem::path& path, const SceneMesh& mesh);
 
+/// Writes `mesh` alone, without normals and with the default material.
+/// @throws std::invalid_argument and std::runtime_error as `WriteScene`.
+inline void WriteMesh(const std::filesystem::path& path, const TriangleMesh& mesh) {
+    WriteMesh(path, SceneMesh{mesh, {}, {}});
+}
+
 /// Reads every triangle of an .obj (polygons triangulated), a .gltf or .glb (every triangle
 /// primitive of the default scene, with its nodes' transforms), a binary or ASCII .stl, or an ICQ
 /// shape model in kilometers (.icq, as `ReadIcq` and `IcqToMesh`), in meters and z-up, with the

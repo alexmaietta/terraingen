@@ -269,7 +269,7 @@ std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, do
         return boulders;
     }
     const BoulderPose& pose = options_.pose;
-    const std::size_t each = pose.followSlope || pose.maxSlope.has_value() ? 5 : 1;
+    const std::size_t each = pose.followSlope || pose.maxSlopeDegrees.has_value() ? 5 : 1;
     std::vector<Vec2d> points;
     points.reserve(thinned.size() * each);
     for (const ThinnedCandidate& one : thinned) {

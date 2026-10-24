@@ -14,10 +14,11 @@
 namespace terraingen {
 
 void ValidateSandShadowOptions(const SandShadowOptions& options) {
-    RequireFinite(options.windAzimuth, "Sand shadow windAzimuth");
+    RequireFinite((options.windAzimuthDegrees * kDegree), "Sand shadow windAzimuthDegrees");
     RequirePositive(options.lengthRatio, "Sand shadow lengthRatio");
-    if (!(options.flankAngle > 0.0 && options.flankAngle < 0.5 * kPi)) {
-        throw std::invalid_argument("Sand shadow flankAngle must be in (0, 90) deg");
+    if (!((options.flankAngleDegrees * kDegree) > 0.0 &&
+          (options.flankAngleDegrees * kDegree) < 0.5 * kPi)) {
+        throw std::invalid_argument("Sand shadow flankAngleDegrees must be in (0, 90) deg");
     }
     RequireNonNegative(options.minDiameter, "Sand shadow minDiameter");
     RequirePositive(options.coverThickness, "Sand shadow coverThickness");
@@ -31,8 +32,9 @@ SandShadowLayer::SandShadowLayer(std::shared_ptr<const BoulderLayer> boulders,
     if (!boulders_) {
         throw std::invalid_argument("Sand shadows need a boulder layer");
     }
-    downwind_ = {std::cos(options_.windAzimuth), std::sin(options_.windAzimuth)};
-    flankSlope_ = std::tan(options_.flankAngle);
+    downwind_ = {std::cos(options_.windAzimuthDegrees * kDegree),
+                 std::sin(options_.windAzimuthDegrees * kDegree)};
+    flankSlope_ = std::tan(options_.flankAngleDegrees * kDegree);
 }
 
 std::vector<SandShadowLayer::Shadow>

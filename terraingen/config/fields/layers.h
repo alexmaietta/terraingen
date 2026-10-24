@@ -195,15 +195,15 @@ template <> struct SpecName<DuneLayerSpec> {
 /// The fields of every dune's shape and the wind that shapes it.
 template <typename IO> void DuneProfileFields(IO& io, DuneOptions& dunes) {
     io("shape", dunes.shape, "The kind of dune.");
-    RadianField(io, "wind_azimuth_deg", dunes.windAzimuth,
+    DegreeField(io, "wind_azimuth_deg", dunes.windAzimuthDegrees,
                 WindAzimuthHelp("wind", "slip faces face it"));
-    RadianField(io, "azimuth_spread_deg", dunes.azimuthSpread,
+    DegreeField(io, "azimuth_spread_deg", dunes.azimuthSpreadDegrees,
                 "Largest difference of each barchan or dome's wind from the azimuth, in degrees.",
                 AtLeast(0.0));
-    RadianField(io, "slip_face_angle_deg", dunes.slipFaceAngle,
+    DegreeField(io, "slip_face_angle_deg", dunes.slipFaceAngleDegrees,
                 "Slope of the lee slip faces, in degrees: the sand's angle of repose.",
                 Inside(0.0, 90.0));
-    RadianField(io, "stoss_slope_deg", dunes.stossSlope,
+    DegreeField(io, "stoss_slope_deg", dunes.stossSlopeDegrees,
                 "Mean slope of the windward faces, in degrees; below the slip face angle.",
                 Inside(0.0, 90.0));
     io("stoss_exponent", dunes.stossExponent,
@@ -215,7 +215,7 @@ template <typename IO> void DuneProfileFields(IO& io, DuneOptions& dunes) {
 
 /// The fields of isolated barchans and domes, one per lattice cell at most.
 template <typename IO> void DuneLatticeFields(IO& io, DuneOptions& dunes) {
-    io("spacing", dunes.spacing,
+    io("lattice_spacing_m", dunes.latticeSpacing,
        "Barchans and domes: side of the lattice cells, each holding at most one dune, in meters.",
        "m", Above(0.0));
     io("density", dunes.density, "Barchans and domes: chance a cell holds a dune, from 0 to 1.", "",
@@ -257,7 +257,7 @@ template <typename IO> void DuneCrestFields(IO& io, DuneOptions& dunes) {
        "break into segments about 1 / defect_density long; 0 for none. Olympia Undae: 0.0027 "
        "(Ewing et al. 2010).",
        "1/m", AtLeast(0.0));
-    RadianField(io, "flank_slope_deg", dunes.flankSlope,
+    DegreeField(io, "flank_slope_deg", dunes.flankSlopeDegrees,
                 "Linear dunes: mean slope of both flanks, in degrees.", Inside(0.0, 90.0));
 }
 
@@ -305,7 +305,7 @@ template <typename IO> void Fields(IO& io, PavementOptions& pavement) {
     io("raised", pavement.raised, "Whether plates are parted by raised ridges instead of cracks.");
     io("edge_rounding", pavement.edgeRounding,
        "Width of the rounded shoulder beside each crack, in meters.", "m", AtLeast(0.0));
-    RadianField(io, "max_tilt_deg", pavement.maxTilt, "Largest tilt of a plate, in degrees.",
+    DegreeField(io, "max_tilt_deg", pavement.maxTiltDegrees, "Largest tilt of a plate, in degrees.",
                 FromBelow(0.0, 90.0));
     io("max_step", pavement.maxStep, "Largest height offset of a plate, up or down, in meters.",
        "m", AtLeast(0.0));
@@ -342,9 +342,9 @@ template <typename IO> void Fields(IO& io, StrataOptions& strata) {
     io("thickness_variation", strata.thicknessVariation,
        "How far each bed boundary strays from even spacing, in bed thicknesses, in [0, 1).", "",
        FromBelow(0.0, 1.0));
-    RadianField(io, "dip_deg", strata.dip, "Dip of the beds from horizontal, in degrees, below 90.",
-                FromBelow(0.0, 90.0));
-    RadianField(io, "dip_azimuth_deg", strata.dipAzimuth,
+    DegreeField(io, "dip_deg", strata.dipDegrees,
+                "Dip of the beds from horizontal, in degrees, below 90.", FromBelow(0.0, 90.0));
+    DegreeField(io, "dip_azimuth_deg", strata.dipAzimuthDegrees,
                 "Direction the beds dip toward, in degrees counter-clockwise from +x (local east "
                 "on a body).");
     io("sharpness", strata.sharpness,
@@ -378,14 +378,14 @@ template <> struct SpecName<SandShadowLayerSpec> {
         "layer before this one; lays sand over the material map.";
 };
 template <typename IO> void Fields(IO& io, SandShadowOptions& shadows) {
-    RadianField(io, "wind_azimuth_deg", shadows.windAzimuth,
+    DegreeField(io, "wind_azimuth_deg", shadows.windAzimuthDegrees,
                 WindAzimuthHelp("wind", "tails trail away from boulders along it"));
     io("length_ratio", shadows.lengthRatio,
        "Length of a tail beyond its boulder over the boulder's width; 1.1 is the reattachment "
        "length behind a dome, and modeled shadow dunes run 1.3 to 5.6, longer in lighter "
        "winds.",
        "", Above(0.0));
-    RadianField(io, "flank_angle_deg", shadows.flankAngle,
+    DegreeField(io, "flank_angle_deg", shadows.flankAngleDegrees,
                 "Slope of a tail's flanks, in degrees, at most the angle of repose (about 32 for "
                 "dry sand); sets the tail's height with the boulder's width.",
                 Inside(0.0, 90.0));
@@ -436,9 +436,9 @@ template <typename IO> void Fields(IO& io, BedformOptions& bedforms) {
     io("height", bedforms.height,
        "Trough-to-crest height, in meters, scaled with each field's wavelength.", "m",
        AtLeast(0.0));
-    RadianField(io, "wind_azimuth_deg", bedforms.windAzimuth,
+    DegreeField(io, "wind_azimuth_deg", bedforms.windAzimuthDegrees,
                 WindAzimuthHelp("wind", "crests lie across it"));
-    RadianField(io, "azimuth_spread_deg", bedforms.azimuthSpread,
+    DegreeField(io, "azimuth_spread_deg", bedforms.azimuthSpreadDegrees,
                 "Largest difference of each field's wind from the azimuth, in degrees.",
                 AtLeast(0.0));
     io("lee_fraction", bedforms.leeFraction,

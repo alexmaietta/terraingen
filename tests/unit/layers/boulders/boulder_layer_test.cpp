@@ -345,8 +345,8 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
         [](BoulderLayerOptions& o) { o.bedrock.exposure = terraingen::ExposureParams{0.0}; },
         [](BoulderLayerOptions& o) { o.pose.maxHeightRatio = 0.1; },
         [](BoulderLayerOptions& o) { o.pose.maxBurial = 1.0; },
-        [](BoulderLayerOptions& o) { o.pose.maxLean = -1.0; },
-        [](BoulderLayerOptions& o) { o.rendering.models.minDiameter = 0.0; },
+        [](BoulderLayerOptions& o) { o.pose.maxLeanDegrees = (-1.0) * terraingen::kRadian; },
+        [](BoulderLayerOptions& o) { o.rendering.modelThreshold.minDiameter = 0.0; },
         [](BoulderLayerOptions& o) { o.fade = {3.0, 3.0}; }};
     for (const auto& bad : changes) {
         BoulderLayerOptions invalid = terraingen::testing::GolombekRappBoulders();
@@ -372,7 +372,7 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
     BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.15;
     options.sizes.minDiameter = 0.5;
-    options.rendering.models.minDiameter = 1.0;
+    options.rendering.modelThreshold.minDiameter = 1.0;
     const BoulderLayer layer(options);
     Raster<float> heights(160, 160, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 0.5));
@@ -404,7 +404,7 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
         EXPECT_NEAR(0.5 * (box.min.x + box.max.x), boulder.boulder.x, boulder.boulder.diameter);
     }
 
-    options.rendering.models.minDiameter = options.sizes.minDiameter;
+    options.rendering.modelThreshold.minDiameter = options.sizes.minDiameter;
     Raster<float> flat(160, 160, 2.0f);
     flat.SetTransform(heights.Transform());
     BoulderLayer(options).Apply(flat, {0.5});
@@ -418,7 +418,7 @@ TEST(BoulderLayer, ReadsTheGroundBeneathEachBoulder) {
     BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.15;
     options.sizes.minDiameter = 1.0;
-    options.rendering.models.minDiameter = 1.0;
+    options.rendering.modelThreshold.minDiameter = 1.0;
     const BoulderLayer layer(options);
     const Analytic slope([](double x, double) { return static_cast<float>(0.1 * x); });
     const auto boulders =
@@ -489,7 +489,7 @@ TEST(BoulderLayer, SharesShapesBetweenBouldersOfOnePrototype) {
     options.rendering.shapePrototypes = 0;
     const BoulderLayer unique(options);
     EXPECT_NE(unique.Shape(first)->mesh.positions, unique.Shape(other)->mesh.positions);
-    options.rendering.models.minSamples = -1.0;
+    options.rendering.modelThreshold.minSamples = -1.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
 
@@ -540,7 +540,7 @@ TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {
     EXPECT_GT(aprons, 0u) << "fillets reach past the domes";
 
     options.rendering.relief = terraingen::BoulderRelief::None;
-    options.rendering.models.minDiameter = options.sizes.minDiameter;
+    options.rendering.modelThreshold.minDiameter = options.sizes.minDiameter;
     Raster<float> modeled(80, 60, 1.0f);
     modeled.SetTransform(plain.Transform());
     BoulderLayer(options).Apply(modeled, {0.25});
@@ -589,7 +589,7 @@ TEST(BoulderModelThreshold, KeepsABandOfSizesAsModels) {
     EXPECT_FALSE(band.IsModel(2.0, 0.2));
     EXPECT_FALSE(band.IsModel(2.0, 0.0)) << "no samples without a spacing";
     BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
-    options.rendering.models.maxDiameter = -1.0;
+    options.rendering.modelThreshold.maxDiameter = -1.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
 
@@ -723,7 +723,7 @@ TEST(BoulderLayer, RestsBouldersOnSidesAndEndsAndTiltsThem) {
     options.sizes.coverage = 0.08;
     options.pose.sideShare = 0.3;
     options.pose.endShare = 0.1;
-    options.pose.maxTilt = 0.8;
+    options.pose.maxTiltDegrees = 0.8 * terraingen::kRadian;
     const BoulderLayer layer(options);
     const auto boulders = terraingen::testing::Records(layer.Boulders({-40.0, -40.0, 40.0, 40.0}));
     ASSERT_GT(boulders.size(), 500u);
@@ -780,7 +780,7 @@ TEST(BoulderLayer, LeavesOutBouldersOnGroundSteeperThanTheirMaxSlope) {
     const auto all =
         terraingen::testing::Records(BoulderLayer(options).Boulders(region, 0.0, &gentle));
     ASSERT_FALSE(all.empty());
-    options.pose.maxSlope = std::atan(0.5);
+    options.pose.maxSlopeDegrees = (std::atan(0.5)) * terraingen::kRadian;
     const BoulderLayer limited(options);
     EXPECT_EQ(terraingen::testing::Records(limited.Boulders(region, 0.0, &gentle)).size(),
               all.size());
@@ -792,14 +792,14 @@ TEST(BoulderLayer, LeavesOutBouldersOnGroundSteeperThanTheirMaxSlope) {
         ASSERT_LE(std::fabs(boulder.x), 5.0 + 1e-9) << "kept only where 0.1 |x| <= 0.5";
     }
     BoulderLayerOptions unlimited = options;
-    unlimited.pose.maxSlope.reset();
+    unlimited.pose.maxSlopeDegrees.reset();
     EXPECT_EQ(
         terraingen::testing::Records(limited.Boulders(region, 0.0, nullptr)).size(),
         terraingen::testing::Records(BoulderLayer(unlimited).Boulders(region, 0.0, nullptr)).size())
         << "without the ground nothing is left out";
-    options.pose.maxSlope = 0.0;
+    options.pose.maxSlopeDegrees = 0.0 * terraingen::kRadian;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
-    options.pose.maxSlope = 1.6;
+    options.pose.maxSlopeDegrees = 1.6 * terraingen::kRadian;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
 
@@ -810,7 +810,7 @@ TEST(BoulderLayer, DrawsTiltedShapesThatPointQueriesMatch) {
         options.sizes.coverage = 0.1;
         options.sizes.minDiameter = 0.5;
         options.pose.sideShare = 0.4;
-        options.pose.maxTilt = 0.6;
+        options.pose.maxTiltDegrees = 0.6 * terraingen::kRadian;
         options.rendering.relief = terraingen::BoulderRelief::Shape;
         options.rendering.shapes.subdivisions = 1;
         const BoulderLayer layer(options);
@@ -863,7 +863,7 @@ TEST(BoulderLayer, ReportsRockOverShapesAndModelFootprints) {
     const Boulder b =
         terraingen::testing::Records(shapes.Boulders({-50.0, -50.0, 50.0, 50.0})).front();
     EXPECT_EQ(shapes.MaterialCoverAt(b.x, b.y, 0.05, nullptr), 1.0);
-    options.rendering.models.minDiameter = 1.0;
+    options.rendering.modelThreshold.minDiameter = 1.0;
     const BoulderLayer models(options);
     const Boulder m =
         terraingen::testing::Records(models.Boulders({-50.0, -50.0, 50.0, 50.0})).front();
@@ -879,7 +879,7 @@ TEST(BoulderLayer, GivesTheSameRockCoverOverAGridAsAtItsPoints) {
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.2;
     options.sizes.maxDiameter = 2.0;
-    options.rendering.models.minDiameter = 0.8;
+    options.rendering.modelThreshold.minDiameter = 0.8;
     const BoulderLayer layer(options);
     const terraingen::RasterGrid grid{160, 120, GeoTransform::NorthUp(-16.0, 12.0, 0.2)};
     const auto boulders = terraingen::testing::Records(layer.Boulders(grid.Bounds(), 0.2));
@@ -901,8 +901,8 @@ TEST(BoulderLayer, FacetsTheirShareOfBouldersUpwindAndKeelsSome) {
     BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.ventifacts.share = 0.4;
-    options.ventifacts.windAzimuth = 0.3;
-    options.ventifacts.secondWindAzimuth = 2.5;
+    options.ventifacts.windAzimuthDegrees = 0.3 * terraingen::kRadian;
+    options.ventifacts.secondWindAzimuthDegrees = 2.5 * terraingen::kRadian;
     options.ventifacts.keelShare = 0.5;
     const BoulderLayer layer(options);
     const auto boulders = terraingen::testing::Records(layer.Boulders({-20.0, -20.0, 20.0, 20.0}));
@@ -916,8 +916,8 @@ TEST(BoulderLayer, FacetsTheirShareOfBouldersUpwindAndKeelsSome) {
         ++faceted;
         keeled += b.facetCount == 2 ? 1 : 0;
         EXPECT_NEAR(b.facets[0].azimuth, 0.3 + terraingen::kPi, 1e-12) << "facing upwind";
-        EXPECT_GE(b.facets[0].angle, options.ventifacts.minAngle);
-        EXPECT_LE(b.facets[0].angle, options.ventifacts.maxAngle);
+        EXPECT_GE(b.facets[0].angle, (options.ventifacts.minAngleDegrees * terraingen::kDegree));
+        EXPECT_LE(b.facets[0].angle, (options.ventifacts.maxAngleDegrees * terraingen::kDegree));
         EXPECT_NEAR(b.facets[0].reach, 0.5 * b.diameter * (1.0 - b.wear), 1e-12);
         if (b.facetCount == 2) {
             EXPECT_NEAR(b.facets[1].azimuth, 2.5 + terraingen::kPi, 1e-12);
@@ -945,7 +945,7 @@ TEST(BoulderLayer, FacetsCutTheWindwardSideOfDomesShapesAndModels) {
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 2.0;
     options.ventifacts.share = 1.0;
-    options.ventifacts.windAzimuth = 0.0;
+    options.ventifacts.windAzimuthDegrees = 0.0 * terraingen::kRadian;
     BoulderLayerOptions plainOptions = options;
     plainOptions.ventifacts.share = 0.0;
     for (const auto relief : {terraingen::BoulderRelief::Dome, terraingen::BoulderRelief::Shape}) {
@@ -970,7 +970,7 @@ TEST(BoulderLayer, FacetsCutTheWindwardSideOfDomesShapesAndModels) {
         }
         EXPECT_GT(lowered, 0.01) << "the windward side is planed";
     }
-    options.rendering.models.minDiameter = 1.0;
+    options.rendering.modelThreshold.minDiameter = 1.0;
     const BoulderLayer models(options);
     const Analytic flat([](double, double) { return 2.0f; });
     const auto placed = models.BouldersOver(
@@ -1024,14 +1024,19 @@ TEST(BoulderVentifacts, GaleSharesAndRejectsBadOptions) {
     };
     rejects([](auto& v) { v.share = 1.5; });
     rejects([](auto& v) { v.keelShare = -0.1; });
-    rejects([](auto& v) { v.minAngle = 0.0; });
-    rejects([](auto& v) { v.maxAngle = 0.5 * terraingen::kPi; });
+    rejects([](auto& v) { v.minAngleDegrees = 0.0 * terraingen::kRadian; });
+    rejects([](auto& v) { v.maxAngleDegrees = (0.5 * terraingen::kPi) * terraingen::kRadian; });
     rejects([](auto& v) {
-        v.minAngle = 1.0;
-        v.maxAngle = 0.9;
+        v.minAngleDegrees = 1.0 * terraingen::kRadian;
+        v.maxAngleDegrees = 0.9 * terraingen::kRadian;
     });
-    rejects([](auto& v) { v.windAzimuth = std::numeric_limits<double>::quiet_NaN(); });
-    rejects([](auto& v) { v.secondWindAzimuth = std::numeric_limits<double>::infinity(); });
+    rejects([](auto& v) {
+        v.windAzimuthDegrees = (std::numeric_limits<double>::quiet_NaN()) * terraingen::kRadian;
+    });
+    rejects([](auto& v) {
+        v.secondWindAzimuthDegrees =
+            (std::numeric_limits<double>::infinity()) * terraingen::kRadian;
+    });
     Boulder b;
     b.facets[0] = {0.0, terraingen::kPi / 4.0, 0.5};
     b.facetCount = 1;
@@ -1114,14 +1119,14 @@ TEST(BoulderLayer, PlacesCatalogBouldersAndDropsGeneratedOnesItCovers) {
     options.sizes.minDiameter = 0.3;
     options.manual = {{2.0, 3.0, 12.0}, {-4.0, 1.0, 0.8}};
     options.completeness = std::make_shared<terraingen::ConstantField>(0.6);
-    options.pose.maxSlope = 0.1;
+    options.pose.maxSlopeDegrees = 0.1 * terraingen::kRadian;
     const Analytic steep([](double x, double) { return static_cast<float>(0.5 * x); });
     const Bounds2d region{-10.0, -10.0, 10.0, 10.0};
     const auto boulders =
         terraingen::testing::Records(BoulderLayer(options).Boulders(region, 0.0, &steep));
     ASSERT_EQ(boulders.size(), 2u) << "steep ground leaves out every generated boulder";
     EXPECT_EQ(boulders[0].diameter, 12.0) << "beyond the sizes, still placed";
-    options.pose.maxSlope.reset();
+    options.pose.maxSlopeDegrees.reset();
     std::size_t manual = 0;
     std::size_t small = 0;
     for (const Boulder& boulder :
@@ -1243,13 +1248,13 @@ TEST(BoulderLayer, BendsTheSizesIntoTheSlopeAMapGives) {
 TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
     BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.08;
-    options.pose.maxSlope = std::atan(0.5);
+    options.pose.maxSlopeDegrees = (std::atan(0.5)) * terraingen::kRadian;
     options.pose.rollDistance = 40.0;
     const Analytic ramp(
         [](double x, double) { return static_cast<float>(0.8 * std::clamp(x, 0.0, 20.0)); });
     const Bounds2d region{-30.0, -10.0, 30.0, 10.0};
     BoulderLayerOptions still = options;
-    still.pose.maxSlope.reset();
+    still.pose.maxSlopeDegrees.reset();
     still.pose.rollDistance.reset();
     const auto unrolled =
         terraingen::testing::Records(BoulderLayer(still).Boulders(region, 0.0, &ramp));
@@ -1294,7 +1299,7 @@ TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
         terraingen::testing::Records(BoulderLayer(options).Boulders(region, 0.0, &ramp)).size(),
         rolled.size())
         << "those that would roll farther are left out";
-    options.pose.maxSlope.reset();
+    options.pose.maxSlopeDegrees.reset();
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "rolling needs a max slope";
 }
 
@@ -1332,7 +1337,7 @@ TEST(BoulderLayer, ReadsTheGroundBeneathItsBouldersInOnePass) {
     BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.pose.followSlope = true;
-    options.pose.maxSlope = 1.2;
+    options.pose.maxSlopeDegrees = 1.2 * terraingen::kRadian;
     const BoulderLayer layer(options);
     const Bounds2d region{-10.0, -10.0, 10.0, 10.0};
     const Counted batched(true);

@@ -72,7 +72,7 @@ class BouldersManual : public terraingen::examples::Example {
         options.sizes.coverage = 0.03;
         options.sizes.minDiameter = 0.1;
         options.sizes.maxDiameter = 1.0;
-        options.rendering.models.minDiameter = 0.5;
+        options.rendering.modelThreshold.minDiameter = 0.5;
         options.manual = manual_;
 
         terraingen::TerrainGenerator terrain;

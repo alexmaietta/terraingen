@@ -406,7 +406,7 @@ CraterImpact CraterAlbedo::Impact(const Crater& crater) const {
     RandomStream random(options_.seed, kObliqueRayStream, id.low, id.high);
     impact.angleDegrees = std::asin(std::sqrt(random.NextDouble())) * kRadian;
     const double h = random.NextDouble();
-    impact.heading = oblique.heading ? *oblique.heading : 2.0 * kPi * h;
+    impact.heading = oblique.headingDegrees ? *oblique.headingDegrees * kDegree : 2.0 * kPi * h;
     const double r1 = random.NextDouble();
     const double r2 = random.NextDouble();
     if (impact.angleDegrees < oblique.asymmetricDegrees) {

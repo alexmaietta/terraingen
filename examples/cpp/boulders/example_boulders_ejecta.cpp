@@ -64,9 +64,9 @@ class BouldersEjecta : public terraingen::examples::Example {
         options.pose.maxHeightRatio = 0.9;
         options.pose.minBurial = 0.0;
         options.pose.maxBurial = 0.1;
-        options.pose.maxLean = 0.5;
+        options.pose.maxLeanDegrees = 0.5 * terraingen::kRadian;
         options.rendering.relief = terraingen::BoulderRelief::Shape;
-        options.rendering.models.minDiameter = 0.8;
+        options.rendering.modelThreshold.minDiameter = 0.8;
         const auto boulders = std::make_shared<terraingen::BoulderLayer>(options, craters);
 
         Out() << "abundance (background, ejecta) across the crater:\n";

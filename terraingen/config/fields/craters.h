@@ -124,10 +124,10 @@ template <typename IO> void ElongationFields(IO& io, CraterIrregularity& irregul
        UnitInterval());
     io("ellipticity", irregularity.ellipticity,
        "Long over short rim-to-rim diameter of elliptical craters, drawn per crater; at least 1.");
-    RadianField(io, "heading_deg", irregularity.heading,
+    DegreeField(io, "heading_deg", irregularity.headingDegrees,
                 "Heading of elliptical craters' long axes, in degrees counter-clockwise from +x "
                 "(local east on a body); unset gives random headings.");
-    RadianField(io, "heading_spread_deg", irregularity.headingSpread,
+    DegreeField(io, "heading_spread_deg", irregularity.headingSpreadDegrees,
                 "Largest random turn of a long axis either way from the heading, in degrees.",
                 AtLeast(0.0));
 }
@@ -248,7 +248,7 @@ template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
        "Share of the raised rim and ejecta kept straight upslope, from 0 to 1; the rest returns "
        "toward the sides.",
        "", UnitInterval());
-    RadianField(io, "full_slope_deg", slope.fullSlope,
+    DegreeField(io, "full_slope_deg", slope.fullSlopeDegrees,
                 "Slope at which the asymmetry is complete, in degrees; it rises from none on "
                 "level ground.",
                 Above(0.0));

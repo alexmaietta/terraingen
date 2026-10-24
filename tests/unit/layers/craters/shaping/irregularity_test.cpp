@@ -141,8 +141,8 @@ TEST(CraterOutline, HasTheRoughnessAskedForAndStaysWithinItsBounds) {
     EXPECT_NEAR(terraingen::MaxOutlineScale(irregularity),
                 std::sqrt(1.5) * (1.0 + 0.04 * std::sqrt(22.0)), 1e-12);
     EXPECT_EQ(terraingen::MaxOutlineScale(CraterIrregularity{}), 1.0);
-    irregularity.heading = 0.5;
-    irregularity.headingSpread = 0.0;
+    irregularity.headingDegrees = 0.5 * terraingen::kRadian;
+    irregularity.headingSpreadDegrees = 0.0 * terraingen::kRadian;
     EXPECT_EQ(IrregularOutline(At(3), irregularity).heading, 0.5);
 }
 
@@ -297,8 +297,8 @@ TEST(ValidateCraterIrregularity, RejectsInvalidSettings) {
         [](CraterIrregularity& c) { c.roughness = {ValueDistribution::Kind::Constant, 0.2}; },
         [](CraterIrregularity& c) { c.roughness = {ValueDistribution::Kind::Constant, -0.01}; },
         [](CraterIrregularity& c) { c.ellipticity = {ValueDistribution::Kind::Constant, 0.9}; },
-        [](CraterIrregularity& c) { c.heading = std::nan(""); },
-        [](CraterIrregularity& c) { c.headingSpread = -1.0; },
+        [](CraterIrregularity& c) { c.headingDegrees = std::nan(""); },
+        [](CraterIrregularity& c) { c.headingSpreadDegrees = (-1.0) * terraingen::kRadian; },
         [](CraterIrregularity& c) { c.maxDeviation = 0.0; },
         [](CraterIrregularity& c) { c.maxDeviation = 0.6; },
         [](CraterIrregularity& c) {
@@ -334,7 +334,7 @@ TEST(ApplyCraters, StretchesElongatedCratersAndKeepsPointQueriesOnTheGrid) {
     options.apply.irregularity.selection.manual = true;
     options.apply.irregularity.elongatedShare = 1.0;
     options.apply.irregularity.ellipticity = {ValueDistribution::Kind::Constant, 2.0};
-    options.apply.irregularity.heading = 0.0;
+    options.apply.irregularity.headingDegrees = 0.0;
     const terraingen::CraterLayer layer(
         {std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
          std::make_shared<terraingen::FreshAges>(),

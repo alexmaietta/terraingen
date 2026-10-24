@@ -30,7 +30,8 @@ struct ConfigSummary {
 /// Checks every field range (`config::CheckConfigRanges`) and everything that parsing cannot, such
 /// as grid limits, the raster file, model parameters, outputs and their grids, and the expected
 /// crater counts over each, and returns the grids and the largest count.
-/// @param directory Folder relative input paths resolve against.
+/// @param directory Folder relative input paths resolve against; empty for the folder the
+/// configuration was read from (`TerrainGenConfig::directory`).
 /// @throws ConfigError naming the first invalid value by its JSON path.
 ConfigSummary ValidateConfig(const TerrainGenConfig& config,
                              const std::filesystem::path& directory = {});

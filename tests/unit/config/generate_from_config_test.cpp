@@ -715,6 +715,7 @@ TEST(GenerateFromConfig, ListsCratersOverTheWholeBody) {
     craters.minDiameter = 2000.0;
     craters.maxDiameter = 20000.0;
     craters.density = terraingen::testing::LunarDensitySpec();
+    craters.ages = terraingen::testing::LunarAgesSpec();
     config.layers = {craters};
     terraingen::CraterListOutput list;
     list.path = "c.csv";

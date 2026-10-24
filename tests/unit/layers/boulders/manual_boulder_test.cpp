@@ -48,8 +48,8 @@ BoulderLayerOptions Options() {
     options.sizes.minDiameter = 0.3;
     options.pose.sideShare = 0.2;
     options.pose.endShare = 0.1;
-    options.pose.maxTilt = 0.4;
-    options.rendering.models.minDiameter = 1.0;
+    options.pose.maxTiltDegrees = 0.4 * terraingen::kRadian;
+    options.rendering.modelThreshold.minDiameter = 1.0;
     return options;
 }
 
@@ -327,7 +327,7 @@ TEST(ManualBoulder, SetsFieldsByNameAndCanChooseToBeAModel) {
     for (const ManualBoulder& manual : options.manual) {
         const Boulder* b = Find(boulders, terraingen::ManualBoulderId(manual));
         ASSERT_NE(b, nullptr);
-        const bool threshold = options.rendering.models.IsModel(manual.diameter, 0.0);
+        const bool threshold = options.rendering.modelThreshold.IsModel(manual.diameter, 0.0);
         EXPECT_EQ(b->model, manual.model.value_or(threshold));
     }
 }

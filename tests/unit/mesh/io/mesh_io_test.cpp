@@ -77,7 +77,7 @@ TEST(IsMeshPath, KnowsEveryMeshFormat) {
 TEST(WriteMesh, WritesABinaryStlAndReadsItBackWelded) {
     const auto cube = terraingen::BaseSolidMesh(terraingen::BaseSolid::Cube);
     const auto path = TempPath("cube.stl");
-    terraingen::WriteMesh(path, {cube, {}, {}});
+    terraingen::WriteMesh(path, cube);
     const std::string bytes = Read(path);
     EXPECT_EQ(bytes.substr(0, 10), "TerrainGen");
     EXPECT_EQ(Word(bytes, 80), 12u);
@@ -119,7 +119,7 @@ TEST(WriteMesh, RoundTripsThroughObjAndGltfInZUp) {
 TEST(WriteMesh, WritesAValidBinaryGltfContainer) {
     const auto sphere = terraingen::testing::Icosphere(2);
     const auto path = TempPath("sphere.glb");
-    terraingen::WriteMesh(path, {sphere, {}, {}});
+    terraingen::WriteMesh(path, sphere);
     const std::string bytes = Read(path);
     ASSERT_GE(bytes.size(), 28u);
     EXPECT_EQ(bytes.substr(0, 4), "glTF");
@@ -130,13 +130,10 @@ TEST(WriteMesh, WritesAValidBinaryGltfContainer) {
     EXPECT_NE(json.find("\"TerrainGen\""), std::string::npos);
     EXPECT_EQ(json.find("\"NORMAL\""), std::string::npos);
     EXPECT_THROW(terraingen::WriteMesh(path, {TriangleMesh{}, {}, {}}), std::invalid_argument);
-    EXPECT_THROW(terraingen::WriteMesh(TempPath("sphere.ply"), {sphere, {}, {}}),
-                 std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteMesh(TempPath("sphere.ply"), sphere), std::invalid_argument);
     EXPECT_THROW(terraingen::WriteMesh(path, {sphere, {{0, 0, 1}}, {}}), std::invalid_argument);
-    EXPECT_THROW(terraingen::WriteMesh(TempPath("missing/dir/x.glb"), {sphere, {}, {}}),
-                 std::runtime_error);
-    EXPECT_THROW(terraingen::WriteMesh(TempPath("sphere.icq"), {sphere, {}, {}}),
-                 std::invalid_argument);
+    EXPECT_THROW(terraingen::WriteMesh(TempPath("missing/dir/x.glb"), sphere), std::runtime_error);
+    EXPECT_THROW(terraingen::WriteMesh(TempPath("sphere.icq"), sphere), std::invalid_argument);
 }
 
 TEST(WriteMesh, WritesBinaryGltfForAnUpperCaseExtension) {

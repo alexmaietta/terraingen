@@ -62,7 +62,7 @@ TEST(WriteOutputs, WritesBoulderListsAndBoulderModels) {
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.rendering.relief = terraingen::BoulderRelief::Shape;
-    boulders.boulders.rendering.models.minDiameter = 1.5;
+    boulders.boulders.rendering.modelThreshold.minDiameter = 1.5;
     boulders.boulders.rendering.shapes.subdivisions = 1;
     config.layers.push_back(boulders);
     config.outputs = {terraingen::BoulderListOutput{{"boulders.csv", {}, region}},
@@ -205,7 +205,7 @@ TEST(WriteOutputs, WritesBoulderModelsOnASphereAboutTheGridCenter) {
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;
     boulders.boulders.sizes.maxDiameter = 3.0;
-    boulders.boulders.rendering.models.minDiameter = 1.0;
+    boulders.boulders.rendering.modelThreshold.minDiameter = 1.0;
     config.layers = {boulders};
     config.outputs = {terraingen::BoulderModelsOutput{
         "boulders.stl", 35.0, region.Area(terraingen::Surface::Sphere(1737400.0))}};
@@ -279,7 +279,7 @@ TEST(WriteOutputs, DrawsBoulderModelsFromRockFilesAndWritesTheTerrainMesh) {
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};
     boulders.boulders.sizes.coverage = 0.3;
     boulders.boulders.sizes.minDiameter = 0.5;
-    boulders.boulders.rendering.models.minDiameter = 1.5;
+    boulders.boulders.rendering.modelThreshold.minDiameter = 1.5;
     boulders.shapeFiles = {"rock.obj"};
     config.layers.push_back(boulders);
     config.outputs = {terraingen::BoulderModelsOutput{"boulders.obj", 35.0, region},
@@ -320,6 +320,7 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
     craters.minDiameter = 2000.0;
     craters.maxDiameter = 20000.0;
     craters.density = terraingen::testing::LunarDensitySpec();
+    craters.ages = terraingen::testing::LunarAgesSpec();
     config.layers = {craters};
     terraingen::OutputAreaSpec whole;
     whole.pixelSize = 500.0;

@@ -327,8 +327,8 @@ const PathCase kPathCases[] = {
      [](TerrainGenConfig& c) {
          terraingen::BoulderLayerSpec boulders;
          boulders.boulders.ventifacts.share = 0.5;
-         boulders.boulders.ventifacts.minAngle = 1.2;
-         boulders.boulders.ventifacts.maxAngle = 1.0;
+         boulders.boulders.ventifacts.minAngleDegrees = 1.2 * terraingen::kRadian;
+         boulders.boulders.ventifacts.maxAngleDegrees = 1.0 * terraingen::kRadian;
          c.layers.push_back(boulders);
      },
      "layers[2]"},
@@ -490,7 +490,8 @@ const PathCase kPathCases[] = {
     {"DunesSteeperThanASlipFace",
      [](TerrainGenConfig& c) {
          terraingen::DuneLayerSpec dunes{terraingen::MarsBarchans()};
-         dunes.dunes.stossSlope = dunes.dunes.slipFaceAngle;
+         dunes.dunes.stossSlopeDegrees =
+             (dunes.dunes.slipFaceAngleDegrees * terraingen::kDegree) * terraingen::kRadian;
          c.layers.push_back(dunes);
      },
      "layers[2]"},
@@ -840,7 +841,7 @@ TEST(ValidateConfig, NamesGolombekRappSizesForACoverage) {
 
 TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
     TerrainGenConfig config = Small();
-    Craters(config).ages = terraingen::SteadyStateAgesSpec{};
+    Craters(config).ages = terraingen::testing::LunarAgesSpec();
     Craters(config).minDiameter = 1.0;
     try {
         terraingen::ValidateConfig(config);

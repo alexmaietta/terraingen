@@ -65,7 +65,7 @@ class Example(_common.Example):
                 max_burial=0.05,
                 max_lean_deg=35.0,
                 relief=terraingen.BoulderRelief.SHAPE,
-                models=terraingen.BoulderModelThreshold(min_diameter_m=0.8),
+                model_threshold=terraingen.BoulderModelThreshold(min_diameter_m=0.8),
             ),
         }
         self.heights, self.boulders, self.abundance = {}, {}, []

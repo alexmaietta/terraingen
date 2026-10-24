@@ -47,8 +47,9 @@ class SyntheticSource final : public Source {
 
     /// @param params The noise stack, 0 to `kMaxNoiseLayers` layers (`ValidateNoiseLayer` each).
     /// @param elevation Meters added everywhere; finite.
-    /// @param pixelSize Spacing of the posts in the surface's units (meters on a plane, degrees
-    /// on a body); positive and finite, or unset to evaluate the noise at every point.
+    /// @param pixelSize Spacing of the posts in meters, converted to the surface's units on a body
+    /// (`Surface::UnitLength`) as `FlatSource` converts it; positive and finite, or unset to
+    /// evaluate the noise at every point.
     /// @param upsampler How the posts are refined; null for cubic interpolation. Needs a
     /// `pixelSize`.
     /// @throws std::invalid_argument for too many or invalid layers, a non-finite `elevation`, a
@@ -80,7 +81,8 @@ class SyntheticSource final : public Source {
         return params_;
     }
 
-    /// The spacing of the posts, if the noise is sampled at posts.
+    /// The spacing of the posts in the surface's units (degrees on a body), if the noise is
+    /// sampled at posts.
     const std::optional<double>& PixelSize() const {
         return pixelSize_;
     }

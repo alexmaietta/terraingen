@@ -113,8 +113,9 @@ void ValidatePavementOptions(const PavementOptions& options) {
     RequireNonNegative(options.edgeRounding, "Pavement edgeRounding");
     RequireNonNegative(options.maxStep, "Pavement maxStep");
     RequireNonNegative(options.warp, "Pavement warp");
-    if (!(options.maxTilt >= 0.0 && options.maxTilt < 0.5 * kPi)) {
-        throw std::invalid_argument("Pavement maxTilt must be in [0, 90) deg");
+    if (!((options.maxTiltDegrees * kDegree) >= 0.0 &&
+          (options.maxTiltDegrees * kDegree) < 0.5 * kPi)) {
+        throw std::invalid_argument("Pavement maxTiltDegrees must be in [0, 90) deg");
     }
     RequireUnitInterval(options.jitter, "Pavement jitter");
     if (!(options.octaves >= 1 && options.octaves <= kMaxOctaves && options.lacunarity > 1.0 &&
@@ -139,7 +140,7 @@ PavementOptions MarsDesiccationRidges() {
     ridges.crackDepth = 0.005;
     ridges.crackWidth = 0.002;
     ridges.edgeRounding = 0.001;
-    ridges.maxTilt = 0.0;
+    ridges.maxTiltDegrees = 0.0;
     ridges.maxStep = 0.0;
     return ridges;
 }
@@ -154,7 +155,8 @@ PavementLayer::PavementLayer(PavementOptions options, Surface surface)
     for (int k = 0; k < options_.octaves; ++k) {
         levels_.push_back(
             {options_.plateSize / size, relief * options_.crackWidth, relief * options_.crackDepth,
-             relief * options_.edgeRounding, relief * options_.maxTilt, relief * options_.maxStep,
+             relief * options_.edgeRounding, relief * (options_.maxTiltDegrees * kDegree),
+             relief * options_.maxStep,
              SubstreamSeed(options_.seed, kPavementOctaveStream, static_cast<std::uint32_t>(k))});
         size *= options_.lacunarity;
         relief *= options_.gain;

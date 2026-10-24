@@ -127,7 +127,7 @@ TEST(EvaluateMaterials, FindsBouldersOnceAndAgreesWithPoints) {
     rocks.sizes.maxDiameter = 1.0;
     rocks.fillet.heightShare = 0.4;
     rocks.rendering.relief = terraingen::BoulderRelief::Shape;
-    rocks.rendering.models.minDiameter = 0.6;
+    rocks.rendering.modelThreshold.minDiameter = 0.6;
     const auto boulders = std::make_shared<terraingen::BoulderLayer>(rocks);
     terrain.layers.push_back(boulders);
     terraingen::SandShadowOptions tails;

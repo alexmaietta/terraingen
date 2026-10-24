@@ -223,7 +223,9 @@ TerrainGenConfig LoadConfig(const std::filesystem::path& path) {
     }
     std::ostringstream text;
     text << file.rdbuf();
-    return ParseConfig(text.str());
+    TerrainGenConfig config = ParseConfig(text.str());
+    config.directory = path.parent_path();
+    return config;
 }
 
 std::string ConfigToJson(const TerrainGenConfig& terrainConfig, int indent) {

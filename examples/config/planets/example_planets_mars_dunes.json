@@ -18,7 +18,7 @@
             "wind_azimuth_deg": 0,
             "slip_face_angle_deg": 29,
             "stoss_slope_deg": 8,
-            "spacing": 1000,
+            "lattice_spacing_m": 1000,
             "density": 1,
             "width": 400,
             "width_spread": 0.15,

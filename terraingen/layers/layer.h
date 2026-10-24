@@ -10,7 +10,9 @@
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/surface.h"
 
+#include <optional>
 #include <string_view>
+#include <vector>
 
 namespace terraingen {
 
@@ -55,6 +57,17 @@ class Layer {
     /// The height at one point after this layer, from `height` before it.
     /// @throws std::invalid_argument without a positive `context.spacing`.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const;
+
+    /// What the layer was built to lie on, which must be its generator's surface; unset for a
+    /// layer that works on any surface.
+    virtual std::optional<Surface> LayerSurface() const {
+        return std::nullopt;
+    }
+
+    /// The other layers this one reads, which must come before it in its generator's layers.
+    virtual std::vector<const Layer*> Dependencies() const {
+        return {};
+    }
 
   protected:
     /// Adds the layer's relief to `samples`. A grid's spacing is `context.spacing` raised to the

@@ -169,7 +169,7 @@ TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
     options.sizes.coverage = 0.15;
     options.sizes.minDiameter = 0.5;
     options.sizes.maxDiameter = 4.0;
-    options.rendering.models.minDiameter = 2.0;
+    options.rendering.modelThreshold.minDiameter = 2.0;
     options.rendering.relief = terraingen::BoulderRelief::Shape;
     const terraingen::BoulderLayer sphere(options, nullptr, kSphere);
     const terraingen::BoulderLayer plane(options);

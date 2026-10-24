@@ -136,10 +136,10 @@ TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
          "min_primary_diameter_m": 100, "max_primary_diameter_m": 900, "source_resolves_px": 6},
         {"type": "boulders", "min_diameter_m": 0.2, "max_diameter_m": 4, "fade_px": [1, 3],
          "ground_spacing_m": 0.5, "bedrock_mean_size_m": 30, "roll_distance_m": 8,
-         "patches": {"size_m": 40}, "clusters": {"spacing_m": 30, "radius_m": 5},
+         "patches": {"size_m": 40}, "clusters": {"center_spacing_m": 30, "radius_m": 5},
          "ejecta": {"min_crater_diameter_m": 15, "regolith_thickness_m": 4},
          "fragmentation": {"min_diameter_m": 1.5},
-         "models": {"min_diameter_m": 1, "max_diameter_m": 3, "min_px": 4, "max_px": 40},
+         "model_threshold": {"min_diameter_m": 1, "max_diameter_m": 3, "min_px": 4, "max_px": 40},
          "relief_range": {"min_diameter_m": 0.1, "max_diameter_m": 2},
          "slope_map": {"reference_diameter_m": 2}, "source_resolves_px": 5},
         {"type": "noise", "source_resolves_px": 8},
@@ -170,16 +170,16 @@ TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
     EXPECT_EQ(boulders.bedrock.meanSize, 30.0);
     EXPECT_EQ(boulders.pose.rollDistance, 8.0);
     EXPECT_EQ(boulders.patches.size, 40.0);
-    EXPECT_EQ(boulders.clusters.spacing, 30.0);
+    EXPECT_EQ(boulders.clusters.centerSpacing, 30.0);
     EXPECT_EQ(boulders.clusters.radius, 5.0);
     EXPECT_EQ(boulders.ejecta.minCraterDiameter, 15.0);
     EXPECT_EQ(boulders.ejecta.regolithThickness, 4.0);
     ASSERT_TRUE(boulders.fragmentation.has_value());
     EXPECT_EQ(boulders.fragmentation->minDiameter, 1.5);
-    EXPECT_EQ(boulders.rendering.models.minDiameter, 1.0);
-    EXPECT_EQ(boulders.rendering.models.maxDiameter, 3.0);
-    EXPECT_EQ(boulders.rendering.models.minSamples, 4.0);
-    EXPECT_EQ(boulders.rendering.models.maxSamples, 40.0);
+    EXPECT_EQ(boulders.rendering.modelThreshold.minDiameter, 1.0);
+    EXPECT_EQ(boulders.rendering.modelThreshold.maxDiameter, 3.0);
+    EXPECT_EQ(boulders.rendering.modelThreshold.minSamples, 4.0);
+    EXPECT_EQ(boulders.rendering.modelThreshold.maxSamples, 40.0);
     EXPECT_EQ(boulders.rendering.reliefRange.minDiameter, 0.1);
     EXPECT_EQ(boulders.rendering.reliefRange.maxDiameter, 2.0);
     EXPECT_EQ(spec.slopeMap->referenceDiameter, 2.0);
@@ -243,7 +243,8 @@ TEST(ConfigJson, ReadsDuneLayersByShapeAndRipples) {
     EXPECT_EQ(dunes.ripples.wavelength, 2.1);
     EXPECT_EQ(dunes.ripples.defectDensity, 0.25);
     EXPECT_EQ(dunes.defectDensity, 0.003);
-    EXPECT_EQ(dunes.slipFaceAngle, terraingen::DuneOptions{}.slipFaceAngle) << "defaults kept";
+    EXPECT_EQ(dunes.slipFaceAngleDegrees, terraingen::DuneOptions{}.slipFaceAngleDegrees)
+        << "defaults kept";
     EXPECT_THROW(
         ParseConfig(R"({"schema_version": 1, "layers": [{"type": "dunes", "shape": "star"}]})"),
         terraingen::ConfigError);

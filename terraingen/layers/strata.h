@@ -14,14 +14,14 @@
 
 namespace terraingen {
 
-/// The beds a `StrataLayer` cuts. Lengths are in meters, angles in radians.
+/// The beds a `StrataLayer` cuts. Lengths are in meters, angles in degrees.
 struct StrataOptions {
     double bedThickness = 2.0;  ///< Mean thickness of a bed.
     /// How far each bed boundary strays, in bed thicknesses, in [0, 1).
     double thicknessVariation = 0.4;
-    double dip = 0.0;  ///< Dip of the beds from horizontal, below 90 deg.
-    /// Direction the beds dip toward, radians counter-clockwise from +x (local east on a body).
-    double dipAzimuth = 0.0;
+    double dipDegrees = 0.0;  ///< Dip of the beds from horizontal, below 90 deg.
+    /// Direction the beds dip toward, degrees counter-clockwise from +x (local east on a body).
+    double dipAzimuthDegrees = 0.0;
     /// How sharply each bed is cut into a flat bench and a cliff, at least 1: 1 leaves the ground
     /// as it is, larger values flatten the benches and steepen the cliffs.
     double sharpness = 4.0;
@@ -40,8 +40,8 @@ struct StrataOptions {
 
     bool operator==(const StrataOptions& other) const {
         return bedThickness == other.bedThickness &&
-               thicknessVariation == other.thicknessVariation && dip == other.dip &&
-               dipAzimuth == other.dipAzimuth && sharpness == other.sharpness &&
+               thicknessVariation == other.thicknessVariation && dipDegrees == other.dipDegrees &&
+               dipAzimuthDegrees == other.dipAzimuthDegrees && sharpness == other.sharpness &&
                strength == other.strength && cliffShare == other.cliffShare && seed == other.seed &&
                anchor == other.anchor && hardShare == other.hardShare &&
                softSharpness == other.softSharpness;

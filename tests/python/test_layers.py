@@ -281,7 +281,7 @@ def test_dune_presets_build_barchans_with_slip_faces_and_ripples():
     assert barchans.slip_face_angle_deg == 29.0
     assert barchans.ripples.wavelength == pytest.approx(2.1)
     assert terraingen.mars_transverse_dunes().wavelength == pytest.approx(248.0)
-    options = terraingen.DuneOptions(width=400.0, width_spread=0.0, spacing=2000.0, density=1.0)
+    options = terraingen.DuneOptions(width=400.0, width_spread=0.0, lattice_spacing_m=2000.0, density=1.0)
     layer = terraingen.DuneLayer(options)
     terrain = terraingen.TerrainGenerator(None, [layer])
     raster = terraingen.evaluate(terrain, grid=terraingen.FlatSource(100, 100, 20.0).grid())

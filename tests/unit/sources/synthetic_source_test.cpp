@@ -161,3 +161,11 @@ TEST(SyntheticSource, ADefaultStackFillsZeros) {
         EXPECT_EQ(value, 0.0f);
     }
 }
+
+TEST(SyntheticSource, TakesItsPixelSizeInMetersOnABody) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const SyntheticSource source(Hills(), 0.0f, 5.0, nullptr, moon);
+    ASSERT_TRUE(source.PixelSize().has_value());
+    EXPECT_DOUBLE_EQ(*source.PixelSize(), 5.0 / moon.UnitLength()) << "posts 5 m apart, in degrees";
+    EXPECT_EQ(*SyntheticSource(Hills(), 0.0f, 5.0).PixelSize(), 5.0) << "meters on a plane";
+}

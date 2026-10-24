@@ -291,7 +291,7 @@ void BindGeneratedSources(nb::module_& m) {
     nb::class_<SyntheticSource, Source>(
         m, "SyntheticSource",
         "Heights generated from noise without bounds: `elevation` meters plus the noise `layers` "
-        "(none is flat), evaluated at every point, or with `pixel_size` (the surface's units) "
+        "(none is flat), evaluated at every point, or with `pixel_size` (meters) "
         "sampled at posts that `upsampler` refines (cubic when None).")
         .def(
             "__init__",

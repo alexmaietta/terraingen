@@ -205,8 +205,8 @@ void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
     if (!(irregularity.maxDeviation > 0.0 && irregularity.maxDeviation <= 0.5)) {
         throw std::invalid_argument("Crater maxDeviation must be in (0, 0.5]");
     }
-    if ((irregularity.heading && !std::isfinite(*irregularity.heading)) ||
-        !IsNonNegative(irregularity.headingSpread)) {
+    if ((irregularity.headingDegrees && !std::isfinite(*irregularity.headingDegrees)) ||
+        !IsNonNegative(irregularity.headingSpreadDegrees)) {
         throw std::invalid_argument("Crater heading and spread must be finite, the spread >= 0");
     }
     ValidateRadialMarks(irregularity);
@@ -242,8 +242,9 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
     if (draws.elongated < irregularity.elongatedShare) {
         outline.ellipticity = irregularity.ellipticity.Sample(draws.e1, draws.e2);
         outline.heading =
-            irregularity.heading
-                ? *irregularity.heading + irregularity.headingSpread * (2.0 * draws.h - 1.0)
+            irregularity.headingDegrees
+                ? (*irregularity.headingDegrees * kDegree) +
+                      (irregularity.headingSpreadDegrees * kDegree) * (2.0 * draws.h - 1.0)
                 : kPi * draws.h;
     }
     if (draws.rough < irregularity.roughShare && irregularity.model == RimRoughnessModel::Du2024) {

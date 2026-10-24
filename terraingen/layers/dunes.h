@@ -87,21 +87,21 @@ struct DuneGrainflows {
 };
 
 /// The dunes a `DuneLayer` builds, their sizes and slopes. Lengths are in meters, angles in
-/// radians.
+/// degrees.
 struct DuneOptions {
     DuneShape shape = DuneShape::Barchan;
-    /// Where the wind blows toward, radians counter-clockwise from +x; slip faces face it.
-    double windAzimuth = 0.0;
-    double azimuthSpread = 0.0;  ///< Each barchan or dome's wind differs by up to this.
-    double slipFaceAngle = 0.5585053606381855;  ///< Lee slip face slope; 32 deg.
-    double stossSlope = 0.17453292519943295;    ///< Mean windward slope; 10 deg.
-    double stossExponent = 3.0;  ///< Exponent of the cos^alpha windward profile of a dune.
-    double domeExponent = 1.8;   ///< Exponent of the cos^alpha profile of a dome.
+    /// Where the wind blows toward, degrees counter-clockwise from +x; slip faces face it.
+    double windAzimuthDegrees = 0.0;
+    double azimuthSpreadDegrees = 0.0;   ///< Each barchan or dome's wind differs by up to this.
+    double slipFaceAngleDegrees = 32.0;  ///< Lee slip face slope.
+    double stossSlopeDegrees = 10.0;     ///< Mean windward slope.
+    double stossExponent = 3.0;          ///< Exponent of the cos^alpha windward profile of a dune.
+    double domeExponent = 1.8;           ///< Exponent of the cos^alpha profile of a dome.
 
-    /// Barchans and domes: one candidate per lattice cell of `spacing`. By default barchans 50 m
-    /// wide in a lattice of 129 m cells half of which hold a dune (Elbelrhiti et al. 2008,
+    /// Barchans and domes: one candidate per lattice cell of `latticeSpacing` (m). By default 50 m
+    /// wide barchans in a lattice of 129 m cells half of which hold a dune (Elbelrhiti et al. 2008,
     /// https://arxiv.org/abs/cond-mat/0609120).
-    double spacing = 129.0;
+    double latticeSpacing = 129.0;
     double density = 0.5;      ///< Chance a cell holds a dune, in [0, 1].
     double width = 50.0;       ///< Mean width, horn to horn (m).
     double widthSpread = 0.3;  ///< Each width varies from (1 - it) to (1 + it) times `width`.
@@ -121,7 +121,7 @@ struct DuneOptions {
     /// meters on average, falling to nothing over a wavelength either side of each break. 0 for
     /// none.
     double defectDensity = 0.0;
-    double flankSlope = 0.3490658503988659;  ///< Mean flank slope of linear dunes; 20 deg.
+    double flankSlopeDegrees = 20.0;  ///< Mean flank slope of linear dunes.
 
     std::uint32_t seed = 1;  ///< Varies the dunes and ripples.
     /// On a body, the surface point whose tangent frame the dunes are laid out in; true to scale
@@ -139,19 +139,21 @@ struct DuneOptions {
     std::optional<double> sourceResolvesPixels = 4.0;
 
     bool operator==(const DuneOptions& other) const {
-        return shape == other.shape && windAzimuth == other.windAzimuth &&
-               azimuthSpread == other.azimuthSpread && slipFaceAngle == other.slipFaceAngle &&
-               stossSlope == other.stossSlope && stossExponent == other.stossExponent &&
-               domeExponent == other.domeExponent && spacing == other.spacing &&
-               density == other.density && width == other.width &&
-               widthSpread == other.widthSpread && minWidth == other.minWidth &&
-               heightRatio == other.heightRatio && hornLength == other.hornLength &&
-               domeLength == other.domeLength && wavelength == other.wavelength &&
-               height == other.height && sinuosity == other.sinuosity && defects == other.defects &&
-               defectDensity == other.defectDensity && flankSlope == other.flankSlope &&
-               seed == other.seed && anchor == other.anchor && fade == other.fade &&
-               ripples == other.ripples && grainflows == other.grainflows &&
-               sourceResolvesPixels == other.sourceResolvesPixels;
+        return shape == other.shape && windAzimuthDegrees == other.windAzimuthDegrees &&
+               azimuthSpreadDegrees == other.azimuthSpreadDegrees &&
+               slipFaceAngleDegrees == other.slipFaceAngleDegrees &&
+               stossSlopeDegrees == other.stossSlopeDegrees &&
+               stossExponent == other.stossExponent && domeExponent == other.domeExponent &&
+               latticeSpacing == other.latticeSpacing && density == other.density &&
+               width == other.width && widthSpread == other.widthSpread &&
+               minWidth == other.minWidth && heightRatio == other.heightRatio &&
+               hornLength == other.hornLength && domeLength == other.domeLength &&
+               wavelength == other.wavelength && height == other.height &&
+               sinuosity == other.sinuosity && defects == other.defects &&
+               defectDensity == other.defectDensity &&
+               flankSlopeDegrees == other.flankSlopeDegrees && seed == other.seed &&
+               anchor == other.anchor && fade == other.fade && ripples == other.ripples &&
+               grainflows == other.grainflows && sourceResolvesPixels == other.sourceResolvesPixels;
     }
 };
 

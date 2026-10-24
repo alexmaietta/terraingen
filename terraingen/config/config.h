@@ -47,6 +47,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -824,7 +825,17 @@ struct TerrainGenConfig {
     std::vector<OutputSpec> outputs;
     std::optional<AlbedoSpec> albedo;        ///< None by default.
     std::optional<MaterialsSpec> materials;  ///< None by default.
+    /// The folder the configuration was read from (`LoadConfig`), which its relative paths
+    /// resolve against when a call gives no folder; not part of its JSON.
+    std::filesystem::path directory{};
 };
+
+/// The folder relative paths of `config` resolve against: `given`, or without one the folder
+/// `config` was read from.
+inline std::filesystem::path ConfigDirectory(const TerrainGenConfig& config,
+                                             const std::filesystem::path& given) {
+    return given.empty() ? config.directory : given;
+}
 
 /// Whether two configurations are the same, as their JSON is (`ConfigToJson`).
 bool operator==(const TerrainGenConfig& a, const TerrainGenConfig& b);
