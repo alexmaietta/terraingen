@@ -447,6 +447,10 @@ TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
                          nominal.ejecta.distribution->Cumulative(d));
     }
     EXPECT_EQ(library.sizes.distribution, terraingen::DefaultBoulderSizes());
+    terraingen::BoulderLayerSpec overridden;
+    overridden.boulders.sizes.distribution = nullptr;
+    EXPECT_THROW(terraingen::config::BuildBoulderOptions(overridden, "layers[3]"), ConfigError)
+        << "the sizes spec gives the distribution, which would replace this one";
     double cover = 0.0;
     constexpr int kSteps = 2000;
     const double step = std::log(nominal.sizes.maxDiameter) / kSteps;

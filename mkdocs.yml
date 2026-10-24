@@ -68,7 +68,9 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
@@ -90,6 +92,8 @@ nav:
       - Quickstart: getting-started/quickstart.md
       - Command line: getting-started/command-line.md
       - GUI: getting-started/gui.md
+      - Contributing: getting-started/contributing.md
+      - Changelog: getting-started/changelog.md
   - Concepts:
       - concepts/index.md
       - Surfaces and bodies: concepts/surfaces.md

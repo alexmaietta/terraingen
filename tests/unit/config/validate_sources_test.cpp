@@ -43,6 +43,11 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
     EXPECT_EQ(error([](TerrainGenConfig&) {}), "valid");
     EXPECT_EQ(
         error([](TerrainGenConfig& c) { RasterSpec(c).path.clear(); }).rfind("source.path", 0), 0u);
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
+                  RasterSpec(c).read.upsampler = terraingen::DefaultUpsampler();
+              }).rfind("source.upsampling", 0),
+              0u)
+        << "the upsampling gives the upsampler";
     EXPECT_NE(
         error([](TerrainGenConfig& c) { RasterSpec(c).path = "missing.tif"; }).find("cannot open"),
         std::string::npos);

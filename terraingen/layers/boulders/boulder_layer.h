@@ -67,9 +67,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
   public:
     /// A layer of only `boulders`, with `generateRandom` off: no random boulders or crater blocks.
     /// @param options How the boulders are posed and drawn, such as `rendering`, `pose` and
-    /// `fillet`; its `manual` boulders are replaced by `boulders`.
+    /// `fillet`; its `manual` must be empty, `boulders` taking its place.
     /// @param surface What the boulders lie on.
-    /// @throws std::invalid_argument as the constructor.
+    /// @throws std::invalid_argument as the constructor, or for `options.manual` not empty.
     static std::shared_ptr<BoulderLayer> Manual(std::vector<ManualBoulder> boulders,
                                                 BoulderLayerOptions options = {},
                                                 Surface surface = {});

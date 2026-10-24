@@ -110,7 +110,7 @@ struct UpsamplingSpec {
 struct RasterSourceSpec {
     std::string path;
     /// How the band is read: band, scale, offset, crop and `effectivePixelSize` (meters); its
-    /// upsampler is unused, `upsampling` gives it.
+    /// upsampler must stay unset, as `upsampling` gives it.
     GeoTiffSourceOptions read{};
     UpsamplingSpec upsampling{};
 };

@@ -382,10 +382,13 @@ TEST(ManualOnlyBoulderLayer, DrawsTheManualBouldersIntoTheHeights) {
 
 TEST(ManualOnlyBoulderLayer, ManualMakesALayerOfOnlyTheGivenBoulders) {
     BoulderLayerOptions options = Options();
-    options.manual = {Plain(9.0, 9.0, 1.0)};
     const std::vector<ManualBoulder> boulders{Posed(), Plain(2.0, 3.0, 2.5)};
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const auto layer = BoulderLayer::Manual(boulders, options, moon);
+    BoulderLayerOptions listed = options;
+    listed.manual = {Plain(9.0, 9.0, 1.0)};
+    EXPECT_THROW(BoulderLayer::Manual(boulders, listed), std::invalid_argument)
+        << "boulders in options.manual would be dropped";
     EXPECT_FALSE(layer->Options().generateRandom);
     EXPECT_EQ(layer->Options().manual, boulders);
     EXPECT_EQ(layer->Options().rendering, options.rendering);

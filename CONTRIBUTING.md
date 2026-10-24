@@ -44,4 +44,4 @@ The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a l
 
 Open an issue with the configuration (or code) that shows the problem, what you expected and what happened, and your platform.
 
-By contributing you agree that your contributions are licensed under the project's [BSD 3-Clause License](LICENSE).
+By contributing you agree that your contributions are licensed under the project's [BSD 3-Clause License](https://github.com/alexmaietta/terraingen/blob/main/LICENSE).

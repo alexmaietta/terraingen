@@ -121,6 +121,10 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options,
 
 std::shared_ptr<BoulderLayer> BoulderLayer::Manual(std::vector<ManualBoulder> boulders,
                                                    BoulderLayerOptions options, Surface surface) {
+    if (!options.manual.empty()) {
+        throw std::invalid_argument(
+            "BoulderLayer::Manual takes its boulders as an argument; leave options.manual empty");
+    }
     options.generateRandom = false;
     options.manual = std::move(boulders);
     return std::make_shared<BoulderLayer>(std::move(options), std::shared_ptr<const CraterLayer>{},

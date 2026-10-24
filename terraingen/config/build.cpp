@@ -303,6 +303,10 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
         Overloaded{
             [&](const RasterSourceSpec& s) -> Result {
                 GeoTiffSourceOptions read = s.read;
+                if (read.upsampler) {
+                    throw ConfigError(Child(path, "upsampling"),
+                                      "gives the raster's upsampler; leave read.upsampler unset");
+                }
                 if (read.effectivePixelSize) {
                     *read.effectivePixelSize /= unit;
                 }
@@ -763,6 +767,13 @@ std::filesystem::path Resolve(const std::string& path, const std::filesystem::pa
 BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std::string& path,
                                         const std::filesystem::path& directory) {
     BoulderLayerOptions options = spec.boulders;
+    if (options.sizes.distribution != DefaultBoulderSizes() ||
+        options.ejecta.distribution != DefaultBoulderSizes()) {
+        throw ConfigError(Child(path, "sizes"),
+                          "gives the boulder sizes; leave boulders.sizes.distribution and "
+                          "boulders.ejecta.distribution at their defaults and set sizes and "
+                          "ejecta_sizes instead");
+    }
     const auto sizes = [&](const BoulderSizesSpec& named, const std::string& key) {
         auto built = At(Child(path, key), [&] { return BuildBoulderSizes(named); });
         if (built && spec.extrapolate) {
