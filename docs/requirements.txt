@@ -6,3 +6,5 @@ mkdocstrings-python==2.0.9
 mkdoxy==1.2.8
 # Formats the Python API's signatures (mkdocstrings' separate_signature).
 ruff==0.17.0
+# Draws the gallery figures (gallery/gallery.py).
+matplotlib==3.11.2

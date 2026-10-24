@@ -54,7 +54,9 @@ regex = 'set\(TERRAINGEN_FULL_VERSION "(?P<value>\d+\.\d+\.\d+(\.dev\d+)?)"\)'
 [tool.ruff]
 line-length = 110
 target-version = "py310"
-extend-exclude = ["third_party/"]
+# The docs pages include their code from tested files with --8<-- lines, which formatting would break.
+extend-exclude = ["third_party/", "docs/_src/"]
+force-exclude = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]
