@@ -295,6 +295,28 @@ TEST(BuildCraterModels, WearsTheProfileByDiffusion) {
     }
 }
 
+TEST(BuildCraterModels, DefaultsAsTheLibraryDoes) {
+    const CraterLayerSpec spec;
+    const terraingen::CraterLayerOptions options;
+    EXPECT_EQ(spec.minDiameter, options.generation.dMin);
+    EXPECT_EQ(spec.maxDiameter, options.generation.dMax);
+    EXPECT_EQ(spec.apply, options.apply);
+    EXPECT_EQ(spec.seed, options.seed);
+    EXPECT_EQ(spec.sourceResolvesPixels, options.sourceResolvesPixels);
+
+    const terraingen::CraterLayer library(terraingen::DefaultCraterModels(), options);
+    const terraingen::CraterLayer configured(BuildCraterModels(spec), options);
+    const terraingen::Bounds2d region{-200.0, -200.0, 200.0, 200.0};
+    const terraingen::CraterList craters = library.Craters(region, 1.0);
+    ASSERT_GT(craters.Size(), 100u);
+    EXPECT_EQ(craters.Ids(), configured.Craters(region, 1.0).Ids());
+    EXPECT_EQ(craters.AgesGyr(), configured.Craters(region, 1.0).AgesGyr());
+    for (std::size_t n = 0; n < craters.Size(); n += 7) {
+        EXPECT_EQ(library.Models().Shape().Attributes(craters.At(n)),
+                  configured.Models().Shape().Attributes(craters.At(n)));
+    }
+}
+
 TEST(BuildCraterModels, MatchesTheDiffusivityToTheSteadyStateEquilibrium) {
     CraterLayerSpec craters;
     craters.degradation = terraingen::DiffusionDegradationSpec{};

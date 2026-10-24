@@ -436,24 +436,38 @@ nb::dict CraterLayerTable(const CraterLayer& layer, const Bounds2d& region, doub
 
 void BindCraterLayer(nb::module_& m) {
     BindLayerOptions(m);
+    m.def("default_crater_models", &DefaultCraterModels,
+          "The crater models a configuration's crater layer has by default.");
+    m.def("default_crater_apply", &DefaultCraterApply,
+          "How a crater layer shapes its craters by default: irregular outlines on.");
     nb::class_<CraterLayer, Layer>(
         m, "CraterLayer",
         "Craters drawn from `models.density` and shaped by its profile and degradation, plus any "
         "manual craters, applied to the terrain.")
-        .def(nb::init<CraterModels, CraterLayerOptions, std::shared_ptr<const Source>>(),
-             "models"_a, "options"_a = CraterLayerOptions{}, "source"_a = nb::none(),
-             "With a `source`, generated craters at least `options.source_resolves_px` of its "
-             "cells across are dropped.")
+        .def(
+            "__init__",
+            [](CraterLayer* self, std::optional<CraterModels> models, CraterLayerOptions options,
+               std::shared_ptr<const Source> source) {
+                new (self) CraterLayer(models ? std::move(*models) : DefaultCraterModels(),
+                                       std::move(options), std::move(source));
+            },
+            "models"_a.none() = nb::none(), "options"_a = CraterLayerOptions{},
+            "source"_a = nb::none(),
+            "None models are `default_crater_models()`. With a `source`, generated craters at "
+            "least `options.source_resolves_px` of its cells across are dropped.")
         .def_static(
             "manual",
-            [](CraterModels models, const std::vector<Crater>& craters, CraterApplyOptions apply,
-               Surface surface) {
-                return CraterLayer::Manual(std::move(models), ManualCraters(craters),
-                                           std::move(apply), surface);
+            [](const std::vector<Crater>& craters, std::optional<CraterModels> models,
+               std::optional<CraterApplyOptions> apply, Surface surface) {
+                return CraterLayer::Manual(
+                    ManualCraters(craters), models ? std::move(*models) : DefaultCraterModels(),
+                    apply ? std::move(*apply) : DefaultCraterApply(), surface);
             },
-            "models"_a, "craters"_a, "apply"_a = CraterApplyOptions{}, "surface"_a = Surface{},
+            "craters"_a, "models"_a.none() = nb::none(), "apply"_a.none() = nb::none(),
+            "surface"_a = Surface{},
             "A layer of only `craters` (Crater), shaped by `models` and `apply`, with "
-            "`generate_random` off.")
+            "`generate_random` off; None takes `default_crater_models()` and "
+            "`default_crater_apply()`.")
         .def("craters", &CraterLayerTable, "region"_a, "spacing"_a = 0.0,
              "The craters over `region` (min_x, min_y, max_x, max_y) as NumPy columns, without "
              "evaluating any heights.")

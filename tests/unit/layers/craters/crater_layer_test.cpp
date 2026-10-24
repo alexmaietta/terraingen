@@ -32,6 +32,7 @@ CraterLayerOptions Options() {
     options.seed = 3;
     options.generation.dMin = 6.0;
     options.generation.dMax = 40.0;
+    options.apply = terraingen::CraterApplyOptions{};
     return options;
 }
 
@@ -89,7 +90,7 @@ TEST(CraterLayer, ManualMakesALayerOfOnlyTheGivenCraters) {
     craters.Append({5000.0, 0.0, 30.0, 0.5, 0u});
     terraingen::CraterApplyOptions apply;
     apply.interiorReplacement = 0.5;
-    const auto layer = CraterLayer::Manual(Models(), craters, apply);
+    const auto layer = CraterLayer::Manual(craters, Models(), apply);
     EXPECT_FALSE(layer->Options().generateRandom);
     EXPECT_EQ(layer->Options().apply.interiorReplacement, 0.5);
     EXPECT_EQ(layer->Options().generation.manual.Ids(), craters.Ids());
@@ -111,8 +112,26 @@ TEST(CraterLayer, ManualMakesALayerOfOnlyTheGivenCraters) {
         std::equal(heights.Values().begin(), heights.Values().end(), expected.Values().begin()));
 
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    EXPECT_EQ(CraterLayer::Manual(Models(), craters, {}, moon)->Options().surface, moon);
-    EXPECT_THROW(CraterLayer::Manual(CraterModels{}, craters), std::invalid_argument);
+    EXPECT_EQ(CraterLayer::Manual(craters, Models(), {}, moon)->Options().surface, moon);
+    EXPECT_THROW(CraterLayer::Manual(craters, CraterModels{}), std::invalid_argument);
+}
+
+TEST(CraterLayer, ManualNeedsOnlyItsCraters) {
+    CraterList craters;
+    craters.Append(terraingen::ManualCrater(0.0, 0.0, 30.0, 4.0));
+    const auto layer = CraterLayer::Manual(craters);
+    EXPECT_EQ(layer->Options().apply, terraingen::DefaultCraterApply());
+    Raster<float> heights = Grid();
+    layer->Apply(heights, {2.0});
+    EXPECT_LT(*std::min_element(heights.Values().begin(), heights.Values().end()), -2.0f)
+        << "a 4 m deep crater, measured from its rim";
+
+    CraterModels shapesOnly = Models();
+    shapesOnly.density.reset();
+    shapesOnly.ages.reset();
+    EXPECT_NO_THROW(CraterLayer::Manual(craters, shapesOnly));
+    EXPECT_THROW(CraterLayer(shapesOnly, Options()), std::invalid_argument)
+        << "generating craters needs the density and ages";
 }
 
 TEST(CraterLayer, RejectsInvalidManualCratersWithoutGenerating) {

@@ -49,6 +49,12 @@ void ValidateCraterTexture(const CraterTexture& texture) {
     }
 }
 
+CraterApplyOptions DefaultCraterApply() {
+    CraterApplyOptions apply;
+    apply.irregularity.enabled = true;
+    return apply;
+}
+
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateCraterNoise(options.noise);
     ValidateCraterTexture(options.texture);

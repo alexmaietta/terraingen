@@ -76,10 +76,6 @@ inline constexpr std::uint32_t kTileSizeMultiple = 16;
 /// highland median slope (Rosenburg et al. 2011, https://doi.org/10.1029/2010JE003716).
 inline constexpr float kNoiseAmplitudeRatio = 0.1f;
 
-/// Crater shaping by default: irregular outlines on (Bottke et al. 2000,
-/// https://doi.org/10.1006/icar.1999.6323).
-CraterApplyOptions DefaultCraterApply();
-
 /// Boulders by default: up to the largest block of the nominal NASA SP-8023 intercrater curve
 /// (Li et al. 2017, https://doi.org/10.1016/j.pss.2017.08.008).
 BoulderLayerOptions DefaultBoulders();

@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Crater layers built in code default as a configuration's do: `DefaultCraterModels()` (`default_crater_models`) gives the configuration's default density, ages, profile and degradation, `CraterLayerOptions` generates from 2.5 m (was 4 m) and shapes with `DefaultCraterApply()` (irregular outlines on, as configurations always had; it moves from `config.h` to `shaping/apply_options.h`), and `CraterLayer`'s models default to `DefaultCraterModels()`. The density and ages may be null for a layer that generates no craters.
+- `CraterLayer::Manual(craters, models, apply, surface)` (Python `CraterLayer.manual(craters, models=None, apply=None)`) takes its craters first, with the models defaulting to `DefaultCraterModels()` and the shaping to `DefaultCraterApply()`.
 - Crater layers take their profile from a degradation model that requires one (`DegradationModel::RequiredProfile`, `MatchedProfile`): `DiffusionDegradation` gives its `DiffusedProfile`, so `CraterModels::profile` (Python `profile=`) may be left null, and a different profile is rejected. The diffusion terrains of the `craters_degradation` and `ages_models` examples were shaped with the plain Fassett-Thomson profile and now are diffused.
 - `BuildAlbedo` throws a `ConfigError` naming the layer when the generator's layers are not the ones the configuration builds, as after changing a built generator, instead of reading past them.
 - Albedo noise layers in a configuration must give their `amplitude`; unset it was 100, which saturated the albedo.

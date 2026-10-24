@@ -30,25 +30,22 @@ class CratersManual : public terraingen::examples::Example {
 
         const auto ages = std::make_shared<terraingen::UniformAges>(3.5);
         const terraingen::CraterModels models{
-            std::make_shared<terraingen::PowerLawSfd>(1e-6, 2.0), ages,
+            nullptr, nullptr,
             std::make_shared<terraingen::FreshnessDegradation>(
                 ages, terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()};
-        terraingen::CraterList manual;
-        for (const terraingen::Crater& crater : {
-                 terraingen::Crater{0.0, 0.0, 200.0, 0.5},
-                 terraingen::Crater{-250.0, 180.0, 90.0, 3.0},
-                 terraingen::Crater{260.0, -200.0, 120.0, 1.5},
-                 terraingen::Crater{150.0, 250.0, 40.0, 0.1},
-             }) {
-            manual.Append(crater);
-        }
+        const terraingen::CraterList manual{
+            terraingen::Crater{0.0, 0.0, 200.0, 0.5},
+            terraingen::Crater{-250.0, 180.0, 90.0, 3.0},
+            terraingen::Crater{260.0, -200.0, 120.0, 1.5},
+            terraingen::Crater{150.0, 250.0, 40.0, 0.1},
+        };
 
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
         terrain.layers.push_back(
             std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{fbm}));
-        terrain.layers.push_back(terraingen::CraterLayer::Manual(models, manual));
+        terrain.layers.push_back(terraingen::CraterLayer::Manual(manual, models));
 
         evaluated_ = terraingen::Evaluate(terrain);
         craters_ =

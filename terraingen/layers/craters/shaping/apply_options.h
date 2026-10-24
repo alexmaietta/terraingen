@@ -185,6 +185,10 @@ struct CraterApplyOptions {
     }
 };
 
+/// How a crater layer shapes its craters by default: irregular outlines on (Bottke et al. 2000,
+/// https://doi.org/10.1006/icar.1999.6323).
+CraterApplyOptions DefaultCraterApply();
+
 /// Checks crater apply options.
 /// @throws std::invalid_argument for an invalid `fade`, `irregularity`, `rimSmoothing` or `slope`,
 /// a slope response without the `Plane` datum, a

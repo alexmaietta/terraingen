@@ -28,9 +28,11 @@ namespace terraingen {
 
 /// The models a crater layer generates and shapes craters with.
 struct CraterModels {
-    std::shared_ptr<const SizeFrequencyDistribution> density;  ///< Craters per m^2 by diameter.
-    std::shared_ptr<const CraterAgeModel> ages;                ///< Each crater's age.
-    std::shared_ptr<const DegradationModel> degradation;       ///< Each crater's state.
+    /// Craters per m^2 by diameter; may be null for a layer that generates none.
+    std::shared_ptr<const SizeFrequencyDistribution> density;
+    /// Each crater's age; may be null for a layer that generates none.
+    std::shared_ptr<const CraterAgeModel> ages;
+    std::shared_ptr<const DegradationModel> degradation;  ///< Each crater's state.
     /// Height by distance; null takes the one the degradation requires (`MatchedProfile`).
     std::shared_ptr<const CraterProfile> profile;
 
@@ -40,6 +42,12 @@ struct CraterModels {
     }
 };
 
+/// The crater models a configuration's crater layer has by default: a 3.5 Gyr extended Neukum
+/// production surface capped by Hartmann equilibrium (Fassett 2022,
+/// https://doi.org/10.1029/2022JE007510), steady-state ages on it, Martin-Parkes-Dunstan
+/// profiles, and diffusion matched to the ages from the lunar fresh morphometry.
+CraterModels DefaultCraterModels();
+
 /// How a `CraterLayer` generates and applies its craters.
 struct CraterLayerOptions {
     /// Draws random craters from the density; off places only the manual craters in
@@ -47,14 +55,15 @@ struct CraterLayerOptions {
     bool generateRandom = true;
     std::uint32_t seed = 1;  ///< Varies the generated craters.
     /// Diameter range, spacing, manual craters and cap; `marginRadii` is set from the profile's
-    /// reach.
+    /// reach. By default 2.5 m, where the extended Neukum production function begins, to 250 m.
     CraterGenerationOptions generation = [] {
         CraterGenerationOptions options;
-        options.dMin = 4.0;
+        options.dMin = 2.5;
         options.dMax = 250.0;
         return options;
     }();
-    CraterApplyOptions apply{};  ///< How the craters are shaped into the terrain.
+    /// How the craters are shaped into the terrain; by default `DefaultCraterApply`.
+    CraterApplyOptions apply = DefaultCraterApply();
     /// Most craters to keep generated cells of (`CraterCellCache`); 0 regenerates cells every time.
     std::size_t cacheCraters = 4000000;
     /// What the craters lie on, copied into `generation.surface` and `apply.surface`.
@@ -83,21 +92,24 @@ struct CraterLayerOptions {
 /// over the whole grid; bands too small to resolve are not generated.
 class CraterLayer final : public Layer, public CraterPlacer {
   public:
-    /// @param models Only the profile may be null.
+    /// @param models The density and ages may be null without `generateRandom` or a density map,
+    /// and the profile may be null for one the degradation requires.
     /// @param source The source the terrain's heights come from, which with
     /// `options.sourceResolvesPixels` holds the craters it resolves; null for none.
     /// @throws std::invalid_argument for a missing model, a profile `MatchedProfile` rejects, or
     /// invalid options.
-    CraterLayer(CraterModels models, CraterLayerOptions options,
+    CraterLayer(CraterModels models = DefaultCraterModels(), CraterLayerOptions options = {},
                 std::shared_ptr<const Source> source = nullptr);
 
     /// A layer of only `craters`, shaped by `models` and `apply`: `generateRandom` off, so no
-    /// random craters; the density is kept but not drawn from.
+    /// random craters, and the density and ages are not used.
     /// @param craters Flagged manual and given IDs as `AppendManualCraters` does.
     /// @param surface What the craters lie on.
     /// @throws std::invalid_argument as the constructor.
-    static std::shared_ptr<CraterLayer> Manual(CraterModels models, CraterList craters,
-                                               CraterApplyOptions apply = {}, Surface surface = {});
+    static std::shared_ptr<CraterLayer> Manual(CraterList craters,
+                                               CraterModels models = DefaultCraterModels(),
+                                               CraterApplyOptions apply = DefaultCraterApply(),
+                                               Surface surface = {});
 
     /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater,
     /// in meters.

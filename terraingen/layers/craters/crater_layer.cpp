@@ -2,8 +2,19 @@
 
 #include "terraingen/layers/craters/crater_layer.h"
 
+#include "terraingen/distribution/equilibrium.h"
+#include "terraingen/distribution/minimum.h"
+#include "terraingen/distribution/neukum.h"
+#include "terraingen/distribution/power_law.h"
+#include "terraingen/distribution/production_surface.h"
+#include "terraingen/distribution/spliced.h"
 #include "terraingen/distribution/summed.h"
+#include "terraingen/layers/craters/ages/steady_state.h"
+#include "terraingen/layers/craters/degradation/diffusion.h"
+#include "terraingen/layers/craters/degradation/diffusivities.h"
 #include "terraingen/layers/craters/generation/spacing.h"
+#include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
+#include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/source_resolved.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bisection.h"
@@ -29,8 +40,14 @@ constexpr double kLargestThrower = 5e5;
 CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
                          std::shared_ptr<const Source> source)
     : models_(std::move(models)), options_(std::move(options)) {
-    if (!models_.density || !models_.ages || !models_.degradation) {
-        throw std::invalid_argument("A crater layer needs a density, ages and degradation");
+    if (!models_.degradation) {
+        throw std::invalid_argument("A crater layer needs a degradation model");
+    }
+    if (options_.generateRandom && (!models_.density || !models_.ages)) {
+        throw std::invalid_argument("A crater layer generating craters needs a density and ages");
+    }
+    if (options_.densityMap && !models_.density) {
+        throw std::invalid_argument("A crater density map needs a density");
     }
     models_.profile = MatchedProfile(std::move(models_.profile), *models_.degradation);
     ValidateCraterSpacing(options_.generation.spacing);
@@ -58,7 +75,32 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
     }
 }
 
-std::shared_ptr<CraterLayer> CraterLayer::Manual(CraterModels models, CraterList craters,
+CraterModels DefaultCraterModels() {
+    const auto production = std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction());
+    const auto equilibrium = std::make_shared<PowerLawSfd>(HartmannEquilibrium());
+    const Chronology chronology(NeukumLunarChronology);
+    constexpr double kAgeGyr = 3.5;
+    CraterModels models;
+    models.density =
+        std::make_shared<MinimumSfd>(std::vector<std::shared_ptr<const SizeFrequencyDistribution>>{
+            std::make_shared<ProductionSurface>(production, kAgeGyr, chronology), equilibrium});
+    const auto steady =
+        std::make_shared<SteadyStateAges>(production, equilibrium, kAgeGyr, chronology);
+    models.ages = steady;
+    const FreshMorphometry fresh(LunarFreshCraterMorphometry);
+    const auto profile =
+        std::make_shared<DiffusedProfile>(std::make_shared<MartinParkesDunstanProfile>());
+    models.degradation = std::make_shared<DiffusionDegradation>(
+        fresh,
+        EquilibriumDiffusionAges(
+            profile, fresh,
+            [steady](double diameter) { return steady->EquilibriumLifetimeGyr(diameter); }),
+        profile);
+    models.profile = profile;
+    return models;
+}
+
+std::shared_ptr<CraterLayer> CraterLayer::Manual(CraterList craters, CraterModels models,
                                                  CraterApplyOptions apply, Surface surface) {
     CraterLayerOptions options;
     options.generateRandom = false;

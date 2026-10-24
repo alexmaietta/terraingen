@@ -478,10 +478,25 @@ def test_a_manual_crater_is_carved_alone():
     assert list(table["diameter"]) == [60.0]
     assert table["manual"][0] == 1 and table["depth_ratio"][0] > 0.1
     assert terraingen.evaluate(terrain).values[32, 32] < 0
-    built = terraingen.CraterLayer.manual(models, [terraingen.Crater(0.0, 0.0, 60.0, age_gyr=1.0)])
+    built = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, 60.0, age_gyr=1.0)], models)
     assert not built.options.generate_random and terraingen.CraterLayerOptions().generate_random
     rebuilt = terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 2.0), [built])
     assert np.array_equal(terraingen.evaluate(rebuilt).values, terraingen.evaluate(terrain).values)
+    shapes_only = terraingen.CraterModels(None, None, models.degradation, models.profile)
+    alone = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, 60.0, age_gyr=1.0)], shapes_only)
+    assert terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 2.0), [alone]) is not None
+    with pytest.raises(ValueError):
+        terraingen.CraterLayer(shapes_only)
+
+
+def test_crater_layers_default_to_the_configurations_crater_models():
+    layer = terraingen.CraterLayer()
+    assert layer.options.apply.irregularity.enabled and terraingen.default_crater_apply().irregularity.enabled
+    assert layer.options.generation.d_min == 2.5
+    assert isinstance(layer.models.profile, terraingen.DiffusedProfile)
+    default = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, 60.0, age_gyr=1.0)])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 2.0), [default])
+    assert terraingen.evaluate(terrain).values[32, 32] < 0
 
 
 def test_crater_layer_accepts_fresh_ages_and_a_plateau_profile(crater_layer):

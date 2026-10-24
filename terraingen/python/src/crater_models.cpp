@@ -306,7 +306,7 @@ void BindCraterModelSet(nb::module_& m) {
                 new (self) CraterModels{std::move(density), std::move(ages), std::move(degradation),
                                         std::move(profile)};
             },
-            "density"_a, "ages"_a, "degradation"_a, "profile"_a.none() = nb::none(),
+            "density"_a.none(), "ages"_a.none(), "degradation"_a, "profile"_a.none() = nb::none(),
             "A profile of None takes the one the degradation requires.")
         .def_prop_ro("density", [](const CraterModels& c) { return Mutable(c.density); })
         .def_prop_ro("ages", [](const CraterModels& c) { return Mutable(c.ages); })

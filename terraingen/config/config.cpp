@@ -16,12 +16,6 @@ void AppendEffective(const std::vector<NoiseStackLayerSpec>& stack, Layers& laye
 
 }  // namespace
 
-CraterApplyOptions DefaultCraterApply() {
-    CraterApplyOptions apply;
-    apply.irregularity.enabled = true;
-    return apply;
-}
-
 BoulderLayerOptions DefaultBoulders() {
     BoulderLayerOptions boulders;
     boulders.sizes.maxDiameter =

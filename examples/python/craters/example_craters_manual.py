@@ -25,8 +25,8 @@ class Example(_common.Example):
         fbm = terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0))
         ages = terraingen.UniformAges(3.5)
         models = terraingen.CraterModels(
-            density=terraingen.PowerLawSfd(1e-6, 2.0),
-            ages=ages,
+            density=None,
+            ages=None,
             degradation=terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry),
             profile=terraingen.FassettThomsonProfile(),
         )
@@ -36,7 +36,7 @@ class Example(_common.Example):
             terraingen.Crater(260.0, -200.0, 120.0, age_gyr=1.5),
             terraingen.Crater(150.0, 250.0, 40.0, age_gyr=0.1),
         ]
-        craters = terraingen.CraterLayer.manual(models, manual)
+        craters = terraingen.CraterLayer.manual(manual, models)
         terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(513, 513, 2.0), [terraingen.NoiseRelief([fbm]), craters]
         )
