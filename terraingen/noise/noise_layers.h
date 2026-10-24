@@ -31,6 +31,17 @@ struct NoiseLayer {
     float warpWavelength = 500.0f;  ///< Wavelength of the warp field in meters.
 
 #ifndef __SLANG__
+    /// An fBm layer of `seed` whose broadest octave is `wavelength` meters across and whose height
+    /// reaches `amplitude` meters, the rest as `FractalParams` sets it:
+    /// `NoiseLayer::Fbm(1, 800.0, 40.0)`.
+    static NoiseLayer Fbm(uint32_t seed, double wavelength, double amplitude) {
+        NoiseLayer layer;
+        layer.fractal.seed = seed;
+        layer.fractal.wavelength = static_cast<float>(wavelength);
+        layer.fractal.amplitude = static_cast<float>(amplitude);
+        return layer;
+    }
+
     /// Memberwise equality.
     bool operator==(const NoiseLayer& other) const {
         return enabled == other.enabled && fractal == other.fractal && blend == other.blend &&

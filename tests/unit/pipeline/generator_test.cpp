@@ -327,9 +327,10 @@ TEST(Layer, ApplyAtEvaluatesTheLayerAtThePoint) {
 TEST(Evaluate, GivesTheSameBitsOnAnyNumberOfThreads) {
     const TerrainGenerator terrain = Smoothed();
     const RasterGrid grid = terrain.source->Grid();
-    const auto serial = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 1});
+    const auto serial = Evaluate(terrain, grid, terraingen::EvaluationOptions{}.Threads(1));
     for (const unsigned threads : {2u, 8u, 0u}) {
-        const auto parallel = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, threads});
+        const auto parallel =
+            Evaluate(terrain, grid, terraingen::EvaluationOptions{}.Threads(threads));
         ExpectSameRaster(parallel, serial);
     }
     EXPECT_THROW(Evaluate(terrain, grid, terraingen::EvaluationOptions{-1.0, 1}),
@@ -341,7 +342,7 @@ TEST(Layer, DefaultsRunApplyAndPlaceNoFeatures) {
     terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0);
     terrain.layers.push_back(std::make_shared<Bump>());
     const auto parallel =
-        Evaluate(terrain, terrain.source->Grid(), terraingen::EvaluationOptions{0.0, 4});
+        Evaluate(terrain, terrain.source->Grid(), terraingen::EvaluationOptions{}.Threads(4));
     ExpectSameRaster(parallel, Evaluate(terrain));
 }
 
@@ -459,17 +460,19 @@ TEST(Evaluate, StartsATerrainWithoutASourceAtTheDatum) {
 TEST(Evaluate, RunsOnTheChosenBackendToWithinFloatRounding) {
     const TerrainGenerator terrain = Rolling();
     const RasterGrid grid = terrain.source->Grid();
-    const auto cpu = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2});
+    const auto cpu = Evaluate(terrain, grid, terraingen::EvaluationOptions{}.Threads(2));
     ExpectSameRaster(
-        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Cpu}),
+        Evaluate(terrain, grid,
+                 terraingen::EvaluationOptions{}.Threads(2).On(terraingen::Backend::Cpu)),
         cpu);
-    const auto automatic =
-        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Auto});
+    const auto automatic = Evaluate(
+        terrain, grid, terraingen::EvaluationOptions{}.Threads(2).On(terraingen::Backend::Auto));
     if (terraingen::ResolveBackend(terraingen::Backend::Auto) == terraingen::Backend::Cpu) {
         ExpectSameRaster(automatic, cpu);
-        EXPECT_THROW(Evaluate(terrain, grid,
-                              terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Vulkan}),
-                     std::runtime_error);
+        EXPECT_THROW(
+            Evaluate(terrain, grid,
+                     terraingen::EvaluationOptions{}.Threads(2).On(terraingen::Backend::Vulkan)),
+            std::runtime_error);
         return;
     }
     for (std::size_t i = 0; i < cpu.Size(); ++i) {
@@ -482,15 +485,15 @@ TEST(Evaluate, RunsOnTheChosenBackendToWithinFloatRounding) {
 TEST(Evaluate, WithoutABackendFollowsTheProcessDefault) {
     const TerrainGenerator terrain = Rolling();
     const RasterGrid grid = terrain.source->Grid();
-    const auto cpu =
-        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Cpu});
+    const auto cpu = Evaluate(
+        terrain, grid, terraingen::EvaluationOptions{}.Threads(2).On(terraingen::Backend::Cpu));
     terraingen::SetDefaultBackend(terraingen::Backend::Auto);
-    const auto byDefault = Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2});
-    const auto chosen =
-        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2, terraingen::Backend::Auto});
+    const auto byDefault = Evaluate(terrain, grid, terraingen::EvaluationOptions{}.Threads(2));
+    const auto chosen = Evaluate(
+        terrain, grid, terraingen::EvaluationOptions{}.Threads(2).On(terraingen::Backend::Auto));
     terraingen::SetDefaultBackend(terraingen::Backend::Cpu);
     ExpectSameRaster(byDefault, chosen);
-    ExpectSameRaster(Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 2}), cpu);
+    ExpectSameRaster(Evaluate(terrain, grid, terraingen::EvaluationOptions{}.Threads(2)), cpu);
 }
 
 TEST(Evaluate, ReportsEachLayerAsItIsApplied) {
@@ -535,4 +538,12 @@ TEST(HeightsAt, GivesEachPointItsOwnHeightInAnyOrder) {
     for (std::size_t n = 0; n < points.size(); n += 23) {
         ASSERT_EQ(heights[n], terraingen::HeightAt(terrain, points[n].x, points[n].y, 1.0)) << n;
     }
+}
+
+TEST(EvaluationOptions, SetsItsFieldsByName) {
+    const auto options =
+        terraingen::EvaluationOptions{}.Spacing(0.5).Threads(3).On(terraingen::Backend::Cpu);
+    EXPECT_EQ(options.spacing, 0.5);
+    EXPECT_EQ(options.threads, 3u);
+    EXPECT_EQ(options.backend, terraingen::Backend::Cpu);
 }

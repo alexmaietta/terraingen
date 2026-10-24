@@ -276,28 +276,29 @@ void ValidateManualBoulder(const ManualBoulder& boulder) {
     RequireFinite(boulder.x, "A manual boulder's x");
     RequireFinite(boulder.y, "A manual boulder's y");
     RequirePositive(boulder.diameter, "A manual boulder's diameter");
-    if (!std::isnan(boulder.height)) {
-        RequirePositive(boulder.height, "A manual boulder's height");
+    if (boulder.height) {
+        RequirePositive(*boulder.height, "A manual boulder's height");
     }
-    if (!std::isnan(boulder.burial) && !(boulder.burial >= 0.0 && boulder.burial < 1.0)) {
+    if (boulder.burial && !(*boulder.burial >= 0.0 && *boulder.burial < 1.0)) {
         throw std::invalid_argument("A manual boulder's burial must be in [0, 1)");
     }
-    const auto angle = [](double value, const char* what) {
-        if (!std::isnan(value)) {
-            RequireFinite(value, what);
+    const auto angle = [](const std::optional<double>& value, const char* what) {
+        if (value) {
+            RequireFinite(*value, what);
         }
     };
-    angle(boulder.yaw, "A manual boulder's yaw");
-    angle(boulder.lean, "A manual boulder's lean");
-    angle(boulder.tilt, "A manual boulder's tilt");
-    angle(boulder.tiltAzimuth, "A manual boulder's tiltAzimuth");
-    if (!std::isnan(boulder.wear)) {
-        RequireUnitInterval(boulder.wear, "A manual boulder's wear");
+    angle(boulder.yawDegrees, "A manual boulder's yawDegrees");
+    angle(boulder.leanDegrees, "A manual boulder's leanDegrees");
+    angle(boulder.tiltDegrees, "A manual boulder's tiltDegrees");
+    angle(boulder.tiltAzimuthDegrees, "A manual boulder's tiltAzimuthDegrees");
+    if (boulder.wear) {
+        RequireUnitInterval(*boulder.wear, "A manual boulder's wear");
     }
 }
 
 std::uint64_t ManualBoulderId(const ManualBoulder& boulder) {
-    return boulder.id != 0 ? boulder.id : ManualCraterId(boulder.x, boulder.y, boulder.diameter);
+    return boulder.id.value_or(0u) != 0 ? *boulder.id
+                                        : ManualCraterId(boulder.x, boulder.y, boulder.diameter);
 }
 
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {

@@ -241,54 +241,100 @@ class BoulderList {
     std::vector<std::uint8_t> hasShapeSeed_;
 };
 
-/// A boulder placed by hand: its center and size, and any of its pose and shape fixed; NaN or
-/// unset fields are drawn as for generated boulders.
+/// A boulder placed by hand: its center and size, and any of its pose and shape fixed; unset
+/// fields are drawn as for generated boulders. Set fields by name with the chainable setters:
+///
+///     ManualBoulder(0.5, 0.5, 1.8).Height(1.1).Burial(0.2).YawDegrees(30.0).Model(true)
 struct ManualBoulder {
     double x = 0.0;         ///< Surface x of its center.
     double y = 0.0;         ///< Surface y of its center.
     double diameter = 0.0;  ///< Length of its long axis (m).
-    /// Stable ID; 0 derives one from position and size (`ManualCraterId`).
-    std::uint64_t id = 0;
-    /// Vertical extent (m), buried part included; NaN draws it from the pose options.
-    double height = std::numeric_limits<double>::quiet_NaN();
-    /// Buried share of the height, in [0, 1); NaN draws it.
-    double burial = std::numeric_limits<double>::quiet_NaN();
-    /// Rotation about the vertical, radians counter-clockwise from east; NaN draws it.
-    double yaw = std::numeric_limits<double>::quiet_NaN();
-    /// Tilt of its vertical axis from the vertical, radians; NaN draws it.
-    double lean = std::numeric_limits<double>::quiet_NaN();
-    /// Angle of its up axis from the vertical after lean, radians; NaN draws it.
-    double tilt = std::numeric_limits<double>::quiet_NaN();
-    /// Direction its up axis tips toward, radians from east; NaN draws it.
-    double tiltAzimuth = std::numeric_limits<double>::quiet_NaN();
-    /// How worn it is, from 0 (fresh) to 1; NaN draws it.
-    double wear = std::numeric_limits<double>::quiet_NaN();
+    /// Stable ID; unset derives one from position and size (`ManualCraterId`).
+    std::optional<std::uint64_t> id{};
+    /// Vertical extent (m), buried part included; unset draws it from the pose options.
+    std::optional<double> height{};
+    std::optional<double> burial{};  ///< Buried share of the height, in [0, 1); unset draws it.
+    /// Rotation about the vertical, degrees counter-clockwise from east; unset draws it.
+    std::optional<double> yawDegrees{};
+    /// Tilt of its vertical axis from the vertical, degrees; unset draws it.
+    std::optional<double> leanDegrees{};
+    /// Angle of its up axis from the vertical after lean, degrees; unset draws it.
+    std::optional<double> tiltDegrees{};
+    /// Direction its up axis tips toward, degrees counter-clockwise from east; unset draws it.
+    std::optional<double> tiltAzimuthDegrees{};
+    std::optional<double> wear{};       ///< How worn it is, from 0 (fresh) to 1; unset draws it.
     std::optional<BoulderRest> rest{};  ///< Which axis it stands along; unset draws it.
     /// The seed of its shape (`GenerateBoulderShape`); unset derives it from its ID.
     std::optional<std::uint64_t> shapeSeed{};
+    /// Whether it is a 3D model rather than relief in the heights; unset follows the layer's
+    /// `BoulderRendering::models` threshold.
+    std::optional<bool> model{};
+
+    ManualBoulder() = default;
+    /// A boulder `diameter` meters long centered at surface (`x`, `y`), the rest drawn.
+    ManualBoulder(double x, double y, double diameter) : x(x), y(y), diameter(diameter) {}
+
+    ManualBoulder& Id(std::uint64_t value) {
+        id = value;
+        return *this;
+    }
+    ManualBoulder& Height(double meters) {
+        height = meters;
+        return *this;
+    }
+    ManualBoulder& Burial(double share) {
+        burial = share;
+        return *this;
+    }
+    ManualBoulder& YawDegrees(double degrees) {
+        yawDegrees = degrees;
+        return *this;
+    }
+    ManualBoulder& LeanDegrees(double degrees) {
+        leanDegrees = degrees;
+        return *this;
+    }
+    ManualBoulder& TiltDegrees(double degrees) {
+        tiltDegrees = degrees;
+        return *this;
+    }
+    ManualBoulder& TiltAzimuthDegrees(double degrees) {
+        tiltAzimuthDegrees = degrees;
+        return *this;
+    }
+    ManualBoulder& Wear(double value) {
+        wear = value;
+        return *this;
+    }
+    ManualBoulder& Rest(BoulderRest value) {
+        rest = value;
+        return *this;
+    }
+    ManualBoulder& ShapeSeed(std::uint64_t value) {
+        shapeSeed = value;
+        return *this;
+    }
+    ManualBoulder& Model(bool value) {
+        model = value;
+        return *this;
+    }
 
     /// Whether any of its lean, tilt, tilt azimuth or rest is fixed.
     bool FixesOrientation() const {
-        return !std::isnan(lean) || !std::isnan(tilt) || !std::isnan(tiltAzimuth) ||
-               rest.has_value();
+        return leanDegrees || tiltDegrees || tiltAzimuthDegrees || rest;
     }
 
     /// Whether any of its pose or shape is fixed.
     bool FixesAny() const {
-        return FixesOrientation() || !std::isnan(height) || !std::isnan(burial) ||
-               !std::isnan(yaw) || !std::isnan(wear) || shapeSeed.has_value();
+        return FixesOrientation() || height || burial || yawDegrees || wear || shapeSeed;
     }
 
-    /// Fieldwise equality, two NaN fields counting as equal.
     bool operator==(const ManualBoulder& other) const {
-        const auto same = [](double a, double b) {
-            return a == b || (std::isnan(a) && std::isnan(b));
-        };
         return x == other.x && y == other.y && diameter == other.diameter && id == other.id &&
-               same(height, other.height) && same(burial, other.burial) && same(yaw, other.yaw) &&
-               same(lean, other.lean) && same(tilt, other.tilt) &&
-               same(tiltAzimuth, other.tiltAzimuth) && same(wear, other.wear) &&
-               rest == other.rest && shapeSeed == other.shapeSeed;
+               height == other.height && burial == other.burial && yawDegrees == other.yawDegrees &&
+               leanDegrees == other.leanDegrees && tiltDegrees == other.tiltDegrees &&
+               tiltAzimuthDegrees == other.tiltAzimuthDegrees && wear == other.wear &&
+               rest == other.rest && shapeSeed == other.shapeSeed && model == other.model;
     }
     bool operator!=(const ManualBoulder& other) const {
         return !(*this == other);

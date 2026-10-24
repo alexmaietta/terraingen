@@ -291,3 +291,8 @@ TEST(NoiseRelief, RunsOnEachGpuBackendItselfAndNotWithoutItsCompiledForm) {
         EXPECT_NE(gpu(5, 5), 0.0f);
     }
 }
+
+TEST(NoiseRelief, TakesOneLayerAlone) {
+    const terraingen::NoiseLayer layer = terraingen::NoiseLayer::Fbm(3, 800.0, 40.0);
+    EXPECT_EQ(terraingen::NoiseRelief(layer).Layers(), std::vector<terraingen::NoiseLayer>{layer});
+}

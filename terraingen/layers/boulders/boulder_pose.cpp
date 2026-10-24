@@ -46,8 +46,8 @@ Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing,
     const double ratio =
         ValueRange{pose.minHeightRatio, pose.maxHeightRatio}.Lerp(random.NextDouble());
     double wear = Wear(candidate.diameter, thinned.abundance, thinned.density, candidate.id);
-    if (fixed != nullptr && !std::isnan(fixed->wear)) {
-        wear = fixed->wear;
+    if (fixed != nullptr && fixed->wear) {
+        wear = *fixed->wear;
     }
     double share = random.NextDouble();
     if (pose.burialByWear > 0.0) {
@@ -62,16 +62,16 @@ Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing,
     boulder.wear = wear;
     boulder.model = options_.rendering.models.IsModel(boulder.diameter, spacing);
     if (fixed != nullptr) {
-        const auto set = [](double& field, double value) {
-            if (!std::isnan(value)) {
-                field = value;
-            }
-        };
-        set(boulder.height, fixed->height);
-        set(boulder.burial, fixed->burial);
-        set(boulder.yaw, fixed->yaw);
-        set(boulder.lean, fixed->lean);
+        boulder.height = fixed->height.value_or(boulder.height);
+        boulder.burial = fixed->burial.value_or(boulder.burial);
+        if (fixed->yawDegrees) {
+            boulder.yaw = *fixed->yawDegrees * kDegree;
+        }
+        if (fixed->leanDegrees) {
+            boulder.lean = *fixed->leanDegrees * kDegree;
+        }
         boulder.shapeSeed = fixed->shapeSeed;
+        boulder.model = fixed->model.value_or(boulder.model);
     }
     return boulder;
 }
@@ -174,8 +174,10 @@ Vec3d BoulderLayer::UpAxis(RandomStream& random, const ManualBoulder* fixedTilt)
     if (!(pose.maxTilt > 0.0)) {
         azimuth = 2.0 * kPi * random.NextDouble();
     }
-    const double tilt = std::isnan(fixedTilt->tilt) ? std::acos(cosine) : fixedTilt->tilt;
-    const double toward = std::isnan(fixedTilt->tiltAzimuth) ? azimuth : fixedTilt->tiltAzimuth;
+    const double tilt =
+        fixedTilt->tiltDegrees ? *fixedTilt->tiltDegrees * kDegree : std::acos(cosine);
+    const double toward =
+        fixedTilt->tiltAzimuthDegrees ? *fixedTilt->tiltAzimuthDegrees * kDegree : azimuth;
     return {std::sin(tilt) * std::cos(toward), std::sin(tilt) * std::sin(toward), std::cos(tilt)};
 }
 
@@ -190,8 +192,8 @@ void BoulderLayer::Settle(Boulder& boulder, const Ground* ground,
     if (fixed != nullptr && fixed->rest) {
         boulder.rest = *fixed->rest;
     }
-    const bool fixesTilt =
-        fixed != nullptr && !(std::isnan(fixed->tilt) && std::isnan(fixed->tiltAzimuth));
+    const bool fixesTilt = fixed != nullptr && (fixed->tiltDegrees.has_value() ||
+                                                fixed->tiltAzimuthDegrees.has_value());
     Vec3d up = UpAxis(random, fixesTilt ? fixed : nullptr);
     bool sloped = false;
     if (pose.followSlope && ground != nullptr) {
@@ -204,11 +206,11 @@ void BoulderLayer::Settle(Boulder& boulder, const Ground* ground,
     boulder.tilt = std::acos(std::clamp(up.z, -1.0, 1.0));
     boulder.tiltAzimuth = std::atan2(up.y, up.x);
     if (fixesTilt && !sloped) {
-        if (!std::isnan(fixed->tilt)) {
-            boulder.tilt = fixed->tilt;
+        if (fixed->tiltDegrees) {
+            boulder.tilt = *fixed->tiltDegrees * kDegree;
         }
-        if (!std::isnan(fixed->tiltAzimuth)) {
-            boulder.tiltAzimuth = fixed->tiltAzimuth;
+        if (fixed->tiltAzimuthDegrees) {
+            boulder.tiltAzimuth = *fixed->tiltAzimuthDegrees * kDegree;
         }
     }
 }

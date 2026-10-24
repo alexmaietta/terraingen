@@ -150,7 +150,7 @@ TEST(CraterLayer, DrawsUnsetShapingSeedsFromItsOwn) {
 
 TEST(CraterLayer, ManualNeedsOnlyItsCraters) {
     CraterList craters;
-    craters.Append(terraingen::ManualCrater(0.0, 0.0, 30.0, 4.0));
+    craters.Append(terraingen::ManualCrater(0.0, 0.0, 30.0).Depth(4.0));
     const auto layer = CraterLayer::Manual(craters);
     EXPECT_EQ(layer->Options().apply, terraingen::SeededCraterApply(
                                           terraingen::DefaultCraterApply(), layer->Options().seed));

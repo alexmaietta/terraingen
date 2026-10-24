@@ -259,10 +259,8 @@ void BindGeneration(nb::module_& m) {
     m.def("manual_crater_id", &ManualCraterId, "x"_a, "y"_a, "diameter"_a,
           "A stable ID for a hand-placed crater, hashed from its position and size.");
     m.def("manual_crater", &ManualCrater, "x"_a, "y"_a, "diameter"_a,
-          "depth"_a = std::numeric_limits<double>::quiet_NaN(),
-          "rim_height"_a = std::numeric_limits<double>::quiet_NaN(),
-          "A crater placed by hand, flagged manual; NaN depth comes from the degradation model and "
-          "NaN rim height from the depth.");
+          "A fresh crater placed by hand, flagged manual; set `age_gyr`, `depth` and `rim_height` "
+          "on it by name.");
 }
 
 void BindApplyEnums(nb::module_& m) {

@@ -157,7 +157,8 @@ def test_manual_crater_id_is_deterministic():
 def test_manual_crater_flags_a_hand_placed_crater():
     plain = terraingen.manual_crater(1.0, -2.0, 30.0)
     assert plain.manual and math.isnan(plain.depth) and math.isnan(plain.rim_height)
-    deep = terraingen.manual_crater(1.0, -2.0, 30.0, depth=6.0, rim_height=1.2)
+    deep = terraingen.manual_crater(1.0, -2.0, 30.0)
+    deep.depth, deep.rim_height = 6.0, 1.2
     assert (deep.x, deep.y, deep.diameter, deep.depth, deep.rim_height) == (1.0, -2.0, 30.0, 6.0, 1.2)
     assert len(terraingen.CraterList([plain, deep])) == 2
 

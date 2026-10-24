@@ -24,15 +24,6 @@
 
 namespace {
 
-/// A manual boulder at (`x`, `y`), `diameter` long, fixing nothing else.
-terraingen::ManualBoulder Plain(double x, double y, double diameter) {
-    terraingen::ManualBoulder boulder;
-    boulder.x = x;
-    boulder.y = y;
-    boulder.diameter = diameter;
-    return boulder;
-}
-
 /// The name of `rest` as the configs write it.
 const char* RestName(terraingen::BoulderRest rest) {
     switch (rest) {
@@ -60,21 +51,21 @@ class BouldersManual : public terraingen::examples::Example {
     using Example::Example;
 
     void Generate() override {
-        terraingen::ManualBoulder posed = Plain(-6.0, 4.0, 1.6);
-        posed.id = 101;
-        posed.height = 0.9;
-        posed.burial = 0.3;
-        posed.yaw = 30.0 * terraingen::kDegree;
-        posed.lean = 5.0 * terraingen::kDegree;
-        posed.tilt = 15.0 * terraingen::kDegree;
-        posed.tiltAzimuth = 90.0 * terraingen::kDegree;
-        posed.wear = 0.2;
-        posed.rest = terraingen::BoulderRest::Side;
-        posed.shapeSeed = 7u;
-        terraingen::ManualBoulder partly = Plain(5.0, 3.0, 1.2);
-        partly.yaw = 90.0 * terraingen::kDegree;
-        partly.burial = 0.5;
-        manual_ = {posed, partly, Plain(0.0, -6.0, 1.0)};
+        manual_ = {
+            terraingen::ManualBoulder(-6.0, 4.0, 1.6)
+                .Id(101)
+                .Height(0.9)
+                .Burial(0.3)
+                .YawDegrees(30.0)
+                .LeanDegrees(5.0)
+                .TiltDegrees(15.0)
+                .TiltAzimuthDegrees(90.0)
+                .Wear(0.2)
+                .Rest(terraingen::BoulderRest::Side)
+                .ShapeSeed(7u),
+            terraingen::ManualBoulder(5.0, 3.0, 1.2).YawDegrees(90.0).Burial(0.5),
+            terraingen::ManualBoulder(0.0, -6.0, 1.0),
+        };
 
         terraingen::BoulderLayerOptions options;
         options.sizes.distribution = nullptr;
@@ -129,17 +120,18 @@ class BouldersManual : public terraingen::examples::Example {
         const terraingen::ManualBoulder& posed = manual_[0];
         const std::optional<terraingen::Boulder> p = Find(boulders_.boulders, 101);
         Check(p.has_value(), "the posed boulder keeps its ID");
+        const double deg = terraingen::kDegree;
         Check(p.has_value() && p->x == posed.x && p->y == posed.y &&
                   p->diameter == posed.diameter && p->height == posed.height &&
-                  p->burial == posed.burial && p->yaw == posed.yaw && p->lean == posed.lean &&
-                  p->tilt == posed.tilt && p->tiltAzimuth == posed.tiltAzimuth &&
-                  p->wear == posed.wear && p->rest == terraingen::BoulderRest::Side &&
-                  p->shapeSeed == posed.shapeSeed,
+                  p->burial == posed.burial && p->yaw == *posed.yawDegrees * deg &&
+                  p->lean == *posed.leanDegrees * deg && p->tilt == *posed.tiltDegrees * deg &&
+                  p->tiltAzimuth == *posed.tiltAzimuthDegrees * deg && p->wear == posed.wear &&
+                  p->rest == terraingen::BoulderRest::Side && p->shapeSeed == posed.shapeSeed,
               "the posed boulder has every field it fixes");
         const terraingen::ManualBoulder& partly = manual_[1];
         const std::optional<terraingen::Boulder> q =
             Find(boulders_.boulders, terraingen::ManualBoulderId(partly));
-        Check(q.has_value() && q->yaw == partly.yaw && q->burial == partly.burial &&
+        Check(q.has_value() && q->yaw == *partly.yawDegrees * deg && q->burial == partly.burial &&
                   q->diameter == partly.diameter && !q->shapeSeed,
               "the partly posed boulder has its yaw and burial");
         const std::optional<terraingen::Boulder> r =

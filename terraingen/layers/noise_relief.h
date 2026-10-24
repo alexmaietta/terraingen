@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace terraingen {
@@ -36,6 +37,14 @@ class NoiseRelief final : public Layer {
     explicit NoiseRelief(std::vector<NoiseLayer> layers, Vec2d origin = {}, Surface surface = {},
                          std::shared_ptr<const Source> source = nullptr,
                          std::optional<double> sourceResolvesPixels = std::nullopt);
+
+    /// Relief of the one noise layer `layer`.
+    /// @throws std::invalid_argument as the stack constructor.
+    explicit NoiseRelief(NoiseLayer layer, Vec2d origin = {}, Surface surface = {},
+                         std::shared_ptr<const Source> source = nullptr,
+                         std::optional<double> sourceResolvesPixels = std::nullopt)
+        : NoiseRelief(std::vector<NoiseLayer>{layer}, origin, surface, std::move(source),
+                      sourceResolvesPixels) {}
 
     /// The noise layers the layer was made with.
     const std::vector<NoiseLayer>& Layers() const {

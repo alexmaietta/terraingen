@@ -54,8 +54,8 @@ TEST(Evaluate, AWindowEqualsTheSameCellsOfALargerGridWithRoundedRims) {
     for (const auto& [col0, row0] :
          {std::pair<std::size_t, std::size_t>{68, 48}, std::pair<std::size_t, std::size_t>{84, 32},
           std::pair<std::size_t, std::size_t>{52, 64}}) {
-        const auto window =
-            Evaluate(terrain, Window(large, col0, row0), terraingen::EvaluationOptions{0.0, 4});
+        const auto window = Evaluate(terrain, Window(large, col0, row0),
+                                     terraingen::EvaluationOptions{}.Threads(4));
         ExpectSameCells(window, whole, col0, row0);
     }
 }
@@ -63,8 +63,8 @@ TEST(Evaluate, AWindowEqualsTheSameCellsOfALargerGridWithRoundedRims) {
 TEST(Evaluate, CratersCutToADatumEqualALargerGridInAWindow) {
     const TerrainGenerator terrain = Datum();
     const RasterGrid large{120, 100, GeoTransform::NorthUp(-120.0, 100.0, 2.0)};
-    const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
-    ExpectSameRaster(whole, Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 1}));
+    const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{}.Threads(4));
+    ExpectSameRaster(whole, Evaluate(terrain, large, terraingen::EvaluationOptions{}.Threads(1)));
     for (const auto& [col0, row0] : {std::pair<std::size_t, std::size_t>{28, 34},
                                      std::pair<std::size_t, std::size_t>{12, 18}}) {
         ExpectSameCells(Evaluate(terrain, Window(large, col0, row0)), whole, col0, row0);
@@ -88,7 +88,7 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
     terrain.layers.push_back(std::make_shared<terraingen::BoulderLayer>(options, craters));
 
     const RasterGrid large{240, 200, GeoTransform::NorthUp(-120.0, 100.0, 1.0)};
-    const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{0.0, 4});
+    const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{}.Threads(4));
     EXPECT_FALSE(terraingen::PlacedBoulders(terrain, large).boulders.Empty());
     for (std::size_t row = 3; row < large.height; row += 7) {
         for (std::size_t col = 1; col < large.width; col += 7) {
@@ -134,8 +134,8 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     const auto smoothed = Evaluate(terrain, large);
     for (const auto& [col0, row0] : {std::pair<std::size_t, std::size_t>{84, 64},
                                      std::pair<std::size_t, std::size_t>{100, 48}}) {
-        const auto window =
-            Evaluate(terrain, Window(large, col0, row0), terraingen::EvaluationOptions{0.0, 2});
+        const auto window = Evaluate(terrain, Window(large, col0, row0),
+                                     terraingen::EvaluationOptions{}.Threads(2));
         ExpectSameCells(window, smoothed, col0, row0, 1e-3f);
     }
 }

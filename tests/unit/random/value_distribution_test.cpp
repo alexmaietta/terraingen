@@ -132,3 +132,19 @@ TEST(ValueDistribution, DrawsFromTheNextTwoUniformsOfAStream) {
     EXPECT_EQ(normal.Draw(drawn), normal.Sample(u1, u2));
     EXPECT_EQ(drawn.NextDouble(), read.NextDouble()) << "two uniforms used";
 }
+
+TEST(ValueDistribution, NamedFactoriesSetTheParametersOfTheirKind) {
+    using terraingen::ValueDistribution;
+    using Kind = ValueDistribution::Kind;
+    EXPECT_EQ(ValueDistribution::Constant(2.0), (ValueDistribution{Kind::Constant, 2.0}));
+    EXPECT_EQ(ValueDistribution::Uniform(1.0, 3.0), (ValueDistribution{Kind::Uniform, 1.0, 3.0}));
+    EXPECT_EQ(ValueDistribution::Normal(10.7, 3.1).Clamped(6.0, 20.0),
+              (ValueDistribution{Kind::Normal, 10.7, 3.1, 6.0, 20.0}));
+    EXPECT_EQ(ValueDistribution::LogNormal(1.0, 0.5).Clamped(0.1, 9.0),
+              (ValueDistribution{Kind::LogNormal, 1.0, 0.5, 0.1, 9.0}));
+    const ValueDistribution bins = ValueDistribution::Piecewise({0.0, 1.0, 2.0}, {1.0, 3.0});
+    EXPECT_EQ(bins.kind, Kind::Piecewise);
+    EXPECT_EQ(bins.edges, (std::vector<double>{0.0, 1.0, 2.0}));
+    EXPECT_EQ(bins.weights, (std::vector<double>{1.0, 3.0}));
+    EXPECT_NO_THROW(terraingen::ValidateValueDistribution(bins));
+}

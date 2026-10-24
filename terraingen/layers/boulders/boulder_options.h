@@ -477,7 +477,7 @@ void ValidateBoulderFillet(const BoulderFillet& fillet);
 void ValidateManualBoulder(const ManualBoulder& boulder);
 
 /// The ID a manual boulder is placed with: its own, or `ManualCraterId` of its position and size
-/// for 0.
+/// when it has none (or 0).
 std::uint64_t ManualBoulderId(const ManualBoulder& boulder);
 
 /// Checks boulder layer options; without `generateRandom`, the sizes, ejecta and the coverage they

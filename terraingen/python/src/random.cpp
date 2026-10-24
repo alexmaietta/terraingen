@@ -88,6 +88,19 @@ void BindValueDistribution(nb::module_& m) {
         {&ValidateValueDistribution, "validate_value_distribution", "distribution"});
     BindEnum<ValueDistribution::Kind>(distribution, "Kind",
                                       "The kind of distribution a random value is drawn from.");
+    nb::class_<ValueDistribution> named = distribution;
+    named.def_static("constant", &ValueDistribution::Constant, "value"_a, "Always `value`.")
+        .def_static("uniform", &ValueDistribution::Uniform, "low"_a, "high"_a,
+                    "Uniform on [low, high].")
+        .def_static("normal", &ValueDistribution::Normal, "mean"_a, "sd"_a,
+                    "Normal of `mean` and standard deviation `sd`; clamp it to a finite max.")
+        .def_static("log_normal", &ValueDistribution::LogNormal, "median"_a, "log_sd"_a,
+                    "Log-normal of `median` and log standard deviation `log_sd`; clamp it to a "
+                    "finite max.")
+        .def_static("piecewise", &ValueDistribution::Piecewise, "edges"_a, "weights"_a,
+                    "Uniform within each bin of `edges`, with bin shares from `weights`.")
+        .def("clamped", &ValueDistribution::Clamped, "low"_a, "high"_a,
+             "This distribution clamped to [low, high].");
 }
 
 }  // namespace

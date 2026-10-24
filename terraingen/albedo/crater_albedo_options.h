@@ -58,7 +58,7 @@ struct ObliqueImpacts {
     double forbiddenDegrees = 25.0;   ///< Below this angle rays near uprange are dropped.
     double butterflyDegrees = 10.0;   ///< Below this angle rays near downrange are dropped too.
     /// Downrange over uprange ejection speed, at least 1.
-    ValueDistribution downrangeSpeedRatio{ValueDistribution::Kind::Uniform, 1.2, 1.4};
+    ValueDistribution downrangeSpeedRatio{ValueDistribution::Uniform(1.2, 1.4)};
     double zoneHalfWidthDegrees = 45.0;  ///< Half width of a forbidden zone, in [0, 180].
 
     /// The most a ray's length can be multiplied by: (1 + a)^2 / (1 + a^2 / 2) for the highest
@@ -97,13 +97,13 @@ void ValidateObliqueImpacts(const ObliqueImpacts& oblique);
 struct CraterRays {
     bool enabled = true;  ///< Whether craters have rays.
     /// Rays per crater, 0 to 64.
-    ValueDistribution count{ValueDistribution::Kind::Normal, 10.7, 3.1, 6.0, 20.0};
+    ValueDistribution count{ValueDistribution::Normal(10.7, 3.1).Clamped(6.0, 20.0)};
     double lengthCoefficient = 6.59;  ///< Coefficient of `ElliottMedianRayLength`.
     double lengthExponent = 1.27;     ///< Exponent of `ElliottMedianRayLength`.
     /// Natural log of a ray's length over the median.
-    ValueDistribution lengthSpread{ValueDistribution::Kind::Uniform, -0.356, 0.468};
+    ValueDistribution lengthSpread{ValueDistribution::Uniform(-0.356, 0.468)};
     /// Angular width 2 radii from the center, in (0, 180) degrees; the width there holds beyond.
-    ValueDistribution widthDegrees{ValueDistribution::Kind::Normal, 22.0, 8.3, 5.4, 38.6};
+    ValueDistribution widthDegrees{ValueDistribution::Normal(22.0, 8.3).Clamped(5.4, 38.6)};
     double excess = 0.048;     ///< Maturity excess at the rim, in OMAT; >= 0.
     double patchiness = 0.5;   ///< Most of the excess the noise takes away, in [0, 1].
     double patchRadii = 0.5;   ///< Noise wavelength, in crater radii; positive.
@@ -234,10 +234,10 @@ struct CraterReflectanceZones {
     double excavationRatio = 0.1;  ///< Excavation depth over diameter; positive.
     /// PHRZ: +12% +/- 9% to a median 1.5 D (mean 2.1 D) from the center.
     ReflectanceZone proximalHigh{1.0,
-                                 {ValueDistribution::Kind::Normal, 0.12, 0.09, 0.01, 0.5},
+                                 {ValueDistribution::Normal(0.12, 0.09).Clamped(0.01, 0.5)},
                                  1.5,
                                  1.0,
-                                 {ValueDistribution::Kind::LogNormal, 1.0, 0.82, 0.4, 5.0},
+                                 {ValueDistribution::LogNormal(1.0, 0.82).Clamped(0.4, 5.0)},
                                  0.3,
                                  25.0,
                                  0.3,
@@ -245,30 +245,30 @@ struct CraterReflectanceZones {
     /// PLRZ: -9% +/- 4%, in nearly all craters, to a median 2.9 D (mean 3.2 D); lasting as long as
     /// the top centimeters is an inference from Robinson et al.'s (2015) discussion.
     ReflectanceZone proximalLow{1.0,
-                                {ValueDistribution::Kind::Normal, -0.09, 0.04, -0.2, -0.01},
+                                {ValueDistribution::Normal(-0.09, 0.04).Clamped(-0.2, -0.01)},
                                 2.9,
                                 1.0,
-                                {ValueDistribution::Kind::LogNormal, 1.0, 0.44, 0.5, 3.0},
+                                {ValueDistribution::LogNormal(1.0, 0.44).Clamped(0.5, 3.0)},
                                 0.3,
                                 20.0,
                                 0.3,
                                 0.081};
     /// DHRZ: +1% to +4% in 24% of craters, to 0.52 D^2.5 m.
     ReflectanceZone distalHigh{0.24,
-                               {ValueDistribution::Kind::Uniform, 0.01, 0.04},
+                               {ValueDistribution::Uniform(0.01, 0.04)},
                                0.52,
                                2.5,
-                               {ValueDistribution::Kind::Constant, 1.0},
+                               {ValueDistribution::Constant(1.0)},
                                0.5,
                                8.0,
                                0.4,
                                0.081};
     /// DLRZ: -2% to -6% in 84% of craters, ray-like, to 5.03 D^2 m.
     ReflectanceZone distalLow{0.84,
-                              {ValueDistribution::Kind::Uniform, -0.06, -0.02},
+                              {ValueDistribution::Uniform(-0.06, -0.02)},
                               5.03,
                               2.0,
-                              {ValueDistribution::Kind::Constant, 1.0},
+                              {ValueDistribution::Constant(1.0)},
                               0.6,
                               8.0,
                               0.6,

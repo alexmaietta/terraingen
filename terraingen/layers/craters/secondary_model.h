@@ -66,7 +66,7 @@ struct SecondaryRays {
 struct SecondaryShapes {
     double elongatedShare = 0.0;  ///< Share of secondaries that are elliptical, in [0, 1].
     /// Long over short axis near the primary; at least 1 and bounded.
-    ValueDistribution ellipticity{ValueDistribution::Kind::Uniform, 1.2, 1.8};
+    ValueDistribution ellipticity{ValueDistribution::Uniform(1.2, 1.8)};
 
     /// Memberwise equality.
     bool operator==(const SecondaryShapes& other) const {

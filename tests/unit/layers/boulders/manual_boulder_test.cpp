@@ -68,10 +68,10 @@ ManualBoulder Posed() {
     boulder.id = 99;
     boulder.height = 0.9;
     boulder.burial = 0.35;
-    boulder.yaw = 0.5;
-    boulder.lean = 0.2;
-    boulder.tilt = 0.3;
-    boulder.tiltAzimuth = -1.0;
+    boulder.yawDegrees = 30.0;
+    boulder.leanDegrees = 10.0;
+    boulder.tiltDegrees = 15.0;
+    boulder.tiltAzimuthDegrees = -60.0;
     boulder.wear = 0.6;
     boulder.rest = BoulderRest::End;
     boulder.shapeSeed = 5u;
@@ -140,10 +140,10 @@ TEST(ManualBoulder, FixingWhatAnUnsetOneDrewGivesTheSameBoulderAndLeavesTheRestA
     ManualBoulder fixed = options.manual[0];
     fixed.height = plain->height;
     fixed.burial = plain->burial;
-    fixed.yaw = plain->yaw;
-    fixed.lean = plain->lean;
-    fixed.tilt = plain->tilt;
-    fixed.tiltAzimuth = plain->tiltAzimuth;
+    fixed.yawDegrees = plain->yaw / terraingen::kDegree;
+    fixed.leanDegrees = plain->lean / terraingen::kDegree;
+    fixed.tiltDegrees = plain->tilt / terraingen::kDegree;
+    fixed.tiltAzimuthDegrees = plain->tiltAzimuth / terraingen::kDegree;
     fixed.wear = plain->wear;
     fixed.rest = plain->rest;
     const std::uint64_t seed = terraingen::ShapeSeed(*plain, options.rendering.shapePrototypes);
@@ -157,6 +157,11 @@ TEST(ManualBoulder, FixingWhatAnUnsetOneDrewGivesTheSameBoulderAndLeavesTheRestA
     EXPECT_EQ(again->shapeSeed, std::optional<std::uint64_t>(seed));
     Boulder same = *again;
     same.shapeSeed.reset();
+    for (const auto angle :
+         {&Boulder::yaw, &Boulder::lean, &Boulder::tilt, &Boulder::tiltAzimuth}) {
+        EXPECT_NEAR(same.*angle, (*plain).*angle, 1e-12) << "fixed in degrees";
+        same.*angle = (*plain).*angle;
+    }
     EXPECT_EQ(same, *plain) << "the same ID and every field as drawn";
     const std::vector<std::uint64_t> manual{id, terraingen::ManualCraterId(-4.0, 1.0, 0.8)};
     EXPECT_GT(Without(drawn, manual).size(), 20u);
@@ -178,10 +183,10 @@ TEST(ManualBoulder, PlacesEveryFixedFieldExactlyInTheListsAndModels) {
     EXPECT_EQ(b->diameter, posed.diameter);
     EXPECT_EQ(b->height, posed.height);
     EXPECT_EQ(b->burial, posed.burial);
-    EXPECT_EQ(b->yaw, posed.yaw);
-    EXPECT_EQ(b->lean, posed.lean);
-    EXPECT_EQ(b->tilt, posed.tilt);
-    EXPECT_EQ(b->tiltAzimuth, posed.tiltAzimuth);
+    EXPECT_EQ(b->yaw, *posed.yawDegrees * terraingen::kDegree);
+    EXPECT_EQ(b->lean, *posed.leanDegrees * terraingen::kDegree);
+    EXPECT_EQ(b->tilt, *posed.tiltDegrees * terraingen::kDegree);
+    EXPECT_EQ(b->tiltAzimuth, *posed.tiltAzimuthDegrees * terraingen::kDegree);
     EXPECT_EQ(b->wear, posed.wear);
     EXPECT_EQ(b->rest, BoulderRest::End);
     EXPECT_EQ(b->shapeSeed, posed.shapeSeed);
@@ -199,7 +204,7 @@ TEST(ManualBoulder, PlacesEveryFixedFieldExactlyInTheListsAndModels) {
 TEST(ManualBoulder, FixedOrientationIsNotTippedOverButOtherManualBouldersAre) {
     BoulderLayerOptions options = Options();
     ManualBoulder leaning = Plain(4.0, -4.0, 1.5);
-    leaning.lean = 1.2;
+    leaning.leanDegrees = 60.0;
     ManualBoulder resting = Plain(-4.0, -4.0, 1.5);
     resting.rest = BoulderRest::End;
     ManualBoulder tall = Plain(0.0, -8.0, 1.5);
@@ -221,7 +226,8 @@ TEST(ManualBoulder, FixedOrientationIsNotTippedOverButOtherManualBouldersAre) {
             terraingen::PlaceBoulderModel(*boulder, *layer.Shape(*boulder), 3.0, settles)))
             << "settled: " << settles;
     }
-    EXPECT_EQ(Find(boulders, terraingen::ManualBoulderId(leaning))->lean, 1.2);
+    EXPECT_EQ(Find(boulders, terraingen::ManualBoulderId(leaning))->lean,
+              60.0 * terraingen::kDegree);
 }
 
 TEST(ManualBoulder, ShapeSeedPicksTheShapeAGeneratedBoulderDerives) {
@@ -273,8 +279,8 @@ TEST(ManualBoulder, AFollowedSlopeTipsAFixedTilt) {
     BoulderLayerOptions options = Options();
     options.pose.followSlope = true;
     ManualBoulder upright = Plain(0.0, 0.0, 1.0);
-    upright.tilt = 0.0;
-    upright.tiltAzimuth = 0.0;
+    upright.tiltDegrees = 0.0;
+    upright.tiltAzimuthDegrees = 0.0;
     options.manual = {upright};
     const Ramp ramp(0.2);
     const auto boulders =
@@ -298,6 +304,34 @@ TEST(ManualBoulder, AFixedWearSetsTheBurialDrawnByWear) {
     EXPECT_NEAR(b->burial, 0.5 * (options.pose.minBurial + options.pose.maxBurial), 1e-12);
 }
 
+TEST(ManualBoulder, SetsFieldsByNameAndCanChooseToBeAModel) {
+    const ManualBoulder chained = ManualBoulder(-6.0, 5.0, 1.5)
+                                      .Id(99)
+                                      .Height(0.9)
+                                      .Burial(0.35)
+                                      .YawDegrees(30.0)
+                                      .LeanDegrees(10.0)
+                                      .TiltDegrees(15.0)
+                                      .TiltAzimuthDegrees(-60.0)
+                                      .Wear(0.6)
+                                      .Rest(BoulderRest::End)
+                                      .ShapeSeed(5u);
+    EXPECT_EQ(chained, Posed());
+    EXPECT_EQ(ManualBoulder(1.0, 2.0, 3.0), Plain(1.0, 2.0, 3.0));
+
+    BoulderLayerOptions options = Options();
+    options.manual = {ManualBoulder(2.0, 3.0, 0.5).Model(true),
+                      ManualBoulder(-4.0, 1.0, 2.0).Model(false), ManualBoulder(4.0, -3.0, 0.5)};
+    const BoulderLayer layer(options);
+    const auto boulders = terraingen::testing::Records(layer.Boulders(kRegion));
+    for (const ManualBoulder& manual : options.manual) {
+        const Boulder* b = Find(boulders, terraingen::ManualBoulderId(manual));
+        ASSERT_NE(b, nullptr);
+        const bool threshold = options.rendering.models.IsModel(manual.diameter, 0.0);
+        EXPECT_EQ(b->model, manual.model.value_or(threshold));
+    }
+}
+
 TEST(ManualBoulder, ComparesUnsetFieldsAsEqualAndSaysWhatItFixes) {
     const ManualBoulder plain = Plain(1.0, 2.0, 3.0);
     EXPECT_EQ(plain, Plain(1.0, 2.0, 3.0));
@@ -313,7 +347,7 @@ TEST(ManualBoulder, ComparesUnsetFieldsAsEqualAndSaysWhatItFixes) {
     seeded.shapeSeed = 0u;
     EXPECT_TRUE(seeded.FixesAny());
     ManualBoulder azimuth = plain;
-    azimuth.tiltAzimuth = 0.0;
+    azimuth.tiltAzimuthDegrees = 0.0;
     EXPECT_TRUE(azimuth.FixesOrientation());
     EXPECT_EQ(terraingen::ManualBoulderId(plain), terraingen::ManualCraterId(1.0, 2.0, 3.0));
     EXPECT_EQ(terraingen::ManualBoulderId(Posed()), 99u);
@@ -419,10 +453,11 @@ TEST(ManualBoulder, RejectsInvalidFieldsAndSharedIds) {
     invalid([](ManualBoulder& b) { b.height = std::numeric_limits<double>::infinity(); });
     invalid([](ManualBoulder& b) { b.burial = 1.0; });
     invalid([](ManualBoulder& b) { b.burial = -0.1; });
-    invalid([](ManualBoulder& b) { b.yaw = std::numeric_limits<double>::infinity(); });
-    invalid([](ManualBoulder& b) { b.lean = -std::numeric_limits<double>::infinity(); });
-    invalid([](ManualBoulder& b) { b.tilt = std::numeric_limits<double>::infinity(); });
-    invalid([](ManualBoulder& b) { b.tiltAzimuth = std::numeric_limits<double>::infinity(); });
+    invalid([](ManualBoulder& b) { b.yawDegrees = std::numeric_limits<double>::infinity(); });
+    invalid([](ManualBoulder& b) { b.leanDegrees = -std::numeric_limits<double>::infinity(); });
+    invalid([](ManualBoulder& b) { b.tiltDegrees = std::numeric_limits<double>::infinity(); });
+    invalid(
+        [](ManualBoulder& b) { b.tiltAzimuthDegrees = std::numeric_limits<double>::infinity(); });
     invalid([](ManualBoulder& b) { b.wear = 1.5; });
 
     BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();

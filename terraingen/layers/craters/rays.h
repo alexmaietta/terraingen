@@ -17,9 +17,9 @@ namespace terraingen {
 struct RayLayout {
     std::uint32_t seed = 0;  ///< Seed of the directions.
     /// Rays per crater, 0 to 64.
-    ValueDistribution count{ValueDistribution::Kind::Normal, 10.7, 3.1, 6.0, 20.0};
+    ValueDistribution count{ValueDistribution::Normal(10.7, 3.1).Clamped(6.0, 20.0)};
     /// Angular width 2 radii from the center, in (0, 180) degrees.
-    ValueDistribution widthDegrees{ValueDistribution::Kind::Normal, 22.0, 8.3, 5.4, 38.6};
+    ValueDistribution widthDegrees{ValueDistribution::Normal(22.0, 8.3).Clamped(5.4, 38.6)};
 
     /// Memberwise equality.
     bool operator==(const RayLayout& other) const {

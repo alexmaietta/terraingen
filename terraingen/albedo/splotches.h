@@ -33,13 +33,13 @@ struct SplotchSwarms {
     double minRange = 4300.0;         ///< Nearest landing distance (m); positive.
     double maxRange = 30000.0;        ///< Farthest landing distance (m); above the nearest.
     /// Diameter of a swarm splotch (m); positive and bounded.
-    ValueDistribution splotchDiameter{ValueDistribution::Kind::LogNormal, 6.0, 0.6, 2.0, 22.0};
+    ValueDistribution splotchDiameter{ValueDistribution::LogNormal(6.0, 0.6).Clamped(2.0, 22.0)};
     double darkShare = 239.0 / 248.0;  ///< Share darker than the ground, in [0, 1].
     double brightShare = 3.0 / 248.0;  ///< Share brighter; the rest are mixed.
     /// Reflectance change of a dark swarm splotch; above -1 and bounded.
-    ValueDistribution darkChange{ValueDistribution::Kind::Constant, -0.04};
+    ValueDistribution darkChange{ValueDistribution::Constant(-0.04)};
     /// Reflectance change of a bright swarm splotch; above -1 and bounded.
-    ValueDistribution brightChange{ValueDistribution::Kind::Uniform, 0.04, 0.12};
+    ValueDistribution brightChange{ValueDistribution::Uniform(0.04, 0.12)};
     double wedgeShare = 0.2;       ///< Share of wedges pointing back to the crater, [0, 1].
     double wedgeElongation = 2.0;  ///< Long over short axis of a wedge; at least 1.
     /// New craters given by hand, such as an observed impact, each throwing a swarm like the
@@ -81,9 +81,9 @@ struct SplotchAlbedoOptions {
     double darkShare = 0.907;    ///< Share of dark splotches, in [0, 1].
     double brightShare = 0.074;  ///< Share of bright ones; the rest are mixed.
     /// Reflectance change of a dark splotch, relative to the ground before it; above -1.
-    ValueDistribution darkChange{ValueDistribution::Kind::Constant, -0.04};
+    ValueDistribution darkChange{ValueDistribution::Constant(-0.04)};
     /// Reflectance change of a bright splotch; above -1.
-    ValueDistribution brightChange{ValueDistribution::Kind::Constant, 0.10};
+    ValueDistribution brightChange{ValueDistribution::Constant(0.10)};
     /// Share of splotches on slopes steeper than `steepSlopeDegrees` that are bright, in [0, 1];
     /// unset keeps `brightShare`. Bright splotches are found mostly on such slopes, where mature
     /// regolith is thin (Speyerer et al. 2016), but the sources give no share; needs the ground.

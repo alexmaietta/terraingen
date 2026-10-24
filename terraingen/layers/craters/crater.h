@@ -39,6 +39,22 @@ struct Crater {
     /// it from the depth (`ResolvedCraterState`).
     double rimHeight = std::numeric_limits<double>::quiet_NaN();
 
+    /// Sets the age in Gyr, for chaining after `ManualCrater`.
+    Crater& AgeGyr(double gyr) {
+        ageGyr = gyr;
+        return *this;
+    }
+    /// Sets the rim-to-floor depth in meters.
+    Crater& Depth(double meters) {
+        depth = meters;
+        return *this;
+    }
+    /// Sets the rim crest above the pre-impact surface in meters; needs a `depth`.
+    Crater& RimHeight(double meters) {
+        rimHeight = meters;
+        return *this;
+    }
+
     /// Memberwise equality, with NaN depths and rim heights equal to each other.
     bool operator==(const Crater& other) const {
         return x == other.x && y == other.y && diameter == other.diameter &&
@@ -55,14 +71,17 @@ struct Crater {
 /// @param diameter In meters.
 std::uint64_t ManualCraterId(double x, double y, double diameter);
 
-/// A crater placed by hand at (`x`, `y`), `diameter` meters across, flagged `manual`, with its ID
-/// left 0 for the layer to hash.
-/// @param depth Rim-to-floor depth in meters; NaN takes it from the degradation model.
-/// @param rimHeight Rim crest above the surface in meters; NaN derives it from the depth.
-inline Crater ManualCrater(double x, double y, double diameter,
-                           double depth = std::numeric_limits<double>::quiet_NaN(),
-                           double rimHeight = std::numeric_limits<double>::quiet_NaN()) {
-    return Crater{x, y, diameter, 0.0, 0u, true, depth, rimHeight};
+/// A fresh crater placed by hand at (`x`, `y`), `diameter` meters across, flagged `manual`, with
+/// its ID left 0 for the layer to hash; set the rest by name:
+///
+///     ManualCrater(-4.0, 3.0, 9.0).AgeGyr(0.5).Depth(1.8)
+inline Crater ManualCrater(double x, double y, double diameter) {
+    Crater crater;
+    crater.x = x;
+    crater.y = y;
+    crater.diameter = diameter;
+    crater.manual = true;
+    return crater;
 }
 
 /// The 32-bit key that seeds crater `id`'s noise or texture under `seed`, the same on the CPU and

@@ -687,9 +687,10 @@ TEST(BuildGenerator, GivesLayersTheirMapsCatalogsAndCompleteness) {
     craters.completeness = ConstantField(50.0);
     terraingen::BoulderLayerSpec boulders;
     boulders.densityMap = ConstantDensityMap(1.5);
-    terraingen::ManualBoulder placed{1.0, 2.0, 3.0, 7u};
+    terraingen::ManualBoulder placed(1.0, 2.0, 3.0);
+    placed.id = 7u;
     placed.burial = 0.25;
-    placed.yaw = 0.5;
+    placed.yawDegrees = 30.0;
     placed.rest = terraingen::BoulderRest::Side;
     boulders.manual = {placed};
     boulders.completeness = ConstantField(2.0);

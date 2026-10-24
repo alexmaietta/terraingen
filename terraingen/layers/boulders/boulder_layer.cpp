@@ -241,7 +241,8 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
         generation.minResolvedDiameter = smallest;
     }
     for (const ManualBoulder& boulder : options_.manual) {
-        generation.manual.Append({boulder.x, boulder.y, boulder.diameter, 0.0, boulder.id, true});
+        generation.manual.Append(
+            {boulder.x, boulder.y, boulder.diameter, 0.0, boulder.id.value_or(0u), true});
     }
     generation.completeness = options_.completeness;
     return GenerateCachedCraters(cache_.get(), *cells_, region, *candidates_, ages, seed,

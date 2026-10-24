@@ -33,9 +33,9 @@ class CratersManualDepth : public terraingen::examples::Example {
         terraingen::CraterLayerOptions options;
         options.generateRandom = false;
         manual_ = {
-            terraingen::ManualCrater(-22.0, 20.0, 20.0, 3.0, 0.8),
-            terraingen::ManualCrater(22.0, 22.0, 16.0, 1.2),
-            terraingen::ManualCrater(-20.0, -22.0, 24.0, 2.0, 0.3),
+            terraingen::ManualCrater(-22.0, 20.0, 20.0).Depth(3.0).RimHeight(0.8),
+            terraingen::ManualCrater(22.0, 22.0, 16.0).Depth(1.2),
+            terraingen::ManualCrater(-20.0, -22.0, 24.0).Depth(2.0).RimHeight(0.3),
             terraingen::Crater{22.0, -20.0, 18.0},
         };
         for (const terraingen::Crater& crater : manual_) {

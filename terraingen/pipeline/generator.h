@@ -52,6 +52,22 @@ struct EvaluationOptions {
     /// Called after each layer is applied with its index and the milliseconds it took, reads of
     /// the ground beneath it included; may be empty.
     std::function<void(std::size_t layer, double milliseconds)> onLayer{};
+
+    /// Sets the sample spacing in meters, for chaining: `EvaluationOptions{}.Spacing(0.5)`.
+    EvaluationOptions& Spacing(double meters) {
+        spacing = meters;
+        return *this;
+    }
+    /// Sets the threads to split each layer over; 0 for every hardware thread.
+    EvaluationOptions& Threads(unsigned count) {
+        threads = count;
+        return *this;
+    }
+    /// Sets where the grid is evaluated.
+    EvaluationOptions& On(Backend where) {
+        backend = where;
+        return *this;
+    }
 };
 
 /// The ground beneath one layer of a generator: its starting heights and the layers before it,

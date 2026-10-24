@@ -724,7 +724,7 @@ TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
     EXPECT_EQ(withManual([](Manual&) {}), "valid");
     EXPECT_EQ(withManual([](Manual& m) {
                   m[1].burial = 0.5;
-                  m[1].tilt = 0.2;
+                  m[1].tiltDegrees = 10.0;
                   m[1].rest = terraingen::BoulderRest::End;
               }),
               "valid");
@@ -732,7 +732,8 @@ TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
     EXPECT_EQ(withManual([](Manual& m) { m[0].height = 0.0; }), "layers[2].manual[0].height");
     EXPECT_EQ(withManual([](Manual& m) { m[0].wear = 1.5; }), "layers[2].manual[0].wear");
     EXPECT_EQ(withManual([](Manual& m) { m[0].diameter = -1.0; }), "layers[2].manual[0].diameter");
-    EXPECT_EQ(withManual([](Manual& m) { m[1].yaw = kInfinity; }), "layers[2].manual[1].yaw_deg");
+    EXPECT_EQ(withManual([](Manual& m) { m[1].yawDegrees = kInfinity; }),
+              "layers[2].manual[1].yaw_deg");
     EXPECT_EQ(withManual([](Manual& m) { m[1] = m[0]; }), "layers[2].manual[1]")
         << "two boulders with one ID";
     EXPECT_EQ(withManual([](Manual& m) {

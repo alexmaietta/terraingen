@@ -118,3 +118,12 @@ TEST(NoiseLayer, ComparesEveryField) {
     changed.fractal.seed = 9u;
     EXPECT_FALSE(changed == base);
 }
+
+TEST(NoiseLayer, FbmSetsTheSeedWavelengthAndAmplitude) {
+    const terraingen::NoiseLayer layer = terraingen::NoiseLayer::Fbm(3, 800.0, 40.0);
+    terraingen::NoiseLayer expected;
+    expected.fractal.seed = 3;
+    expected.fractal.wavelength = 800.0f;
+    expected.fractal.amplitude = 40.0f;
+    EXPECT_EQ(layer, expected);
+}
