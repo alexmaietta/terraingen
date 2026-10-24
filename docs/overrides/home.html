@@ -1,26 +1,13 @@
 {% extends "main.html" %}
 
-{#- The home page: a centered title block above the page's content, without the page title. -#}
+{#- The home page: its Markdown as a centered title block across the page, without the page title. -#}
 {% block tabs %}
   {{ super() }}
   <section class="tg-hero">
     <div class="md-grid tg-hero__inner">
-      <p class="tg-hero__eyebrow">Open source &middot; C++ &middot; Python</p>
-      <h1>Scientific terrain for planetary surfaces</h1>
-      <p class="tg-hero__lead">
-        Crater and boulder populations from published models, crater shapes that age, and surface
-        albedo, on synthetic relief or measured elevation models, from a few meters across to whole
-        bodies.
-      </p>
-      <div class="tg-hero__actions">
-        <a href="{{ 'getting-started/' | url }}" class="md-button md-button--primary">Get started</a>
-        <a href="{{ 'getting-started/quickstart/' | url }}" class="md-button">Quickstart</a>
-        <a href="{{ config.repo_url }}" class="md-button">GitHub</a>
-      </div>
+      {{ page.content }}
     </div>
   </section>
 {% endblock %}
 
-{% block content %}
-  {{ page.content }}
-{% endblock %}
+{% block content %}{% endblock %}

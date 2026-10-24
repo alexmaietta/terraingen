@@ -4,16 +4,10 @@ site_author: Alex Maietta
 site_url: https://alexmaietta.github.io/terraingen/
 repo_url: https://github.com/alexmaietta/terraingen
 repo_name: GitHub
-edit_uri: edit/main/docs/
-docs_dir: docs
+edit_uri: edit/main/docs/_src/
+docs_dir: docs/_src
 site_dir: site
 strict: true
-exclude_docs: |
-  Makefile
-  README.md
-  requirements.txt
-  overrides/
-  scripts/
 # Writes the configuration reference from the built library's schema (docs/scripts).
 hooks:
   - docs/scripts/generate_schema.py
