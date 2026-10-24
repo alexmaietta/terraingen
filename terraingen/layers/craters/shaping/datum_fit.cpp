@@ -581,7 +581,7 @@ void ShapeOnSlopes(std::vector<PreparedCrater>& prepared, const HeightSampler& g
                    const HeightsSampler& batch, const CraterShapeModels& models,
                    const CraterApplyOptions& options) {
     const CraterSlopeResponse& response = options.slope;
-    if (!response.enabled && !response.criticalGradient) {
+    if (!response.asymmetric && !response.criticalGradient) {
         return;
     }
     std::vector<Vec2d> points;

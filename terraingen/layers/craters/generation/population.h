@@ -17,6 +17,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -92,10 +93,10 @@ struct CraterGenerationOptions {
     /// flagged and given IDs as `AppendManualCraters` does; with spacing, they remove conflicting
     /// generated craters.
     CraterList manual{};
-    /// Keep at most this many generated craters, the largest (ties to the smaller ID); 0 keeps
+    /// Keep at most this many generated craters, the largest (ties to the smaller ID); unset keeps
     /// all. Manual craters are always kept and do not count. A capped region no longer equals its
     /// tiles joined; `CountLimitDiameter` bounds counts tile-safely.
-    std::size_t maxCraters = 0;
+    std::optional<std::size_t> maxCraters{};
     /// Skip bands whose craters are all smaller than this (m) and, with spacing, too small to
     /// remove a crater this large; craters at or above it are unchanged. 0 generates every band.
     double minResolvedDiameter = 0.0;

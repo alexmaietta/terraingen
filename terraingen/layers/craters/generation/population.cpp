@@ -143,8 +143,8 @@ class Generation {
             options_.minResolvedDiameter / (spacing.Enabled() ? spacing.diameterRatio : 1.0);
         std::vector<BandPlan> plan;
         for (const CraterBand& band : CraterBands(options_.dMin, dMax_, options_.cellSizeFactor)) {
-            const bool tooLarge = !spacing.Enabled() && options_.maxCraters == 0 &&
-                                  band.low > options_.maxBandDiameter;
+            const bool tooLarge =
+                !spacing.Enabled() && !options_.maxCraters && band.low > options_.maxBandDiameter;
             if (band.high <= skipBelow || tooLarge) {
                 continue;
             }
@@ -272,14 +272,17 @@ class Generation {
     /// The manual craters and the `maxCraters` largest generated ones (ties to the smaller ID),
     /// counting the generated craters dropped.
     CraterList KeepLargest(const CraterList& craters, std::size_t& capped) const {
-        const std::size_t limit = options_.maxCraters;
+        if (!options_.maxCraters) {
+            return craters;
+        }
+        const std::size_t limit = *options_.maxCraters;
         std::vector<std::size_t> generated;
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             if (craters.Manual()[n] == 0) {
                 generated.push_back(n);
             }
         }
-        if (limit == 0 || generated.size() <= limit) {
+        if (generated.size() <= limit) {
             return craters;
         }
         const auto& diameters = craters.Diameters();

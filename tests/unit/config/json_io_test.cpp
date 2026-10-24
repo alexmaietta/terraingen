@@ -117,7 +117,7 @@ TerrainGenConfig Everything() {
     craters.apply.irregularity.marksInnerRadii = 0.35;
     craters.apply.irregularity.marksOuterRadii = 0.8;
     craters.apply.irregularity.marksFadeRadii = 0.12;
-    craters.apply.slope.enabled = true;
+    craters.apply.slope.asymmetric = true;
     craters.apply.slope.seed = 6;
     craters.apply.slope.floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1};
     craters.apply.slope.upslopeRim = 0.2;

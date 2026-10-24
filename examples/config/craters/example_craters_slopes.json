@@ -23,7 +23,7 @@
             "apply": {
                 "datum": "plane",
                 "slope": {
-                    "enabled": true,
+                    "asymmetric": true,
                     "upslope_rim": 0.1
                 }
             }

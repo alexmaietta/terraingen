@@ -41,8 +41,8 @@ struct ComplexCraterShape {
     /// height and `peakVolume`.
     std::optional<KilometerPowerLaw> peakDiameter;
     /// Largest crater the peak relations were fitted to (m); larger craters keep this size's peak
-    /// height and a base in proportion to the diameter. 0 applies the laws to every size.
-    double peakFitMaxDiameter = 0.0;
+    /// height and a base in proportion to the diameter; unset applies the laws to every size.
+    std::optional<double> peakFitMaxDiameter{};
     double ejectaExponent = 3.0;  ///< The exterior falls off as (r / R)^-exponent.
     double reachRadii = 3.0;      ///< Radii from the center where the exterior reaches zero.
 

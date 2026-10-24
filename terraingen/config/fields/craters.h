@@ -161,7 +161,7 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "Gives eligible craters irregular, non-circular outlines; off keeps every crater round.");
     io("seed", irregularity.seed,
        "Seed the outlines are drawn with, along with each crater's ID; changing it reshapes every "
-       "irregular crater.");
+       "irregular crater. Unset follows the layer's seed.");
     SelectionFields(io, irregularity.selection, "craters made irregular",
                     "Makes manual craters irregular too; otherwise only generated craters are.");
     RoughRimFields(io, irregularity);
@@ -206,7 +206,7 @@ template <typename IO> void Fields(IO& io, CraterNoise& noise) {
        "Inner edge of the rim noise band, in crater radii; below 1.", "", FromBelow(0.0, 1.0));
     io("rim_outer_radii", noise.rimOuterRadii,
        "Outer edge of the rim noise band, in crater radii; above 1.", "", Above(1.0));
-    io("seed", noise.seed, "Varies the noise of every crater.");
+    io("seed", noise.seed, "Varies the noise of every crater; unset follows the layer's seed.");
 }
 
 template <typename IO> void Fields(IO& io, CraterTexture& texture) {
@@ -232,14 +232,15 @@ template <typename IO> void Fields(IO& io, CraterTexture& texture) {
        "Freshness (depth over fresh depth) at or below which gullies and ejecta texture are worn "
        "away, from 0 to below 1.",
        "", FromBelow(0.0, 1.0));
-    io("seed", texture.seed, "Varies the texture of every crater.");
+    io("seed", texture.seed, "Varies the texture of every crater; unset follows the layer's seed.");
 }
 
 template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
-    io("enabled", slope.enabled,
+    io("asymmetric", slope.asymmetric,
        "Shapes craters asymmetrically along the slope of the ground beneath the layer; off keeps "
        "them the same on any slope.");
-    io("seed", slope.seed, "Varies how far each crater's floor is offset.");
+    io("seed", slope.seed,
+       "Varies how far each crater's floor is offset; unset follows the layer's seed.");
     io("floor_offset", slope.floorOffset,
        "How far the deepest point lies downslope of the center, in diameters, drawn per crater; "
        "below 0.23.");
@@ -324,7 +325,7 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
        "Keeps craters of similar size apart by removing conflicting ones, which lowers the density "
        "below the model's.");
     io("max_craters", craters.maxCraters,
-       "Most generated craters kept, the largest first; 0 keeps all. Manual craters are always "
+       "Most generated craters kept, the largest first; unset keeps all. Manual craters are always "
        "kept, and a cap means tiles no longer match the whole grid.");
     io("manual", craters.manual,
        "Craters placed by hand in the surface's coordinates, added to any generated ones.");

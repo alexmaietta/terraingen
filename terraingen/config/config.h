@@ -348,7 +348,8 @@ struct CraterLayerSpec {
     double minDiameter = 2.5;
     double maxDiameter = 250.0;  ///< Meters.
     CraterSpacing spacing{};
-    std::size_t maxCraters = 0;  ///< Keep at most this many generated craters; 0 keeps all.
+    std::optional<std::size_t>
+        maxCraters{};  ///< Keep at most this many generated craters; unset keeps all.
     /// Manual craters, in the surface's coordinates; parsing sets their `manual` flag.
     std::vector<Crater> manual{};
     ProfileSpec profile{MartinParkesDunstanSpec{}};

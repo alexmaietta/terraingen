@@ -161,7 +161,7 @@ TEST(BoulderLayer, AddsBlocksAroundFreshCraters) {
         << "smaller craters did not dig to boulder";
     options.ejecta.minCraterDiameter = 0.0;
     options.ejecta.regolithThickness = 8.0;
-    EXPECT_EQ(options.ejecta.MinCraterDiameter(), 80.0) << "excavating a tenth of the diameter";
+    EXPECT_EQ(options.ejecta.ThrowingDiameter(), 80.0) << "excavating a tenth of the diameter";
     EXPECT_EQ(BoulderLayer(options, craters).AbundanceAt(50.0, 0.0).ejecta, 1.0);
     options.ejecta.regolithThickness = 15.0;
     EXPECT_EQ(BoulderLayer(options, craters).AbundanceAt(50.0, 0.0).ejecta, 0.0);
@@ -1000,7 +1000,8 @@ TEST(BoulderLayer, BrokenPiecesLoseTheirParentsFacets) {
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 3.0;
-    options.fragmentation.splitWear = 0.0;
+    options.fragmentation.emplace();
+    options.fragmentation->splitWear = 0.0;
     options.ventifacts.share = 1.0;
     const BoulderLayer layer(options);
     const auto boulders = terraingen::testing::Records(layer.Boulders({-30.0, -30.0, 30.0, 30.0}));

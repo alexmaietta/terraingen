@@ -35,9 +35,10 @@ BoulderLayerOptions Breaking(double rubbleWear) {
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.3;
     options.sizes.maxDiameter = 2.0;
-    options.fragmentation.minDiameter = 0.3;
-    options.fragmentation.splitWear = 0.0;
-    options.fragmentation.rubbleWear = rubbleWear;
+    options.fragmentation.emplace();
+    options.fragmentation->minDiameter = 0.3;
+    options.fragmentation->splitWear = 0.0;
+    options.fragmentation->rubbleWear = rubbleWear;
     options.rendering.relief = terraingen::BoulderRelief::Shape;
     return options;
 }
@@ -77,7 +78,7 @@ TEST(FragmentBoulderShape, SplitsAShapeIntoPiecesThatFillIt) {
 TEST(BoulderLayer, BreaksWornBouldersIntoPiecesThatReplaceThem) {
     const BoulderLayer whole([] {
         BoulderLayerOptions options = Breaking(1.0);
-        options.fragmentation.splitWear = 1.0;
+        options.fragmentation.reset();
         return options;
     }());
     const BoulderLayer broken(Breaking(1.0));
@@ -186,12 +187,13 @@ TEST(BoulderLayer, GathersBouldersInClustersKeepingTheirMeanDensity) {
     options.clusters.radius = 50.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
     options.clusters = {};
-    options.fragmentation.splitWear = 0.5;
-    options.fragmentation.rubbleWear = 0.2;
+    options.fragmentation.emplace();
+    options.fragmentation->splitWear = 0.5;
+    options.fragmentation->rubbleWear = 0.2;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
     options.fragmentation = terraingen::BoulderFragmentation{};
-    options.fragmentation.minPieces = 1;
-    EXPECT_THROW(terraingen::ValidateBoulderFragmentation(options.fragmentation),
+    options.fragmentation->minPieces = 1;
+    EXPECT_THROW(terraingen::ValidateBoulderFragmentation(*options.fragmentation),
                  std::invalid_argument);
 }
 
@@ -309,7 +311,8 @@ TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
     EXPECT_NE(FragmentBoulderShape(parent, 4, 11, terraingen::BoulderCracks::Radial)[0].center.x,
               slabs[0].center.x);
     BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
-    options.fragmentation.slabShare = 1.5;
-    EXPECT_THROW(terraingen::ValidateBoulderFragmentation(options.fragmentation),
+    options.fragmentation.emplace();
+    options.fragmentation->slabShare = 1.5;
+    EXPECT_THROW(terraingen::ValidateBoulderFragmentation(*options.fragmentation),
                  std::invalid_argument);
 }

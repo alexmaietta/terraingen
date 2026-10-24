@@ -26,8 +26,8 @@ void ValidateComplexCraterShape(const ComplexCraterShape& shape) {
             throw std::invalid_argument("Complex crater power laws need a positive coefficient");
         }
     }
-    if (!IsNonNegative(shape.peakFitMaxDiameter)) {
-        throw std::invalid_argument("The peak fit limit must not be negative");
+    if (shape.peakFitMaxDiameter && !IsPositive(*shape.peakFitMaxDiameter)) {
+        throw std::invalid_argument("The peak fit limit must be positive");
     }
     if (!(IsPositive(shape.ejectaExponent) && std::isfinite(shape.reachRadii) &&
           shape.reachRadii > 1.0)) {
@@ -47,7 +47,7 @@ void SetKernelComplexShape(CraterProfileKernel& p, const ComplexCraterShape& sha
     p.peakWidthCoefficient = static_cast<float>(width.coefficient);
     p.peakWidthExponent = static_cast<float>(width.exponent);
     p.peakFromVolume = shape.peakDiameter ? 0u : 1u;
-    p.peakFitMaxDiameter = static_cast<float>(shape.peakFitMaxDiameter);
+    p.peakFitMaxDiameter = static_cast<float>(shape.peakFitMaxDiameter.value_or(0.0));
     p.ejectaExponent = static_cast<float>(shape.ejectaExponent);
     p.complexReachRadii = static_cast<float>(shape.reachRadii);
 }

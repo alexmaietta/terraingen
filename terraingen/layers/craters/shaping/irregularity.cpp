@@ -237,7 +237,7 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
         return outline;
     }
     const IdWords id = SplitId(crater.id);
-    RandomStream random(irregularity.seed, kCraterIrregularityStream, id.low, id.high);
+    RandomStream random(irregularity.seed.value_or(0u), kCraterIrregularityStream, id.low, id.high);
     const OutlineDraws draws = DrawOutline(random);
     if (draws.elongated < irregularity.elongatedShare) {
         outline.ellipticity = irregularity.ellipticity.Sample(draws.e1, draws.e2);
@@ -253,7 +253,7 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
         AddHarmonics(outline, irregularity, draws, random);
     }
     if (irregularity.marksShare > 0.0) {
-        RandomStream marks(irregularity.seed, kCraterMarkStream, id.low, id.high);
+        RandomStream marks(irregularity.seed.value_or(0u), kCraterMarkStream, id.low, id.high);
         const double share = marks.NextDouble();
         const double amplitude = irregularity.marksAmplitude.Draw(marks);
         if (share < irregularity.marksShare && amplitude > 0.0) {

@@ -98,14 +98,16 @@ void CheckGolombekRappTerms(const BoulderLayerOptions& options) {
 
 /// Checks crater blocks, whose distribution must cover `sizes`.
 void ValidateBoulderEjecta(const BoulderEjecta& ejecta, const BoulderSizes& sizes) {
-    RequireNonNegative(ejecta.minCraterDiameter, "Boulder ejecta minCraterDiameter");
+    if (ejecta.minCraterDiameter) {
+        RequireNonNegative(*ejecta.minCraterDiameter, "Boulder ejecta minCraterDiameter");
+    }
     if (ejecta.regolithThickness) {
         RequirePositive(*ejecta.regolithThickness, "Boulder ejecta regolithThickness");
     }
     if (!(ejecta.excavationDepthRatio > 0.0 && ejecta.excavationDepthRatio <= 1.0)) {
         throw std::invalid_argument("Boulder ejecta excavationDepthRatio must be in (0, 1]");
     }
-    if (ejecta.MinCraterDiameter() > 0.0) {
+    if (ejecta.ThrowingDiameter()) {
         CheckThrownBlocks(ejecta, sizes);
     }
 }
@@ -179,9 +181,10 @@ std::shared_ptr<const SizeFrequencyDistribution> DefaultBoulderSizes() {
     return sizes;
 }
 
-double BoulderEjecta::MinCraterDiameter() const {
+std::optional<double> BoulderEjecta::ThrowingDiameter() const {
     const double excavated = regolithThickness ? *regolithThickness / excavationDepthRatio : 0.0;
-    return std::fmax(minCraterDiameter, excavated);
+    const double smallest = std::fmax(minCraterDiameter.value_or(0.0), excavated);
+    return smallest > 0.0 ? std::optional<double>(smallest) : std::nullopt;
 }
 
 double BoulderThrowDistance(double craterDiameter, double regolithThickness, double gravity) {
@@ -321,7 +324,9 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     }
     ValidateBoulderPatches(options.patches);
     ValidateBoulderClusters(options.clusters);
-    ValidateBoulderFragmentation(options.fragmentation);
+    if (options.fragmentation) {
+        ValidateBoulderFragmentation(*options.fragmentation);
+    }
     ValidateBoulderBedrock(options.bedrock);
     RequirePositive(options.groundSpacing, "Boulder groundSpacing");
     if (options.generateRandom) {

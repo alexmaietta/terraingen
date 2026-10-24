@@ -235,7 +235,7 @@ void BoulderLayer::ReadGrounds(std::vector<Boulder>& boulders,
 }
 
 BoulderLayer::BreakStage BoulderLayer::Stage(const Boulder& parent) const {
-    const BoulderFragmentation& fragmentation = options_.fragmentation;
+    const BoulderFragmentation& fragmentation = *options_.fragmentation;
     const bool rubble = parent.wear >= fragmentation.rubbleWear;
     BreakStage stage;
     stage.opening = rubble || fragmentation.rubbleWear <= fragmentation.splitWear
@@ -252,7 +252,7 @@ BoulderLayer::BreakStage BoulderLayer::Stage(const Boulder& parent) const {
 Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& fragment,
                                  std::size_t k, const PieceFrame& frame, double push,
                                  double twist) const {
-    const BoulderFragmentation& fragmentation = options_.fragmentation;
+    const BoulderFragmentation& fragmentation = *options_.fragmentation;
     const BoulderPlacement& placement = frame.placement;
     const double scatter = frame.stage.scatter;
     const auto [low, high] = ZRange(fragment.shape.mesh.positions, [&](const Vec3d& p) {
@@ -288,7 +288,10 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
 
 std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
                                          double smallest) const {
-    const BoulderFragmentation& fragmentation = options_.fragmentation;
+    if (!options_.fragmentation) {
+        return {parent};
+    }
+    const BoulderFragmentation& fragmentation = *options_.fragmentation;
     if (parent.diameter < fragmentation.minDiameter || parent.wear < fragmentation.splitWear ||
         Fixed(parent.id) != nullptr) {
         return {parent};

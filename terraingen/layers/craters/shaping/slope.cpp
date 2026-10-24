@@ -46,12 +46,12 @@ double SlopeWearRate(const CraterSlopeResponse& response, double east, double no
 CraterSlopeShape SlopeShape(const Crater& crater, double east, double north,
                             const CraterSlopeResponse& response) {
     const double gradient = std::hypot(east, north);
-    if (!response.enabled || !(gradient > 0.0)) {
+    if (!response.asymmetric || !(gradient > 0.0)) {
         return {};
     }
     const double strength = Smoothstep(std::atan(gradient) / response.fullSlope);
     const IdWords id = SplitId(crater.id);
-    RandomStream random(response.seed, kCraterSlopeStream, id.low, id.high);
+    RandomStream random(response.seed.value_or(0u), kCraterSlopeStream, id.low, id.high);
     const double offset = strength * response.floorOffset.Draw(random) * crater.diameter;
     const Vec2d up{east / gradient, north / gradient};
     const double removed = strength * (1.0 - response.upslopeRim);

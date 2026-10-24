@@ -53,6 +53,7 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
     models_.profile = MatchedProfile(std::move(models_.profile), *models_.degradation);
     ValidateCraterSpacing(options_.generation.spacing);
     ValidateCraterApplyOptions(options_.apply);
+    options_.apply = SeededCraterApply(std::move(options_.apply), options_.seed);
     ValidateSourceResolvesPixels(options_.sourceResolvesPixels);
     if (auto limit = LayerResolvedLimit(source, options_.sourceResolvesPixels, options_.surface)) {
         std::shared_ptr<const SurfaceField>& completeness = options_.generation.completeness;
@@ -113,7 +114,7 @@ void CraterLayer::FollowDensityMap() {
     for (const SecondaryCraterOptions& secondaries : options_.secondaries) {
         throwFrom_ = std::fmin(throwFrom_, SmallestThrower(map, secondaries));
     }
-    if (std::isfinite(throwFrom_) && options_.generation.maxCraters > 0) {
+    if (std::isfinite(throwFrom_) && options_.generation.maxCraters) {
         throw std::invalid_argument("Taking secondaries out of a density map needs every crater, "
                                     "not the maxCraters largest");
     }
@@ -222,7 +223,7 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     if (grid == nullptr && options_.apply.datum != CraterDatum::None) {
         RequireGround(context.ground, "Point queries of craters with a datum");
     }
-    if (grid == nullptr && options_.generation.maxCraters > 0) {
+    if (grid == nullptr && options_.generation.maxCraters) {
         throw std::invalid_argument(
             "Point queries cannot use maxCraters, which ranks craters over a whole grid");
     }

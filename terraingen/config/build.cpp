@@ -476,7 +476,7 @@ LayerPtr BuildLayerSpec(const CraterLayerSpec& craters, const std::string& path,
 LayerPtr BuildLayerSpec(const BoulderLayerSpec& s, const std::string& path,
                         const LayerInputs& context) {
     BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
-    const bool throws = options.generateRandom && options.ejecta.MinCraterDiameter() > 0.0;
+    const bool throws = options.generateRandom && options.ejecta.ThrowingDiameter().has_value();
     return std::make_shared<BoulderLayer>(
         std::move(options),
         throws ? context.craters : std::vector<std::shared_ptr<const CraterLayer>>{},

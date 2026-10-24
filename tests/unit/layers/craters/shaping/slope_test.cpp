@@ -30,7 +30,7 @@ bool Level(const CraterSlopeShape& shape) {
 
 CraterSlopeResponse Enabled(double offset = 0.1, double upslopeRim = 0.0) {
     CraterSlopeResponse response;
-    response.enabled = true;
+    response.asymmetric = true;
     response.floorOffset = {ValueDistribution::Kind::Constant, offset};
     response.upslopeRim = upslopeRim;
     return response;

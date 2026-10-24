@@ -98,8 +98,8 @@ template <typename IO> void Fields(IO& io, BoulderVentifacts& ventifacts) {
 
 template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
     io("min_crater_diameter_m", ejecta.minCraterDiameter,
-       "Smallest crater, in meters, that throws blocks out; 0 with no regolith thickness disables "
-       "crater blocks.",
+       "Smallest crater, in meters, that throws blocks out; unset with no regolith thickness, no "
+       "crater throws blocks.",
        "m", AtLeast(0.0));
     io("regolith_thickness_m", ejecta.regolithThickness,
        "Regolith thickness in meters: craters smaller than it over the excavation depth ratio dig "
@@ -221,8 +221,8 @@ template <typename IO> void Fields(IO& io, BoulderFragmentation& fragmentation) 
     io("min_diameter_m", fragmentation.minDiameter, "Smallest boulder that breaks, in meters.", "m",
        Above(0.0));
     io("split_wear", fragmentation.splitWear,
-       "Wear from 0 (fresh) to 1 from which boulders split into pieces that still fit; 1 breaks "
-       "nothing.",
+       "Wear from 0 (fresh) to 1 from which boulders split into pieces that still fit; 0.5 by "
+       "default.",
        "", UnitInterval());
     io("rubble_wear", fragmentation.rubbleWear,
        "Wear from which the pieces scatter as rubble, turn and sink; at least split_wear.", "",
@@ -460,7 +460,7 @@ template <typename IO> void BoulderWearFields(IO& io, BoulderLayerOptions& bould
        "set.");
     io("fragmentation", boulders.fragmentation,
        "Boulders broken by wear into pieces that replace them, split and then scattered as "
-       "rubble; off unless split_wear is below 1.");
+       "rubble; leave it out for none to break.");
 }
 
 /// The fields of how a boulder layer's boulders are drawn: as relief in the heights or as models.

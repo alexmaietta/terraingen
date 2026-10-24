@@ -20,8 +20,11 @@ namespace terraingen {
 /// out the layer's own craters, so each crater's shape depends on no other. Needs the `Plane`
 /// datum.
 struct CraterSlopeResponse {
-    bool enabled = false;    ///< Off: craters keep their shape on any slope.
-    std::uint32_t seed = 0;  ///< Varies the floor offsets.
+    /// Shapes craters asymmetrically along the slope; off keeps their shape on any slope. The wear
+    /// that `criticalGradient` gives applies either way.
+    bool asymmetric = false;
+    /// Varies the floor offsets; unset follows the crater layer's `seed`, and is 0 outside a layer.
+    std::optional<std::uint32_t> seed{};
     /// How far the deepest point lies downslope of the center, in diameters, drawn per crater;
     /// below 0.23. The default is digitized from Plescia et al. (2019, Fig. 3).
     ValueDistribution floorOffset{ValueDistribution::Kind::Uniform, 0.045, 0.194};
@@ -35,7 +38,7 @@ struct CraterSlopeResponse {
     /// The critical gradient Sc (rise over run): a crater on a regional gradient S wears
     /// 1 / (1 - (S / Sc)^2) times as fast (Roering et al. 1999,
     /// https://doi.org/10.1029/1998WR900090); unset wears craters alike on any slope. Applies
-    /// whether or not `enabled` is set.
+    /// whether or not the craters are `asymmetric`.
     std::optional<double> criticalGradient{};
     /// The fastest a slope makes craters wear, over level ground; at least 1. It caps the rate as
     /// S nears Sc, where the form grows without bound; a numerical limit, not a measured one.
@@ -43,9 +46,10 @@ struct CraterSlopeResponse {
 
     /// Memberwise equality.
     bool operator==(const CraterSlopeResponse& other) const {
-        return enabled == other.enabled && seed == other.seed && floorOffset == other.floorOffset &&
-               upslopeRim == other.upslopeRim && fullSlope == other.fullSlope &&
-               criticalGradient == other.criticalGradient && maxWearRate == other.maxWearRate;
+        return asymmetric == other.asymmetric && seed == other.seed &&
+               floorOffset == other.floorOffset && upslopeRim == other.upslopeRim &&
+               fullSlope == other.fullSlope && criticalGradient == other.criticalGradient &&
+               maxWearRate == other.maxWearRate;
     }
     bool operator!=(const CraterSlopeResponse& other) const {
         return !(*this == other);

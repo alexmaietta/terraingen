@@ -124,9 +124,9 @@ CraterRecord BaseRecord(const PreparedCrater& p, const CraterApplyOptions& optio
     r.shiftY = static_cast<float>(p.slope.shift.y);
     r.upslopeX = static_cast<float>(p.slope.upslope.x);
     r.upslopeY = static_cast<float>(p.slope.upslope.y);
-    r.noiseKey = CraterKey(p.crater.id, options.noise.seed);
-    r.textureKey =
-        CraterKey(p.crater.id, SubstreamSeed(options.texture.seed, kCraterTextureStream));
+    r.noiseKey = CraterKey(p.crater.id, options.noise.seed.value_or(0u));
+    r.textureKey = CraterKey(
+        p.crater.id, SubstreamSeed(options.texture.seed.value_or(0u), kCraterTextureStream));
     return r;
 }
 

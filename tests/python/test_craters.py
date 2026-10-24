@@ -510,7 +510,7 @@ def test_crater_layer_accepts_fresh_ages_and_a_plateau_profile(crater_layer):
 
 
 def test_slope_response_needs_the_plane_datum():
-    slope = terraingen.CraterSlopeResponse(enabled=True, upslope_rim=0.2)
+    slope = terraingen.CraterSlopeResponse(asymmetric=True, upslope_rim=0.2)
     assert slope.floor_offset.b == pytest.approx(0.194)
     with pytest.raises(ValueError):
         terraingen.validate_crater_apply_options(terraingen.CraterApplyOptions(slope=slope))

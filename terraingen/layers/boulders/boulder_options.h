@@ -132,10 +132,10 @@ struct BoulderClusters {
 /// Boulders broken by wear into pieces that replace them. From `splitWear` a boulder at least
 /// `minDiameter` across is split by near-vertical cracks into pieces that still fit, their gaps
 /// opening to `gapRatio` of its diameter; from `rubbleWear` the pieces scatter up to `spreadRatio`
-/// diameters further, turn and sink. A split wear of 1 breaks nothing.
+/// diameters further, turn and sink.
 struct BoulderFragmentation {
     double minDiameter = 1.0;  ///< Smallest boulder that breaks (m).
-    double splitWear = 1.0;    ///< Wear from which boulders are split, in [0, 1].
+    double splitWear = 0.5;    ///< Wear from which boulders are split, in [0, 1].
     double rubbleWear = 1.0;   ///< Wear from which the pieces scatter, at least `splitWear`.
     int minPieces = 2;         ///< Fewest pieces, at least 2.
     int maxPieces = 5;         ///< Most pieces, at most 12.
@@ -144,11 +144,6 @@ struct BoulderFragmentation {
     /// Share of broken boulders split into slabs by roughly parallel cracks right through them; the
     /// rest crack out from the middle like a pie.
     double slabShare = 0.7;
-
-    /// Whether any boulder breaks.
-    bool Enabled() const {
-        return splitWear < 1.0;
-    }
 
     bool operator==(const BoulderFragmentation& other) const {
         return minDiameter == other.minDiameter && splitWear == other.splitWear &&
@@ -181,9 +176,9 @@ enum class EjectaAging {
 /// between craters: densest at the rim, thinning outward and with age; overlapping ejecta take the
 /// largest share. They are generated boulders, so a layer without `generateRandom` has none.
 struct BoulderEjecta {
-    /// Craters at least this large throw blocks out (m); 0, with no `regolithThickness`, disables
-    /// crater blocks.
-    double minCraterDiameter = 0.0;
+    /// Craters at least this large throw blocks out (m); unset, with no `regolithThickness`, no
+    /// crater throws blocks.
+    std::optional<double> minCraterDiameter{};
     /// The regolith's thickness (m): craters smaller than `regolithThickness /
     /// excavationDepthRatio` do not dig through it and throw no blocks.
     std::optional<double> regolithThickness{};
@@ -207,8 +202,8 @@ struct BoulderEjecta {
     std::optional<double> gravity{};
 
     /// The diameter (m) of the smallest crater that throws blocks, from `minCraterDiameter` and the
-    /// regolith; 0 when crater blocks are disabled.
-    double MinCraterDiameter() const;
+    /// regolith; unset when no crater throws blocks.
+    std::optional<double> ThrowingDiameter() const;
 
     /// The Golombek-Rapp k at the rim: `coverage`, or 0.1 unset.
     double Coverage() const {
@@ -403,8 +398,8 @@ struct BoulderLayerOptions {
     BoulderPose pose{};              ///< Heights, burial, lean.
     BoulderFillet fillet{};          ///< Regolith piled against each boulder; none by default.
     BoulderVentifacts ventifacts{};  ///< Facets planed by the wind; none by default.
-    BoulderFragmentation fragmentation{};  ///< Boulders broken by wear; none by default.
-    BoulderRendering rendering{};          ///< Relief or models, and shapes.
+    std::optional<BoulderFragmentation> fragmentation{};  ///< Boulders broken by wear; none unset.
+    BoulderRendering rendering{};                         ///< Relief or models, and shapes.
     /// Which boulders are drawn into the heights by their size in samples of the evaluation
     /// spacing: none narrower than `startSamples` (2, the fewest that resolve one), in full from
     /// `endSamples`. Grids, tiles and points at one spacing agree; the lists and models hold

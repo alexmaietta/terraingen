@@ -174,7 +174,8 @@ TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
     EXPECT_EQ(boulders.clusters.radius, 5.0);
     EXPECT_EQ(boulders.ejecta.minCraterDiameter, 15.0);
     EXPECT_EQ(boulders.ejecta.regolithThickness, 4.0);
-    EXPECT_EQ(boulders.fragmentation.minDiameter, 1.5);
+    ASSERT_TRUE(boulders.fragmentation.has_value());
+    EXPECT_EQ(boulders.fragmentation->minDiameter, 1.5);
     EXPECT_EQ(boulders.rendering.models.minDiameter, 1.0);
     EXPECT_EQ(boulders.rendering.models.maxDiameter, 3.0);
     EXPECT_EQ(boulders.rendering.models.minSamples, 4.0);

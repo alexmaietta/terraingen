@@ -12,6 +12,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace terraingen {
@@ -82,7 +83,9 @@ struct CraterNoise {
     double rimWavelengthRadii = 0.1;  ///< Wavelength of its first octave, in crater radii.
     double rimInnerRadii = 0.8;       ///< Inner edge of the rim band, in crater radii; in [0, 1).
     double rimOuterRadii = 1.2;       ///< Outer edge of the rim band, in crater radii; above 1.
-    std::uint32_t seed = 0;           ///< Varies the noise of every crater.
+    /// Varies the noise of every crater; unset follows the crater layer's `seed`, and is 0
+    /// outside a layer.
+    std::optional<std::uint32_t> seed{};
 
     /// Memberwise equality.
     bool operator==(const CraterNoise& other) const {
@@ -120,7 +123,9 @@ struct CraterTexture {
     /// Freshness (`CraterState::Freshness`) at or below which gullies and ejecta texture are gone,
     /// in [0, 1); they fade in along a smoothstep above it.
     double minFreshness = 0.5;
-    std::uint32_t seed = 0;  ///< Varies the texture of every crater.
+    /// Varies the texture of every crater; unset follows the crater layer's `seed`, and is 0
+    /// outside a layer.
+    std::optional<std::uint32_t> seed{};
 
     /// Whether anything is drawn beyond the profile: ejecta texture or burial.
     bool ReachesBeyondRim() const {
@@ -188,6 +193,10 @@ struct CraterApplyOptions {
 /// How a crater layer shapes its craters by default: irregular outlines on (Bottke et al. 2000,
 /// https://doi.org/10.1006/icar.1999.6323).
 CraterApplyOptions DefaultCraterApply();
+
+/// `apply` with each unset seed (irregularity, noise, texture and slope) drawn from the layer's
+/// `seed`, each on its own substream, so changing the layer's seed changes them too.
+CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t seed);
 
 /// Checks crater apply options.
 /// @throws std::invalid_argument for an invalid `fade`, `irregularity`, `rimSmoothing` or `slope`,

@@ -133,11 +133,27 @@ TEST(CraterLayer, DrawsTheAgesItsDegradationWearsByWhenGivenNone) {
               nullptr);
 }
 
+TEST(CraterLayer, DrawsUnsetShapingSeedsFromItsOwn) {
+    CraterLayerOptions options = Options();
+    options.seed = 7;
+    options.apply.noise.seed = 3;
+    const CraterLayer layer(Models(), options);
+    const terraingen::CraterApplyOptions& apply = layer.Options().apply;
+    EXPECT_EQ(apply.noise.seed, 3u) << "a given seed is kept";
+    ASSERT_TRUE(apply.irregularity.seed && apply.texture.seed && apply.slope.seed);
+    options.seed = 8;
+    const CraterLayer other(Models(), options);
+    EXPECT_NE(other.Options().apply.irregularity.seed, apply.irregularity.seed);
+    EXPECT_NE(*apply.irregularity.seed, *apply.texture.seed) << "each on its own substream";
+    EXPECT_EQ(terraingen::SeededCraterApply(apply, 99), apply) << "set seeds stay";
+}
+
 TEST(CraterLayer, ManualNeedsOnlyItsCraters) {
     CraterList craters;
     craters.Append(terraingen::ManualCrater(0.0, 0.0, 30.0, 4.0));
     const auto layer = CraterLayer::Manual(craters);
-    EXPECT_EQ(layer->Options().apply, terraingen::DefaultCraterApply());
+    EXPECT_EQ(layer->Options().apply, terraingen::SeededCraterApply(
+                                          terraingen::DefaultCraterApply(), layer->Options().seed));
     Raster<float> heights = Grid();
     layer->Apply(heights, {2.0});
     EXPECT_LT(*std::min_element(heights.Values().begin(), heights.Values().end()), -2.0f)

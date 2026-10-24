@@ -58,7 +58,7 @@ BoulderMapAbundance::BoulderMapAbundance(const BoulderLayerOptions& options) {
     map_ = *options.densityMap;
     ValidateDensityMap(map_);
     const BoulderSizes& sizes = options.sizes;
-    if (map_.total && options.ejecta.MinCraterDiameter() > 0.0) {
+    if (map_.total && options.ejecta.ThrowingDiameter()) {
         ejectaMeasure_ = BoulderMeasure(map_, *EjectaSizes(options));
     }
     if (sizes.distribution || map_.measure == DensityMeasure::Scale) {
@@ -173,7 +173,7 @@ BoulderCandidates(const BoulderLayerOptions& options, double richest) {
             {1.0, std::make_shared<GolombekRappSfd>(sizes.Coverage() * richest, sizes.QConstant(),
                                                     sizes.QCoverageCoefficient())});
     }
-    if (options.ejecta.MinCraterDiameter() > 0.0) {
+    if (options.ejecta.ThrowingDiameter()) {
         terms.push_back({1.0, EjectaSizes(options)});
     }
     return std::make_shared<SummedSfd>(std::move(terms));

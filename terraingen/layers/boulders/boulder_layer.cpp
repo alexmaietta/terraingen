@@ -103,7 +103,7 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options,
     if (!options_.generateRandom) {
         return;
     }
-    minCraterDiameter_ = options_.ejecta.MinCraterDiameter();
+    minCraterDiameter_ = options_.ejecta.ThrowingDiameter().value_or(0.0);
     if (minCraterDiameter_ > 0.0 && craters_.empty()) {
         throw std::invalid_argument(
             "Boulder ejecta need the crater layer whose craters throw them");
@@ -182,7 +182,7 @@ std::shared_ptr<const BoulderShape> BoulderLayer::CachedShape(std::uint64_t shap
 std::shared_ptr<const std::vector<BoulderFragment>>
 BoulderLayer::CachedFragments(std::uint64_t shapeSeed) const {
     return fragments_->Get(shapeSeed, [&] {
-        const BoulderFragmentation& fragmentation = options_.fragmentation;
+        const BoulderFragmentation& fragmentation = *options_.fragmentation;
         const auto span =
             static_cast<std::uint32_t>(fragmentation.maxPieces - fragmentation.minPieces + 1);
         RandomStream random = AttributeStream(shapeSeed, BoulderDraw::Fragments);
@@ -211,9 +211,8 @@ double BoulderLayer::OwnMarginRadii() const {
 }
 
 double BoulderLayer::BreakMarginRadii() const {
-    const BoulderFragmentation& fragmentation = options_.fragmentation;
-    return fragmentation.Enabled() ? 2.0 * (fragmentation.gapRatio + fragmentation.spreadRatio)
-                                   : 0.0;
+    const std::optional<BoulderFragmentation>& fragmentation = options_.fragmentation;
+    return fragmentation ? 2.0 * (fragmentation->gapRatio + fragmentation->spreadRatio) : 0.0;
 }
 
 CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double smallest) const {
@@ -344,7 +343,7 @@ std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double 
                surface_.Contains(surface_.Expand(region, own), {boulder.x, boulder.y});
     };
     const CraterList candidates = ScatterBoulderCandidates(from, smallest);
-    if (!options_.fragmentation.Enabled()) {
+    if (!options_.fragmentation) {
         std::vector<Boulder> boulders =
             DrawBoulders(candidates, spacing, ground, EjectaCraters(from));
         boulders.erase(std::remove_if(boulders.begin(), boulders.end(),

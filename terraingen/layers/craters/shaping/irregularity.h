@@ -32,8 +32,9 @@ enum class RimRoughnessModel {
 /// The rim lies at R s(theta) and the whole profile is stretched by s; s is an area-preserving
 /// ellipse for `elongatedShare` of selected craters, times 1 plus rim harmonics for `roughShare`.
 struct CraterIrregularity {
-    bool enabled = false;    ///< Off: every crater is round.
-    std::uint32_t seed = 0;  ///< Varies the outlines.
+    bool enabled = false;  ///< Off: every crater is round.
+    /// Varies the outlines; unset follows the crater layer's `seed`, and is 0 outside a layer.
+    std::optional<std::uint32_t> seed{};
     /// The craters that can be irregular; manual craters are left round by default.
     CraterSelection selection = [] {
         CraterSelection generated;

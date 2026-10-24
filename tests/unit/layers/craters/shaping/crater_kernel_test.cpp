@@ -81,7 +81,7 @@ std::vector<CraterApplyOptions> Options() {
     options[5].rimSmoothing.sigmaRadii = 0.05;
     options[5].rimSmoothing.shape = terraingen::BlendShape::Smoothstep;
     options[6].datum = terraingen::CraterDatum::Plane;
-    options[6].slope.enabled = true;
+    options[6].slope.asymmetric = true;
     options[6].slope.upslopeRim = 0.3;
     options[6].slope.fullSlope = 0.01;
     return options;
@@ -224,7 +224,7 @@ TEST(CraterKernel, ShapesGridsOnEveryAvailableGpuToWithinFloatRounding) {
     options.irregularity.selection.manual = true;
     options.irregularity.marksShare = 0.5;
     options.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Constant, 0.02};
-    options.slope.enabled = true;
+    options.slope.asymmetric = true;
     options.slope.fullSlope = 0.002;
     options.slope.criticalGradient = 0.05;
     const terraingen::CraterShapeModels models{
@@ -447,7 +447,7 @@ TEST(CraterKernel, ShapesBodyGridsOnEveryAvailableGpuAsOnTheCpu) {
             options.texture.ejecta = 0.5;
             options.irregularity.enabled = true;
             options.irregularity.selection.manual = true;
-            options.slope.enabled = datum == terraingen::CraterDatum::Plane;
+            options.slope.asymmetric = datum == terraingen::CraterDatum::Plane;
             options.slope.fullSlope = 0.002;
             terraingen::Raster<float> cpu = base;
             terraingen::ApplyCraters(cpu, craters, models, options, {});

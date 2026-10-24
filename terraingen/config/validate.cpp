@@ -297,7 +297,7 @@ void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, Layer
                           "false to place only the manual ones");
     }
     At(path, [&] { ValidateBoulderLayerOptions(boulders); });
-    if (boulders.ejecta.MinCraterDiameter() > 0.0 && !context.craters) {
+    if (boulders.ejecta.ThrowingDiameter() && !context.craters) {
         throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter_m"),
                           "ejecta need a crater layer before this one");
     }

@@ -248,8 +248,9 @@ TEST(ManualBoulder, ShapeSeedPicksTheShapeAGeneratedBoulderDerives) {
 
 TEST(ManualBoulder, BouldersFixingAnyFieldNeverBreak) {
     BoulderLayerOptions options = Options();
-    options.fragmentation.minDiameter = 0.5;
-    options.fragmentation.splitWear = 0.0;
+    options.fragmentation.emplace();
+    options.fragmentation->minDiameter = 0.5;
+    options.fragmentation->splitWear = 0.0;
     ManualBoulder worn = Plain(5.0, 5.0, 2.0);
     worn.wear = 0.9;
     const ManualBoulder free = Plain(-5.0, 5.0, 2.0);

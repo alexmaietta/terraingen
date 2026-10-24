@@ -238,9 +238,8 @@ void BindClustersAndFragments(nb::module_& m) {
         "Boulders broken by wear into pieces that replace them: from `split_wear` boulders at "
         "least `min_diameter` across split into `min_pieces` to `max_pieces` fitting pieces, "
         "their cracks opening to `gap_ratio` diameters; from `rubble_wear` the pieces scatter up "
-        "to `spread_ratio` diameters further, turn and sink. A `split_wear` of 1 breaks nothing.",
+        "to `spread_ratio` diameters further, turn and sink. Unset on a layer, none break.",
         {&ValidateBoulderFragmentation, "validate_boulder_fragmentation", "fragmentation"})
-        .def_prop_ro("enabled", &BoulderFragmentation::Enabled);
 }
 
 void BindFillet(nb::module_& m) {

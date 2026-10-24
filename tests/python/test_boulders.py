@@ -161,7 +161,7 @@ def test_worn_boulders_break_into_pieces_that_replace_them():
     whole = terraingen.BoulderLayer(options)
     options.fragmentation = terraingen.BoulderFragmentation(min_diameter_m=0.3, split_wear=0.0)
     broken = terraingen.BoulderLayer(options)
-    assert options.fragmentation.enabled
+    assert options.fragmentation is not None and terraingen.BoulderLayerOptions().fragmentation is None
     region = (-20.0, -20.0, 20.0, 20.0)
     assert len(broken.boulders(region).table["x"]) > len(whole.boulders(region).table["x"])
     piece = terraingen.Boulder(0.0, 0.0, 1.0, 0.5)

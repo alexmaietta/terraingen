@@ -2,11 +2,14 @@
 
 #include "terraingen/layers/craters/shaping/apply_options.h"
 
+#include "terraingen/random/stream.h"
+#include "terraingen/random/streams.h"
 #include "terraingen/util/checks.h"
 
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <optional>
 #include <stdexcept>
 
 namespace terraingen {
@@ -55,6 +58,19 @@ CraterApplyOptions DefaultCraterApply() {
     return apply;
 }
 
+CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t seed) {
+    const auto follow = [seed](std::optional<std::uint32_t>& own, std::uint32_t stream) {
+        if (!own) {
+            own = SubstreamSeed(seed, stream);
+        }
+    };
+    follow(apply.irregularity.seed, kCraterIrregularityStream);
+    follow(apply.noise.seed, kCraterNoiseStream);
+    follow(apply.texture.seed, kCraterTextureStream);
+    follow(apply.slope.seed, kCraterSlopeStream);
+    return apply;
+}
+
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateCraterNoise(options.noise);
     ValidateCraterTexture(options.texture);
@@ -62,7 +78,7 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateCraterIrregularity(options.irregularity);
     ValidateRimSmoothing(options.rimSmoothing);
     ValidateCraterSlopeResponse(options.slope);
-    if ((options.slope.enabled || options.slope.criticalGradient) &&
+    if ((options.slope.asymmetric || options.slope.criticalGradient) &&
         options.datum != CraterDatum::Plane) {
         throw std::invalid_argument("A crater slope response needs the plane datum");
     }

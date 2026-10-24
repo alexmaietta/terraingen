@@ -337,6 +337,7 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
             "CraterLayerOptions::secondaries, which the map counts");
     }
     ValidateCraterApplyOptions(apply_);
+    apply_ = SeededCraterApply(std::move(apply_), options_.seed);
     if (apply_.datum != CraterDatum::None) {
         throw std::invalid_argument("Secondary craters are additive; datums are not supported");
     }

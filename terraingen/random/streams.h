@@ -21,6 +21,7 @@ inline constexpr std::uint32_t kCraterSlopeStream = 0x534C4F50u;  ///< Wear on s
 inline constexpr std::uint32_t kCraterIrregularityStream = 0x49525247u;  ///< Outline harmonics.
 inline constexpr std::uint32_t kCraterMarkStream = 0x4D41524Bu;          ///< Outline marks.
 inline constexpr std::uint32_t kCraterTextureStream = 0x54455854u;       ///< Wall texture seed.
+inline constexpr std::uint32_t kCraterNoiseStream = 0x434E4F53u;         ///< Crater noise seed.
 inline constexpr std::uint32_t kSecondaryStream = 0x53454344u;       ///< Secondaries per sector.
 inline constexpr std::uint32_t kSecondaryIdStream = 0x53434944u;     ///< Secondary crater IDs.
 inline constexpr std::uint32_t kSecondaryClumpStream = 0x434C554Du;  ///< Mean clump noise.
@@ -82,6 +83,7 @@ inline constexpr std::array kStreamTags = {kCraterStream,
                                            kCraterIrregularityStream,
                                            kCraterMarkStream,
                                            kCraterTextureStream,
+                                           kCraterNoiseStream,
                                            kSecondaryStream,
                                            kSecondaryIdStream,
                                            kSecondaryClumpStream,
