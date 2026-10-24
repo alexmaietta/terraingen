@@ -40,7 +40,7 @@ class Example(_common.Example):
                 generate_random=False, generation=terraingen.CraterGenerationOptions(manual=[primary])
             ),
         )
-        options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter_m=30.0)
+        options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter=30.0)
         secondaries = terraingen.SecondaryCraterLayer(
             primaries,
             terraingen.FassettThomsonProfile(),

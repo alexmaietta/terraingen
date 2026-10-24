@@ -188,6 +188,16 @@ def test_an_equilibrium_surface_gives_its_density_and_matched_diffusion():
     assert state.current.depth_ratio == pytest.approx(terraingen.VISIBILITY_DEPTH_RATIO, abs=1e-3)
 
 
+def test_a_crater_layer_without_a_profile_shapes_with_martin_parkes_and_dunstans():
+    ages = terraingen.UniformAges(2.0)
+    degradation = terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry)
+    layer = terraingen.CraterLayer(
+        terraingen.CraterModels(terraingen.PowerLawSfd(0.05, 2.0), ages, degradation)
+    )
+    assert isinstance(layer.models.profile, terraingen.MartinParkesDunstanProfile)
+    assert isinstance(terraingen.matched_profile(None, degradation), terraingen.MartinParkesDunstanProfile)
+
+
 def test_crater_state_freshness_is_the_fraction_of_fresh_depth():
     state = terraingen.CraterState(
         terraingen.CraterMorphometry(0.2, 0.04), terraingen.CraterMorphometry(0.1, 0.02)

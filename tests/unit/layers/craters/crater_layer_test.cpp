@@ -203,6 +203,11 @@ TEST(CraterLayer, FadesCratersOutAsTheSpacingCoarsens) {
 TEST(CraterLayer, RejectsMissingModelsAndInvalidOptions) {
     CraterModels missing = Models();
     missing.profile.reset();
+    EXPECT_NE(dynamic_cast<const terraingen::MartinParkesDunstanProfile*>(
+                  CraterLayer(missing, Options()).Models().profile.get()),
+              nullptr)
+        << "a null profile is Martin, Parkes and Dunstan's";
+    missing.degradation.reset();
     EXPECT_THROW(CraterLayer(missing, Options()), std::invalid_argument);
     CraterLayerOptions options = Options();
     options.apply.interiorReplacement = 2.0;

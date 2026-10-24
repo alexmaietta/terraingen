@@ -45,8 +45,8 @@ class DegradationModel {
 };
 
 /// The profile to shape craters under `degradation` with: `profile`, or when it is null the one
-/// `degradation` requires.
-/// @throws std::invalid_argument if neither is set, or `profile` is not the required one.
+/// `degradation` requires, else Martin, Parkes and Dunstan's (`MartinParkesDunstanProfile`).
+/// @throws std::invalid_argument if `profile` is set and is not the one `degradation` requires.
 std::shared_ptr<const CraterProfile> MatchedProfile(std::shared_ptr<const CraterProfile> profile,
                                                     const DegradationModel& degradation);
 

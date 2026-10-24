@@ -39,7 +39,7 @@ class Example(_common.Example):
             terraingen.BedformOptions(
                 wavelength=2.5,
                 height=0.25,
-                wind_azimuth_deg=60.0,
+                wind_azimuth_degrees=60.0,
                 cover=0.8,
                 field_size=30.0,
                 seed=3,
@@ -51,8 +51,8 @@ class Example(_common.Example):
                 seed=3,
                 distribution=None,
                 coverage=0.02,
-                min_diameter_m=0.3,
-                max_diameter_m=3.0,
+                min_diameter=0.3,
+                max_diameter=3.0,
                 exposure=exposure,
                 bedrock_abundance=4.0,
             )

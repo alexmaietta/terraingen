@@ -236,7 +236,7 @@ void BindGenerationOptions(nb::module_& m) {
           "A field of the feature size (m) from which `source` holds a layer's features: "
           "`pixels_across` times `source.resolution_at(x, y)`, converted to meters on `surface`; "
           "infinity where it resolves nothing.");
-    m.def("validate_source_resolves_px", &ValidateSourceResolvesPixels, "pixels_across"_a,
+    m.def("validate_source_resolves_pixels", &ValidateSourceResolvesPixels, "pixels_across"_a,
           kValidateDoc);
 }
 
@@ -418,7 +418,7 @@ void BindLayerOptions(nb::module_& m) {
         .def_rw("density_map", &CraterLayerOptions::densityMap)
         .def_rw("secondaries", &CraterLayerOptions::secondaries,
                 "The secondaries layers throw from these craters, taken out of a total map.")
-        .def_rw("source_resolves_px", &CraterLayerOptions::sourceResolvesPixels,
+        .def_rw("source_resolves_pixels", &CraterLayerOptions::sourceResolvesPixels,
                 "Source cells across from which a layer's source holds a crater, so generated "
                 "craters that large are dropped; None keeps every one. Unit: px.");
 }
@@ -452,7 +452,7 @@ void BindCraterLayer(nb::module_& m) {
             "models"_a.none() = nb::none(), "options"_a = CraterLayerOptions{},
             "source"_a = nb::none(),
             "None models are `default_crater_models()`. With a `source`, generated craters at "
-            "least `options.source_resolves_px` of its cells across are dropped.")
+            "least `options.source_resolves_pixels` of its cells across are dropped.")
         .def_static(
             "manual",
             [](const std::vector<Crater>& craters, std::optional<CraterModels> models,
@@ -532,7 +532,7 @@ void BindSecondaries(nb::module_& m) {
                                                 std::move(options), {}, std::move(source));
             },
             "primaries"_a, "profile"_a, "degradation"_a, "options"_a, "source"_a = nb::none(),
-            "With a `source`, secondaries at least `options.source_resolves_px` of its cells "
+            "With a `source`, secondaries at least `options.source_resolves_pixels` of its cells "
             "across are left out.")
         .def(
             "__init__",

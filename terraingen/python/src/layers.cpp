@@ -119,14 +119,14 @@ void BindTransforms(nb::module_& m) {
         .def(nb::init<std::vector<NoiseLayer>, Vec2d, Surface, std::shared_ptr<const Source>,
                       std::optional<double>>(),
              "layers"_a, "origin"_a = Vec2d{}, "surface"_a = Surface{}, "source"_a = nb::none(),
-             "source_resolves_px"_a = nb::none(),
+             "source_resolves_pixels"_a = nb::none(),
              "On a sphere the noise is 3D at each point's position, seamless everywhere, and "
-             "`origin` is unused. With a `source` and `source_resolves_px`, each layer whose "
+             "`origin` is unused. With a `source` and `source_resolves_pixels`, each layer whose "
              "wavelength is at least that many of the source's cells at a point is left out "
              "there.")
         .def_prop_ro("layers", &NoiseRelief::Layers,
                      "The noise layers, with any Hurst exponents and amplitudes applied.")
-        .def_prop_ro("source_resolves_px", &NoiseRelief::SourceResolvesPixels,
+        .def_prop_ro("source_resolves_pixels", &NoiseRelief::SourceResolvesPixels,
                      "Source cells across from which the source holds a noise layer; None for "
                      "none.");
     nb::class_<ScaleLayer, Layer>(m, "ScaleLayer", "height * scale + offset.")

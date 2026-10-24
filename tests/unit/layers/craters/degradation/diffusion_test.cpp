@@ -217,7 +217,10 @@ TEST(DiffusionDegradation, ShapesCratersWithItsOwnProfile) {
     const terraingen::NoDegradation none(terraingen::LunarFreshCraterMorphometry);
     EXPECT_EQ(none.RequiredProfile(), nullptr);
     EXPECT_EQ(terraingen::MatchedProfile(plain, none), plain);
-    EXPECT_THROW(terraingen::MatchedProfile(nullptr, none), std::invalid_argument);
+    EXPECT_NE(dynamic_cast<const terraingen::MartinParkesDunstanProfile*>(
+                  terraingen::MatchedProfile(nullptr, none).get()),
+              nullptr)
+        << "Martin, Parkes and Dunstan's by default";
 
     const auto density = std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0);
     const auto ages = std::make_shared<terraingen::UniformAges>(1.0);

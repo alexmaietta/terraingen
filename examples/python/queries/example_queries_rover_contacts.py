@@ -48,7 +48,7 @@ def build_terrain():
     craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=6, generation=generation))
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(
-            seed=6, distribution=None, coverage=0.06, min_diameter_m=0.1, max_diameter_m=1.0
+            seed=6, distribution=None, coverage=0.06, min_diameter=0.1, max_diameter=1.0
         ),
         craters,
     )

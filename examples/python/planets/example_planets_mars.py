@@ -42,7 +42,7 @@ class Example(_common.Example):
         generation = terraingen.CraterGenerationOptions(d_min=15.0, d_max=150.0)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=2, generation=generation))
         self.ripples = terraingen.mars_large_ripples()
-        self.ripples.cover, self.ripples.field_size, self.ripples.wind_azimuth_deg = 0.6, 80.0, 60.0
+        self.ripples.cover, self.ripples.field_size, self.ripples.wind_azimuth_degrees = 0.6, 80.0, 60.0
         print(f"large ripples: wavelength {self.ripples.wavelength} m, height {self.ripples.height} m")
         noise = terraingen.NoiseRelief(
             [

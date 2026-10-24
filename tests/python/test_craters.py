@@ -357,7 +357,7 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
             ),
         ),
     )
-    options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter_m=20.0)
+    options = terraingen.SecondaryCraterOptions(seed=4, onset_count=20.0, min_diameter=20.0)
     secondaries = terraingen.SecondaryCraterLayer(
         primary,
         terraingen.FassettThomsonProfile(),
@@ -372,7 +372,7 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
     rayed = terraingen.SecondaryCraterOptions(
         seed=4,
         onset_count=20.0,
-        min_diameter_m=20.0,
+        min_diameter=20.0,
         rays=terraingen.SecondaryRays(enabled=True, layout=layout),
         shapes=terraingen.SecondaryShapes(elongated_share=1.0),
     )
@@ -383,7 +383,9 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
     bright = terraingen.CraterRays(layout=layout)
     assert bright.layout.seed == 2
     with pytest.raises(ValueError):
-        terraingen.validate_ray_layout(terraingen.RayLayout(width_deg=terraingen.ValueDistribution(a=200.0)))
+        terraingen.validate_ray_layout(
+            terraingen.RayLayout(width_degrees=terraingen.ValueDistribution(a=200.0))
+        )
 
 
 def full_apply_options():
@@ -551,7 +553,11 @@ def test_slopes_wear_craters_faster_and_large_craters_can_outrank_smaller_ones()
 
 def test_outline_heading_is_in_degrees():
     irregular = terraingen.CraterIrregularity(
-        enabled=True, elongated_share=1.0, selection=ALL_CRATERS, heading_deg=30.0, heading_spread_deg=0.0
+        enabled=True,
+        elongated_share=1.0,
+        selection=ALL_CRATERS,
+        heading_degrees=30.0,
+        heading_spread_degrees=0.0,
     )
     outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0), irregular)
     assert outline.heading_deg == pytest.approx(30.0)

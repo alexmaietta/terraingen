@@ -34,7 +34,8 @@ struct CraterModels {
     /// stay null for a layer that generates no craters.
     std::shared_ptr<const CraterAgeModel> ages;
     std::shared_ptr<const DegradationModel> degradation;  ///< Each crater's state.
-    /// Height by distance; null takes the one the degradation requires (`MatchedProfile`).
+    /// Height by distance; null takes the one the degradation requires, else Martin, Parkes and
+    /// Dunstan's (`MatchedProfile`).
     std::shared_ptr<const CraterProfile> profile;
 
     /// The profile and degradation, the models that shape the craters.
@@ -94,7 +95,8 @@ struct CraterLayerOptions {
 class CraterLayer final : public Layer, public CraterPlacer {
   public:
     /// @param models The density and ages may be null without `generateRandom` or a density map,
-    /// and the profile and ages may be null for those the degradation has.
+    /// the ages may be null for those the degradation has, and the profile as `MatchedProfile`
+    /// takes it.
     /// @param source The source the terrain's heights come from, which with
     /// `options.sourceResolvesPixels` holds the craters it resolves; null for none.
     /// @throws std::invalid_argument for a missing model, a profile `MatchedProfile` rejects, or

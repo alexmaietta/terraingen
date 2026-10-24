@@ -50,7 +50,7 @@ class Example(_common.Example):
         self.heights, self.diameters, self.ranges = {}, {}, {}
         for name, options in models.items():
             low, high = options.distribution.valid_range if options.distribution else (0.0, float("inf"))
-            options.min_diameter_m, options.max_diameter_m, options.seed = max(0.2, low), min(3.0, high), 1
+            options.min_diameter, options.max_diameter, options.seed = max(0.2, low), min(3.0, high), 1
             terrain = terraingen.TerrainGenerator(
                 terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.BoulderLayer(options)]
             )
@@ -61,7 +61,7 @@ class Example(_common.Example):
                 + "".join(f"{100 * np.count_nonzero(diameters >= d) / area:10.2f}" for d in (0.2, 0.5, 1.0))
             )
             self.diameters[name] = diameters
-            self.ranges[name] = (options.min_diameter_m, options.max_diameter_m)
+            self.ranges[name] = (options.min_diameter, options.max_diameter)
             self.show(name, self.heights[name])
 
     def save(self, out):

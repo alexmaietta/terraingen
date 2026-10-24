@@ -153,15 +153,17 @@ def test_raster_albedo_keeps_the_map_mean_on_a_finer_grid():
 
 
 def test_crater_albedo_options_keep_nested_settings():
-    rays = terraingen.CraterRays(oblique=terraingen.ObliqueImpacts(heading_deg=90.0), excess=0.06)
+    rays = terraingen.CraterRays(oblique=terraingen.ObliqueImpacts(heading_degrees=90.0), excess=0.06)
     options = terraingen.CraterAlbedoOptions(
         seed=3, rays=rays, retention=terraingen.RayRetention(scale=2.0), interior_excess=0.2
     )
-    assert options.rays.oblique.heading_deg == 90.0 and options.retention.myr(500.0) == pytest.approx(10.0)
+    assert options.rays.oblique.heading_degrees == 90.0 and options.retention.myr(500.0) == pytest.approx(
+        10.0
+    )
 
 
 def test_ray_median_length_exceeds_the_diameter():
-    rays = terraingen.CraterRays(oblique=terraingen.ObliqueImpacts(heading_deg=90.0), excess=0.06)
+    rays = terraingen.CraterRays(oblique=terraingen.ObliqueImpacts(heading_degrees=90.0), excess=0.06)
     assert rays.median_length(2000.0) > 2000.0
 
 
@@ -240,7 +242,7 @@ def test_splotches_darken_most_of_their_ground():
 
 
 def test_albedo_layers_read_the_terrain_heights(lunar_models):
-    shadows = terraingen.ZoneShadows(enabled=True, jet_angle_deg=5.0)
+    shadows = terraingen.ZoneShadows(enabled=True, jet_angle_degrees=5.0)
     zones = terraingen.CraterReflectanceZones(enabled=True, max_diameter=300.0, shadows=shadows)
     layer = terraingen.CraterAlbedo(
         manual_crater_layer(lunar_models), terraingen.CraterAlbedoOptions(zones=zones)

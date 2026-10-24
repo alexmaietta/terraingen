@@ -12,9 +12,9 @@ def model_options(max_diameter=3.0):
     return terraingen.BoulderLayerOptions(
         distribution=None,
         coverage=0.08,
-        min_diameter_m=0.2,
-        max_diameter_m=max_diameter,
-        model_threshold=terraingen.BoulderModelThreshold(min_diameter_m=0.6),
+        min_diameter=0.2,
+        max_diameter=max_diameter,
+        model_threshold=terraingen.BoulderModelThreshold(min_diameter=0.6),
     )
 
 
@@ -119,9 +119,14 @@ def test_placed_lists_and_models_are_written(tmp_path, lunar_models, crater_laye
 
 def test_boulder_layer_options_keep_their_fields():
     boulders = terraingen.BoulderLayerOptions(
-        qa=1.5, bedrock_abundance=2.0, max_lean_deg=6.0, shape_prototypes=8
+        qa=1.5, bedrock_abundance=2.0, max_lean_degrees=6.0, shape_prototypes=8
     )
-    assert (boulders.qa, boulders.bedrock_abundance, boulders.max_lean_deg, boulders.shape_prototypes) == (
+    assert (
+        boulders.qa,
+        boulders.bedrock_abundance,
+        boulders.max_lean_degrees,
+        boulders.shape_prototypes,
+    ) == (
         1.5,
         2.0,
         6.0,
@@ -131,7 +136,7 @@ def test_boulder_layer_options_keep_their_fields():
 
 def test_boulder_fade_sets_the_smallest_boulder_drawn_in_pixels():
     options = terraingen.BoulderLayerOptions(
-        distribution=None, coverage=0.1, min_diameter_m=0.2, max_diameter_m=3.0, fade_px=(4.0, 6.0)
+        distribution=None, coverage=0.1, min_diameter=0.2, max_diameter=3.0, fade_px=(4.0, 6.0)
     )
     assert options.fade_px == [4.0, 6.0] and options.fade_shape == terraingen.BlendShape.SMOOTHSTEP
     layer = terraingen.BoulderLayer(options)
@@ -156,10 +161,10 @@ def test_boulder_fillets_and_burial_by_wear_are_options():
 
 def test_worn_boulders_break_into_pieces_that_replace_them():
     options = terraingen.BoulderLayerOptions(
-        distribution=None, coverage=0.1, min_diameter_m=0.3, max_diameter_m=2.0
+        distribution=None, coverage=0.1, min_diameter=0.3, max_diameter=2.0
     )
     whole = terraingen.BoulderLayer(options)
-    options.fragmentation = terraingen.BoulderFragmentation(min_diameter_m=0.3, split_wear=0.0)
+    options.fragmentation = terraingen.BoulderFragmentation(min_diameter=0.3, split_wear=0.0)
     broken = terraingen.BoulderLayer(options)
     assert options.fragmentation is not None and terraingen.BoulderLayerOptions().fragmentation is None
     region = (-20.0, -20.0, 20.0, 20.0)
@@ -172,18 +177,18 @@ def test_worn_boulders_break_into_pieces_that_replace_them():
 
 
 def test_boulder_clusters_raise_the_abundance_near_their_centers():
-    clusters = terraingen.BoulderClusters(share=0.8, center_spacing_m=40.0, radius_m=4.0)
+    clusters = terraingen.BoulderClusters(share=0.8, center_spacing=40.0, radius=4.0)
     layer = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(clusters=clusters))
     abundances = [layer.abundance_at(x + 0.5, y + 0.5)[0] for x in range(0, 200, 2) for y in range(0, 200, 2)]
     assert max(abundances) > 5.0 > 0.25 > min(abundances)
     assert max(abundances) <= terraingen.max_cluster_abundance(clusters) + 1e-9
     with pytest.raises(ValueError):
-        terraingen.validate_boulder_clusters(terraingen.BoulderClusters(radius_m=60.0))
+        terraingen.validate_boulder_clusters(terraingen.BoulderClusters(radius=60.0))
 
 
 def test_thomas_boulder_clusters_may_overlap():
     clusters = terraingen.BoulderClusters(
-        share=1.0, center_spacing_m=10.0, radius_m=3.0, model=terraingen.BoulderClusterModel.THOMAS
+        share=1.0, center_spacing=10.0, radius=3.0, model=terraingen.BoulderClusterModel.THOMAS
     )
     layer = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(clusters=clusters))
     abundances = [layer.abundance_at(x + 0.5, y + 0.5)[0] for x in range(0, 200, 2) for y in range(0, 200, 2)]
@@ -191,7 +196,7 @@ def test_thomas_boulder_clusters_may_overlap():
     assert max(abundances) <= terraingen.max_cluster_abundance(clusters) + 1e-9
     terraingen.validate_boulder_clusters(
         terraingen.BoulderClusters(
-            center_spacing_m=10.0, radius_m=15.0, model=terraingen.BoulderClusterModel.THOMAS
+            center_spacing=10.0, radius=15.0, model=terraingen.BoulderClusterModel.THOMAS
         )
     )
 
@@ -211,14 +216,14 @@ def test_boulder_layer_options_take_custom_shape_styles():
 
 def unburied_options():
     return terraingen.BoulderLayerOptions(
-        min_diameter_m=0.2,
-        max_diameter_m=2.0,
+        min_diameter=0.2,
+        max_diameter=2.0,
         distribution=terraingen.synthterrain_boulder_distribution(terraingen.SynthterrainBoulders.HAWORTH),
         patches=terraingen.BoulderPatches(spread=1.0),
         min_burial=0.0,
         max_burial=0.0,
         relief=terraingen.BoulderRelief.DOME,
-        model_threshold=terraingen.BoulderModelThreshold(min_diameter_m=1.0),
+        model_threshold=terraingen.BoulderModelThreshold(min_diameter=1.0),
         exposure=terraingen.ExposureParams(reach=6.0),
     )
 
@@ -253,7 +258,7 @@ def test_boulder_abundance_follows_exposed_bedrock(noise_relief):
 
 def test_boulder_ejecta_defaults_to_freshness_aging():
     ejecta = terraingen.BoulderEjecta(
-        min_crater_diameter_m=5.0,
+        min_crater_diameter=5.0,
         distribution=None,
         coverage=0.3,
         profile=terraingen.EjectaProfile.EXPONENTIAL,
@@ -283,7 +288,7 @@ def test_golombek_rapp_terms_need_golombek_rapp_sizes():
 
 def test_boulders_rest_on_sides_and_ends_and_tilt():
     options = terraingen.BoulderLayerOptions(
-        distribution=None, coverage=0.08, side_share=0.3, end_share=0.1, max_tilt_deg=45.0
+        distribution=None, coverage=0.08, side_share=0.3, end_share=0.1, max_tilt_degrees=45.0
     )
     table = terraingen.BoulderLayer(options).boulders((-30.0, -30.0, 30.0, 30.0)).table
     rests = np.asarray(table["rest"])
@@ -295,8 +300,8 @@ def test_boulders_rest_on_sides_and_ends_and_tilt():
 
 
 def test_boulder_max_slope_is_optional():
-    options = terraingen.BoulderLayerOptions(max_slope_deg=30.0)
-    assert options.max_slope_deg == 30.0 and terraingen.BoulderLayerOptions().max_slope_deg is None
+    options = terraingen.BoulderLayerOptions(max_slope_degrees=30.0)
+    assert options.max_slope_degrees == 30.0 and terraingen.BoulderLayerOptions().max_slope_degrees is None
 
 
 def test_boulder_layers_take_maps_and_catalogs():
@@ -311,29 +316,29 @@ def test_boulder_layers_take_maps_and_catalogs():
 
 
 def test_patches_raise_the_mean_a_map_divides_out():
-    assert terraingen.mean_patch_abundance(terraingen.BoulderPatches(spread=4.0, size_m=20.0)) > 1.2
-    assert terraingen.BoulderLayerOptions(bedrock_mean_size_m=250.0).bedrock_mean_size_m == 250.0
+    assert terraingen.mean_patch_abundance(terraingen.BoulderPatches(spread=4.0, size=20.0)) > 1.2
+    assert terraingen.BoulderLayerOptions(bedrock_mean_size=250.0).bedrock_mean_size == 250.0
 
 
 def test_boulder_layer_reads_the_ground_at_its_ground_spacing():
-    assert terraingen.BoulderLayerOptions().ground_spacing_m == 1.0
-    assert terraingen.BoulderLayerOptions(ground_spacing_m=0.5).ground_spacing_m == 0.5
+    assert terraingen.BoulderLayerOptions().ground_spacing == 1.0
+    assert terraingen.BoulderLayerOptions(ground_spacing=0.5).ground_spacing == 0.5
     assert not hasattr(terraingen.BoulderLayerOptions(), "exposure_spacing")
-    assert not hasattr(terraingen.BoulderLayerOptions(), "ground_spacing")
+    assert not hasattr(terraingen.BoulderLayerOptions(), "ground_spacing_m")
     with pytest.raises(ValueError):
-        terraingen.validate_boulder_layer_options(terraingen.BoulderLayerOptions(ground_spacing_m=0.0))
+        terraingen.validate_boulder_layer_options(terraingen.BoulderLayerOptions(ground_spacing=0.0))
 
 
 def test_boulders_follow_a_size_slope_map_and_roll_down_steep_ground():
     options = terraingen.BoulderLayerOptions(
         distribution=terraingen.PowerLawSfd(0.05, 3.0),
         slope_map=terraingen.SizeSlopeMap(field=terraingen.ConstantField(2.0), reference_diameter=1.0),
-        max_slope_deg=22.0,
-        roll_distance_m=20.0,
+        max_slope_degrees=22.0,
+        roll_distance=20.0,
     )
     terraingen.BoulderLayer(options)
     assert terraingen.size_slope_at(options.slope_map, 0.0, 0.0) == 2.0
-    assert options.roll_distance_m == 20.0
+    assert options.roll_distance == 20.0
 
 
 def test_boulder_angles_are_in_degrees():
@@ -349,7 +354,7 @@ def test_boulder_angles_are_in_degrees():
 
 def test_manual_boulders_fix_their_pose_and_shape():
     plain = terraingen.ManualBoulder(1.0, 2.0, 1.5)
-    assert plain.height is None and plain.yaw_deg is None and plain.rest is None
+    assert plain.height is None and plain.yaw_degrees is None and plain.rest is None
     assert plain.shape_seed is None and "ManualBoulder(x=1.0" in repr(plain)
     posed = terraingen.ManualBoulder(
         x=-3.0,
@@ -358,15 +363,15 @@ def test_manual_boulders_fix_their_pose_and_shape():
         id=17,
         height=0.9,
         burial=0.3,
-        yaw_deg=30.0,
-        lean_deg=10.0,
-        tilt_deg=20.0,
-        tilt_azimuth_deg=90.0,
+        yaw_degrees=30.0,
+        lean_degrees=10.0,
+        tilt_degrees=20.0,
+        tilt_azimuth_degrees=90.0,
         wear=0.25,
         rest=terraingen.BoulderRest.SIDE,
         shape_seed=5,
     )
-    assert (posed.yaw_deg, posed.lean_deg, posed.tilt_deg, posed.tilt_azimuth_deg) == (
+    assert (posed.yaw_degrees, posed.lean_degrees, posed.tilt_degrees, posed.tilt_azimuth_degrees) == (
         30.0,
         10.0,
         20.0,
@@ -378,7 +383,7 @@ def test_manual_boulders_fix_their_pose_and_shape():
     table = (
         terraingen.BoulderLayer(
             terraingen.BoulderLayerOptions(
-                distribution=None, min_diameter_m=0.5, coverage=0.01, manual=[plain, posed]
+                distribution=None, min_diameter=0.5, coverage=0.01, manual=[plain, posed]
             )
         )
         .boulders((-10.0, -10.0, 10.0, 10.0))

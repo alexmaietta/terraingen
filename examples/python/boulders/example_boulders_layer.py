@@ -55,9 +55,9 @@ class Example(_common.Example):
             options = terraingen.BoulderLayerOptions(
                 distribution=None,
                 coverage=coverage,
-                min_diameter_m=0.2,
-                max_diameter_m=3.0,
-                model_threshold=terraingen.BoulderModelThreshold(min_diameter_m=0.6),
+                min_diameter=0.2,
+                max_diameter=3.0,
+                model_threshold=terraingen.BoulderModelThreshold(min_diameter=0.6),
             )
             boulders = terraingen.BoulderLayer(options, craters)
             terrain = terraingen.TerrainGenerator(

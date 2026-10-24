@@ -41,6 +41,25 @@ inline std::string FieldDoc(std::string_view description, std::string_view unit)
     return doc;
 }
 
+/// The Python name of the configuration field `key` of `unit`, the C++ member's name in snake case:
+/// the key without its meters suffix "_m", and with "_px" and "_deg" spelled "_pixels" and
+/// "_degrees", as the library names them.
+inline std::string PythonName(std::string_view key, std::string_view unit) {
+    const auto ends = [&](std::string_view suffix) {
+        return key.size() > suffix.size() && key.substr(key.size() - suffix.size()) == suffix;
+    };
+    if (unit == "m" && ends("_m")) {
+        return std::string(key.substr(0, key.size() - 2));
+    }
+    if (unit == "px" && ends("_px")) {
+        return std::string(key.substr(0, key.size() - 3)) + "_pixels";
+    }
+    if (ends("_deg")) {
+        return std::string(key) + "rees";
+    }
+    return std::string(key);
+}
+
 /// The field-list `IO` that binds each field of an options struct `T` as a property of its class,
 /// found by its offset in a default `T`: a bound unset when infinite as an optional float (None
 /// when unset), and a group of fields the configuration writes flat as one attribute.
@@ -58,7 +77,7 @@ template <typename T> class OptionsBinder {
         using Q = std::conditional_t<nb::detail::is_base_caster_v<nb::detail::make_caster<F>>,
                                      const F&, F&&>;
         const std::size_t offset = Offset(key, member);
-        Add(key);
+        Add(PythonName(key, unit));
         cls_.def_prop_rw(
             names_->back().c_str(),
             [offset](const T& self) -> const F& { return At<F>(self, offset); },
@@ -71,7 +90,7 @@ template <typename T> class OptionsBinder {
     void Bound(std::string_view key, double& bound, std::string_view description,
                std::string_view unit, double unset, const config::FieldRange& /*range*/) {
         const std::size_t offset = Offset(key, bound);
-        Add(key);
+        Add(PythonName(key, unit));
         cls_.def_prop_rw(
             names_->back().c_str(),
             [offset](const T& self) -> std::optional<double> {
@@ -88,7 +107,7 @@ template <typename T> class OptionsBinder {
     void Radians(std::string_view key, double& radians, std::string_view description,
                  const config::FieldRange& /*range*/) {
         const std::size_t offset = Offset(key, radians);
-        Add(key);
+        Add(PythonName(key, "deg"));
         cls_.def_prop_rw(
             names_->back().c_str(),
             [offset](const T& self) {
@@ -104,7 +123,7 @@ template <typename T> class OptionsBinder {
     void Radians(std::string_view key, std::optional<double>& radians, std::string_view description,
                  const config::FieldRange& /*range*/) {
         const std::size_t offset = Offset(key, radians);
-        Add(key);
+        Add(PythonName(key, "deg"));
         cls_.def_prop_rw(
             names_->back().c_str(),
             [offset](const T& self) -> std::optional<double> {
@@ -125,7 +144,7 @@ template <typename T> class OptionsBinder {
     void NanRadians(std::string_view key, double& radians, std::string_view description,
                     const config::FieldRange& /*range*/) {
         const std::size_t offset = Offset(key, radians);
-        Add(key);
+        Add(PythonName(key, "deg"));
         cls_.def_prop_rw(
             names_->back().c_str(),
             [offset](const T& self) -> std::optional<double> {
@@ -202,8 +221,15 @@ template <typename T> class OptionsBinder {
         return static_cast<std::size_t>(field - base);
     }
 
-    void Add(std::string_view key) {
-        names_->emplace_back(key);
+    /// Records the property `name`.
+    /// @throws std::logic_error when the struct already has a property of that name.
+    void Add(std::string_view name) {
+        for (const std::string& bound : *names_) {
+            if (bound == name) {
+                throw std::logic_error("Two fields bind as the property " + std::string(name));
+            }
+        }
+        names_->emplace_back(name);
     }
 
     nb::class_<T>& cls_;

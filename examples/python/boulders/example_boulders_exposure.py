@@ -44,8 +44,8 @@ class Example(_common.Example):
                 seed=1,
                 distribution=None,
                 coverage=0.02,
-                min_diameter_m=0.3,
-                max_diameter_m=4.0,
+                min_diameter=0.3,
+                max_diameter=4.0,
                 exposure=exposure,
                 bedrock_abundance=4.0,
             )
