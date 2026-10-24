@@ -13,7 +13,7 @@ Open source &middot; C++ &middot; Python
 # Scientific terrain for planetary surfaces
 
 Craters, boulders, dunes, layered rock and albedo from published models, on real elevation data or
-from scratch. From a landing site to the whole Moon, Mars or an irregular asteroid.
+from scratch. From a landing site to the whole Moon, Mars or asteroids.
 { .tg-hero__lead }
 
 [Get started](getting-started/index.md){ .md-button .md-button--primary }
