@@ -41,6 +41,8 @@ elevation model. Right: the same terrain upscaled by TerrainGen.</figcaption>
     Planes, spheres, triaxial ellipsoids and shape models of irregular bodies, with centimeter-scale
     detail added to GeoTIFF elevation models or synthetic relief.
 
+    [Learn more](concepts/surfaces.md){ .md-button }
+
 -   **Published crater and boulder models**
 
     ---
@@ -48,11 +50,15 @@ elevation model. Right: the same terrain upscaled by TerrainGen.</figcaption>
     Populations follow published size-frequency distributions; each crater gets a profile, age,
     degradation and an irregular rim.
 
+    [Learn more](concepts/craters-and-boulders.md){ .md-button }
+
 -   **Albedo that ages**
 
     ---
 
     Synthetic albedo maps with crater ejecta and rays that fade as craters age.
+
+    [Learn more](concepts/albedo.md){ .md-button }
 
 -   **Geologic features**
 
@@ -61,6 +67,8 @@ elevation model. Right: the same terrain upscaled by TerrainGen.</figcaption>
     Secondary and complex craters, boulder ejecta, dunes and ripples, terraced strata and fractured
     bedrock.
 
+    [Learn more](concepts/geology.md){ .md-button }
+
 -   **Simulation-ready outputs**
 
     ---
@@ -68,11 +76,15 @@ elevation model. Right: the same terrain upscaled by TerrainGen.</figcaption>
     GeoTIFF heightmaps and albedo, crater and boulder lists, and terrain and 3D boulder meshes as
     glTF, OBJ or STL.
 
+    [Learn more](concepts/outputs.md){ .md-button }
+
 -   **Fast and deterministic**
 
     ---
 
     Noise and crater shaping on the GPU through Vulkan, CUDA or Metal; the same seed gives the same
     terrain on any grid or thread count.
+
+    [Learn more](concepts/gpu-and-determinism.md){ .md-button }
 
 </div>

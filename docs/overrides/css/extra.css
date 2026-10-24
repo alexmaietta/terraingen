@@ -329,6 +329,17 @@
     font-size: 0.7rem;
 }
 
+/* A card's closing button sits at its foot, level with the buttons of its row. */
+.md-typeset .grid.cards > ul > li {
+    display: flex;
+    flex-direction: column;
+}
+
+.md-typeset .grid.cards > ul > li > p:last-child:has(> .md-button) {
+    margin-top: auto;
+    padding-top: 0.4rem;
+}
+
 /* ---- Home page ---------------------------------------------------------------------------- */
 
 .md-typeset .tg-hero {
