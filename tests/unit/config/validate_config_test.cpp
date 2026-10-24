@@ -156,6 +156,16 @@ const PathCase kPathCases[] = {
     {"LunarSurfaceTooOld",
      [](TerrainGenConfig& c) { Craters(c).density = terraingen::testing::LunarDensitySpec(9.0); },
      "layers[1].density.distributions[0].age_gyr"},
+    {"AgesOfAnotherSurface",
+     [](TerrainGenConfig& c) { Craters(c).ages = terraingen::testing::LunarAgesSpec(3.0); },
+     "layers[1].ages"},
+    {"AgesOfAnotherEquilibrium",
+     [](TerrainGenConfig& c) {
+         terraingen::SteadyStateAgesSpec ages = terraingen::testing::LunarAgesSpec();
+         ages.equilibrium = terraingen::EquilibriumModel::Hartmann;
+         Craters(c).ages = ages;
+     },
+     "layers[1].ages"},
     {"NoLifetime", [](TerrainGenConfig& c) { Craters(c).ages = terraingen::UniformAgesSpec{0.0}; },
      "layers[1].ages.lifetime_gyr"},
     {"NoFreshnessLifetime",

@@ -256,3 +256,26 @@ TEST(DiffusionDegradation, CraterLayersAgreeOnGridsAndPoints) {
         EXPECT_LE(layer.Models().Shape().Attributes(craters.At(n)).freshness, 1.0);
     }
 }
+
+TEST(MatchedDiffusionDegradation, WearsSteadyStateCratersToTheCutoffAtTheirLifetimes) {
+    const terraingen::EquilibriumSurface surface{
+        std::make_shared<terraingen::SplicedSfd>(terraingen::ExtendedNeukumProductionFunction()),
+        std::make_shared<terraingen::PowerLawSfd>(terraingen::HartmannEquilibrium()), 3.5,
+        terraingen::NeukumLunarChronology};
+    const auto ages = surface.Ages();
+    const auto profile =
+        std::make_shared<DiffusedProfile>(std::make_shared<FassettThomsonProfile>());
+    const auto degradation = terraingen::MatchedDiffusionDegradation(
+        profile, terraingen::LunarFreshCraterMorphometry, ages);
+    EXPECT_EQ(degradation->RequiredProfile(), profile);
+    for (const double diameter : {5.0, 40.0}) {
+        const double lifetime = ages->EquilibriumLifetimeGyr(diameter);
+        EXPECT_NEAR(degradation->State({0.0, 0.0, diameter, lifetime, 1u}).current.depthRatio,
+                    terraingen::kVisibilityDepthRatio, 1e-3)
+            << diameter;
+    }
+    EXPECT_THROW(
+        terraingen::EquilibriumDiffusionAges(profile, terraingen::LunarFreshCraterMorphometry,
+                                             std::shared_ptr<const terraingen::SteadyStateAges>{}),
+        std::invalid_argument);
+}

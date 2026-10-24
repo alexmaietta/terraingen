@@ -100,3 +100,20 @@ TEST(SteadyStateAges, RequiresAChronology) {
     const auto trask = std::make_shared<PowerLawSfd>(TraskEquilibrium());
     EXPECT_THROW(SteadyStateAges(npf, trask, 1.0, terraingen::Chronology{}), std::invalid_argument);
 }
+
+TEST(EquilibriumSurface, GivesTheDensityAndAgesOfOneSurface) {
+    const auto production = std::make_shared<LogPolynomialSfd>(NeukumProductionFunction());
+    const auto equilibrium = std::make_shared<PowerLawSfd>(TraskEquilibrium());
+    const terraingen::EquilibriumSurface surface{production, equilibrium, 3.2,
+                                                 NeukumLunarChronology};
+    const terraingen::ProductionSurface produced(production, 3.2, NeukumLunarChronology);
+    for (const double diameter : {20.0, 200.0, 2000.0}) {
+        EXPECT_DOUBLE_EQ(
+            surface.Density()->Cumulative(diameter),
+            std::fmin(produced.Cumulative(diameter), equilibrium->Cumulative(diameter)))
+            << diameter;
+        EXPECT_DOUBLE_EQ(surface.Ages()->LifetimeGyr(diameter),
+                         NeukumTrask(3.2).LifetimeGyr(diameter));
+    }
+    EXPECT_EQ(surface.Ages()->SurfaceAgeGyr(), 3.2);
+}

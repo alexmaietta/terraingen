@@ -329,6 +329,13 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
     }
     models_.profile = MatchedProfile(std::move(models_.profile), *models_.degradation);
     ValidateSecondaryCraterOptions(options_);
+    const std::vector<SecondaryCraterOptions>& thrown = primaries_->Options().secondaries;
+    if (primaries_->Options().densityMap &&
+        std::find(thrown.begin(), thrown.end(), options_) == thrown.end()) {
+        throw std::invalid_argument(
+            "Secondaries of a crater layer following a density map must be among its "
+            "CraterLayerOptions::secondaries, which the map counts");
+    }
     ValidateCraterApplyOptions(apply_);
     if (apply_.datum != CraterDatum::None) {
         throw std::invalid_argument("Secondary craters are additive; datums are not supported");
@@ -336,6 +343,12 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
     apply_.surface = primaries_->Options().surface;
     limit_ = LayerResolvedLimit(source, options_.sourceResolvesPixels, apply_.surface);
 }
+
+SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
+                                           SecondaryCraterOptions options, CraterApplyOptions apply,
+                                           std::shared_ptr<const Source> source)
+    : SecondaryCraterLayer(primaries, primaries ? primaries->Models().Shape() : CraterShapeModels{},
+                           std::move(options), std::move(apply), std::move(source)) {}
 
 double SecondaryCraterLayer::OuterRange(double diameter) const {
     return SecondaryOuterRange(diameter, options_);

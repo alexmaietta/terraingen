@@ -184,9 +184,7 @@ DiffusionAgeModel BuildDiffusionAges(const DiffusionDegradationSpec& spec,
         if (!steady) {
             return Fassett2022HartmannDiffusivity();
         }
-        return EquilibriumDiffusionAges(profile, fresh, [steady](double diameter) {
-            return steady->EquilibriumLifetimeGyr(diameter);
-        });
+        return EquilibriumDiffusionAges(profile, fresh, std::move(steady));
     }
     case DiffusivityModel::Fassett2022Hartmann:
         return Fassett2022HartmannDiffusivity();

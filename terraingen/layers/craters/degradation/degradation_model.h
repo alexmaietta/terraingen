@@ -12,6 +12,7 @@
 
 namespace terraingen {
 
+class CraterAgeModel;
 class CraterProfile;
 
 /// Maps each crater to its degradation state, from its diameter and age.
@@ -33,6 +34,12 @@ class DegradationModel {
 
     /// The profile craters in this model's states must be shaped with; null when any will do.
     virtual std::shared_ptr<const CraterProfile> RequiredProfile() const {
+        return nullptr;
+    }
+
+    /// The age model whose lifetimes this model's states follow, which a crater layer given no
+    /// ages draws from; null for none.
+    virtual std::shared_ptr<const CraterAgeModel> AgeModel() const {
         return nullptr;
     }
 };

@@ -93,17 +93,13 @@ class LayersCustom : public terraingen::examples::Example {
         fbm.fractal.seed = 1;
         fbm.fractal.wavelength = 200.0f;
         fbm.fractal.amplitude = 4.0f;
-        const auto production = std::make_shared<terraingen::SplicedSfd>(
-            terraingen::ExtendedNeukumProductionFunction());
-        const auto equilibrium =
-            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
-        const auto density = std::make_shared<terraingen::MinimumSfd>(
-            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
-                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
-                                                                terraingen::NeukumLunarChronology),
-                equilibrium});
-        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
-            production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
+        const terraingen::EquilibriumSurface surface{
+            std::make_shared<terraingen::SplicedSfd>(
+                terraingen::ExtendedNeukumProductionFunction()),
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium()), 3.5,
+            terraingen::NeukumLunarChronology};
+        const auto density = surface.Density();
+        const auto ages = surface.Ages();
         terraingen::CraterLayerOptions options;
         options.generation.dMin = 8.0;
         options.generation.dMax = 80.0;
@@ -114,7 +110,7 @@ class LayersCustom : public terraingen::examples::Example {
             std::make_shared<terraingen::NoiseRelief>(std::vector<terraingen::NoiseLayer>{fbm}),
             std::make_shared<Rille>(),
             std::make_shared<terraingen::CraterLayer>(
-                terraingen::CraterModels{density, ages,
+                terraingen::CraterModels{density, nullptr,
                                          std::make_shared<terraingen::FreshnessDegradation>(
                                              ages, terraingen::LunarFreshCraterMorphometry),
                                          std::make_shared<terraingen::FassettThomsonProfile>()},

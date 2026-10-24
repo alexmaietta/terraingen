@@ -123,6 +123,26 @@ void BindAges(nb::module_& m) {
              "production_rate"_a, "equilibrium"_a, "age_gyr"_a, "chronology"_a)
         .def_prop_ro("surface_age_gyr", &SteadyStateAges::SurfaceAgeGyr)
         .def("equilibrium_lifetime_gyr", &SteadyStateAges::EquilibriumLifetimeGyr, "diameter"_a);
+    nb::class_<EquilibriumSurface>(
+        m, "EquilibriumSurface",
+        "A surface `age_gyr` old by `chronology`, cratered by `production` and capped by the "
+        "`equilibrium` density: its `density()` and steady-state `ages()` from one set of models.")
+        .def(
+            "__init__",
+            [](EquilibriumSurface* self, std::shared_ptr<SizeFrequencyDistribution> production,
+               std::shared_ptr<SizeFrequencyDistribution> equilibrium, double ageGyr,
+               Chronology chronology) {
+                new (self) EquilibriumSurface{std::move(production), std::move(equilibrium), ageGyr,
+                                              std::move(chronology)};
+            },
+            "production"_a, "equilibrium"_a, "age_gyr"_a, "chronology"_a)
+        .def_prop_ro("production",
+                     [](const EquilibriumSurface& s) { return Mutable(s.production); })
+        .def_prop_ro("equilibrium",
+                     [](const EquilibriumSurface& s) { return Mutable(s.equilibrium); })
+        .def_ro("age_gyr", &EquilibriumSurface::ageGyr)
+        .def("density", [](const EquilibriumSurface& s) { return Mutable(s.Density()); })
+        .def("ages", [](const EquilibriumSurface& s) { return Mutable(s.Ages()); });
 }
 
 void BindCraterState(nb::module_& m) {
@@ -163,7 +183,11 @@ void BindDegradationModels(nb::module_& m) {
         .def(
             "required_profile",
             [](const DegradationModel& d) { return Mutable(d.RequiredProfile()); },
-            "The profile craters under this model must be shaped with; None when any will do.");
+            "The profile craters under this model must be shaped with; None when any will do.")
+        .def(
+            "age_model", [](const DegradationModel& d) { return Mutable(d.AgeModel()); },
+            "The age model whose lifetimes this model's states follow, which a crater layer given "
+            "no ages draws from; None for none.");
     m.def(
         "matched_profile",
         [](std::shared_ptr<CraterProfile> profile, const DegradationModel& degradation) {
@@ -348,6 +372,25 @@ void BindDiffusivities(nb::module_& m) {
         "Diffusion ages, a function of (diameter, age_gyr), that wear each crater of `profile` to "
         "`cutoff_depth_ratio` at the end of its lifetime `lifetime_gyr(diameter)`, as Fassett et "
         "al. (2022) derive the diffusivity that holds an equilibrium.");
+    m.def(
+        "equilibrium_diffusion_ages",
+        [](std::shared_ptr<DiffusedProfile> profile, FreshMorphometry fresh,
+           std::shared_ptr<SteadyStateAges> ages, double cutoffDepthRatio) {
+            return EquilibriumDiffusionAges(std::move(profile), std::move(fresh), std::move(ages),
+                                            cutoffDepthRatio);
+        },
+        "profile"_a, "fresh"_a, "ages"_a, "cutoff_depth_ratio"_a = kVisibilityDepthRatio,
+        "The diffusion ages over the equilibrium lifetimes of the steady-state `ages`.");
+    m.def(
+        "matched_diffusion_degradation",
+        [](std::shared_ptr<DiffusedProfile> profile, FreshMorphometry fresh,
+           std::shared_ptr<SteadyStateAges> ages) {
+            return Mutable(
+                MatchedDiffusionDegradation(std::move(profile), std::move(fresh), std::move(ages)));
+        },
+        "profile"_a, "fresh"_a, "ages"_a,
+        "Diffusion degradation that wears craters of the steady-state `ages` to the visibility "
+        "cutoff at the end of their lifetimes, on `profile`.");
 }
 
 }  // namespace

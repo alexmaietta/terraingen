@@ -26,6 +26,11 @@ class FreshnessDegradation final : public DegradationModel {
     /// @throws std::domain_error as `CraterAgeModel::LifetimeGyr`.
     CraterState State(const Crater& crater) const override;
 
+    /// The ages whose lifetimes the craters wear over.
+    std::shared_ptr<const CraterAgeModel> AgeModel() const override {
+        return ages_;
+    }
+
   private:
     std::shared_ptr<const CraterAgeModel> ages_;
     FreshMorphometry fresh_;

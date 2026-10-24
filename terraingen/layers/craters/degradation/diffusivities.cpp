@@ -46,4 +46,27 @@ DiffusionAgeModel EquilibriumDiffusionAges(std::shared_ptr<const DiffusedProfile
     };
 }
 
+DiffusionAgeModel EquilibriumDiffusionAges(std::shared_ptr<const DiffusedProfile> profile,
+                                           FreshMorphometry fresh,
+                                           std::shared_ptr<const SteadyStateAges> ages,
+                                           double cutoffDepthRatio) {
+    if (!ages) {
+        throw std::invalid_argument("Equilibrium diffusion ages need steady-state ages");
+    }
+    return EquilibriumDiffusionAges(
+        std::move(profile), std::move(fresh),
+        [ages = std::move(ages)](double diameter) {
+            return ages->EquilibriumLifetimeGyr(diameter);
+        },
+        cutoffDepthRatio);
+}
+
+std::shared_ptr<const DiffusionDegradation>
+MatchedDiffusionDegradation(std::shared_ptr<const DiffusedProfile> profile, FreshMorphometry fresh,
+                            std::shared_ptr<const SteadyStateAges> ages) {
+    DiffusionAgeModel diffusion = EquilibriumDiffusionAges(profile, fresh, std::move(ages));
+    return std::make_shared<DiffusionDegradation>(std::move(fresh), std::move(diffusion),
+                                                  std::move(profile));
+}
+
 }  // namespace terraingen

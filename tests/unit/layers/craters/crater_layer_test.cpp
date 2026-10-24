@@ -116,6 +116,23 @@ TEST(CraterLayer, ManualMakesALayerOfOnlyTheGivenCraters) {
     EXPECT_THROW(CraterLayer::Manual(craters, CraterModels{}), std::invalid_argument);
 }
 
+TEST(CraterLayer, DrawsTheAgesItsDegradationWearsByWhenGivenNone) {
+    const auto ages = std::make_shared<terraingen::UniformAges>(2.0);
+    CraterModels models = Models();
+    models.ages.reset();
+    models.degradation = std::make_shared<terraingen::FreshnessDegradation>(
+        ages, terraingen::LunarFreshCraterMorphometry);
+    EXPECT_EQ(models.degradation->AgeModel(), ages);
+    const CraterLayer layer(models, Options());
+    EXPECT_EQ(layer.Models().ages, ages);
+    CraterModels other = models;
+    other.ages = std::make_shared<terraingen::FreshAges>();
+    EXPECT_EQ(CraterLayer(other, Options()).Models().ages, other.ages)
+        << "ages given apart from the degradation's are kept";
+    EXPECT_EQ(terraingen::NoDegradation(terraingen::LunarFreshCraterMorphometry).AgeModel(),
+              nullptr);
+}
+
 TEST(CraterLayer, ManualNeedsOnlyItsCraters) {
     CraterList craters;
     craters.Append(terraingen::ManualCrater(0.0, 0.0, 30.0, 4.0));

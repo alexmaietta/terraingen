@@ -51,4 +51,25 @@ class SteadyStateAges final : public CraterAgeModel {
     Chronology chronology_;
 };
 
+/// A surface `ageGyr` old by `chronology`, cratered by `production` and capped by the
+/// `equilibrium` density: its crater density and steady-state ages from the one set of models, so
+/// they cannot disagree.
+struct EquilibriumSurface {
+    /// A `ProductionRate` distribution, such as `ExtendedNeukumProductionFunction`.
+    std::shared_ptr<const SizeFrequencyDistribution> production;
+    /// A `Density` distribution, such as `HartmannEquilibrium`.
+    std::shared_ptr<const SizeFrequencyDistribution> equilibrium;
+    double ageGyr = 3.5;    ///< Surface age in Gyr.
+    Chronology chronology;  ///< N(>=1 km) per m^2 by age, such as `NeukumLunarChronology`.
+
+    /// The least of the production surface (`ProductionSurface`) and the equilibrium
+    /// (`MinimumSfd`), craters per m^2 by diameter.
+    /// @throws std::invalid_argument as `ProductionSurface` and `MinimumSfd`.
+    std::shared_ptr<const SizeFrequencyDistribution> Density() const;
+
+    /// The steady-state ages on the surface (`SteadyStateAges`).
+    /// @throws std::invalid_argument as `SteadyStateAges`.
+    std::shared_ptr<const SteadyStateAges> Ages() const;
+};
+
 }  // namespace terraingen

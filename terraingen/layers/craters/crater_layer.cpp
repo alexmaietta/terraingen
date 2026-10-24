@@ -3,10 +3,8 @@
 #include "terraingen/layers/craters/crater_layer.h"
 
 #include "terraingen/distribution/equilibrium.h"
-#include "terraingen/distribution/minimum.h"
 #include "terraingen/distribution/neukum.h"
 #include "terraingen/distribution/power_law.h"
-#include "terraingen/distribution/production_surface.h"
 #include "terraingen/distribution/spliced.h"
 #include "terraingen/distribution/summed.h"
 #include "terraingen/layers/craters/ages/steady_state.h"
@@ -43,6 +41,9 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
     if (!models_.degradation) {
         throw std::invalid_argument("A crater layer needs a degradation model");
     }
+    if (!models_.ages) {
+        models_.ages = models_.degradation->AgeModel();
+    }
     if (options_.generateRandom && (!models_.density || !models_.ages)) {
         throw std::invalid_argument("A crater layer generating craters needs a density and ages");
     }
@@ -76,28 +77,14 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
 }
 
 CraterModels DefaultCraterModels() {
-    const auto production = std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction());
-    const auto equilibrium = std::make_shared<PowerLawSfd>(HartmannEquilibrium());
-    const Chronology chronology(NeukumLunarChronology);
-    constexpr double kAgeGyr = 3.5;
-    CraterModels models;
-    models.density =
-        std::make_shared<MinimumSfd>(std::vector<std::shared_ptr<const SizeFrequencyDistribution>>{
-            std::make_shared<ProductionSurface>(production, kAgeGyr, chronology), equilibrium});
-    const auto steady =
-        std::make_shared<SteadyStateAges>(production, equilibrium, kAgeGyr, chronology);
-    models.ages = steady;
-    const FreshMorphometry fresh(LunarFreshCraterMorphometry);
+    const EquilibriumSurface surface{
+        std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction()),
+        std::make_shared<PowerLawSfd>(HartmannEquilibrium()), 3.5, NeukumLunarChronology};
+    const auto ages = surface.Ages();
     const auto profile =
         std::make_shared<DiffusedProfile>(std::make_shared<MartinParkesDunstanProfile>());
-    models.degradation = std::make_shared<DiffusionDegradation>(
-        fresh,
-        EquilibriumDiffusionAges(
-            profile, fresh,
-            [steady](double diameter) { return steady->EquilibriumLifetimeGyr(diameter); }),
-        profile);
-    models.profile = profile;
-    return models;
+    return {surface.Density(), ages,
+            MatchedDiffusionDegradation(profile, LunarFreshCraterMorphometry, ages), profile};
 }
 
 std::shared_ptr<CraterLayer> CraterLayer::Manual(CraterList craters, CraterModels models,

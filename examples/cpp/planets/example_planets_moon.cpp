@@ -42,17 +42,13 @@ class PlanetsMoon : public terraingen::examples::Example {
         const auto noise = std::make_shared<terraingen::NoiseRelief>(
             std::vector<terraingen::NoiseLayer>{broad, fine}, terraingen::Vec2d{}, moon_);
 
-        const auto production = std::make_shared<terraingen::SplicedSfd>(
-            terraingen::ExtendedNeukumProductionFunction());
-        const auto equilibrium =
-            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
-        const auto density = std::make_shared<terraingen::MinimumSfd>(
-            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
-                std::make_shared<terraingen::ProductionSurface>(production, 3.8,
-                                                                terraingen::NeukumLunarChronology),
-                equilibrium});
-        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
-            production, equilibrium, 3.8, terraingen::NeukumLunarChronology);
+        const terraingen::EquilibriumSurface surface{
+            std::make_shared<terraingen::SplicedSfd>(
+                terraingen::ExtendedNeukumProductionFunction()),
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium()), 3.8,
+            terraingen::NeukumLunarChronology};
+        const auto density = surface.Density();
+        const auto ages = surface.Ages();
         terraingen::CraterLayerOptions options;
         options.seed = 3;
         options.surface = moon_;

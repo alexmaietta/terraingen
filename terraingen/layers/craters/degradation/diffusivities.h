@@ -4,6 +4,7 @@
 /// @brief Lunar topographic diffusivities of Fassett and Thomson (2014) and Fassett et al. (2022).
 #pragma once
 
+#include "terraingen/layers/craters/ages/steady_state.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
 
 #include <functional>
@@ -41,5 +42,20 @@ DiffusionAgeModel EquilibriumDiffusionAges(std::shared_ptr<const DiffusedProfile
                                            FreshMorphometry fresh,
                                            std::function<double(double)> lifetimeGyr,
                                            double cutoffDepthRatio = kVisibilityDepthRatio);
+
+/// `EquilibriumDiffusionAges` over the equilibrium lifetimes of `ages`
+/// (`SteadyStateAges::EquilibriumLifetimeGyr`), matching the diffusion to them.
+/// @throws std::invalid_argument as the lifetime overload, or for null `ages`.
+DiffusionAgeModel EquilibriumDiffusionAges(std::shared_ptr<const DiffusedProfile> profile,
+                                           FreshMorphometry fresh,
+                                           std::shared_ptr<const SteadyStateAges> ages,
+                                           double cutoffDepthRatio = kVisibilityDepthRatio);
+
+/// Diffusion degradation that wears craters of the steady-state `ages` to the visibility cutoff at
+/// the end of their lifetimes, on `profile` diffused from `fresh` (`EquilibriumDiffusionAges`).
+/// @throws std::invalid_argument as `EquilibriumDiffusionAges` and `DiffusionDegradation`.
+std::shared_ptr<const DiffusionDegradation>
+MatchedDiffusionDegradation(std::shared_ptr<const DiffusedProfile> profile, FreshMorphometry fresh,
+                            std::shared_ptr<const SteadyStateAges> ages);
 
 }  // namespace terraingen

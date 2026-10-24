@@ -537,6 +537,15 @@ void BindSecondaries(nb::module_& m) {
             "With a `source`, secondaries at least `options.source_resolves_px` of its cells "
             "across are left out.")
         .def(
+            "__init__",
+            [](SecondaryCraterLayer* self, std::shared_ptr<CraterLayer> primaries,
+               SecondaryCraterOptions options, std::shared_ptr<const Source> source) {
+                new (self) SecondaryCraterLayer(std::move(primaries), std::move(options),
+                                                CraterApplyOptions{}, std::move(source));
+            },
+            "primaries"_a, "options"_a, "source"_a = nb::none(),
+            "Secondaries shaped as the primaries are.")
+        .def(
             "secondaries",
             [](const SecondaryCraterLayer& layer, const Bounds2d& region, double spacing) {
                 return CraterTable(layer.Secondaries(region, spacing));

@@ -28,7 +28,6 @@ std::shared_ptr<const CraterProfile> MatchedProfile(std::shared_ptr<const Crater
     }
     return profile ? profile : required;
 }
-
 NoDegradation::NoDegradation(FreshMorphometry fresh, std::optional<double> depthRatio)
     : fresh_(std::move(fresh)), depthRatio_(depthRatio) {
     if (!fresh_) {

@@ -41,8 +41,15 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
     /// @param source The source the terrain's heights come from, which with
     /// `options.sourceResolvesPixels` holds the secondaries it resolves; null for none.
     /// @throws std::invalid_argument for a null layer or degradation, a profile `MatchedProfile`
-    /// rejects, invalid options, or apply options with a datum.
+    /// rejects, invalid options, apply options with a datum, or options missing from the
+    /// primaries' `CraterLayerOptions::secondaries` when the primaries follow a density map.
     SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries, CraterShapeModels models,
+                         SecondaryCraterOptions options, CraterApplyOptions apply = {},
+                         std::shared_ptr<const Source> source = nullptr);
+
+    /// Secondaries shaped as the primaries are (`CraterModels::Shape`).
+    /// @throws std::invalid_argument as the other constructor.
+    SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
                          SecondaryCraterOptions options, CraterApplyOptions apply = {},
                          std::shared_ptr<const Source> source = nullptr);
 

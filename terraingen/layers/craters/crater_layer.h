@@ -30,7 +30,8 @@ namespace terraingen {
 struct CraterModels {
     /// Craters per m^2 by diameter; may be null for a layer that generates none.
     std::shared_ptr<const SizeFrequencyDistribution> density;
-    /// Each crater's age; may be null for a layer that generates none.
+    /// Each crater's age; null takes the degradation's `AgeModel`, so ages are given once, and may
+    /// stay null for a layer that generates no craters.
     std::shared_ptr<const CraterAgeModel> ages;
     std::shared_ptr<const DegradationModel> degradation;  ///< Each crater's state.
     /// Height by distance; null takes the one the degradation requires (`MatchedProfile`).
@@ -93,7 +94,7 @@ struct CraterLayerOptions {
 class CraterLayer final : public Layer, public CraterPlacer {
   public:
     /// @param models The density and ages may be null without `generateRandom` or a density map,
-    /// and the profile may be null for one the degradation requires.
+    /// and the profile and ages may be null for those the degradation has.
     /// @param source The source the terrain's heights come from, which with
     /// `options.sourceResolvesPixels` holds the craters it resolves; null for none.
     /// @throws std::invalid_argument for a missing model, a profile `MatchedProfile` rejects, or

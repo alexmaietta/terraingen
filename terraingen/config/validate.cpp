@@ -176,6 +176,38 @@ void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
     }
 }
 
+/// @throws ConfigError at "ages" when steady-state ages name another production function,
+/// chronology, surface age or equilibrium than a density of a production surface capped by an
+/// equilibrium, so the ages would not follow the craters drawn.
+void CheckMatchingAges(const CraterLayerSpec& craters, const std::string& path) {
+    const auto* steady = std::get_if<SteadyStateAgesSpec>(&craters.ages);
+    const auto* minimum = std::get_if<MinimumSpec>(&craters.density);
+    if (!steady || !minimum) {
+        return;
+    }
+    const ProductionSurfaceSpec* surface = nullptr;
+    std::optional<EquilibriumModel> equilibrium;
+    for (const DensitySpec& distribution : minimum->distributions) {
+        if (const auto* s = std::get_if<ProductionSurfaceSpec>(&distribution)) {
+            surface = s;
+        } else if (std::holds_alternative<TraskSpec>(distribution)) {
+            equilibrium = EquilibriumModel::Trask;
+        } else if (std::holds_alternative<HartmannSpec>(distribution)) {
+            equilibrium = EquilibriumModel::Hartmann;
+        }
+    }
+    if (!surface || !equilibrium) {
+        return;
+    }
+    if (surface->production != steady->production || surface->chronology != steady->chronology ||
+        surface->ageGyr != steady->ageGyr || *equilibrium != steady->equilibrium) {
+        throw ConfigError(Child(path, "ages"),
+                          "steady-state ages must name the production function, chronology, "
+                          "age_gyr and equilibrium of the density's production surface and "
+                          "equilibrium");
+    }
+}
+
 void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, LayerChecks& context) {
     CheckManualCraters(craters.manual, Child(path, "manual"));
     At(Child(path, "spacing"), [&] { ValidateCraterSpacing(craters.spacing); });
@@ -187,6 +219,7 @@ void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, Lay
     }
     CheckDiffusivity(craters.degradation, Child(path, "degradation"));
     const CraterModels models = BuildCraterModels(craters, path);
+    CheckMatchingAges(craters, path);
     CheckExplicitShapes(craters.manual, models, Child(path, "manual"));
     context.craters = true;
     if (!craters.generateRandom) {

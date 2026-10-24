@@ -60,22 +60,17 @@ class AgesModels : public terraingen::examples::Example {
     using Example::Example;
 
     void Generate() override {
-        const auto production = std::make_shared<terraingen::SplicedSfd>(
-            terraingen::ExtendedNeukumProductionFunction());
-        const auto equilibrium =
-            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
-        const auto density = std::make_shared<terraingen::MinimumSfd>(
-            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
-                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
-                                                                terraingen::NeukumLunarChronology),
-                equilibrium});
+        const terraingen::EquilibriumSurface surface{
+            std::make_shared<terraingen::SplicedSfd>(
+                terraingen::ExtendedNeukumProductionFunction()),
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium()), 3.5,
+            terraingen::NeukumLunarChronology};
+        const auto density = surface.Density();
         const std::vector<std::pair<std::string, std::shared_ptr<const terraingen::CraterAgeModel>>>
             models = {
                 {"fresh", std::make_shared<terraingen::FreshAges>()},
                 {"uniform_3.5_gyr", std::make_shared<terraingen::UniformAges>(3.5)},
-                {"steady_state",
-                 std::make_shared<terraingen::SteadyStateAges>(production, equilibrium, 3.5,
-                                                               terraingen::NeukumLunarChronology)},
+                {"steady_state", surface.Ages()},
                 {"custom", std::make_shared<SizeLimitedLifetimes>()},
             };
         const auto diffused = std::make_shared<terraingen::DiffusedProfile>(

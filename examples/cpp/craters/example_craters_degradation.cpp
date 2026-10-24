@@ -29,17 +29,13 @@ class CratersDegradation : public terraingen::examples::Example {
     using Example::Example;
 
     void Generate() override {
-        const auto production = std::make_shared<terraingen::SplicedSfd>(
-            terraingen::ExtendedNeukumProductionFunction());
-        const auto equilibrium =
-            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
-        const auto density = std::make_shared<terraingen::MinimumSfd>(
-            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
-                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
-                                                                terraingen::NeukumLunarChronology),
-                equilibrium});
-        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
-            production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
+        const terraingen::EquilibriumSurface surface{
+            std::make_shared<terraingen::SplicedSfd>(
+                terraingen::ExtendedNeukumProductionFunction()),
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium()), 3.5,
+            terraingen::NeukumLunarChronology};
+        const auto density = surface.Density();
+        const auto ages = surface.Ages();
         const auto fresh = terraingen::LunarFreshCraterMorphometry;
         const auto profile = std::make_shared<terraingen::FassettThomsonProfile>();
         const auto diffused = std::make_shared<terraingen::DiffusedProfile>(profile);

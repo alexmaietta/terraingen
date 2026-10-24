@@ -97,17 +97,13 @@ class CratersProfiles : public terraingen::examples::Example {
             Out() << "\n";
         }
 
-        const auto production = std::make_shared<terraingen::SplicedSfd>(
-            terraingen::ExtendedNeukumProductionFunction());
-        const auto equilibrium =
-            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
-        const auto density = std::make_shared<terraingen::MinimumSfd>(
-            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
-                std::make_shared<terraingen::ProductionSurface>(production, 3.5,
-                                                                terraingen::NeukumLunarChronology),
-                equilibrium});
-        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
-            production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
+        const terraingen::EquilibriumSurface surface{
+            std::make_shared<terraingen::SplicedSfd>(
+                terraingen::ExtendedNeukumProductionFunction()),
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium()), 3.5,
+            terraingen::NeukumLunarChronology};
+        const auto density = surface.Density();
+        const auto ages = surface.Ages();
         terraingen::CraterLayerOptions options;
         options.seed = 2;
         options.generation.dMin = 8.0;
@@ -115,7 +111,7 @@ class CratersProfiles : public terraingen::examples::Example {
         terraingen::TerrainGenerator terrain;
         terrain.source = std::make_shared<terraingen::FlatSource>(257, 257, 1.0);
         terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-            terraingen::CraterModels{density, ages,
+            terraingen::CraterModels{density, nullptr,
                                      std::make_shared<terraingen::FreshnessDegradation>(
                                          ages, terraingen::LunarFreshCraterMorphometry),
                                      std::make_shared<ParabolicBowl>()},

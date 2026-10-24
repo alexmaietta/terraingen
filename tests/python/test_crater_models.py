@@ -160,6 +160,34 @@ def test_diffusion_degradation_shapes_craters_with_its_own_profile():
         )
 
 
+def test_a_crater_layer_given_no_ages_draws_those_its_degradation_wears_by():
+    ages = terraingen.UniformAges(2.0)
+    degradation = terraingen.FreshnessDegradation(ages, terraingen.lunar_fresh_crater_morphometry)
+    assert degradation.age_model() is not None
+    models = terraingen.CraterModels(
+        terraingen.PowerLawSfd(0.05, 2.0), None, degradation, terraingen.FassettThomsonProfile()
+    )
+    assert terraingen.CraterLayer(models).models.ages is not None
+
+
+def test_an_equilibrium_surface_gives_its_density_and_matched_diffusion():
+    surface = terraingen.EquilibriumSurface(
+        terraingen.extended_neukum_production_function(),
+        terraingen.hartmann_equilibrium(),
+        3.5,
+        terraingen.neukum_lunar_chronology,
+    )
+    ages = surface.ages()
+    assert ages.surface_age_gyr == 3.5 and surface.density().cumulative(100.0) > 0
+    diffused = terraingen.DiffusedProfile(terraingen.FassettThomsonProfile())
+    degradation = terraingen.matched_diffusion_degradation(
+        diffused, terraingen.lunar_fresh_crater_morphometry, ages
+    )
+    lifetime = ages.equilibrium_lifetime_gyr(20.0)
+    state = degradation.state(terraingen.Crater(0.0, 0.0, 20.0, age_gyr=lifetime))
+    assert state.current.depth_ratio == pytest.approx(terraingen.VISIBILITY_DEPTH_RATIO, abs=1e-3)
+
+
 def test_crater_state_freshness_is_the_fraction_of_fresh_depth():
     state = terraingen.CraterState(
         terraingen.CraterMorphometry(0.2, 0.04), terraingen.CraterMorphometry(0.1, 0.02)

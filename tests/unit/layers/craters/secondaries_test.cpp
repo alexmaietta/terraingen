@@ -234,6 +234,18 @@ TEST(SecondaryCraterLayer, KeepsOnlyEligiblePrimaries) {
                   .Size());
 }
 
+TEST(SecondaryCraterLayer, ShapesAsThePrimariesDoWithoutModels) {
+    const auto primaries = Primaries({0.0, 0.0, 2000.0, 0.0, 9u, true});
+    const SecondaryCraterLayer layer(primaries, Options());
+    const SecondaryCraterLayer same(primaries, primaries->Models().Shape(), Options());
+    const terraingen::Bounds2d region{-8000.0, -8000.0, 8000.0, 8000.0};
+    const CraterList craters = layer.Secondaries(region);
+    ASSERT_GT(craters.Size(), 0u);
+    EXPECT_EQ(craters.Ids(), same.Secondaries(region).Ids());
+    EXPECT_EQ(layer.CratersOver(terraingen::RasterGrid::Covering(region, 50.0), 50.0).attributes,
+              same.CratersOver(terraingen::RasterGrid::Covering(region, 50.0), 50.0).attributes);
+}
+
 TEST(SecondaryCraterLayer, RejectsInvalidSettings) {
     const auto primaries = Primaries({0.0, 0.0, 2000.0, 0.0, 9u, true});
     const auto rejects = [&](auto change) {
@@ -504,6 +516,9 @@ TEST(CraterLayer, TakesTheSecondariesItThrowsOutOfATotalMap) {
             std::make_shared<terraingen::FassettThomsonProfile>()},
         options);
     const SecondaryCraterLayer layer(primaries, Models(), secondaries);
+    EXPECT_THROW(SecondaryCraterLayer(primaries, Models(), Options(50.0, 10.0)),
+                 std::invalid_argument)
+        << "secondaries the map does not count";
     const terraingen::SecondaryDensity density(primary, secondaries);
     const double onset = terraingen::SecondaryOnsetRange(2000.0);
     const auto count = [](const CraterList& craters, const terraingen::Bounds2d& box) {

@@ -2,11 +2,13 @@
 
 #include "terraingen/layers/craters/ages/steady_state.h"
 
+#include "terraingen/distribution/minimum.h"
 #include "terraingen/util/bisection.h"
 
 #include <cmath>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace terraingen {
 
@@ -55,6 +57,16 @@ double SteadyStateAges::SampleAgeAt(RandomStream& random, double /*diameter*/,
         return 0.0;
     }
     return SampleFormationAge(random, chronology_, lifetimeGyr);
+}
+
+std::shared_ptr<const SizeFrequencyDistribution> EquilibriumSurface::Density() const {
+    return std::make_shared<MinimumSfd>(
+        std::vector<std::shared_ptr<const SizeFrequencyDistribution>>{
+            std::make_shared<ProductionSurface>(production, ageGyr, chronology), equilibrium});
+}
+
+std::shared_ptr<const SteadyStateAges> EquilibriumSurface::Ages() const {
+    return std::make_shared<SteadyStateAges>(production, equilibrium, ageGyr, chronology);
 }
 
 }  // namespace terraingen

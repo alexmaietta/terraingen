@@ -27,24 +27,20 @@ class AlbedoCraterRays : public terraingen::examples::Example {
         fbm.fractal.wavelength = 3000.0f;
         fbm.fractal.amplitude = 60.0f;
 
-        const auto production = std::make_shared<terraingen::SplicedSfd>(
-            terraingen::ExtendedNeukumProductionFunction());
-        const auto equilibrium =
-            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium());
-        const auto density = std::make_shared<terraingen::MinimumSfd>(
-            std::vector<std::shared_ptr<const terraingen::SizeFrequencyDistribution>>{
-                std::make_shared<terraingen::ProductionSurface>(production, 3.2,
-                                                                terraingen::NeukumLunarChronology),
-                equilibrium});
-        const auto ages = std::make_shared<terraingen::SteadyStateAges>(
-            production, equilibrium, 3.2, terraingen::NeukumLunarChronology);
+        const terraingen::EquilibriumSurface surface{
+            std::make_shared<terraingen::SplicedSfd>(
+                terraingen::ExtendedNeukumProductionFunction()),
+            std::make_shared<terraingen::PowerLawSfd>(terraingen::TraskEquilibrium()), 3.2,
+            terraingen::NeukumLunarChronology};
+        const auto density = surface.Density();
+        const auto ages = surface.Ages();
         terraingen::CraterLayerOptions craterOptions;
         craterOptions.seed = 1;
         craterOptions.generation.dMin = 30.0;
         craterOptions.generation.dMax = 400.0;
         craterOptions.generation.manual.Append(terraingen::Crater{0.0, 0.0, 250.0, 0.002});
         const auto craters = std::make_shared<terraingen::CraterLayer>(
-            terraingen::CraterModels{density, ages,
+            terraingen::CraterModels{density, nullptr,
                                      std::make_shared<terraingen::FreshnessDegradation>(
                                          ages, terraingen::LunarFreshCraterMorphometry),
                                      std::make_shared<terraingen::FassettThomsonProfile>()},
