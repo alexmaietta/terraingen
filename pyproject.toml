@@ -43,6 +43,8 @@ build-dir = "build/{wheel_tag}"
 wheel.packages = ["terraingen/python/terraingen"]
 # A stable-ABI wheel on Python 3.12 and newer, where nanobind supports it; a wheel per version before.
 wheel.py-api = "cp312"
+# Render textures are Git LFS files that no package ships; CI checks out without LFS, so leave them out.
+sdist.exclude = ["assets/"]
 
 [tool.scikit-build.metadata.version]
 provider = "scikit_build_core.metadata.regex"
