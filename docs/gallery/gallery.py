@@ -71,6 +71,59 @@ def show_map(ax, values, pixel, cmap="gray", label=""):
     ax.figure.colorbar(image, ax=ax, label=label, shrink=0.85)
 
 
+def grid_centers(spacing):
+    """The centers of a 3x3 grid `spacing` meters apart, row by row from the top left."""
+    return [((column - 1) * spacing, (1 - row) * spacing) for row in range(3) for column in range(3)]
+
+
+def irregular_outlines():
+    """Apply options giving manual craters irregular outlines too, as generated craters have."""
+    import terraingen
+
+    apply = terraingen.CraterApplyOptions()
+    irregularity = apply.irregularity
+    irregularity.enabled = True
+    selection = irregularity.selection
+    selection.manual = True
+    irregularity.selection = selection
+    apply.irregularity = irregularity
+    return apply
+
+
+def show_crater_grid(ax, layers, labels, spacing, pixel):
+    """Draws the crater `layers` over fractal relief, their nine craters on a 3x3 grid `spacing`
+    meters apart labeled with `labels`, lit by a low sun."""
+    import terraingen
+
+    size = int(3 * spacing / pixel) + 1
+    relief = terraingen.NoiseRelief(
+        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
+    )
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, *layers])
+    heights = terraingen.evaluate(terrain).values
+    light = LightSource(azdeg=315, altdeg=25)
+    ax.imshow(
+        light.hillshade(heights, dx=pixel, dy=pixel),
+        cmap="gray",
+        vmin=0,
+        vmax=1,
+        extent=extent(heights, pixel),
+    )
+    for (x, y), label in zip(grid_centers(spacing), labels, strict=True):
+        ax.text(
+            x,
+            y - 0.4 * spacing,
+            label,
+            ha="center",
+            va="top",
+            color="white",
+            fontsize=9,
+            bbox={"facecolor": "black", "alpha": 0.55, "edgecolor": "none", "pad": 2},
+        )
+    ax.set_axis_off()
+    return terrain
+
+
 def figures():
     """Every figure script as (name, path), its name `<category>/<stem>`."""
     return [(f"{p.parent.name}/{p.stem}", p) for p in sorted(GALLERY.glob("*/*.py"))]

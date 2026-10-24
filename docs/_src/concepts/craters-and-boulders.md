@@ -74,6 +74,23 @@ or by topographic diffusion.
     --8<-- "docs/gallery/craters/degradation_by_age.py"
     ```
 
+Freshness degradation instead sets each crater's depth from its freshness, its depth over its fresh
+depth, whatever its size; Martin, Parkes and Dunstan's profile lowers and rounds the rim with it.
+
+<figure markdown>
+
+![Nine identical 150 m craters on a 3x3 grid, from freshness 1 to freshness 0.2, shallower with a lower, rounder rim as freshness falls](../images/gallery/craters/degradation_by_freshness.jpg)
+
+<figcaption>The same craters from freshness 1 to 0.2, under freshness degradation.</figcaption>
+
+</figure>
+
+??? example "Reproduce this figure"
+
+    ```python
+    --8<-- "docs/gallery/craters/degradation_by_freshness.py"
+    ```
+
 <figure markdown>
 
 ![The same crater field under four degradation models: none, freshness, and diffusion with the Fassett and Thomson (2014) and Fassett et al. (2022) diffusivities](../images/gallery/craters/degradation.jpg)
@@ -86,6 +103,25 @@ or by topographic diffusion.
 
     ```python
     --8<-- "docs/gallery/craters/degradation.py"
+    ```
+
+## Irregular outlines
+
+Rims can be roughened by random harmonics, set by their RMS deviation from a circle in radii, and
+some craters stretched into ellipses.
+
+<figure markdown>
+
+![Nine identical young craters on a 3x3 grid with rim roughness from 0, a circle, to 0.1 radii, increasingly wavy outlines](../images/gallery/craters/irregularity.jpg)
+
+<figcaption>The same young craters with rim roughness from 0 to 0.1 radii.</figcaption>
+
+</figure>
+
+??? example "Reproduce this figure"
+
+    ```python
+    --8<-- "docs/gallery/craters/irregularity.py"
     ```
 
 ## Heights and albedo
