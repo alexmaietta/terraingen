@@ -215,22 +215,25 @@ class Reference:
         return None, False
 
     def fields(self, fields, here, indent=""):
-        """The fields of an object: the plain ones in a table, then each group collapsed."""
+        """The fields of an object: each plain one as a key, its facts and its description, then each
+        group collapsed."""
         lines = []
         plain = [f for f in fields if self.nested(f["schema"])[0] is None]
         groups = [f for f in fields if self.nested(f["schema"])[0] is not None]
-        if plain:
+        for f in plain:
+            facts = [self.type_text(f["schema"], here), f"default {compact(f['default'])}"]
+            if range_text(f):
+                facts.append(f"range {range_text(f)}")
+            if f["unit"]:
+                facts.append(f"unit {f['unit']}")
             lines += [
-                f"{indent}| Key | Type | Default | Range | Unit | Description |",
-                f"{indent}| --- | --- | --- | --- | --- | --- |",
+                f"{indent}`{f['name']}`",
+                f"{indent}:   {' &middot; '.join(facts)}",
+                f"{indent}    {{ .tg-field__facts }}",
+                "",
+                f"{indent}    {f['description']}",
+                "",
             ]
-            for f in plain:
-                lines.append(
-                    f"{indent}| `{f['name']}` | {self.type_text(f['schema'], here)} | "
-                    f"{compact(f['default'])} | {range_text(f)} | {f['unit']} | "
-                    f"{cell(f['description'])} |"
-                )
-            lines.append("")
         for f in groups:
             target, listed = self.nested(f["schema"])
             title = f"{f['name']}[]" if listed else f["name"]
@@ -268,7 +271,7 @@ class Reference:
         names = self.names[ref]
         keys = ", ".join(f"`{n}`" for n in sorted(names))
         lines = [f"# {title}", "", f'Chosen by `"type"` in {keys}.', ""]
-        lines += ["| Type | What it is |", "| --- | --- |"]
+        lines += ["| Type | Description |", "| --- | --- |"]
         for alternative in choice["alternatives"]:
             first = alternative["description"].split(". ")[0].rstrip(".")
             lines.append(f"| [`{alternative['type']}`](#{alternative['type']}) | {cell(first)}. |")
@@ -282,7 +285,7 @@ class Reference:
         choice = self.definitions[ref]
         names = self.names[ref]
         index = ["# Layers", "", "Relief and features added to the source, applied in order.", ""]
-        index += ["| Type | What it is |", "| --- | --- |"]
+        index += ["| Type | Description |", "| --- | --- |"]
         pages = []
         for alternative in choice["alternatives"]:
             slug = f"layers/{alternative['type']}"

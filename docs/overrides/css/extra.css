@@ -250,6 +250,36 @@
     border-top-color: var(--tg-rule);
 }
 
+/* Code in a table wraps between words, never inside one, and a row's key stays on one line. */
+.md-typeset table:not([class]) code {
+    word-break: normal;
+}
+
+.md-typeset table:not([class]) td:first-child code {
+    white-space: nowrap;
+}
+
+/* Configuration fields: a key, a line of its type, default, range and unit, then its description. */
+.md-typeset dt:has(+ dd > .tg-field__facts) {
+    margin-top: 1.4em;
+    padding-top: 1em;
+    border-top: 1px solid var(--tg-rule);
+}
+
+.md-typeset dt:has(+ dd > .tg-field__facts) code {
+    font-weight: 600;
+}
+
+.md-typeset dd:has(> .tg-field__facts) {
+    margin-left: 0;
+}
+
+.md-typeset .tg-field__facts {
+    margin: 0.3em 0 0.4em;
+    font-size: 0.68rem;
+    color: var(--md-default-fg-color--light);
+}
+
 .md-typeset .tabbed-labels > label {
     font-weight: 500;
 }
@@ -348,14 +378,6 @@
     align-items: center;
     text-align: center;
     padding: 1.4rem 0 1.8rem;
-}
-
-.md-typeset .tg-hero__eyebrow {
-    margin: 0 0 0.8rem;
-    font-size: 0.62rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--md-default-fg-color--lighter);
 }
 
 .md-typeset .tg-hero h1 {

@@ -7,9 +7,6 @@ hide:
 
 <div class="tg-hero" markdown>
 
-Open source &middot; C++ &middot; Python
-{ .tg-hero__eyebrow }
-
 # Scientific terrain for planetary surfaces
 
 Craters, boulders, dunes, layered rock and albedo from published models, on real elevation data or
