@@ -16,36 +16,6 @@ void AppendEffective(const std::vector<NoiseStackLayerSpec>& stack, Layers& laye
 
 }  // namespace
 
-BoulderLayerOptions DefaultBoulders() {
-    BoulderLayerOptions boulders;
-    boulders.sizes.maxDiameter =
-        Sp8023IntercraterBlocks(SpecificationCurve::Nominal).ValidRange().max;
-    return boulders;
-}
-
-RoughnessOptions DefaultRoughness() {
-    RoughnessOptions roughness;
-    roughness.maxWavelength = 16.0;
-    return roughness;
-}
-
-BedformOptions DefaultBedforms() {
-    BedformOptions bedforms;
-    bedforms.wavelength = 4.0;
-    bedforms.height = 0.4;
-    bedforms.cover = 0.9;
-    return bedforms;
-}
-
-DuneOptions DefaultDunes() {
-    DuneOptions dunes;
-    dunes.width = 50.0;
-    dunes.minWidth = 15.0;
-    dunes.density = 0.5;
-    dunes.spacing = 129.0;
-    return dunes;
-}
-
 NoiseLayer NoiseStackLayerSpec::Effective() const {
     NoiseLayer effective = layer;
     if (hurst) {

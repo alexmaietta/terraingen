@@ -77,6 +77,7 @@ class BouldersManual : public terraingen::examples::Example {
         manual_ = {posed, partly, Plain(0.0, -6.0, 1.0)};
 
         terraingen::BoulderLayerOptions options;
+        options.sizes.distribution = nullptr;
         options.sizes.coverage = 0.03;
         options.sizes.minDiameter = 0.1;
         options.sizes.maxDiameter = 1.0;

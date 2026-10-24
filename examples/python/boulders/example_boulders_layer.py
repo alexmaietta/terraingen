@@ -53,6 +53,7 @@ class Example(_common.Example):
         self.heights, self.boulders = {}, {}
         for coverage in (0.02, 0.05, 0.10):
             options = terraingen.BoulderLayerOptions(
+                distribution=None,
                 coverage=coverage,
                 min_diameter_m=0.2,
                 max_diameter_m=3.0,

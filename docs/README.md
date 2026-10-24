@@ -1,7 +1,7 @@
 # TerrainGen's documentation
 
-The pages are Markdown under `_src/`; `overrides/` holds the theme templates and CSS, `scripts/` the
-MkDocs hooks and `images/` the README images.
+The pages and their images are under `_src/`; `overrides/` holds the theme templates and CSS, and
+`scripts/` the MkDocs hooks.
 
 For C++ API, install `doxygen`.
 

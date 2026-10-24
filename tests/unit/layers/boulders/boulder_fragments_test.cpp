@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/boulders/boulder_fragments.h"
 
+#include "support/golombek_rapp.h"
 #include "support/mesh_measures.h"
 
 #include "support/boulder_records.h"
@@ -30,7 +31,7 @@ namespace {
 
 /// Options whose boulders between craters all break: 0.3 to 2 m across, split from wear 0.
 BoulderLayerOptions Breaking(double rubbleWear) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.3;
     options.sizes.maxDiameter = 2.0;
@@ -162,7 +163,7 @@ TEST(BoulderLayer, DrawsPiecesThatPointQueriesMatch) {
 }
 
 TEST(BoulderLayer, GathersBouldersInClustersKeepingTheirMeanDensity) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.clusters = {0.8, 40.0, 4.0};
     const BoulderLayer layer(options);
     double sum = 0.0;
@@ -226,7 +227,7 @@ TEST(BoulderLayer, ClustersAndBreaksBouldersOnABodyStandingOnTheGround) {
 }
 
 TEST(BoulderLayer, GathersBouldersInThomasClustersKeepingTheirMeanDensity) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.clusters = {0.8, 10.0, 3.0, terraingen::BoulderClusterModel::Thomas};
     const BoulderLayer layer(options);
     const double cap = terraingen::MaxClusterAbundance(options.clusters);
@@ -257,7 +258,7 @@ TEST(BoulderLayer, GathersBouldersInThomasClustersKeepingTheirMeanDensity) {
 }
 
 TEST(BoulderLayer, KeepsTheMeanDensityOfThomasClustersOnABody) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.clusters = {1.0, 8.0, 3.0, terraingen::BoulderClusterModel::Thomas};
     const BoulderLayer layer(options, nullptr, terraingen::Surface::Sphere(1737400.0));
     const double degree = 1737400.0 * terraingen::kPi / 180.0;
@@ -307,7 +308,7 @@ TEST(FragmentBoulderShape, SplitsSlabsByRoughlyParallelCracks) {
     EXPECT_LT((mean - spread) / (mean + spread), 0.1) << "slab centers lie along a line";
     EXPECT_NE(FragmentBoulderShape(parent, 4, 11, terraingen::BoulderCracks::Radial)[0].center.x,
               slabs[0].center.x);
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.fragmentation.slabShare = 1.5;
     EXPECT_THROW(terraingen::ValidateBoulderFragmentation(options.fragmentation),
                  std::invalid_argument);

@@ -98,12 +98,14 @@ struct DuneOptions {
     double stossExponent = 3.0;  ///< Exponent of the cos^alpha windward profile of a dune.
     double domeExponent = 1.8;   ///< Exponent of the cos^alpha profile of a dome.
 
-    /// Barchans and domes: one candidate per lattice cell of `spacing`.
-    double spacing = 800.0;
+    /// Barchans and domes: one candidate per lattice cell of `spacing`. By default barchans 50 m
+    /// wide in a lattice of 129 m cells half of which hold a dune (Elbelrhiti et al. 2008,
+    /// https://arxiv.org/abs/cond-mat/0609120).
+    double spacing = 129.0;
     double density = 0.5;      ///< Chance a cell holds a dune, in [0, 1].
-    double width = 400.0;      ///< Mean width, horn to horn (m).
+    double width = 50.0;       ///< Mean width, horn to horn (m).
     double widthSpread = 0.3;  ///< Each width varies from (1 - it) to (1 + it) times `width`.
-    double minWidth = 200.0;   ///< Width below which a barchan is a dome without a slip face.
+    double minWidth = 15.0;    ///< Width below which a barchan is a dome without a slip face.
     double heightRatio = 1.0 / 15.0;  ///< Height over width.
     double hornLength = 9.1;  ///< How far the horns reach downwind of the crest, in heights.
     double domeLength = 2.0;  ///< Length of a dome over its width.

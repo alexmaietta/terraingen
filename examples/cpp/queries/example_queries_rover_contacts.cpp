@@ -61,6 +61,7 @@ class QueriesRoverContacts : public terraingen::examples::Example {
             craterOptions);
         terraingen::BoulderLayerOptions boulderOptions;
         boulderOptions.seed = 6;
+        boulderOptions.sizes.distribution = nullptr;
         boulderOptions.sizes.coverage = 0.06;
         boulderOptions.sizes.minDiameter = 0.1;
         boulderOptions.sizes.maxDiameter = 1.0;

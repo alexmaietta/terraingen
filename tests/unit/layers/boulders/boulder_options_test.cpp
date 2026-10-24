@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "support/golombek_rapp.h"
 #include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/terraingen.h"
 
@@ -13,7 +14,7 @@ using terraingen::BoulderLayerOptions;
 TEST(ValidateBoulderOptions, ChecksEachGroupOnItsOwn) {
     EXPECT_NO_THROW(terraingen::ValidateBoulderLayerOptions({}));
     const auto rejects = [](auto change) {
-        BoulderLayerOptions options;
+        BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
         change(options);
         EXPECT_THROW(terraingen::ValidateBoulderLayerOptions(options), std::invalid_argument);
     };
@@ -47,7 +48,7 @@ TEST(ValidateBoulderOptions, ChecksEachGroupOnItsOwn) {
 }
 
 TEST(BoulderCandidates, CoverTheRichestBackgroundPlusCraterBlocks) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.patches.spread = 2.0;
     EXPECT_EQ(terraingen::MaxBackgroundAbundance(options), 2.0);
     options.bedrock.exposure = terraingen::ExposureParams{};
@@ -56,10 +57,10 @@ TEST(BoulderCandidates, CoverTheRichestBackgroundPlusCraterBlocks) {
     options.bedrock.abundance = 0.5;
     EXPECT_EQ(terraingen::MaxBackgroundAbundance(options), 2.0) << "bedrock never thins candidates";
 
-    const BoulderLayerOptions plain;
+    const BoulderLayerOptions plain = terraingen::testing::GolombekRappBoulders();
     EXPECT_DOUBLE_EQ(terraingen::BoulderCandidates(plain)->Incremental(1.0),
                      terraingen::GolombekRappSfd(0.02).Incremental(1.0));
-    BoulderLayerOptions ejecta;
+    BoulderLayerOptions ejecta = terraingen::testing::GolombekRappBoulders();
     ejecta.ejecta.minCraterDiameter = 10.0;
     EXPECT_DOUBLE_EQ(terraingen::EjectaSizes(ejecta)->Incremental(1.0),
                      terraingen::GolombekRappSfd(0.1).Incremental(1.0));
@@ -68,8 +69,40 @@ TEST(BoulderCandidates, CoverTheRichestBackgroundPlusCraterBlocks) {
                          terraingen::GolombekRappSfd(0.1).Incremental(1.0));
 }
 
+TEST(ValidateBoulderOptions, RejectsGolombekRappTermsASizeDistributionLeavesUnused) {
+    const BoulderLayerOptions defaults;
+    EXPECT_EQ(defaults.sizes.distribution, terraingen::DefaultBoulderSizes());
+    EXPECT_EQ(defaults.ejecta.distribution, terraingen::DefaultBoulderSizes());
+    EXPECT_FALSE(defaults.sizes.coverage.has_value());
+    EXPECT_EQ(defaults.sizes.Coverage(), 0.02);
+    EXPECT_EQ(defaults.ejecta.Coverage(), 0.1);
+    EXPECT_NO_THROW(terraingen::ValidateBoulderLayerOptions(defaults));
+    const auto rejects = [](auto change) {
+        BoulderLayerOptions options;
+        change(options);
+        EXPECT_THROW(terraingen::ValidateBoulderLayerOptions(options), std::invalid_argument);
+    };
+    rejects([](BoulderLayerOptions& o) { o.sizes.coverage = 0.05; });
+    rejects([](BoulderLayerOptions& o) { o.ejecta.coverage = 0.2; });
+    rejects([](BoulderLayerOptions& o) { o.sizes.qConstant = 1.5; });
+    BoulderLayerOptions golombekRapp = terraingen::testing::GolombekRappBoulders();
+    golombekRapp.sizes.coverage = 0.05;
+    golombekRapp.sizes.qConstant = 1.5;
+    golombekRapp.ejecta.coverage = 0.2;
+    EXPECT_NO_THROW(terraingen::ValidateBoulderLayerOptions(golombekRapp));
+    BoulderLayerOptions blocksOnly;
+    blocksOnly.ejecta.distribution = nullptr;
+    blocksOnly.sizes.qConstant = 1.5;
+    EXPECT_NO_THROW(terraingen::ValidateBoulderLayerOptions(blocksOnly))
+        << "q shapes Golombek-Rapp crater blocks too";
+    BoulderLayerOptions manualOnly;
+    manualOnly.generateRandom = false;
+    manualOnly.sizes.coverage = 0.05;
+    EXPECT_NO_THROW(terraingen::ValidateBoulderLayerOptions(manualOnly));
+}
+
 TEST(BoulderBackground, BuildsTheModelsOnceAndMatchesTheirFunctions) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.patches.spread = 3.0;
     const terraingen::BoulderBackground plain(options);
     EXPECT_EQ(plain.patchMean, 1.0) << "patches are only rescaled under a map";

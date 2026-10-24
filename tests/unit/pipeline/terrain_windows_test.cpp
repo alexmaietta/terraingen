@@ -2,6 +2,7 @@
 
 #include "terrains.h"
 
+#include "support/golombek_rapp.h"
 #include "support/mesh_measures.h"
 #include "support/raster_equality.h"
 #include "terraingen/terraingen.h"
@@ -75,7 +76,7 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
     const auto craters =
         std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
     ASSERT_NE(craters, nullptr);
-    terraingen::BoulderLayerOptions options;
+    terraingen::BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.minDiameter = 1.0;
     options.sizes.coverage = 0.05;
     options.patches = {2.0, 60.0};

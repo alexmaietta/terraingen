@@ -19,17 +19,19 @@
 
 namespace terraingen {
 
-/// The bedform fields a `BedformLayer` scatters: their ripples, cover and wind.
+/// The bedform fields a `BedformLayer` scatters: their ripples, cover and wind. By default large
+/// wind ripples 4 m apart and 0.4 m high (Lapotre et al. 2016,
+/// https://doi.org/10.1126/science.aaf3206).
 struct BedformOptions {
-    double wavelength = 1.0;  ///< Crest to crest (m); each field's varies from 0.8 to 1.2 times it.
-    double height = 0.1;      ///< Trough to crest (m), scaled with each field's wavelength.
+    double wavelength = 4.0;  ///< Crest to crest (m); each field's varies from 0.8 to 1.2 times it.
+    double height = 0.4;      ///< Trough to crest (m), scaled with each field's wavelength.
     /// Where the wind blows toward, radians counter-clockwise from +x; crests lie across it.
     double windAzimuth = 0.0;
     double azimuthSpread = 0.0;  ///< Each field's wind differs by up to this (radians).
     /// Share of a wavelength the lee face takes, in (0, 1): 0.5 is symmetric, less is steeper.
     double leeFraction = 0.5;
     double sinuosity = 0.5;    ///< How far a crest wanders along its length, in wavelengths.
-    double cover = 0.0;        ///< Share of the ground under fields, in [0, 0.9].
+    double cover = 0.9;        ///< Share of the ground under fields, in [0, 0.9].
     double fieldSize = 100.0;  ///< Typical width of a field (m).
     std::uint32_t seed = 1;    ///< Varies the fields.
     /// When set, a field is left out with probability the exposure at its center, read from the

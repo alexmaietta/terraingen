@@ -3,6 +3,7 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "support/boulder_records.h"
+#include "support/golombek_rapp.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -42,7 +43,7 @@ class Ramp final : public terraingen::Ground {
 
 /// Boulders that rest on sides and ends and tilt, those from 1 m placed as models.
 BoulderLayerOptions Options() {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 0.3;
     options.pose.sideShare = 0.2;
@@ -347,7 +348,7 @@ TEST(ManualOnlyBoulderLayer, PlacesTheManualBouldersAsAGeneratingLayerDoesAndNot
 }
 
 TEST(ManualOnlyBoulderLayer, NeedsNoSizesCraterLayerOrGroundAndHasNoAbundance) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.generateRandom = false;
     options.sizes.coverage = 0.0;
     options.sizes.maxDiameter = 0.01;
@@ -403,7 +404,7 @@ TEST(ManualBoulder, RejectsInvalidFieldsAndSharedIds) {
         ManualBoulder boulder = Posed();
         change(boulder);
         EXPECT_THROW(terraingen::ValidateManualBoulder(boulder), std::invalid_argument);
-        BoulderLayerOptions options;
+        BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
         options.manual = {boulder};
         EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
     };
@@ -420,7 +421,7 @@ TEST(ManualBoulder, RejectsInvalidFieldsAndSharedIds) {
     invalid([](ManualBoulder& b) { b.tiltAzimuth = std::numeric_limits<double>::infinity(); });
     invalid([](ManualBoulder& b) { b.wear = 1.5; });
 
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.manual = {Plain(1.0, 2.0, 3.0), Plain(1.0, 2.0, 3.0)};
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument) << "one derived ID";
     ManualBoulder other = Plain(5.0, 5.0, 1.0);

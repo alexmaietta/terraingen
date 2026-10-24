@@ -67,14 +67,14 @@ BoulderMapAbundance::BoulderMapAbundance(const BoulderLayerOptions& options) {
             throw std::invalid_argument("A boulder density map must measure some of the sizes");
         }
     } else {
-        coverage_ = sizes.coverage;
+        coverage_ = sizes.Coverage();
         for (int i = 0; i < kCoverageSteps; ++i) {
             const double k =
                 kLeastCoverage * std::pow(kMostCoverage / kLeastCoverage,
                                           static_cast<double>(i) / (kCoverageSteps - 1));
             coverages_.push_back(k);
             measures_.push_back(BoulderMeasure(
-                map_, GolombekRappSfd(k, sizes.qConstant, sizes.qCoverageCoefficient)));
+                map_, GolombekRappSfd(k, sizes.QConstant(), sizes.QCoverageCoefficient())));
         }
         if (!(measures_.back() > 0.0)) {
             throw std::invalid_argument("A boulder density map must measure some of the sizes");
@@ -138,8 +138,8 @@ std::shared_ptr<const SizeFrequencyDistribution> EjectaSizes(const BoulderLayerO
     if (ejecta.distribution) {
         return ejecta.distribution;
     }
-    return std::make_shared<GolombekRappSfd>(ejecta.coverage, options.sizes.qConstant,
-                                             options.sizes.qCoverageCoefficient);
+    return std::make_shared<GolombekRappSfd>(ejecta.Coverage(), options.sizes.QConstant(),
+                                             options.sizes.QCoverageCoefficient());
 }
 
 std::shared_ptr<const SizeFrequencyDistribution>
@@ -170,8 +170,8 @@ BoulderCandidates(const BoulderLayerOptions& options, double richest) {
         }
     } else {
         terms.push_back(
-            {1.0, std::make_shared<GolombekRappSfd>(sizes.coverage * richest, sizes.qConstant,
-                                                    sizes.qCoverageCoefficient)});
+            {1.0, std::make_shared<GolombekRappSfd>(sizes.Coverage() * richest, sizes.QConstant(),
+                                                    sizes.QCoverageCoefficient())});
     }
     if (options.ejecta.MinCraterDiameter() > 0.0) {
         terms.push_back({1.0, EjectaSizes(options)});

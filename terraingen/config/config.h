@@ -76,22 +76,6 @@ inline constexpr std::uint32_t kTileSizeMultiple = 16;
 /// highland median slope (Rosenburg et al. 2011, https://doi.org/10.1029/2010JE003716).
 inline constexpr float kNoiseAmplitudeRatio = 0.1f;
 
-/// Boulders by default: up to the largest block of the nominal NASA SP-8023 intercrater curve
-/// (Li et al. 2017, https://doi.org/10.1016/j.pss.2017.08.008).
-BoulderLayerOptions DefaultBoulders();
-
-/// Roughness by default: octaves up to 16 m, below the LOLA slope baselines (Rosenburg et al. 2011,
-/// https://doi.org/10.1029/2010JE003716).
-RoughnessOptions DefaultRoughness();
-
-/// Bedforms by default: large wind ripples 4 m apart and 0.4 m high (Lapotre et al. 2016,
-/// https://doi.org/10.1126/science.aaf3206).
-BedformOptions DefaultBedforms();
-
-/// Dunes by default: barchans 50 m wide in a lattice of 129 m cells half of which hold a dune
-/// (Elbelrhiti et al. 2008, https://arxiv.org/abs/cond-mat/0609120).
-DuneOptions DefaultDunes();
-
 /// One noise layer, its octave gain optionally derived from a Hurst exponent.
 struct NoiseStackLayerSpec {
     NoiseLayer layer{};
@@ -407,7 +391,7 @@ using BoulderSizesSpec =
 /// Ejecta come from every top-level crater layer before this one, at least one of which must exist
 /// when crater blocks are enabled. `boulders.cacheBoulders` is not part of the configuration.
 struct BoulderLayerSpec {
-    BoulderLayerOptions boulders{DefaultBoulders()};
+    BoulderLayerOptions boulders{};
     /// Gives `boulders.sizes.distribution`; by default the nominal NASA SP-8023 intercrater blocks
     /// (SLS-SPEC-159 Rev. I, 3.4.1.4).
     BoulderSizesSpec sizes{Sp8023IntercraterBouldersSpec{SpecificationCurve::Nominal}};
@@ -429,7 +413,7 @@ struct BoulderLayerSpec {
 struct RoughnessLayerSpec {
     /// The roughness; its `rmsSlope` and `hurst` stand in for those below when they are unset and
     /// nothing is estimated.
-    RoughnessOptions roughness{DefaultRoughness()};
+    RoughnessOptions roughness{};
     std::optional<double> rmsSlope{};  ///< Rise over run; unset for the default or the estimate.
     std::optional<double> hurst{};     ///< Unset for the default or the estimate.
     /// Whether unset `rmsSlope` and `hurst` come from the source (`EstimatedOptions` of
@@ -447,13 +431,13 @@ struct RoughnessLayerSpec {
 /// Layer "bedforms": fields of wind-blown ripples or dunes (`BedformLayer`); angles in
 /// radians.
 struct BedformLayerSpec {
-    BedformOptions bedforms{DefaultBedforms()};
+    BedformOptions bedforms{};
 };
 
 /// Layer "dunes": barchans, domes or crest-line dunes with ripples on them (`DuneLayer`); angles
 /// in radians.
 struct DuneLayerSpec {
-    DuneOptions dunes{DefaultDunes()};
+    DuneOptions dunes{};
 };
 
 /// Layer "pavement": fractured bedrock plates parted by cracks or ridges (`PavementLayer`);

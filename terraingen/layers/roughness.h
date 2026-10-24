@@ -17,10 +17,12 @@ namespace terraingen {
 /// The roughness a `RoughnessLayer` adds: RMS slope over a baseline and Hurst exponent, as
 /// Shepard et al. (2001) give it.
 struct RoughnessOptions {
-    double rmsSlope = 0.15;       ///< RMS slope (rise over run) over `baseline`.
-    double baseline = 0.25;       ///< Baseline the RMS slope is given over (m).
-    double hurst = 0.8;           ///< Hurst exponent, in (0, 1].
-    double maxWavelength = 4.0;   ///< Longest octave (m).
+    double rmsSlope = 0.15;  ///< RMS slope (rise over run) over `baseline`.
+    double baseline = 0.25;  ///< Baseline the RMS slope is given over (m).
+    double hurst = 0.8;      ///< Hurst exponent, in (0, 1].
+    /// Longest octave (m); by default 16 m, below the LOLA slope baselines (Rosenburg et al. 2011,
+    /// https://doi.org/10.1029/2010JE003716).
+    double maxWavelength = 16.0;
     double minWavelength = 0.01;  ///< Shortest octave (m); octaves halve down to it.
     std::uint32_t seed = 1;       ///< Varies the octaves' offsets and rotations.
     /// How octaves too fine to resolve fade out, by samples per wavelength.

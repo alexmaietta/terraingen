@@ -111,8 +111,8 @@ template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
        "", AboveUpTo(0.0, 1.0));
     io("coverage", ejecta.coverage,
        "Golombek-Rapp k, the fraction of ground covered by blocks at the rim of a fresh crater, "
-       "between 0 and 1. Only golombek_rapp ejecta sizes use it, so any other value than the "
-       "default needs them.",
+       "between 0 and 1; unset is 0.1. Only golombek_rapp ejecta sizes use it, so set it only "
+       "with them.",
        "", Inside(0.0, 1.0));
     io("profile", ejecta.profile,
        "How the share of a crater's blocks falls off with distance from its center.");
@@ -331,17 +331,17 @@ template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderLayerOptions& 
        "places only the manual boulders, and the sizes, coverage and ejecta go unused.");
     io("coverage", sizes.coverage,
        "Golombek-Rapp k, the fraction of the ground covered by boulders, from 0 to below 1 and "
-       "above 0 when generating random boulders; higher values give more boulders. Only "
-       "golombek_rapp sizes use it, so any other value than the default needs them.",
+       "above 0 when generating random boulders; higher values give more boulders. Unset is "
+       "0.02. Only golombek_rapp sizes use it, so set it only with them.",
        "", FromBelow(0.0, 1.0));
     io("qa", sizes.qConstant,
        "Constant term of the Golombek-Rapp q = qa + qb / k, per meter; a larger q leaves fewer "
-       "large boulders. Only golombek_rapp sizes or ejecta sizes use it, so any other value than "
-       "the default needs them.",
+       "large boulders. Unset is 1.79. Only golombek_rapp sizes or ejecta sizes use it, so set "
+       "it only with them.",
        "1/m");
     io("qb", sizes.qCoverageCoefficient,
-       "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per meter; used as "
-       "qa is.",
+       "Term of the Golombek-Rapp q = qa + qb / k divided by the coverage k, per meter; unset is "
+       "0.152, and it is used as qa is.",
        "1/m");
     io("min_diameter_m", sizes.minDiameter,
        "Smallest boulder generated, in meters; lower values add many more small boulders.", "m",

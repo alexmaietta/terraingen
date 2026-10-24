@@ -42,6 +42,7 @@ class Example(_common.Example):
         boulders = terraingen.BoulderLayer(
             terraingen.BoulderLayerOptions(
                 seed=1,
+                distribution=None,
                 coverage=0.02,
                 min_diameter_m=0.3,
                 max_diameter_m=4.0,

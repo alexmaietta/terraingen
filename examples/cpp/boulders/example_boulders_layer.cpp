@@ -50,6 +50,7 @@ class BouldersLayer : public terraingen::examples::Example {
             craterOptions);
 
         terraingen::BoulderLayerOptions boulderOptions;
+        boulderOptions.sizes.distribution = nullptr;
         boulderOptions.sizes.coverage = 0.05;
         boulderOptions.sizes.minDiameter = 0.2;
         boulderOptions.sizes.maxDiameter = 3.0;

@@ -10,6 +10,7 @@ import terraingen
 
 def model_options(max_diameter=3.0):
     return terraingen.BoulderLayerOptions(
+        distribution=None,
         coverage=0.08,
         min_diameter_m=0.2,
         max_diameter_m=max_diameter,
@@ -130,7 +131,7 @@ def test_boulder_layer_options_keep_their_fields():
 
 def test_boulder_fade_sets_the_smallest_boulder_drawn_in_pixels():
     options = terraingen.BoulderLayerOptions(
-        coverage=0.1, min_diameter_m=0.2, max_diameter_m=3.0, fade_px=(4.0, 6.0)
+        distribution=None, coverage=0.1, min_diameter_m=0.2, max_diameter_m=3.0, fade_px=(4.0, 6.0)
     )
     assert options.fade_px == [4.0, 6.0] and options.fade_shape == terraingen.BlendShape.SMOOTHSTEP
     layer = terraingen.BoulderLayer(options)
@@ -154,7 +155,9 @@ def test_boulder_fillets_and_burial_by_wear_are_options():
 
 
 def test_worn_boulders_break_into_pieces_that_replace_them():
-    options = terraingen.BoulderLayerOptions(coverage=0.1, min_diameter_m=0.3, max_diameter_m=2.0)
+    options = terraingen.BoulderLayerOptions(
+        distribution=None, coverage=0.1, min_diameter_m=0.3, max_diameter_m=2.0
+    )
     whole = terraingen.BoulderLayer(options)
     options.fragmentation = terraingen.BoulderFragmentation(min_diameter_m=0.3, split_wear=0.0)
     broken = terraingen.BoulderLayer(options)
@@ -206,7 +209,6 @@ def test_boulder_layer_options_take_custom_shape_styles():
 
 def unburied_options():
     return terraingen.BoulderLayerOptions(
-        coverage=0.08,
         min_diameter_m=0.2,
         max_diameter_m=2.0,
         distribution=terraingen.synthterrain_boulder_distribution(terraingen.SynthterrainBoulders.HAWORTH),
@@ -249,7 +251,10 @@ def test_boulder_abundance_follows_exposed_bedrock(noise_relief):
 
 def test_boulder_ejecta_defaults_to_freshness_aging():
     ejecta = terraingen.BoulderEjecta(
-        min_crater_diameter_m=5.0, coverage=0.3, profile=terraingen.EjectaProfile.EXPONENTIAL
+        min_crater_diameter_m=5.0,
+        distribution=None,
+        coverage=0.3,
+        profile=terraingen.EjectaProfile.EXPONENTIAL,
     )
     assert (
         ejecta.profile == terraingen.EjectaProfile.EXPONENTIAL
@@ -259,11 +264,25 @@ def test_boulder_ejecta_defaults_to_freshness_aging():
 
 def test_validate_boulder_layer_options_rejects_negative_coverage():
     with pytest.raises(ValueError):
-        terraingen.validate_boulder_layer_options(terraingen.BoulderLayerOptions(coverage=-1.0))
+        terraingen.validate_boulder_layer_options(
+            terraingen.BoulderLayerOptions(distribution=None, coverage=-1.0)
+        )
+
+
+def test_golombek_rapp_terms_need_golombek_rapp_sizes():
+    defaults = terraingen.BoulderLayerOptions()
+    assert defaults.distribution is not None and defaults.coverage is None
+    terraingen.validate_boulder_layer_options(
+        terraingen.BoulderLayerOptions(distribution=None, coverage=0.05)
+    )
+    with pytest.raises(ValueError):
+        terraingen.validate_boulder_layer_options(terraingen.BoulderLayerOptions(coverage=0.05))
 
 
 def test_boulders_rest_on_sides_and_ends_and_tilt():
-    options = terraingen.BoulderLayerOptions(coverage=0.08, side_share=0.3, end_share=0.1, max_tilt_deg=45.0)
+    options = terraingen.BoulderLayerOptions(
+        distribution=None, coverage=0.08, side_share=0.3, end_share=0.1, max_tilt_deg=45.0
+    )
     table = terraingen.BoulderLayer(options).boulders((-30.0, -30.0, 30.0, 30.0)).table
     rests = np.asarray(table["rest"])
     assert set(np.unique(rests)) <= {0, 1, 2} and (rests == 1).any() and (rests == 2).any()
@@ -356,7 +375,9 @@ def test_manual_boulders_fix_their_pose_and_shape():
     assert terraingen.manual_boulder_id(plain) == terraingen.manual_crater_id(1.0, 2.0, 1.5)
     table = (
         terraingen.BoulderLayer(
-            terraingen.BoulderLayerOptions(min_diameter_m=0.5, coverage=0.01, manual=[plain, posed])
+            terraingen.BoulderLayerOptions(
+                distribution=None, min_diameter_m=0.5, coverage=0.01, manual=[plain, posed]
+            )
         )
         .boulders((-10.0, -10.0, 10.0, 10.0))
         .table
@@ -373,7 +394,9 @@ def test_manual_boulders_fix_their_pose_and_shape():
 def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
     assert terraingen.BoulderLayerOptions().generate_random
     boulders = [terraingen.ManualBoulder(1.0, 2.0, 1.5), terraingen.ManualBoulder(-3.0, 4.0, 2.0, id=17)]
-    options = terraingen.BoulderLayerOptions(generate_random=False, coverage=0.0, manual=boulders)
+    options = terraingen.BoulderLayerOptions(
+        generate_random=False, distribution=None, coverage=0.0, manual=boulders
+    )
     options.validate()
     layer = terraingen.BoulderLayer(options)
     table = layer.boulders((-10.0, -10.0, 10.0, 10.0)).table

@@ -112,7 +112,7 @@ TEST(NoiseLayerSpec, EstimatesUnsetHurstExponentsAndAmplitudesFromTheBase) {
 
 TEST(RoughnessLayerSpec, TakesTheDefaultsTheGivenValuesOrTheBaseEstimates) {
     terraingen::RoughnessLayerSpec spec;
-    EXPECT_EQ(spec.Options(), terraingen::DefaultRoughness());
+    EXPECT_EQ(spec.Options(), terraingen::RoughnessOptions{});
     terraingen::RoughnessOptions estimated = spec.EstimatedOptions(Base());
     EXPECT_EQ(estimated.hurst, 0.6);
     EXPECT_DOUBLE_EQ(estimated.rmsSlope, Base().RmsSlope(spec.roughness.baseline));

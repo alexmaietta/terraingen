@@ -438,6 +438,15 @@ TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
         << "the nominal SP-8023 intercrater blocks by default";
     EXPECT_EQ(nominal.sizes.maxDiameter, sp8023.ValidRange().max);
     EXPECT_NEAR(nominal.sizes.maxDiameter, 5.86, 0.01);
+    const terraingen::BoulderLayerOptions library;
+    EXPECT_EQ(library.sizes.maxDiameter, nominal.sizes.maxDiameter) << "as the library defaults";
+    for (const double d : {0.2, 1.0, 4.0}) {
+        EXPECT_DOUBLE_EQ(library.sizes.distribution->Cumulative(d),
+                         nominal.sizes.distribution->Cumulative(d));
+        EXPECT_DOUBLE_EQ(library.ejecta.distribution->Cumulative(d),
+                         nominal.ejecta.distribution->Cumulative(d));
+    }
+    EXPECT_EQ(library.sizes.distribution, terraingen::DefaultBoulderSizes());
     double cover = 0.0;
     constexpr int kSteps = 2000;
     const double step = std::log(nominal.sizes.maxDiameter) / kSteps;

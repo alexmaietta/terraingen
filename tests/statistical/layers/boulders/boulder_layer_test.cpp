@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "support/boulder_records.h"
+#include "support/golombek_rapp.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>
@@ -20,9 +21,9 @@ double ExpectedBoulders(const BoulderLayer& layer, const terraingen::Bounds2d& r
     double expected = 0.0;
     for (double y = region.minY + 0.5; y < region.maxY; y += 1.0) {
         for (double x = region.minX + 0.5; x < region.maxX; x += 1.0) {
-            const terraingen::GolombekRappSfd local(sizes.coverage *
-                                                        layer.AbundanceAt(x, y).background,
-                                                    sizes.qConstant, sizes.qCoverageCoefficient);
+            const terraingen::GolombekRappSfd local(
+                sizes.Coverage() * layer.AbundanceAt(x, y).background, sizes.QConstant(),
+                sizes.QCoverageCoefficient());
             expected += local.ExpectedCount(1.0, sizes.minDiameter, sizes.maxDiameter);
         }
     }
@@ -41,7 +42,7 @@ double CountBoulders(const BoulderLayer& layer, const terraingen::Bounds2d& regi
 }  // namespace
 
 TEST(BoulderLayerStatistics, CountsFollowGolombekAndRapp) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.03;
     options.sizes.minDiameter = 0.2;
     const BoulderLayer layer(options);
@@ -52,7 +53,7 @@ TEST(BoulderLayerStatistics, CountsFollowGolombekAndRapp) {
 }
 
 TEST(BoulderLayerStatistics, ThinningFollowsTheLocalCoverageInPatches) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.03;
     options.sizes.minDiameter = 0.2;
     options.patches = {3.0, 40.0};
@@ -85,7 +86,7 @@ TEST(BoulderLayerStatistics, CountsFollowAnyDistribution) {
 TEST(BoulderLayerStatistics, ClustersKeepTheCountOfADistribution) {
     const auto distribution = std::make_shared<terraingen::TabulatedSfd>(
         terraingen::Sp8023IntercraterBlocks(terraingen::SpecificationCurve::Nominal));
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.distribution = distribution;
     options.sizes.minDiameter = 0.2;
     options.clusters.share = 0.7;

@@ -3,6 +3,7 @@
 #include "terraingen/pipeline/generator.h"
 
 #include "support/boulder_records.h"
+#include "support/golombek_rapp.h"
 #include "terraingen/terraingen.h"
 #include "tests/unit/pipeline/terrains.h"
 
@@ -39,7 +40,7 @@ TerrainGenerator Flat() {
 
 /// Boulders of 1 m and more, every one a model.
 terraingen::BoulderLayerOptions Models() {
-    terraingen::BoulderLayerOptions options;
+    terraingen::BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.minDiameter = 1.0;
     options.sizes.coverage = 0.3;
     options.rendering.models.minDiameter = 1.0;
@@ -97,7 +98,7 @@ TEST(PlacedCraters, ListsAtASpacingFinerThanTheGrid) {
 
 TEST(PlacedBoulders, ListsEveryBoulderOfTheSizesHoweverSmall) {
     TerrainGenerator terrain = Flat();
-    terraingen::BoulderLayerOptions options;
+    terraingen::BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.minDiameter = 0.2;
     options.sizes.coverage = 0.1;
     const auto layer = std::make_shared<terraingen::BoulderLayer>(options);

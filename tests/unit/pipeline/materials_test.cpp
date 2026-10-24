@@ -2,6 +2,8 @@
 
 #include "terraingen/pipeline/materials.h"
 
+#include "support/golombek_rapp.h"
+
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/dunes.h"
 #include "terraingen/layers/sand_fill.h"
@@ -119,7 +121,7 @@ TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
 
 TEST(EvaluateMaterials, FindsBouldersOnceAndAgreesWithPoints) {
     TerrainGenerator terrain = Ground(0.05, 0.0, 0.0);
-    terraingen::BoulderLayerOptions rocks;
+    terraingen::BoulderLayerOptions rocks = terraingen::testing::GolombekRappBoulders();
     rocks.sizes.coverage = 0.1;
     rocks.sizes.minDiameter = 0.1;
     rocks.sizes.maxDiameter = 1.0;

@@ -2,9 +2,10 @@
 
 """Boulder size models: how many boulders of each size a boulder layer places.
 
-`BoulderLayer` draws sizes from Golombek and Rapp's (1997) model for a boulder coverage by default, or from
-any size-frequency distribution: the NASA SP-8023 curves for blocks between and near craters,
-synthterrain's power laws, or a distribution of your own. Each is used over 0.2 to 3 m, or the part
+`BoulderLayer` draws sizes from the nominal NASA SP-8023 intercrater curve by default, from Golombek
+and Rapp's (1997) model for a boulder coverage with `distribution=None`, or from any size-frequency
+distribution: the other SP-8023 curves for blocks between and near craters, synthterrain's power
+laws, or a distribution of your own. Each is used over 0.2 to 3 m, or the part
 of it the distribution covers. Prints the boulders per 100 square meters at each size and writes a
 montage of hillshades.
 
@@ -29,8 +30,8 @@ SIZE = 401
 class Example(_common.Example):
     def generate(self):
         models = {
-            "Golombek-Rapp 3%": terraingen.BoulderLayerOptions(coverage=0.03),
-            "Golombek-Rapp 10%": terraingen.BoulderLayerOptions(coverage=0.10),
+            "Golombek-Rapp 3%": terraingen.BoulderLayerOptions(distribution=None, coverage=0.03),
+            "Golombek-Rapp 10%": terraingen.BoulderLayerOptions(distribution=None, coverage=0.10),
             "SP-8023 intercrater max": terraingen.BoulderLayerOptions(
                 distribution=terraingen.sp8023_intercrater_blocks(terraingen.SpecificationCurve.MAXIMUM)
             ),

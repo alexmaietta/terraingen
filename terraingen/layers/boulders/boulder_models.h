@@ -93,7 +93,7 @@ RigidTransform TiltRotation(double tilt, double azimuth);
 /// or edges it stands on, so no shape is left balanced on a corner.
 /// @param groundHeight Height of the ground under its center, in meters.
 BoulderPlacement PlaceBoulderModel(const Boulder& boulder, const BoulderShape& shape,
-                                   double groundHeight, bool settle = false);
+                                   double groundHeight, bool settle = true);
 
 /// The seed of `boulder`'s shape, or of its parent's whole shape for a fragment: its `shapeSeed`
 /// when set, else `BoulderShapeSeed` of its ID, or its parent's.

@@ -408,7 +408,9 @@ def test_strata_terrace_hills_into_benches_and_cliffs():
 
 def test_sand_shadows_trail_boulders_and_boulders_are_rock():
     boulders = terraingen.BoulderLayer(
-        terraingen.BoulderLayerOptions(coverage=0.05, min_diameter_m=1.0, max_diameter_m=2.0)
+        terraingen.BoulderLayerOptions(
+            distribution=None, coverage=0.05, min_diameter_m=1.0, max_diameter_m=2.0
+        )
     )
     table = boulders.boulders((-50.0, -50.0, 50.0, 50.0)).table
     x, y, d = table["x"][0], table["y"][0], table["diameter"][0]
@@ -435,7 +437,7 @@ def test_ventifacts_plane_the_windward_side_of_boulders():
     ventifacts = terraingen.BoulderVentifacts(share=1.0, wind_azimuth_deg=0.0)
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(
-            coverage=0.05, min_diameter_m=1.0, max_diameter_m=2.0, ventifacts=ventifacts
+            distribution=None, coverage=0.05, min_diameter_m=1.0, max_diameter_m=2.0, ventifacts=ventifacts
         )
     )
     table = boulders.boulders((-50.0, -50.0, 50.0, 50.0)).table

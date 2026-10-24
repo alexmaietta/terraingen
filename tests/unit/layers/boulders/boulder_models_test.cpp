@@ -24,8 +24,8 @@ terraingen::TriangleMesh BoulderMesh(const Boulder& boulder,
                                      double groundHeight, std::uint32_t prototypes = 0) {
     const terraingen::BoulderShape shape =
         terraingen::GenerateBoulderShape(terraingen::ShapeSeed(boulder, prototypes), options);
-    return terraingen::PlaceMesh(shape.mesh,
-                                 terraingen::PlaceBoulderModel(boulder, shape, groundHeight));
+    return terraingen::PlaceMesh(
+        shape.mesh, terraingen::PlaceBoulderModel(boulder, shape, groundHeight, false));
 }
 
 }  // namespace
@@ -73,7 +73,7 @@ TEST(PlaceBoulderModel, StandsTheShapeAtTheBouldersSizeBurialAndHeading) {
     }
     EXPECT_NEAR(along - low, boulder.diameter, 1e-9) << "the long axis follows the yaw";
 
-    const auto placement = terraingen::PlaceBoulderModel(boulder, shape, 10.0);
+    const auto placement = terraingen::PlaceBoulderModel(boulder, shape, 10.0, false);
     EXPECT_EQ(placement.Apply(shape.mesh.positions[3]), mesh.positions[3]);
     EXPECT_EQ(placement.scale.x, 2.0);
 }

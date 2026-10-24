@@ -47,18 +47,40 @@ struct BoulderModelThreshold {
     }
 };
 
-/// The sizes of the boulders between craters: Golombek and Rapp (1997) boulders of
-/// `coverage`, or `distribution`, from `minDiameter` up to `maxDiameter`.
+/// The boulder sizes a layer has by default between craters and around them: the nominal NASA
+/// SP-8023 intercrater blocks (`Sp8023IntercraterBlocks`, Li et al. 2017,
+/// https://doi.org/10.1016/j.pss.2017.08.008), one instance shared by every default.
+std::shared_ptr<const SizeFrequencyDistribution> DefaultBoulderSizes();
+
+/// The sizes of the boulders between craters: `distribution`, or Golombek and Rapp (1997)
+/// boulders of `coverage` without one, from `minDiameter` up to `maxDiameter`.
 struct BoulderSizes {
-    double coverage = 0.02;  ///< Golombek-Rapp k, the fractional area covered by boulders.
-    /// Golombek-Rapp q = `qConstant` + `qCoverageCoefficient` / k, per meter: their qa and qb.
-    double qConstant = 1.79;
-    double qCoverageCoefficient = 0.152;  ///< Golombek-Rapp qb (see `qConstant`).
-    /// Sizes per m^2 in place of Golombek-Rapp boulders (e.g. `Sp8023IntercraterBlocks`); patches
-    /// and bedrock scale its density, or k without it.
-    std::shared_ptr<const SizeFrequencyDistribution> distribution{};
+    /// Golombek-Rapp k, the fractional area covered by boulders, for sizes without a
+    /// `distribution`; unset is 0.02 (`Coverage`).
+    std::optional<double> coverage{};
+    /// Golombek-Rapp q = qa + qb / k per meter, for Golombek-Rapp sizes here or in the ejecta:
+    /// qa, unset 1.79 (`QConstant`).
+    std::optional<double> qConstant{};
+    std::optional<double> qCoverageCoefficient{};  ///< qb, unset 0.152 (`QCoverageCoefficient`).
+    /// Sizes per m^2, by default `DefaultBoulderSizes`; null for Golombek-Rapp boulders of
+    /// `coverage`. Patches and bedrock scale its density, or k without it.
+    std::shared_ptr<const SizeFrequencyDistribution> distribution = DefaultBoulderSizes();
     double minDiameter = 0.1;  ///< Smallest boulder (m).
-    double maxDiameter = 4.0;  ///< Largest boulder (m), exclusive.
+    /// Largest boulder (m), exclusive; by default the largest block of `DefaultBoulderSizes`.
+    double maxDiameter = DefaultBoulderSizes()->ValidRange().max;
+
+    /// The Golombek-Rapp k: `coverage`, or 0.02 unset.
+    double Coverage() const {
+        return coverage.value_or(0.02);
+    }
+    /// The Golombek-Rapp qa: `qConstant`, or 1.79 unset.
+    double QConstant() const {
+        return qConstant.value_or(1.79);
+    }
+    /// The Golombek-Rapp qb: `qCoverageCoefficient`, or 0.152 unset.
+    double QCoverageCoefficient() const {
+        return qCoverageCoefficient.value_or(0.152);
+    }
 
     bool operator==(const BoulderSizes& other) const {
         return coverage == other.coverage && qConstant == other.qConstant &&
@@ -166,10 +188,12 @@ struct BoulderEjecta {
     /// excavationDepthRatio` do not dig through it and throw no blocks.
     std::optional<double> regolithThickness{};
     double excavationDepthRatio = 0.1;  ///< Depth of excavation over crater diameter.
-    /// The blocks' sizes at the rim of a fresh crater, per m^2; unset for Golombek-Rapp boulders of
-    /// `coverage`.
-    std::shared_ptr<const SizeFrequencyDistribution> distribution{};
-    double coverage = 0.1;  ///< Golombek-Rapp k at the rim of a fresh crater.
+    /// The blocks' sizes at the rim of a fresh crater, per m^2, by default `DefaultBoulderSizes`;
+    /// null for Golombek-Rapp boulders of `coverage`.
+    std::shared_ptr<const SizeFrequencyDistribution> distribution = DefaultBoulderSizes();
+    /// Golombek-Rapp k at the rim of a fresh crater, for blocks without a `distribution`; unset is
+    /// 0.1 (`Coverage`).
+    std::optional<double> coverage{};
     EjectaProfile profile = EjectaProfile::Smoothstep;  ///< Falloff with distance.
     double reach = 3.0;        ///< Radii from the center beyond which a crater adds no blocks.
     double decayRadii = 0.7;   ///< e-folding distance of `Exponential`, in radii.
@@ -185,6 +209,11 @@ struct BoulderEjecta {
     /// The diameter (m) of the smallest crater that throws blocks, from `minCraterDiameter` and the
     /// regolith; 0 when crater blocks are disabled.
     double MinCraterDiameter() const;
+
+    /// The Golombek-Rapp k at the rim: `coverage`, or 0.1 unset.
+    double Coverage() const {
+        return coverage.value_or(0.1);
+    }
 
     bool operator==(const BoulderEjecta& other) const {
         return minCraterDiameter == other.minCraterDiameter &&
@@ -459,8 +488,9 @@ std::uint64_t ManualBoulderId(const ManualBoulder& boulder);
 /// Checks boulder layer options; without `generateRandom`, the sizes, ejecta and the coverage they
 /// give are not checked.
 /// @throws std::invalid_argument for any invalid part, a non-positive ground spacing,
-/// Golombek-Rapp coverage times the patch spread and bedrock abundance of 1 or more, or manual
-/// boulders sharing an ID.
+/// Golombek-Rapp coverage times the patch spread and bedrock abundance of 1 or more, a
+/// Golombek-Rapp term set beside the size distribution that leaves it unused, or manual boulders
+/// sharing an ID.
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options);
 
 }  // namespace terraingen

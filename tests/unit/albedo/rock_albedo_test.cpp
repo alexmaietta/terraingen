@@ -2,6 +2,8 @@
 
 #include "terraingen/albedo/rock_albedo.h"
 
+#include "support/golombek_rapp.h"
+
 #include "terraingen/albedo/synthetic.h"
 #include "terraingen/distribution/golombek_rapp.h"
 #include "terraingen/random/samplers.h"
@@ -34,7 +36,7 @@ class Level final : public terraingen::Ground {
 };
 
 std::shared_ptr<const BoulderLayer> Boulders(double coverage = 0.02) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.seed = 3;
     options.sizes.coverage = coverage;
     options.sizes.minDiameter = 0.1;

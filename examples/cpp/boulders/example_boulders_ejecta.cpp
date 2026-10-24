@@ -50,12 +50,14 @@ class BouldersEjecta : public terraingen::examples::Example {
             craterOptions);
 
         terraingen::BoulderLayerOptions options;
+        options.sizes.distribution = nullptr;
         options.sizes.coverage = 0.03;
         options.sizes.minDiameter = 0.2;
         options.sizes.maxDiameter = 3.0;
         options.patches.spread = 3.0;
         options.patches.size = 15.0;
         options.ejecta.minCraterDiameter = 5.0;
+        options.ejecta.distribution = nullptr;
         options.ejecta.coverage = 0.25;
         options.ejecta.reach = 3.0;
         options.pose.minHeightRatio = 0.6;

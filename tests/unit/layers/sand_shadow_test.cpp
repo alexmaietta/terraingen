@@ -3,6 +3,7 @@
 #include "terraingen/layers/sand_shadow.h"
 
 #include "support/boulder_records.h"
+#include "support/golombek_rapp.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
 
@@ -25,7 +26,7 @@ constexpr double kDegree = terraingen::kPi / 180.0;
 
 /// Sparse boulders 1 to 2 m wide.
 std::shared_ptr<const BoulderLayer> Sparse() {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 2.0;
@@ -137,7 +138,7 @@ TEST(SandShadowLayer, GridsAndPointsAgreeAndCoverIsSand) {
 
 TEST(SandShadowLayer, FollowsTheBoulderFramesOnABody) {
     const terraingen::Surface mars = terraingen::Surface::Sphere(3389500.0);
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 2.0;

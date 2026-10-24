@@ -3,6 +3,7 @@
 #include "terraingen/layers/source_resolved.h"
 
 #include "support/boulder_records.h"
+#include "support/golombek_rapp.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
@@ -133,7 +134,7 @@ TEST(DuneLayer, LeavesOutDunesTheSourceResolves) {
 }
 
 TEST(BoulderLayer, DropsTheBouldersTheSourceResolves) {
-    terraingen::BoulderLayerOptions options;
+    terraingen::BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.2;
     options.sizes.maxDiameter = 3.0;
@@ -163,6 +164,8 @@ TEST(BoulderLayer, DropsTheBouldersTheSourceResolves) {
 
 TEST(BedformLayer, LeavesOutBedformsTheSourceResolves) {
     terraingen::BedformOptions options;
+    options.wavelength = 1.0;
+    options.height = 0.1;
     options.cover = 0.9;
     options.fieldSize = 20.0;
     const terraingen::BedformLayer free(options);

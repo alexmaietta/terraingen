@@ -3,6 +3,7 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "support/boulder_records.h"
+#include "support/golombek_rapp.h"
 #include "terraingen/terraingen.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/span.h"
@@ -60,7 +61,7 @@ class Analytic final : public terraingen::Ground {
 }  // namespace
 
 TEST(BoulderLayer, GivesEachBoulderStableAttributesInTheirRanges) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     const BoulderLayer layer(options);
     const auto boulders = terraingen::testing::Records(layer.Boulders({-20.0, -20.0, 20.0, 20.0}));
@@ -84,7 +85,7 @@ TEST(BoulderLayer, GivesEachBoulderStableAttributesInTheirRanges) {
 }
 
 TEST(BoulderLayer, GivesTheSameBouldersInEveryRegionAndSkipsOnlyUnresolvedOnes) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.patches = {2.0, 30.0};
     const BoulderLayer layer(options);
@@ -116,7 +117,7 @@ TEST(BoulderLayer, GivesTheSameBouldersInEveryRegionAndSkipsOnlyUnresolvedOnes) 
 }
 
 TEST(BoulderLayer, TakesBlocksFromEveryCraterLayerGiven) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.ejecta.minCraterDiameter = 50.0;
     const auto first = Craters({{0.0, 0.0, 100.0, 0.0, 0u}});
     const auto second = Craters({{1000.0, 0.0, 100.0, 0.0, 0u}});
@@ -138,7 +139,7 @@ TEST(BoulderLayer, TakesBlocksFromEveryCraterLayerGiven) {
 }
 
 TEST(BoulderLayer, AddsBlocksAroundFreshCraters) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.ejecta.minCraterDiameter = 50.0;
     options.ejecta.coverage = 0.15;
     const auto craters = Craters({{0.0, 0.0, 100.0, 0.0, 0u}});
@@ -167,7 +168,7 @@ TEST(BoulderLayer, AddsBlocksAroundFreshCraters) {
 }
 
 TEST(BoulderLayer, ThrowsNoCraterBlocksWithoutRandomBoulders) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.generateRandom = false;
     options.ejecta.minCraterDiameter = 50.0;
     options.ejecta.coverage = 0.15;
@@ -184,7 +185,7 @@ TEST(BoulderLayer, ThrowsNoCraterBlocksWithoutRandomBoulders) {
 }
 
 TEST(BoulderLayer, ShapesAndAgesCraterBlocksLikeSynthterrainWhenAsked) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.ejecta.minCraterDiameter = 50.0;
     options.ejecta.profile = terraingen::EjectaProfile::Exponential;
     options.ejecta.reach = 2.0;
@@ -205,7 +206,7 @@ TEST(BoulderLayer, LimitsCraterBlocksToHowFarTheyAreThrownOverRegolith) {
         << "Linne: about 7.5 km over 4 m of regolith (Pajola et al. 2019)";
     EXPECT_THROW(terraingen::BoulderThrowDistance(0.0, 4.0, 1.62), std::invalid_argument);
     EXPECT_THROW(terraingen::BoulderThrowDistance(10.0, 4.0, -1.0), std::invalid_argument);
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.ejecta.regolithThickness = 60.0;
     options.ejecta.excavationDepthRatio = 1.0;
     const auto craters = Craters({{0.0, 0.0, 100.0, 0.0, 0u}});
@@ -218,7 +219,7 @@ TEST(BoulderLayer, LimitsCraterBlocksToHowFarTheyAreThrownOverRegolith) {
 }
 
 TEST(BoulderLayer, DrawsBouldersAndCraterBlocksFromAnyDistribution) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.distribution =
         std::make_shared<terraingen::PowerLawSfd>(terraingen::SynthterrainBoulderDistribution(
             terraingen::SynthterrainBoulders::ViperSpecification));
@@ -246,7 +247,7 @@ TEST(BoulderLayer, DrawsBouldersAndCraterBlocksFromAnyDistribution) {
 }
 
 TEST(BoulderLayer, RaisesTheAbundanceWhereBedrockShows) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.patches.spread = 3.0;
     options.patches.size = 1e6;
     options.sizes.coverage = 0.01;
@@ -263,7 +264,7 @@ TEST(BoulderLayer, RaisesTheAbundanceWhereBedrockShows) {
 }
 
 TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.5;
     const BoulderLayer layer(options);
@@ -290,7 +291,7 @@ TEST(BoulderLayer, AddsDomesThatPointQueriesMatchToTheBit) {
 }
 
 TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.rendering.relief = terraingen::BoulderRelief::None;
     const BoulderLayer layer(options);
@@ -348,7 +349,7 @@ TEST(BoulderLayer, LeavesHeightsAloneWithoutReliefAndRejectsBadOptions) {
         [](BoulderLayerOptions& o) { o.rendering.models.minDiameter = 0.0; },
         [](BoulderLayerOptions& o) { o.fade = {3.0, 3.0}; }};
     for (const auto& bad : changes) {
-        BoulderLayerOptions invalid;
+        BoulderLayerOptions invalid = terraingen::testing::GolombekRappBoulders();
         bad(invalid);
         EXPECT_THROW(terraingen::ValidateBoulderLayerOptions(invalid), std::invalid_argument);
     }
@@ -368,7 +369,7 @@ TEST(BoulderModelThreshold, SplitsBouldersByDiameterOrBySamplesAtTheSpacing) {
 }
 
 TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHeights) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.15;
     options.sizes.minDiameter = 0.5;
     options.rendering.models.minDiameter = 1.0;
@@ -414,7 +415,7 @@ TEST(BoulderLayer, PlacesLargeBouldersAsModelsOnTheGroundAndLeavesThemOutOfTheHe
 }
 
 TEST(BoulderLayer, ReadsTheGroundBeneathEachBoulder) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.15;
     options.sizes.minDiameter = 1.0;
     options.rendering.models.minDiameter = 1.0;
@@ -433,7 +434,7 @@ TEST(BoulderLayer, ReadsTheGroundBeneathEachBoulder) {
 }
 
 TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.5;
     options.rendering.relief = terraingen::BoulderRelief::Shape;
@@ -477,7 +478,7 @@ TEST(BoulderLayer, DrawsTheTopsOfBoulderShapesThatPointQueriesMatch) {
 }
 
 TEST(BoulderLayer, SharesShapesBetweenBouldersOfOnePrototype) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.rendering.shapePrototypes = 1;
     const BoulderLayer layer(options);
     Boulder first;
@@ -505,7 +506,7 @@ TEST(FilletHeight, IsLevelToTheRadiusThenFallsToNothingAtItsReach) {
 }
 
 TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 0.5;
     const BoulderLayer bare(options);
@@ -548,7 +549,7 @@ TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {
 }
 
 TEST(BoulderLayer, SetsBurialByWearWhenAsked) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.ejecta.minCraterDiameter = 50.0;
     options.ejecta.coverage = 0.15;
     options.pose.burialByWear = 1.0;
@@ -587,13 +588,13 @@ TEST(BoulderModelThreshold, KeepsABandOfSizesAsModels) {
     EXPECT_TRUE(band.IsModel(1.0, 0.2));
     EXPECT_FALSE(band.IsModel(2.0, 0.2));
     EXPECT_FALSE(band.IsModel(2.0, 0.0)) << "no samples without a spacing";
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.rendering.models.maxDiameter = -1.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
 
 TEST(BoulderLayer, DrawsOnlyBouldersInItsReliefRange) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.2;
     options.rendering.reliefRange = {0.6, 1.5};
@@ -633,7 +634,7 @@ TEST(BoulderLayer, DrawsOnlyBouldersInItsReliefRange) {
 }
 
 TEST(BoulderLayer, DrawsNoBoulderNarrowerThanTheFadeStartButListsEveryOne) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.2;
     options.sizes.maxDiameter = 3.0;
@@ -691,7 +692,7 @@ TEST(BoulderLayer, DrawsNoBoulderNarrowerThanTheFadeStartButListsEveryOne) {
 }
 
 TEST(BoulderLayer, DrawsOverlappingBouldersAsTheirUnion) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.3;
     options.sizes.minDiameter = 0.5;
     const BoulderLayer layer(options);
@@ -718,7 +719,7 @@ TEST(TiltRotation, TipsTheVerticalTowardItsAzimuth) {
 }
 
 TEST(BoulderLayer, RestsBouldersOnSidesAndEndsAndTiltsThem) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.08;
     options.pose.sideShare = 0.3;
     options.pose.endShare = 0.1;
@@ -746,7 +747,7 @@ TEST(BoulderLayer, RestsBouldersOnSidesAndEndsAndTiltsThem) {
     upright.tilt = 0.0;
     upright.lean = 0.0;
     terraingen::TriangleMesh placed = shape->mesh;
-    const auto placement = terraingen::PlaceBoulderModel(upright, *shape, 0.0);
+    const auto placement = terraingen::PlaceBoulderModel(upright, *shape, 0.0, false);
     for (auto& p : placed.positions) {
         p = placement.Apply(p);
     }
@@ -757,7 +758,7 @@ TEST(BoulderLayer, RestsBouldersOnSidesAndEndsAndTiltsThem) {
 }
 
 TEST(BoulderLayer, SettlesBouldersOnTheSlopeBeneathThem) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.08;
     options.pose.followSlope = true;
     const BoulderLayer layer(options);
@@ -770,7 +771,7 @@ TEST(BoulderLayer, SettlesBouldersOnTheSlopeBeneathThem) {
 }
 
 TEST(BoulderLayer, LeavesOutBouldersOnGroundSteeperThanTheirMaxSlope) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.08;
     const Analytic gentle([](double x, double) { return static_cast<float>(0.2 * x); });
     const Analytic steep([](double x, double) { return static_cast<float>(0.8 * x); });
@@ -804,7 +805,7 @@ TEST(BoulderLayer, LeavesOutBouldersOnGroundSteeperThanTheirMaxSlope) {
 
 TEST(BoulderLayer, DrawsTiltedShapesThatPointQueriesMatch) {
     for (const std::uint32_t seed : {1u, 2u, 3u, 4u}) {
-        BoulderLayerOptions options;
+        BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
         options.seed = seed;
         options.sizes.coverage = 0.1;
         options.sizes.minDiameter = 0.5;
@@ -827,7 +828,7 @@ TEST(BoulderLayer, DrawsTiltedShapesThatPointQueriesMatch) {
 }
 
 TEST(BoulderLayer, ReportsRockWhereBoulderTopsStandAndNotOnFillets) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 2.0;
@@ -853,7 +854,7 @@ TEST(BoulderLayer, ReportsRockWhereBoulderTopsStandAndNotOnFillets) {
 }
 
 TEST(BoulderLayer, ReportsRockOverShapesAndModelFootprints) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 2.0;
@@ -874,7 +875,7 @@ TEST(BoulderLayer, ReportsRockOverShapesAndModelFootprints) {
 }
 
 TEST(BoulderLayer, GivesTheSameRockCoverOverAGridAsAtItsPoints) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.sizes.minDiameter = 0.2;
     options.sizes.maxDiameter = 2.0;
@@ -897,7 +898,7 @@ TEST(BoulderLayer, GivesTheSameRockCoverOverAGridAsAtItsPoints) {
 }
 
 TEST(BoulderLayer, FacetsTheirShareOfBouldersUpwindAndKeelsSome) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.1;
     options.ventifacts.share = 0.4;
     options.ventifacts.windAzimuth = 0.3;
@@ -939,7 +940,7 @@ TEST(BoulderLayer, FacetsTheirShareOfBouldersUpwindAndKeelsSome) {
 }
 
 TEST(BoulderLayer, FacetsCutTheWindwardSideOfDomesShapesAndModels) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 2.0;
@@ -995,7 +996,7 @@ TEST(BoulderLayer, FacetsCutTheWindwardSideOfDomesShapesAndModels) {
 }
 
 TEST(BoulderLayer, BrokenPiecesLoseTheirParentsFacets) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 3.0;
@@ -1040,7 +1041,7 @@ TEST(BoulderVentifacts, GaleSharesAndRejectsBadOptions) {
 }
 
 TEST(BoulderMapAbundance, ScalesTheSizesToTheMapLessTheCraterBlocks) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.distribution = std::make_shared<terraingen::PowerLawSfd>(0.01, 2.5);
     options.ejecta.minCraterDiameter = 10.0;
     options.ejecta.distribution = std::make_shared<terraingen::PowerLawSfd>(0.02, 2.5);
@@ -1064,7 +1065,7 @@ TEST(BoulderMapAbundance, ScalesTheSizesToTheMapLessTheCraterBlocks) {
 }
 
 TEST(BoulderMapAbundance, SolvesGolombekRappCoverageForRockAbundance) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(0.02),
                                                 terraingen::DensityMeasure::ArealFraction, 1.0};
@@ -1089,12 +1090,12 @@ TEST(BoulderMapAbundance, SolvesGolombekRappCoverageForRockAbundance) {
 }
 
 TEST(BoulderLayer, FollowsADensityMapBetweenCraters) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.02;
     options.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(2.5)};
     const BoulderLayer layer(options);
     EXPECT_DOUBLE_EQ(layer.AbundanceAt(3.0, 4.0).background, 2.5);
-    BoulderLayerOptions plain;
+    BoulderLayerOptions plain = terraingen::testing::GolombekRappBoulders();
     plain.sizes.coverage = 0.02;
     const Bounds2d region{-15.0, -15.0, 15.0, 15.0};
     const double ratio =
@@ -1107,7 +1108,7 @@ TEST(BoulderLayer, FollowsADensityMapBetweenCraters) {
 }
 
 TEST(BoulderLayer, PlacesCatalogBouldersAndDropsGeneratedOnesItCovers) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.08;
     options.sizes.minDiameter = 0.3;
     options.manual = {{2.0, 3.0, 12.0}, {-4.0, 1.0, 0.8}};
@@ -1147,7 +1148,7 @@ TEST(BoulderLayer, KeepsAMapsMeanUnderPatchesAndBedrock) {
         }
         return sum / count;
     };
-    BoulderLayerOptions patched;
+    BoulderLayerOptions patched = terraingen::testing::GolombekRappBoulders();
     patched.sizes.coverage = 0.01;
     patched.patches = {4.0, 20.0};
     const double raised = terraingen::MeanPatchAbundance(patched.patches);
@@ -1157,7 +1158,7 @@ TEST(BoulderLayer, KeepsAMapsMeanUnderPatchesAndBedrock) {
     patched.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(1.0)};
     EXPECT_NEAR(mean(BoulderLayer(patched), nullptr, 2000.0), 1.0, 0.05);
 
-    BoulderLayerOptions bedrock;
+    BoulderLayerOptions bedrock = terraingen::testing::GolombekRappBoulders();
     bedrock.sizes.coverage = 0.01;
     bedrock.bedrock.exposure = terraingen::ExposureParams{};
     bedrock.bedrock.meanSize = 100.0;
@@ -1202,7 +1203,7 @@ class WestEast final : public terraingen::SurfaceField {
 }  // namespace
 
 TEST(BoulderLayer, BendsTheSizesIntoTheSlopeAMapGives) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.distribution = std::make_shared<terraingen::PowerLawSfd>(0.05, 3.0);
     options.sizes.minDiameter = 0.5;
     options.sizes.maxDiameter = 8.0;
@@ -1239,7 +1240,7 @@ TEST(BoulderLayer, BendsTheSizesIntoTheSlopeAMapGives) {
 }
 
 TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.08;
     options.pose.maxSlope = std::atan(0.5);
     options.pose.rollDistance = 40.0;
@@ -1327,7 +1328,7 @@ class Counted final : public terraingen::Ground {
 }  // namespace
 
 TEST(BoulderLayer, ReadsTheGroundBeneathItsBouldersInOnePass) {
-    BoulderLayerOptions options;
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.05;
     options.pose.followSlope = true;
     options.pose.maxSlope = 1.2;

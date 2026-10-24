@@ -214,28 +214,25 @@ bool IsGolombekRapp(const BoulderSizesSpec& sizes) {
     return std::holds_alternative<GolombekRappBouldersSpec>(sizes);
 }
 
-/// @throws ConfigError at a Golombek-Rapp term changed from its default, such as "coverage", when
-/// no size model of the layer is Golombek-Rapp and so none would use it.
+/// @throws ConfigError at a Golombek-Rapp term that is set, such as "coverage", when no size
+/// model of the layer is Golombek-Rapp and so none would use it.
 void CheckGolombekRappTerms(const BoulderLayerSpec& spec, const std::string& path) {
-    const BoulderLayerSpec defaults{};
     const BoulderSizes& sizes = spec.boulders.sizes;
-    const BoulderSizes& unset = defaults.boulders.sizes;
     const bool layer = IsGolombekRapp(spec.sizes);
     const bool ejecta = IsGolombekRapp(spec.ejectaSizes.value_or(spec.sizes));
-    const auto check = [](bool used, double value, double fallback, const std::string& at,
+    const auto check = [](bool used, const std::optional<double>& value, const std::string& at,
                           const char* fix) {
-        if (!used && value != fallback) {
+        if (!used && value) {
             throw ConfigError(at, std::string("is only used by Golombek-Rapp sizes; set ") + fix +
                                       " or leave it out");
         }
     };
     const char* const layerFix = R"("sizes": {"type": "golombek_rapp"})";
-    check(layer, sizes.coverage, unset.coverage, Child(path, "coverage"), layerFix);
-    check(layer || ejecta, sizes.qConstant, unset.qConstant, Child(path, "qa"), layerFix);
-    check(layer || ejecta, sizes.qCoverageCoefficient, unset.qCoverageCoefficient,
-          Child(path, "qb"), layerFix);
-    check(ejecta, spec.boulders.ejecta.coverage, defaults.boulders.ejecta.coverage,
-          Child(Child(path, "ejecta"), "coverage"), R"("ejecta_sizes": {"type": "golombek_rapp"})");
+    check(layer, sizes.coverage, Child(path, "coverage"), layerFix);
+    check(layer || ejecta, sizes.qConstant, Child(path, "qa"), layerFix);
+    check(layer || ejecta, sizes.qCoverageCoefficient, Child(path, "qb"), layerFix);
+    check(ejecta, spec.boulders.ejecta.coverage, Child(Child(path, "ejecta"), "coverage"),
+          R"("ejecta_sizes": {"type": "golombek_rapp"})");
 }
 
 /// @throws ConfigError at a manual boulder that is invalid or shares an earlier one's ID.
@@ -261,7 +258,7 @@ void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, Layer
         return;
     }
     CheckGolombekRappTerms(spec, path);
-    if (IsGolombekRapp(spec.sizes) && !(boulders.sizes.coverage > 0.0)) {
+    if (IsGolombekRapp(spec.sizes) && !(boulders.sizes.Coverage() > 0.0)) {
         throw ConfigError(Child(path, "coverage"),
                           "must be above 0 to generate random boulders; set generate_random to "
                           "false to place only the manual ones");

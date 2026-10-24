@@ -331,19 +331,15 @@
 
 /* ---- Home page ---------------------------------------------------------------------------- */
 
-.tg-hero {
-    border-bottom: 1px solid var(--tg-rule);
-}
-
-.tg-hero__inner {
+.md-typeset .tg-hero {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 2.6rem 0.8rem 2.4rem;
+    padding: 1.4rem 0 1.8rem;
 }
 
-.tg-hero__eyebrow {
+.md-typeset .tg-hero__eyebrow {
     margin: 0 0 0.8rem;
     font-size: 0.62rem;
     letter-spacing: 0.14em;
@@ -351,7 +347,7 @@
     color: var(--md-default-fg-color--lighter);
 }
 
-.tg-hero h1 {
+.md-typeset .tg-hero h1 {
     margin: 0 0 0.9rem;
     font-size: 1.9rem;
     line-height: 1.2;
@@ -360,7 +356,7 @@
     color: var(--md-default-fg-color);
 }
 
-.tg-hero__lead {
+.md-typeset .tg-hero__lead {
     margin: 0 0 1.6rem;
     font-size: 0.85rem;
     line-height: 1.65;
@@ -368,7 +364,7 @@
     max-width: 36rem;
 }
 
-.tg-hero__actions {
+.md-typeset .tg-hero__actions {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
@@ -376,27 +372,39 @@
     margin: 0;
 }
 
-.tg-hero .headerlink {
+.md-typeset .tg-hero .headerlink {
     display: none;
 }
 
-.tg-hero .md-button {
+.md-typeset .tg-hero .md-button {
     display: inline-block;
+    margin: 0;
     font-size: 0.7rem;
 }
 @media screen and (max-width: 59.9375em) {
-    .tg-hero h1 {
+    .md-typeset .tg-hero h1 {
         font-size: 1.5rem;
     }
 }
 
-/* The home page's content starts close under the title block. */
-.tg-hero ~ .md-main .md-main__inner {
-    margin-top: 0.6rem;
+/* The hero shot: the full width of the page, its caption small beneath it. */
+.md-typeset .tg-shot {
+    margin: 0 0 2rem;
 }
 
-.tg-hero ~ .md-main .md-content__inner {
-    padding-top: 0;
+.md-typeset .tg-shot img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--tg-rule);
+    border-radius: 2px;
+}
+
+.md-typeset .tg-shot figcaption {
+    max-width: none;
+    margin: 0.6rem 0 0;
+    font-size: 0.65rem;
+    font-style: normal;
+    color: var(--md-default-fg-color--light);
 }
 
 /* ---- API reference ------------------------------------------------------------------------ */

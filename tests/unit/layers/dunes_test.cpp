@@ -28,6 +28,7 @@ constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 DuneOptions OneBarchan(double width = 400.0) {
     DuneOptions options;
     options.width = width;
+    options.minWidth = 200.0;
     options.widthSpread = 0.0;
     options.spacing = 6000.0;
     options.density = 1.0;

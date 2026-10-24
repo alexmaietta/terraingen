@@ -287,9 +287,9 @@ double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance)
     } else if (sizes.distribution) {
         density = abundance.background * sizes.distribution->Incremental(diameter);
     } else {
-        const double k = sizes.coverage * abundance.background;
-        density =
-            GolombekRappIncremental(diameter, k, sizes.qConstant + sizes.qCoverageCoefficient / k);
+        const double k = sizes.Coverage() * abundance.background;
+        density = GolombekRappIncremental(diameter, k,
+                                          sizes.QConstant() + sizes.QCoverageCoefficient() / k);
     }
     if (abundance.ejecta > 0.0) {
         density += abundance.ejecta * ejectaSizes_->Incremental(diameter);

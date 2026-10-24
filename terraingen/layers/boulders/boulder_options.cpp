@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/boulders/boulder_options.h"
 
+#include "terraingen/distribution/sp8023.h"
 #include "terraingen/layers/boulders/boulder_abundance.h"
 #include "terraingen/layers/source_resolved.h"
 #include "terraingen/util/bits.h"
@@ -39,7 +40,7 @@ void CheckDistribution(const SizeFrequencyDistribution& distribution, const Boul
 void CheckThrownBlocks(const BoulderEjecta& ejecta, const BoulderSizes& sizes) {
     if (ejecta.distribution) {
         CheckDistribution(*ejecta.distribution, sizes, "The boulder ejecta distribution");
-    } else if (!(ejecta.coverage > 0.0 && ejecta.coverage < 1.0)) {
+    } else if (!(ejecta.Coverage() > 0.0 && ejecta.Coverage() < 1.0)) {
         throw std::invalid_argument("Boulder ejecta coverage must be between 0 and 1");
     }
     if (!(std::isfinite(ejecta.reach) && ejecta.reach > 1.0)) {
@@ -68,8 +69,30 @@ void ValidateBoulderSizes(const BoulderSizes& sizes) {
     }
     if (sizes.distribution) {
         CheckDistribution(*sizes.distribution, sizes, "The boulder distribution");
-    } else if (!(sizes.coverage > 0.0 && sizes.coverage < 1.0)) {
+    } else if (!(sizes.Coverage() > 0.0 && sizes.Coverage() < 1.0)) {
         throw std::invalid_argument("Boulder coverage must be between 0 and 1");
+    }
+}
+
+/// Rejects Golombek-Rapp terms that a size distribution would leave unused.
+void CheckGolombekRappTerms(const BoulderLayerOptions& options) {
+    const BoulderSizes& sizes = options.sizes;
+    const BoulderEjecta& ejecta = options.ejecta;
+    if (sizes.distribution && sizes.coverage) {
+        throw std::invalid_argument(
+            "Boulder coverage is only used by Golombek-Rapp sizes; set sizes.distribution to null "
+            "for them or leave the coverage unset");
+    }
+    if (ejecta.distribution && ejecta.coverage) {
+        throw std::invalid_argument(
+            "Boulder ejecta coverage is only used by Golombek-Rapp blocks; set ejecta.distribution "
+            "to null for them or leave the coverage unset");
+    }
+    if (sizes.distribution && ejecta.distribution &&
+        (sizes.qConstant || sizes.qCoverageCoefficient)) {
+        throw std::invalid_argument(
+            "The Golombek-Rapp qConstant and qCoverageCoefficient are only used by Golombek-Rapp "
+            "sizes or blocks; leave them unset with size distributions");
     }
 }
 
@@ -148,6 +171,12 @@ bool BoulderModelThreshold::IsModel(double diameter, double spacing) const {
                        (minSamples && spacing > 0.0 && diameter >= *minSamples * spacing);
     return large && !(maxDiameter && diameter >= *maxDiameter) &&
            !(maxSamples && spacing > 0.0 && diameter >= *maxSamples * spacing);
+}
+
+std::shared_ptr<const SizeFrequencyDistribution> DefaultBoulderSizes() {
+    static const std::shared_ptr<const SizeFrequencyDistribution> sizes =
+        std::make_shared<TabulatedSfd>(Sp8023IntercraterBlocks(SpecificationCurve::Nominal));
+    return sizes;
 }
 
 double BoulderEjecta::MinCraterDiameter() const {
@@ -278,6 +307,7 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     }
     if (options.generateRandom) {
         ValidateBoulderSizes(options.sizes);
+        CheckGolombekRappTerms(options);
     }
     if (options.densityMap) {
         ValidateDensityMap(*options.densityMap);
@@ -296,7 +326,7 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
     RequirePositive(options.groundSpacing, "Boulder groundSpacing");
     if (options.generateRandom) {
         if (!options.sizes.distribution &&
-            options.sizes.coverage * MaxBackgroundAbundance(options) >= 1.0) {
+            options.sizes.Coverage() * MaxBackgroundAbundance(options) >= 1.0) {
             throw std::invalid_argument("Boulder coverage times the patch spread, cluster and "
                                         "bedrock abundance must stay below 1");
         }

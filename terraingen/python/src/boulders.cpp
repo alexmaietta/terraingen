@@ -218,7 +218,8 @@ void BindPatchesAndEjecta(nb::module_& m) {
         "to `reach` radii, fading as the crater ages.")
         .def_rw("distribution", &BoulderEjecta::distribution,
                 "Sizes per m^2 of the blocks at the rim of a fresh crater, in place of "
-                "Golombek-Rapp blocks of `coverage`; None for those.");
+                "Golombek-Rapp blocks of `coverage`; None for those.",
+                nb::for_setter(nb::arg("value").none()));
 }
 
 void BindClustersAndFragments(nb::module_& m) {
@@ -306,7 +307,8 @@ void BindLayerOptions(nb::module_& m) {
             [](O& o, std::shared_ptr<const SizeFrequencyDistribution> distribution) {
                 o.sizes.distribution = std::move(distribution);
             },
-            "Sizes per m^2 in place of Golombek-Rapp boulders of `coverage`; None for those.")
+            "Sizes per m^2 in place of Golombek-Rapp boulders of `coverage`; None for those.",
+            nb::for_setter(nb::arg("value").none()))
         .def_rw("density_map", &O::densityMap)
         .def_rw("slope_map", &O::slopeMap)
         .def_rw("manual", &O::manual,
@@ -392,7 +394,7 @@ void BindPlacement(nb::module_& m) {
             },
             "mesh"_a, "`mesh`, a unit shape's mesh, with every point moved by the placement.");
     m.def("place_boulder_model", &PlaceBoulderModel, "boulder"_a, "shape"_a, "ground_height"_a,
-          "settle"_a = false,
+          "settle"_a = true,
           "The placement of `shape` as `boulder` on ground at `ground_height`; with `settle`, "
           "tipped over until it rests stably.");
     m.def("placement_at_site", &PlacementAtSite, "placement"_a, "boulder"_a, "site"_a, "surface"_a,

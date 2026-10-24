@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "support/boulder_records.h"
+#include "support/golombek_rapp.h"
 #include "terraingen/terraingen.h"
 #include "terraingen/util/bits.h"
 
@@ -164,7 +165,7 @@ TEST(SphereLayers, BedformsCoverAsMuchGroundAsOnAPlane) {
 }
 
 TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
-    terraingen::BoulderLayerOptions options;
+    terraingen::BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.coverage = 0.15;
     options.sizes.minDiameter = 0.5;
     options.sizes.maxDiameter = 4.0;

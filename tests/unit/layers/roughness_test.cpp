@@ -43,7 +43,7 @@ TEST(RoughnessLayer, RejectsInvalidOptions) {
         [](RoughnessOptions& o) { o.hurst = 0.0; },
         [](RoughnessOptions& o) { o.hurst = 1.5; },
         [](RoughnessOptions& o) { o.minWavelength = 0.0; },
-        [](RoughnessOptions& o) { o.minWavelength = 8.0; },
+        [](RoughnessOptions& o) { o.minWavelength = 32.0; },
         [](RoughnessOptions& o) { o.maxWavelength = std::numeric_limits<double>::infinity(); },
         [](RoughnessOptions& o) { o.minWavelength = 1e-12; },
         [](RoughnessOptions& o) { o.fade = {2.0, 1.0}; }};
@@ -57,7 +57,8 @@ TEST(RoughnessLayer, RejectsInvalidOptions) {
 
 TEST(RoughnessLayer, HalvesOctavesDownToTheShortestWavelength) {
     EXPECT_EQ(RoughnessLayer({}).Wavelengths(),
-              (std::vector<double>{4.0, 2.0, 1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625}));
+              (std::vector<double>{16.0, 8.0, 4.0, 2.0, 1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125,
+                                   0.015625}));
     EXPECT_EQ(RoughnessLayer(Octaves(4.0, 0.25)).Wavelengths(),
               (std::vector<double>{4.0, 2.0, 1.0, 0.5, 0.25}));
     EXPECT_EQ(RoughnessLayer(Octaves(0.3, 0.3)).Wavelengths(), std::vector<double>{0.3});

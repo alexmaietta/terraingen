@@ -263,6 +263,8 @@ TEST(GenerateFromConfig, AddsBouldersWithEjectaFromTheLastCraterLayerBeforeThem)
     terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     ASSERT_EQ(terrain.layers.size(), 3u);
     terraingen::BoulderLayerOptions options = boulders.boulders;
+    options.sizes.distribution = nullptr;
+    options.ejecta.distribution = nullptr;
     terrain.layers[2] = std::make_shared<terraingen::BoulderLayer>(
         options, std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]));
     const auto composed =
