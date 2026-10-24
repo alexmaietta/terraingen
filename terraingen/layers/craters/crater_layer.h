@@ -31,7 +31,8 @@ struct CraterModels {
     std::shared_ptr<const SizeFrequencyDistribution> density;  ///< Craters per m^2 by diameter.
     std::shared_ptr<const CraterAgeModel> ages;                ///< Each crater's age.
     std::shared_ptr<const DegradationModel> degradation;       ///< Each crater's state.
-    std::shared_ptr<const CraterProfile> profile;              ///< Height by distance.
+    /// Height by distance; null takes the one the degradation requires (`MatchedProfile`).
+    std::shared_ptr<const CraterProfile> profile;
 
     /// The profile and degradation, the models that shape the craters.
     CraterShapeModels Shape() const {
@@ -82,10 +83,11 @@ struct CraterLayerOptions {
 /// over the whole grid; bands too small to resolve are not generated.
 class CraterLayer final : public Layer, public CraterPlacer {
   public:
-    /// @param models None may be null.
+    /// @param models Only the profile may be null.
     /// @param source The source the terrain's heights come from, which with
     /// `options.sourceResolvesPixels` holds the craters it resolves; null for none.
-    /// @throws std::invalid_argument for a missing model or invalid options.
+    /// @throws std::invalid_argument for a missing model, a profile `MatchedProfile` rejects, or
+    /// invalid options.
     CraterLayer(CraterModels models, CraterLayerOptions options,
                 std::shared_ptr<const Source> source = nullptr);
 

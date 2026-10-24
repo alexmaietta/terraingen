@@ -238,10 +238,17 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
                       terraingen::SyntheticAlbedoSpec synthetic;
                       synthetic.valueNoise = {terraingen::NoiseStackLayerSpec{}};
                       synthetic.valueNoise[0].layer.fractal.basis = basis;
+                      synthetic.valueNoise[0].amplitude = 0.02f;
                       c.albedo = terraingen::AlbedoSpec{synthetic, {}};
                   }),
                   "valid");
     }
+    EXPECT_EQ(error([](TerrainGenConfig& c) {
+                  terraingen::SyntheticAlbedoSpec synthetic;
+                  synthetic.valueNoise = {terraingen::NoiseStackLayerSpec{}};
+                  c.albedo = terraingen::AlbedoSpec{synthetic, {}};
+              }),
+              "albedo.source.value_noise[0].amplitude");
     EXPECT_EQ(error([](TerrainGenConfig& c) {
                   c.outputs.push_back(terraingen::BoulderModelsOutput{"b.glb", 35.0, Region(c)});
               }),

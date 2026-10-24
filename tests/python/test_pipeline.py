@@ -183,6 +183,27 @@ def test_build_albedo_evaluates_the_configured_albedo():
     ].values.mean() == pytest.approx(0.12)
 
 
+def test_build_albedo_rejects_a_generator_changed_after_building():
+    config = terraingen.TerrainGenConfig.from_dict(
+        {
+            **SPHERE_CONFIG,
+            "layers": [
+                {
+                    "type": "craters",
+                    "generate_random": False,
+                    "manual": [{"x": 0.0, "y": 0.0, "diameter": 500.0}],
+                }
+            ],
+            "albedo": {"source": {"type": "synthetic", "value": 0.12}, "layers": [{"type": "craters"}]},
+        }
+    )
+    generator = terraingen.build_generator(config)
+    terraingen.build_albedo(config, generator)
+    generator.layers = []
+    with pytest.raises(terraingen.ConfigError):
+        terraingen.build_albedo(config, generator)
+
+
 def test_a_terrain_without_a_source_starts_at_the_datum():
     terrain = terraingen.TerrainGenerator()
     assert terrain.source is None

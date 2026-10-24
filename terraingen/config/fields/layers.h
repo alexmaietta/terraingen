@@ -30,8 +30,8 @@ template <typename IO> void Fields(IO& io, NoiseStackLayerSpec& config) {
        "m", Above(0.0));
     io("amplitude", config.amplitude,
        "Largest value of the layer above or below 0: in meters for terrain noise, where unset is "
-       "0.1 times the wavelength, near the lunar highland median slope at any wavelength; unset "
-       "is 100 for albedo noise.",
+       "0.1 times the wavelength, near the lunar highland median slope at any wavelength; "
+       "required for albedo noise.",
        "m");
     io("octaves", fractal.octaves,
        "Number of octaves, at least 1; each one adds detail at a shorter wavelength.", "",

@@ -181,7 +181,7 @@ inline TerrainGenConfig WithAlbedo() {
     synthetic.rgb = true;
     synthetic.saturation = 0.05;
     synthetic.valueNoise = {NoiseStackLayerSpec{}};
-    synthetic.valueNoise[0].layer.fractal.amplitude = 0.2f;
+    synthetic.valueNoise[0].amplitude = 0.2f;
     synthetic.valueNoise[0].layer.fractal.wavelength = 40.0f;
     config.albedo = AlbedoSpec{synthetic, {CraterAlbedoSpec{}}};
     AlbedoOutput output;

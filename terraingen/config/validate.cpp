@@ -882,11 +882,22 @@ void CheckBody(const SurfaceSpec& body, const std::string& path) {
     }
 }
 
+/// Checks an albedo noise stack, whose layers must give their amplitude: it has no default.
+void CheckAlbedoNoiseStack(const std::vector<NoiseStackLayerSpec>& layers,
+                           const std::string& path) {
+    CheckNoiseStack(layers, path, true);
+    for (std::size_t i = 0; i < layers.size(); ++i) {
+        if (!layers[i].amplitude) {
+            throw ConfigError(Child(Element(path, i), "amplitude"), "is required for albedo noise");
+        }
+    }
+}
+
 void CheckAlbedoSource(const SyntheticAlbedoSpec& spec, const std::filesystem::path& /*directory*/,
                        const std::string& path) {
-    CheckNoiseStack(spec.hueNoise, Child(path, "hue_noise_deg"), true);
-    CheckNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"), true);
-    CheckNoiseStack(spec.valueNoise, Child(path, "value_noise"), true);
+    CheckAlbedoNoiseStack(spec.hueNoise, Child(path, "hue_noise_deg"));
+    CheckAlbedoNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"));
+    CheckAlbedoNoiseStack(spec.valueNoise, Child(path, "value_noise"));
     At(path, [&] { ValidateSyntheticAlbedoOptions(spec.Options()); });
 }
 

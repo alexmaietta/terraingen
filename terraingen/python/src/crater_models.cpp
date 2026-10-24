@@ -159,7 +159,18 @@ void BindDegradationModels(nb::module_& m) {
         .def(nb::init<>())
         .def("state", &DegradationModel::State, "crater"_a)
         .def("worn_state", &DegradationModel::WornState, "crater"_a, "rate"_a,
-             "The state had the crater worn `rate` times as fast as on level ground.");
+             "The state had the crater worn `rate` times as fast as on level ground.")
+        .def(
+            "required_profile",
+            [](const DegradationModel& d) { return Mutable(d.RequiredProfile()); },
+            "The profile craters under this model must be shaped with; None when any will do.");
+    m.def(
+        "matched_profile",
+        [](std::shared_ptr<CraterProfile> profile, const DegradationModel& degradation) {
+            return Mutable(MatchedProfile(std::move(profile), degradation));
+        },
+        "profile"_a.none(), "degradation"_a,
+        "`profile`, or when it is None the one `degradation` requires.");
     nb::class_<NoDegradation, DegradationModel>(
         m, "NoDegradation",
         "Craters keep their fresh shape (`fresh`, a function of diameter giving a "
@@ -295,7 +306,8 @@ void BindCraterModelSet(nb::module_& m) {
                 new (self) CraterModels{std::move(density), std::move(ages), std::move(degradation),
                                         std::move(profile)};
             },
-            "density"_a, "ages"_a, "degradation"_a, "profile"_a)
+            "density"_a, "ages"_a, "degradation"_a, "profile"_a.none() = nb::none(),
+            "A profile of None takes the one the degradation requires.")
         .def_prop_ro("density", [](const CraterModels& c) { return Mutable(c.density); })
         .def_prop_ro("ages", [](const CraterModels& c) { return Mutable(c.ages); })
         .def_prop_ro("degradation", [](const CraterModels& c) { return Mutable(c.degradation); })

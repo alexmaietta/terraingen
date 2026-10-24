@@ -41,33 +41,38 @@ class CratersDegradation : public terraingen::examples::Example {
         const auto ages = std::make_shared<terraingen::SteadyStateAges>(
             production, equilibrium, 3.5, terraingen::NeukumLunarChronology);
         const auto fresh = terraingen::LunarFreshCraterMorphometry;
-        const auto diffused = std::make_shared<terraingen::DiffusedProfile>(
-            std::make_shared<terraingen::FassettThomsonProfile>());
-        const std::vector<
-            std::pair<std::string, std::shared_ptr<const terraingen::DegradationModel>>>
-            models = {
-                {"none", std::make_shared<terraingen::NoDegradation>(fresh)},
-                {"fixed", std::make_shared<terraingen::NoDegradation>(fresh, 0.1)},
-                {"freshness", std::make_shared<terraingen::FreshnessDegradation>(ages, fresh)},
-                {"diffusion_ft2014",
-                 std::make_shared<terraingen::DiffusionDegradation>(
-                     fresh, terraingen::FassettThomson2014Diffusivity(), diffused)},
-                {"diffusion_f2022",
-                 std::make_shared<terraingen::DiffusionDegradation>(
-                     fresh, terraingen::Fassett2022HartmannDiffusivity(), diffused)},
-            };
+        const auto profile = std::make_shared<terraingen::FassettThomsonProfile>();
+        const auto diffused = std::make_shared<terraingen::DiffusedProfile>(profile);
+        struct Model {
+            std::string name;
+            std::shared_ptr<const terraingen::DegradationModel> degradation;
+            std::shared_ptr<const terraingen::CraterProfile> profile;
+        };
+        const std::vector<Model> models = {
+            {"none", std::make_shared<terraingen::NoDegradation>(fresh), profile},
+            {"fixed", std::make_shared<terraingen::NoDegradation>(fresh, 0.1), profile},
+            {"freshness", std::make_shared<terraingen::FreshnessDegradation>(ages, fresh), profile},
+            {"diffusion_ft2014",
+             std::make_shared<terraingen::DiffusionDegradation>(
+                 fresh, terraingen::FassettThomson2014Diffusivity(), diffused),
+             diffused},
+            {"diffusion_f2022",
+             std::make_shared<terraingen::DiffusionDegradation>(
+                 fresh, terraingen::Fassett2022HartmannDiffusivity(), diffused),
+             diffused},
+        };
         terraingen::CraterLayerOptions options;
         options.seed = 31;
         options.generation.dMin = 4.0;
         options.generation.dMax = 150.0;
         evaluated_.clear();
         meanRatio_.clear();
-        for (const auto& [name, degradation] : models) {
+        for (const Model& model : models) {
+            const std::string& name = model.name;
             terraingen::TerrainGenerator terrain;
             terrain.source = std::make_shared<terraingen::FlatSource>(257, 257, 1.0);
             terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-                terraingen::CraterModels{density, ages, degradation,
-                                         std::make_shared<terraingen::FassettThomsonProfile>()},
+                terraingen::CraterModels{density, ages, model.degradation, model.profile},
                 options));
             terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
             terraingen::CraterFeatures craters =
@@ -104,11 +109,21 @@ class CratersDegradation : public terraingen::examples::Example {
 
     void Test() override {
         Check(evaluated_.size() == 5, "five degradation models");
-        const std::size_t count = evaluated_.front().craters.craters.Size();
+        const auto centered = [](const Degraded& degraded) {
+            const terraingen::Bounds2d bounds =
+                terraingen::RasterGrid::FromRaster(degraded.heights).Bounds();
+            const terraingen::CraterList& craters = degraded.craters.craters;
+            std::size_t count = 0;
+            for (std::size_t n = 0; n < craters.Size(); ++n) {
+                count += bounds.Contains(craters.At(n).x, craters.At(n).y) ? 1 : 0;
+            }
+            return count;
+        };
+        const std::size_t count = centered(evaluated_.front());
         bool sameCraters = true;
         bool finite = true;
         for (const Degraded& degraded : evaluated_) {
-            sameCraters = sameCraters && degraded.craters.craters.Size() == count;
+            sameCraters = sameCraters && centered(degraded) == count;
             finite = finite && terraingen::ComputeStats(degraded.heights).validCount ==
                                    degraded.heights.Size();
         }

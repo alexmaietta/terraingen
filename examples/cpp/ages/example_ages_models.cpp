@@ -93,9 +93,7 @@ class AgesModels : public terraingen::examples::Example {
             terraingen::TerrainGenerator terrain;
             terrain.source = std::make_shared<terraingen::FlatSource>(257, 257, 2.0);
             terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-                terraingen::CraterModels{density, ages, diffusion,
-                                         std::make_shared<terraingen::FassettThomsonProfile>()},
-                options));
+                terraingen::CraterModels{density, ages, diffusion, diffused}, options));
             terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
             terraingen::CraterList craters =
                 terraingen::PlacedCraters(terrain, terraingen::RasterGrid::FromRaster(heights))

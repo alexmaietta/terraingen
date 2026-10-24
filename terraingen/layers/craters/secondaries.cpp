@@ -324,9 +324,10 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
                                            std::shared_ptr<const Source> source)
     : primaries_(std::move(primaries)), models_(std::move(models)), options_(options),
       apply_(apply) {
-    if (!primaries_ || !models_.profile || !models_.degradation) {
-        throw std::invalid_argument("Secondary craters need primaries, a profile and degradation");
+    if (!primaries_ || !models_.degradation) {
+        throw std::invalid_argument("Secondary craters need primaries and degradation");
     }
+    models_.profile = MatchedProfile(std::move(models_.profile), *models_.degradation);
     ValidateSecondaryCraterOptions(options_);
     ValidateCraterApplyOptions(apply_);
     if (apply_.datum != CraterDatum::None) {

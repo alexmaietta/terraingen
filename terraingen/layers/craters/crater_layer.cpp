@@ -29,10 +29,10 @@ constexpr double kLargestThrower = 5e5;
 CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
                          std::shared_ptr<const Source> source)
     : models_(std::move(models)), options_(std::move(options)) {
-    if (!models_.density || !models_.ages || !models_.degradation || !models_.profile) {
-        throw std::invalid_argument(
-            "A crater layer needs a density, ages, degradation and profile");
+    if (!models_.density || !models_.ages || !models_.degradation) {
+        throw std::invalid_argument("A crater layer needs a density, ages and degradation");
     }
+    models_.profile = MatchedProfile(std::move(models_.profile), *models_.degradation);
     ValidateCraterSpacing(options_.generation.spacing);
     ValidateCraterApplyOptions(options_.apply);
     ValidateSourceResolvesPixels(options_.sourceResolvesPixels);

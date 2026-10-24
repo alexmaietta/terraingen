@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Crater layers take their profile from a degradation model that requires one (`DegradationModel::RequiredProfile`, `MatchedProfile`): `DiffusionDegradation` gives its `DiffusedProfile`, so `CraterModels::profile` (Python `profile=`) may be left null, and a different profile is rejected. The diffusion terrains of the `craters_degradation` and `ages_models` examples were shaped with the plain Fassett-Thomson profile and now are diffused.
+- `BuildAlbedo` throws a `ConfigError` naming the layer when the generator's layers are not the ones the configuration builds, as after changing a built generator, instead of reading past them.
+- Albedo noise layers in a configuration must give their `amplitude`; unset it was 100, which saturated the albedo.
 - `BoulderFeatures::boulders`, `BoulderLayer::Boulders` and `WriteBoulderList` hold or take a `BoulderList` instead of `std::vector<Boulder>`; Python `BoulderLayer.boulders(region)` returns a `BoulderList` like C++ (its `.table` gives the NumPy columns it returned before).
 - `NoiseRelief` takes its noise layers as `std::vector<NoiseLayer>` and returns them from `Layers()`, as the Python binding always did (it took `SyntheticTerrainParams` and had `Params()`).
 - Python `RasterGrid.centered(center, size, pixel_size)` takes the C++ arguments, a center and a size in world units, instead of cell counts (`centered(width, height, pixel_size, center)`).

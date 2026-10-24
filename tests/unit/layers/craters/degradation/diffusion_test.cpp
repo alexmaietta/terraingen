@@ -201,6 +201,32 @@ TEST(DiffusionDegradation, GivesEachCraterItsDiffusionAgeAndWornShape) {
                  std::invalid_argument);
 }
 
+TEST(DiffusionDegradation, ShapesCratersWithItsOwnProfile) {
+    const auto profile = std::make_shared<DiffusedProfile>(
+        std::make_shared<FassettThomsonProfile>(FassettThomsonRim::Plateau));
+    const auto degradation = std::make_shared<DiffusionDegradation>(
+        terraingen::LunarFreshCraterMorphometry, terraingen::Fassett2022HartmannDiffusivity(),
+        profile);
+    EXPECT_EQ(degradation->RequiredProfile(), profile);
+    EXPECT_EQ(terraingen::MatchedProfile(nullptr, *degradation), profile);
+    EXPECT_EQ(terraingen::MatchedProfile(profile, *degradation), profile);
+    const auto plain = std::make_shared<FassettThomsonProfile>();
+    EXPECT_THROW(terraingen::MatchedProfile(plain, *degradation), std::invalid_argument);
+    const terraingen::NoDegradation none(terraingen::LunarFreshCraterMorphometry);
+    EXPECT_EQ(none.RequiredProfile(), nullptr);
+    EXPECT_EQ(terraingen::MatchedProfile(plain, none), plain);
+    EXPECT_THROW(terraingen::MatchedProfile(nullptr, none), std::invalid_argument);
+
+    const auto density = std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0);
+    const auto ages = std::make_shared<terraingen::UniformAges>(1.0);
+    const terraingen::CraterLayer layer({density, ages, degradation, nullptr},
+                                        terraingen::CraterLayerOptions{});
+    EXPECT_EQ(layer.Models().profile, profile);
+    EXPECT_THROW(terraingen::CraterLayer({density, ages, degradation, plain},
+                                         terraingen::CraterLayerOptions{}),
+                 std::invalid_argument);
+}
+
 TEST(DiffusionDegradation, CraterLayersAgreeOnGridsAndPoints) {
     const auto profile = std::make_shared<DiffusedProfile>(
         std::make_shared<FassettThomsonProfile>(FassettThomsonRim::Plateau));

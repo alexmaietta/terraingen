@@ -139,7 +139,7 @@ class DiffusedProfile final : public CraterProfile {
     CraterProfileKernel kernel_;
 };
 
-/// Craters worn by topographic diffusion; pair it with the crater layer's `DiffusedProfile`.
+/// Craters worn by topographic diffusion, shaped with its `DiffusedProfile`.
 class DiffusionDegradation final : public DegradationModel {
   public:
     /// @param ages Each crater's diffusion age kappa t.
@@ -156,6 +156,11 @@ class DiffusionDegradation final : public DegradationModel {
     /// The state with the diffusion age kappa t `rate` times larger, as diffusion `rate` times as
     /// fast would give.
     CraterState WornState(const Crater& crater, double rate) const override;
+
+    /// The diffused profile the craters are shaped with.
+    std::shared_ptr<const CraterProfile> RequiredProfile() const override {
+        return profile_;
+    }
 
   private:
     FreshMorphometry fresh_;

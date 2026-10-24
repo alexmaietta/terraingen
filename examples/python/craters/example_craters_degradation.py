@@ -56,15 +56,17 @@ class Example(_common.Example):
         generation = terraingen.CraterGenerationOptions(d_min=4.0, d_max=150.0)
         self.heights, self.ratios = {}, {}
         for name, degradation in models.items():
-            crater_models = terraingen.CraterModels(
-                density, ages, degradation, terraingen.FassettThomsonProfile()
-            )
+            profile = None if degradation.required_profile() else terraingen.FassettThomsonProfile()
+            crater_models = terraingen.CraterModels(density, ages, degradation, profile)
             craters = terraingen.CraterLayer(
                 crater_models, terraingen.CraterLayerOptions(seed=31, generation=generation)
             )
             terrain = terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, PIXEL), [craters])
             self.heights[name] = terraingen.evaluate(terrain)
-            self.ratios[name] = terraingen.placed_craters(terrain).table["depth_ratio"]
+            table = terraingen.placed_craters(terrain).table
+            half = 0.5 * 257 * PIXEL
+            inside = (np.abs(table["x"]) < half) & (np.abs(table["y"]) < half)
+            self.ratios[name] = np.asarray(table["depth_ratio"])[inside]
             print(f"{name:18s} mean depth/diameter {self.ratios[name].mean():.3f}")
         for name in ("freshness", "none", "fixed d/D 0.1", "diffusion FT2014", "diffusion F2022"):
             self.show(name, self.heights[name])

@@ -7,9 +7,12 @@
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/degradation/state.h"
 
+#include <memory>
 #include <optional>
 
 namespace terraingen {
+
+class CraterProfile;
 
 /// Maps each crater to its degradation state, from its diameter and age.
 class DegradationModel {
@@ -27,7 +30,18 @@ class DegradationModel {
     /// @param rate At least 1.
     /// @throws std::domain_error as `State`.
     virtual CraterState WornState(const Crater& crater, double rate) const;
+
+    /// The profile craters in this model's states must be shaped with; null when any will do.
+    virtual std::shared_ptr<const CraterProfile> RequiredProfile() const {
+        return nullptr;
+    }
 };
+
+/// The profile to shape craters under `degradation` with: `profile`, or when it is null the one
+/// `degradation` requires.
+/// @throws std::invalid_argument if neither is set, or `profile` is not the required one.
+std::shared_ptr<const CraterProfile> MatchedProfile(std::shared_ptr<const CraterProfile> profile,
+                                                    const DegradationModel& degradation);
 
 /// Every crater stays as `fresh` makes it, optionally with one depth/diameter ratio for all.
 class NoDegradation final : public DegradationModel {

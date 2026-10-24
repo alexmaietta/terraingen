@@ -16,6 +16,19 @@ CraterState DegradationModel::WornState(const Crater& crater, double rate) const
     return State(older);
 }
 
+std::shared_ptr<const CraterProfile> MatchedProfile(std::shared_ptr<const CraterProfile> profile,
+                                                    const DegradationModel& degradation) {
+    std::shared_ptr<const CraterProfile> required = degradation.RequiredProfile();
+    if (!profile && !required) {
+        throw std::invalid_argument("Craters need a profile");
+    }
+    if (profile && required && profile != required) {
+        throw std::invalid_argument(
+            "The degradation shapes craters with its own profile; pass that profile or none");
+    }
+    return profile ? profile : required;
+}
+
 NoDegradation::NoDegradation(FreshMorphometry fresh, std::optional<double> depthRatio)
     : fresh_(std::move(fresh)), depthRatio_(depthRatio) {
     if (!fresh_) {

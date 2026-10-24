@@ -57,7 +57,8 @@ TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
 /// albedo layers read. Checks the albedo with `config::ValidateAlbedo` first.
 /// @param generator The generator `BuildGenerator` built from `config`.
 /// @param directory Folder relative input paths resolve against.
-/// @throws ConfigError if the albedo is invalid or the configuration has none.
+/// @throws ConfigError if the albedo is invalid, the configuration has none, or `generator`'s
+/// layers are not the ones `config` builds.
 /// @throws GeoTiffError if an albedo map cannot be read.
 Albedo BuildAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
                    const std::filesystem::path& directory = {});

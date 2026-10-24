@@ -666,14 +666,28 @@ struct AlbedoInputs {
     const TerrainGenerator& generator;
 };
 
+/// The generator's layer `index`, which the configuration built as a `T`.
+/// @throws ConfigError if the generator has no `T` there, as when it was changed after building.
+template <typename T>
+std::shared_ptr<const T> GeneratorLayer(const AlbedoInputs& inputs, std::size_t index) {
+    const std::vector<std::shared_ptr<const Layer>>& layers = inputs.generator.layers;
+    std::shared_ptr<const T> layer =
+        index < layers.size() ? std::dynamic_pointer_cast<const T>(layers[index]) : nullptr;
+    if (!layer) {
+        throw ConfigError(Element("layers", index),
+                          "the generator's layer here is not the one the configuration builds; "
+                          "pass the generator BuildGenerator built from this configuration");
+    }
+    return layer;
+}
+
 void AddAlbedoLayer(const CraterAlbedoSpec& craters, const AlbedoInputs& inputs, Albedo& albedo) {
     const std::vector<std::size_t> indices =
         config::LayerIndices<CraterLayerSpec>(inputs.config.layers);
     for (std::size_t i = 0; i < indices.size(); ++i) {
         if (!craters.craterLayer || *craters.craterLayer == i) {
             albedo.layers.push_back(std::make_shared<CraterAlbedo>(
-                std::static_pointer_cast<const CraterLayer>(inputs.generator.layers[indices[i]]),
-                craters.options));
+                GeneratorLayer<CraterLayer>(inputs, indices[i]), craters.options));
         }
     }
 }
@@ -681,8 +695,8 @@ void AddAlbedoLayer(const CraterAlbedoSpec& craters, const AlbedoInputs& inputs,
 void AddAlbedoLayer(const RockAlbedoSpec& rocks, const AlbedoInputs& inputs, Albedo& albedo) {
     std::vector<RockSource> sources;
     for (const std::size_t i : config::LayerIndices<BoulderLayerSpec>(inputs.config.layers)) {
-        sources.push_back({std::static_pointer_cast<const BoulderLayer>(inputs.generator.layers[i]),
-                           SharedGround(inputs.generator, i)});
+        sources.push_back(
+            {GeneratorLayer<BoulderLayer>(inputs, i), SharedGround(inputs.generator, i)});
     }
     if (rocks.boulderLayer) {
         sources = {sources[*rocks.boulderLayer]};

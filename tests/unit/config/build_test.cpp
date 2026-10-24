@@ -23,6 +23,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 using terraingen::BuildCraterModels;
@@ -549,6 +550,27 @@ TEST(BuildAlbedo, BrightensEveryOrOneCraterLayer) {
     const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(invalid);
     std::get<terraingen::SyntheticAlbedoSpec>(invalid.albedo->source).value = 2.0;
     EXPECT_THROW(terraingen::BuildAlbedo(invalid, terrain), ConfigError);
+}
+
+TEST(BuildAlbedo, RejectsAGeneratorChangedAfterBuilding) {
+    TerrainGenConfig rocky = terraingen::testing::WithAlbedo();
+    rocky.layers.push_back(terraingen::BoulderLayerSpec{});
+    rocky.albedo->layers.push_back(terraingen::RockAlbedoSpec{});
+    const terraingen::TerrainGenerator built = terraingen::BuildGenerator(rocky);
+    ASSERT_GE(built.layers.size(), 2u);
+    terraingen::TerrainGenerator shorter = built;
+    shorter.layers.pop_back();
+    terraingen::TerrainGenerator swapped = built;
+    std::swap(swapped.layers.front(), swapped.layers.back());
+    for (const terraingen::TerrainGenerator* changed : {&shorter, &swapped}) {
+        try {
+            terraingen::BuildAlbedo(rocky, *changed);
+            ADD_FAILURE() << "a changed generator was accepted";
+        } catch (const ConfigError& error) {
+            EXPECT_EQ(error.Path().rfind("layers[", 0), 0u) << error.Path();
+        }
+    }
+    EXPECT_NO_THROW(terraingen::BuildAlbedo(rocky, built));
 }
 
 namespace {

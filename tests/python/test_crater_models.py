@@ -133,6 +133,33 @@ def test_diffusion_degradation_shallows_craters(diffusivity, crater):
     assert state.diffusion > 0 and state.current.depth_ratio < state.fresh.depth_ratio
 
 
+def test_diffusion_degradation_shapes_craters_with_its_own_profile():
+    diffused = terraingen.DiffusedProfile(terraingen.FassettThomsonProfile())
+    degradation = terraingen.DiffusionDegradation(
+        terraingen.lunar_fresh_crater_morphometry,
+        terraingen.fassett_2022_hartmann_diffusivity(),
+        diffused,
+    )
+    assert degradation.required_profile() is not None
+    assert terraingen.matched_profile(None, degradation) is not None
+    with pytest.raises(ValueError):
+        terraingen.matched_profile(terraingen.FassettThomsonProfile(), degradation)
+    models = terraingen.CraterModels(
+        terraingen.PowerLawSfd(0.05, 2.0), terraingen.UniformAges(1.0), degradation
+    )
+    layer = terraingen.CraterLayer(models)
+    assert layer.models.profile is not None
+    with pytest.raises(ValueError):
+        terraingen.CraterLayer(
+            terraingen.CraterModels(
+                terraingen.PowerLawSfd(0.05, 2.0),
+                terraingen.UniformAges(1.0),
+                degradation,
+                terraingen.FassettThomsonProfile(),
+            )
+        )
+
+
 def test_crater_state_freshness_is_the_fraction_of_fresh_depth():
     state = terraingen.CraterState(
         terraingen.CraterMorphometry(0.2, 0.04), terraingen.CraterMorphometry(0.1, 0.02)

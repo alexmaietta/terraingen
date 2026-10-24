@@ -57,7 +57,7 @@ class Example(_common.Example):
         self.heights, self.craters = {}, {}
         print(f"{'ages':16s} {'10%':>7s} {'50%':>7s} {'90%':>7s}  (Gyr)")
         for name, ages in age_models.items():
-            models = terraingen.CraterModels(density, ages, diffusion, terraingen.FassettThomsonProfile())
+            models = terraingen.CraterModels(density, ages, diffusion)
             craters = terraingen.CraterLayer(
                 models, terraingen.CraterLayerOptions(seed=1, generation=generation)
             )
