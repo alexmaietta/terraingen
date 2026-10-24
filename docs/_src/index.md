@@ -12,7 +12,8 @@ Open source &middot; C++ &middot; Python
 
 # Scientific terrain for planetary surfaces
 
-Craters, boulders and albedo from published models, on real elevation data or from scratch.
+Craters, boulders, dunes, layered rock and albedo from published models, on real elevation data or
+from scratch. From a landing site to the whole Moon, Mars or an irregular asteroid.
 { .tg-hero__lead }
 
 [Get started](getting-started/index.md){ .md-button .md-button--primary }
@@ -33,12 +34,12 @@ elevation model. Right: the same terrain upscaled by TerrainGen.</figcaption>
 
 <div class="grid cards" markdown>
 
--   **Real or synthetic relief**
+-   **Sites to whole bodies**
 
     ---
 
-    Add meter-scale detail to GeoTIFF elevation models, or generate terrain from scratch, from a
-    landing site to a whole body.
+    Planes, spheres, triaxial ellipsoids and shape models of irregular bodies, with centimeter-scale
+    detail added to GeoTIFF elevation models or synthetic relief.
 
 -   **Published crater and boulder models**
 
