@@ -11,4 +11,5 @@ normal map, roughness and displacement, at 4096 x 4096.
 
 The seaside rock maps are 2048 x 2048 (diffuse sRGB; OpenGL and DirectX normal maps; roughness,
 ambient occlusion, packed AO/roughness/metal and displacement). The lunar_regolith maps are
-8192 x 8192 (diffuse sRGB, OpenGL normal map, roughness, 16-bit ambient occlusion).
+4096 x 4096, downscaled from 8192 x 8192 originals (diffuse sRGB, 16-bit OpenGL normal map,
+roughness, ambient occlusion).
