@@ -60,7 +60,8 @@ template <typename IO> void Fields(IO& io, AlbedoDetail& detail) {
        "Hurst exponent, in [0, 1], used instead of the one measured from the map; lower values "
        "keep more contrast at fine scales. Unset uses the measured one.",
        "", UnitInterval());
-    io("fade", detail.fade, "How octaves of detail too fine for the sample spacing fade out.");
+    FadePixelFields(io, detail.fade,
+                    "How octaves of detail too fine for the sample spacing fade out.");
 }
 
 template <> struct SpecName<RasterAlbedoSpec> {
@@ -330,8 +331,9 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
     io("origin_reflectance", options.originReflectance,
        "Reflectance of the optical maturity origin, the hypermature end-member, from which "
        "reflectance scales with maturity at fixed iron content.");
-    io("fade", options.fade,
-       "How bright material of craters too small to resolve at the sample spacing fades out.");
+    FadePixelFields(
+        io, options.fade,
+        "How bright material of craters too small to resolve at the sample spacing fades out.");
 }
 
 template <> struct SpecName<CraterAlbedoSpec> {
@@ -444,7 +446,8 @@ template <typename IO> void Fields(IO& io, SplotchAlbedoOptions& options) {
        "Share of a splotch's radius, from 0 up to 1, that lobes of its edge pull in by; 0 keeps "
        "it round.",
        "", FromBelow(0.0, 1.0));
-    io("fade", options.fade, "How splotches too small to resolve at the sample spacing fade out.");
+    FadePixelFields(io, options.fade,
+                    "How splotches too small to resolve at the sample spacing fade out.");
     io("swarms", options.swarms, "Swarms of splotches around new craters; off by default.");
 }
 template <typename IO> void Fields(IO& io, SplotchAlbedoSpec& spec) {

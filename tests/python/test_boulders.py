@@ -140,16 +140,17 @@ def test_boulder_layer_options_nest_their_parts_as_in_cpp():
 def test_boulder_fade_sets_the_smallest_boulder_drawn_in_pixels():
     options = terraingen.BoulderLayerOptions(
         sizes=terraingen.BoulderSizes(distribution=None, coverage=0.1, min_diameter=0.2, max_diameter=3.0),
-        fade_px=(4.0, 6.0),
+        fade=terraingen.ResolutionFade(start_samples=4.0, end_samples=6.0),
     )
-    assert options.fade_px == [4.0, 6.0] and options.fade_shape == terraingen.BlendShape.SMOOTHSTEP
+    assert (options.fade.start_samples, options.fade.end_samples) == (4.0, 6.0)
+    assert options.fade.shape == terraingen.BlendShape.SMOOTHSTEP
     layer = terraingen.BoulderLayer(options)
     region = (-15.0, -15.0, 15.0, 15.0)
     every = layer.boulders(region).table["diameter"]
     drawn = layer.boulders(region, 0.25).table["diameter"]
     assert every.min() < 1.0 and drawn.min() >= 1.0
     assert len(drawn) == np.count_nonzero(every >= 1.0)
-    assert "pixels" in terraingen.BoulderLayerOptions.fade_px.__doc__
+    assert not hasattr(options, "fade_px") and not hasattr(options, "fade_shape")
 
 
 def test_boulder_fillets_and_burial_by_wear_are_options():

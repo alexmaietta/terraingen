@@ -670,8 +670,17 @@ def test_layers_leave_out_what_the_source_resolves():
     assert noise.options.source_resolves_pixels == 4.0
     assert noise.apply_at(0.0, 300.0, 300.0, context) == 0.0
     assert terraingen.NoiseRelief([big], base=dem).apply_at(0.0, 300.0, 300.0, context) != 0.0
-    apply = terraingen.CraterApplyOptions(fade_px=(1.0, 3.0))
-    assert apply.fade_px == [1.0, 3.0] and not hasattr(apply, "fade")
+    apply = terraingen.CraterApplyOptions(fade=terraingen.ResolutionFade(start_samples=1.0, end_samples=3.0))
+    assert apply.fade.end_samples == 3.0 and not hasattr(apply, "fade_px")
+    dunes = terraingen.DuneOptions()
+    dunes.fade.start_samples = 3.0
+    assert dunes.fade.start_samples == 3.0, "every layer's fade is one ResolutionFade, set in place"
+    config = terraingen.TerrainGenConfig.from_dict(
+        {"schema_version": 1, "layers": [{"type": "dunes", "fade_px": [3.0, 5.0], "fade_shape": "linear"}]}
+    )
+    assert (
+        config.to_dict()["layers"][0]["fade_px"] == [3.0, 5.0] and "fade" not in config.to_dict()["layers"][0]
+    )
     config = terraingen.TerrainGenConfig.from_dict(
         {"schema_version": 1, "layers": [{"type": "craters", "source_resolves_px": None}]}
     )

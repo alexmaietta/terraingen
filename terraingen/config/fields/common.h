@@ -85,8 +85,7 @@ struct BindsNativeTrait<IO, std::enable_if_t<IO::kBindsNative>> : std::true_type
 /// An `IO`, such as the Python bindings, that takes values the configuration writes in another
 /// form as they are stored, through hooks: `io.Bound(key, bound, description, unit, unset, range)`
 /// for a bound unset when infinite, `io.Radians(key, radians, description, range)` for an angle
-/// (also optional), `io.NanRadians(...)` for an angle unset when NaN,
-/// `io.FadePixels(key, fade, description)` for a resolution fade, and
+/// (also optional), `io.NanRadians(...)` for an angle unset when NaN, and
 /// `io.Group(name, group, description)` for a group of fields written flat, which returns false to
 /// have them visited flat.
 template <typename IO> inline constexpr bool BindsNative = BindsNativeTrait<IO>::value;
@@ -193,13 +192,14 @@ void NanField(IO& io, std::string_view key, double& value, std::string_view desc
 template <typename IO, typename Fade>
 void FadePixelFields(IO& io, Fade& fade, std::string_view description) {
     if constexpr (BindsNative<IO>) {
-        io.FadePixels("fade_px", fade, description);
-    } else {
-        std::array<double, 2> pixels{fade.startSamples, fade.endSamples};
-        io("fade_px", pixels, description, "px", AtLeast(0.0));
-        fade.startSamples = pixels[0];
-        fade.endSamples = pixels[1];
+        if (io.Group("fade", fade, description)) {
+            return;
+        }
     }
+    std::array<double, 2> pixels{fade.startSamples, fade.endSamples};
+    io("fade_px", pixels, description, "px", AtLeast(0.0));
+    fade.startSamples = pixels[0];
+    fade.endSamples = pixels[1];
     io("fade_shape", fade.shape, "Curve of the fade between the two sample counts of fade_px.");
 }
 

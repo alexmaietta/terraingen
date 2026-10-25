@@ -394,7 +394,7 @@ def full_apply_options():
         datum=terraingen.CraterDatum.MEAN_HEIGHT,
         interior_replacement=0.5,
         blend=terraingen.CraterBlend(start_radii=0.7, end_radii=1.3, shape=terraingen.BlendShape.LINEAR),
-        fade_px=(1.0, 2.0),
+        fade=terraingen.ResolutionFade(start_samples=1.0, end_samples=2.0),
         irregularity=terraingen.CraterIrregularity(
             enabled=True,
             roughness=terraingen.ValueDistribution(terraingen.ValueDistribution.Kind.UNIFORM, 0.02, 0.05),

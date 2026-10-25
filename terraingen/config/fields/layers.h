@@ -98,9 +98,10 @@ template <typename IO> void RoughnessOctaveFields(IO& io, RoughnessOptions& roug
        "m", Above(0.0));
     io("seed", roughness.seed,
        "Seed of the noise; changing it gives a different pattern of the same roughness.");
-    io("fade", roughness.fade,
-       "How octaves too fine to resolve at the sample spacing fade out, by samples per "
-       "wavelength.");
+    FadePixelFields(
+        io, roughness.fade,
+        "How octaves too fine to resolve at the sample spacing fade out, by samples per "
+        "wavelength.");
 }
 
 template <typename IO> void Fields(IO& io, RoughnessOptions& roughness) {
@@ -158,8 +159,9 @@ template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
        "and stoss slopes and takes it away on flanks and lee slopes, as Martian large ripples "
        "do.",
        "", UnitInterval());
-    io("fade", ripples.fade,
-       "How ripples too fine for the sample spacing fade out, by samples per wavelength.");
+    FadePixelFields(
+        io, ripples.fade,
+        "How ripples too fine for the sample spacing fade out, by samples per wavelength.");
 }
 
 template <typename IO> void Fields(IO& io, DuneGrainflows& flows) {
@@ -180,8 +182,9 @@ template <typename IO> void Fields(IO& io, DuneGrainflows& flows) {
        Above(0.0));
     io("thickness", flows.thickness, "Depth of a scarp and height of a lobe, in meters.", "m",
        AtLeast(0.0));
-    io("fade", flows.fade,
-       "How grainflows too narrow for the sample spacing fade out, by samples across a lobe.");
+    FadePixelFields(
+        io, flows.fade,
+        "How grainflows too narrow for the sample spacing fade out, by samples across a lobe.");
 }
 
 template <> struct SpecName<DuneLayerSpec> {
@@ -269,9 +272,10 @@ template <typename IO> void Fields(IO& io, DuneOptions& dunes) {
     AnchorFields(io, dunes.anchor,
                  "the dunes are laid out in; they are true to scale near it and absent on the far "
                  "hemisphere");
-    io("fade", dunes.fade,
-       "How dunes too fine for the sample spacing fade out, by samples across their width or "
-       "wavelength.");
+    FadePixelFields(
+        io, dunes.fade,
+        "How dunes too fine for the sample spacing fade out, by samples across their width or "
+        "wavelength.");
     io("ripples", dunes.ripples, "Ripples superposed on the dunes; unset for none.");
     io("grainflows", dunes.grainflows,
        "Grainflows on the slip faces: scarps below the brink and lobes below them; unset for "
@@ -321,8 +325,9 @@ template <typename IO> void Fields(IO& io, PavementOptions& pavement) {
                    "Shows plates only where the ground beneath is bare bedrock, fading out over "
                    "soil; unset shows them everywhere.");
     AnchorFields(io, pavement.anchor, "the plates are laid out in");
-    io("fade", pavement.fade,
-       "How plates and cracks too fine for the sample spacing fade out, by samples across them.");
+    FadePixelFields(
+        io, pavement.fade,
+        "How plates and cracks too fine for the sample spacing fade out, by samples across them.");
 }
 template <typename IO> void Fields(IO& io, PavementLayerSpec& spec) {
     Fields(io, spec.pavement);
@@ -391,9 +396,10 @@ template <typename IO> void Fields(IO& io, SandShadowOptions& shadows) {
        AtLeast(0.0));
     io("cover_thickness", shadows.coverThickness,
        "Sand depth that fully covers the ground in the material map, in meters.", "m", Above(0.0));
-    io("fade", shadows.fade,
-       "How tails behind boulders too small for the sample spacing fade out, by samples across "
-       "the boulder.");
+    FadePixelFields(
+        io, shadows.fade,
+        "How tails behind boulders too small for the sample spacing fade out, by samples across "
+        "the boulder.");
 }
 template <typename IO> void Fields(IO& io, SandShadowLayerSpec& spec) {
     Fields(io, spec.shadows);
@@ -457,8 +463,9 @@ template <typename IO> void Fields(IO& io, BedformOptions& bedforms) {
     ExposureFields(io, bedforms.exposure, bedforms.exposureSpacing,
                    "Leaves out fields whose centers lie on bedrock, the likelier the barer the "
                    "ground, as sand settles in lows; unset disables it.");
-    io("fade", bedforms.fade,
-       "How bedforms too fine for the sample spacing fade out, by samples per wavelength.");
+    FadePixelFields(
+        io, bedforms.fade,
+        "How bedforms too fine for the sample spacing fade out, by samples per wavelength.");
     SourceResolvesField(io, bedforms.sourceResolvesPixels, "bedforms", "wavelength");
 }
 template <typename IO> void Fields(IO& io, BedformLayerSpec& spec) {
@@ -480,8 +487,9 @@ void SpectralSynthesisFields(IO& io, double& minWavelength, double& taperOctaves
     io("seed", seed,
        "Seed of the detail; changing it gives a different pattern of the same "
        "spectrum.");
-    io("fade", fade,
-       "How wavelengths too fine for the sample spacing fade out, by samples per wavelength.");
+    FadePixelFields(
+        io, fade,
+        "How wavelengths too fine for the sample spacing fade out, by samples per wavelength.");
 }
 
 template <typename IO> void Fields(IO& io, SpectralContinuationOptions& options) {
