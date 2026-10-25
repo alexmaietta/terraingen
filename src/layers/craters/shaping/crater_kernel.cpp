@@ -11,6 +11,7 @@
 #include "terraingen/random/stream.h"
 #include "terraingen/random/streams.h"
 #include "terraingen/util/geometry.h"
+#include "util/bisection.h"
 
 #include <algorithm>
 #include <array>
@@ -501,13 +502,10 @@ void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terrace
         const double kept =
             1.0 - Smoothstep((needed - kSteepTerraceStep) / (1.0 - kSteepTerraceStep));
         const double target = meanHeight(from, to, -1.0, scarp);
-        double low = kTerraceLevelMargin;
-        double high = 1.0 - kTerraceLevelMargin;
-        for (int n = 0; n < kTerraceLevelIterations; ++n) {
-            const double level = 0.5 * (low + high);
-            (meanHeight(from, to, level, scarp) < target ? low : high) = level;
-        }
-        for (const double value : {0.5 * (low + high), scarp, kept}) {
+        const BisectionInterval level =
+            Bisect(kTerraceLevelMargin, 1.0 - kTerraceLevelMargin, kTerraceLevelIterations, 0.0,
+                   [&](double l) { return !(meanHeight(from, to, l, scarp) < target); });
+        for (const double value : {0.5 * (level.low + level.high), scarp, kept}) {
             data.push_back(static_cast<float>(value));
         }
     }

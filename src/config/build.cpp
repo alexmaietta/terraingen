@@ -405,11 +405,6 @@ std::shared_ptr<const Source> MeasuredSource(const SourceSpec& spec,
         spec);
 }
 
-/// The point noise is measured from: the source's reference point, or the origin without one.
-Vec2d ReferencePoint(const TerrainGenerator& generator) {
-    return generator.source ? generator.source->ReferencePoint() : Vec2d{};
-}
-
 /// What a layer is built on: the source's reference point, the top-level crater layers so far (all
 /// for boulder ejecta, the last for secondaries), the last boulder layer (for sand shadows) and the
 /// surface.

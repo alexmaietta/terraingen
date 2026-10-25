@@ -84,10 +84,8 @@ struct BindsNativeTrait<IO, std::enable_if_t<IO::kBindsNative>> : std::true_type
 
 /// An `IO`, such as the Python bindings, that takes values the configuration writes in another
 /// form as they are stored, through hooks: `io.Bound(key, bound, description, unit, unset, range)`
-/// for a bound unset when infinite, `io.Radians(key, radians, description, range)` for an angle
-/// (also optional), `io.NanRadians(...)` for an angle unset when NaN, and
-/// `io.Group(name, group, description)` for a group of fields written flat, which returns false to
-/// have them visited flat.
+/// for a bound unset when infinite, and `io.Group(name, group, description)` for a group of fields
+/// written flat, which returns false to have them visited flat.
 template <typename IO> inline constexpr bool BindsNative = BindsNativeTrait<IO>::value;
 
 /// Reads or writes a bound that is unset when infinite, as an optional field.
@@ -119,71 +117,11 @@ inline double RadiansFromDegrees(double degrees) {
     return degrees * kDegree;
 }
 
-/// Reads or writes an angle stored in radians as degrees, the unit "deg": its key ends in "_deg"
-/// and `range` is in degrees. Unchanged degrees leave the radians exactly as they were.
 /// An angle field in degrees, as the library stores it; `range` is in degrees.
 template <typename IO, typename Degrees>
 void DegreeField(IO& io, std::string_view key, Degrees& degrees, std::string_view description,
                  const FieldRange& range = {}) {
     io(key, degrees, description, "deg", range);
-}
-
-template <typename IO>
-void RadianField(IO& io, std::string_view key, double& radians, std::string_view description,
-                 const FieldRange& range = {}) {
-    if constexpr (BindsNative<IO>) {
-        io.Radians(key, radians, description, range);
-    } else {
-        const double shown = DegreesFromRadians(radians);
-        double degrees = shown;
-        io(key, degrees, description, "deg", range);
-        if (!(degrees == shown)) {
-            radians = RadiansFromDegrees(degrees);
-        }
-    }
-}
-
-/// `RadianField` for an optional angle, unset when the field is.
-template <typename IO>
-void RadianField(IO& io, std::string_view key, std::optional<double>& radians,
-                 std::string_view description, const FieldRange& range = {}) {
-    if constexpr (BindsNative<IO>) {
-        io.Radians(key, radians, description, range);
-    } else {
-        std::optional<double> shown;
-        if (radians) {
-            shown = DegreesFromRadians(*radians);
-        }
-        std::optional<double> degrees = shown;
-        io(key, degrees, description, "deg", range);
-        if (degrees.has_value() != shown.has_value() || (degrees && !(*degrees == *shown))) {
-            radians = degrees ? std::optional<double>(RadiansFromDegrees(*degrees)) : std::nullopt;
-        }
-    }
-}
-
-/// `RadianField` for an angle unset when NaN, as an optional field in degrees.
-template <typename IO>
-void NanRadianField(IO& io, std::string_view key, double& radians, std::string_view description,
-                    const FieldRange& range = {}) {
-    if constexpr (BindsNative<IO>) {
-        io.NanRadians(key, radians, description, range);
-    } else {
-        std::optional<double> value;
-        if (!std::isnan(radians)) {
-            value = radians;
-        }
-        RadianField(io, key, value, description, range);
-        radians = value.value_or(std::numeric_limits<double>::quiet_NaN());
-    }
-}
-
-/// Reads or writes a number unset when NaN, as an optional field.
-template <typename IO>
-void NanField(IO& io, std::string_view key, double& value, std::string_view description,
-              std::string_view unit = {}, const FieldRange& range = {}) {
-    OptionalBound(io, key, value, description, unit, std::numeric_limits<double>::quiet_NaN(),
-                  range);
 }
 
 /// The fields of a resolution fade (`ResolutionFade`) as "fade_px", its start and end sample

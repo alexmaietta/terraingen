@@ -28,11 +28,41 @@ BisectionInterval Bisect(double low, double high, int steps, double tolerance, c
     return {low, high};
 }
 
+/// A bracket [`a`, `b`] of a root of a continuous function, narrowed by the Illinois variant of
+/// regula falsi; `fa` and `fb` are the function's values at the ends, of opposite signs.
+struct IllinoisBracket {
+    double a = 0.0;
+    double b = 0.0;
+    double fa = 0.0;
+    double fb = 0.0;
+    int side = 0;
+
+    /// The next estimate of the root: the secant's zero, or the middle where it leaves the bracket.
+    double Next() const {
+        const double c = b - fb * (b - a) / (fb - fa);
+        return c > a && c < b ? c : 0.5 * (a + b);
+    }
+
+    /// Moves the end on the side of `c` to it, given its value `fc`, halving the other end's value
+    /// when the same end moved last time.
+    void Update(double c, double fc) {
+        if ((fc < 0.0) == (fa < 0.0)) {
+            a = c;
+            fa = fc;
+            fb *= side == -1 ? 0.5 : 1.0;
+            side = -1;
+        } else {
+            b = c;
+            fb = fc;
+            fa *= side == 1 ? 0.5 : 1.0;
+            side = 1;
+        }
+    }
+};
+
 /// `Bisect` of `above(x) = !(value(x) < target)` for a non-decreasing `value`, to the same
-/// interval, with fewer calls of `value` when it is smooth (about 22 rather than 51 for a lunar
-/// chronology at a tolerance of 1e-15 of the interval): up to 12 steps of the Illinois method
-/// estimate the crossing, points either side of it are checked to bracket it, and the halving is
-/// replayed, calling `value` only at middles near the bracket.
+/// interval with fewer calls of `value` when it is smooth: Illinois steps estimate the crossing,
+/// points either side of it bracket it, and the halving is replayed calling `value` only near it.
 /// @param value Callable as `double(double x)`; non-decreasing over [`low`, `high`], or the
 /// interval may differ from `Bisect`'s.
 template <typename Value>
@@ -40,43 +70,23 @@ BisectionInterval BisectRising(double low, double high, int steps, double tolera
                                const Value& value) {
     constexpr int kEstimateSteps = 12;
     const double margin = 1e-13 * (high - low);
-    double a = low;
-    double b = high;
-    double fa = value(a) - target;
-    double fb = value(b) - target;
-    bool belowKnown = fa < 0.0;
-    bool aboveKnown = !(fb < 0.0);
-    double below = a;
-    double above = b;
+    IllinoisBracket bracket{low, high, value(low) - target, value(high) - target};
+    const bool belowKnown = bracket.fa < 0.0;
+    const bool aboveKnown = !(bracket.fb < 0.0);
+    double below = low;
+    double above = high;
     if (belowKnown && aboveKnown) {
-        int side = 0;
-        double c = a;
+        double c = low;
         for (int i = 0; i < kEstimateSteps; ++i) {
             const double previous = c;
-            c = b - fb * (b - a) / (fb - fa);
-            if (!(c > a && c < b)) {
-                c = 0.5 * (a + b);
-            }
-            const double fc = value(c) - target;
-            if (fc < 0.0) {
-                a = c;
-                fa = fc;
-                if (side == -1) {
-                    fb *= 0.5;
-                }
-                side = -1;
-            } else {
-                b = c;
-                fb = fc;
-                if (side == 1) {
-                    fa *= 0.5;
-                }
-                side = 1;
-            }
+            c = bracket.Next();
+            bracket.Update(c, value(c) - target);
             if (i > 0 && std::fabs(c - previous) <= margin) {
                 break;
             }
         }
+        const double a = bracket.a;
+        const double b = bracket.b;
         below = a;
         above = b;
         for (const double spread : {margin, 64.0 * margin}) {

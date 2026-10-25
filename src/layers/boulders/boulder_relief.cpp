@@ -5,6 +5,7 @@
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
+#include "util/bisection.h"
 
 #include <algorithm>
 #include <array>
@@ -70,17 +71,10 @@ FilletContact RoundDomeContact(const Boulder& boulder, double width, double top)
     if (DomeHeight(boulder, radius, width) >= height) {
         return {radius, height};
     }
-    double inside = 0.0;
-    double outside = radius;
-    for (int step = 0; step < 50; ++step) {
-        const double middle = 0.5 * (inside + outside);
-        if (DomeHeight(boulder, middle, width) >= height) {
-            inside = middle;
-        } else {
-            outside = middle;
-        }
-    }
-    return {inside, height};
+    const BisectionInterval contact = Bisect(0.0, radius, 50, 0.0, [&](double distance) {
+        return !(DomeHeight(boulder, distance, width) >= height);
+    });
+    return {contact.low, height};
 }
 
 /// Where a fillet `top` meters high meets a dome averaged over `width` meters and cut by the
@@ -110,17 +104,10 @@ FilletContact FacetedDomeContact(const Boulder& boulder, const Vec2d& direction,
             last = static_cast<int>(step);
         }
     }
-    double inside = outer * last / kSteps;
-    double outside = outer * std::min(last + 1, kSteps) / kSteps;
-    for (int step = 0; step < 40; ++step) {
-        const double middle = 0.5 * (inside + outside);
-        if (rock(middle) >= height) {
-            inside = middle;
-        } else {
-            outside = middle;
-        }
-    }
-    return {inside, height};
+    const BisectionInterval contact =
+        Bisect(outer * last / kSteps, outer * std::min(last + 1, kSteps) / kSteps, 40, 0.0,
+               [&](double distance) { return !(rock(distance) >= height); });
+    return {contact.low, height};
 }
 
 /// How many directions a shape's fillet contacts are found in for a boulder of `diameter` at
