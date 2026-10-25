@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Point queries as a physics engine makes them: a rover's four wheels, 2 m by 1.6 m apart, driving a
+"""Point queries as a physics engine makes them. A rover's four wheels, 2 m by 1.6 m apart, drive a
 40 m path across cratered, bouldery ground, each wheel's height asked of the terrain at 5 cm with
-height_at, no grid evaluated. Left: the path over the hillshade. Right: the wheel heights and the
-body's pitch and roll along the path."""
+height_at, no grid evaluated. The left panel shows the path over the hillshade. The right one shows
+the wheel heights and the body's pitch and roll along the path."""
 
 import gallery
 import matplotlib.pyplot as plt

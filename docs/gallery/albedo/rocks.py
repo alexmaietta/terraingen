@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Boulders brighten the albedo, on a 40 m square of SP-8023 maximum boulders. Left three, at 0.1 m:
-rock 1.5, 2.5 (the default) and 4 times as bright as the regolith. Right two, the same square at 1 m,
-where most boulders are too small to resolve: without and with their unresolved cover drawn as a
-speckle of the right mean and variance."""
+"""Boulders brighten the albedo, on a 40 m square of SP-8023 maximum boulders. The left three, at
+0.1 m, make rock 1.5, 2.5 (the default) and 4 times as bright as the regolith. The right two show the
+same square at 1 m, where most boulders are too small to resolve, without and with their unresolved
+cover drawn as a speckle of the right mean and variance."""
 
 import matplotlib.pyplot as plt
 

@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Every named crater density, as the number of craters at least D across per square meter. Left: the
-production functions over 3.5 Gyr, Neukum's lunar function from 10 m, its extension down to 2.5 m,
-and Ivanov's for Mars with its own chronology, beside the Trask and Hartmann equilibria that cap them.
-Right: Moore et al.'s (1974) four terrain types and the VIPER environmental specification."""
+"""Every named crater density, as the number of craters at least D across per square meter. The left plot
+shows the production functions over 3.5 Gyr, Neukum's lunar function from 10 m, its extension down to
+2.5 m, and Ivanov's for Mars with its own chronology, beside the Trask and Hartmann equilibria that cap
+them. The right plot shows Moore et al.'s (1974) four terrain types and the VIPER environmental
+specification."""
 
 import matplotlib.pyplot as plt
 import numpy as np

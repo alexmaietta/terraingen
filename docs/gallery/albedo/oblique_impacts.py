@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Rays of a fresh 400 m crater struck from the west, on a 3 km square: radial rays from a vertical
-impact, then the patterns of ever lower impact angles: rays reaching farther downrange, a forbidden
-zone uprange with no rays, and a butterfly of rays to either side. The angle thresholds are set here
-so this one crater falls in each regime."""
+"""Rays of a fresh 400 m crater struck from the west, on a 3 km square. The first panel shows radial
+rays from a vertical impact. The others show the patterns of ever lower impact angles, with rays
+reaching farther downrange, a forbidden zone uprange with no rays, and a butterfly of rays to either
+side. The angle thresholds are set here so this one crater falls in each regime."""
 
 import matplotlib.pyplot as plt
 
@@ -36,9 +36,9 @@ def figure(quick=False):
         rays = settings.rays
         oblique = rays.oblique
         oblique.enabled = thresholds is not None
-        oblique.heading_degrees = 0.0
+        oblique.heading_deg = 0.0
         if thresholds is not None:
-            oblique.asymmetric_degrees, oblique.forbidden_degrees, oblique.butterfly_degrees = thresholds
+            oblique.asymmetric_deg, oblique.forbidden_deg, oblique.butterfly_deg = thresholds
         rays.oblique = oblique
         settings.rays = rays
         albedo = terraingen.Albedo(base, [terraingen.CraterAlbedo(crater, settings)])

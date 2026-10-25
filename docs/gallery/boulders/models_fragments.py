@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Boulders splitting as they wear: one block model broken into 3, 6 and 10 pieces that fit back
-together, each piece pulled a fifth of its distance out from the center so the cracks show. Top:
-radial cracks, near-vertical and running out from the middle like slices. Bottom: slab cracks,
-parallel sheets as a layered rock splits. The pieces become boulders of their own, opening apart
-and then scattering as rubble with more wear."""
+"""Boulders splitting as they wear. One block model is broken into 3, 6 and 10 pieces that fit back
+together, each piece pulled a fifth of its distance out from the center so the cracks show. The top
+row has radial cracks, near-vertical and running out from the middle like slices. The bottom row has
+slab cracks, parallel sheets as a layered rock splits. The pieces become boulders of their own,
+opening apart and then scattering as rubble with more wear."""
 
 import gallery
 import matplotlib.pyplot as plt

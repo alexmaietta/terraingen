@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Published boulder size-frequency distributions. Top: their cumulative curves: NASA SP-8023's
-intercrater blocks on its minimum, nominal and maximum curves and its blocks near craters, Golombek
-and Rapp's model at 5% and 10% rock cover, and synthterrain's Haworth and VIPER specification power
-laws. Bottom: the boulders of 0.3 to 5 m each places on a 40 m square, drawn to scale and colored by
-their height, each titled in its curve's color."""
+"""Published boulder size-frequency distributions. The top plot shows their cumulative curves, NASA
+SP-8023's intercrater blocks on its minimum, nominal and maximum curves and its blocks near craters,
+Golombek and Rapp's model at 5% and 10% rock cover, and synthterrain's Haworth and VIPER specification
+power laws. The bottom row shows the boulders of 0.3 to 5 m each places on a 40 m square, drawn to
+scale and colored by their height, each titled in its curve's color."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fractured bedrock pavement on 15 m squares, hillshaded with a low sun. Left to right: plates about
-a meter across split by cracks 5 cm wide and deep, each plate tilted and stepped a little; the same
-cracks raised into ridges instead; three octaves of cracks, each half the size of the last; and
-Martian desiccation ridges, raised 5 mm ridges around 2 cm polygons as Curiosity found in Gale
-crater (Stein et al. 2018), on a 40 cm square."""
+"""Fractured bedrock pavement on 15 m squares, hillshaded with a low sun. The first panel shows plates
+about a meter across split by cracks 5 cm wide and deep, each plate tilted and stepped a little. The
+second raises the same cracks into ridges instead. The third has three octaves of cracks, each half
+the size of the last. The last shows Martian desiccation ridges, raised 5 mm ridges around 2 cm
+polygons as Curiosity found in Gale crater (Stein et al. 2018), on a 40 cm square."""
 
 import gallery
 import matplotlib.pyplot as plt

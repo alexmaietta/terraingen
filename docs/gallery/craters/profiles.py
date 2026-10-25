@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fresh 100 m crater profiles: Martin, Parkes and Dunstan's polynomials beside Fassett and Thomson's
-cubic fits with their three rims, the original fits meeting at 0.98 radii, synthterrain's rim at one
-radius, and Fassett's (2022) flat plateau. Top: height across the crater, and zoomed on the rim.
-Below: each profile as a round crater on flat ground, hillshaded and as a slope map, where the
-Fassett and Thomson walls show as one even slope and their rims as sharp breaks."""
+"""Fresh 100 m crater profiles compare Martin, Parkes and Dunstan's polynomials with Fassett and
+Thomson's cubic fits with their three rims, the original fits meeting at 0.98 radii, synthterrain's rim
+at one radius, and Fassett's (2022) flat plateau. The top row shows height across the crater, and
+zoomed on the rim. Below, each profile is a round crater on flat ground, hillshaded and as a slope
+map, where the Fassett and Thomson walls show as one even slope and their rims as sharp breaks."""
 
 import gallery
 import matplotlib.pyplot as plt

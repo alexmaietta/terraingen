@@ -142,9 +142,9 @@ template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
        "Unset keeps the file's.",
        "m");
     io("crop", read.crop,
-       "Box in the raster's CRS units to read: only the cells meeting it are used, read from a "
-       "window of the file, with the same heights there as reading the whole file. Unset reads "
-       "the whole file.");
+       "Box in the raster's CRS units the source covers: only the cells meeting it are used, "
+       "with the same heights there as the whole file. Unset covers the whole file; either way "
+       "only the tiles or strips that outputs and layers ask heights of are read.");
     io("effective_pixel_size_m", read.effectivePixelSize,
        "Cell size in meters the heights truly resolve, for a DEM that was upsampled or smoothed "
        "before it was saved; it replaces the cell size as the scale below which the source "

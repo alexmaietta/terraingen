@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Older boulders sink deeper: boulders of 0.3 m and up on a 30 m square at 10% rock cover, between
-craters so their wear spans every stage, buried between none and 0.8 of their height with wear
-setting none, half (0.5) and all (1) of the draw. Drawn to scale and colored by their buried share.
-Bottom: buried share against wear, from scattered to tracking wear."""
+"""Older boulders sink deeper. Boulders of 0.3 m and up on a 30 m square at 10% rock cover, between
+craters so their wear spans every stage, are buried between none and 0.8 of their height with wear
+setting none, half (0.5) and all (1) of the draw. They are drawn to scale and colored by their buried
+share. The bottom plot shows buried share against wear, from scattered to tracking wear."""
 
 import gallery
 import matplotlib.pyplot as plt

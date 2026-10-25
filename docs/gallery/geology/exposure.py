@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Where bedrock shows and sand collects: an exposure field estimates from the ground how bare it is,
+"""Where bedrock shows and sand collects. An exposure field estimates from the ground how bare it is,
 from 0 in covered hollows to 1 on crests and steep slopes, over 8 m around each point. On 128 m of
-rough Martian ground, left: the exposure. Middle: ripple fields that grow only on covered ground.
-Right: boulders that gather four times as thickly on exposed bedrock, drawn to scale over the
-hillshade (0.8 m to 4 m, drawn to scale) and colored by the exposure beneath them."""
+rough Martian ground, the left panel shows the exposure. The middle one shows ripple fields that grow
+only on covered ground. The right one shows boulders that gather four times as thickly on exposed
+bedrock, drawn to scale over the hillshade (0.8 m to 4 m, drawn to scale) and colored by the
+exposure beneath them."""
 
 import gallery
 import matplotlib.pyplot as plt

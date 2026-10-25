@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Surface splotches, the small dark and bright patches Speyerer et al. (2016) found forming between
-LROC images, on 100 m squares. Left to right: the measured mix, nine in ten dark; half of them bright;
-with sharp round edges; and with soft ragged ones."""
+LROC images, on 100 m squares. From left to right the panels show the measured mix (nine in ten
+dark), half of them bright, sharp round edges, and soft ragged ones."""
 
 import matplotlib.pyplot as plt
 

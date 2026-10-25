@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Density maps as an areal fraction, setting the share of the ground covered by craters of a size
-range: fresh craters from 4 m to 60 m shaped like the Trask equilibrium on 400 m squares of fractal
-relief, mapped as the share covered by craters from 5 m to 60 m (Trask covers 31%). Left to right: a
-uniform 30%; a gradient from none in the west to 60% in the east; and fractal patches from none to
-60%. Top: the maps. Bottom: the craters they place, titled with the share their circles cover against
-the map's mean."""
+range. Fresh craters from 4 m to 60 m shaped like the Trask equilibrium on 400 m squares of fractal
+relief are mapped as the share covered by craters from 5 m to 60 m (Trask covers 31%). From left to
+right the maps are a uniform 30%, a gradient from none in the west to 60% in the east, and fractal
+patches from none to 60%. The top row shows the maps. The bottom row shows the craters they place,
+titled with the share their circles cover against the map's mean."""
 
 import gallery
 import matplotlib.pyplot as plt

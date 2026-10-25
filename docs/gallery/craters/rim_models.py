@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Rim roughness models: three fresh 80 m craters among older small craters on fractal relief, their
-outlines roughened by 3% of a radius RMS. Left and middle: random harmonics 2 to 12 with power
-falling as a power law of spectral slope 1, lumpy with several lobes, and 2.5, nearly all in the
-broadest harmonics, a slightly oval rim. Right: the harmonic spectra Du et al. (2024) fitted to lunar
-crater rims, ragged at short wavelengths. Hillshaded with a low sun."""
+"""Rim roughness models on three fresh 80 m craters among older small craters on fractal relief, their
+outlines roughened by 3% of a radius RMS. The left and middle craters use random harmonics 2 to 12
+with power falling as a power law of spectral slope 1, lumpy with several lobes, and 2.5, nearly all
+in the broadest harmonics, a slightly oval rim. The right one uses the harmonic spectra Du et al.
+(2024) fitted to lunar crater rims, ragged at short wavelengths. Hillshaded with a low sun."""
 
 import gallery
 import matplotlib.pyplot as plt

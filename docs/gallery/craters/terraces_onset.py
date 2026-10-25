@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Onset and full diameters: three fresh 30 km complex craters with terraces starting at 8 km and
-reaching their most benches at 30 km, about where Martian craters terrace (Pike 1980); at the
-lunar 20 and 65 km defaults (Smith and Hartnell 1978); and from 28 to 100 km, so terraces only
-begin. Top: the craters hillshaded with a low sun. Bottom: a west-east profile through each on the
-same relief, and without terraces (dashed)."""
+"""Onset and full diameters on three fresh 30 km complex craters. The first has terraces starting at
+8 km and reaching their most benches at 30 km, about where Martian craters terrace (Pike 1980). The
+second uses the lunar 20 and 65 km defaults (Smith and Hartnell 1978). The third runs from 28 to
+100 km, so terraces only begin. The top row shows the craters hillshaded with a low sun. The bottom
+row shows a west-east profile through each on the same relief, and without terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

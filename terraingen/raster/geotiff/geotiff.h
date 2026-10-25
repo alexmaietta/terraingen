@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -140,6 +141,40 @@ GeoTiff ReadGeoTiff(const std::filesystem::path& path, std::size_t band = 0);
 /// @throws std::invalid_argument for a window that is empty once clipped.
 GeoTiff ReadGeoTiffWindow(const std::filesystem::path& path, std::size_t band,
                           const PixelWindow& window);
+
+/// One band of a GeoTIFF's first image read a block at a time from the file held open, a block
+/// being a tile or a strip spanning every column; blocks hold the samples `ReadGeoTiff` reads.
+/// Thread-safe.
+class GeoTiffBlockReader {
+  public:
+    /// Opens the file and reads its layout.
+    /// @param band The band, from 0.
+    /// @throws GeoTiffError as `ReadGeoTiff`.
+    GeoTiffBlockReader(const std::filesystem::path& path, std::size_t band);
+    ~GeoTiffBlockReader();
+
+    GeoTiffBlockReader(const GeoTiffBlockReader&) = delete;
+    GeoTiffBlockReader& operator=(const GeoTiffBlockReader&) = delete;
+
+    /// The layout and georeferencing of the image.
+    const GeoTiffInfo& Info() const;
+
+    /// Columns of a block: a tile's, or the image's for strips.
+    std::size_t BlockWidth() const;
+
+    /// Rows of a block.
+    std::size_t BlockHeight() const;
+
+    /// The cells of block (`col`, `row`), counted in blocks, clipped to the image, with their
+    /// transform and the file's no-data value.
+    /// @throws GeoTiffError as `ReadGeoTiff`.
+    /// @throws std::invalid_argument for a block beyond the image.
+    Raster<float> ReadBlock(std::size_t col, std::size_t row) const;
+
+  private:
+    struct State;
+    std::unique_ptr<State> state_;
+};
 
 /// GeoKeys for longitude and latitude in degrees on a sphere, such as a planet or moon.
 ///

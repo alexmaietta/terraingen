@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The synthetic albedo base on 400 m squares: a mature mare value of 0.11 at 750 nm, multiplied by
+"""The synthetic albedo base on 400 m squares is a mature mare value of 0.11 at 750 nm, multiplied by
 1 plus fractal value noise, here 150 m noise with amplitudes of 0, 0.2 and 0.5, then finer 30 m noise
 of 0.5, and last as three bands, tinted a warm hue with noise in hue and saturation too. The gray
 panels share one scale."""
@@ -36,9 +36,9 @@ def figure(quick=False):
                 value=0.11,
                 value_noise=noise(8, 150.0, 0.3),
                 rgb=True,
-                hue_degrees=30.0,
+                hue_deg=30.0,
                 saturation=0.25,
-                hue_noise_degrees=noise(9, 200.0, 15.0),
+                hue_noise_deg=noise(9, 200.0, 15.0),
                 saturation_noise=noise(10, 200.0, 0.1),
             ),
         ),

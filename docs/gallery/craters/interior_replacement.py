@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How much of the older relief a crater cut into a fitted plane replaces inside it: three fresh 80 m
-craters on rough, cratered ground with interior replacement of 0, keeping all of the old relief on
+"""How much of the older relief a crater cut into a fitted plane replaces inside it. Three fresh 80 m
+craters on rough, cratered ground have interior replacement of 0, keeping all of the old relief on
 the new floor and walls, 0.5, and 1 (the default), a clean new crater. Hillshaded with a low sun."""
 
 import gallery

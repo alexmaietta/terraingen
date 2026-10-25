@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Two regions shaping one scene, 200 m of fractal relief: craters only inside a 90 m circle in the
-west (red), set by a density map that is zero outside it, and boulders, the blocks thrown from those
-craters among them, masked to a rectangle in the east (blue) with a hard edge. Left: the craters
-alone. Middle: the boulders unmasked, background and crater blocks everywhere. Right: the boulders
-masked, so crater blocks remain only where the two regions overlap. Boulders drawn to scale and
-colored by height."""
+"""Two regions shaping one scene, 200 m of fractal relief. Craters lie only inside a 90 m circle in the
+west (red), set by a density map that is zero outside it. Boulders, the blocks thrown from those
+craters among them, are masked to a rectangle in the east (blue) with a hard edge. The left panel
+shows the craters alone. The middle one shows the boulders unmasked, background and crater blocks
+everywhere. The right one shows the boulders masked, so crater blocks remain only where the two
+regions overlap. Boulders drawn to scale and colored by height."""
 
 import gallery
 import matplotlib.pyplot as plt

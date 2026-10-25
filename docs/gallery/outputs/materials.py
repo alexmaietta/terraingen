@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Material maps of a Martian scene, 128 m of rough ground with ripple fields, sand pooled in
-hollows, boulders gathered on exposed bedrock and a thin dust cover: each cell's share of soil,
-sand, dust, bedrock and rock, the classes the layers lay down in stack order. Top left: the scene,
-hillshaded. Top right: the dominant class. Bottom: the Hapke photometric parameters the shares mix
-to, from Pancam values for each class (Johnson et al. 2006, as tabulated by Fernando et al. 2013)."""
+hollows, boulders gathered on exposed bedrock and a thin dust cover. The maps give each cell's share
+of soil, sand, dust, bedrock and rock, the classes the layers lay down in stack order. The top left
+panel shows the scene, hillshaded, and the top right one the dominant class. The bottom row shows
+the Hapke photometric parameters the shares mix to, from Pancam values for each class (Johnson et al.
+2006, as tabulated by Fernando et al. 2013)."""
 
 import gallery
 import matplotlib.pyplot as plt

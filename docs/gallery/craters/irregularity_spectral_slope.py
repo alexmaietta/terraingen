@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How the roughness splits across wavelengths: three young 150 m craters with power-law rim
+"""How the roughness splits across wavelengths. Three young 150 m craters have power-law rim
 outlines of RMS 0.04 radii over harmonics 2 to 12, their amplitudes falling as k^-0 (every harmonic
-alike, crenulated), k^-1.5 (the default) and k^-3 (nearly all in the lowest, broadly lobed). Top:
-the craters hillshaded with a low sun. Bottom: each rim crest's distance from the center against
-azimuth, traced from the heights."""
+alike, crenulated), k^-1.5 (the default) and k^-3 (nearly all in the lowest, broadly lobed). The top
+row shows the craters hillshaded with a low sun. The bottom row plots each rim crest's distance from
+the center against azimuth, traced from the heights."""
 
 import gallery
 import matplotlib.pyplot as plt

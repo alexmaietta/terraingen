@@ -157,8 +157,8 @@ std::optional<GeoTransform> DecodeTransform(const ModelTags& tags, bool pixelIsP
 /// Throws a `GeoTiffError` "<path>: <reason>" for a file read or written.
 [[noreturn]] void ThrowFileError(const std::filesystem::path& path, const std::string& reason);
 
-/// How many strips or tiles the GeoTIFF reader has decoded on the calling thread, for tests of
-/// windowed reads.
+/// How many strips or tiles the GeoTIFF reader has decoded on any thread, for tests of windowed
+/// reads.
 std::size_t DecodedChunkCount();
 
 /// The value of the SHORT GeoKey `key` stored inline in the directory of `keys`, if present.

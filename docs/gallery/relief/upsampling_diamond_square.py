@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Diamond-square refinement of the same synthetic 8 m posts at 0.25 m over a 64 m window, as slope
-maps. Its fractal dimension sets how fast the added detail shrinks with scale: at 2.1 it fades
-quickly into smooth slopes, at 2.9 it stays rough down to the finest cells. Right: Catmull-Rom
-midpoints in place of bilinear ones, which at this roughness change little."""
+maps. Its fractal dimension sets how fast the added detail shrinks with scale. At 2.1 it fades
+quickly into smooth slopes, and at 2.9 it stays rough down to the finest cells. The right panel uses
+Catmull-Rom midpoints in place of bilinear ones, which at this roughness change little."""
 
 import gallery
 import matplotlib.pyplot as plt

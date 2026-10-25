@@ -2,9 +2,9 @@
 
 """Grainflows on a Martian barchan's slip face, where sand piled past the angle of repose slides down
 in tongues, each a scar at the crest and a lobe below it, 1.5 cm thick. A 20 m window over the lee
-face of a 2.4 km barchan at 4 cm. Left: the bare face, hillshaded. Then the grainflows' height
-over the bare face, covering half of it and all of it: each scar (blue) feeding the lobe below it
-(red)."""
+face of a 2.4 km barchan at 4 cm. The left panel shows the bare face, hillshaded. The others show
+the grainflows' height over the bare face, covering half of it and all of it, with each scar (blue)
+feeding the lobe below it (red)."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Crater populations on 300 m squares of fractal relief, all worn by diffusion at Fassett et al.'s
-(2022) rates. First row: the extended Neukum production function alone over 1 Myr to 1 Gyr. Second
-row: 1 Gyr of
-production capped at the Trask and Hartmann equilibria, then the VIPER environmental specification
-and Moore et al.'s (1974) heavily cratered terrain. Below, each panel's placed craters counted as a
-cumulative size-frequency distribution (solid) against the density they were drawn from (dashed)."""
+(2022) rates. The first row shows the extended Neukum production function alone over 1 Myr to 1 Gyr.
+The second row shows 1 Gyr of production capped at the Trask and Hartmann equilibria, then the VIPER
+environmental specification and Moore et al.'s (1974) heavily cratered terrain. Below, each panel's
+placed craters are counted as a cumulative size-frequency distribution (solid) against the density
+they were drawn from (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

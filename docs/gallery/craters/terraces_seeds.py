@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Terrace seeds: three fresh 60 km lunar complex craters with the default terraces drawn from
-seeds 1, 2 and 3, each giving its own benches, arcs, blocks and gaps. Top: the craters hillshaded
-with a low sun. Bottom: a west-east profile through each on the same relief, and without terraces
-(dashed)."""
+"""Terrace seeds on three fresh 60 km lunar complex craters with the default terraces drawn from
+seeds 1, 2 and 3, each giving its own benches, arcs, blocks and gaps. The top row shows the craters
+hillshaded with a low sun. The bottom row shows a west-east profile through each on the same relief,
+and without terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Size-frequency distributions built from pieces, as cumulative (top) and incremental (bottom)
-densities. Left: a piecewise power law steepening from b = 1.5 to 3 at 20 m, joined continuously, and
-one that drops by half at the join, allowed by its joins setting. Middle: a piecewise uniform
-distribution, a fixed density spread evenly within each of three diameter bands, a staircase when
-counted cumulatively. Right: a table of measured counts (dots), interpolated in log-log space."""
+densities. The left column shows a piecewise power law steepening from b = 1.5 to 3 at 20 m, joined
+continuously, and one that drops by half at the join, allowed by its joins setting. The middle one
+shows a piecewise uniform distribution, a fixed density spread evenly within each of three diameter
+bands, a staircase when counted cumulatively. The right one shows a table of measured counts (dots),
+interpolated in log-log space."""
 
 import matplotlib.pyplot as plt
 import numpy as np

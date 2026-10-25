@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fractal noise in a band along a crater's rim, from 0.8 to 1.2 radii, roughening its crest: three
-fresh 80 m craters among older small craters on fractal relief, with rim noise amplitudes of 0.3%,
+"""Fractal noise in a band along a crater's rim, from 0.8 to 1.2 radii, roughening its crest. Three
+fresh 80 m craters among older small craters on fractal relief have rim noise amplitudes of 0.3%,
 0.6% and 1.2% of the diameter, at a wavelength of a tenth of a radius. Hillshaded with a low sun."""
 
 import gallery

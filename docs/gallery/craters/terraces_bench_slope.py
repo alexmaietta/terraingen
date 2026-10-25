@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The bench slope: three fresh 90 km lunar complex craters whose benches tilt 0.5, 3 (the default)
-and 10 degrees toward the floor; terraces are mapped as surfaces under 5 degrees (Du et al. 2024).
-Top: the craters hillshaded with a low sun. Bottom: a west-east profile through each on the same
-relief, and without terraces (dashed)."""
+"""The bench slope on three fresh 90 km lunar complex craters whose benches tilt 0.5, 3 (the default)
+and 10 degrees toward the floor. Terraces are mapped as surfaces under 5 degrees (Du et al. 2024).
+The top row shows the craters hillshaded with a low sun. The bottom row shows a west-east profile
+through each on the same relief, and without terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ def terraces(bench_slope):
     options = terraingen.CraterTerraces()
     options.enabled = bench_slope is not None
     if bench_slope is not None:
-        options.bench_slope_degrees = bench_slope
+        options.bench_slope_deg = bench_slope
     return options
 
 

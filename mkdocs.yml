@@ -8,10 +8,18 @@ edit_uri: edit/main/docs/_src/
 docs_dir: docs/_src
 site_dir: site
 strict: true
-# Write the configuration reference from the built library's schema, and the Gallery page from docs/gallery.
+# Each gallery figure's code page, linked from its caption rather than the nav.
+not_in_nav: |
+  /gallery/*/*.md
+# Write the configuration reference from the built library's schema, the Gallery page from docs/gallery,
+# the Guides section's task pages from docs/snippets, the CMake options table from CMakeLists.txt and
+# the command line reference from the built `terraingen --help`.
 hooks:
   - docs/scripts/generate_schema.py
   - docs/scripts/gallery_page.py
+  - docs/scripts/guides.py
+  - docs/scripts/cmake_options.py
+  - docs/scripts/cli_help.py
 
 theme:
   name: material
@@ -97,17 +105,22 @@ extra_javascript:
   - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js
 
 nav:
-  - Home: index.md
-  - Getting started:
-      - getting-started/index.md
+  - Home:
+      - index.md
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
-      - Your first terrain: getting-started/first-terrain.md
+      - Contributing: contributing.md
+      - Changelog: changelog.md
+      - Citing: citing.md
   - Guides:
       - guides/index.md
-      - Command line: guides/command-line.md
-      - GUI: guides/gui.md
-      - Contributing: guides/contributing.md
+      - Tools:
+          - guides/tools/index.md
+          - Command line: guides/tools/command-line.md
+          - GUI: guides/tools/gui.md
+      - Workflows:
+          - guides/workflows/index.md
+          - Customize TerrainGen: guides/workflows/customize-terraingen.md
   - Concepts:
       - concepts/index.md
       - Surfaces and bodies: concepts/surfaces.md
@@ -116,7 +129,7 @@ nav:
       - Evaluation: concepts/evaluation.md
       - GPU acceleration: concepts/gpu.md
       - Configuration: concepts/configuration.md
-      - Extending: concepts/extending.md
+      - Customization: concepts/customization.md
   - Features:
       - features/index.md
       - Relief:
@@ -175,7 +188,6 @@ nav:
   - Reference:
       - Python API: api/python.md
       - C++ API: api/cpp.md
-      - Changelog: reference/changelog.md
       - Bibliography: reference/bibliography.md
 
 plugins:

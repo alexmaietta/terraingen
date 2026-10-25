@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Central peaks built from massifs: fresh lunar complex craters of 30, 60 and 120 km on fractal
-relief, their peaks raised from one to several mountains clustered about the center in place of
-the profile's round dome, each elongated, sharp-crested and lopsided as drawn per crater, warped
-and carved into spurs by ridged noise; the profile's peak height and base set their size. Top: the
-craters hillshaded with a low sun. Bottom: a west-east profile through each, on the same relief,
-with massifs (solid) and the profile's dome (dashed)."""
+"""Central peaks built from massifs, on fresh lunar complex craters of 30, 60 and 120 km on fractal
+relief. Their peaks are raised from one to several mountains clustered about the center in place of
+the profile's round dome, each elongated, sharp-crested and lopsided as drawn per crater, warped and
+carved into spurs by ridged noise. The profile's peak height and base set their size. The top row
+shows the craters hillshaded with a low sun. The bottom row shows a west-east profile through each,
+on the same relief, with massifs (solid) and the profile's dome (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

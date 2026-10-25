@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """A patchy rock-abundance map setting boulder cover point by point, as orbital thermal inertia maps
-give it: boulders of 0.3 m to 5 m on a 60 m square, sized by NASA SP-8023's nominal intercrater
-curve, covering from none to about 7% of the ground in fractal patches. Left: the map. Middle: the
-boulders it places, drawn to scale and colored by height. Right: the rock cover the boulders give in
-each 10 m cell against the map's mean over the cell."""
+give it. Boulders of 0.3 m to 5 m on a 60 m square, sized by NASA SP-8023's nominal intercrater
+curve, cover from none to about 7% of the ground in fractal patches. The left panel shows the map and
+the middle one the boulders it places, drawn to scale and colored by height. The right plot shows the
+rock cover the boulders give in each 10 m cell against the map's mean over the cell."""
 
 import gallery
 import matplotlib.pyplot as plt

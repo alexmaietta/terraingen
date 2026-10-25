@@ -2,11 +2,12 @@
 
 """Crater age models on the same population, 3.5 Gyr of extended Neukum production capped at the
 Hartmann equilibrium, craters from 2.5 m to 150 m on 300 m squares of fractal relief, all worn by
-diffusion at Fassett et al.'s (2022) rates. Left to right: every crater fresh; ages uniform over 1
-Gyr; freshness drawn mostly young, from 0.7 to 1 over a 1 Gyr lifetime; and steady-state ages, each
-size's lifetime set by when production fills it to equilibrium, so small craters are mostly worn.
-Bottom: each panel's craters by diameter and the age drawn for them, colored by how fresh diffusion
-has left them, small craters wearing out in a fraction of the time large ones take."""
+diffusion at Fassett et al.'s (2022) rates. From left to right, every crater is fresh, then ages are
+uniform over 1 Gyr, then freshness is drawn mostly young, from 0.7 to 1 over a 1 Gyr lifetime. The
+last panel uses steady-state ages, each size's lifetime set by when production fills it to
+equilibrium, so small craters are mostly worn. The bottom row plots each panel's craters by diameter
+and the age drawn for them, colored by how fresh diffusion has left them. Small craters wear out in a
+fraction of the time large ones take."""
 
 import gallery
 import matplotlib.pyplot as plt

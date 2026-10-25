@@ -31,6 +31,7 @@ CRATER_COLUMNS = {
     "age_gyr",
     "id",
     "manual",
+    "replace",
     "floor_depth",
     "rim_height",
     "depth_ratio",

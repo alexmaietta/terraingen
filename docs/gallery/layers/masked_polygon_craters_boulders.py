@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Polygons shaping where craters and boulders go, on 200 m of fractal relief: craters only on a
-concave patch of plains in the west (red), feathered over 10 m, and boulders only on a rocky ridge
-running northeast with an outcrop-free hole in it (blue), with a hard edge. Left: the craters alone.
-Middle: the boulders alone, drawn to scale and colored by height. Right: both together."""
+"""Polygons shaping where craters and boulders go, on 200 m of fractal relief. Craters lie only on a
+concave patch of plains in the west (red), feathered over 10 m. Boulders lie only on a rocky ridge
+running northeast with an outcrop-free hole in it (blue), with a hard edge. The left panel shows the
+craters alone, the middle one the boulders alone, drawn to scale and colored by height, and the
+right one both together."""
 
 import gallery
 import matplotlib.pyplot as plt

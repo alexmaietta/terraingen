@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Nine identical craters from fresh (freshness 1) to worn (freshness 0.2), under freshness degradation:
-a crater of freshness f is (1 - f) of its lifetime old, its depth that much of the way from fresh to
+"""Nine identical craters from fresh (freshness 1) to worn (freshness 0.2), under freshness degradation.
+A crater of freshness f is (1 - f) of its lifetime old, its depth that much of the way from fresh to
 the cutoff depth."""
 
 import gallery

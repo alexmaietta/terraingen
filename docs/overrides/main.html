@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 
-{#- The home page marks itself, so its sidebar can list every section rather than only its own. -#}
+{#- The home page marks itself, so its sidebar can list every section rather than only its own. It
+    sits in the Home section, so it is not `page.is_homepage`, which only a top-level page is. -#}
 {% block content %}
-  {% if page and page.is_homepage %}<span class="tg-home" hidden></span>{% endif %}
+  {% if page and page.file.src_uri == "index.md" %}<span class="tg-home" hidden></span>{% endif %}
   {{ super() }}
 {% endblock %}

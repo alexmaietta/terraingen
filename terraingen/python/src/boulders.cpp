@@ -310,7 +310,7 @@ void BindRendering(nb::module_& m) {
     BindOptions<BoulderModelThreshold>(
         m, "BoulderModelThreshold",
         "Which boulders are placed as 3D boulder models: at least `min_diameter` meters across, or "
-        "`min_pixels` samples across, and below `max_diameter` and `max_pixels` when set.")
+        "`min_px` samples across, and below `max_diameter` and `max_px` when set.")
         .def("is_model", &BoulderModelThreshold::IsModel, "diameter"_a, "spacing"_a = 0.0,
              "Whether a boulder of `diameter` meters is a model at `spacing`.");
     BindOptions<BoulderReliefRange>(
@@ -384,22 +384,22 @@ void BindPoseAndRendering(nb::module_& m) {
         .def_rw("max_height_ratio", &P::maxHeightRatio, "Greatest height over diameter.")
         .def_rw("min_burial", &P::minBurial, "Least buried share of the height.")
         .def_rw("max_burial", &P::maxBurial, "Greatest buried share of the height.")
-        .def_rw("max_lean_degrees", &P::maxLeanDegrees, "Largest tilt from the vertical.")
+        .def_rw("max_lean_deg", &P::maxLeanDegrees, "Largest tilt from the vertical.")
         .def_rw("burial_by_wear", &P::burialByWear, "How far wear sets burial, from 0 to 1.")
         .def_rw("side_share", &P::sideShare, "Share of boulders resting on a side.")
         .def_rw("end_share", &P::endShare, "Share of boulders standing on an end.")
-        .def_rw("max_tilt_degrees", &P::maxTiltDegrees,
+        .def_rw("max_tilt_deg", &P::maxTiltDegrees,
                 "Largest tilt of the up axis in a random direction, after the lean.")
         .def_rw("follow_slope", &P::followSlope, "Settles each boulder on the ground's slope.")
         .def_rw("settle", &P::settle, "Tips each boulder model over until it rests stably.")
-        .def_rw("max_slope_degrees", &P::maxSlopeDegrees,
+        .def_rw("max_slope_deg", &P::maxSlopeDegrees,
                 "Steepest ground boulders stay on; None for any slope.")
         .def_rw("roll_distance", &P::rollDistance,
                 "How far (m) boulders on steeper ground roll; None leaves them out.");
-    BindMemberInit(pose, {"min_height_ratio", "max_height_ratio", "min_burial", "max_burial",
-                          "max_lean_degrees", "burial_by_wear", "side_share", "end_share",
-                          "max_tilt_degrees", "follow_slope", "settle", "max_slope_degrees",
-                          "roll_distance"});
+    BindMemberInit(pose,
+                   {"min_height_ratio", "max_height_ratio", "min_burial", "max_burial",
+                    "max_lean_deg", "burial_by_wear", "side_share", "end_share", "max_tilt_deg",
+                    "follow_slope", "settle", "max_slope_deg", "roll_distance"});
     using R = BoulderRendering;
     nb::class_<R> rendering(m, "BoulderRendering",
                             "How boulders are drawn: as `relief` in the heights or as models, "
@@ -478,7 +478,7 @@ void BindLayer(nb::module_& m) {
              "options"_a = BoulderLayerOptions{}, "craters"_a = nb::none(),
              "base"_a = TerrainBase{},
              "With a source in `base`, generated boulders at least "
-             "`options.source_resolves_pixels` of its cells across are dropped.")
+             "`options.source_resolves_px` of its cells across are dropped.")
         .def_static("manual", &BoulderLayer::Manual, "boulders"_a,
                     "options"_a = BoulderLayerOptions{}, "base"_a = TerrainBase{},
                     "A layer of only `boulders` (ManualBoulder), posed and drawn as `options` "

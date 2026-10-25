@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Scale and clamp layers transform the heights so far: cratered hills on a 600 m square. Left to
-right: as generated; scaled by 2.5, exaggerating the relief; clamped from below at the lowest third
-of the heights, flooding the lows into flat plains like mare lava; and clamped from above at the
-highest third, planing off the highs into mesas. Top: hillshaded. Bottom: a profile west to east
-through the middle, the clamp levels dashed."""
+"""Scale and clamp layers transform the heights so far, here cratered hills on a 600 m square. The
+first column shows them as generated. The second scales them by 2.5, exaggerating the relief. The
+third clamps them from below at the lowest third of the heights, flooding the lows into flat plains
+like mare lava. The fourth clamps them from above at the highest third, planing off the highs into
+mesas. The top row is hillshaded. The bottom row shows a profile west to east through the middle,
+the clamp levels dashed."""
 
 import gallery
 import matplotlib.pyplot as plt

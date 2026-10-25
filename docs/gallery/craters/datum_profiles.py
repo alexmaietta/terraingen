@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The four crater datums overlaid: west-to-east profiles through an 80 m crater on ground rising 8
-degrees to the east with rolling relief, over the ground alone (gray). Left: heights as they are.
-Right: height above the 8 degree plane, so the tilt drops out. With no datum the crater follows the
-ground's bumps; a plane cuts it smooth and tilted with the slope; the mean and center heights cut it
-level, lifting its downslope rim and burying its upslope one."""
+"""The four crater datums overlaid as west-to-east profiles through an 80 m crater on ground rising
+8 degrees to the east with rolling relief, over the ground alone (gray). The left panel shows heights
+as they are and the right one height above the 8 degree plane, so the tilt drops out. With no datum
+the crater follows the ground's bumps. A plane cuts it smooth and tilted with the slope. The mean and
+center heights cut it level, lifting its downslope rim and burying its upslope one."""
 
 import matplotlib.pyplot as plt
 import numpy as np

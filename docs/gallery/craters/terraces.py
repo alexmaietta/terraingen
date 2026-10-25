@@ -2,9 +2,9 @@
 
 """Slump terraces on fresh lunar complex craters of 25, 45 and 90 km on fractal relief. Terraces
 begin at 20 km, with one bench over part of the wall, and grow to four benches round most of it from
-65 km; each crater draws its benches, their arcs and how their radii wander from its ID. Top: the
-craters hillshaded with a low sun. Bottom: a west-east profile through each, on the same relief,
-with terraces (solid) and without (dashed)."""
+65 km. Each crater draws its benches, their arcs and how their radii wander from its ID. The top row
+shows the craters hillshaded with a low sun. The bottom row shows a west-east profile through each,
+on the same relief, with terraces (solid) and without (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

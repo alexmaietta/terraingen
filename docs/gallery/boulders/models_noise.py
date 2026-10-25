@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Surface noise: the angular style from the same seed with its radius changed by fractal noise of
-up to none, 6% (the default), 15% and 30%, from clean facets to lumpy, knobbly rock. Top: noise of
-4 octaves from a wavelength of 0.9 long axes (the default). Bottom: a finer first wavelength of 0.3
-long axes."""
+"""Surface noise, with the angular style from the same seed having its radius changed by fractal noise
+of up to none, 6% (the default), 15% and 30%, from clean facets to lumpy, knobbly rock. The top row
+uses 4 octaves from a wavelength of 0.9 long axes (the default) and the bottom row a finer first
+wavelength of 0.3 long axes."""
 
 import gallery
 import matplotlib.pyplot as plt

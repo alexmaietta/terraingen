@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A density map scaling the crater density point by point: fresh craters from 4 m to 60 m at the
-Trask equilibrium on a 400 m square of fractal relief, scaled by a map rising from 0.1 times in the
-west to 3 times in the east, with a crater-free disk. Left: the map. Middle: the craters it places.
-Right: the craters counted in each 40 m column, against the count the map expects."""
+"""A density map scaling the crater density point by point. Fresh craters from 4 m to 60 m at the
+Trask equilibrium on a 400 m square of fractal relief are scaled by a map rising from 0.1 times in
+the west to 3 times in the east, with a crater-free disk. The left panel shows the map and the middle
+one the craters it places. The right one counts the craters in each 40 m column, against the count
+the map expects."""
 
 import gallery
 import matplotlib.pyplot as plt

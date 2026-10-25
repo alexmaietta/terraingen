@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Ejecta mantling the older relief around a crater: three fresh 80 m craters on fractal relief with
-half of McGetchin's ejecta thickness, burying the older small craters around them by 30%, 60% and
+"""Ejecta mantling the older relief around a crater. Three fresh 80 m craters on fractal relief with
+half of McGetchin's ejecta thickness bury the older small craters around them by 30%, 60% and
 all of the blanket's thickness, so they fade toward each new rim. Hillshaded with a low sun."""
 
 import gallery

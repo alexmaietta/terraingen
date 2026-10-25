@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Elongation and rim roughness together: nine identical young 150 m craters on fractal relief.
-Rows, top to bottom: ellipticity 1 (round), 1.25 and 1.5, along a heading of 30 degrees. Columns,
-left to right: rims roughened by 0, 5% and 10% of a radius RMS."""
+"""Elongation and rim roughness together, on nine identical young 150 m craters on fractal relief.
+The rows, top to bottom, have ellipticity 1 (round), 1.25 and 1.5, along a heading of 30 degrees.
+The columns, left to right, have rims roughened by 0, 5% and 10% of a radius RMS."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -28,7 +28,7 @@ def irregular(ellipticity, roughness):
     irregularity.roughness = terraingen.ValueDistribution.constant(max(roughness, 0.001))
     irregularity.elongated_share = 1.0 if ellipticity > 1.0 else 0.0
     irregularity.ellipticity = terraingen.ValueDistribution.constant(max(ellipticity, 1.01))
-    irregularity.heading_degrees = 30.0
+    irregularity.heading_deg = 30.0
     selection = irregularity.selection
     selection.manual = True
     irregularity.selection = selection

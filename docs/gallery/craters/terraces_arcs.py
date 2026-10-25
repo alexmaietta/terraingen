@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The arc share: three fresh 30 km lunar complex craters, near the 20 km onset where benches cover
+"""The arc share on three fresh 30 km lunar complex craters, near the 20 km onset where benches cover
 only part of the wall, with each bench covering 30%, 60% (the default) and 100% of the circumference
-at the onset, rising toward 90% at the full diameter. Top: the craters hillshaded with a low sun.
-Bottom: a west-east profile through each on the same relief, and without terraces (dashed)."""
+at the onset, rising toward 90% at the full diameter. The top row shows the craters hillshaded with
+a low sun. The bottom row shows a west-east profile through each on the same relief, and without
+terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Diameters drawn from a distribution follow it: 20,000 crater diameters drawn between 2.5 m and 1 km
-from a b = 2 power law and from 1 Gyr of extended Neukum production, each counted in log-spaced bins
+"""Diameters drawn from a distribution follow it. Here 20,000 crater diameters are drawn between 2.5 m
+and 1 km from a b = 2 power law and from 1 Gyr of extended Neukum production, each counted in log-spaced bins
 (dots) against the counts the distribution expects (lines), and cumulatively (right)."""
 
 import matplotlib.pyplot as plt

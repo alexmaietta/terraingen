@@ -117,7 +117,7 @@ void BindSynthetic(nb::module_& m) {
     nb::class_<SyntheticAlbedo, AlbedoSource>(
         m, "SyntheticAlbedo",
         "A synthetic albedo: `value` (reflectance), varied by `value_noise` (relative), and with "
-        "`rgb` three bands from `hue_degrees` and `saturation` and their noise.")
+        "`rgb` three bands from `hue_deg` and `saturation` and their noise.")
         .def(
             "__init__",
             [](SyntheticAlbedo* self, double value, std::vector<Fractal> valueNoise, bool rgb,
@@ -134,8 +134,8 @@ void BindSynthetic(nb::module_& m) {
                 new (self) SyntheticAlbedo(std::move(params), std::move(base));
             },
             "value"_a = kDefaultSyntheticAlbedoValue, "value_noise"_a = std::vector<Fractal>{},
-            "rgb"_a = false, "hue_degrees"_a = 0.0, "saturation"_a = 0.0,
-            "hue_noise_degrees"_a = std::vector<Fractal>{},
+            "rgb"_a = false, "hue_deg"_a = 0.0, "saturation"_a = 0.0,
+            "hue_noise_deg"_a = std::vector<Fractal>{},
             "saturation_noise"_a = std::vector<Fractal>{}, "base"_a = TerrainBase{});
     m.def(
         "hsv_to_rgb",
@@ -143,7 +143,7 @@ void BindSynthetic(nb::module_& m) {
             const AlbedoSample rgb = HsvToRgb(hue, saturation, value);
             return std::tuple{rgb[0], rgb[1], rgb[2]};
         },
-        "hue_degrees"_a, "saturation"_a, "value"_a, "A color's (red, green, blue).");
+        "hue_deg"_a, "saturation"_a, "value"_a, "A color's (red, green, blue).");
 }
 
 void BindRasterAlbedo(nb::module_& m) {
@@ -180,7 +180,8 @@ void BindRays(nb::module_& m) {
         m, "ObliqueImpacts",
         "Ray patterns of oblique impacts: below `asymmetric_deg` the ejecta is asymmetric, "
         "below `forbidden_deg` an uprange zone has no rays, below `butterfly_deg` rays "
-        "form a butterfly; impacts come from `heading_deg` (degrees counter-clockwise from east) "
+        "form a butterfly; impacts come from `heading_deg` (degrees counter-clockwise from "
+        "east) "
         "or "
         "any direction.",
         {&ValidateObliqueImpacts, "validate_oblique_impacts", "oblique"});

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Which wavelengths roughen a rim: three young 150 m craters with power-law rim outlines of RMS
+"""Which wavelengths roughen a rim. Three young 150 m craters have power-law rim outlines of RMS
 0.04 radii built from harmonics 2 to 4 (broad lobes), 2 to 12 (the default) and 8 to 24 (fine
-crenulation). Top: the craters hillshaded with a low sun. Bottom: each rim crest's distance from
-the center against azimuth, traced from the heights."""
+crenulation). The top row shows the craters hillshaded with a low sun. The bottom row plots each rim
+crest's distance from the center against azimuth, traced from the heights."""
 
 import gallery
 import matplotlib.pyplot as plt

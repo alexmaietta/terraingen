@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Weathering and face roughness: the block style from the same seed. Top: edges and corners worn
-back by none, the style's own (weathering 1, the default), twice and four times its edge softness,
-from fresh, sharp breaks to rounded, long-exposed rock. Bottom: fracture faces undulating by none,
-6% (the block default), 15% and 30% of each plane's offset, from flat cleavage to rough breaks."""
+"""Weathering and face roughness on the block style from the same seed. In the top row edges and
+corners are worn back by none, the style's own (weathering 1, the default), twice and four times its
+edge softness, from fresh, sharp breaks to rounded, long-exposed rock. In the bottom row fracture
+faces undulate by none, 6% (the block default), 15% and 30% of each plane's offset, from flat
+cleavage to rough breaks."""
 
 import gallery
 import matplotlib.pyplot as plt

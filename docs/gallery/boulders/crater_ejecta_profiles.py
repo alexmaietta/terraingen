@@ -2,9 +2,9 @@
 
 """Blocks thrown out of a fresh 60 m crater (gray rim) on top of the background boulders, blocks of
 0.3 m and up sized by Golombek and Rapp's model at 15% rock cover, drawn to scale and colored by the
-height they stand above the ground. Left: abundance falling smoothly to nothing at three radii.
-Middle: falling exponentially beyond the rim, with a few blocks left on the floor, as in synthterrain.
-Right: the two profiles against distance from the crater's center."""
+height they stand above the ground. On the left the abundance falls smoothly to nothing at three
+radii. In the middle it falls exponentially beyond the rim, with a few blocks left on the floor, as in
+synthterrain. The right plot shows the two profiles against distance from the crater's center."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Block gaps: three fresh 60 km lunar complex craters missing none of their slump blocks, 25% (the
-default) and 60%, so benches break into segments with the wall unstepped between them. Top: the
-craters hillshaded with a low sun. Bottom: a west-east profile through each on the same relief, and
-without terraces (dashed)."""
+"""Block gaps on three fresh 60 km lunar complex craters missing none of their slump blocks, 25% (the
+default) and 60%, so benches break into segments with the wall unstepped between them. The top row
+shows the craters hillshaded with a low sun. The bottom row shows a west-east profile through each
+on the same relief, and without terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

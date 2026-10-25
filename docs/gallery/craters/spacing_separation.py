@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Crater spacing by separation: fresh craters from 5 m to 60 m at three times the Trask equilibrium
+"""Crater spacing by separation, for fresh craters from 5 m to 60 m at three times the Trask equilibrium
 on 300 m squares of fractal relief, with any two within a size ratio of 2 kept at least 0, 0.5, 1
 and 1.25 diameters apart, the larger or younger one kept, until the field spreads evenly."""
 

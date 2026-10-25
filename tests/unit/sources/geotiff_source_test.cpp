@@ -21,6 +21,7 @@
 #include <limits>
 #include <optional>
 #include <stdexcept>
+#include <thread>
 #include <vector>
 
 using terraingen::GeoKeys;
@@ -455,4 +456,114 @@ TEST(GeoTiffSource, WrapsAGlobeInLongitudeWithOrWithoutACrop) {
             ASSERT_FALSE(std::isnan(seam(col, 0))) << col;
         }
     }
+}
+
+TEST(GeoTiffSource, ReadsOnlyTheTilesNearWhatItIsAskedWithoutACrop) {
+    const auto path = TempPath("geotiff_source_lazy.tif");
+    WriteLargeDem(path);
+    const std::size_t before = terraingen::detail::DecodedChunkCount();
+    const GeoTiffSource source(path);
+    EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 0u) << "nothing read up front";
+    const RasterGrid corner{6, 5, GeoTransform::NorthUp(1000.0 + 4.0 * 2, 2000.0 - 4.0 * 2, 4.0)};
+    auto heights = corner.MakeRaster();
+    source.Fill(heights);
+    EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 1u) << "the one tile it lies in";
+    const std::size_t afterFill = terraingen::detail::DecodedChunkCount();
+    source.Fill(heights, 1.5);
+    EXPECT_EQ(terraingen::detail::DecodedChunkCount() - afterFill, 0u) << "the tile stays cached";
+    source.HeightAt(1063.0, 1987.0, 4.0);
+    EXPECT_EQ(terraingen::detail::DecodedChunkCount() - afterFill, 1u)
+        << "cubic taps across the edge of the first tile read the next";
+    GeoTiffSourceOptions cropped;
+    cropped.crop = corner.Bounds();
+    auto again = corner.MakeRaster();
+    GeoTiffSource(path, cropped).Fill(again, 1.5);
+    for (std::size_t i = 0; i < heights.Size(); ++i) {
+        ASSERT_TRUE(SameBits(heights.Values()[i], again.Values()[i])) << i;
+    }
+}
+
+TEST(GeoTiffSource, KeepsOnlyTheTilesItsCacheHolds) {
+    const auto path = TempPath("geotiff_source_cache.tif");
+    WriteLargeDem(path);
+    GeoTiffSourceOptions small;
+    small.cacheBytes = 0;
+    const GeoTiffSource uncached(path, small);
+    const GeoTiffSource cached(path);
+    const RasterGrid first{4, 4, GeoTransform::NorthUp(1000.0 + 4.0 * 2, 2000.0 - 4.0 * 2, 4.0)};
+    const RasterGrid second{4, 4, GeoTransform::NorthUp(1000.0 + 4.0 * 34, 2000.0 - 4.0 * 2, 4.0)};
+    const auto decodes = [&](const GeoTiffSource& source) {
+        const std::size_t before = terraingen::detail::DecodedChunkCount();
+        for (int pass = 0; pass < 3; ++pass) {
+            for (const RasterGrid& grid : {first, second}) {
+                auto heights = grid.MakeRaster();
+                source.Fill(heights);
+            }
+        }
+        return terraingen::detail::DecodedChunkCount() - before;
+    };
+    EXPECT_EQ(decodes(cached), 2u);
+    EXPECT_EQ(decodes(uncached), 6u) << "only the tile read last is kept";
+    auto mine = first.MakeRaster();
+    auto theirs = first.MakeRaster();
+    uncached.Fill(mine);
+    cached.Fill(theirs);
+    for (std::size_t i = 0; i < mine.Size(); ++i) {
+        ASSERT_TRUE(SameBits(mine.Values()[i], theirs.Values()[i])) << i;
+    }
+}
+
+TEST(GeoTiffSource, GivesTheSameHeightsFromSeveralThreads) {
+    const auto path = TempPath("geotiff_source_threads.tif");
+    WriteLargeDem(path);
+    GeoTiffSourceOptions options;
+    options.cacheBytes = 3 * 16 * 16 * sizeof(float);
+    const GeoTiffSource source(path, options);
+    const GeoTiffSource reference(path);
+    std::vector<float> expected;
+    for (int n = 0; n < 400; ++n) {
+        expected.push_back(
+            reference.HeightAt(1001.0 + 0.59 * n, 1999.0 - 0.43 * n, n % 2 == 0 ? 4.0 : 1.0));
+    }
+    constexpr int kThreads = 4;
+    std::vector<int> mismatches(kThreads, 0);
+    std::vector<std::thread> threads;
+    for (int t = 0; t < kThreads; ++t) {
+        threads.emplace_back([&, t] {
+            for (int n = t; n < 400; n += 1 + t) {
+                const float height =
+                    source.HeightAt(1001.0 + 0.59 * n, 1999.0 - 0.43 * n, n % 2 == 0 ? 4.0 : 1.0);
+                if (!SameBits(height, expected[static_cast<std::size_t>(n)])) {
+                    ++mismatches[static_cast<std::size_t>(t)];
+                }
+            }
+        });
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(mismatches, std::vector<int>(kThreads, 0));
+}
+
+TEST(GeoTiffSource, WrapsAGlobeReadingOnlyTheTilesAtTheSeam) {
+    const auto path = TempPath("geotiff_source_globe_tiles.tif");
+    Raster<float> globe(96, 48);
+    globe.SetTransform(GeoTransform::NorthUp(0.0, 90.0, 3.75));
+    for (std::size_t row = 0; row < globe.Height(); ++row) {
+        for (std::size_t col = 0; col < globe.Width(); ++col) {
+            globe(col, row) = static_cast<float>(col) + 100.0f * static_cast<float>(row);
+        }
+    }
+    terraingen::GeoTiffWriteOptions tiles;
+    tiles.tileSize = 16;
+    terraingen::WriteGeoTiff(path, globe, terraingen::GeographicSphereKeys(1737400.0), tiles);
+    const GeoTiffSource source(path);
+    const std::size_t before = terraingen::detail::DecodedChunkCount();
+    Raster<float> seam(4, 2);
+    seam.SetTransform(GeoTransform::NorthUp(-7.5, 45.0, 3.75));
+    source.Fill(seam, 3.75);
+    EXPECT_EQ(seam(0, 0), globe(94, 12));
+    EXPECT_EQ(seam(3, 1), globe(1, 13));
+    EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 2u)
+        << "the tiles either side of the seam, not all 6 across";
 }

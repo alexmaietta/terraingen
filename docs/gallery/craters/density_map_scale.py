@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Density maps as a scale on the layer's own density, each value multiplying it where it lies:
-fresh craters from 4 m to 60 m at the Trask equilibrium on 400 m squares of fractal relief. Left
-to right: patchy fractal noise from none to three times the density; a sharp boundary between
-lightly cratered mare (0.3) and densely cratered highland (2); and a ring of three times the density
-around a crater-free center. Top: the maps. Bottom: the craters they place."""
+"""Density maps as a scale on the layer's own density, each value multiplying it where it lies, on
+fresh craters from 4 m to 60 m at the Trask equilibrium on 400 m squares of fractal relief. From left
+to right the maps are patchy fractal noise from none to three times the density, a sharp boundary
+between lightly cratered mare (0.3) and densely cratered highland (2), and a ring of three times the
+density around a crater-free center. The top row shows the maps and the bottom row the craters they
+place."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A 400 m crater's bright interior, ejecta and rays on a 3 km square, in optical maturity. Top: the
-crater fresh, then 1, 3 and 6 Myr old, its rays fading over their retention time and its ejecta
-after them. Bottom, all fresh: smooth rays, fully patchy rays, and ejecta broken into radial streaks
-and into lobes."""
+"""A 400 m crater's bright interior, ejecta and rays on a 3 km square, in optical maturity. The top row
+shows the crater fresh, then 1, 3 and 6 Myr old, its rays fading over their retention time and its
+ejecta after them. The bottom row, all fresh, shows smooth rays, fully patchy rays, and ejecta broken
+into radial streaks and into lobes."""
 
 import matplotlib.pyplot as plt
 

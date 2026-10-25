@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Patchiness varying boulder abundance across the ground in fractal patches 30 m across: boulders of
-0.3 m and up from NASA SP-8023's maximum intercrater curve on 80 m squares, drawn to scale and
-colored by diameter. Left to right: even (spread 1), and abundance ranging from a third to three
-times the layer's own (spread 3) and from a tenth to ten times (spread 10). On their own the patches
-raise the mean, by 1.19 and 2.06 times here; under a density map they are divided by that mean so
-the map's abundance holds."""
+"""Patchiness varying boulder abundance across the ground in fractal patches 30 m across. Boulders of
+0.3 m and up from NASA SP-8023's maximum intercrater curve on 80 m squares are drawn to scale and
+colored by diameter. From left to right the abundance is even (spread 1), then ranges from a third
+to three times the layer's own (spread 3) and from a tenth to ten times (spread 10). On their own the
+patches raise the mean, by 1.19 and 2.06 times here. Under a density map they are divided by that
+mean so the map's abundance holds."""
 
 import gallery
 import matplotlib.pyplot as plt

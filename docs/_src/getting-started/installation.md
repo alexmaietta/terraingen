@@ -6,7 +6,7 @@ We recommend installing `terraingenpy` from PyPI, which gives you the Python pac
 
 - Linux (Ubuntu 22.04 or newer), macOS 14 or newer, or Windows 10 or newer, on x86_64 or arm64.
 - Python 3.10 or newer for the Python package.
-- Optional: a Vulkan, CUDA or Metal driver for GPU acceleration. Run `terraingen backends` to see what is available.
+- Optionally, a Vulkan, CUDA or Metal driver for GPU acceleration. Run `terraingen backends` to see what is available.
 
 ## Python package
 
@@ -34,17 +34,11 @@ cmake --install build --prefix /usr/local
 
 To build the Python package from source, run `pip install .` instead.
 
-These options choose what is built:
+These options choose what is built. The Python bindings build into `build/python`.
 
-| Option | Default | Builds |
-| --- | --- | --- |
-| `TERRAINGEN_BUILD_PYTHON` | `ON` | The Python bindings, into `build/python` |
-| `TERRAINGEN_BUILD_APP` | `ON` | The `terraingen` command |
-| `TERRAINGEN_BUILD_GUI` | `ON` | `terraingen --gui`, when `TERRAINGEN_ERNIE_DIR` points at an Ernie checkout |
-| `TERRAINGEN_BUILD_TESTS` | `ON` at the top level | The test suite |
-| `TERRAINGEN_INSTALL` | `ON` at the top level | The install rules and CMake package |
+{{ cmake_options() }}
 
-The GUI builds with Ernie, the renderer, from a local checkout: `-DTERRAINGEN_ERNIE_DIR=../ernie`. Without one, configuring warns and builds everything else; `-DTERRAINGEN_BUILD_GUI=OFF` leaves the GUI out without the warning.
+The GUI builds with Ernie, the renderer, from a local checkout that `-DTERRAINGEN_ERNIE_DIR=../ernie` points to. Without one, configuring warns and builds everything else; `-DTERRAINGEN_BUILD_GUI=OFF` leaves the GUI out without the warning.
 
 ## Docker
 
@@ -56,7 +50,7 @@ The `latest` tag is the newest release, and each release is also tagged with its
 
 ## Using TerrainGen from C++
 
-Once installed, find the CMake package and link the library:
+Once installed, find the CMake package and link the library.
 
 ```cmake
 find_package(terraingen REQUIRED)

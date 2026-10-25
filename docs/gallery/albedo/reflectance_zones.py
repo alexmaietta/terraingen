@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Reflectance zones around a new 20 m crater, as LROC before-and-after images show them (Robinson et
-al. 2015, Speyerer et al. 2016): a bright proximal zone, a dark one beyond it, and faint, finger-like
-distal zones, bright and dark, reaching 2 km out. On a 4.4 km square of hills, left: the zones
-alone; middle: with shadows, where low-angle jets miss the ground behind rises; right: profiles west
-to east."""
+al. 2015, Speyerer et al. 2016). They are a bright proximal zone, a dark one beyond it, and faint,
+finger-like distal zones, bright and dark, reaching 2 km out. On a 4.4 km square of hills, the left
+panel shows the zones alone. The middle one adds shadows, where low-angle jets miss the ground behind
+rises. The right one shows profiles west to east."""
 
 import matplotlib.pyplot as plt
 import numpy as np

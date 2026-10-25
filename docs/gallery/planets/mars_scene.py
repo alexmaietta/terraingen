@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A Martian scene combining the geology layers, 400 m across at 2 m: rolling hills cut into
-layered bedrock that steps into benches and cliffs; craters worn by diffusion; polygonal pavement
-cracking the exposed rock; sand pooled in the hollows; patches of aeolian ripples; a field of small
-barchans in a basin; and boulders gathered on the bedrock and thrown out of the fresher craters.
-Left: the scene in color, each cell tinted by its mix of soil, sand, dust, bedrock and rock and lit
-by a low sun from the west. Right, top: the heights. Right, bottom: the dominant material."""
+"""A Martian scene combining the geology layers, 400 m across at 2 m. It has rolling hills cut into
+layered bedrock that steps into benches and cliffs, craters worn by diffusion, polygonal pavement
+cracking the exposed rock, sand pooled in the hollows, patches of aeolian ripples, a field of small
+barchans in a basin, and boulders gathered on the bedrock and thrown out of the fresher craters. The
+left panel shows the scene in color, each cell tinted by its mix of soil, sand, dust, bedrock and
+rock and lit by a low sun from the west. On the right, the top panel shows the heights and the
+bottom one the dominant material."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,7 +38,7 @@ def layers():
         ]
     )
     strata = terraingen.StrataLayer(
-        terraingen.StrataOptions(bed_thickness=6.0, dip_degrees=3.0, hard_share=0.6, cliff_share=0.35, seed=3)
+        terraingen.StrataOptions(bed_thickness=6.0, dip_deg=3.0, hard_share=0.6, cliff_share=0.35, seed=3)
     )
     craters = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
@@ -55,7 +56,7 @@ def layers():
         terraingen.BedformOptions(
             wavelength=10.0,
             height=0.6,
-            wind_azimuth_degrees=20.0,
+            wind_azimuth_deg=20.0,
             cover=0.35,
             field_size=120.0,
             seed=6,
@@ -69,8 +70,8 @@ def layers():
                 min_width=25.0,
                 lattice_spacing=110.0,
                 density=0.8,
-                wind_azimuth_degrees=20.0,
-                azimuth_spread_degrees=15.0,
+                wind_azimuth_deg=20.0,
+                azimuth_spread_deg=15.0,
                 seed=7,
             )
         ),

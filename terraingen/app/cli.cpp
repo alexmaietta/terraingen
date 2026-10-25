@@ -278,6 +278,10 @@ std::string Usage() {
     for (const std::string_view name : kBackendNames) {
         backends += (backends.empty() ? "" : "|") + std::string(name);
     }
+    std::string levels;
+    for (const LogLevel level : kLogLevels) {
+        levels += (levels.empty() ? "" : "|") + std::string(LogLevelName(level));
+    }
     return "Usage:\n"
            "  terraingen CONFIG [--output-dir DIR] [--log-level LEVEL] [--threads N]\n"
            "                    [--backend " +
@@ -287,15 +291,33 @@ std::string Usage() {
            "  terraingen validate CONFIG\n"
            "                         Check CONFIG without generating\n"
            "  terraingen schema      Print the configuration schema, for editors\n"
-           "  terraingen backends    Show where terrains can be evaluated here, and the default\n"
-           "  terraingen [PATH] --gui [--threads N] [--backend " +
+           "  terraingen backends    Show where terrains can be evaluated here, and the\n"
+           "                         default\n"
+           "  terraingen [PATH] --gui [--threads N]\n"
+           "                    [--backend " +
            backends +
            "]\n"
            "                         Open the GUI on a configuration, GeoTIFF heights or the\n"
            "                         starter terrain\n"
            "  terraingen -V, --version\n"
            "                         Show version and build information\n"
-           "  terraingen -h, --help  Show this message\n";
+           "  terraingen -h, --help  Show this message\n"
+           "\n"
+           "Options:\n"
+           "  --output-dir DIR       Write outputs with relative paths under DIR rather than\n"
+           "                         CONFIG's folder\n"
+           "  --log-level LEVEL      Log at LEVEL, one of\n"
+           "                         " +
+           levels +
+           ". The default is info\n"
+           "  --threads N            Generate on N threads, or 0 for every hardware thread,\n"
+           "                         the default. The result does not depend on it\n"
+           "  --backend NAME         Evaluate the heights on NAME. The default is cpu, or\n"
+           "                         TERRAINGEN_BACKEND when set. gpu picks the best GPU and\n"
+           "                         auto picks the best GPU or the CPU\n"
+           "\n"
+           "terraingen exits with 0 on success, 1 when generating or validating fails and 2\n"
+           "for a usage error.\n";
 }
 
 int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {

@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """The value distributions every per-feature property is drawn from, such as crater rim roughness,
-ejecta reach or splotch brightness: 50,000 draws of each, as histograms. Top: a constant, a uniform,
-a normal and a log-normal. Bottom: the normal and log-normal clamped to a range, piling their tails
-up at its ends; a piecewise distribution, uniform within even bins weighted 1, 3, 2 and 0.5; and one
-with uneven bins weighted alike, each bin holding a third of the draws however wide it is."""
+ejecta reach or splotch brightness, as histograms of 50,000 draws of each. The top row shows a
+constant, a uniform, a normal and a log-normal. The bottom row shows the normal and log-normal
+clamped to a range, piling their tails up at its ends. It also shows a piecewise distribution, uniform
+within even bins weighted 1, 3, 2 and 0.5, and one with uneven bins weighted alike, each bin holding a
+third of the draws however wide it is."""
 
 import matplotlib.pyplot as plt
 import numpy as np

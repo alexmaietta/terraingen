@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How long a central peak's massifs are: three fresh 60 km lunar complex craters whose massifs
-are at most round (elongation 1), twice (the default) and four times as long as they are wide.
-Top: the craters hillshaded with a low sun. Bottom: a west-east profile through each on the same
-relief, and the profile's round dome (dashed)."""
+"""How long a central peak's massifs are, on three fresh 60 km lunar complex craters whose massifs
+are at most round (elongation 1), twice (the default) and four times as long as they are wide. The
+top row shows the craters hillshaded with a low sun. The bottom row shows a west-east profile
+through each on the same relief, and the profile's round dome (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

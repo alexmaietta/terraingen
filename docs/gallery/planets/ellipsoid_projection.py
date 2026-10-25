@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Round craters on an irregular body, distorted only by the map: four 70 m craters on a triaxial
-ellipsoid 535 by 294 by 209 m, each a circle in meters along the surface. Top left: the body. Top
-right: its heights by longitude and latitude, where the same craters stretch or squash with their
-place on the ellipsoid: narrow in longitude at the long axis's tip (1), wide toward the pole (3).
-Bottom: each crater in its own local east-north frame on the surface, round wherever it lies."""
+"""Round craters on an irregular body, distorted only by the map. Four 70 m craters sit on a triaxial
+ellipsoid 535 by 294 by 209 m, each a circle in meters along the surface. The top left panel shows
+the body. The top right one shows its heights by longitude and latitude, where the same craters
+stretch or squash with their place on the ellipsoid, narrow in longitude at the long axis's tip (1)
+and wide toward the pole (3). The bottom row shows each crater in its own local east-north frame on
+the surface, round wherever it lies."""
 
 import gallery
 import matplotlib.pyplot as plt

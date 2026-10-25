@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How far a crater's blocks reach: a fresh 60 m crater (gray rim) whose blocks, on top of the
-background boulders, fall smoothly to nothing at 2, 3 (the default) and 5 radii, blocks of 0.8 m and
-up sized by Golombek and Rapp's model at 15% rock cover, drawn to scale and colored by the height
-they stand above the ground. Bottom: the ejecta abundance against distance from the center for
-each."""
+"""How far a crater's blocks reach. A fresh 60 m crater (gray rim) has blocks, on top of the
+background boulders, that fall smoothly to nothing at 2, 3 (the default) and 5 radii, blocks of 0.8 m
+and up sized by Golombek and Rapp's model at 15% rock cover, drawn to scale and colored by the height
+they stand above the ground. The bottom plot shows the ejecta abundance against distance from the
+center for each."""
 
 import gallery
 import matplotlib.pyplot as plt

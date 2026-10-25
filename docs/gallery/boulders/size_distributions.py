@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Cumulative boulder size-frequency distributions: NASA SP-8023's intercrater blocks between its
+"""Cumulative boulder size-frequency distributions for NASA SP-8023's intercrater blocks between its
 minimum and maximum curves and its blocks near craters, Golombek and Rapp's model at 2%, 5% and 10%
 rock cover, and synthterrain's three power laws."""
 

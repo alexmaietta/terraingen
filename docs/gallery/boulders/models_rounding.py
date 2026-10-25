@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Rounding: the block style from the same seed pulled toward its ellipsoid by none, a third, two
+"""Rounding, with the block style from the same seed pulled toward its ellipsoid by none, a third, two
 thirds and all of the way, from a sharp-cornered cube to a smooth ovoid. Fractures and noise are
 applied after, so even a fully rounded block keeps its flat cuts."""
 

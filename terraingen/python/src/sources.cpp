@@ -341,16 +341,18 @@ void BindRasterSources(nb::module_& m) {
         "Heights from band `band` of a GeoTIFF, scaled (height * scale + offset), its cells "
         "refined by `upsampler` (cubic when None). A projected file suits a plane terrain and one "
         "in longitude and latitude a terrain on a body, its crop and cell sizes in degrees. "
-        "With `crop` (min_x, min_y, max_x, max_y) it "
-        "covers only the cells meeting that box and reads only a window of the file, giving the "
-        "same heights there as without it. `effective_pixel_size` is the cell size the heights "
-        "truly resolve, for a DEM upsampled before it was saved.")
+        "The file is decoded a tile or strip at a time as heights are asked of them and kept in "
+        "a cache of at most `cache_bytes`, so a small area of a file too large for memory reads "
+        "only the blocks around it. With `crop` (min_x, min_y, max_x, max_y) it covers only the "
+        "cells meeting that box, giving the same heights there as without it. "
+        "`effective_pixel_size` is the cell size the heights truly resolve, for a DEM upsampled "
+        "before it was saved.")
         .def(
             "__init__",
             [](GeoTiffSource* self, const std::filesystem::path& path, std::size_t band,
                std::optional<double> scale, std::optional<double> offset,
                std::optional<Bounds2d> crop, std::optional<double> effectivePixelSize,
-               std::shared_ptr<Upsampler> upsampler) {
+               std::shared_ptr<Upsampler> upsampler, std::size_t cacheBytes) {
                 GeoTiffSourceOptions options;
                 options.band = band;
                 options.scale = scale;
@@ -358,11 +360,12 @@ void BindRasterSources(nb::module_& m) {
                 options.crop = crop;
                 options.effectivePixelSize = effectivePixelSize;
                 options.upsampler = std::move(upsampler);
+                options.cacheBytes = cacheBytes;
                 new (self) GeoTiffSource(path, options);
             },
             "path"_a, "band"_a = 0, "scale"_a = nb::none(), "offset"_a = nb::none(),
             "crop"_a = nb::none(), "effective_pixel_size"_a = nb::none(),
-            "upsampler"_a = nb::none());
+            "upsampler"_a = nb::none(), "cache_bytes"_a = kDefaultGeoTiffCacheBytes);
     nb::class_<RasterSource, Source>(
         m, "RasterSource",
         "Heights from a raster held in memory, used as given with its no-data value, its cells "

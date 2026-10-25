@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Depth to diameter. Left: fresh craters' depth (solid) and rim height (dashed) over diameter on the
-Moon and Mars, from the small, shallow bowls through the deepest simple craters to complex craters,
-whose ratios fall past the transition (15 km on the Moon, 7 km on Mars). Right: every crater placed
-on a 500 m default lunar surface, its depth ratio against its diameter colored by its freshness, worn
-by diffusion from the fresh line toward the 0.04 at which craters fade from view."""
+"""Depth to diameter. The left panel plots fresh craters' depth (solid) and rim height (dashed) over
+diameter on the Moon and Mars, from the small, shallow bowls through the deepest simple craters to
+complex craters, whose ratios fall past the transition (15 km on the Moon, 7 km on Mars). The right
+panel plots every crater placed on a 500 m default lunar surface, its depth ratio against its
+diameter colored by its freshness. Diffusion wears them from the fresh line toward the 0.04 at which
+craters fade from view."""
 
 import matplotlib.pyplot as plt
 import numpy as np

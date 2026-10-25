@@ -383,9 +383,7 @@ def test_secondaries_fall_beyond_the_onset_range(lunar_models):
     bright = terraingen.CraterRays(layout=layout)
     assert bright.layout.seed == 2
     with pytest.raises(ValueError):
-        terraingen.validate_ray_layout(
-            terraingen.RayLayout(width_degrees=terraingen.ValueDistribution(a=200.0))
-        )
+        terraingen.validate_ray_layout(terraingen.RayLayout(width_deg=terraingen.ValueDistribution(a=200.0)))
 
 
 def full_apply_options():
@@ -556,8 +554,8 @@ def test_outline_heading_is_in_degrees():
         enabled=True,
         elongated_share=1.0,
         selection=ALL_CRATERS,
-        heading_degrees=30.0,
-        heading_spread_degrees=0.0,
+        heading_deg=30.0,
+        heading_spread_deg=0.0,
     )
     outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0), irregular)
     assert outline.heading_deg == pytest.approx(30.0)

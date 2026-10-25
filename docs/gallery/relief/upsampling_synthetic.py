@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """A synthetic source's noise read at 0.25 m over a 128 m window, hillshaded (top) and as slopes
-(bottom). Left: eight octaves of 400 m fBm evaluated at every point, smooth below its finest 3 m
-octave. The others sample the same noise at 8 m posts and refine them: cubic interpolation, smooth
-between the posts; and diamond-square midpoint displacement, which adds random detail below the posts
-with a fractal dimension and scale estimated from them."""
+(bottom). The left column evaluates eight octaves of 400 m fBm at every point, smooth below its
+finest 3 m octave. The others sample the same noise at 8 m posts and refine them, first by cubic
+interpolation, smooth between the posts, then by diamond-square midpoint displacement, which adds
+random detail below the posts with a fractal dimension and scale estimated from them."""
 
 import gallery
 import matplotlib.pyplot as plt

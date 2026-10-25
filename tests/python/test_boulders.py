@@ -122,18 +122,18 @@ def test_boulder_layer_options_nest_their_parts_as_in_cpp():
     boulders = terraingen.BoulderLayerOptions(
         sizes=terraingen.BoulderSizes(q_constant=1.5),
         bedrock=terraingen.BoulderBedrock(abundance=2.0),
-        pose=terraingen.BoulderPose(max_lean_degrees=6.0),
+        pose=terraingen.BoulderPose(max_lean_deg=6.0),
         rendering=terraingen.BoulderRendering(shape_prototypes=8),
     )
     assert (
         boulders.sizes.q_constant,
         boulders.bedrock.abundance,
-        boulders.pose.max_lean_degrees,
+        boulders.pose.max_lean_deg,
         boulders.rendering.shape_prototypes,
     ) == (1.5, 2.0, 6.0, 8)
     boulders.pose.min_burial = 0.2
-    boulders.rendering.model_threshold.min_pixels = 4.0
-    assert boulders.pose.min_burial == 0.2 and boulders.rendering.model_threshold.min_pixels == 4.0
+    boulders.rendering.model_threshold.min_px = 4.0
+    assert boulders.pose.min_burial == 0.2 and boulders.rendering.model_threshold.min_px == 4.0
     assert not hasattr(boulders, "coverage") and not hasattr(boulders, "shape_prototypes")
 
 
@@ -177,7 +177,7 @@ def test_boulder_fillets_ramp_into_the_dome_with_no_bench():
         rendering=terraingen.BoulderRendering(relief=terraingen.BoulderRelief.DOME),
     )
     boulder = terraingen.ManualBoulder(
-        0.0, 0.0, 2.0, height=1.0, burial=0.0, yaw_degrees=0.0, lean_degrees=0.0, tilt_degrees=0.0
+        0.0, 0.0, 2.0, height=1.0, burial=0.0, yaw_deg=0.0, lean_deg=0.0, tilt_deg=0.0
     )
     layer = terraingen.BoulderLayer.manual([boulder], options)
     heights = terraingen.evaluate(terraingen.TerrainGenerator(terraingen.FlatSource(401, 401, 0.01), [layer]))
@@ -329,7 +329,7 @@ def test_golombek_rapp_terms_need_golombek_rapp_sizes():
 def test_boulders_rest_on_sides_and_ends_and_tilt():
     options = terraingen.BoulderLayerOptions(
         sizes=terraingen.BoulderSizes(distribution=None, coverage=0.08),
-        pose=terraingen.BoulderPose(side_share=0.3, end_share=0.1, max_tilt_degrees=45.0),
+        pose=terraingen.BoulderPose(side_share=0.3, end_share=0.1, max_tilt_deg=45.0),
     )
     table = terraingen.BoulderLayer(options).boulders((-30.0, -30.0, 30.0, 30.0)).table
     rests = np.asarray(table["rest"])
@@ -341,9 +341,9 @@ def test_boulders_rest_on_sides_and_ends_and_tilt():
 
 
 def test_boulder_max_slope_is_optional():
-    options = terraingen.BoulderLayerOptions(pose=terraingen.BoulderPose(max_slope_degrees=30.0))
-    assert options.pose.max_slope_degrees == 30.0
-    assert terraingen.BoulderLayerOptions().pose.max_slope_degrees is None
+    options = terraingen.BoulderLayerOptions(pose=terraingen.BoulderPose(max_slope_deg=30.0))
+    assert options.pose.max_slope_deg == 30.0
+    assert terraingen.BoulderLayerOptions().pose.max_slope_deg is None
 
 
 def test_boulder_layers_take_maps_and_catalogs():
@@ -376,7 +376,7 @@ def test_boulders_follow_a_size_slope_map_and_roll_down_steep_ground():
     options = terraingen.BoulderLayerOptions(
         sizes=terraingen.BoulderSizes(distribution=terraingen.PowerLawSfd(0.05, 3.0)),
         slope_map=terraingen.SizeSlopeMap(field=terraingen.ConstantField(2.0), reference_diameter=1.0),
-        pose=terraingen.BoulderPose(max_slope_degrees=22.0, roll_distance=20.0),
+        pose=terraingen.BoulderPose(max_slope_deg=22.0, roll_distance=20.0),
     )
     terraingen.BoulderLayer(options)
     assert terraingen.size_slope_at(options.slope_map, 0.0, 0.0) == 2.0
@@ -396,7 +396,7 @@ def test_boulder_angles_are_in_degrees():
 
 def test_manual_boulders_fix_their_pose_and_shape():
     plain = terraingen.ManualBoulder(1.0, 2.0, 1.5)
-    assert plain.height is None and plain.yaw_degrees is None and plain.rest is None
+    assert plain.height is None and plain.yaw_deg is None and plain.rest is None
     assert plain.shape_seed is None and "ManualBoulder(x=1.0" in repr(plain)
     posed = terraingen.ManualBoulder(
         x=-3.0,
@@ -405,15 +405,15 @@ def test_manual_boulders_fix_their_pose_and_shape():
         id=17,
         height=0.9,
         burial=0.3,
-        yaw_degrees=30.0,
-        lean_degrees=10.0,
-        tilt_degrees=20.0,
-        tilt_azimuth_degrees=90.0,
+        yaw_deg=30.0,
+        lean_deg=10.0,
+        tilt_deg=20.0,
+        tilt_azimuth_deg=90.0,
         wear=0.25,
         rest=terraingen.BoulderRest.SIDE,
         shape_seed=5,
     )
-    assert (posed.yaw_degrees, posed.lean_degrees, posed.tilt_degrees, posed.tilt_azimuth_degrees) == (
+    assert (posed.yaw_deg, posed.lean_deg, posed.tilt_deg, posed.tilt_azimuth_deg) == (
         30.0,
         10.0,
         20.0,

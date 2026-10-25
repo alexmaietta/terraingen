@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Complex crater profiles, scaled by diameter. Left: fresh lunar craters 10 km across, still a
-simple bowl, then 20, 40 and 80 km past the 15 km transition, with flat floors widening, walls
-shallowing and central peaks rising. Middle: a fresh 40 km crater on the Moon beside one on Mars,
-whose complex craters start at 7 km and are shallower. Right: the 40 km lunar crater worn to 75% and
-50% of its fresh depth, its peak lowered with the rest of it."""
+"""Complex crater profiles, scaled by diameter. The left panel shows fresh lunar craters 10 km
+across, still a simple bowl, then 20, 40 and 80 km past the 15 km transition, with flat floors
+widening, walls shallowing and central peaks rising. The middle one sets a fresh 40 km crater on the
+Moon beside one on Mars, whose complex craters start at 7 km and are shallower. The right one shows
+the 40 km lunar crater worn to 75% and 50% of its fresh depth, its peak lowered with the rest of it."""
 
 import matplotlib.pyplot as plt
 import numpy as np

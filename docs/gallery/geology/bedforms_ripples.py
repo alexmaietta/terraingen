@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Fields of Martian large ripples, 2 m apart and 0.2 m high, in patches with ragged edges on a
-100 m square of fractal relief, under a wind blowing east. Left to right: ripple fields covering 15%
-of the ground (the preset), 30% and 60%. Hillshaded with a low sun."""
+100 m square of fractal relief, under a wind blowing east. From left to right, the ripple fields
+cover 15% of the ground (the preset), 30% and 60%. Hillshaded with a low sun."""
 
 import gallery
 import matplotlib.pyplot as plt

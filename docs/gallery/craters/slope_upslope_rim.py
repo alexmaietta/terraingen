@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How much raised rim a crater keeps upslope: fresh 80 m craters on ground rising 15 degrees to the
-east, their floors 0.12 diameters downslope, keeping none, half and all of the rim and ejecta
-straight upslope; the rest returns around the crater as the squared cosine of the angle from
-upslope falls. Top: hillshades. Bottom: west to east profiles through the centers as height above
-the hillside, with a symmetric crater (dashed)."""
+"""How much raised rim a crater keeps upslope, for fresh 80 m craters on ground rising 15 degrees to
+the east with their floors 0.12 diameters downslope. They keep none, half and all of the rim and
+ejecta straight upslope. The rest returns around the crater as the squared cosine of the angle from
+upslope falls. The top row shows hillshades. The bottom row shows west to east profiles through the
+centers as height above the hillside, with a symmetric crater (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The whole Moon from a measured DEM: the LOLA global lunar DEM at 8 pixels per degree (about
+"""The whole Moon from a measured DEM, the LOLA global lunar DEM at 8 pixels per degree (about
 3.8 km posts, LDEM_8, Smith et al. 2010) as a source on the Moon's 1737.4 km sphere, read at a
 quarter degree. The file runs from 0 to 360 E and the map from 180 W to 180 E, so its western half
-is read across the wrap with no seam at 0 E. Top: the near side, centered on 0 E, and the far side,
-on 180 E, colored by height and shaded. Bottom: the whole globe by longitude and latitude, from the
-low South Pole-Aitken basin on the far side to the high highlands north of it."""
+is read across the wrap with no seam at 0 E. The top row shows the near side, centered on 0 E, and
+the far side, on 180 E, colored by height and shaded. The bottom panel shows the whole globe by
+longitude and latitude, from the low South Pole-Aitken basin on the far side to the high highlands
+north of it."""
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Crater chronologies: the density of craters 1 km and larger a surface collects over its age, on the
-Moon (Neukum) and Mars (Ivanov). Left: rising steeply through the late heavy bombardment before 3.5
-Gyr ago, then almost linearly. Right: the production surfaces they scale, extended Neukum production
-on surfaces 10 Myr to 3.9 Gyr old."""
+"""Crater chronologies give the density of craters 1 km and larger a surface collects over its age, on
+the Moon (Neukum) and Mars (Ivanov). On the left the density rises steeply through the late heavy
+bombardment before 3.5 Gyr ago, then almost linearly. The right plot shows the production surfaces
+they scale, extended Neukum production on surfaces 10 Myr to 3.9 Gyr old."""
 
 import matplotlib.pyplot as plt
 import numpy as np

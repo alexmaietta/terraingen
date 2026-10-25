@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Crater spacing with both settings varied together: fresh craters from 5 m to 60 m at three times
-the Trask equilibrium on 300 m squares of fractal relief. Left to right: no spacing; a light thinning
-of near-equal craters (ratio 1.2, half a diameter apart); a moderate one (ratio 2, a diameter
-apart); and a strong one (ratio 4, 1.25 diameters apart), leaving an evenly spread field."""
+"""Crater spacing with both settings varied together, for fresh craters from 5 m to 60 m at three times
+the Trask equilibrium on 300 m squares of fractal relief. From left to right, the panels show no
+spacing, a light thinning of near-equal craters (ratio 1.2, half a diameter apart), a moderate one
+(ratio 2, a diameter apart) and a strong one (ratio 4, 1.25 diameters apart) that leaves an evenly
+spread field."""
 
 import gallery
 import matplotlib.pyplot as plt

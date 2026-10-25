@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """How a crater cut into a fitted plane blends back into the ground around it, from 0.8 to 1.2
-radii: four fresh 80 m craters on rough ground, blended linearly, by smoothstep, by smootherstep
-(the default) and by a Gaussian. Top: hillshaded with a low sun. Bottom: the crater's weight
-against the ground's for each shape, by distance from the center."""
+radii. Four fresh 80 m craters on rough ground are blended linearly, by smoothstep, by smootherstep
+(the default) and by a Gaussian. The top row is hillshaded with a low sun. The bottom row plots the
+crater's weight against the ground's for each shape, by distance from the center."""
 
 import gallery
 import matplotlib.pyplot as plt

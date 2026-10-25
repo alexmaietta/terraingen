@@ -1,16 +1,16 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Adding noise to a measured DEM: the LOLA global lunar DEM at 8 pixels per degree (about 3.8 km
+"""Adding noise to a measured DEM, the LOLA global lunar DEM at 8 pixels per degree (about 3.8 km
 posts, LDEM_8, Smith et al. 2010) over 12 degrees around Copernicus, refined by cubic
-interpolation to about 500 m on the Moon's sphere. Left to right: the DEM alone; a stack of fBm
-octaves from 16 km down to 1 km, 250 m high at 8 km and rising as wavelength^0.8, added
-everywhere, so its long octaves pile hills onto relief the DEM already measures; the same stack
-with every octave 2 or more of the DEM's posts long left out, keeping only detail the DEM cannot
-hold; and spectral continuation, which carries on below the posts' resolution the power law
-fitted to them over 48 degrees around the window, wide enough that Copernicus does not set it;
-fitted over the 12 degrees alone, the crater fills the fit and the slope clips at 4. Bottom: the
-radially averaged power spectra, the 12 degrees of posts as dots and their Nyquist frequency
-marked."""
+interpolation to about 500 m on the Moon's sphere. The first panel shows the DEM alone. The second
+adds a stack of fBm octaves from 16 km down to 1 km, 250 m high at 8 km and rising as
+wavelength^0.8, everywhere, so its long octaves pile hills onto relief the DEM already measures. The
+third leaves out every octave 2 or more of the DEM's posts long, keeping only detail the DEM cannot
+hold. The fourth uses spectral continuation, which carries on below the posts' resolution the power
+law fitted to them over 48 degrees around the window, wide enough that Copernicus does not set it.
+Fitted over the 12 degrees alone, the crater fills the fit and the slope clips at 4. The bottom plot
+shows the radially averaged power spectra, the 12 degrees of posts as dots and their Nyquist
+frequency marked."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ def octave_stack(moon, source, resolves):
     ]
     options = terraingen.NoiseLayerOptions()
     options.fractals = fractals
-    options.source_resolves_pixels = resolves
+    options.source_resolves_px = resolves
     return terraingen.NoiseLayer(options, terraingen.TerrainBase(moon, source))
 
 

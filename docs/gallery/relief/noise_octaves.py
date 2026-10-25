@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Octaves add detail: Perlin fBm with a 200 m wavelength on 300 m squares, from one octave to eight,
+"""Octaves add detail to Perlin fBm with a 200 m wavelength on 300 m squares, from one octave to eight,
 each octave half the wavelength and half the amplitude of the one before. Colored by height and lit
 from the northwest."""
 

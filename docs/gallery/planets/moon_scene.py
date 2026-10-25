@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A lunar scene combining the crater, boulder, roughness and albedo models, 400 m across: gently
-rolling mare with meter-scale roughness matched to Cai and Fa's (2020) mare values; the default
-crater population of a 3.5 Gyr surface, worn by diffusion; a fresh 90 m crater with lineated
-ejecta, blocks thrown around it and rays brightened threefold so they read at this scale; a 2 Myr
-old 50 m crater with its blocks thinning; and background boulders. Left: the scene as an orbital image would see it, the albedo (a mature
-mare base, slopes freshened, crater interiors, ejecta and rays bright, rocks brighter than soil)
-lit by a low sun from the east. Right, top: the heights. Right, bottom: the albedo alone."""
+"""A lunar scene combining the crater, boulder, roughness and albedo models, 400 m across. It has
+gently rolling mare with meter-scale roughness matched to Cai and Fa's (2020) mare values and the
+default crater population of a 3.5 Gyr surface, worn by diffusion. A fresh 90 m crater has lineated
+ejecta, blocks thrown around it and rays brightened threefold so they read at this scale. A 2 Myr
+old 50 m crater has its blocks thinning, and background boulders lie around. The left panel shows
+the scene as an orbital image would see it, the albedo (a mature mare base, slopes freshened, crater
+interiors, ejecta and rays bright, rocks brighter than soil) lit by a low sun from the east. On the
+right, the top panel shows the heights and the bottom one the albedo alone."""
 
 import matplotlib.pyplot as plt
 import numpy as np

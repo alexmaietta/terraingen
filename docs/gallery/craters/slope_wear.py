@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Craters wear faster on steeper ground: 80 m craters of the same diffusion age, kappa t / D^2 of
+"""Craters wear faster on steeper ground. These 80 m craters share a diffusion age, kappa t / D^2 of
 0.002, on ground rising 0, 15 and 30 degrees to the east, with a critical gradient of tan 35
-degrees. A crater on gradient S wears 1 / (1 - (S / Sc)^2) times as fast (Roering et al. 1999):
-1.2 times at 15 degrees and 3.1 times at 30. Top: hillshades. Bottom: west to east profiles through
-the centers as height above each hillside, and the fresh crater (dashed)."""
+degrees. A crater on gradient S wears 1 / (1 - (S / Sc)^2) times as fast (Roering et al. 1999),
+which is 1.2 times at 15 degrees and 3.1 times at 30. The top row shows hillshades. The bottom row
+shows west to east profiles through the centers as height above each hillside, and the fresh crater
+(dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

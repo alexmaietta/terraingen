@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Two ways to draw a rough rim: three young 150 m craters with outlines from a power-law spectrum
+"""Two ways to draw a rough rim. Three young 150 m craters have outlines from a power-law spectrum
 (RMS 0.02 radii over harmonics 2 to 12, falling as k^-1.5), from the mean rim-crest spectrum Du et
 al. (2024) fitted to fresh lunar craters, and from that spectrum scattered per crater as they
-measured. Top: the craters hillshaded with a low sun. Bottom: each rim crest's distance from the
-center against azimuth, traced from the heights."""
+measured. The top row shows the craters hillshaded with a low sun. The bottom row plots each rim
+crest's distance from the center against azimuth, traced from the heights."""
 
 import gallery
 import matplotlib.pyplot as plt

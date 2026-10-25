@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The scarp share: three fresh 90 km lunar complex craters whose scarps take 15%, 35% (the
+"""The scarp share on three fresh 90 km lunar complex craters whose scarps take 15%, 35% (the
 default) and 70% of each step's width, from sharp cliffs above wide benches to gentle risers above
-narrow ones. Top: the craters hillshaded with a low sun. Bottom: a west-east profile through each on
-the same relief, and without terraces (dashed)."""
+narrow ones. The top row shows the craters hillshaded with a low sun. The bottom row shows a
+west-east profile through each on the same relief, and without terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

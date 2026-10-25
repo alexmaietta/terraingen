@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Settling: four boulder models 2 m long, leaned 35 degrees and placed on level ground (gray), seen
-from low to the side. Top: as drawn, propped on an edge or a corner at the lean, standing tall.
-Bottom: settled, each tipped over until it rests stably on a face, its lowest point at the ground;
-the platy rock falls flat. Each title gives the height of the top above the ground. Burial and tilt
-are left out here so the resting face shows."""
+"""Settling four boulder models 2 m long, leaned 35 degrees and placed on level ground (gray), seen
+from low to the side. The top row shows them as drawn, propped on an edge or a corner at the lean and
+standing tall. In the bottom row each has tipped over until it rests stably on a face, its lowest
+point at the ground, and the platy rock falls flat. Each title gives the height of the top above the
+ground. Burial and tilt are left out here so the resting face shows."""
 
 import gallery
 import matplotlib.pyplot as plt

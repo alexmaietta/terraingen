@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Adding only the craters a DEM cannot resolve: a 600 m DEM with 8 m posts, its own large craters
-already in it, read at 1 m. Left: the DEM alone, smooth between its posts. Middle: a crater layer of
-4 m to 200 m craters added regardless, stamping a second set of large craters over the DEM's own.
-Right: the same layer told the source resolves features four posts across, so it adds only craters
-under 32 m, the ones the DEM misses."""
+"""Adding only the craters a DEM cannot resolve, on a 600 m DEM with 8 m posts and its own large
+craters already in it, read at 1 m. The left panel shows the DEM alone, smooth between its posts. In
+the middle, a crater layer of 4 m to 200 m craters is added regardless, stamping a second set of large
+craters over the DEM's own. On the right, the same layer is told the source resolves features four
+posts across, so it adds only craters under 32 m, the ones the DEM misses."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ def figure(quick=False):
         options = terraingen.CraterLayerOptions(
             seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=200.0)
         )
-        options.source_resolves_pixels = resolves_pixels
+        options.source_resolves_px = resolves_pixels
         return terraingen.CraterLayer(
             options=options, base=terraingen.TerrainBase(terraingen.Surface.plane(), source)
         )

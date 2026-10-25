@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Blocks left on a crater's floor: a fresh 60 m crater (gray rim) whose blocks, on top of the
-background boulders, fall exponentially beyond the rim and keep none, 5% (the default) and 40% of
-the rim's abundance on the floor. Blocks of 0.4 m and up sized by Golombek and Rapp's model at 15%
-rock cover, drawn to scale and colored by the height they stand above the ground. Bottom: the ejecta
-abundance against distance from the center for each."""
+"""Blocks left on a crater's floor. A fresh 60 m crater (gray rim) has blocks, on top of the
+background boulders, that fall exponentially beyond the rim and keep none, 5% (the default) and 40%
+of the rim's abundance on the floor. Blocks of 0.4 m and up sized by Golombek and Rapp's model at 15%
+rock cover are drawn to scale and colored by the height they stand above the ground. The bottom plot
+shows the ejecta abundance against distance from the center for each."""
 
 import gallery
 import matplotlib.pyplot as plt

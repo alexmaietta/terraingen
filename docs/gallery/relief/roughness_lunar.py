@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Roughness matched to measured lunar values: a roughness layer of octaves from 512 m down to 1 m on
-512 m squares, set by a Hurst exponent and a slope at a baseline. Rosenburg et al. (2011, Table 1)
-measured with LOLA at hectometer scales: maria H 0.76 with a median slope of 2.0 degrees at 17 m,
-highlands H 0.95 with 7.5 degrees. Cai and Fa (2020, Table 2) measured with LROC NAC DTMs at meter
-scales: both H 0.90, maria 3.4 and highlands 8.2 degrees at about 5 m. Medians are used as the RMS
-slope here, so the panels match the papers' typical ground, not their spread. Top: heights on one
-shared color scale. Middle: slope maps on one shared scale. Bottom left: a 200 m profile through
-each, offset for clarity. Bottom right: RMS slope against baseline, through each paper's point
-(dots)."""
+"""Roughness matched to measured lunar values, with a roughness layer of octaves from 512 m down to 1 m
+on 512 m squares, set by a Hurst exponent and a slope at a baseline. Rosenburg et al. (2011, Table 1)
+measured with LOLA at hectometer scales, finding maria H 0.76 with a median slope of 2.0 degrees at
+17 m and highlands H 0.95 with 7.5 degrees. Cai and Fa (2020, Table 2) measured with LROC NAC DTMs at
+meter scales, finding both H 0.90, maria 3.4 and highlands 8.2 degrees at about 5 m. Medians are used
+as the RMS slope here, so the panels match the papers' typical ground, not their spread. The top row
+shows heights on one shared color scale and the middle row slope maps on one shared scale. The
+bottom left shows a 200 m profile through each, offset for clarity. The bottom right shows RMS slope
+against baseline, through each paper's point (dots)."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Gain sets roughness: eight octaves of 200 m Perlin fBm on 300 m squares, each octave's amplitude
-the gain times the last's. A gain of 0.3 leaves smooth hills, 0.5 is Brownian, and 0.7 piles up fine
+"""Gain sets roughness, shown with eight octaves of 200 m Perlin fBm on 300 m squares, each octave's
+amplitude the gain times the last's. A gain of 0.3 leaves smooth hills, 0.5 is Brownian, and 0.7 piles up fine
 detail. As slope maps, which show the fine octaves that heights hide."""
 
 import gallery

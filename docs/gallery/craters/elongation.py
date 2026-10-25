@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Elongated craters, as low-angle impacts make them: nine identical young 150 m craters stretched
+"""Elongated craters, as low-angle impacts make them. Nine identical young 150 m craters are stretched
 from round (ellipticity 1) to 1.6 times as long as they are wide, all along a heading of 30 degrees
 and with round rims otherwise, on fractal relief."""
 
@@ -25,7 +25,7 @@ def elongated(ellipticity):
     irregularity.rough_share = 0.0
     irregularity.elongated_share = 1.0
     irregularity.ellipticity = terraingen.ValueDistribution.constant(ellipticity)
-    irregularity.heading_degrees = 30.0
+    irregularity.heading_deg = 30.0
     selection = irregularity.selection
     selection.manual = True
     irregularity.selection = selection

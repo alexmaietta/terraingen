@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Capping the crater count keeps only the largest craters: a 3.5 Gyr surface capped at the Trask
-equilibrium, craters from 4 m to 300 m on a 1 km square of fractal relief. Left: every crater. Then
-only the largest 200 and the largest 50, the small ones dropped first. A cap depends on the region
-asked for, so tiles evaluated apart no longer join exactly."""
+"""Capping the crater count keeps only the largest craters, here on a 3.5 Gyr surface capped at the
+Trask equilibrium, with craters from 4 m to 300 m on a 1 km square of fractal relief. The left panel
+shows every crater. The others keep only the largest 200 and the largest 50, the small ones dropped
+first. A cap depends on the region asked for, so tiles evaluated apart no longer join exactly."""
 
 import gallery
 import matplotlib.pyplot as plt

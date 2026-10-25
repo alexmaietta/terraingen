@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Radial marks on a crater's wall, ridges and grooves running downslope between 0.3 and 0.9 radii,
-fading in over a tenth of a radius at each end: three fresh 80 m craters among older small craters
-on fractal relief, with marks 0.2%, 0.5% and 1% of the radius deep. Hillshaded with a low sun."""
+fading in over a tenth of a radius at each end. Three fresh 80 m craters among older small craters
+on fractal relief have marks 0.2%, 0.5% and 1% of the radius deep. Hillshaded with a low sun."""
 
 import gallery
 import matplotlib.pyplot as plt

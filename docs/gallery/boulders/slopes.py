@@ -2,9 +2,9 @@
 
 """Boulders on the steep walls of a fresh 100 m crater on fractal relief, which throws blocks of its
 own, drawn to scale over the crater's hillshade and colored by the slope of the ground beneath them.
-Left: boulders rest wherever they land. Middle: none stay on ground steeper than 20 degrees. Right:
-those instead roll up to 40 m downhill and stop where the wall eases below 20 degrees, gathering in a
-ring partway down it."""
+On the left boulders rest wherever they land. In the middle none stay on ground steeper than 20
+degrees. On the right those instead roll up to 40 m downhill and stop where the wall eases below 20
+degrees, gathering in a ring partway down it."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -45,7 +45,7 @@ def figure(quick=False):
         ejecta.min_crater_diameter = 10.0
         options.ejecta = ejecta
         pose = options.pose
-        pose.max_slope_degrees = max_slope
+        pose.max_slope_deg = max_slope
         pose.roll_distance = roll
         options.pose = pose
         boulders = terraingen.BoulderLayer(options, craters)

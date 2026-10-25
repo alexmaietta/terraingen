@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Sand pooling in the hollows of rough, cratered ground, up to half a meter deep, filling each low
-spot toward the level of the ground within 10 m around it: a 100 m square. Top: bare, then filled to
-30%, 60% (the default) and 90% of the way, hillshaded. Bottom: the sand thickness, colored."""
+"""Sand pooling in the hollows of rough, cratered ground on a 100 m square, up to half a meter deep,
+filling each low spot toward the level of the ground within 10 m around it. The top row shows the
+ground bare, then filled to 30%, 60% (the default) and 90% of the way, hillshaded. The bottom row
+shows the sand thickness, colored."""
 
 import gallery
 import matplotlib.pyplot as plt

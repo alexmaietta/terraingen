@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Hummocky, radially lineated ejecta around a crater, thinning outward as McGetchin et al. (1973)
-measured: three fresh 80 m craters among older small craters on fractal relief with ejecta texture
+measured. Three fresh 80 m craters among older small craters on fractal relief have ejecta texture
 at a quarter, half and all of McGetchin's thickness, lineations 0.15 radii wide. Hillshaded with a
 low sun."""
 

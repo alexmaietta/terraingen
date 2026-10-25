@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Lander blast zones, where rocket exhaust scoured and brightened the soil (Clegg et al. 2014), on
-400 m squares. Left to right: an Apollo-sized zone; a smaller, more elongated one like Chang'e-3's;
-the Apollo zone with a dark core where the exhaust dug in; and profiles west to east through each."""
+400 m squares. From left to right the panels show an Apollo-sized zone, a smaller, more elongated one
+like Chang'e-3's, the Apollo zone with a dark core where the exhaust dug in, and profiles west to east
+through each."""
 
 import matplotlib.pyplot as plt
 import numpy as np

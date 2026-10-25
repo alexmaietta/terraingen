@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How rocky a crater's rim is: a fresh 60 m crater (gray rim) whose blocks, on top of the
-background boulders, are sized by Golombek and Rapp's model at 5%, 15% and 30% rock cover at the
-rim, falling smoothly to nothing at three radii. Blocks of 0.4 m and up, drawn to scale and colored
-by the height they stand above the ground. Bottom: the cumulative number of blocks per square meter
-within 1.5 radii against diameter, the rockier rims richer in large blocks as well as small."""
+"""How rocky a crater's rim is. A fresh 60 m crater (gray rim) has blocks, on top of the background
+boulders, sized by Golombek and Rapp's model at 5%, 15% and 30% rock cover at the rim, falling
+smoothly to nothing at three radii. Blocks of 0.4 m and up are drawn to scale and colored by the
+height they stand above the ground. The bottom plot shows the cumulative number of blocks per square
+meter within 1.5 radii against diameter, the rockier rims richer in large blocks as well as small."""
 
 import gallery
 import matplotlib.pyplot as plt

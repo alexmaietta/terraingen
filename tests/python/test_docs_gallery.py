@@ -54,7 +54,18 @@ def test_category_page_shows_figure(gallery_page, name):
     page = gallery_page.markdown(category, gallery_page.categories()[category])
     assert f"images/gallery/{name}.jpg" in page, f"the {category} page shows {stem}"
     assert f'data-gallery="{category}"' in page, f"{stem} opens in the {category} lightbox"
-    assert f'--8<-- "docs/gallery/{name}.py"' in page, f"{stem} shows its script"
+    assert f"[Code]({name}.md)" in page, f"{stem} links to its script's page"
+    (figure,) = [f for f in gallery_page.categories()[category] if f["name"] == stem]
+    code = gallery_page.code_page(category, figure)
+    assert f'--8<-- "docs/gallery/{name}.py"' in code, f"{stem}'s page shows its script"
+    assert f"../../images/gallery/{name}.jpg" in code, f"{stem}'s page shows the figure"
+
+
+def test_jobs_render_in_processes_and_keep_the_order(tmp_path):
+    names = ["snippets/boulders/list-boulders-of-a-layer", "snippets/craters/list-craters-of-a-layer"]
+    written = gallery.main([*names, "--quick", "--jobs", "2", "--output-dir", str(tmp_path)])
+    assert written == [tmp_path / f"{name}.jpg" for name in names]
+    assert all(path.exists() for path in written)
 
 
 def test_snippets_that_draw_a_figure_are_figures():

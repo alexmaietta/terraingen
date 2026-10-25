@@ -250,7 +250,7 @@ void BindGenerationOptions(nb::module_& m) {
           "A field of the feature size (m) from which `source` holds a layer's features: "
           "`pixels_across` times `source.resolution_at(x, y)`, converted to meters on `surface`; "
           "infinity where it resolves nothing.");
-    m.def("validate_source_resolves_pixels", &ValidateSourceResolvesPixels, "pixels_across"_a,
+    m.def("validate_source_resolves_px", &ValidateSourceResolvesPixels, "pixels_across"_a,
           kValidateDoc);
 }
 
@@ -369,8 +369,8 @@ void BindApplyOptions(nb::module_& m) {
     BindOptions<CraterTerraces>(
         m, "CraterTerraces",
         "Slump terraces on the walls of craters from `onset_diameter`: `min_benches` to "
-        "`max_benches` benches `bench_slope_degrees` steep and scarps of at least `scarp_share` of "
-        "each step rising about `scarp_slope_degrees` steep, the benches covering `arc_share` of "
+        "`max_benches` benches `bench_slope_deg` steep and scarps of at least `scarp_share` of "
+        "each step rising about `scarp_slope_deg` steep, the benches covering `arc_share` of "
         "the wall at the onset and wandering `rim_variation` radii, "
         "softening until `min_freshness`.",
         {&ValidateCraterTerraces, "validate_crater_terraces", "terraces"});
@@ -452,7 +452,7 @@ void BindLayerOptions(nb::module_& m) {
         .def_rw("density_map", &CraterLayerOptions::densityMap)
         .def_rw("secondaries", &CraterLayerOptions::secondaries,
                 "The secondaries layers throw from these craters, taken out of a total map.")
-        .def_rw("source_resolves_pixels", &CraterLayerOptions::sourceResolvesPixels,
+        .def_rw("source_resolves_px", &CraterLayerOptions::sourceResolvesPixels,
                 "Source cells across from which a layer's source holds a crater, so generated "
                 "craters that large are dropped; None keeps every one. Unit: px.")
         .def_rw("inherited", &CraterLayerOptions::inherited,
@@ -507,7 +507,7 @@ void BindCraterLayer(nb::module_& m) {
             "base"_a = TerrainBase{},
             "None models are `default_crater_models()`. On a sphere in `base` craters are placed "
             "by longitude and latitude; with a source in it, generated craters at least "
-            "`options.source_resolves_pixels` of its cells across are dropped.")
+            "`options.source_resolves_px` of its cells across are dropped.")
         .def_static(
             "manual",
             [](const std::vector<Crater>& craters, std::optional<CraterModels> models,
@@ -530,7 +530,7 @@ void BindCraterLayer(nb::module_& m) {
 
 void BindSecondaryOptions(nb::module_& m) {
     BindOptions<RayLayout>(m, "RayLayout",
-                           "How many rays a crater has (`count`) and how wide (`width_deg`), "
+                           "How many rays a crater has (`count`) and how wide (`width_deg`),"
                            "drawn from its ID and `seed`; layers with the same layout share the "
                            "same rays.",
                            {&ValidateRayLayout, "validate_ray_layout", "layout"});
@@ -580,7 +580,7 @@ void BindSecondaryDensity(nb::module_& m) {
         .def_ro("diameter", &F::diameter, "The primary's, in meters.")
         .def_ro("onset", &F::onset, "secondary_onset_range, in meters.")
         .def_ro("share", &F::share)
-        .def_ro("sin_floor", &F::sinFloor, "Sine of SecondaryRays.min_half_angle_degrees.")
+        .def_ro("sin_floor", &F::sinFloor, "Sine of SecondaryRays.min_half_angle_deg.")
         .def_ro("clustering", &F::clustering)
         .def_ro("spacing", &F::spacing, "SecondaryRays.cluster_spacing.")
         .def_ro("mean_clump", &F::meanClump, "The mean clump bump the clumping is divided by.")
@@ -641,7 +641,7 @@ void BindSecondaries(nb::module_& m) {
             },
             "primaries"_a, "profile"_a, "degradation"_a, "options"_a, "base"_a = TerrainBase{},
             "`base` is on the primaries' surface. With a source in it, secondaries at least "
-            "`options.source_resolves_pixels` of its cells "
+            "`options.source_resolves_px` of its cells "
             "across are left out.")
         .def(
             "__init__",

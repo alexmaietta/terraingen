@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""What boulder models start from. Top: the five base solids, before any stretching, cutting or
-noise: an icosahedron (refined toward a sphere, the start of most styles), a cube, a pyramid, a
-prism and a tetrahedron. Bottom: the angular style from one seed with its solid split into four
-triangles 1, 2, 3 (the default) and 5 times, each title giving the triangle count."""
+"""What boulder models start from. The top row shows the five base solids before any stretching,
+cutting or noise. They are an icosahedron (refined toward a sphere, the start of most styles), a
+cube, a pyramid, a prism and a tetrahedron. The bottom row shows the angular style from one seed with
+its solid split into four triangles 1, 2, 3 (the default) and 5 times, each title giving the triangle
+count."""
 
 import gallery
 import matplotlib.pyplot as plt

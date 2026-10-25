@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How fast a crater's blocks thin beyond the rim: a fresh 60 m crater (gray rim) whose blocks, on
-top of the background boulders, fall exponentially with an e-folding distance of 0.3, 0.7 (the
+"""How fast a crater's blocks thin beyond the rim. A fresh 60 m crater (gray rim) has blocks, on top
+of the background boulders, that fall exponentially with an e-folding distance of 0.3, 0.7 (the
 default) and 1.5 radii, out to 5 radii. Blocks of 0.5 m and up sized by Golombek and Rapp's model at
-15% rock cover, drawn to scale and colored by the height they stand above the ground. Bottom: the
-ejecta abundance against distance from the center for each."""
+15% rock cover are drawn to scale and colored by the height they stand above the ground. The bottom
+plot shows the ejecta abundance against distance from the center for each."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Power-law crater densities N(>= D) = C D^-b, each scaled to the same 27 craters of 10 m and up per
-300 m square. Top: the cumulative curves, crossing at 10 m. Bottom: the fresh craters each places from
-2.5 m to 100 m on fractal relief: a shallow exponent makes few small craters and a steep one swarms
-of them."""
+300 m square. The top plot shows the cumulative curves, crossing at 10 m. The bottom row shows the
+fresh craters each places from 2.5 m to 100 m on fractal relief. A shallow exponent makes few small
+craters and a steep one swarms of them."""
 
 import gallery
 import matplotlib.pyplot as plt

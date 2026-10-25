@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A synthetic Theophilus: one fresh 100 km lunar complex crater on rugged fractal highlands, with
+"""A synthetic Theophilus, one fresh 100 km lunar complex crater on rugged fractal highlands, with
 the settings that recreate the look of Theophilus in Lunar Orbiter images, a smooth floor cut into
 the older ground (a plane datum, fully replaced inside), four broken terraces down the wall, and a
 central peak of four to five long ridges scattered all around the center into a cross. Lit from the
@@ -46,7 +46,7 @@ def theophilus_apply():
         max_massifs=5,
         spread_radii=1.0,
         elongation=3.0,
-        chain_spread_degrees=360.0,
+        chain_spread_deg=360.0,
         sharpness=0.8,
         lopsidedness=0.4,
         height_variation=0.3,

@@ -41,21 +41,14 @@ inline std::string FieldDoc(std::string_view description, std::string_view unit)
     return doc;
 }
 
-/// The Python name of the configuration field `key` of `unit`, the C++ member's name in snake case:
-/// the key without its meters suffix "_m", and with "_px" and "_deg" spelled "_pixels" and
-/// "_degrees", as the library names them.
+/// The Python name of the configuration field `key` of `unit`: the key without its meters suffix
+/// "_m". Angles and sample counts keep the configuration's "_deg" and "_px".
 inline std::string PythonName(std::string_view key, std::string_view unit) {
     const auto ends = [&](std::string_view suffix) {
         return key.size() > suffix.size() && key.substr(key.size() - suffix.size()) == suffix;
     };
     if (unit == "m" && ends("_m")) {
         return std::string(key.substr(0, key.size() - 2));
-    }
-    if (unit == "px" && ends("_px")) {
-        return std::string(key.substr(0, key.size() - 3)) + "_pixels";
-    }
-    if (ends("_deg")) {
-        return std::string(key) + "rees";
     }
     return std::string(key);
 }

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Domain warping bends noise by offsetting where it is sampled with more noise: five octaves of
-100 m ridged Perlin noise on 300 m squares, warped by 150 m noise up to 0, 20 and 60 m, its straight
+"""Domain warping bends noise by offsetting where it is sampled with more noise. Here five octaves of
+100 m ridged Perlin noise on 300 m squares are warped by 150 m noise up to 0, 20 and 60 m, its straight
 crests twisting into swirls."""
 
 import gallery

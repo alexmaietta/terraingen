@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Lacunarity spaces the octaves: six octaves of 200 m Perlin fBm on 300 m squares, each octave's
-wavelength the last's divided by the lacunarity. At 1.5 the octaves crowd together; at 3 the gaps
+"""Lacunarity spaces the octaves, shown with six octaves of 200 m Perlin fBm on 300 m squares, each
+octave's wavelength the last's divided by the lacunarity. At 1.5 the octaves crowd together; at 3 the gaps
 between scales show. Colored by height and lit from the northwest."""
 
 import gallery

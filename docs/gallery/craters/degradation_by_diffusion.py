@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Nine identical 150 m craters worn by topographic diffusion, from fresh to a diffusion age kappa t /
-D^2 of 0.012: the rim rounds off first, then the walls soften and the bowl fills, unlike freshness
+D^2 of 0.012. The rim rounds off first, then the walls soften and the bowl fills, unlike freshness
 degradation, which only scales the crater down."""
 
 import gallery

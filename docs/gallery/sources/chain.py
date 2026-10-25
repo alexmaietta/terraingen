@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Filling the gaps in a DEM with a source chain and matching it at the seams: a 512 m DEM with 2 m
-posts missing a strip and a corner (outlined), chained over an unrelated synthetic source of
-fractal noise, as a regional model or a generic fallback would be. Left to right: no matching, the
-chain switching sources outright so each gap's edge steps; a 20 m feather blending the two across
-the edge; height matching, the fallback shifted by the gap between the sources along the edge,
-spread smoothly into the gap; and slope matching, which also carries the DEM's slope across the
-edge. Top: hillshades. Middle: a west to east height profile across the strip against the DEM
-before the strip was cut out (dashed), the gap shaded. Bottom: the slope along it."""
+"""Filling the gaps in a DEM with a source chain and matching it at the seams. A 512 m DEM with 2 m
+posts missing a strip and a corner (outlined) is chained over an unrelated synthetic source of
+fractal noise, as a regional model or a generic fallback would be. With no matching (first column)
+the chain switches sources outright, so each gap's edge steps. A 20 m feather (second) blends the two
+across the edge. Height matching (third) shifts the fallback by the gap between the sources along
+the edge, spread smoothly into the gap. Slope matching (fourth) also carries the DEM's slope across
+the edge. The top row shows hillshades. The middle row shows a west to east height profile across
+the strip against the DEM before the strip was cut out (dashed), the gap shaded. The bottom row
+shows the slope along it."""
 
 import gallery
 import matplotlib.pyplot as plt

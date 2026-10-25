@@ -3,11 +3,11 @@
 """Craters on a whole irregular body, a triaxial ellipsoid 535 by 294 by 209 m like a small rubble-pile
 asteroid, from a power law of 0.06 D^-2 craters per square meter between 3 m and 40 m. Craters are
 drawn per cube-sphere cell by the cell's true surface area on the ellipsoid, so the population
-matches the density everywhere however stretched the body is. Left: the cratered body, colored by
-height. Second: its heights by longitude and latitude. Third: the placed craters' cumulative counts
-against the density times the ellipsoid's area (dashed) and times a same-volume sphere's (dotted),
-11% too small. Right: craters per 100 square meters in each latitude band of true area, level from
-pole to pole."""
+matches the density everywhere however stretched the body is. The first panel shows the cratered
+body, colored by height, and the second its heights by longitude and latitude. The third plots the
+placed craters' cumulative counts against the density times the ellipsoid's area (dashed) and times
+a same-volume sphere's (dotted), 11% too small. The right plot shows craters per 100 square meters in
+each latitude band of true area, level from pole to pole."""
 
 import matplotlib.pyplot as plt
 import numpy as np

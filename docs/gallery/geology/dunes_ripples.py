@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Wind ripples on a Martian barchan, 2.1 m apart and 0.2 m high, as Lapotre et al. (2016) measured.
-Left: the barchan, 2.4 km across, at 6 m, too coarse for its ripples. Then the boxed 100 m of its
-windward flank at 0.2 m, hillshaded: bare; with ripples running straight across the wind; and with
-the dune's slope bending them around the flank and packing them tighter where it steepens."""
+The left panel shows the barchan, 2.4 km across, at 6 m, too coarse for its ripples. The others show
+the boxed 100 m of its windward flank at 0.2 m, hillshaded. It is bare, then has ripples running
+straight across the wind, then has the dune's slope bending them around the flank and packing them
+tighter where it steepens."""
 
 import gallery
 import matplotlib.pyplot as plt

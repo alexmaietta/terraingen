@@ -10,11 +10,13 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <limits>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 
 namespace terraingen {
@@ -567,14 +569,20 @@ float SampleAt(const std::uint8_t* p, const GeoTiffInfo& info) {
     }
 }
 
-/// The stored bytes of chunk `chunk` decompressed, or zeros for a chunk with none.
-std::vector<std::uint8_t> Decompress(TiffReader& reader, const Layout& layout, std::size_t chunk,
-                                     std::size_t expected) {
+/// The bytes stored for chunk `chunk`, none for a chunk without any.
+std::vector<std::uint8_t> StoredBytes(TiffReader& reader, const Layout& layout, std::size_t chunk) {
     const std::uint64_t stored = layout.byteCounts[chunk];
-    if (stored == 0) {
+    return stored == 0 ? std::vector<std::uint8_t>()
+                       : reader.ReadBytes(layout.offsets[chunk], stored);
+}
+
+/// The bytes `raw` stored for chunk `chunk` decompressed, or zeros for a chunk with none.
+std::vector<std::uint8_t> Decompress(const TiffReader& reader, const Layout& layout,
+                                     std::size_t chunk, std::vector<std::uint8_t> raw,
+                                     std::size_t expected) {
+    if (layout.byteCounts[chunk] == 0) {
         return std::vector<std::uint8_t>(expected, 0);
     }
-    std::vector<std::uint8_t> raw = reader.ReadBytes(layout.offsets[chunk], stored);
     try {
         switch (layout.info.compression) {
         case TiffCompression::Lzw:
@@ -596,17 +604,19 @@ std::vector<std::uint8_t> Decompress(TiffReader& reader, const Layout& layout, s
     return raw;
 }
 
-thread_local std::size_t decodedChunks = 0;
+std::atomic<std::size_t> decodedChunks{0};
 
-/// Chunk `chunk`, holding `rows` rows, as little-endian samples without a predictor.
-std::vector<std::uint8_t> DecodeChunk(TiffReader& reader, const Layout& layout, std::size_t chunk,
+/// Chunk `chunk`, holding `rows` rows and stored as `raw`, as little-endian samples without a
+/// predictor.
+std::vector<std::uint8_t> DecodeChunk(const TiffReader& reader, const Layout& layout,
+                                      std::size_t chunk, std::vector<std::uint8_t> raw,
                                       std::size_t rows) {
     ++decodedChunks;
     const GeoTiffInfo& info = layout.info;
     const std::size_t sampleBytes = SampleBytes(info);
     const std::size_t rowSamples = layout.chunkWidth * layout.SamplesInChunk();
     std::vector<std::uint8_t> bytes =
-        Decompress(reader, layout, chunk, rows * rowSamples * sampleBytes);
+        Decompress(reader, layout, chunk, std::move(raw), rows * rowSamples * sampleBytes);
     if (info.bigEndian && info.predictor != 3) {
         SwapSamples(bytes, sampleBytes);
     }
@@ -638,10 +648,98 @@ void CopyChunk(const std::vector<std::uint8_t>& bytes, const Layout& layout, std
     }
 }
 
+void RequireBand(const TiffReader& reader, const GeoTiffInfo& info, std::size_t band) {
+    if (band >= info.bands) {
+        reader.Fail("band " + std::to_string(band) + " requested of " + std::to_string(info.bands));
+    }
+}
+
+/// The rows chunk row `cy` holds: whole tiles, or a last strip cut at the image.
+std::size_t ChunkRows(const Layout& layout, std::size_t cy) {
+    return layout.info.tiled
+               ? layout.chunkHeight
+               : std::min(layout.chunkHeight, layout.info.height - cy * layout.chunkHeight);
+}
+
+/// The index of the chunk at column `cx` and row `cy` of chunks holding band `band`.
+std::size_t ChunkIndex(const Layout& layout, std::size_t band, std::size_t cx, std::size_t cy) {
+    const std::size_t planeOffset = layout.planar ? band * layout.across * layout.down : 0;
+    return planeOffset + cy * layout.across + cx;
+}
+
+/// Where band `band` lies among a chunk's samples.
+std::size_t SampleIndex(const Layout& layout, std::size_t band) {
+    return layout.planar ? 0 : band;
+}
+
+/// A raster over the image's cells `cells`, with their transform and the file's no-data value.
+Raster<float> WindowRaster(const GeoTiffInfo& info, const PixelWindow& cells) {
+    Raster<float> raster(cells.colEnd - cells.colBegin, cells.rowEnd - cells.rowBegin);
+    raster.SetTransform(
+        Subgrid(RasterGrid{info.width, info.height, info.transform}, cells).transform);
+    if (info.noData) {
+        raster.SetNoData(static_cast<float>(*info.noData));
+    }
+    return raster;
+}
+
 }  // namespace
 
 std::size_t detail::DecodedChunkCount() {
     return decodedChunks;
+}
+
+struct GeoTiffBlockReader::State {
+    TiffReader reader;
+    Layout layout;
+    std::size_t band = 0;
+    std::mutex file;  ///< Guards the reader's file position.
+};
+
+GeoTiffBlockReader::GeoTiffBlockReader(const std::filesystem::path& path, std::size_t band) {
+    TiffReader reader(path);
+    Layout layout = ReadLayout(reader);
+    RequireBand(reader, layout.info, band);
+    state_.reset(new State{std::move(reader), std::move(layout), band, {}});
+}
+
+GeoTiffBlockReader::~GeoTiffBlockReader() = default;
+
+const GeoTiffInfo& GeoTiffBlockReader::Info() const {
+    return state_->layout.info;
+}
+
+std::size_t GeoTiffBlockReader::BlockWidth() const {
+    return state_->layout.chunkWidth;
+}
+
+std::size_t GeoTiffBlockReader::BlockHeight() const {
+    return state_->layout.chunkHeight;
+}
+
+Raster<float> GeoTiffBlockReader::ReadBlock(std::size_t col, std::size_t row) const {
+    State& state = *state_;
+    const Layout& layout = state.layout;
+    const GeoTiffInfo& info = layout.info;
+    if (col >= layout.across || row >= layout.down) {
+        throw std::invalid_argument("Block (" + std::to_string(col) + ", " + std::to_string(row) +
+                                    ") is beyond the " + std::to_string(layout.across) + " x " +
+                                    std::to_string(layout.down) + " blocks of the image");
+    }
+    const std::size_t chunk = ChunkIndex(layout, state.band, col, row);
+    std::vector<std::uint8_t> raw;
+    {
+        const std::lock_guard<std::mutex> lock(state.file);
+        raw = StoredBytes(state.reader, layout, chunk);
+    }
+    const PixelWindow cells{
+        col * layout.chunkWidth, std::min((col + 1) * layout.chunkWidth, info.width),
+        row * layout.chunkHeight, std::min((row + 1) * layout.chunkHeight, info.height)};
+    Raster<float> block = WindowRaster(info, cells);
+    const std::size_t rows = ChunkRows(layout, row);
+    CopyChunk(DecodeChunk(state.reader, layout, chunk, std::move(raw), rows), layout, col, row,
+              rows, SampleIndex(layout, state.band), cells, block);
+    return block;
 }
 
 GeoTiffInfo ReadGeoTiffInfo(const std::filesystem::path& path) {
@@ -661,38 +759,25 @@ GeoTiff ReadGeoTiffWindow(const std::filesystem::path& path, std::size_t band,
     TiffReader reader(path);
     const Layout layout = ReadLayout(reader);
     const GeoTiffInfo& info = layout.info;
-    if (band >= info.bands) {
-        reader.Fail("band " + std::to_string(band) + " requested of " + std::to_string(info.bands));
-    }
+    RequireBand(reader, info, band);
     const PixelWindow cells{window.colBegin, std::min(window.colEnd, info.width), window.rowBegin,
                             std::min(window.rowEnd, info.height)};
     if (cells.Empty()) {
         throw std::invalid_argument(path.string() + ": the window to read misses the image");
     }
-    const std::size_t planeOffset = layout.planar ? band * layout.across * layout.down : 0;
-    const std::size_t sampleIndex = layout.planar ? 0 : band;
-    const std::size_t width = cells.colEnd - cells.colBegin;
-    const std::size_t height = cells.rowEnd - cells.rowBegin;
-    GeoTiff result{Raster<float>(width, height), info.geoKeys};
-    result.raster.SetTransform(
-        Subgrid(RasterGrid{info.width, info.height, info.transform}, cells).transform);
-    if (info.noData) {
-        result.raster.SetNoData(static_cast<float>(*info.noData));
-    }
+    GeoTiff result{WindowRaster(info, cells), info.geoKeys};
     for (std::size_t cy = cells.rowBegin / layout.chunkHeight;
          cy <= (cells.rowEnd - 1) / layout.chunkHeight; ++cy) {
-        const std::size_t rows =
-            info.tiled ? layout.chunkHeight
-                       : std::min(layout.chunkHeight, info.height - cy * layout.chunkHeight);
+        const std::size_t rows = ChunkRows(layout, cy);
         for (std::size_t cx = cells.colBegin / layout.chunkWidth;
              cx <= (cells.colEnd - 1) / layout.chunkWidth; ++cx) {
-            const std::size_t chunk = planeOffset + cy * layout.across + cx;
-            CopyChunk(DecodeChunk(reader, layout, chunk, rows), layout, cx, cy, rows, sampleIndex,
-                      cells, result.raster);
+            const std::size_t chunk = ChunkIndex(layout, band, cx, cy);
+            CopyChunk(DecodeChunk(reader, layout, chunk, StoredBytes(reader, layout, chunk), rows),
+                      layout, cx, cy, rows, SampleIndex(layout, band), cells, result.raster);
         }
     }
-    LogInfo("raster", "Read ", width, "x", height, " GeoTIFF ", path.string(), " in ",
-            FormatDuration(stopwatch.Milliseconds()));
+    LogInfo("raster", "Read ", result.raster.Width(), "x", result.raster.Height(), " GeoTIFF ",
+            path.string(), " in ", FormatDuration(stopwatch.Milliseconds()));
     return result;
 }
 

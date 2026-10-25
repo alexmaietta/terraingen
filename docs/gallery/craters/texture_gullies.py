@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Gullies down a crater's inner wall, radial streaks keyed to the crater: three fresh 80 m craters
-among older small craters on fractal relief, with gullies 0.3%, 0.6% and 1.2% of the diameter deep,
+"""Gullies down a crater's inner wall, radial streaks keyed to the crater. Three fresh 80 m craters
+among older small craters on fractal relief have gullies 0.3%, 0.6% and 1.2% of the diameter deep,
 each 0.15 radii wide. Hillshaded with a low sun."""
 
 import gallery

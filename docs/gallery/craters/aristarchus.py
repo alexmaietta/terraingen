@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A synthetic Aristarchus: one fresh 40 km lunar complex crater on mare-like fractal plains, with
+"""A synthetic Aristarchus, one fresh 40 km lunar complex crater on mare-like fractal plains, with
 the settings that recreate the look of Aristarchus in LROC images, two or three terraces stepping
 the upper wall under a scalloped rim, hummocky slumps down to the floor edge, and one small, sharp
 central peak, well below the fitted peak law. Lit from the east 12 degrees up."""

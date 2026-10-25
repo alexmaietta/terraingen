@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Perlin gradient noise, five octaves of 100 m noise on 300 m squares, under each fractal: fBm sums
+"""Perlin gradient noise, five octaves of 100 m noise on 300 m squares, under each fractal. fBm sums
 the octaves, ridged folds each into sharp crests, billow folds each into rounded bumps, and the
 hybrid multifractal roughens high ground more than low."""
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The nine default boulder styles, one model of each drawn from the same seed, a long axis of 1:
-polyhedra cut from a sphere (angular, platy, subrounded) that most boulders are, rounded boulders,
+"""The nine default boulder styles, one model of each drawn from the same seed, a long axis of 1.
+They are polyhedra cut from a sphere (angular, platy, subrounded) that most boulders are, rounded boulders,
 blocks from a cube, wedges from a prism, pyramids, shards from a tetrahedron and near-spheres. Each
 is stretched to its axes, cut by fracture planes, roughened by noise and worn at its edges. The
 title gives each style's share of boulders."""

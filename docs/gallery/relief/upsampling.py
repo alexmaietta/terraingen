@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """One DEM with 8 m posts read at 0.5 m through each upsampling kernel, as slope maps of the same
-96 m window, where interpolation artifacts show: nearest steps, bilinear creases along the post grid,
-cubic and Catmull-Rom curves through the posts, Lanczos ringing, and the cubic B-spline smoothing
-past them. Below, a profile along the window's middle row against the posts."""
+96 m window, where interpolation artifacts show. Nearest steps, bilinear creases along the post grid,
+cubic and Catmull-Rom curve through the posts, Lanczos rings, and the cubic B-spline smooths past
+them. Below, a profile along the window's middle row against the posts."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Secondary craters stretched toward their primary, as low-angle impacts of ejected blocks leave
-them: a 1.5 km window on a 2 km primary's ray chains at 2 m, 5 km north of it, with secondaries of
-24 m and up, on fractal relief. Left: all round. Right: 80% elongated along the line back to the
-primary, from 1.2 to 1.8 times as long as wide near it and rounder farther out, in herringbone
-chains."""
+them. The window is 1.5 km on a 2 km primary's ray chains at 2 m, 5 km north of it, with secondaries
+of 24 m and up, on fractal relief. On the left all are round. On the right 80% are elongated along
+the line back to the primary, from 1.2 to 1.8 times as long as wide near it and rounder farther out,
+in herringbone chains."""
 
 import gallery
 import matplotlib.pyplot as plt

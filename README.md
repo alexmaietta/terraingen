@@ -42,10 +42,11 @@ For more information on the concepts behind TerrainGen and the API, see our late
 
 ## Quick Start
 
-We recommend getting started by installing `terraingenpy` from PyPI and generating a cratered terrain.
+We recommend getting started by installing `terraingenpy` from PyPI and opening the GUI or generating a cratered terrain from Python or the CLI.
 
 ```sh
 pip install terraingenpy
+terraingen --gui
 ```
 
 ```python
@@ -59,8 +60,27 @@ heights = terraingen.evaluate(terrain)
 To edit a configuration and see the terrain in 3D, open the GUI, on its own or with a configuration file:
 
 ```sh
-terraingen --gui
-terraingen config.json --gui
+# Write the config to a file
+cat > config.json <<'EOF'
+{
+    "schema_version": 1,
+    "source": {"type": "synthetic", "stack": []},
+    "layers": [{"type": "craters"}],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "terrain.tif",
+            "pixel_size_m": 1.0,
+            "extent_m": {"center": [0, 0], "size": [257, 257]}
+        }
+    ]
+}
+EOF
+```
+
+```sh
+terraingen validate config.json # optionally validate the config
+terraingen config.json # will output terrain.tif
 ```
 
 ## Requirements
@@ -94,48 +114,6 @@ docker run --rm ghcr.io/alexmaietta/terraingen:latest terraingen --help
 ```
 
 The `latest` tag is the newest release, and each release is also tagged with its version without the `v`, such as `0.2.0` and `0.2`. The `dev` tag follows `main`.
-
-## Getting Started
-
-### Python
-
-```python
-import terraingen
-
-# A flat 513 x 513 grid with 2 m pixels
-ground = terraingen.FlatSource(513, 513, 2.0)
-
-# Fractal noise 40 m high with an 800 m wavelength
-relief = terraingen.NoiseLayer(seed=1, wavelength=800.0, amplitude=40.0)
-
-terrain = terraingen.TerrainGenerator(ground, [relief])
-heights = terraingen.evaluate(terrain)
-terraingen.write_geotiff("terrain.tif", heights)
-```
-
-### C++
-
-```cmake
-find_package(terraingen REQUIRED)
-target_link_libraries(app PRIVATE terraingen::terraingen)
-```
-
-```cpp
-#include <terraingen/terraingen.h>
-
-int main() {
-    // Fractal noise 40 m high with an 800 m wavelength
-    const terraingen::Fractal noise = terraingen::Fractal::Fbm(1, 800.0, 40.0);
-
-    // A flat 513 x 513 grid with 2 m pixels, plus the noise
-    terraingen::TerrainGenerator terrain;
-    terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
-    terrain.layers.push_back(std::make_shared<terraingen::NoiseLayer>(noise));
-
-    terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
-    terraingen::WriteGeoTiff("terrain.tif", heights);
-}
-```
 
 ### Demos
 

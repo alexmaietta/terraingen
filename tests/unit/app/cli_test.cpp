@@ -79,6 +79,21 @@ TEST(Cli, PrintsHelpAndVersion) {
     EXPECT_NE(help.out.find("-h, --help"), std::string::npos);
 }
 
+TEST(Cli, HelpDescribesEveryOptionAndTheExitStatus) {
+    const std::string help = Cli({"--help"}).out;
+    for (const char* option :
+         {"--output-dir DIR ", "--log-level LEVEL ", "--threads N ", "--backend NAME "}) {
+        EXPECT_NE(help.find("\n  " + std::string(option)), std::string::npos) << option;
+    }
+    EXPECT_NE(help.find("trace|debug|info|warning|error|off"), std::string::npos);
+    EXPECT_NE(help.find("terraingen exits with 0 on success"), std::string::npos);
+    std::size_t start = 0;
+    for (std::size_t end = help.find('\n'); end != std::string::npos;
+         start = end + 1, end = help.find('\n', start)) {
+        EXPECT_LE(end - start, 80u) << help.substr(start, end - start);
+    }
+}
+
 TEST(Cli, PrintsTheConfigSchema) {
     const Result schema = Cli({"schema"});
     ASSERT_EQ(schema.code, kExitSuccess);
@@ -188,9 +203,10 @@ TEST(Cli, ParsesTheGuiArguments) {
     EXPECT_EQ(all.backend, terraingen::Backend::Vulkan);
     EXPECT_THROW(terraingen::cli::ParseGuiArgs({"a.json", "b.json"}), std::invalid_argument);
     EXPECT_THROW(terraingen::cli::ParseGuiArgs({"--threads"}), std::invalid_argument);
-    EXPECT_NE(
-        Cli({"--help"}).out.find("--gui [--threads N] [--backend auto|cpu|gpu|vulkan|cuda|metal]"),
-        std::string::npos);
+    EXPECT_NE(Cli({"--help"})
+                  .out.find("--gui [--threads N]\n                    [--backend "
+                            "auto|cpu|gpu|vulkan|cuda|metal]"),
+              std::string::npos);
 }
 
 TEST(Cli, GuiRejectsBadArgumentsOrExplainsHowToAddTheGui) {

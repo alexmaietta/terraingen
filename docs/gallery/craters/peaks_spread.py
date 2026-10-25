@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How far a central peak's massifs scatter: three fresh 60 km lunar complex craters with 3 to 5
+"""How far a central peak's massifs scatter, on three fresh 60 km lunar complex craters with 3 to 5
 massifs whose lesser ones sit within 0.3, 0.8 (the default) and 1.6 peak base radii of the center,
-from one tight cluster to a broken ring of hills. Top: the craters hillshaded with a low sun.
-Bottom: a west-east profile through each on the same relief, and the profile's round dome
-(dashed)."""
+from one tight cluster to a broken ring of hills. The top row shows the craters hillshaded with a low
+sun. The bottom row shows a west-east profile through each on the same relief, and the profile's
+round dome (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

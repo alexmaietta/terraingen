@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Axis ratios: the angular style from the same seed stretched to intermediate and short axes,
+"""Axis ratios, with the angular style from the same seed stretched to intermediate and short axes,
 over a long axis of 1, of 0.9 and 0.25 (a slab), 0.75 and 0.55 (near the default), 0.5 and 0.45
 (an elongate rod) and 0.95 and 0.9 (equant). The short axis stands vertical, so it sets how tall
 a boulder is for its width."""

@@ -404,6 +404,16 @@
     color: var(--md-default-fg-color--light);
 }
 
+/* The link from a gallery figure's caption to the page of its script. */
+.md-typeset .tg-gallery figcaption .tg-gallery__code {
+    margin-left: 0.2rem;
+    padding: 0 0.35rem;
+    border: 1px solid var(--md-default-fg-color--lightest);
+    border-radius: 0.2rem;
+    font-size: 0.6rem;
+    white-space: nowrap;
+}
+
 /* ---- API reference ------------------------------------------------------------------------ */
 
 .doc-object {

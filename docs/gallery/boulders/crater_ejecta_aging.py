@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Crater blocks fade as their craters age: a 60 m crater (gray rim) 0, 10 and 30 Myr old, blocks of
-0.3 m and up sized by Golombek and Rapp's model at 15% rock cover, drawn to scale and colored by the
-height they stand above the ground. Top: thinned by freshness, falling toward 0.7, below which a
-crater keeps no blocks. Middle: thinned by age, as (1 - age / 40 Myr) cubed. Bottom: the abundance at
-1.5 radii against crater age for both."""
+"""Crater blocks fade as their craters age. A 60 m crater (gray rim) is shown 0, 10 and 30 Myr old,
+with blocks of 0.3 m and up sized by Golombek and Rapp's model at 15% rock cover, drawn to scale and
+colored by the height they stand above the ground. The top row thins them by freshness, falling toward
+0.7, below which a crater keeps no blocks. The middle row thins them by age, as (1 - age / 40 Myr)
+cubed. The bottom plot shows the abundance at 1.5 radii against crater age for both."""
 
 import gallery
 import matplotlib.pyplot as plt

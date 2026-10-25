@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Features too small for the sample spacing fade out instead of aliasing: the same 128 m patch of
-craters and boulders on fractal relief, read at 0.25, 1 and 4 m. Top: craters and boulders fade
-from full height at 4 samples across to nothing at 2, so each spacing keeps only what it resolves.
-Bottom: with fading off, sub-sample craters and boulders land as single-pixel spikes and pits."""
+"""Features too small for the sample spacing fade out instead of aliasing. The same 128 m patch of
+craters and boulders on fractal relief is read at 0.25, 1 and 4 m. In the top row, craters and
+boulders fade from full height at 4 samples across to nothing at 2, so each spacing keeps only what
+it resolves. In the bottom row, with fading off, sub-sample craters and boulders land as
+single-pixel spikes and pits."""
 
 import gallery
 import matplotlib.pyplot as plt

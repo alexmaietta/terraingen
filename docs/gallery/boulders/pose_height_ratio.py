@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How tall boulders are for their width: the same boulders of 0.3 m and up on a 30 m square, sized
-by Golombek and Rapp's model at 10% rock cover, with heights drawn between 0.2 and 0.3 of their
+"""How tall boulders are for their width. The same boulders of 0.3 m and up on a 30 m square, sized
+by Golombek and Rapp's model at 10% rock cover, have heights drawn between 0.2 and 0.3 of their
 diameters (flat slabs), 0.4 and 0.6 (the default) and 0.7 and 0.9 (near-round blocks), each buried
-by the default 0.1 to 0.4 of its height. Drawn to scale and colored by the height they stand above
-the ground. Bottom: how many stand at least each height."""
+by the default 0.1 to 0.4 of its height. They are drawn to scale and colored by the height they
+stand above the ground. The bottom plot shows how many stand at least each height."""
 
 import gallery
 import matplotlib.pyplot as plt

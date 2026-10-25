@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Crater spacing by size ratio: fresh craters from 5 m to 60 m at three times the Trask equilibrium
-on 300 m squares of fractal relief, any two kept a diameter apart when they count as similar. Left
-to right: no spacing, then craters within a size ratio of 1.2, 2 and 4 of each other counted as
-similar; the wider the ratio, the more pairs are thinned, until small craters no longer sit on
-larger ones."""
+"""Crater spacing by size ratio, for fresh craters from 5 m to 60 m at three times the Trask equilibrium
+on 300 m squares of fractal relief, any two kept a diameter apart when they count as similar. From
+left to right, the panels show no spacing, then craters within a size ratio of 1.2, 2 and 4 of each
+other counted as similar. The wider the ratio, the more pairs are thinned, until small craters no
+longer sit on larger ones."""
 
 import gallery
 import matplotlib.pyplot as plt

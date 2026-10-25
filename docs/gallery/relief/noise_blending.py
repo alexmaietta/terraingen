@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Stacked noise layers blend into the height of the layers before them: rough 40 m fBm (left), then
+"""Stacked noise layers blend into the height of the layers before them. Rough 40 m fBm (left) gets
 broad 300 m fBm added to it, taking the higher or the lower of the two, or masking it, where the
 broad layer scales the rough one from nothing in its lows to double in its highs. On 300 m squares,
 colored by height and lit from the northwest."""

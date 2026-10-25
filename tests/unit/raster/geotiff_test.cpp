@@ -21,6 +21,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 using terraingen::GeoKeys;
@@ -235,6 +236,117 @@ TEST(ReadGeoTiffWindow, RejectsWindowsMissingTheImageAndMissingBands) {
     EXPECT_THROW(terraingen::ReadGeoTiffWindow(path, 0, {0, 20, 10, 12}), std::invalid_argument);
     EXPECT_THROW(terraingen::ReadGeoTiffWindow(path, 0, {25, 30, 0, 10}), std::invalid_argument);
     EXPECT_THROW(terraingen::ReadGeoTiffWindow(path, 1, {0, 20, 0, 10}), GeoTiffError);
+}
+
+namespace {
+
+/// Checks that the blocks `GeoTiffBlockReader` reads of band `band` of `path` tile the whole
+/// image read at once, transform and no-data value included.
+void ExpectBlocksTileTheImage(const std::filesystem::path& path, std::size_t band) {
+    const Raster<float> full = ReadGeoTiff(path, band).raster;
+    const terraingen::GeoTiffBlockReader reader(path, band);
+    EXPECT_EQ(reader.Info().width, full.Width());
+    EXPECT_EQ(reader.Info().height, full.Height());
+    const std::size_t blockWidth = reader.BlockWidth();
+    const std::size_t blockHeight = reader.BlockHeight();
+    const std::size_t across = (full.Width() + blockWidth - 1) / blockWidth;
+    const std::size_t down = (full.Height() + blockHeight - 1) / blockHeight;
+    for (std::size_t by = 0; by < down; ++by) {
+        for (std::size_t bx = 0; bx < across; ++bx) {
+            SCOPED_TRACE(::testing::Message() << "block " << bx << "," << by);
+            const Raster<float> block = reader.ReadBlock(bx, by);
+            const std::size_t col0 = bx * blockWidth;
+            const std::size_t row0 = by * blockHeight;
+            ASSERT_EQ(block.Width(), std::min(blockWidth, full.Width() - col0));
+            ASSERT_EQ(block.Height(), std::min(blockHeight, full.Height() - row0));
+            const terraingen::RasterGrid expected =
+                terraingen::Subgrid(terraingen::RasterGrid::FromRaster(full),
+                                    {col0, col0 + block.Width(), row0, row0 + block.Height()});
+            EXPECT_EQ(block.Transform(), expected.transform);
+            EXPECT_EQ(block.NoData().has_value(), full.NoData().has_value());
+            for (std::size_t row = 0; row < block.Height(); ++row) {
+                for (std::size_t col = 0; col < block.Width(); ++col) {
+                    ASSERT_EQ(Bits(block(col, row)), Bits(full(col0 + col, row0 + row)))
+                        << col << "," << row;
+                }
+            }
+        }
+    }
+}
+
+}  // namespace
+
+TEST(GeoTiffBlockReader, TilesEveryFixtureLayoutWithItsBlocks) {
+    for (const GdalFixture* fixture : kGdalFixtures) {
+        SCOPED_TRACE(fixture->name);
+        const auto path =
+            WriteBytes(std::string("blocks_") + fixture->name + ".tif", fixture->bytes);
+        ExpectBlocksTileTheImage(path, fixture->band);
+    }
+}
+
+TEST(GeoTiffBlockReader, DecodesOneTilePerBlock) {
+    const auto path = TempPath("blocks_tiles.tif");
+    WriteGeoTiff(path, Sample(50, 37), {}, Tiled(16));
+    ExpectBlocksTileTheImage(path, 0);
+    const terraingen::GeoTiffBlockReader reader(path, 0);
+    EXPECT_EQ(reader.BlockWidth(), 16u);
+    EXPECT_EQ(reader.BlockHeight(), 16u);
+    const std::size_t before = terraingen::detail::DecodedChunkCount();
+    reader.ReadBlock(3, 2);
+    EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 1u);
+}
+
+TEST(GeoTiffBlockReader, GivesStripsSpanningEveryColumn) {
+    const GdalFixture& fixture = float32_none_strips;
+    const auto path = WriteBytes("blocks_strips.tif", fixture.bytes);
+    const terraingen::GeoTiffBlockReader reader(path, 0);
+    EXPECT_EQ(reader.BlockWidth(), fixture.width);
+    EXPECT_FALSE(reader.Info().tiled);
+}
+
+TEST(GeoTiffBlockReader, ReadsBlocksFromSeveralThreadsAlike) {
+    const auto path = TempPath("blocks_threads.tif");
+    GeoTiffWriteOptions options = Tiled(16);
+    options.compression = TiffCompression::Deflate;
+    WriteGeoTiff(path, Sample(64, 64), {}, options);
+    const terraingen::GeoTiffBlockReader reader(path, 0);
+    std::vector<Raster<float>> expected;
+    for (std::size_t block = 0; block < 16; ++block) {
+        expected.push_back(reader.ReadBlock(block % 4, block / 4));
+    }
+    constexpr std::size_t kThreads = 4;
+    std::vector<std::thread> threads;
+    std::vector<int> mismatches(kThreads, 0);
+    for (std::size_t t = 0; t < kThreads; ++t) {
+        threads.emplace_back([&, t] {
+            for (std::size_t n = 0; n < 64; ++n) {
+                const std::size_t block = (n * 7 + t * 3) % 16;
+                const Raster<float> read = reader.ReadBlock(block % 4, block / 4);
+                if (read.Values()[5] != expected[block].Values()[5] ||
+                    read.Values()[200] != expected[block].Values()[200]) {
+                    ++mismatches[t];
+                }
+            }
+        });
+    }
+    for (std::thread& thread : threads) {
+        thread.join();
+    }
+    EXPECT_EQ(mismatches, std::vector<int>(kThreads, 0));
+}
+
+TEST(GeoTiffBlockReader, RejectsMissingBandsAndBlocksBeyondTheImage) {
+    const auto path = TempPath("blocks_errors.tif");
+    WriteGeoTiff(path, Sample(50, 37), {}, Tiled(16));
+    EXPECT_THROW(terraingen::GeoTiffBlockReader(path, 1), GeoTiffError);
+    const auto missing = TempPath("blocks_missing.tif");
+    std::filesystem::remove(missing);
+    EXPECT_THROW(terraingen::GeoTiffBlockReader(missing, 0), GeoTiffError);
+    const terraingen::GeoTiffBlockReader reader(path, 0);
+    EXPECT_THROW(reader.ReadBlock(4, 0), std::invalid_argument);
+    EXPECT_THROW(reader.ReadBlock(0, 3), std::invalid_argument);
+    EXPECT_NO_THROW(reader.ReadBlock(3, 2));
 }
 
 TEST(ParseGdalBandScaling, ReadsEachBandsScaleAndOffsetAndSkipsTheRest) {

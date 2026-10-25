@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """A crater layer with no arguments on a 512 m square of fractal relief (400 m fBm, 12 m amplitude) at
-1 m per pixel: a 3.5 Gyr lunar surface capped at the Hartmann equilibrium, craters from 2.5 m to
-250 m worn by diffusion with their ages."""
+1 m per pixel. It gives a 3.5 Gyr lunar surface capped at the Hartmann equilibrium, with craters from
+2.5 m to 250 m worn by diffusion with their ages."""
 
 import gallery
 import matplotlib.pyplot as plt

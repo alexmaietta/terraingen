@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A DEM with 8 m posts, read at 1 m. Left: cubic interpolation alone, smooth between the posts.
-Middle: spectral continuation adds sparse Gabor noise below the posts' resolution, carrying on the
-power law fitted to the DEM's own spectrum. Both as slope maps of the same 256 m window. Right: the
-radially averaged power spectra of the posts, the interpolated and the continued heights, with the
-fitted power law."""
+"""A DEM with 8 m posts, read at 1 m. The left panel shows cubic interpolation alone, smooth between
+the posts. In the middle, spectral continuation adds sparse Gabor noise below the posts' resolution,
+carrying on the power law fitted to the DEM's own spectrum. Both are slope maps of the same 256 m
+window. The right panel shows the radially averaged power spectra of the posts, the interpolated and
+the continued heights, with the fitted power law."""
 
 import gallery
 import matplotlib.pyplot as plt

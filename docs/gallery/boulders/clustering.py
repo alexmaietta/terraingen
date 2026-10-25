@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Boulders of 0.3 m and up on 80 m squares at the same mean abundance, from NASA SP-8023's maximum
-intercrater curve, drawn to scale and colored by their wear. Left: scattered. Middle: 90% gathered
-around the nearest of a jittered lattice of centers 20 m apart. Right: 90% in Thomas clusters,
-Gaussian clumps around Poisson centers that overlap and add."""
+intercrater curve, drawn to scale and colored by their wear. On the left they are scattered. In the
+middle 90% gather around the nearest of a jittered lattice of centers 20 m apart. On the right 90% lie
+in Thomas clusters, Gaussian clumps around Poisson centers that overlap and add."""
 
 import gallery
 import matplotlib.pyplot as plt

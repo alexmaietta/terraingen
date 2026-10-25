@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Sand shadows, the tails of sand trapped in the lee of boulders, on a 12 m square of rough ground
-with boulders from 0.3 m to 2 m under a wind blowing east. Left to right: no shadows, then tails
-0.5, 1.1 (the default) and 2 times as long as their boulders are wide, their flanks at the 32 degree
-angle of repose. Top: hillshaded with a low sun from the south, across the tails. Bottom: the sand
-each adds, colored by thickness."""
+with boulders from 0.3 m to 2 m under a wind blowing east. From left to right there are no shadows,
+then tails 0.5, 1.1 (the default) and 2 times as long as their boulders are wide, their flanks at the
+32 degree angle of repose. The top row is hillshaded with a low sun from the south, across the tails.
+The bottom row shows the sand each adds, colored by thickness."""
 
 import gallery
 import matplotlib.pyplot as plt

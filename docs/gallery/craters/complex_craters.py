@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fresh complex craters on squares 2.2 diameters across: a 20 km and a 60 km lunar crater and a
+"""Fresh complex craters on squares 2.2 diameters across, a 20 km and a 60 km lunar crater and a
 20 km Martian one, each with a flat floor, a concave wall and a central peak, the Martian crater
 shallower and its peak lower, on fractal relief scaled to each crater (a wavelength of its diameter,
-1.5% of it high). Top: hillshades. Bottom: heights, colored."""
+1.5% of it high). The top row shows hillshades and the bottom row colored heights."""
 
 import gallery
 import matplotlib.pyplot as plt

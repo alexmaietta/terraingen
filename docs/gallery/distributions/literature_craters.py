@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Published crater densities. Top: their cumulative curves: 1 Gyr of extended Neukum lunar production
-and of Ivanov's Martian production with its own chronology, the Trask and Hartmann equilibria,
-Neukum's original function from 10 m, extended Neukum production capped at the Hartmann equilibrium,
-Moore et al.'s (1974) heavily cratered terrain and the VIPER environmental specification. Bottom: the
-fresh craters each places on a 300 m square of fractal relief from 2.5 m (or where its fit starts)
-to 100 m, each titled in its curve's color."""
+"""Published crater densities. The top plot shows their cumulative curves, 1 Gyr of extended Neukum
+lunar production and of Ivanov's Martian production with its own chronology, the Trask and Hartmann
+equilibria, Neukum's original function from 10 m, extended Neukum production capped at the Hartmann
+equilibrium, Moore et al.'s (1974) heavily cratered terrain and the VIPER environmental
+specification. The bottom row shows the fresh craters each places on a 300 m square of fractal relief
+from 2.5 m (or where its fit starts) to 100 m, each titled in its curve's color."""
 
 import gallery
 import matplotlib.pyplot as plt

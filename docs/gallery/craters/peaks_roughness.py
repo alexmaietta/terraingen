@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Spurs and gullies on a central peak: three fresh 60 km lunar complex craters whose massifs carry
+"""Spurs and gullies on a central peak, on three fresh 60 km lunar complex craters whose massifs carry
 ridged noise of none, 35% (the default) and 80% of their height, and whose outlines warp by none,
-0.12 (the default) and 0.3 peak base radii. Top: the craters hillshaded with a low sun. Bottom: a
-west-east profile through each on the same relief, and the profile's round dome (dashed)."""
+0.12 (the default) and 0.3 peak base radii. The top row shows the craters hillshaded with a low sun.
+The bottom row shows a west-east profile through each on the same relief, and the profile's round
+dome (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Peak size about the fitted laws: three fresh 60 km lunar complex craters whose massifs stand at
+"""Peak size about the fitted laws, on three fresh 60 km lunar complex craters whose massifs stand at
 half, once and twice the profile's peak height and spread over 0.7, 1 and 1.5 times its base, as
-real peaks of a size scatter widely. Top: the craters hillshaded with a low sun. Bottom: a
-west-east profile through each on the same relief, and the profile's round dome (dashed)."""
+real peaks of a size scatter widely. The top row shows the craters hillshaded with a low sun. The
+bottom row shows a west-east profile through each on the same relief, and the profile's round dome
+(dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

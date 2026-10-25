@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The number of benches: three fresh 90 km lunar complex craters, past the 65 km full diameter so
-each takes the most benches, with at most 2, 4 (the default) and 8. Top: the craters hillshaded with
-a low sun. Bottom: a west-east profile through each on the same relief, and without terraces
-(dashed)."""
+"""The number of benches on three fresh 90 km lunar complex craters, past the 65 km full diameter so
+each takes the most benches, with at most 2, 4 (the default) and 8. The top row shows the craters
+hillshaded with a low sun. The bottom row shows a west-east profile through each on the same relief,
+and without terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

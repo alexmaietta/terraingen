@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How far a crater's floor shifts downslope: fresh 80 m craters on ground rising 15 degrees to the
-east, shaped asymmetrically along the slope with the deepest point 0.05, 0.12 and 0.2 diameters
-downslope of the center (Plescia et al. 2019 measured 0.045 to 0.194). Top: hillshades. Bottom: west
-to east profiles through the centers as height above the hillside, with a symmetric crater
-(dashed)."""
+"""How far a crater's floor shifts downslope, for fresh 80 m craters on ground rising 15 degrees to the
+east. They are shaped asymmetrically along the slope with the deepest point 0.05, 0.12 and 0.2
+diameters downslope of the center (Plescia et al. 2019 measured 0.045 to 0.194). The top row shows
+hillshades. The bottom row shows west to east profiles through the centers as height above the
+hillside, with a symmetric crater (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

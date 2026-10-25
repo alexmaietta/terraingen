@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Terraces wearing away: three 60 km lunar complex craters under freshness degradation, at
+"""Terraces wearing away on three 60 km lunar complex craters under freshness degradation, at
 freshness 1 (fresh), 0.65 and 0.4. Terraces soften as the crater shallows and are gone below the
-minimum freshness, 0.3 by default. Top: the craters hillshaded with a low sun. Bottom: a west-east
-profile through each on the same relief, and the fresh crater without terraces (dashed)."""
+minimum freshness, 0.3 by default. The top row shows the craters hillshaded with a low sun. The
+bottom row shows a west-east profile through each on the same relief, and the fresh crater without
+terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

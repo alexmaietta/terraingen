@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Masking confines any layer to a region: transverse dunes on a 1.5 km square of fractal relief.
-Left to right: unmasked; inside a 500 m circle with a hard edge; the same circle feathered over
-200 m, the dunes fading out; and inside a rectangle feathered over 100 m. Colored by height."""
+"""Masking confines any layer to a region, here transverse dunes on a 1.5 km square of fractal relief.
+From left to right the dunes are unmasked, inside a 500 m circle with a hard edge, in the same circle
+feathered over 200 m (fading out), and inside a rectangle feathered over 100 m. Colored by height."""
 
 import gallery
 import matplotlib.pyplot as plt

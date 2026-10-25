@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A size-slope map varying the boulder size-frequency distribution point by point: boulders of 0.2 m
-to 5 m on a 60 m square, their cumulative power-law exponent rising from 1.5 in the west to 4 in the
+"""A size-slope map varying the boulder size-frequency distribution point by point. Boulders of 0.2 m
+to 5 m on a 60 m square have a cumulative power-law exponent rising from 1.5 in the west to 4 in the
 east, with the count of boulders 1 m and larger held to the layer's own everywhere. The steeper the
 slope, the more small boulders for each large one, so the east swarms with small boulders while the
-west has few. Left: the map. Middle: the boulders, drawn to scale and colored by diameter. Right:
-the boulders of the western and eastern thirds as cumulative size-frequency distributions."""
+west has few. The left panel shows the map and the middle one the boulders, drawn to scale and
+colored by diameter. The right plot shows the boulders of the western and eastern thirds as
+cumulative size-frequency distributions."""
 
 import gallery
 import matplotlib.pyplot as plt

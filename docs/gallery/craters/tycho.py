@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A synthetic Tycho: one fresh 85 km lunar complex crater on rugged fractal highlands, with the
+"""A synthetic Tycho, one fresh 85 km lunar complex crater on rugged fractal highlands, with the
 settings that recreate the look of Tycho in LRO images, a lightly scalloped rim, up to four slump
 terraces and hummocky noise down the wall, and one tall, sharp, lopsided central massif with a
 smaller companion, both twice the height of the fitted peak law. Lit as in the LRO mosaic, from the

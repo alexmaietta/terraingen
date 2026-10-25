@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """A mapped crater catalog standing in for the large craters it covers. Craters from 4 m to 300 m at
-the Hartmann equilibrium on a 500 m square of fractal relief. Left: generated only; the generated
-craters 50 m and larger are circled (blue, dashed). Right: with a catalog of five mapped craters
-(red) declared complete from 50 m, generated craters of 50 m and up are no longer placed, since the
-catalog already lists every crater that large, while smaller ones are still generated around it."""
+the Hartmann equilibrium on a 500 m square of fractal relief. The left panel is generated only, with
+the generated craters 50 m and larger circled (blue, dashed). On the right, a catalog of five mapped
+craters (red) is declared complete from 50 m, so generated craters of 50 m and up are no longer
+placed, since the catalog already lists every crater that large. Smaller ones are still generated
+around it."""
 
 import gallery
 import matplotlib.pyplot as plt

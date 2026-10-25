@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fractal noise over a crater's footprint, fading out beyond its rim: three fresh 80 m craters among
-older small craters on fractal relief, with noise amplitudes of 0.5%, 1% and 2% of the diameter, at a
+"""Fractal noise over a crater's footprint, fading out beyond its rim. Three fresh 80 m craters among
+older small craters on fractal relief have noise amplitudes of 0.5%, 1% and 2% of the diameter, at a
 wavelength of half a radius. Hillshaded with a low sun."""
 
 import gallery

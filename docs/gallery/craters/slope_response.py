@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fresh craters on a hillside: 80 m craters on ground rising 15 degrees to the east, each cut into a
-plane fitted to the slope. Left: symmetric. Middle: asymmetric as Plescia et al. (2019) measured, the
-deepest point 0.15 diameters downslope with the raised rim kept all around. Right: the same with none
-of the rim kept upslope. Top: hillshades. Middle: height above the hillside, so the slope drops out
-and the shifted floor and missing rim show. Bottom: profiles west to east through the center."""
+"""Fresh 80 m craters on a hillside rising 15 degrees to the east, each cut into a plane fitted to the
+slope. The left crater is symmetric. The middle one is asymmetric as Plescia et al. (2019) measured,
+the deepest point 0.15 diameters downslope with the raised rim kept all around. The right one is the
+same with none of the rim kept upslope. The top row shows hillshades. The middle row shows height
+above the hillside, so the slope drops out and the shifted floor and missing rim show. The bottom row
+shows profiles west to east through the center."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Masking a layer to a polygon: transverse dunes on a 1.5 km square of fractal relief, kept inside
-an outline drawn point by point, concave like a valley floor (red). Left: a hard edge. Middle: the
-same outline with a hole cut out of it, an outcrop the dunes go around. Right: the outline and hole
-feathered over 120 m, the dunes fading out toward every edge, the hole's included. Colored by
-height."""
+"""Masking a layer to a polygon, here transverse dunes on a 1.5 km square of fractal relief kept inside
+an outline drawn point by point, concave like a valley floor (red). The left panel has a hard edge.
+The middle one cuts a hole out of the same outline, an outcrop the dunes go around. The right one
+feathers the outline and hole over 120 m, the dunes fading out toward every edge, the hole's
+included. Colored by height."""
 
 import gallery
 import matplotlib.pyplot as plt

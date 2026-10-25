@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""What a crater is cut relative to: an 80 m crater on ground rising 8 degrees to the east with
-rolling relief. With no datum it is added to the ground, keeping the ground's bumps inside it. The
-others replace the ground inside it with a crater cut into a datum fitted over one radius: a plane
-tilts the smooth crater with the slope, while the mean or center height cuts it level, its downslope
-rim standing high. Top: hillshades. Bottom: height above the 8 degree plane, so the tilt drops out
-and each datum's cut shows."""
+"""What a crater is cut relative to, shown with an 80 m crater on ground rising 8 degrees to the
+east with rolling relief. With no datum it is added to the ground, keeping the ground's bumps inside
+it. The others replace the ground inside it with a crater cut into a datum fitted over one radius. A
+plane tilts the smooth crater with the slope, while the mean or center height cuts it level, its
+downslope rim standing high. The top row shows hillshades. The bottom row shows height above the 8
+degree plane, so the tilt drops out and each datum's cut shows."""
 
 import gallery
 import matplotlib.pyplot as plt

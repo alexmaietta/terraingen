@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fillets, the aprons of regolith banked against a boulder's base: one 2 m boulder on a 6 m square,
-with fillets reaching 0.3 diameters beyond its edge. Left to right: no fillet, then fillets rising
-to 30% and 60% of the boulder's exposed height. Top: in 3D at twice the true height, shaded.
-Middle: hillshaded with a low sun. Bottom: profiles west to east through the boulder."""
+"""Fillets, the aprons of regolith banked against a boulder's base, around one 2 m boulder on a 6 m
+square, reaching 0.3 diameters beyond its edge. From left to right there is no fillet, then fillets
+rising to 30% and 60% of the boulder's exposed height. The top row is shaded in 3D at twice the true
+height, the middle row hillshaded with a low sun, and the bottom row shows profiles west to east
+through the boulder."""
 
 import gallery
 import matplotlib.pyplot as plt

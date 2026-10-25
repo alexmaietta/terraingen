@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Asymmetry grows with the slope: fresh 80 m craters on ground rising 2, 5 and 20 degrees to the
+"""Asymmetry grows with the slope. Fresh 80 m craters sit on ground rising 2, 5 and 20 degrees to the
 east, each shaped asymmetrically along its slope with the floor 0.12 diameters downslope and none
 of the rim kept upslope. The asymmetry rises from none on level ground to complete at 5 degrees,
-the "few degrees" of Plescia et al. (2019). Top: hillshades. Bottom: west to east profiles through
-the centers as height above each hillside."""
+the "few degrees" of Plescia et al. (2019). The top row shows hillshades. The bottom row shows west
+to east profiles through the centers as height above each hillside."""
 
 import gallery
 import matplotlib.pyplot as plt

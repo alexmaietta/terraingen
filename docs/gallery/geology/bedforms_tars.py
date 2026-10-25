@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Transverse aeolian ridges, the bright Martian bedforms 26 m apart and 1.3 m high, in fields on a
-1.2 km square of fractal relief, under a wind blowing east. Left to right: fields covering 15% of the
-ground, 35% and 60% (the preset covers 7%). Hillshaded with a low sun."""
+1.2 km square of fractal relief, under a wind blowing east. From left to right, the fields cover 15%
+of the ground, 35% and 60% (the preset covers 7%). Hillshaded with a low sun."""
 
 import gallery
 import matplotlib.pyplot as plt

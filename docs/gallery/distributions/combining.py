@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Distributions combined from others (dashed) into one (solid). Minimum: 3.5 Gyr of extended Neukum
-production capped at the Hartmann equilibrium, following whichever is lower. Summed: a weighted sum
-of a shallow and a steep power law, curving between them. Spliced: a steep power law below 10 m handed
-over to Neukum's production function above it. Log polynomial: a cubic in log D, the form of the
-Neukum and Ivanov fits."""
+"""Distributions combined from others (dashed) into one (solid). The minimum caps 3.5 Gyr of extended
+Neukum production at the Hartmann equilibrium, following whichever is lower. The sum weights a shallow
+and a steep power law, curving between them. The splice hands a steep power law below 10 m over to
+Neukum's production function above it. The log polynomial is a cubic in log D, the form of the Neukum
+and Ivanov fits."""
 
 import matplotlib.pyplot as plt
 import numpy as np

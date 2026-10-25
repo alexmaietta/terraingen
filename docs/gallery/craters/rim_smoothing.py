@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Rim smoothing rounds a fresh crater's sharp rim crest with a Gaussian across the band from 0.8 to
-1.2 radii, without wearing the rest of the crater: three fresh 80 m craters on fractal relief with
-smoothing widths of 0, 5% and 15% of a radius. Top: hillshaded with a low sun. Bottom: their
-profiles through the center, overlaid, with a zoom on the rim."""
+1.2 radii, without wearing the rest of the crater. Three fresh 80 m craters on fractal relief have
+smoothing widths of 0, 5% and 15% of a radius. The top row is hillshaded with a low sun, and the
+bottom row overlays their profiles through the center, with a zoom on the rim."""
 
 import gallery
 import matplotlib.pyplot as plt

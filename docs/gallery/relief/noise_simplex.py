@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Simplex noise, gradient noise on a triangular lattice with fewer axis-aligned artifacts than
-Perlin's, five octaves of 100 m noise on 300 m squares, under each fractal: fBm, ridged, billow and
-the hybrid multifractal."""
+Perlin's, five octaves of 100 m noise on 300 m squares, under each fractal (fBm, ridged, billow and
+the hybrid multifractal)."""
 
 import gallery
 import matplotlib.pyplot as plt

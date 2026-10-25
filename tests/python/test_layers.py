@@ -325,10 +325,10 @@ def test_layers_are_built_on_one_terrain_base(lunar_models):
 
 
 def test_angles_are_degrees_in_options_and_configs():
-    dunes = terraingen.DuneOptions(slip_face_angle_degrees=30.0, wind_azimuth_degrees=90.0)
-    assert (dunes.slip_face_angle_degrees, dunes.wind_azimuth_degrees) == (30.0, 90.0)
+    dunes = terraingen.DuneOptions(slip_face_angle_deg=30.0, wind_azimuth_deg=90.0)
+    assert (dunes.slip_face_angle_deg, dunes.wind_azimuth_deg) == (30.0, 90.0)
     assert not hasattr(dunes, "slip_face_angle")
-    assert terraingen.BoulderVentifacts().second_wind_azimuth_degrees is None
+    assert terraingen.BoulderVentifacts().second_wind_azimuth_deg is None
     config = terraingen.TerrainGenConfig.from_dict(
         {"schema_version": 1, "layers": [{"type": "dunes", "wind_azimuth_deg": 90}, {"type": "craters"}]}
     )
@@ -340,7 +340,7 @@ def test_angles_are_degrees_in_options_and_configs():
 def test_dune_presets_build_barchans_with_slip_faces_and_ripples():
     barchans = terraingen.mars_barchans()
     assert barchans.shape == terraingen.DuneShape.BARCHAN
-    assert barchans.slip_face_angle_degrees == 29.0
+    assert barchans.slip_face_angle_deg == 29.0
     assert barchans.ripples.wavelength == pytest.approx(2.1)
     assert terraingen.mars_transverse_dunes().wavelength == pytest.approx(248.0)
     options = terraingen.DuneOptions(width=400.0, width_spread=0.0, lattice_spacing=2000.0, density=1.0)
@@ -352,7 +352,7 @@ def test_dune_presets_build_barchans_with_slip_faces_and_ripples():
     row, col = np.unravel_index(np.argmax(heights), heights.shape)
     assert layer.dune_height_at(*raster.cell_center(int(col), int(row))) > 0.0
     with pytest.raises(ValueError):
-        terraingen.validate_dune_options(terraingen.DuneOptions(stoss_slope_degrees=60.0))
+        terraingen.validate_dune_options(terraingen.DuneOptions(stoss_slope_deg=60.0))
 
 
 def test_dune_ripples_and_grainflows_are_none_until_set():
@@ -423,7 +423,7 @@ def test_pancam_photometry_mixes_and_needs_every_present_class():
     assert pancam[terraingen.MaterialClass.BEDROCK.value].albedo == pytest.approx(0.90)
     assert pancam[terraingen.MaterialClass.SAND.value].albedo == pytest.approx(0.52)
     mixed = terraingen.mix_photometry([0.5, 0.5, 0.0, 0.0, 0.0], pancam)
-    assert mixed.albedo == pytest.approx(0.64) and mixed.roughness_degrees == pytest.approx(12.0)
+    assert mixed.albedo == pytest.approx(0.64) and mixed.roughness_deg == pytest.approx(12.0)
     partial = list(pancam)
     partial[terraingen.MaterialClass.BEDROCK.value] = None
     with pytest.raises(ValueError):
@@ -436,7 +436,7 @@ def test_pancam_photometry_mixes_and_needs_every_present_class():
 
 def test_pavement_plates_crack_in_octaves_and_lay_bedrock():
     options = terraingen.PavementOptions(
-        plate_size=1.0, crack_width=0.04, crack_depth=0.1, max_step=0.0, max_tilt_degrees=0.0
+        plate_size=1.0, crack_width=0.04, crack_depth=0.1, max_step=0.0, max_tilt_deg=0.0
     )
     single = terraingen.PavementLayer(options)
     options.octaves = 3
@@ -513,7 +513,7 @@ def test_sand_shadows_trail_boulders_and_boulders_are_rock():
 def test_ventifacts_plane_the_windward_side_of_boulders():
     gale = terraingen.gale_ventifacts()
     assert gale.share == pytest.approx(0.39)
-    ventifacts = terraingen.BoulderVentifacts(share=1.0, wind_azimuth_degrees=0.0)
+    ventifacts = terraingen.BoulderVentifacts(share=1.0, wind_azimuth_deg=0.0)
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(
             sizes=terraingen.BoulderSizes(
@@ -640,13 +640,13 @@ def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum
     coarse = terraingen.evaluate(terraingen.TerrainGenerator(None, [layer]), grid=coarse_grid)
     assert np.all(coarse.values == 0.0)
 
-    band = terraingen.SpectrumFitBand(min_pixels=3.0, max_pixels=6.0)
+    band = terraingen.SpectrumFitBand(min_px=3.0, max_px=6.0)
     fit = terraingen.estimate_power_law_spectrum(heights, band)
     assert 2.0 <= fit.slope <= 4.0 and fit.octave_rms > 0.0
     with pytest.raises(ValueError):
         terraingen.validate_spectral_continuation_options(terraingen.SpectralContinuationOptions(slope=4.5))
     with pytest.raises(ValueError):
-        terraingen.validate_spectrum_fit_band(terraingen.SpectrumFitBand(min_pixels=1.0))
+        terraingen.validate_spectrum_fit_band(terraingen.SpectrumFitBand(min_px=1.0))
     config = terraingen.TerrainGenConfig.from_dict(
         {
             "schema_version": 1,
@@ -773,27 +773,25 @@ def test_layers_leave_out_what_the_source_resolves():
     )
     assert terraingen.source_resolved_limit(dem, 4.0).value_at(50.0, 50.0) == 400.0
     dunes = terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE)
-    assert dunes.source_resolves_pixels == 4.0
+    assert dunes.source_resolves_px == 4.0
     held = terraingen.DuneLayer(dunes, base=dem)
     free = terraingen.DuneLayer(dunes)
     context = terraingen.LayerContext(spacing=1.0)
     xs = np.arange(10.0, 1000.0, 37.0)
     assert all(held.apply_at(0.0, x, 700.0, context) == 0.0 for x in xs), "550 m dunes over 400 m"
     assert any(free.apply_at(0.0, x, 700.0, context) != 0.0 for x in xs)
-    dunes.source_resolves_pixels = None
+    dunes.source_resolves_px = None
     assert terraingen.DuneLayer(dunes, base=dem).apply_at(0.0, 400.0, 700.0, context) == free.apply_at(
         0.0, 400.0, 700.0, context
     )
-    assert terraingen.BedformOptions().source_resolves_pixels == 4.0
-    assert terraingen.BoulderLayerOptions().source_resolves_pixels is None
-    assert terraingen.SecondaryCraterOptions().source_resolves_pixels == 4.0
-    assert terraingen.CraterLayerOptions().source_resolves_pixels == 4.0
+    assert terraingen.BedformOptions().source_resolves_px == 4.0
+    assert terraingen.BoulderLayerOptions().source_resolves_px is None
+    assert terraingen.SecondaryCraterOptions().source_resolves_px == 4.0
+    assert terraingen.CraterLayerOptions().source_resolves_px == 4.0
     big = terraingen.Fractal()
     big.wavelength = 1000.0
-    noise = terraingen.NoiseLayer(
-        terraingen.NoiseLayerOptions(fractals=[big], source_resolves_pixels=4.0), dem
-    )
-    assert noise.options.source_resolves_pixels == 4.0
+    noise = terraingen.NoiseLayer(terraingen.NoiseLayerOptions(fractals=[big], source_resolves_px=4.0), dem)
+    assert noise.options.source_resolves_px == 4.0
     assert noise.apply_at(0.0, 300.0, 300.0, context) == 0.0
     assert terraingen.NoiseLayer([big], base=dem).apply_at(0.0, 300.0, 300.0, context) != 0.0
     apply = terraingen.CraterApplyOptions(fade=terraingen.ResolutionFade(start_samples=1.0, end_samples=3.0))

@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""A synthetic Copernicus: one fresh 93 km lunar complex crater with the settings that recreate the
+"""A synthetic Copernicus, one fresh 93 km lunar complex crater with the settings that recreate the
 look of Copernicus in LRO images, a scalloped, polygonal rim, up to five slump terraces stepping its
-wall on mare-like fractal plains, hummocky noise from the floor edge to beyond the rim, and a central peak of three to five
-sharp, lopsided massifs strung across the floor. Lit from the east 12 degrees up."""
+wall on mare-like fractal plains, hummocky noise from the floor edge to beyond the rim, and a
+central peak of three to five sharp, lopsided massifs strung across the floor. Lit from the east 12
+degrees up."""
 
 import gallery
 import matplotlib.pyplot as plt

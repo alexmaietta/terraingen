@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Transverse dune crests on 2 km squares under a wind blowing east, colored by height. Top: crest
-sinuosity of 0, 0.3 (the default) and 0.8. Bottom: crest heights varying by 80% along their lengths,
-then crests broken by defects every 2 km and every 700 m of crest on average, where one crest ends
-and the next takes over."""
+"""Transverse dune crests on 2 km squares under a wind blowing east, colored by height. The top row
+has crest sinuosity of 0, 0.3 (the default) and 0.8. The bottom row has crest heights varying by 80%
+along their lengths, then crests broken by defects every 2 km and every 700 m of crest on average,
+where one crest ends and the next takes over."""
 
 import gallery
 import matplotlib.pyplot as plt

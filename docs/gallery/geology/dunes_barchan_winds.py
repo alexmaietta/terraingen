@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Barchan fields on 1 km squares under a wind blowing east, colored by height. Left to right: every
-dune facing the same wind; each dune's wind turned by up to 30 and 90 degrees, as on a field where
-winds shift; and dune widths spread by 80% around their mean instead of 30%."""
+"""Barchan fields on 1 km squares under a wind blowing east, colored by height. The first panel has
+every dune facing the same wind. The next two turn each dune's wind by up to 30 and 90 degrees, as on
+a field where winds shift. The last spreads dune widths by 80% around their mean instead of 30%."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -27,7 +27,7 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, len(PANELS), figsize=(18, 4), layout="constrained")
     for ax, (title, spread, width_spread) in zip(axes, PANELS, strict=True):
-        options = terraingen.DuneOptions(seed=3, azimuth_spread_degrees=spread, width_spread=width_spread)
+        options = terraingen.DuneOptions(seed=3, azimuth_spread_deg=spread, width_spread=width_spread)
         terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(size, size, pixel), [terraingen.DuneLayer(options)]
         )

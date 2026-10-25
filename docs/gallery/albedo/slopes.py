@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Steep slopes stay fresh: downslope creep keeps exposing immature soil, so slopes past an onset grow
+"""Steep slopes stay fresh. Downslope creep keeps exposing immature soil, so slopes past an onset grow
 brighter by their optical maturity (Ikeda et al. 2022). On 400 m of hills with a fresh 90 m crater,
-left to right: the slopes, then the albedo with the onset at 10, 20 (the default) and 30 degrees."""
+the panels show the slopes, then the albedo with the onset at 10, 20 (the default) and 30 degrees."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -30,7 +30,7 @@ def figure(quick=False):
     gallery.show_slopes(axes[0], heights.values, pixel, vmax=40.0)
     axes[0].set_title("Slope")
     for ax, onset in zip(axes[1:], ONSETS, strict=True):
-        layer = terraingen.SlopeAlbedo(terraingen.SlopeAlbedoOptions(onset_degrees=onset))
+        layer = terraingen.SlopeAlbedo(terraingen.SlopeAlbedoOptions(onset_deg=onset))
         values = terraingen.evaluate_albedo(terraingen.Albedo(base, [layer]), grid, generator=terrain)[
             0
         ].values

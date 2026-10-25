@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How deep boulders sit in the regolith: the same boulders of 0.3 m and up on a 30 m square, sized
-by Golombek and Rapp's model at 10% rock cover, each buried by a share of its height drawn between
-none and none, 0.1 and 0.4 (the default), and 0.5 and 0.9, drawn to scale and colored by the height
-they stand above the ground. Bottom: how many stand at least each height, the measure a rover's
-clearance meets."""
+"""How deep boulders sit in the regolith. The same boulders of 0.3 m and up on a 30 m square, sized
+by Golombek and Rapp's model at 10% rock cover, are each buried by a share of their height drawn
+between none and none, 0.1 and 0.4 (the default), and 0.5 and 0.9, drawn to scale and colored by the
+height they stand above the ground. The bottom plot shows how many stand at least each height, the
+measure a rover's clearance meets."""
 
 import gallery
 import matplotlib.pyplot as plt

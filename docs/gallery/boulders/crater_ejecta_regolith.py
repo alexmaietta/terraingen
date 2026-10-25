@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Only craters that dig through the regolith throw blocks: fresh craters 20 to 60 m across (gray
-rims), each digging a tenth of its diameter deep, with blocks of 0.3 m and up sized by Golombek and
+"""Only craters that dig through the regolith throw blocks. Fresh craters 20 to 60 m across (gray
+rims) each dig a tenth of their diameter deep, with blocks of 0.3 m and up sized by Golombek and
 Rapp's model at 15% rock cover, drawn to scale and colored by the height they stand above the ground.
-Left to right: no regolith limit, then 3 m and 5 m of regolith, through which only the larger craters
-reach bedrock."""
+From left to right the panels show no regolith limit, then 3 m and 5 m of regolith, through which only
+the larger craters reach bedrock."""
 
 import gallery
 import matplotlib.pyplot as plt

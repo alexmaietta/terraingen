@@ -119,9 +119,9 @@ void BindTransforms(nb::module_& m) {
     nb::class_<NoiseLayerOptions> options(
         m, "NoiseLayerOptions",
         "The noise a NoiseLayer adds: `fractals`, 1 to 8 fractals, and with a source "
-        "`source_resolves_pixels`, the source cells across from which a fractal is left out.");
+        "`source_resolves_px`, the source cells across from which a fractal is left out.");
     options.def_rw("fractals", &NoiseLayerOptions::fractals)
-        .def_rw("source_resolves_pixels", &NoiseLayerOptions::sourceResolvesPixels,
+        .def_rw("source_resolves_px", &NoiseLayerOptions::sourceResolvesPixels,
                 nb::arg("value").none());
     BindKwargsInit<NoiseLayerOptions>(options);
     const Fractal defaults{};
@@ -130,7 +130,7 @@ void BindTransforms(nb::module_& m) {
                                   "plane from the base's reference point.")
         .def(nb::init<NoiseLayerOptions, TerrainBase>(), "options"_a, "base"_a = TerrainBase{},
              "On a sphere the noise is 3D at each point's position, seamless everywhere. With a "
-             "source and `source_resolves_pixels`, each fractal whose wavelength is at least that "
+             "source and `source_resolves_px`, each fractal whose wavelength is at least that "
              "many of the source's cells at a point is left out there.")
         .def(nb::init<std::vector<Fractal>, TerrainBase>(), "fractals"_a, "base"_a = TerrainBase{},
              "Noise of the stack `fractals`.")
@@ -264,7 +264,7 @@ void BindExposure(nb::module_& m) {
 void BindBedforms(nb::module_& m) {
     BindOptions<BedformOptions>(
         m, "BedformOptions",
-        "Ripples and dunes: `wavelength` and `height` (m), crests across `wind_azimuth_deg` "
+        "Ripples and dunes: `wavelength` and `height` (m), crests across `wind_azimuth_deg`"
         "(degrees "
         "counter-clockwise from +x), covering `cover` of the ground in fields `field_size` meters "
         "across.",
@@ -325,8 +325,8 @@ void BindSpectrumFit(nb::module_& m) {
         m, "SpectrumFitBand",
         "The wavelengths, in base pixels, a power-law spectrum is fitted over.");
     BindKwargsInit<SpectrumFitBand>(band);
-    band.def_rw("min_pixels", &SpectrumFitBand::minPixels)
-        .def_rw("max_pixels", &SpectrumFitBand::maxPixels)
+    band.def_rw("min_px", &SpectrumFitBand::minPixels)
+        .def_rw("max_px", &SpectrumFitBand::maxPixels)
         .def("validate", &ValidateSpectrumFitBand, kValidateDoc);
     m.def("validate_spectrum_fit_band", &ValidateSpectrumFitBand, "band"_a, kValidateDoc);
     nb::class_<PowerLawSpectrum>(m, "PowerLawSpectrum",

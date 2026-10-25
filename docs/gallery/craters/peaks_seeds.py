@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Peak seeds: three fresh 60 km lunar complex craters with the default massifs drawn from seeds 1,
-2 and 3, each giving its own count, layout, shapes and spurs. Top: the craters hillshaded with a
-low sun. Bottom: a west-east profile through each on the same relief, and the profile's round dome
-(dashed)."""
+"""Peak seeds, on three fresh 60 km lunar complex craters with the default massifs drawn from seeds 1,
+2 and 3, each giving its own count, layout, shapes and spurs. The top row shows the craters
+hillshaded with a low sun. The bottom row shows a west-east profile through each on the same relief,
+and the profile's round dome (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

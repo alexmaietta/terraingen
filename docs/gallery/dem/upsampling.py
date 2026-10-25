@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Upsampling a measured DEM: the LOLA global lunar DEM at 8 pixels per degree (about 3.8 km
+"""Upsampling a measured DEM, the LOLA global lunar DEM at 8 pixels per degree (about 3.8 km
 posts, LDEM_8, Smith et al. 2010) over 12 degrees around Copernicus, a fresh 93 km crater at
 9.6 N, 20.1 W, refined to about 500 m on the Moon's sphere. The file runs from 0 to 360 E, so the
-window's west longitudes are read across the wrap. Left to right: nearest posts, bilinear, cubic
-(the default) and diamond-square, which adds fractal detail fitted to the DEM's own roughness.
-Top: hillshades. Middle: slope maps on one shared scale; nearest posts step into cliffs at every
-post's edge, bilinear and cubic keep the wall the posts give, and diamond-square adds slopes
-finer than the posts. Bottom: a profile west to east through the crater along a row of posts
-(dots)."""
+window's west longitudes are read across the wrap. From left to right the columns use nearest
+posts, bilinear, cubic (the default) and diamond-square, which adds fractal detail fitted to the
+DEM's own roughness. The top row shows hillshades. The middle row shows slope maps on one shared
+scale. Nearest posts step into cliffs at every post's edge, bilinear and cubic keep the wall the
+posts give, and diamond-square adds slopes finer than the posts. The bottom row shows a profile west
+to east through the crater along a row of posts (dots)."""
 
 import gallery
 import matplotlib.pyplot as plt

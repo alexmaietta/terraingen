@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Adding craters to a measured DEM: the LOLA global lunar DEM at 8 pixels per degree (about 3.8 km
+"""Adding craters to a measured DEM, the LOLA global lunar DEM at 8 pixels per degree (about 3.8 km
 posts, LDEM_8, Smith et al. 2010) over 12 degrees around Copernicus, refined by cubic
 interpolation to about 500 m on the Moon's sphere, with the default lunar crater population from
-1 km up. Left to right: the DEM alone; craters up to 40 km with no regard for the DEM, so large
-generated craters land on top of the real ones; the same with every crater 4 or more of the DEM's
-posts across (about 15 km) left out, as the DEM already holds those; and craters only up to 5 km.
-Bottom: the cumulative counts of the craters each adds, per square kilometer."""
+1 km up. The first panel shows the DEM alone. The second adds craters up to 40 km with no regard for
+the DEM, so large generated craters land on top of the real ones. The third leaves out every crater
+4 or more of the DEM's posts across (about 15 km), as the DEM already holds those. The fourth adds
+craters only up to 5 km. The bottom plot shows the cumulative counts of the craters each adds, per
+square kilometer."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -58,7 +59,7 @@ def figure(quick=False):
         options = terraingen.CraterLayerOptions(
             seed=5, generation=terraingen.CraterGenerationOptions(d_min=D_MIN_M, d_max=d_max)
         )
-        options.source_resolves_pixels = resolves
+        options.source_resolves_px = resolves
         craters = terraingen.CraterLayer(options=options, base=terraingen.TerrainBase(moon, source))
         terrain = terraingen.TerrainGenerator(source, [craters], surface=moon)
         added = terraingen.evaluate(terrain, grid=window).values

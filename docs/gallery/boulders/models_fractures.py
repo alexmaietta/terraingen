@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Fracture planes: the angular style from the same seed cut by none, 3, 8 and 16 fracture planes,
-each plane slicing off what lies beyond it to leave a flat face; more planes give a more faceted,
-blockier rock. Top: planes at 0.55 to 0.85 of the shape's reach (the default). Bottom: shallower
-cuts at 0.8 to 0.95."""
+"""Fracture planes cutting the angular style from the same seed, with none, 3, 8 and 16 planes. Each
+plane slices off what lies beyond it to leave a flat face, and more planes give a more faceted,
+blockier rock. The top row cuts at 0.55 to 0.85 of the shape's reach (the default) and the bottom row
+makes shallower cuts at 0.8 to 0.95."""
 
 import gallery
 import matplotlib.pyplot as plt

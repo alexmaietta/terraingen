@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Secondary craters of 24 m and up around a fresh 2 km primary, out to 1.6 times Elliott et al.'s
-median ray length, as dots sized by diameter. Left: spread evenly around the primary. Middle: 70% of
-them gathered into ray chains and clusters. Right: the boxed 3 km of rays, as terrain."""
+median ray length, as dots sized by diameter. On the left they spread evenly around the primary. In
+the middle, 70% of them gather into ray chains and clusters. The right panel shows the boxed 3 km of
+rays as terrain."""
 
 import gallery
 import matplotlib.pyplot as plt

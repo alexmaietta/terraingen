@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Rim variation: three fresh 60 km lunar complex craters whose bench radii wander around the rim
+"""Rim variation on three fresh 60 km lunar complex craters whose bench radii wander around the rim
 by none, 8% (the default) and 20% of the radius, from round rings to polygonal, scalloped walls.
-Top: the craters hillshaded with a low sun. Bottom: a west-east profile through each on the same
-relief, and without terraces (dashed)."""
+The top row shows the craters hillshaded with a low sun. The bottom row shows a west-east profile
+through each on the same relief, and without terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

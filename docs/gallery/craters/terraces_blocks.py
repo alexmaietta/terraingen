@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""The block offset: three fresh 60 km lunar complex craters whose slump blocks step their
+"""The block offset on three fresh 60 km lunar complex craters whose slump blocks step their
 headscarps in or out from their neighbors' by none of the room between scarps (one unbroken
-scalloped line), 60% (the default) and all of it. Top: the craters hillshaded with a low sun.
-Bottom: a west-east profile through each on the same relief, and without terraces (dashed)."""
+scalloped line), 60% (the default) and all of it. The top row shows the craters hillshaded with a
+low sun. The bottom row shows a west-east profile through each on the same relief, and without
+terraces (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

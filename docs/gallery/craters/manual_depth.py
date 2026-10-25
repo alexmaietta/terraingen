@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Manual craters with measured depths and rim heights in place of the model's: three fresh 20 m
-craters on fractal relief. Left: the lunar fresh morphometry's 2.2 m depth and 0.7 m rim. Middle: a
-deeper 3 m crater with a 0.8 m rim. Right: a shallow 1.2 m crater, its rim scaled with its depth.
-Top: hillshaded with a low sun. Bottom: their profiles, overlaid."""
+"""Manual craters with measured depths and rim heights in place of the model's, on three fresh 20 m
+craters on fractal relief. The left one has the lunar fresh morphometry's 2.2 m depth and 0.7 m rim.
+The middle one is a deeper 3 m crater with a 0.8 m rim. The right one is a shallow 1.2 m crater, its
+rim scaled with its depth. The top row is hillshaded with a low sun and the bottom row overlays their
+profiles."""
 
 import gallery
 import matplotlib.pyplot as plt

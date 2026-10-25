@@ -58,20 +58,23 @@ inline Vec2d Corner(const RasterGrid& lattice) {
     return {lattice.transform.originX, lattice.transform.originY};
 }
 
-/// The heights of a raster source: a window of a raster giving the cells `cells` of its lattice,
-/// upsampled between them as the options say.
+/// The heights of a raster source: the posts of a lattice giving its cells `cells`, upsampled
+/// between them as the options say.
 class RasterHeights {
   public:
-    /// @param native A window of the raster at `placement`, covering `NativeWindow` of `cells`.
+    /// @param posts The posts on `lattice`, holding at least `NativeWindow` of `cells`.
+    /// @param lattice The whole grid the posts lie on.
+    /// @param noData The value of cells copied where the posts have no data, and of cells beyond
+    /// those covered; NaN without one.
     /// @param cells A non-empty window of the lattice; the whole lattice gives the heights over
-    /// every cell, and also interpolates over the whole of the raster.
+    /// every cell, and also interpolates over the whole of the posts.
     /// @param name What the source is called in errors.
     /// @param wrapLongitude Whether x is a longitude repeating every 360 degrees
-    /// (`WrapsLongitude`); `native` then spans every column.
-    /// @throws std::invalid_argument as `Upsampler::FitTo` and `RasterPosts`.
-    RasterHeights(std::shared_ptr<const Raster<float>> native, const RasterPlacement& placement,
-                  const RasterSourceOptions& options, const PixelWindow& cells, std::string name,
-                  bool wrapLongitude = false);
+    /// (`WrapsLongitude`); the posts then wrap their columns too.
+    /// @throws std::invalid_argument as `Upsampler::FitTo`.
+    RasterHeights(std::shared_ptr<const PostLattice> posts, const RasterGrid& lattice,
+                  std::optional<float> noData, const RasterSourceOptions& options,
+                  const PixelWindow& cells, std::string name, bool wrapLongitude = false);
 
     /// The cells covered, on the lattice.
     RasterGrid Grid() const {
@@ -121,11 +124,10 @@ class RasterHeights {
     /// `Fill` of a grid without wrapping.
     void FillUnwrapped(Raster<float>& heights, double spacing) const;
 
-    std::shared_ptr<const Raster<float>> native_;
-    RasterPlacement nativePlacement_;
+    std::shared_ptr<const PostLattice> posts_;
     RasterGrid lattice_;
+    std::optional<float> noData_;
     PixelWindow cells_;
-    RasterPosts posts_;
     std::shared_ptr<const Upsampler> upsampler_;
     double cellSpacing_ = 0.0;
     double resolution_ = 0.0;

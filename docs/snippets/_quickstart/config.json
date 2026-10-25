@@ -1,0 +1,22 @@
+{
+    "schema_version": 1,
+    "layers": [
+        {"type": "noise", "stack": [{"wavelength_m": 80, "amplitude_m": 2, "octaves": 5}]},
+        {"type": "craters", "min_diameter_m": 3, "max_diameter_m": 60},
+        {"type": "boulders", "min_diameter_m": 0.5, "max_diameter_m": 3}
+    ],
+    "outputs": [
+        {
+            "type": "heightmap",
+            "path": "terrain.tif",
+            "pixel_size_m": 0.5,
+            "extent_m": {"center": [0, 0], "size": [128, 128]}
+        },
+        {
+            "type": "crater_list",
+            "path": "craters.csv",
+            "pixel_size_m": 0.5,
+            "extent_m": {"center": [0, 0], "size": [128, 128]}
+        }
+    ]
+}

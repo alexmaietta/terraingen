@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How many massifs a central peak has: three fresh 60 km lunar complex craters whose peaks rise
-from a single mountain, 2 to 3 and 4 to 6 massifs strung across the floor. Top: the craters
-hillshaded with a low sun. Bottom: a west-east profile through each on the same relief, and the
-profile's round dome (dashed)."""
+"""How many massifs a central peak has, on three fresh 60 km lunar complex craters whose peaks rise
+from a single mountain, 2 to 3 and 4 to 6 massifs strung across the floor. The top row shows the
+craters hillshaded with a low sun. The bottom row shows a west-east profile through each on the same
+relief, and the profile's round dome (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""How sharp a central peak's crests are: three fresh 60 km lunar complex craters whose massifs
-are domed (sharpness 0), the default 0.6 and spires (1). Top: the craters hillshaded with a low
-sun. Bottom: a west-east profile through each on the same relief, and the profile's round dome
-(dashed)."""
+"""How sharp a central peak's crests are, on three fresh 60 km lunar complex craters whose massifs
+are domed (sharpness 0), the default 0.6 and spires (1). The top row shows the craters hillshaded
+with a low sun. The bottom row shows a west-east profile through each on the same relief, and the
+profile's round dome (dashed)."""
 
 import gallery
 import matplotlib.pyplot as plt

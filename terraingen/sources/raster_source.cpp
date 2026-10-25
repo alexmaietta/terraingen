@@ -9,6 +9,7 @@
 #include <limits>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace terraingen {
 
@@ -42,9 +43,11 @@ detail::RasterHeights WholeHeights(std::shared_ptr<const Raster<float>> heights,
     }
     detail::ValidateRasterSourceOptions(options);
     const RasterPlacement placement = RasterPlacement::Whole(*heights);
-    return detail::RasterHeights(std::move(heights), placement, options,
-                                 WholeWindow(placement.whole), "the raster",
-                                 detail::WrapsLongitude(keys, placement.whole));
+    const bool wraps = detail::WrapsLongitude(keys, placement.whole);
+    const std::optional<float> noData = heights->NoData();
+    return detail::RasterHeights(
+        std::make_shared<RasterPosts>(std::move(heights), placement, wraps), placement.whole,
+        noData, options, WholeWindow(placement.whole), "the raster", wraps);
 }
 
 }  // namespace
@@ -76,13 +79,12 @@ PixelWindow NativeWindow(const RasterGrid& native, int reach, const PixelWindow&
             ClampTo(static_cast<double>(cells.rowEnd) + margin, native.height)};
 }
 
-RasterHeights::RasterHeights(std::shared_ptr<const Raster<float>> native,
-                             const RasterPlacement& placement, const RasterSourceOptions& options,
+RasterHeights::RasterHeights(std::shared_ptr<const PostLattice> posts, const RasterGrid& lattice,
+                             std::optional<float> noData, const RasterSourceOptions& options,
                              const PixelWindow& cells, std::string name, bool wrapLongitude)
-    : native_(native), nativePlacement_(placement), lattice_(placement.whole), cells_(cells),
-      posts_(std::move(native), placement, wrapLongitude), upsampler_(OptionUpsampler(options)),
-      name_(std::move(name)), wrapLongitude_(wrapLongitude) {
-    if (std::shared_ptr<const Upsampler> fitted = upsampler_->FitTo(posts_)) {
+    : posts_(std::move(posts)), lattice_(lattice), noData_(noData), cells_(cells),
+      upsampler_(OptionUpsampler(options)), name_(std::move(name)), wrapLongitude_(wrapLongitude) {
+    if (std::shared_ptr<const Upsampler> fitted = upsampler_->FitTo(*posts_)) {
         upsampler_ = std::move(fitted);
     }
     cellSpacing_ = PostSpacing(lattice_.transform);
@@ -112,26 +114,34 @@ bool RasterHeights::Covers(double col, double row) const {
 }
 
 void RasterHeights::CopyFromLattice(Raster<float>& heights, LatticeOffset offset) const {
-    const Raster<float>& data = *native_;
-    const float fill = data.NoData().value_or(std::numeric_limits<float>::quiet_NaN());
-    bool outside = false;
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
-        const long long latticeRow = offset.row + static_cast<long long>(row);
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const long long latticeCol = offset.col + static_cast<long long>(col);
-            if (latticeRow < static_cast<long long>(cells_.rowBegin) ||
-                latticeCol < static_cast<long long>(cells_.colBegin) ||
-                latticeRow >= static_cast<long long>(cells_.rowEnd) ||
-                latticeCol >= static_cast<long long>(cells_.colEnd)) {
-                heights(col, row) = fill;
-                outside = true;
-                continue;
+    const float fill = noData_.value_or(std::numeric_limits<float>::quiet_NaN());
+    const auto clamp = [](long long at, std::size_t begin, std::size_t end) {
+        return std::clamp(at, static_cast<long long>(begin), static_cast<long long>(end));
+    };
+    const auto width = static_cast<long long>(heights.Width());
+    const auto height = static_cast<long long>(heights.Height());
+    const long long colBegin = clamp(offset.col, cells_.colBegin, cells_.colEnd);
+    const long long colEnd = clamp(offset.col + width, cells_.colBegin, cells_.colEnd);
+    const long long rowBegin = clamp(offset.row, cells_.rowBegin, cells_.rowEnd);
+    const long long rowEnd = clamp(offset.row + height, cells_.rowBegin, cells_.rowEnd);
+    const auto inWidth = static_cast<std::size_t>(colEnd - colBegin);
+    const auto inHeight = static_cast<std::size_t>(rowEnd - rowBegin);
+    for (float& value : heights.Values()) {
+        value = fill;
+    }
+    if (inWidth > 0 && inHeight > 0) {
+        std::vector<float> posts(inWidth * inHeight);
+        posts_->Read(colBegin, rowBegin, inWidth, inHeight, Span<float>(posts));
+        for (std::size_t row = 0; row < inHeight; ++row) {
+            for (std::size_t col = 0; col < inWidth; ++col) {
+                const float value = posts[row * inWidth + col];
+                heights(static_cast<std::size_t>(colBegin - offset.col) + col,
+                        static_cast<std::size_t>(rowBegin - offset.row) + row) =
+                    std::isnan(value) ? fill : value;
             }
-            heights(col, row) = data(static_cast<std::size_t>(latticeCol) - nativePlacement_.col,
-                                     static_cast<std::size_t>(latticeRow) - nativePlacement_.row);
         }
     }
-    heights.SetNoData(FilledNoData(data.NoData(), outside));
+    heights.SetNoData(FilledNoData(noData_, inWidth * inHeight < heights.Size()));
 }
 
 void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing) const {
@@ -145,7 +155,7 @@ void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing) const 
         throw std::invalid_argument("A rotated grid off the lattice of " + name_ +
                                     " cannot be filled");
     }
-    FillUpsampled(*upsampler_, posts_, heights, spacing);
+    FillUpsampled(*upsampler_, *posts_, heights, spacing);
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             const Vec2d center = heights.CellCenter(col, row);
@@ -155,7 +165,7 @@ void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing) const 
             }
         }
     }
-    MarkMissing(heights, native_->NoData());
+    MarkMissing(heights, noData_);
 }
 
 double RasterHeights::Turns(double x) const {
@@ -208,7 +218,7 @@ float RasterHeights::HeightAt(double x, double y, double spacing) const {
     if (!Covers(pixel.x, pixel.y)) {
         return kMissing;
     }
-    return UpsampledHeight(*upsampler_, posts_, wrappedX, y, spacing);
+    return UpsampledHeight(*upsampler_, *posts_, wrappedX, y, spacing);
 }
 
 double RasterHeights::ResolutionAt(double x, double y) const {

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Density maps as a count, setting how many craters of a size range lie in each area unit whatever
-the layer's own density: fresh craters from 4 m to 60 m shaped like the Trask equilibrium on 400 m
-squares of fractal relief, mapped in craters of 10 m and up per square kilometer (Trask has 770).
-Left to right: a uniform 1000; a gradient from none in the west to 3000 in the east; and fractal
-patches from none to 3000. The smaller craters scale with them along the distribution. Top: the
-maps. Bottom: the craters they place, titled with the craters of 10 m and up placed against the
-map's total."""
+the layer's own density. Fresh craters from 4 m to 60 m shaped like the Trask equilibrium on 400 m
+squares of fractal relief are mapped in craters of 10 m and up per square kilometer (Trask has 770).
+From left to right the maps are a uniform 1000, a gradient from none in the west to 3000 in the east,
+and fractal patches from none to 3000. The smaller craters scale with them along the distribution.
+The top row shows the maps. The bottom row shows the craters they place, titled with the craters of
+10 m and up placed against the map's total."""
 
 import gallery
 import matplotlib.pyplot as plt
