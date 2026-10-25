@@ -205,4 +205,17 @@ template <typename IO> void Fields(IO& io, SyntheticSourceSpec& source) {
        std::string(kUpsamplingHelp) + " Needs pixel_size_m; unset is cubic.");
 }
 
+template <> struct SpecName<ShapeModelSourceSpec> {
+    static constexpr std::string_view kName = "shape_model";
+    static constexpr std::string_view kDescription =
+        "The shape_model body's own labels refined by an upsampler, the source a shape-model body "
+        "has unless one is given: heights are the refined radius less the body's, which "
+        "interpolates the labels bilinearly, so 0 at every label. Posts beyond a cube face are "
+        "read from its neighbors and the faces are blended within half a label of their edges, "
+        "so there are no seams.";
+};
+template <typename IO> void Fields(IO& io, ShapeModelSourceSpec& source) {
+    io("upsampling", source.upsampling, std::string(kUpsamplingHelp) + " Unset is cubic.");
+}
+
 }  // namespace terraingen::config

@@ -651,6 +651,12 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
     EXPECT_EQ(SpecJson(std::get<terraingen::ShapeModelSurfaceSpec>(shape.body)),
               SpecJson(terraingen::ShapeModelSurfaceSpec{"itokawa.icq", 64, 1000.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(shape)), shape);
+    const TerrainGenConfig refined = ParseConfig(R"({"schema_version": 1,
+        "body": {"type": "shape_model", "path": "itokawa.icq"},
+        "source": {"type": "shape_model", "upsampling": "lanczos3"}})");
+    EXPECT_EQ(std::get<terraingen::ShapeModelSourceSpec>(*refined.source).upsampling.type,
+              "lanczos3");
+    EXPECT_EQ(ParseConfig(ConfigToJson(refined)), refined);
     EXPECT_TRUE(std::holds_alternative<terraingen::PlaneSurfaceSpec>(
         ParseConfig(R"({"schema_version": 1})").body));
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "body": {"type": "torus"}})"), "body.type");

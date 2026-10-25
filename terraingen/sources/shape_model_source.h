@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
+/// @file
+/// @brief `ShapeModelSource`, a shape-model body's own labels refined by an upsampler.
+#pragma once
+
+#include "terraingen/sources/source.h"
+#include "terraingen/sources/upsampling.h"
+#include "terraingen/util/surface.h"
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+
+namespace terraingen {
+
+/// The heights a shape model's labels give when an upsampler refines them, over the body made
+/// from it (`Surface::ShapeModel`), whose radius interpolates the same labels bilinearly.
+///
+/// Each of the six ICQ faces is a lattice of (Q + 1)^2 posts, the label radii, in degrees: Q
+/// intervals span the face's 90 degrees. Posts beyond a face's edge are read from the shape where
+/// the face's lattice extends onto its neighbors, so kernel upsamplers agree along the edges. Each
+/// face's posts are numbered apart from the others', so diamond-square displaces each face
+/// differently, and within half a post of an edge the faces' heights are blended. A height is the
+/// refined radius less the body's, 0 at every label: the shape gives the labels and the source
+/// what an upsampler makes between them.
+class ShapeModelSource final : public Source {
+  public:
+    using Source::Fill;
+
+    /// @param body A shape-model body.
+    /// @param upsampler How the labels are refined; null for cubic interpolation.
+    /// @throws std::invalid_argument for a body without a shape, or as `Upsampler::FitTo`.
+    explicit ShapeModelSource(Surface body, std::shared_ptr<const Upsampler> upsampler = nullptr);
+
+    ShapeModelSource(const ShapeModelSource&) = delete;
+    ShapeModelSource& operator=(const ShapeModelSource&) = delete;
+
+    /// A grid without cells over the whole body, its cells the labels' spacing at a face's center.
+    RasterGrid Grid() const override;
+
+    /// `HeightAt` each cell's center, rows split over threads.
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
+
+    /// The refined radius at longitude and latitude (`x`, `y`) in degrees at a sample spacing of
+    /// `spacing` degrees, less the body's radius there.
+    float HeightAt(double x, double y, double spacing) const override;
+
+    /// The labels' spacing at a face's center, 90 / Q degrees.
+    double ResolutionAt(double x, double y) const override;
+
+    /// The body.
+    const Surface& Body() const {
+        return body_;
+    }
+
+    /// The upsampler of each face, fitted to its posts.
+    const std::array<std::shared_ptr<const Upsampler>, 6>& UpsamplersInUse() const {
+        return upsamplers_;
+    }
+
+  private:
+    /// Columns between the first posts of consecutive faces, more than any face reads.
+    static constexpr std::int64_t kFaceColumns = std::int64_t{1} << 20;
+
+    /// One ICQ face's labels as posts, less the reference radius, numbered from `face` times
+    /// `kFaceColumns` columns.
+    class FacePosts final : public PostLattice {
+      public:
+        FacePosts(const ShapeModelSource& source, std::size_t face);
+        GeoTransform Transform() const override;
+        std::optional<PixelWindow> Extent() const override;
+        void Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
+                  Span<float> heights) const override;
+
+      private:
+        const ShapeModelSource& source_;
+        std::size_t face_;
+    };
+
+    /// The refined radius along unit `direction` from face `face`'s posts, less the reference
+    /// radius.
+    double FaceHeight(std::size_t face, const Vec3d& direction, double spacing) const;
+
+    Surface body_;
+    double reference_ = 0.0;
+    double labelDegrees_ = 0.0;
+    std::array<std::unique_ptr<FacePosts>, 6> posts_;
+    std::array<std::shared_ptr<const Upsampler>, 6> upsamplers_;
+};
+
+}  // namespace terraingen

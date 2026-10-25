@@ -686,6 +686,56 @@ TEST(BuildSurface, ReportsShapeModelProblemsAtTheirKeys) {
               "body.path");
 }
 
+TEST(BuildGenerator, AShapeModelBodyIsItsOwnSourceUpsampledAsGiven) {
+    terraingen::WriteIcq(terraingen::testing::TempPath("config_source.icq"),
+                         terraingen::ToIcq(Lumpy(12)));
+    TerrainGenConfig config;
+    config.body = terraingen::ShapeModelSurfaceSpec{"config_source.icq"};
+    const auto source = [&] {
+        return std::dynamic_pointer_cast<const terraingen::ShapeModelSource>(
+            terraingen::BuildGenerator(config, ::testing::TempDir()).source);
+    };
+    ASSERT_NE(source(), nullptr) << "a shape-model body is its own source";
+    const terraingen::ShapeModelSource cubic(source()->Body());
+    EXPECT_EQ(source()->HeightAt(12.3, 4.5, 0.1), cubic.HeightAt(12.3, 4.5, 0.1));
+
+    terraingen::UpsamplingSpec lanczos;
+    lanczos.type = "lanczos3";
+    config.source = terraingen::ShapeModelSourceSpec{lanczos};
+    ASSERT_NE(source(), nullptr);
+    EXPECT_NE(source()->HeightAt(12.3, 4.5, 0.1), cubic.HeightAt(12.3, 4.5, 0.1));
+
+    config.source = terraingen::SyntheticSourceSpec{};
+    EXPECT_EQ(source(), nullptr) << "a given source replaces it";
+
+    TerrainGenConfig sphere;
+    sphere.body = terraingen::SphereSurfaceSpec{1000.0};
+    sphere.source = terraingen::ShapeModelSourceSpec{};
+    try {
+        terraingen::BuildGenerator(sphere);
+        FAIL() << "a shape-model source needs a shape-model body";
+    } catch (const ConfigError& error) {
+        EXPECT_EQ(error.Path(), "source");
+    }
+}
+
+TEST(GenerateFromConfig, RefinesAShapeModelBodyBetweenItsLabels) {
+    terraingen::WriteIcq(terraingen::testing::TempPath("config_refined.icq"),
+                         terraingen::ToIcq(Lumpy(8)));
+    TerrainGenConfig config;
+    config.body = terraingen::ShapeModelSurfaceSpec{"config_refined.icq"};
+    const terraingen::TerrainGenerator terrain =
+        terraingen::BuildGenerator(config, ::testing::TempDir());
+    const terraingen::Raster<float> heights = terraingen::Evaluate(
+        terrain, terraingen::RasterGrid::Covering({-180.0, -90.0, 180.0, 90.0}, 3.0), 1.0);
+    float largest = 0.0f;
+    for (const float height : heights.Values()) {
+        largest = std::max(largest, std::abs(height));
+    }
+    EXPECT_GT(largest, 0.01f) << "cubic leaves the bilinear shape between labels";
+    EXPECT_LT(largest, 5.0f);
+}
+
 TEST(BuildGenerator, GivesLayersTheirMapsCatalogsAndCompleteness) {
     TerrainGenConfig config = Small();
     auto& craters = std::get<CraterLayerSpec>(config.layers.at(1));

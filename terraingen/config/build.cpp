@@ -37,6 +37,7 @@
 #include "terraingen/pipeline/feature_lists.h"
 #include "terraingen/sources/field.h"
 #include "terraingen/sources/geotiff_source.h"
+#include "terraingen/sources/shape_model_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_source.h"
 #include "terraingen/sources/upsampling.h"
@@ -338,6 +339,12 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
                                                              pixelSize, upsampler, surface);
                 });
             },
+            [&](const ShapeModelSourceSpec& s) -> Result {
+                const std::shared_ptr<const Upsampler> upsampler =
+                    BuildUpsampler(s.upsampling, surface, Child(path, "upsampling"));
+                return At(path,
+                          [&] { return std::make_shared<ShapeModelSource>(surface, upsampler); });
+            },
         },
         spec);
 }
@@ -371,8 +378,8 @@ class UnmeasuredSource final : public Source {
 };
 
 /// The source whose resolution layers read for what it already holds (`sourceResolvesPixels`):
-/// `built` itself for a raster, null for a synthetic source, and for a chain the chain with its
-/// synthetic sources resolving nothing, or null when all of them are synthetic.
+/// `built` itself for a raster or a shape model, null for a synthetic source, and for a chain the
+/// chain with its synthetic sources resolving nothing, or null when all of them are synthetic.
 /// @param built The source `BuildSource` built from `spec`.
 std::shared_ptr<const Source> MeasuredSource(const SourceSpec& spec,
                                              const std::shared_ptr<const Source>& built) {
@@ -381,6 +388,7 @@ std::shared_ptr<const Source> MeasuredSource(const SourceSpec& spec,
         Overloaded{
             [&](const RasterSourceSpec&) -> Result { return built; },
             [](const SyntheticSourceSpec&) -> Result { return nullptr; },
+            [&](const ShapeModelSourceSpec&) -> Result { return built; },
             [&](const ChainSourceSpec& s) -> Result {
                 const auto& members = static_cast<const SourceChain&>(*built).Sources();
                 std::vector<Result> sources;
@@ -593,17 +601,17 @@ TerrainGenerator BuildValidGenerator(const TerrainGenConfig& config,
                                      const std::shared_ptr<const Source>& external = nullptr) {
     TerrainGenerator generator;
     generator.surface = BuildSurface(config.body, directory);
+    const std::optional<SourceSpec> source = EffectiveSource(config);
     if (external) {
         generator.source = external;
     } else {
-        generator.source = BuildSource(config.source.value_or(SourceSpec{SyntheticSourceSpec{}}),
+        generator.source = BuildSource(source.value_or(SourceSpec{SyntheticSourceSpec{}}),
                                        directory, generator.surface, "source");
     }
     const std::shared_ptr<const Source> given =
-        external ? external : (config.source ? generator.source : nullptr);
+        external ? external : (source ? generator.source : nullptr);
     const std::shared_ptr<const Source> measured =
-        external ? external
-                 : (config.source ? MeasuredSource(*config.source, generator.source) : nullptr);
+        external ? external : (source ? MeasuredSource(*source, generator.source) : nullptr);
     std::vector<std::shared_ptr<const CraterLayer>> craters;
     std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < config.layers.size(); ++i) {

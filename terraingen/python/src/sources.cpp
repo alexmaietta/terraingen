@@ -11,6 +11,7 @@
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/raster_source.h"
+#include "terraingen/sources/shape_model_source.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_source.h"
@@ -341,6 +342,29 @@ void BindGeneratedSources(nb::module_& m) {
         .def_prop_ro(
             "upsampler", [](const SyntheticSource& s) { return Mutable(s.UpsamplerInUse()); },
             "The upsampler in use, fitted to the posts; None without a pixel size.");
+    nb::class_<ShapeModelSource, Source>(
+        m, "ShapeModelSource",
+        "A shape-model body's own labels refined by `upsampler` (cubic when None): heights are "
+        "the refined radius less the body's, which interpolates the labels bilinearly, so 0 at "
+        "every label. Each ICQ face is a lattice of posts in degrees, read across its edges from "
+        "its neighbors and blended within half a label of them, so there are no seams.")
+        .def(
+            "__init__",
+            [](ShapeModelSource* self, const Surface& body, std::shared_ptr<Upsampler> upsampler) {
+                new (self) ShapeModelSource(body, std::move(upsampler));
+            },
+            "body"_a, "upsampler"_a = nb::none())
+        .def_prop_ro("body", &ShapeModelSource::Body)
+        .def_prop_ro(
+            "upsamplers",
+            [](const ShapeModelSource& s) {
+                std::vector<std::shared_ptr<Upsampler>> upsamplers;
+                for (const auto& upsampler : s.UpsamplersInUse()) {
+                    upsamplers.push_back(Mutable(upsampler));
+                }
+                return upsamplers;
+            },
+            "The upsampler of each of the six faces, fitted to its posts.");
 }
 
 void BindRasterSources(nb::module_& m) {

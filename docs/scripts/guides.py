@@ -27,6 +27,7 @@ CATEGORIES = {
     "craters": "Craters",
     "boulders": "Boulders",
     "albedo": "Albedo",
+    "bodies": "Irregular bodies",
     "customization": "Customization",
 }
 
@@ -78,6 +79,14 @@ ORDER = {
         "add-reflectance-zones-around-a-new-crater",
         "brighten-a-lander-blast-zone",
         "mix-hapke-photometry-from-materials",
+    ],
+    "bodies": [
+        "make-a-body-from-a-shape-model",
+        "make-a-body-from-a-radius-function",
+        "upsample-a-shape-model",
+        "add-terrain-over-a-whole-body",
+        "write-the-whole-body-as-a-mesh",
+        "configure-a-shape-model-body",
     ],
     "customization": [
         "stack-noise-fractals",

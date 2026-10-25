@@ -180,10 +180,17 @@ struct SizeSlopeMapSpec {
     double maxExponent = 6.0;
 };
 
+/// Source "shape_model": a "shape_model" body's own labels refined by `upsampling`
+/// (`ShapeModelSource`), the source a shape-model body has unless the configuration gives one.
+struct ShapeModelSourceSpec {
+    UpsamplingSpec upsampling{};
+};
+
 struct ChainSourceSpec;
 
 /// Where a terrain's heights come from, its source, named in JSON by its "type".
-using SourceSpec = std::variant<RasterSourceSpec, ChainSourceSpec, SyntheticSourceSpec>;
+using SourceSpec =
+    std::variant<RasterSourceSpec, ChainSourceSpec, SyntheticSourceSpec, ShapeModelSourceSpec>;
 
 /// Source "chain": `sources` tried in order, each filling where those before it have no
 /// data (`SourceChain`), joined as `seams` say; its grid is the first source's.
@@ -870,6 +877,18 @@ struct TerrainGenConfig {
 inline std::filesystem::path ConfigDirectory(const TerrainGenConfig& config,
                                              const std::filesystem::path& given) {
     return given.empty() ? config.directory : given;
+}
+
+/// The source `config` gives, else a "shape_model" source on a shape-model body; none on other
+/// bodies, which then start from the default synthetic source.
+inline std::optional<SourceSpec> EffectiveSource(const TerrainGenConfig& config) {
+    if (config.source) {
+        return config.source;
+    }
+    if (std::holds_alternative<ShapeModelSurfaceSpec>(config.body)) {
+        return SourceSpec{ShapeModelSourceSpec{}};
+    }
+    return std::nullopt;
 }
 
 /// Whether two configurations are the same, as their JSON is (`ConfigToJson`).

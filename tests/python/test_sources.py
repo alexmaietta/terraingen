@@ -405,3 +405,24 @@ def test_python_sources_resolve_nothing_unless_they_say():
     assert Level().resolution_at(0.0, 0.0) == float("inf")
     assert Measured().resolution_at(0.0, 0.0) == 3.0
     assert terraingen.source_resolved_limit(Measured(), 2.0).value_at(0.0, 0.0) == 6.0
+
+
+def test_shape_model_sources_refine_a_body_between_its_labels():
+    shape = terraingen.RadialShape.sample(8, lambda u: 300.0 + 60.0 * u[0] ** 2 + 20.0 * u[2])
+    body = terraingen.Surface.shape_model(shape)
+    cubic = terraingen.ShapeModelSource(body)
+    assert not cubic.bounded and cubic.resolution_at(0.0, 0.0) == pytest.approx(90.0 / 8)
+    assert cubic.body.shape == shape and len(cubic.upsamplers) == 6
+    assert cubic.height_at(0.0, 0.0, 1.0) == pytest.approx(0.0, abs=1e-3)  # a label
+    assert abs(cubic.height_at(17.0, 23.0, 0.1)) > 1e-3
+    rough = terraingen.ShapeModelSource(
+        body,
+        terraingen.DiamondSquareUpsampler(terraingen.DiamondSquareOptions(fractal_dimension=2.5, scale=1.0)),
+    )
+    terrain = terraingen.TerrainGenerator(rough, [], surface=body)
+    heights = terraingen.evaluate(
+        terrain, grid=terraingen.RasterGrid.covering((10.0, 10.0, 12.0, 12.0), 0.05)
+    )
+    assert heights.values.std() > 0.01
+    with pytest.raises(ValueError):
+        terraingen.ShapeModelSource(terraingen.Surface.sphere(100.0))

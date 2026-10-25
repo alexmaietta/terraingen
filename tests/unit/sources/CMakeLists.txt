@@ -8,6 +8,7 @@ terraingen_add_test_suite(
     flat_source_test.cpp
     geotiff_source_test.cpp
     raster_source_test.cpp
+    shape_model_source_test.cpp
     source_chain_test.cpp
     synthetic_source_test.cpp
     terrain_base_test.cpp

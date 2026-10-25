@@ -42,7 +42,19 @@ LOLA_LDEM_8 = Asset(
     sha256="240147d9af3c593ad3fb1ba1c45ac365927c9a6236e3a020aaee9bdf589cccf2",
 )
 
-ASSETS = [LOLA_LDEM_8]
+#: Gaskell's shape model of asteroid 25143 Itokawa (Gaskell Itokawa Shape Model V1.1, PDS Small
+#: Bodies Node, doi:10.26033/fejt-k595) at Q = 128: an ICQ file of 6 x 129 x 129 vertices in km.
+ITOKAWA_Q128 = Asset(
+    name="itokawa/itokawa_q128.icq",
+    url=(
+        "https://sbnarchive.psi.edu/pds4/non_mission/gaskell.ast-itokawa.shape-model_V1_1/data/quad/"
+        "quad128q.tab"
+    ),
+    size=3794186,
+    sha256="a64385440eeab83951e9564a805bc08b2f7138cee318996ace58654f5cf44227",
+)
+
+ASSETS = [LOLA_LDEM_8, ITOKAWA_Q128]
 
 
 def cache_dir():
@@ -73,7 +85,7 @@ def digest(path):
 def fetch(asset):
     """The path of `asset`, downloading it into the cache first when missing. The download goes
     to a .part file, is checked against the size and hash, and only then takes the asset's name.
-    Raises RuntimeError when the download does not match."""
+    It names itself in its User-Agent, as some archives refuse Python's default. Raises RuntimeError when the download does not match."""
     path = cached(asset)
     if path:
         return path
@@ -81,7 +93,8 @@ def fetch(asset):
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_name(path.name + ".part")
     print(f"downloading {asset.url} ({asset.size / 1e6:.1f} MB) to {path}", file=sys.stderr)
-    with urllib.request.urlopen(asset.url, timeout=60) as response, open(partial, "wb") as file:
+    request = urllib.request.Request(asset.url, headers={"User-Agent": "terraingen-docs"})
+    with urllib.request.urlopen(request, timeout=60) as response, open(partial, "wb") as file:
         for block in iter(lambda: response.read(1 << 20), b""):
             file.write(block)
     size = partial.stat().st_size

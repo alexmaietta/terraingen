@@ -568,15 +568,23 @@ std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
                 CheckSyntheticSource(s, path);
                 return std::nullopt;
             },
+            [&](const ShapeModelSourceSpec& s) -> std::optional<RasterGrid> {
+                if (!surface.Shape()) {
+                    throw ConfigError(path, "needs a shape_model body, whose labels it refines");
+                }
+                CheckUpsampling(s.upsampling, Child(path, "upsampling"));
+                return std::nullopt;
+            },
         },
         source);
 }
 
 /// Whether a source has posts that layers can estimate settings from: a raster, a chain whose
-/// first source has, or synthetic noise with a pixel size.
+/// first source has, a shape model, or synthetic noise with a pixel size.
 bool HasPosts(const SourceSpec& source) {
     return std::visit(Overloaded{
                           [](const RasterSourceSpec&) { return true; },
+                          [](const ShapeModelSourceSpec&) { return true; },
                           [](const ChainSourceSpec& s) {
                               return !s.sources.empty() && HasPosts(s.sources.front());
                           },
@@ -859,7 +867,8 @@ void CheckLayers(const TerrainGenConfig& config, const std::vector<Extent>& exte
                  const std::filesystem::path& directory, const Surface& surface,
                  ConfigSummary& summary) {
     LayerChecks layers{extents, directory, surface};
-    layers.posts = config.source && HasPosts(*config.source);
+    const std::optional<SourceSpec> source = EffectiveSource(config);
+    layers.posts = source && HasPosts(*source);
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         CheckLayer(config.layers[i], Element("layers", i), layers);
     }

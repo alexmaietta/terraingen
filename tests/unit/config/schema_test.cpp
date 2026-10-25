@@ -398,7 +398,8 @@ TEST(ConfigCatalog, ListsEveryTypeAndEachEntryParsesWhereItBelongs) {
     for (const Json& body : catalog["body"]) {
         parses({{"body", body}}, "body");
     }
-    EXPECT_EQ(types(catalog["source"]), (std::vector<std::string>{"raster", "chain", "synthetic"}));
+    EXPECT_EQ(types(catalog["source"]),
+              (std::vector<std::string>{"raster", "chain", "synthetic", "shape_model"}));
     for (const Json& source : catalog["source"]) {
         parses({{"source", source}}, "source");
     }
