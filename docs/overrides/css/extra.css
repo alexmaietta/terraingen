@@ -370,6 +370,40 @@
     color: var(--md-default-fg-color--light);
 }
 
+/* ---- Gallery ------------------------------------------------------------------------------ */
+
+/* Figures in a grid, a wide one spanning its row, each captioned small beneath it. */
+.md-typeset .tg-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: 1.2rem;
+    align-items: start;
+}
+
+.md-typeset .tg-gallery figure {
+    margin: 0;
+}
+
+.md-typeset .tg-gallery .tg-gallery__wide {
+    grid-column: 1 / -1;
+}
+
+.md-typeset .tg-gallery img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--tg-rule);
+    border-radius: 2px;
+}
+
+.md-typeset .tg-gallery figcaption {
+    max-width: none;
+    margin: 0.5rem 0 0;
+    font-size: 0.65rem;
+    font-style: normal;
+    text-align: left;
+    color: var(--md-default-fg-color--light);
+}
+
 /* ---- API reference ------------------------------------------------------------------------ */
 
 .doc-object {

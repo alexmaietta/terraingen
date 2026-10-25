@@ -153,7 +153,16 @@ nav:
           - Burial and exposure: features/boulders/burial-and-exposure.md
           - Fragmentation: features/boulders/fragmentation.md
           - Lists and meshes: features/boulders/lists-and-meshes.md
-      - Albedo: features/albedo.md
+      - Albedo:
+          - features/albedo/index.md
+          - Base maps: features/albedo/base-maps.md
+          - Slopes and maturity: features/albedo/slopes.md
+          - Crater ejecta and rays: features/albedo/crater-rays.md
+          - Reflectance zones: features/albedo/reflectance-zones.md
+          - Splotches: features/albedo/splotches.md
+          - Blast zones: features/albedo/blast-zones.md
+          - Rocks: features/albedo/rocks.md
+          - Photometry: features/albedo/photometry.md
       - Aeolian and geologic features:
           - features/geology/index.md
           - Dunes: features/geology/dunes.md
@@ -171,6 +180,10 @@ nav:
 
 plugins:
   - search
+  - glightbox:
+      loop: true
+      background: none
+      shadow: false
   - mkdoxy:
       projects:
         cpp:

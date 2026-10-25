@@ -21,7 +21,7 @@ Scientific terrain for planetary surfaces: craters, boulders, dunes, layered roc
 
 - **Sites to whole bodies.** Planes, spheres, triaxial ellipsoids and shape models of irregular bodies, with centimeter-scale detail added to GeoTIFF elevation models or synthetic relief. [Learn more](concepts/surfaces.md)
 - **Published crater and boulder models.** Populations follow published size-frequency distributions, and each crater gets a profile, an age, degradation and an irregular rim. [Learn more](features/distributions/index.md)
-- **Albedo that ages.** Synthetic albedo maps, with crater ejecta and rays that fade as craters age. [Learn more](features/albedo.md)
+- **Albedo that ages.** Synthetic albedo maps, with crater ejecta and rays that fade as craters age. [Learn more](features/albedo/index.md)
 - **Geologic features.** Secondary and complex craters, boulder ejecta, dunes and ripples, terraced strata and fractured bedrock. [Learn more](features/geology/index.md)
 - **Simulation-ready outputs.** GeoTIFF heightmaps and albedo, crater and boulder lists, and terrain and 3D boulder meshes as glTF, OBJ or STL. [Learn more](features/outputs.md)
 - **Fast and deterministic.** Noise and crater shaping on the GPU through Vulkan, CUDA or Metal, and the same seed gives the same terrain on any grid or thread count. [Learn more](concepts/gpu.md)

@@ -8,3 +8,5 @@ mkdoxy==1.2.8
 ruff==0.17.0
 # Draws the gallery figures (gallery/gallery.py).
 matplotlib==3.11.2
+# Opens figures in a lightbox (the gallery and every page).
+mkdocs-glightbox==0.4.0
