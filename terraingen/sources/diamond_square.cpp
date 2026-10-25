@@ -512,32 +512,34 @@ std::vector<float> MidpointRefiner::Expand(const PostLattice& posts,
     return heights;
 }
 
-void MidpointRefiner::Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const {
+void MidpointRefiner::Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+                           unsigned threads) const {
     const NodeFrame frame = Frame(posts);
     const int level = Levels(PostSpacing(posts.Transform()), spacing);
-    ForEachTile(heights.Width(), heights.Height(), kTileCells, 0, [&](const PixelWindow& tile) {
-        std::vector<Vec2d> positions;
-        for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
-            for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
-                positions.push_back(heights.CellCenter(col, row));
-            }
-        }
-        std::vector<float> values;
-        if (ReadBox(frame, level, positions).Area() <=
-            64.0 * static_cast<double>(positions.size())) {
-            values = Expand(posts, positions, spacing);
-        } else {
-            for (const Vec2d& p : positions) {
-                values.push_back(Expand(posts, {p}, spacing).front());
-            }
-        }
-        std::size_t n = 0;
-        for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
-            for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
-                heights(col, row) = values[n++];
-            }
-        }
-    });
+    ForEachTile(heights.Width(), heights.Height(), kTileCells, threads,
+                [&](const PixelWindow& tile) {
+                    std::vector<Vec2d> positions;
+                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
+                        for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
+                            positions.push_back(heights.CellCenter(col, row));
+                        }
+                    }
+                    std::vector<float> values;
+                    if (ReadBox(frame, level, positions).Area() <=
+                        64.0 * static_cast<double>(positions.size())) {
+                        values = Expand(posts, positions, spacing);
+                    } else {
+                        for (const Vec2d& p : positions) {
+                            values.push_back(Expand(posts, {p}, spacing).front());
+                        }
+                    }
+                    std::size_t n = 0;
+                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
+                        for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
+                            heights(col, row) = values[n++];
+                        }
+                    }
+                });
 }
 
 }  // namespace detail
@@ -556,9 +558,9 @@ float DiamondSquareUpsampler::HeightAt(const PostLattice& posts, double x, doubl
     return refiner_.Expand(posts, {Vec2d{x, y}}, spacing).front();
 }
 
-void DiamondSquareUpsampler::Fill(const PostLattice& posts, Raster<float>& heights,
-                                  double spacing) const {
-    refiner_.Fill(posts, heights, spacing);
+void DiamondSquareUpsampler::Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+                                  unsigned threads) const {
+    refiner_.Fill(posts, heights, spacing, threads);
 }
 
 std::shared_ptr<const Upsampler> DiamondSquareUpsampler::FitTo(const PostLattice& posts) const {

@@ -3,6 +3,7 @@
 #include "terraingen/sources/raster_source.h"
 
 #include "terraingen/util/checks.h"
+#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -144,7 +145,7 @@ void RasterHeights::CopyFromLattice(Raster<float>& heights, LatticeOffset offset
     heights.SetNoData(FilledNoData(noData_, inWidth * inHeight < heights.Size()));
 }
 
-void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing) const {
+void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing, unsigned threads) const {
     if (AtPostSpacing(lattice_.transform, spacing)) {
         if (const auto offset = OffsetOnLattice(heights.Transform())) {
             CopyFromLattice(heights, *offset);
@@ -155,8 +156,8 @@ void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing) const 
         throw std::invalid_argument("A rotated grid off the lattice of " + name_ +
                                     " cannot be filled");
     }
-    FillUpsampled(*upsampler_, *posts_, heights, spacing);
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
+    FillUpsampled(*upsampler_, *posts_, heights, spacing, threads);
+    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             const Vec2d center = heights.CellCenter(col, row);
             const Vec2d pixel = lattice_.transform.WorldToPixel(center.x, center.y);
@@ -164,7 +165,7 @@ void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing) const 
                 heights(col, row) = std::numeric_limits<float>::quiet_NaN();
             }
         }
-    }
+    });
     MarkMissing(heights, noData_);
 }
 
@@ -179,12 +180,12 @@ double RasterHeights::Turns(double x) const {
     return std::floor((x - left) / kTurnDegrees);
 }
 
-void RasterHeights::Fill(Raster<float>& heights, double spacing) const {
+void RasterHeights::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
     const std::size_t width = heights.Width();
     const auto turnsAt = [&](std::size_t col) { return Turns(heights.CellCenter(col, 0).x); };
     if (!wrapLongitude_ || heights.Empty() || heights.Transform().IsRotated() ||
         (turnsAt(0) == 0.0 && turnsAt(width - 1) == 0.0)) {
-        FillUnwrapped(heights, spacing);
+        FillUnwrapped(heights, spacing, threads);
         return;
     }
     std::optional<float> noData;
@@ -199,7 +200,7 @@ void RasterHeights::Fill(Raster<float>& heights, double spacing) const {
             static_cast<double>(begin) * transform.pixelWidth - turns * kTurnDegrees;
         Raster<float> part(end - begin, heights.Height());
         part.SetTransform(transform);
-        FillUnwrapped(part, spacing);
+        FillUnwrapped(part, spacing, threads);
         for (std::size_t row = 0; row < part.Height(); ++row) {
             for (std::size_t col = 0; col < part.Width(); ++col) {
                 heights(begin + col, row) = part(col, row);

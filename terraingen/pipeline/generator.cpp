@@ -207,7 +207,7 @@ Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid
     const Backend backend = ResolveBackend(options.backend.value_or(DefaultBackend()));
     Raster<float> heights = grid.MakeRaster();
     if (generator.source) {
-        generator.source->Fill(heights, resolved / generator.surface.UnitLength());
+        generator.source->Fill(heights, resolved / generator.surface.UnitLength(), options.threads);
     }
     for (std::size_t n = 0; n < generator.layers.size(); ++n) {
         const Stopwatch stopwatch;

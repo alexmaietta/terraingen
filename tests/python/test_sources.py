@@ -221,6 +221,40 @@ def test_upsamplers_written_in_python_refine_a_raster_source():
     assert posts.extent() == (0, 4, 0, 4)
 
 
+def test_fills_written_in_python_take_the_threads_and_python_fills_run_on_threads():
+    class Level(terraingen.Source):
+        threads = []
+
+        def grid(self):
+            return terraingen.RasterGrid(8, 8, terraingen.GeoTransform.north_up(0.0, 8.0, 1.0))
+
+        def height_at(self, x, y, spacing):
+            return 3.0
+
+        def fill(self, heights, spacing, threads):
+            Level.threads.append(threads)
+            heights.values[:] = 3.0
+
+    level = Level()
+    terraingen.evaluate(terraingen.TerrainGenerator(level), threads=2)
+    assert Level.threads == [2]
+
+    class Lifted(terraingen.Upsampler):
+        def height_at(self, posts, x, y, spacing):
+            return terraingen.KernelUpsampler().height_at(posts, x, y, spacing) + 1.0
+
+    heights = np.arange(64, dtype=np.float32).reshape(8, 8)
+    posts = terraingen.RasterPosts(terraingen.Raster.from_array(heights))
+    serial = terraingen.Raster(32, 32)
+    serial.transform = terraingen.GeoTransform.north_up(0.0, 8.0, 0.25)
+    every = terraingen.Raster(32, 32)
+    every.transform = serial.transform
+    Lifted().fill(posts, serial, 0.25, threads=1)
+    Lifted().fill(posts, every, 0.25)
+    np.testing.assert_array_equal(serial.values, every.values)
+    assert serial.values[0, 0] == Lifted().height_at(posts, 0.125, 7.875, 0.25)
+
+
 def test_kernel_upsamplers_match_sample_raster():
     raster = terraingen.Raster.from_array(
         np.random.default_rng(1).random((6, 7), dtype=np.float32),

@@ -118,9 +118,11 @@ class MidpointRefiner {
     std::vector<float> Expand(const PostLattice& posts, const std::vector<Vec2d>& positions,
                               double spacing) const;
 
-    /// The heights at the cell centers of `heights`, tile by tile over every hardware thread.
+    /// The heights at the cell centers of `heights`, tile by tile, tiles split over threads.
+    /// @param threads Threads to fill over; 0 for every hardware thread.
     /// @throws std::invalid_argument as `Nodes`.
-    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const;
+    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+              unsigned threads) const;
 
   private:
     /// Where the nodes lie: post (0, 0) and the node steps of level 0 along x and y.
@@ -189,9 +191,12 @@ class DiamondSquareUpsampler final : public Upsampler {
     /// and a fit window, or for a rotated lattice.
     float HeightAt(const PostLattice& posts, double x, double y, double spacing) const override;
 
-    /// Refines the nodes once per tile of cells, tiles over every hardware thread.
+    using Upsampler::Fill;
+
+    /// Refines the nodes once per tile of cells, tiles split over threads.
     /// @throws std::invalid_argument as `HeightAt`.
-    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const override;
+    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+              unsigned threads) const override;
 
     /// Posts either side of a sample its nodes are refined from.
     int Reach() const override;

@@ -38,7 +38,7 @@ class Patchy final : public terraingen::Source {
     terraingen::Vec2d ReferencePoint() const override {
         return {7.0, 8.0};
     }
-    void Fill(Raster<float>& heights, double spacing) const override {
+    void Fill(Raster<float>& heights, double spacing, unsigned /*threads*/) const override {
         ++fills;
         const float fill = noData_.value_or(std::numeric_limits<float>::quiet_NaN());
         for (std::size_t row = 0; row < heights.Height(); ++row) {
@@ -73,7 +73,7 @@ class Shaped final : public terraingen::Source {
     RasterGrid Grid() const override {
         return grid_;
     }
-    void Fill(Raster<float>& heights, double spacing) const override {
+    void Fill(Raster<float>& heights, double spacing, unsigned /*threads*/) const override {
         for (std::size_t row = 0; row < heights.Height(); ++row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
                 const auto center = heights.CellCenter(col, row);
@@ -181,7 +181,7 @@ TEST(SourceChain, FillsNaNGapsOfSourcesWithoutANoDataValue) {
         RasterGrid Grid() const override {
             return kGrid;
         }
-        void Fill(Raster<float>& heights, double spacing) const override {
+        void Fill(Raster<float>& heights, double spacing, unsigned /*threads*/) const override {
             for (std::size_t row = 0; row < heights.Height(); ++row) {
                 for (std::size_t col = 0; col < heights.Width(); ++col) {
                     const auto center = heights.CellCenter(col, row);
@@ -336,11 +336,15 @@ TEST(SourceChainSeams, PointsTilesAndGridsAgreeToTheBit) {
         const auto points = Chain(earlier, later, Seams(mode, 3.0, 4.0));
         Raster<float> heights = grid.MakeRaster();
         whole->Fill(heights, 0.5);
+        Raster<float> serial = grid.MakeRaster();
+        Chain(earlier, later, Seams(mode, 3.0, 4.0))->Fill(serial, 0.5, 1);
         std::size_t matched = 0;
         for (std::size_t row = 0; row < grid.height; ++row) {
             for (std::size_t col = 0; col < grid.width; ++col) {
                 const auto center = heights.CellCenter(col, row);
                 ASSERT_EQ(tiles(col, row), heights(col, row)) << col << "," << row;
+                ASSERT_EQ(serial(col, row), heights(col, row))
+                    << "one thread " << col << "," << row;
                 ASSERT_EQ(points->HeightAt(center.x, center.y, 0.5), heights(col, row))
                     << col << "," << row;
                 if (std::isnan(earlier->HeightAt(center.x, center.y, 0.5)) &&

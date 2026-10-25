@@ -17,11 +17,17 @@
 namespace terraingen::testing {
 
 /// Checks that points, three tiles and the whole of `grid` (at least 8 by 6 cells) agree to the
-/// bit at the grid's own spacing; points outside the data are NaN where the cells hold no-data.
+/// bit at the grid's own spacing, and the whole on one thread with it on every; points outside the
+/// data are NaN where the cells hold no-data.
 inline void ExpectPointsTilesAndGridAgree(const Source& source, const RasterGrid& grid) {
     const double spacing = grid.PixelSize();
     Raster<float> whole = grid.MakeRaster();
     source.Fill(whole, spacing);
+    Raster<float> serial = grid.MakeRaster();
+    source.Fill(serial, spacing, 1);
+    for (std::size_t i = 0; i < whole.Size(); ++i) {
+        ASSERT_TRUE(SameBits(serial.Values()[i], whole.Values()[i])) << "one thread, cell " << i;
+    }
     const PixelWindow tiles[] = {
         {0, 7, 0, 5}, {7, grid.width, 0, 5}, {0, grid.width, 5, grid.height}};
     for (const PixelWindow& cells : tiles) {

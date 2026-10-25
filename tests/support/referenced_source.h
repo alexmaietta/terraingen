@@ -25,7 +25,7 @@ class ReferencedSource final : public Source {
     Vec2d ReferencePoint() const override {
         return point_;
     }
-    void Fill(Raster<float>& heights, double /*spacing*/) const override {
+    void Fill(Raster<float>& heights, double /*spacing*/, unsigned /*threads*/) const override {
         std::fill(heights.Values().begin(), heights.Values().end(), 0.0f);
     }
     float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {

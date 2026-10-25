@@ -108,7 +108,7 @@ class SourceChain final : public Source {
     /// Fills from the first source, then each cell still without data from the next source
     /// that has data there, matched by the seams, keeping the first source's no-data value; each
     /// source upsamples its own posts.
-    void Fill(Raster<float>& heights, double spacing) const override;
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
 
     /// The first height in meters at world point (`x`, `y`) that is not NaN, matched by the seams;
     /// NaN if no source has one.

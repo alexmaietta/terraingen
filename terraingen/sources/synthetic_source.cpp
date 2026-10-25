@@ -62,11 +62,11 @@ RasterGrid SyntheticSource::Grid() const {
     return {0, 0, posts_ ? posts_->Transform() : GeoTransform::NorthUp(0.0, 0.0, 1.0)};
 }
 
-void SyntheticSource::Fill(Raster<float>& heights, double spacing) const {
+void SyntheticSource::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
     if (posts_) {
-        FillUpsampled(*upsampler_, *posts_, heights, spacing);
+        FillUpsampled(*upsampler_, *posts_, heights, spacing, threads);
     } else {
-        ParallelFor(heights.Height(), 0, [&](std::size_t row) {
+        ParallelFor(heights.Height(), threads, [&](std::size_t row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
                 const Vec2d center = heights.CellCenter(col, row);
                 heights(col, row) = NoiseAt(center.x, center.y);

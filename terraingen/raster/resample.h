@@ -57,19 +57,16 @@ std::array<double, 6> KernelWeights(ResampleMethod method, double fraction);
 /// @tparam Missing Callable as `bool(float value)`.
 template <typename Value, typename Missing>
 std::optional<float> InterpolateLattice(double u, double v, ResampleMethod method,
-                                        const Value& value, const Missing& missing) {
-    if (method == ResampleMethod::Nearest) {
-        const float nearest = value(std::round(u), std::round(v));
-        if (missing(nearest)) {
-            return std::nullopt;
-        }
-        return nearest;
-    }
-    const double u0 = std::floor(u);
-    const double v0 = std::floor(v);
-    const std::array<double, 6> wxs = KernelWeights(method, u - u0);
-    const std::array<double, 6> wys = KernelWeights(method, v - v0);
-    const int radius = KernelRadius(method);
+                                        const Value& value, const Missing& missing);
+
+/// `InterpolateLattice` of a kernel of `radius` from its taps' weights, as `KernelWeights` gives
+/// them: `wxs` along the row from column `u0` and `wys` down the column from row `v0`, the cell
+/// at or before the point along each axis.
+template <typename Value, typename Missing>
+std::optional<float> InterpolateLatticeWeights(double u0, double v0,
+                                               const std::array<double, 6>& wxs,
+                                               const std::array<double, 6>& wys, int radius,
+                                               const Value& value, const Missing& missing) {
     double sum = 0.0;
     for (int j = 1 - radius; j <= radius; ++j) {
         const double wy = wys[static_cast<std::size_t>(j + radius - 1)];
@@ -86,6 +83,23 @@ std::optional<float> InterpolateLattice(double u, double v, ResampleMethod metho
         }
     }
     return static_cast<float>(sum);
+}
+
+template <typename Value, typename Missing>
+std::optional<float> InterpolateLattice(double u, double v, ResampleMethod method,
+                                        const Value& value, const Missing& missing) {
+    if (method == ResampleMethod::Nearest) {
+        const float nearest = value(std::round(u), std::round(v));
+        if (missing(nearest)) {
+            return std::nullopt;
+        }
+        return nearest;
+    }
+    const double u0 = std::floor(u);
+    const double v0 = std::floor(v);
+    return InterpolateLatticeWeights(u0, v0, KernelWeights(method, u - u0),
+                                     KernelWeights(method, v - v0), KernelRadius(method), value,
+                                     missing);
 }
 
 /// A raster interpolated at world position (`x`, `y`), with cells beyond the edge read from the

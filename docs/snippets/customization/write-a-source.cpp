@@ -28,13 +28,13 @@ TEST_F(SnippetTest, WriteASource) {
             return static_cast<float>(20.0 * std::exp(-(x * x + y * y) / (2.0 * 30.0 * 30.0)));
         }
 
-        void Fill(Raster<float>& heights, double spacing) const override {
-            for (std::size_t row = 0; row < heights.Height(); ++row) {
+        void Fill(Raster<float>& heights, double spacing, unsigned threads) const override {
+            ParallelFor(heights.Height(), threads, [&](std::size_t row) {
                 for (std::size_t col = 0; col < heights.Width(); ++col) {
                     const Vec2d center = heights.CellCenter(col, row);
                     heights(col, row) = HeightAt(center.x, center.y, spacing);
                 }
-            }
+            });
         }
     };
 

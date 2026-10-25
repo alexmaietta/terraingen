@@ -254,14 +254,15 @@ TEST(Evaluate, TilesEqualTheWholeTerrainAtACoarserSpacing) {
 
 namespace {
 
-/// A flat source that records the last sample spacing it was given.
+/// A flat source that records the last sample spacing and thread count it was given.
 class SpacingProbe final : public terraingen::Source {
   public:
     RasterGrid Grid() const override {
         return {};
     }
-    void Fill(terraingen::Raster<float>& heights, double spacing) const override {
+    void Fill(terraingen::Raster<float>& heights, double spacing, unsigned threads) const override {
         last = spacing;
+        lastThreads = threads;
         std::fill(heights.Values().begin(), heights.Values().end(), 0.0f);
     }
     float HeightAt(double, double, double spacing) const override {
@@ -269,6 +270,7 @@ class SpacingProbe final : public terraingen::Source {
         return 0.0f;
     }
     mutable double last = 0.0;
+    mutable unsigned lastThreads = 99;
 };
 
 }  // namespace
@@ -279,8 +281,12 @@ TEST(Evaluate, GivesTheSourceTheSampleSpacingInItsUnits) {
     terrain.source = probe;
     Evaluate(terrain, {4, 4, GeoTransform::NorthUp(0.0, 0.0, 2.0)});
     EXPECT_EQ(probe->last, 2.0);
+    EXPECT_EQ(probe->lastThreads, 0u);
     Evaluate(terrain, {4, 4, GeoTransform::NorthUp(0.0, 0.0, 2.0)}, 5.0);
     EXPECT_EQ(probe->last, 5.0);
+    Evaluate(terrain, {4, 4, GeoTransform::NorthUp(0.0, 0.0, 2.0)},
+             terraingen::EvaluationOptions{0.0, 3});
+    EXPECT_EQ(probe->lastThreads, 3u) << "the evaluation's threads";
     terraingen::HeightAt(terrain, 1.0, 1.0, 0.25);
     EXPECT_EQ(probe->last, 0.25);
     terrain.surface = terraingen::Surface::Sphere(1000.0);

@@ -89,8 +89,9 @@ class RasterHeights {
     /// Copies cells on the lattice at its spacing or coarser, otherwise upsamples; cells beyond
     /// those covered are no-data. A wrapping source fills each run of columns a turn of
     /// longitude away from the lattice as the lattice's own longitudes.
+    /// @param threads Threads to fill over; 0 for every hardware thread.
     /// @throws std::invalid_argument for a rotated grid off the lattice.
-    void Fill(Raster<float>& heights, double spacing) const;
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const;
 
     /// The height of the lattice cell centered at (`x`, `y`) at the lattice's spacing or coarser,
     /// otherwise the upsampler's; NaN beyond the cells covered and where there is no data. A
@@ -122,7 +123,7 @@ class RasterHeights {
     /// The turns of longitude to take from `x` to bring it onto the lattice; 0 unless wrapping.
     double Turns(double x) const;
     /// `Fill` of a grid without wrapping.
-    void FillUnwrapped(Raster<float>& heights, double spacing) const;
+    void FillUnwrapped(Raster<float>& heights, double spacing, unsigned threads) const;
 
     std::shared_ptr<const PostLattice> posts_;
     RasterGrid lattice_;
@@ -177,8 +178,8 @@ class RasterSource final : public Source {
 
     /// Copies cells on the source's lattice at its cell size or coarser, otherwise upsamples.
     /// @throws std::invalid_argument for a rotated grid off the source's lattice.
-    void Fill(Raster<float>& heights, double spacing) const override {
-        heights_.Fill(heights, spacing);
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override {
+        heights_.Fill(heights, spacing, threads);
     }
 
     /// The height of the source cell centered at (`x`, `y`) at the cell size or coarser, otherwise

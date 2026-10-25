@@ -359,8 +359,8 @@ class UnmeasuredSource final : public Source {
     GeoKeys Keys() const override {
         return source_->Keys();
     }
-    void Fill(Raster<float>& heights, double spacing) const override {
-        source_->Fill(heights, spacing);
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override {
+        source_->Fill(heights, spacing, threads);
     }
     float HeightAt(double x, double y, double spacing) const override {
         return source_->HeightAt(x, y, spacing);

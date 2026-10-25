@@ -13,27 +13,20 @@ namespace detail {
 
 /// Dot product of an offset with one of eight unit gradients: the axis directions and the
 /// diagonals.
-/// @param hash Corner hash; its low three bits pick the gradient.
+/// @param hash Corner hash; its low three bits pick the gradient: x, -x, y, -y, then (x + y),
+/// (y - x), (x - y) and -(x + y) over sqrt(2).
+///
+/// Selects rather than branches, since a random hash defeats branch prediction; each case keeps
+/// its arithmetic to the bit (y - x is -x + y exactly).
 inline float PerlinGradient2(uint32_t hash, float x, float y) {
     constexpr float kInvSqrt2 = 0.707106781186547524f;
-    switch (hash & 7u) {
-    case 0u:
-        return x;
-    case 1u:
-        return -x;
-    case 2u:
-        return y;
-    case 3u:
-        return -y;
-    case 4u:
-        return (x + y) * kInvSqrt2;
-    case 5u:
-        return (y - x) * kInvSqrt2;
-    case 6u:
-        return (x - y) * kInvSqrt2;
-    default:
-        return -(x + y) * kInvSqrt2;
-    }
+    const uint32_t h = hash & 7u;
+    const float axis = (h & 2u) != 0u ? y : x;
+    const float sx = h == 5u ? -x : x;
+    const float sy = h == 6u ? -y : y;
+    const float sum = sx + sy;
+    const float diagonal = (h == 7u ? -sum : sum) * kInvSqrt2;
+    return h < 4u ? ((h & 1u) != 0u ? -axis : axis) : diagonal;
 }
 
 /// The hash of a 2D lattice corner, shared by Perlin and simplex noise.

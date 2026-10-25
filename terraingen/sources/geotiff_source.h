@@ -82,7 +82,7 @@ class GeoTiffSource final : public Source {
     /// Copies cells on the source's lattice at its cell size or coarser, otherwise upsamples.
     /// @throws std::invalid_argument for a rotated grid off the source's lattice.
     /// @throws GeoTiffError if the file cannot be read.
-    void Fill(Raster<float>& heights, double spacing) const override;
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
 
     /// The height in meters of the source cell centered at CRS (`x`, `y`) at the cell size or
     /// coarser, otherwise the upsampler's; NaN beyond the file or the crop's grid, and where it

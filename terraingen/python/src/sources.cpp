@@ -16,6 +16,7 @@
 #include "terraingen/sources/synthetic_source.h"
 #include "terraingen/sources/terrain_base.h"
 #include "terraingen/sources/upsampling.h"
+#include "terraingen/util/parallel.h"
 
 #include <nanobind/operators.h>
 
@@ -31,8 +32,8 @@ namespace terraingen::python {
 namespace {
 
 /// @brief A source written in Python: `grid()` and `height_at(x, y, spacing)` are required;
-/// `fill(heights, spacing)` fills a whole raster at once, and `reference_point()` gives (x, y)
-/// noise is measured from.
+/// `fill(heights, spacing, threads)` fills a whole raster at once, and `reference_point()` gives
+/// (x, y) noise is measured from.
 class PySource : public Source {
   public:
     NB_TRAMPOLINE(Source);
@@ -45,17 +46,17 @@ class PySource : public Source {
         return CallOverride<Vec2d>(nb_trampoline, "reference_point").value_or(Vec2d{});
     }
 
-    void Fill(Raster<float>& heights, double spacing) const override {
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override {
         if (CallOverrideIgnoringResult(nb_trampoline, "fill", ByReference<Raster<float>>{heights},
-                                       spacing)) {
+                                       spacing, threads)) {
             return;
         }
-        for (std::size_t row = 0; row < heights.Height(); ++row) {
+        ParallelFor(heights.Height(), threads, [&](std::size_t row) {
             for (std::size_t col = 0; col < heights.Width(); ++col) {
                 const Vec2d center = heights.CellCenter(col, row);
                 heights(col, row) = HeightAt(center.x, center.y, spacing);
             }
-        }
+        });
     }
 
     float HeightAt(double x, double y, double spacing) const override {
@@ -69,7 +70,7 @@ class PySource : public Source {
 };
 
 /// @brief An upsampler written in Python: `height_at(posts, x, y, spacing)` is required;
-/// `fill(posts, heights, spacing)`, `reach()` and `fit_to(posts)` are optional.
+/// `fill(posts, heights, spacing, threads)`, `reach()` and `fit_to(posts)` are optional.
 class PyUpsampler : public Upsampler {
   public:
     NB_TRAMPOLINE(Upsampler);
@@ -79,12 +80,13 @@ class PyUpsampler : public Upsampler {
                                      ByReference<const PostLattice>{posts}, x, y, spacing);
     }
 
-    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const override {
+    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+              unsigned threads) const override {
         if (CallOverrideIgnoringResult(nb_trampoline, "fill", ByReference<const PostLattice>{posts},
-                                       ByReference<Raster<float>>{heights}, spacing)) {
+                                       ByReference<Raster<float>>{heights}, spacing, threads)) {
             return;
         }
-        Upsampler::Fill(posts, heights, spacing);
+        Upsampler::Fill(posts, heights, spacing, threads);
     }
 
     int Reach() const override {
@@ -118,21 +120,18 @@ RasterSourceOptions SamplingOptions(std::optional<double> effectivePixelSize,
 }
 
 /// `fill` with a spacing, or the grid's own without one.
-void FillAt(const Source& source, Raster<float>& heights, std::optional<double> spacing) {
-    if (spacing) {
-        source.Fill(heights, *spacing);
-    } else {
-        source.Fill(heights);
-    }
+void FillAt(const Source& source, Raster<float>& heights, std::optional<double> spacing,
+            unsigned threads) {
+    source.Fill(heights, spacing ? *spacing : RasterGrid::FromRaster(heights).PixelSize(), threads);
 }
 
 void BindSourceBase(nb::module_& m) {
     nb::class_<Source, PySource>(
         m, "Source",
         "Where a terrain's heights come from, over its grid. Subclass it and implement `grid()` "
-        "(a RasterGrid) and `height_at(x, y, spacing)`, and optionally `fill(heights, spacing)`, "
-        "`reference_point()` and `resolution_at(x, y)`, for a source of your own. Spacings are "
-        "sample spacings in the source's units.")
+        "(a RasterGrid) and `height_at(x, y, spacing)`, and optionally `fill(heights, spacing, "
+        "threads)`, `reference_point()` and `resolution_at(x, y)`, for a source of your own. "
+        "Spacings are sample spacings in the source's units.")
         .def(nb::init<>())
         .def("grid", &Source::Grid,
              "The grid the source covers; one without cells for a source without bounds.")
@@ -143,8 +142,10 @@ void BindSourceBase(nb::module_& m) {
              "upsampling, or its effective pixel size: the scale below which the source resolves "
              "nothing. Infinity where no measured data gives it, as for synthetic noise.")
         .def("reference_point", &Source::ReferencePoint)
-        .def("fill", &FillAt, "heights"_a, "spacing"_a = nb::none(),
-             "Sets every cell of `heights` at a sample spacing, by default its cell size.")
+        .def("fill", &FillAt, "heights"_a, "spacing"_a = nb::none(), "threads"_a = 0u,
+             nb::call_guard<nb::gil_scoped_release>(),
+             "Sets every cell of `heights` at a sample spacing, by default its cell size, on "
+             "`threads` threads (0 for every hardware thread).")
         .def_prop_ro(
             "bounded", [](const Source& source) { return BoundedGrid(source).has_value(); },
             "Whether the source has bounds: a grid with cells.")
@@ -216,13 +217,20 @@ void BindKernelUpsampler(nb::module_& m) {
         m, "Upsampler",
         "How a source's posts become heights at any point and sample spacing. Subclass it and "
         "implement `height_at(posts, x, y, spacing)`, and optionally `fill(posts, heights, "
-        "spacing)`, `reach()` (posts read either side of a point) and `fit_to(posts)` (an "
+        "spacing, threads)`, `reach()` (posts read either side of a point) and `fit_to(posts)` (an "
         "upsampler with settings estimated from the posts, or None), for one of your own; "
         "`register_upsampler` lets configurations name it.")
         .def(nb::init<>())
         .def("height_at", &Upsampler::HeightAt, "posts"_a, "x"_a, "y"_a, "spacing"_a)
-        .def("fill", &Upsampler::Fill, "posts"_a, "heights"_a, "spacing"_a,
-             "Sets each cell of `heights` to `height_at` its center.")
+        .def(
+            "fill",
+            [](const Upsampler& upsampler, const PostLattice& posts, Raster<float>& heights,
+               double spacing,
+               unsigned threads) { upsampler.Fill(posts, heights, spacing, threads); },
+            "posts"_a, "heights"_a, "spacing"_a, "threads"_a = 0u,
+            nb::call_guard<nb::gil_scoped_release>(),
+            "Sets each cell of `heights` to `height_at` its center, on `threads` threads (0 for "
+            "every hardware thread).")
         .def("reach", &Upsampler::Reach)
         .def(
             "fit_to",

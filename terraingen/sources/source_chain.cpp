@@ -4,6 +4,7 @@
 
 #include "terraingen/sources/seam_field.h"
 #include "terraingen/util/checks.h"
+#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -110,22 +111,22 @@ const detail::SeamField& SourceChain::Seam() const {
     return *seam_;
 }
 
-void SourceChain::Fill(Raster<float>& heights, double spacing) const {
+void SourceChain::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
     const auto anyMissing = [&] {
         const auto values = heights.Values();
         return std::any_of(values.begin(), values.end(),
                            [&](float value) { return heights.IsMissing(value); });
     };
     if (prefix_) {
-        prefix_->Fill(heights, spacing);
+        prefix_->Fill(heights, spacing, threads);
         if (!anyMissing()) {
             return;
         }
         Raster<float> next(heights.Width(), heights.Height());
         next.SetTransform(heights.Transform());
-        sources_.back()->Fill(next, spacing);
-        const detail::SeamField* seam = nullptr;
-        for (std::size_t row = 0; row < heights.Height(); ++row) {
+        sources_.back()->Fill(next, spacing, threads);
+        ParallelFor(heights.Height(), threads, [&](std::size_t row) {
+            const detail::SeamField* seam = nullptr;
             for (std::size_t col = 0; col < heights.Width(); ++col) {
                 float& cell = heights(col, row);
                 const float value = next(col, row);
@@ -138,17 +139,17 @@ void SourceChain::Fill(Raster<float>& heights, double spacing) const {
                 const Vec2d center = heights.CellCenter(col, row);
                 cell = Seamed(value, seam->At(center.x, center.y));
             }
-        }
+        });
         return;
     }
-    sources_.front()->Fill(heights, spacing);
+    sources_.front()->Fill(heights, spacing, threads);
     for (std::size_t n = 1; n < sources_.size(); ++n) {
         if (!anyMissing()) {
             return;
         }
         Raster<float> next(heights.Width(), heights.Height());
         next.SetTransform(heights.Transform());
-        sources_[n]->Fill(next, spacing);
+        sources_[n]->Fill(next, spacing, threads);
         for (std::size_t i = 0; i < heights.Size(); ++i) {
             float& cell = heights.Values()[i];
             const float value = next.Values()[i];

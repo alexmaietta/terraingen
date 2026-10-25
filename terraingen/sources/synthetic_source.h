@@ -51,7 +51,7 @@ class SyntheticSource final : public Source {
     RasterGrid Grid() const override;
 
     /// The elevation plus the noise at each cell's center, or the posts upsampled at `spacing`.
-    void Fill(Raster<float>& heights, double spacing) const override;
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
 
     /// The elevation plus the noise at (`x`, `y`), or the posts upsampled at `spacing`.
     float HeightAt(double x, double y, double spacing) const override;

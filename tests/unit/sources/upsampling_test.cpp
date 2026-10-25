@@ -13,8 +13,11 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <mutex>
+#include <set>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 using terraingen::GeoTransform;
@@ -194,7 +197,7 @@ TEST(UpsampledHeight, GivesThePostsOwnHeightAtTheirSpacingOrCoarser) {
     const RasterGrid grid{5, 4, GeoTransform::NorthUp(0.0, 0.0, 2.0)};
     for (const double spacing : {2.0, 0.5}) {
         Raster<float> filled = grid.MakeRaster();
-        terraingen::FillUpsampled(mean, posts, filled, spacing);
+        terraingen::FillUpsampled(mean, posts, filled, spacing, 0);
         for (std::size_t row = 0; row < filled.Height(); ++row) {
             for (std::size_t col = 0; col < filled.Width(); ++col) {
                 const terraingen::Vec2d center = filled.CellCenter(col, row);
@@ -204,6 +207,75 @@ TEST(UpsampledHeight, GivesThePostsOwnHeightAtTheirSpacingOrCoarser) {
         }
     }
     EXPECT_DOUBLE_EQ(terraingen::PostSpacing(GeoTransform{0.0, 2.0, 0.0, 0.0, 0.0, -5.0}), 5.0);
+}
+
+namespace {
+
+/// `MeanUpsampler`, noting each thread that reads it.
+class ThreadNotingUpsampler final : public terraingen::Upsampler {
+  public:
+    float HeightAt(const terraingen::PostLattice& posts, double x, double y,
+                   double spacing) const override {
+        {
+            const std::lock_guard lock(mutex_);
+            threads_.insert(std::this_thread::get_id());
+        }
+        return mean_.HeightAt(posts, x, y, spacing);
+    }
+    std::set<std::thread::id> Threads() const {
+        const std::lock_guard lock(mutex_);
+        return threads_;
+    }
+
+  private:
+    MeanUpsampler mean_;
+    mutable std::mutex mutex_;
+    mutable std::set<std::thread::id> threads_;
+};
+
+}  // namespace
+
+TEST(Upsampler, FillsOnTheThreadsGivenToTheSameBits) {
+    const CountingPosts posts;
+    const RasterGrid grid{40, 30, GeoTransform::NorthUp(1.0, -1.0, 0.5)};
+    ThreadNotingUpsampler serial;
+    Raster<float> one = grid.MakeRaster();
+    terraingen::FillUpsampled(serial, posts, one, 0.5, 1);
+    EXPECT_EQ(serial.Threads(), std::set<std::thread::id>{std::this_thread::get_id()});
+    ThreadNotingUpsampler parallel;
+    Raster<float> every = grid.MakeRaster();
+    terraingen::FillUpsampled(parallel, posts, every, 0.5, 0);
+    terraingen::testing::ExpectSameRaster(one, every);
+    const Raster<float> heights = Heights();
+    const RasterPosts lattice = Posts(heights);
+    const RasterGrid fine{60, 40, GeoTransform::NorthUp(-6.0, 30.0, 0.6)};
+    for (const ResampleMethod method : {ResampleMethod::Cubic, ResampleMethod::Lanczos3}) {
+        const KernelUpsampler kernel(method);
+        Raster<float> a = fine.MakeRaster();
+        Raster<float> b = fine.MakeRaster();
+        kernel.Fill(lattice, a, 0.6, 1);
+        kernel.Fill(lattice, b, 0.6, 0);
+        terraingen::testing::ExpectSameRaster(a, b);
+    }
+}
+
+TEST(KernelUpsampler, FillsARotatedGridCellByCellToTheBitsOfItsPoints) {
+    const Raster<float> heights = Heights();
+    const RasterPosts lattice = Posts(heights);
+    Raster<float> rotated(20, 14);
+    rotated.SetTransform(GeoTransform{2.0, 0.5, 0.2, 20.0, 0.15, -0.5});
+    for (const ResampleMethod method : {ResampleMethod::Cubic, ResampleMethod::Lanczos3}) {
+        const KernelUpsampler kernel(method);
+        kernel.Fill(lattice, rotated, 0.5, 0);
+        for (std::size_t row = 0; row < rotated.Height(); ++row) {
+            for (std::size_t col = 0; col < rotated.Width(); ++col) {
+                const terraingen::Vec2d center = rotated.CellCenter(col, row);
+                ASSERT_TRUE(
+                    SameBits(rotated(col, row), kernel.HeightAt(lattice, center.x, center.y, 0.5)))
+                    << col << "," << row;
+            }
+        }
+    }
 }
 
 TEST(Upsampler, FillsCellByCellByDefaultAndFitsNothing) {

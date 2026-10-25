@@ -71,6 +71,53 @@ float Interpolate(const detail::LatticeWindow<float>& block, ResampleMethod meth
     return value.value_or(std::numeric_limits<float>::quiet_NaN());
 }
 
+/// The cell `KernelWeights` start from along an axis and the weights there, at lattice position
+/// `u`.
+struct AxisWeights {
+    double at = 0.0;
+    double first = 0.0;
+    std::array<double, 6> weights{};
+};
+
+AxisWeights WeightsAt(ResampleMethod method, double u) {
+    const double first = std::floor(u);
+    return {u, first, KernelWeights(method, u - first)};
+}
+
+/// Sets the cells of `tile` of `heights` from `block` at their lattice positions `lattice`, row by
+/// row, reusing the weights of the tile's first row along x and of its first column along y in
+/// the cells whose positions match them, as on a grid aligned with the posts; to the bits of
+/// `Interpolate`.
+void FillSeparable(const detail::LatticeWindow<float>& block, ResampleMethod method,
+                   const std::vector<Vec2d>& lattice, const PixelWindow& tile,
+                   Raster<float>& heights) {
+    const std::size_t width = tile.colEnd - tile.colBegin;
+    const std::size_t height = tile.rowEnd - tile.rowBegin;
+    std::vector<AxisWeights> columns(width);
+    for (std::size_t c = 0; c < width; ++c) {
+        columns[c] = WeightsAt(method, lattice[c].x);
+    }
+    const int radius = KernelRadius(method);
+    const auto value = [&](double col, double row) {
+        return block.At(static_cast<std::int64_t>(col), static_cast<std::int64_t>(row));
+    };
+    const auto missing = [](float post) { return std::isnan(post); };
+    for (std::size_t r = 0; r < height; ++r) {
+        const AxisWeights row = WeightsAt(method, lattice[r * width].y);
+        for (std::size_t c = 0; c < width; ++c) {
+            const Vec2d& at = lattice[r * width + c];
+            float& cell = heights(tile.colBegin + c, tile.rowBegin + r);
+            if (at.x != columns[c].at || at.y != row.at) {
+                cell = Interpolate(block, method, at.x, at.y);
+                continue;
+            }
+            cell = InterpolateLatticeWeights(columns[c].first, row.first, columns[c].weights,
+                                             row.weights, radius, value, missing)
+                       .value_or(std::numeric_limits<float>::quiet_NaN());
+        }
+    }
+}
+
 /// The lattice transform of `posts`, which must not be rotated.
 /// @throws std::invalid_argument for a rotated lattice.
 GeoTransform UnrotatedTransform(const PostLattice& posts) {
@@ -179,20 +226,20 @@ float UpsampledHeight(const Upsampler& upsampler, const PostLattice& posts, doub
 }
 
 void FillUpsampled(const Upsampler& upsampler, const PostLattice& posts, Raster<float>& heights,
-                   double spacing) {
-    upsampler.Fill(posts, heights, spacing);
+                   double spacing, unsigned threads) {
+    upsampler.Fill(posts, heights, spacing, threads);
     const GeoTransform transform = posts.Transform();
     if (!AtPostSpacing(transform, spacing)) {
         return;
     }
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
+    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             const Vec2d center = heights.CellCenter(col, row);
             if (const auto post = CenteredPost(transform, center.x, center.y)) {
                 posts.Read(post->first, post->second, 1, 1, Span<float>(&heights(col, row), 1));
             }
         }
-    }
+    });
 }
 
 void MarkMissing(Raster<float>& heights, std::optional<float> noData) {
@@ -207,13 +254,14 @@ void MarkMissing(Raster<float>& heights, std::optional<float> noData) {
     heights.SetNoData(FilledNoData(noData, missing));
 }
 
-void Upsampler::Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const {
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
+void Upsampler::Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+                     unsigned threads) const {
+    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             const Vec2d center = heights.CellCenter(col, row);
             heights(col, row) = HeightAt(posts, center.x, center.y, spacing);
         }
-    }
+    });
 }
 
 float KernelUpsampler::HeightAt(const PostLattice& posts, double x, double y,
@@ -223,37 +271,42 @@ float KernelUpsampler::HeightAt(const PostLattice& posts, double x, double y,
     return Interpolate(detail::ReadPosts(posts, TapBox(method_, at)), method_, at.x, at.y);
 }
 
-void KernelUpsampler::Fill(const PostLattice& posts, Raster<float>& heights,
-                           double /*spacing*/) const {
+void KernelUpsampler::Fill(const PostLattice& posts, Raster<float>& heights, double /*spacing*/,
+                           unsigned threads) const {
     const GeoTransform transform = UnrotatedTransform(posts);
     const auto taps = static_cast<double>(2 * KernelRadius(method_));
-    ForEachTile(heights.Width(), heights.Height(), kBlockCells, 0, [&](const PixelWindow& tile) {
-        std::vector<Vec2d> lattice;
-        detail::IndexBox box;
-        for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
-            for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
-                const Vec2d center = heights.CellCenter(col, row);
-                const Vec2d pixel = transform.WorldToPixel(center.x, center.y);
-                lattice.push_back({pixel.x - 0.5, pixel.y - 0.5});
-                const detail::IndexBox read = TapBox(method_, lattice.back());
-                box.Include(read.col0, read.col1, read.row0, read.row1);
-            }
-        }
-        std::optional<detail::LatticeWindow<float>> shared;
-        if (box.Area() <= 4.0 * taps * taps * static_cast<double>(lattice.size())) {
-            shared.emplace(detail::ReadPosts(posts, box));
-        }
-        std::size_t n = 0;
-        for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
-            for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col, ++n) {
-                const Vec2d& at = lattice[n];
-                heights(col, row) = shared
-                                        ? Interpolate(*shared, method_, at.x, at.y)
-                                        : Interpolate(detail::ReadPosts(posts, TapBox(method_, at)),
-                                                      method_, at.x, at.y);
-            }
-        }
-    });
+    ForEachTile(heights.Width(), heights.Height(), kBlockCells, threads,
+                [&](const PixelWindow& tile) {
+                    std::vector<Vec2d> lattice;
+                    detail::IndexBox box;
+                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
+                        for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
+                            const Vec2d center = heights.CellCenter(col, row);
+                            const Vec2d pixel = transform.WorldToPixel(center.x, center.y);
+                            lattice.push_back({pixel.x - 0.5, pixel.y - 0.5});
+                            const detail::IndexBox read = TapBox(method_, lattice.back());
+                            box.Include(read.col0, read.col1, read.row0, read.row1);
+                        }
+                    }
+                    std::optional<detail::LatticeWindow<float>> shared;
+                    if (box.Area() <= 4.0 * taps * taps * static_cast<double>(lattice.size())) {
+                        shared.emplace(detail::ReadPosts(posts, box));
+                    }
+                    if (shared && method_ != ResampleMethod::Nearest) {
+                        FillSeparable(*shared, method_, lattice, tile, heights);
+                        return;
+                    }
+                    std::size_t n = 0;
+                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
+                        for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col, ++n) {
+                            const Vec2d& at = lattice[n];
+                            heights(col, row) =
+                                shared ? Interpolate(*shared, method_, at.x, at.y)
+                                       : Interpolate(detail::ReadPosts(posts, TapBox(method_, at)),
+                                                     method_, at.x, at.y);
+                        }
+                    }
+                });
 }
 
 std::shared_ptr<const Upsampler> DefaultUpsampler() {

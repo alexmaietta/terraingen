@@ -45,7 +45,7 @@ class FlatSource final : public Source {
     }
 
     /// Sets every cell of `heights` to the elevation.
-    void Fill(Raster<float>& heights, double spacing) const override;
+    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
 
     /// The elevation in meters, everywhere.
     float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {

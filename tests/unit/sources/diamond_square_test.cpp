@@ -293,6 +293,21 @@ TEST(DiamondSquareUpsampler, KeepsEveryCoarserNodeAndAgreesAcrossWindows) {
     }
 }
 
+TEST(DiamondSquareUpsampler, FillsTheSameBitsOnOneThreadAsOnEvery) {
+    const FunctionPosts posts(Hills);
+    const DiamondSquareUpsampler upsampler(Options());
+    const RasterGrid grid = NodeGrid(0.5, -40, -30, 150, 110);
+    Raster<float> one = grid.MakeRaster();
+    Raster<float> every = grid.MakeRaster();
+    upsampler.Fill(posts, one, grid.PixelSize(), 1);
+    upsampler.Fill(posts, every, grid.PixelSize(), 0);
+    for (std::size_t i = 0; i < one.Size(); ++i) {
+        ASSERT_EQ(terraingen::BitCast<std::uint32_t>(one.Values()[i]),
+                  terraingen::BitCast<std::uint32_t>(every.Values()[i]))
+            << "cell " << i;
+    }
+}
+
 TEST(DiamondSquareUpsampler, DisplacesNewNodesByTheStepScale) {
     const FunctionPosts flat([](double, double) { return 0.0f; });
     const DiamondSquareOptions options = Options();

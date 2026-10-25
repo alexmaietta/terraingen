@@ -154,8 +154,15 @@ class Upsampler {
     virtual float HeightAt(const PostLattice& posts, double x, double y, double spacing) const = 0;
 
     /// Sets each cell of `heights` to `HeightAt` its center, to the same bits; the default calls
-    /// `HeightAt` cell by cell.
-    virtual void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const;
+    /// `HeightAt` cell by cell, rows split over threads.
+    /// @param threads Threads to fill over; 0 for every hardware thread.
+    virtual void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+                      unsigned threads) const;
+
+    /// `Fill` on every hardware thread.
+    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const {
+        Fill(posts, heights, spacing, 0);
+    }
 
     /// Posts either side of a point that `HeightAt` reads, so that a source reading a window of
     /// its posts reads enough around it: 2 by default.
@@ -181,8 +188,9 @@ float UpsampledHeight(const Upsampler& upsampler, const PostLattice& posts, doub
                       double spacing);
 
 /// Sets each cell of `heights` to `UpsampledHeight` at its center, to the same bits.
+/// @param threads Threads to fill over; 0 for every hardware thread.
 void FillUpsampled(const Upsampler& upsampler, const PostLattice& posts, Raster<float>& heights,
-                   double spacing);
+                   double spacing, unsigned threads);
 
 /// Gives the NaN cells of `heights`, filled from a source with no-data value `noData`, that value
 /// (NaN without one), and `heights` the no-data value that leaves (`FilledNoData`).
@@ -199,9 +207,12 @@ class KernelUpsampler final : public Upsampler {
     /// @throws std::invalid_argument for a rotated lattice.
     float HeightAt(const PostLattice& posts, double x, double y, double spacing) const override;
 
-    /// Reads the posts once per block of cells.
+    using Upsampler::Fill;
+
+    /// Reads the posts once per block of cells, blocks split over threads.
     /// @throws std::invalid_argument for a rotated lattice.
-    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const override;
+    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+              unsigned threads) const override;
 
     /// The kernel's radius (`KernelRadius`).
     int Reach() const override {

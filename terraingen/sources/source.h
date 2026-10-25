@@ -47,11 +47,18 @@ class Source {
     /// has none.
     /// @param spacing Sample spacing in the source's units (meters on a plane, degrees on a
     /// body): finer than the source's posts, they are refined to it.
-    virtual void Fill(Raster<float>& heights, double spacing) const = 0;
+    /// @param threads Threads to fill over; 0 for every hardware thread.
+    virtual void Fill(Raster<float>& heights, double spacing, unsigned threads) const = 0;
 
-    /// `Fill` at the grid's own spacing, its cell size (`RasterGrid::PixelSize`).
+    /// `Fill` on every hardware thread.
+    void Fill(Raster<float>& heights, double spacing) const {
+        Fill(heights, spacing, 0);
+    }
+
+    /// `Fill` at the grid's own spacing, its cell size (`RasterGrid::PixelSize`), on every
+    /// hardware thread.
     void Fill(Raster<float>& heights) const {
-        Fill(heights, RasterGrid::FromRaster(heights).PixelSize());
+        Fill(heights, RasterGrid::FromRaster(heights).PixelSize(), 0);
     }
 
     /// The height in meters at world point (`x`, `y`) at a sample spacing of `spacing` in the

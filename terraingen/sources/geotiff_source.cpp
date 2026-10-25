@@ -219,8 +219,8 @@ const detail::RasterHeights& GeoTiffSource::Heights() const {
     return *heights_;
 }
 
-void GeoTiffSource::Fill(Raster<float>& heights, double spacing) const {
-    Heights().Fill(heights, spacing);
+void GeoTiffSource::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
+    Heights().Fill(heights, spacing, threads);
 }
 
 float GeoTiffSource::HeightAt(double x, double y, double spacing) const {

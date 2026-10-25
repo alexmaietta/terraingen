@@ -6,6 +6,8 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <vector>
 
 using terraingen::PerlinNoise2;
 using terraingen::PerlinNoise3;
@@ -98,6 +100,46 @@ TEST(PerlinNoise2, IsDeterministicPerSeedAndVariesAcrossSeeds) {
         }
     }
     EXPECT_GT(differing, 95);
+}
+
+TEST(PerlinGradient2, MatchesEachGradientCaseToTheBit) {
+    constexpr float kInvSqrt2 = 0.707106781186547524f;
+    const auto reference = [&](std::uint32_t hash, float x, float y) {
+        switch (hash & 7u) {
+        case 0u:
+            return x;
+        case 1u:
+            return -x;
+        case 2u:
+            return y;
+        case 3u:
+            return -y;
+        case 4u:
+            return (x + y) * kInvSqrt2;
+        case 5u:
+            return (y - x) * kInvSqrt2;
+        case 6u:
+            return (x - y) * kInvSqrt2;
+        default:
+            return -(x + y) * kInvSqrt2;
+        }
+    };
+    const auto bits = [](float value) {
+        std::uint32_t word = 0;
+        std::memcpy(&word, &value, sizeof(word));
+        return word;
+    };
+    const std::vector<float> values{0.0f,  -0.0f,  0.25f,   -0.25f, 1.0f,  -1.0f, 0.3f,
+                                    -0.7f, 1e-30f, -1e-30f, 0.999f, 3e38f, -3e38f};
+    for (std::uint32_t hash = 0; hash < 16u; ++hash) {
+        for (const float x : values) {
+            for (const float y : values) {
+                EXPECT_EQ(bits(terraingen::detail::PerlinGradient2(hash, x, y)),
+                          bits(reference(hash, x, y)))
+                    << "hash " << hash << " at (" << x << ", " << y << ")";
+            }
+        }
+    }
 }
 
 TEST(PerlinNoise2, HandlesExtremeLatticeCells) {
