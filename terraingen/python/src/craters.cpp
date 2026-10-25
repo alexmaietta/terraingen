@@ -345,6 +345,13 @@ void BindShapeDetails(nb::module_& m) {
 
 void BindApplyOptions(nb::module_& m) {
     BindShapeDetails(m);
+    BindOptions<CraterTerraces>(
+        m, "CraterTerraces",
+        "Slump terraces on the walls of craters from `onset_diameter`: `min_benches` to "
+        "`max_benches` benches `bench_slope_degrees` steep and scarps of `scarp_share` of each "
+        "step, covering `arc_share` of the wall at the onset and wandering `rim_variation` radii, "
+        "softening until `min_freshness`.",
+        {&ValidateCraterTerraces, "validate_crater_terraces", "terraces"});
     BindOptions<CraterSlopeResponse>(
         m, "CraterSlopeResponse",
         "Craters made asymmetric along the slope of the ground beneath their layer: the deepest "

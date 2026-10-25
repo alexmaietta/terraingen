@@ -235,6 +235,52 @@ template <typename IO> void Fields(IO& io, CraterTexture& texture) {
     io("seed", texture.seed, "Varies the texture of every crater; unset follows the layer's seed.");
 }
 
+template <typename IO> void Fields(IO& io, CraterTerraces& terraces) {
+    io("enabled", terraces.enabled,
+       "Steps the walls of large craters into slump terraces: benches and scarps between the "
+       "floor and the rim crest.");
+    io("seed", terraces.seed,
+       "Varies each crater's benches, the arcs they cover and how they wander; unset follows the "
+       "layer's seed.");
+    io("onset_diameter_m", terraces.onsetDiameter,
+       "Smallest terraced crater, in meters; 20 km on the Moon, where half of fresh mare craters "
+       "are terraced, and about 8 km on Mars.",
+       "m", Above(0.0));
+    io("full_diameter_m", terraces.fullDiameter,
+       "Diameter in meters from which every crater has its most benches, over most of its wall; "
+       "above the onset diameter.",
+       "m", Above(0.0));
+    io("min_benches", terraces.minBenches, "Benches at the onset diameter, at least 1.", "",
+       Between(1.0, 12.0));
+    io("max_benches", terraces.maxBenches,
+       "Benches from the full diameter, at most 12; complex lunar craters usually have more than "
+       "3.",
+       "", Between(1.0, 12.0));
+    DegreeField(io, "bench_slope_deg", terraces.benchSlopeDegrees,
+                "Slope of a bench, in degrees; mapped lunar terraces slope under 5 degrees.",
+                Inside(0.0, 45.0));
+    io("scarp_share", terraces.scarpShare,
+       "Share of each step's width the scarp takes, from 0 to 1; the bench takes the rest.", "",
+       Inside(0.0, 1.0));
+    io("arc_share", terraces.arcShare,
+       "Share of the wall's circumference each bench covers at the onset diameter, up to 1; it "
+       "rises to 0.9 at the full diameter, and 1 gives benches all the way round.",
+       "", AboveUpTo(0.0, 1.0));
+    io("rim_variation", terraces.rimVariation,
+       "How far the bench radii wander around the rim, in crater radii.", "", AtLeast(0.0));
+    io("block_offset", terraces.blockOffset,
+       "How far each slump block's headscarp steps from its neighbors', as a share of the room "
+       "between scarps.",
+       "", Between(0.0, 1.0));
+    io("block_gaps", terraces.blockGaps,
+       "Share of slump blocks missing from each bench, breaking the benches into segments.", "",
+       FromBelow(0.0, 1.0));
+    io("min_freshness", terraces.minFreshness,
+       "Freshness, current over fresh depth, below which the terraces are gone; they soften as "
+       "the crater wears down to it.",
+       "", FromBelow(0.0, 1.0));
+}
+
 template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
     io("asymmetric", slope.asymmetric,
        "Shapes craters asymmetrically along the slope of the ground beneath the layer; off keeps "
@@ -294,6 +340,8 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
     io("slope", apply.slope,
        "Craters on sloping ground with floors offset downslope and rims lowered upslope; needs "
        "the plane datum.");
+    io("terraces", apply.terraces,
+       "Slump terraces on the walls of craters from the onset diameter, softening as they wear.");
 }
 
 template <> struct SpecName<CraterLayerSpec> {

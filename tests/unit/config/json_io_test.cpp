@@ -125,6 +125,13 @@ TerrainGenConfig Everything() {
     craters.apply.slope.fullSlopeDegrees = 6.0;
     craters.apply.slope.criticalGradient = 0.7;
     craters.apply.slope.maxWearRate = 5.0;
+    craters.apply.terraces.onsetDiameter = 15000.0;
+    craters.apply.terraces.maxBenches = 6;
+    craters.apply.terraces.benchSlopeDegrees = 4.0;
+    craters.apply.terraces.arcShare = 0.8;
+    craters.apply.terraces.blockOffset = 0.3;
+    craters.apply.terraces.blockGaps = 0.1;
+    craters.apply.terraces.seed = 9;
     terraingen::DensityMapSpec craterMap;
     craterMap.field.path = "map.tif";
     craterMap.field.band = 1;

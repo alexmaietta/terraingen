@@ -110,10 +110,12 @@ struct CraterRecord {
     uint32_t markCount = 0;
     /// The marks' inner, outer and fade radii, then their knots, in `CraterData`.
     uint32_t markOffset = 0;
-    float shiftX = 0.0f;    ///< `CraterSlopeShape::shift` east (m).
-    float shiftY = 0.0f;    ///< `CraterSlopeShape::shift` north (m).
-    float upslopeX = 0.0f;  ///< `CraterSlopeShape::upslope` east.
-    float upslopeY = 0.0f;  ///< `CraterSlopeShape::upslope` north.
+    float shiftX = 0.0f;         ///< `CraterSlopeShape::shift` east (m).
+    float shiftY = 0.0f;         ///< `CraterSlopeShape::shift` north (m).
+    float upslopeX = 0.0f;       ///< `CraterSlopeShape::upslope` east.
+    float upslopeY = 0.0f;       ///< `CraterSlopeShape::upslope` north.
+    uint32_t terraceCount = 0;   ///< Wall terrace benches; 0 for none.
+    uint32_t terraceOffset = 0;  ///< The terraces' shape in `CraterData` (`KernelTerracedRadii`).
 };
 
 /// A point east and north of a crater's center, in meters, as the kernel reads it.
@@ -760,6 +762,167 @@ inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float d
                                      CraterValue(data, knots + (index + 2u) % size), cell.t);
 }
 
+/// Floats of a crater's terraces in `CraterData` before its scarps: the floor edge in radii, the
+/// bench's share of the wall's slope, the strength, the bench share of a step, the arcs' cut and
+/// width, (amplitude, phase) pairs of harmonics 2 to 6 of the arcs, and the rim crest's scallop
+/// height in radii, number and phase, and the share of slump blocks missing from the benches.
+static const uint32_t kTerraceHeader = 20u;
+
+/// Floats of each scarp between two steps of a crater's terraces, after the header: its mean
+/// position across the wall, from 0 at the floor edge to 1 at the rim crest; the height of its
+/// scallops; their number around the rim and phase; the amplitude and phase of its slow wobble;
+/// and how far, and from which hash key, each scallop's block steps in or out.
+static const uint32_t kTerraceScarpValues = 8u;
+
+/// Share of a scallop's arc on each side of a cusp over which neighboring blocks' values blend.
+static const float kTerraceBlockBlend = 0.12f;
+
+/// The value of block `cell` (taken modulo `count`) of a scarp hashed from `key`: the hash in
+/// [0, 1) for a negative `gaps`, else 1 when it stands and 0 when it is one of the `gaps` share
+/// of blocks missing.
+inline float KernelTerraceBlockValue(uint32_t key, int cell, int count, float gaps) {
+    const int wrapped = ((cell % count) + count) % count;
+    const float hash = HashToUnitFloat(PcgHash(key + uint32_t(wrapped) * 0x9E3779B9u));
+    return gaps < 0.0f ? hash : (hash >= gaps ? 1.0f : 0.0f);
+}
+
+/// `KernelTerraceBlockValue` of the block of scarp `s` (its floats' offset in `data`) toward
+/// `theta`, blended with its neighbor's across each cusp so the value is continuous round the rim.
+inline float KernelTerraceBlocks(CraterData data, uint32_t s, float theta, uint32_t salt,
+                                 float gaps) {
+    const float turns =
+        CraterValue(data, s + 2u) * theta / kKernelTwoPi + CraterValue(data, s + 3u);
+    const int count = int(CraterValue(data, s + 2u));
+    const uint32_t key = uint32_t(CraterValue(data, s + 7u)) ^ (salt * 0x85EBCA6Bu);
+    const float cellStart = floor(turns);
+    const int cell = int(cellStart);
+    const float u = turns - cellStart;
+    const float value = KernelTerraceBlockValue(key, cell, count, gaps);
+    if (u < kTerraceBlockBlend) {
+        const float b = KernelSmoothstep(0.5f + 0.5f * u / kTerraceBlockBlend);
+        return KernelTerraceBlockValue(key, cell - 1, count, gaps) * (1.0f - b) + value * b;
+    }
+    if (u > 1.0f - kTerraceBlockBlend) {
+        const float b = KernelSmoothstep(0.5f + 0.5f * (1.0f - u) / kTerraceBlockBlend);
+        return KernelTerraceBlockValue(key, cell + 1, count, gaps) * (1.0f - b) + value * b;
+    }
+    return value;
+}
+
+/// A sum of `count` cosine harmonics of `theta` from order `first`, their (amplitude, phase) pairs
+/// at `offset` in `data`, each phase turned by `turn` times its order.
+inline float KernelHarmonics(CraterData data, uint32_t offset, uint32_t first, uint32_t count,
+                             float theta, float turn) {
+    float sum = 0.0f;
+    for (uint32_t n = 0u; n < count; ++n) {
+        const float order = float(first + n);
+        sum += CraterValue(data, offset + 2u * n) *
+               cos(order * (theta + turn) + CraterValue(data, offset + 2u * n + 1u));
+    }
+    return sum;
+}
+
+/// How much of bench `step` of crater `c`'s terraces stands toward `theta`, in [0, 1]: each bench
+/// covers its own arcs of the wall, the arcs' harmonics turned by a golden angle from one bench
+/// to the next; 1 everywhere when the benches go all the way round.
+inline float KernelTerraceArc(CraterData data, uint32_t o, float theta, float step) {
+    const float cut = CraterValue(data, o + 4u);
+    if (!(cut > -1.5f)) {
+        return 1.0f;
+    }
+    const float arcs = KernelHarmonics(data, o + 6u, 2u, 5u, theta, 2.39996323f * step);
+    return KernelSmoothstep((arcs - cut) / CraterValue(data, o + 5u));
+}
+
+/// The mean position across the wall of scarp `k` of crater `c`'s terraces, 0 at the floor edge
+/// and 1 at the rim crest, for `k` from 0 (the floor edge) to `terraceCount` (the rim crest).
+inline float KernelTerraceBase(CraterData data, KERNEL_IN(CraterRecord) c, uint32_t k) {
+    if (k == 0u) {
+        return 0.0f;
+    }
+    if (k >= c.terraceCount) {
+        return 1.0f;
+    }
+    return CraterValue(data, c.terraceOffset + kTerraceHeader + kTerraceScarpValues * (k - 1u));
+}
+
+/// Where scarp `k` of crater `c`'s terraces stands toward `theta`, across the wall: its mean
+/// position moved by scallops, arcs bowing toward the rim between inward cusps as slump blocks'
+/// headscarps do, by a slow wobble, and in or out block by block, the offsets blending across
+/// each cusp so the slump blocks step en echelon; the floor edge and rim crest for `k` 0 and
+/// `terraceCount`.
+inline float KernelTerraceScarp(CraterData data, KERNEL_IN(CraterRecord) c, uint32_t k,
+                                float theta) {
+    if (k == 0u || k >= c.terraceCount) {
+        return KernelTerraceBase(data, c, k);
+    }
+    const uint32_t s = c.terraceOffset + kTerraceHeader + kTerraceScarpValues * (k - 1u);
+    const float turns =
+        CraterValue(data, s + 2u) * theta / kKernelTwoPi + CraterValue(data, s + 3u);
+    const float f = 2.0f * (turns - floor(turns)) - 1.0f;
+    const float scallop = CraterValue(data, s + 1u) * (1.0f - f * f - 2.0f / 3.0f);
+    const float wobble = CraterValue(data, s + 4u) * cos(3.0f * theta + CraterValue(data, s + 5u));
+    const float block = 2.0f * KernelTerraceBlocks(data, s, theta, 0u, -1.0f) - 1.0f;
+    return CraterValue(data, s) + scallop + wobble + CraterValue(data, s + 6u) * block;
+}
+
+/// How far crater `c`'s rim crest reaches toward `theta` for its terraces, over the round radius:
+/// scalloped, bowing outward between inward cusps as the headscarps of the outermost slump blocks
+/// do, so the rim of a terraced crater is polygonal (Pike 1980, USGS PP 1046-C, p. C38).
+inline float KernelTerraceRimScale(CraterData data, KERNEL_IN(CraterRecord) c, float theta) {
+    const uint32_t o = c.terraceOffset;
+    const float turns =
+        CraterValue(data, o + 17u) * theta / kKernelTwoPi + CraterValue(data, o + 18u);
+    const float f = 2.0f * (turns - floor(turns)) - 1.0f;
+    return 1.0f + CraterValue(data, o + 16u) * (1.0f - f * f - 2.0f / 3.0f);
+}
+
+/// `radii` from crater `c`'s center toward `theta` with its wall terraced: between the floor edge
+/// and the rim crest the wall is remapped into `terraceCount` steps, each a bench of nearly
+/// constant radius in the round profile (so nearly level) and a steeper scarp rising to the next.
+/// Steps differ in width, each scarp scallops and wobbles around the rim on its own, and each
+/// bench covers its own arcs of the wall, less its missing slump blocks (those under its upper
+/// scarp's scallops, the top bench's under its lower one). The height of each step is read at the
+/// scarps' mean positions, so the wall keeps its mean shape; each step is blended toward an even
+/// rise by its bench's strength, the terraces' times its arc. The map is continuous, rises
+/// monotonically and leaves the floor and rim where they are; its slope breaks at the brinks of
+/// benches.
+inline float KernelTerracedRadii(CraterData data, KERNEL_IN(CraterRecord) c, float radii,
+                                 float theta) {
+    const uint32_t o = c.terraceOffset;
+    const float inner = CraterValue(data, o);
+    if (!(radii > inner) || !(radii < 1.0f)) {
+        return radii;
+    }
+    const float t = (radii - inner) / (1.0f - inner);
+    uint32_t step = 0u;
+    float low = 0.0f;
+    float high = KernelTerraceScarp(data, c, 1u, theta);
+    while (step + 1u < c.terraceCount && t >= high) {
+        ++step;
+        low = high;
+        high = KernelTerraceScarp(data, c, step + 1u, theta);
+    }
+    const float within = clamp((t - low) / (high - low), 0.0f, 1.0f);
+    float strength = CraterValue(data, o + 2u) * KernelTerraceArc(data, o, theta, float(step));
+    if (c.terraceCount > 1u) {
+        const bool top = step + 1u >= c.terraceCount;
+        const uint32_t k = top ? step : step + 1u;
+        const uint32_t s = o + kTerraceHeader + kTerraceScarpValues * (k - 1u);
+        strength *= KernelTerraceBlocks(data, s, theta, top ? 2u : 1u, CraterValue(data, o + 19u));
+    }
+    const float bench = CraterValue(data, o + 3u);
+    const float slope = CraterValue(data, o + 1u);
+    float rise = slope * within;
+    if (within > bench) {
+        rise += (1.0f - slope) * KernelSmoothstep((within - bench) / (1.0f - bench));
+    }
+    const float shaped = within + strength * (rise - within);
+    const float from = KernelTerraceBase(data, c, step);
+    const float to = KernelTerraceBase(data, c, step + 1u);
+    return inner + (from + shaped * (to - from)) * (1.0f - inner);
+}
+
 /// The distance (m) crater `c`'s round profile is read at, `dx` east and `dy` north of its center
 /// (`CraterProfileDistance`).
 inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
@@ -772,6 +935,13 @@ inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, f
     if (c.markCount > 0u) {
         const float radius = 0.5f * c.diameter;
         distance += radius * KernelMarkShift(data, c, dx, dy, distance / radius);
+    }
+    if (c.terraceCount > 0u) {
+        const float radius = 0.5f * c.diameter;
+        const float theta = KernelAngle(dy, dx);
+        const float scale = KernelTerraceRimScale(data, c, theta);
+        distance /= 1.0f + (scale - 1.0f) * KernelOutlineShare(distance / radius);
+        distance = radius * KernelTerracedRadii(data, c, distance / radius, theta);
     }
     return distance;
 }
@@ -965,7 +1135,7 @@ inline float KernelBodyDatumRelief(KERNEL_IN(CraterShapeKernel) k, CraterData da
 static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
 static_assert(sizeof(CraterShapeKernel) == 180, "CraterShapeKernel must match its std430 layout");
-static_assert(sizeof(CraterRecord) == 116, "CraterRecord must match its std430 layout");
+static_assert(sizeof(CraterRecord) == 124, "CraterRecord must match its std430 layout");
 static_assert(sizeof(CraterFrame) == 40, "CraterFrame must match its std430 layout");
 static_assert(sizeof(CraterDatumKernel) == 192, "CraterDatumKernel must match its std430 layout");
 static_assert(sizeof(CraterBodyDatumKernel) == 180,

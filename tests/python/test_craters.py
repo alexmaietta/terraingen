@@ -591,3 +591,33 @@ def test_describe_craters_gives_the_attributes_the_shape_models_give():
     assert features.attributes[0].floor_depth == pytest.approx(models.attributes(crater).floor_depth)
     built = terraingen.CraterShapeModels(models.profile, models.degradation)
     assert built.attributes(crater).rim_height == pytest.approx(models.attributes(crater).rim_height)
+
+
+def terraced_heights(terraces):
+    """Heights of one fresh 30 km lunar complex crater on a 101 x 101 grid at 400 m."""
+    profile = terraingen.ComplexCraterProfile(
+        terraingen.MartinParkesDunstanProfile(), terraingen.lunar_complex_crater_shape()
+    )
+    models = terraingen.CraterModels(
+        None,
+        terraingen.FreshAges(),
+        terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
+        profile,
+    )
+    apply = terraingen.CraterApplyOptions(terraces=terraces)
+    crater = terraingen.Crater(0.0, 0.0, 30000.0, age_gyr=0.0, id=11)
+    layer = terraingen.CraterLayer.manual([crater], models, apply=apply)
+    source = terraingen.FlatSource(101, 101, 400.0)
+    return terraingen.evaluate(terraingen.TerrainGenerator(source, [layer])).values
+
+
+def test_crater_terraces_step_large_walls_only_when_enabled():
+    plain = terraced_heights(terraingen.CraterTerraces())
+    terraces = terraingen.CraterTerraces(enabled=True, seed=4, block_gaps=0.1, block_offset=0.5)
+    assert terraces.block_gaps == 0.1 and terraces.block_offset == 0.5
+    assert (terraced_heights(terraces) != plain).any()
+    late = terraingen.CraterTerraces(enabled=True, onset_diameter=40000.0, full_diameter=80000.0)
+    assert (terraced_heights(late) == plain).all()
+    assert terraingen.default_crater_apply().terraces.enabled
+    with pytest.raises(ValueError):
+        terraingen.validate_crater_terraces(terraingen.CraterTerraces(block_gaps=1.0))

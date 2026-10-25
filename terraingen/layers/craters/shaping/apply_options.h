@@ -150,6 +150,63 @@ struct CraterTexture {
 /// mantling outside [0, 1], a reach of 1 radius or less, or a freshness outside [0, 1).
 void ValidateCraterTexture(const CraterTexture& texture);
 
+/// Slump terraces on the walls of large craters: benches and scarps stepping the wall between the
+/// floor and the rim crest, as the rim and upper wall slump inward after the cavity forms. Each
+/// terraced crater draws its number of benches, the arcs of its wall they cover and how their
+/// radii wander around the rim from its ID; terraces soften and vanish as the crater wears. The
+/// floor edge is the complex profile's floor diameter, else Pike's (1980, USGS PP 1046-C, eq. 15)
+/// 0.187 D^1.249 km.
+struct CraterTerraces {
+    bool enabled = false;
+    /// Smallest terraced crater (m); by default 20 km, where half of fresh lunar mare craters are
+    /// terraced (Smith and Hartnell 1978); about 8 km on Mars (Pike 1980, LPSC 11, Table 3).
+    double onsetDiameter = 20000.0;
+    /// Diameter (m) from which every crater has its most benches, over most of its wall; by
+    /// default 65 km, from which every fresh lunar crater is terraced (Smith and Hartnell 1978).
+    double fullDiameter = 65000.0;
+    int minBenches = 1;  ///< Benches at the onset diameter.
+    int maxBenches = 4;  ///< Benches from the full diameter.
+    /// Slope of a bench (degrees); terraces are mapped as surfaces under 5 degrees (Du et al.
+    /// 2024, LPSC 55, abstract 1382).
+    double benchSlopeDegrees = 3.0;
+    double scarpShare = 0.35;  ///< Share of each step's width the scarp takes, in (0, 1).
+    /// Share of the wall's circumference each bench covers at the onset diameter, in (0, 1],
+    /// rising to 0.9 at the full diameter; 1 sets benches all the way round.
+    double arcShare = 0.6;
+    double rimVariation = 0.08;  ///< How far the bench radii wander around the rim, in radii.
+    /// How far each slump block's headscarp steps in or out from its neighbors', as a share of
+    /// the room between scarps, in [0, 1]; 0 keeps every scarp one unbroken scalloped line.
+    double blockOffset = 0.6;
+    /// Share of slump blocks missing from each bench, in [0, 1), so benches break into segments
+    /// with the wall unstepped between them; 0 keeps every block.
+    double blockGaps = 0.25;
+    /// Freshness (current over fresh depth) below which the terraces are gone; they soften from
+    /// 1 down to it.
+    double minFreshness = 0.3;
+    std::optional<std::uint32_t> seed{};  ///< Unset follows the crater layer's seed.
+
+    /// Memberwise equality.
+    bool operator==(const CraterTerraces& other) const {
+        return enabled == other.enabled && onsetDiameter == other.onsetDiameter &&
+               fullDiameter == other.fullDiameter && minBenches == other.minBenches &&
+               maxBenches == other.maxBenches && benchSlopeDegrees == other.benchSlopeDegrees &&
+               scarpShare == other.scarpShare && arcShare == other.arcShare &&
+               rimVariation == other.rimVariation && blockOffset == other.blockOffset &&
+               blockGaps == other.blockGaps && minFreshness == other.minFreshness &&
+               seed == other.seed;
+    }
+    bool operator!=(const CraterTerraces& other) const {
+        return !(*this == other);
+    }
+};
+
+/// Checks crater terraces.
+/// @throws std::invalid_argument for a non-positive onset diameter or a full diameter not above
+/// it, benches outside 1 <= min <= max <= 12, a bench slope outside (0, 45) degrees, a scarp share
+/// outside (0, 1), an arc share outside (0, 1], a negative or non-finite rim variation, or a
+/// minimum freshness outside [0, 1).
+void ValidateCraterTerraces(const CraterTerraces& terraces);
+
 /// How `ApplyCraters` shapes craters into the terrain.
 struct CraterApplyOptions {
     CraterOrder order = CraterOrder::OldestFirst;  ///< Which craters overprint which.
@@ -173,6 +230,7 @@ struct CraterApplyOptions {
     /// Floors offset downslope, rims lowered upslope and faster wear on the slope of the ground
     /// beneath the layer; needs the `Plane` datum.
     CraterSlopeResponse slope{};
+    CraterTerraces terraces{};  ///< Slump terraces on the walls of large craters; off by default.
     /// What craters are shaped on; on a sphere, centers and rasters are longitude and latitude and
     /// each crater is shaped in its local frame, spacings in meters.
     Surface surface{};
@@ -184,19 +242,19 @@ struct CraterApplyOptions {
                interiorReplacement == other.interiorReplacement && blend == other.blend &&
                irregularity == other.irregularity && rimSmoothing == other.rimSmoothing &&
                noise == other.noise && texture == other.texture && slope == other.slope &&
-               surface == other.surface;
+               terraces == other.terraces && surface == other.surface;
     }
     bool operator!=(const CraterApplyOptions& other) const {
         return !(*this == other);
     }
 };
 
-/// How a crater layer shapes its craters by default: irregular outlines on (Bottke et al. 2000,
-/// https://doi.org/10.1006/icar.1999.6323).
+/// How a crater layer shapes its craters by default: irregular outlines and wall terraces on
+/// (Bottke et al. 2000, https://doi.org/10.1006/icar.1999.6323).
 CraterApplyOptions DefaultCraterApply();
 
-/// `apply` with each unset seed (irregularity, noise, texture and slope) drawn from the layer's
-/// `seed`, each on its own substream, so changing the layer's seed changes them too.
+/// `apply` with each unset seed (irregularity, noise, texture, slope and terraces) drawn from the
+/// layer's `seed`, each on its own substream, so changing the layer's seed changes them too.
 CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t seed);
 
 /// Checks crater apply options.

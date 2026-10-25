@@ -68,7 +68,7 @@ std::vector<Case> Profiles() {
 }
 
 std::vector<CraterApplyOptions> Options() {
-    std::vector<CraterApplyOptions> options(7);
+    std::vector<CraterApplyOptions> options(8);
     options[1].rimSmoothing.sigmaRadii = 0.05;
     options[2].noise.amplitude = 0.01;
     options[2].noise.rimAmplitude = 0.01;
@@ -84,6 +84,10 @@ std::vector<CraterApplyOptions> Options() {
     options[6].slope.asymmetric = true;
     options[6].slope.upslopeRim = 0.3;
     options[6].slope.fullSlopeDegrees = 0.01 * terraingen::kRadian;
+    options[7].terraces.enabled = true;
+    options[7].terraces.onsetDiameter = 10.0;
+    options[7].terraces.fullDiameter = 100.0;
+    options[7].terraces.seed = 4u;
     return options;
 }
 
@@ -126,6 +130,9 @@ TEST(CraterKernel, TabulatesProfilesOfYourOwnCloseToTheirHeights) {
             prepared.datum = terraingen::Plane{5.0, 0.01, -0.02};
             for (std::size_t o = 0; o < Options().size(); ++o) {
                 const CraterApplyOptions options = Options()[o];
+                if (options.terraces.enabled) {
+                    continue;
+                }
                 prepared.slope = terraingen::SlopeShape(crater, 0.3, -0.2, options.slope);
                 for (int k = 0; k < 400; ++k) {
                     const double r = radius * 3.2 * (k + 0.37) / 400.0;
@@ -591,4 +598,209 @@ TEST(MartinParkesDunstanProfile, WornEjectaLowersWithTheRimAndNeverDipsBelowTheG
                     1e-4)
             << "beyond the rounded rim the ejecta is the fresh ejecta lowered with the rim";
     }
+}
+
+namespace {
+
+/// A fresh 60 km lunar complex crater prepared at the origin, its terraces set from `terraces`.
+struct TerracedCrater {
+    std::shared_ptr<const CraterProfile> profile;
+    PreparedCrater prepared;
+    terraingen::CraterRecord record{};
+    std::vector<float> data;
+
+    explicit TerracedCrater(const terraingen::CraterTerraces& terraces, double freshness = 1.0,
+                            std::uint64_t id = 7u)
+        : profile(std::make_shared<terraingen::ComplexCraterProfile>(
+              std::make_shared<terraingen::FassettThomsonProfile>(),
+              terraingen::LunarComplexCraterShape())),
+          prepared{Crater{0.0, 0.0, 60000.0, 0.0, id}, 1.0, State(freshness)} {
+        record.diameter = 60000.0f;
+        terraingen::AppendKernelTerraces(prepared, terraces, *profile, record, data);
+        if (data.empty()) {
+            data.push_back(0.0f);
+        }
+    }
+
+    static CraterState State(double freshness) {
+        const terraingen::CraterMorphometry fresh =
+            terraingen::LunarFreshCraterMorphometry(60000.0);
+        CraterState state{fresh, fresh};
+        state.current.depthRatio *= freshness;
+        return state;
+    }
+
+    double Radii(double radii, double theta) const {
+        terraingen::CraterData view;
+        view.values = data.data();
+        return terraingen::KernelTerracedRadii(view, record, static_cast<float>(radii),
+                                               static_cast<float>(theta));
+    }
+};
+
+terraingen::CraterTerraces Terraces() {
+    terraingen::CraterTerraces terraces;
+    terraces.enabled = true;
+    terraces.seed = 3u;
+    return terraces;
+}
+
+/// Expects `crater` to map its wall monotonically between an untouched floor, rim crest and
+/// exterior, with benches and scarps toward every azimuth.
+void ExpectSteppedMonotonicWall(const TerracedCrater& crater) {
+    ASSERT_GE(crater.record.terraceCount, 1u);
+    const double inner = crater.data[0];
+    EXPECT_GT(inner, 0.2);
+    EXPECT_LT(inner, 0.9);
+    for (double theta = 0.0; theta < 6.28; theta += 0.1) {
+        EXPECT_EQ(crater.Radii(0.5 * inner, theta), static_cast<float>(0.5 * inner))
+            << "the floor is untouched";
+        EXPECT_EQ(crater.Radii(1.0, theta), 1.0f) << "the rim crest stays";
+        EXPECT_EQ(crater.Radii(1.4, theta), static_cast<float>(1.4)) << "the exterior is untouched";
+        double previous = inner;
+        double flattest = 1e9;
+        double steepest = 0.0;
+        const double step = (1.0 - inner) / 2000.0;
+        for (double x = inner + step; x < 1.0; x += step) {
+            const double mapped = crater.Radii(x, theta);
+            ASSERT_GE(mapped, previous) << "monotonic at " << x;
+            flattest = std::min(flattest, (mapped - previous) / step);
+            steepest = std::max(steepest, (mapped - previous) / step);
+            previous = mapped;
+        }
+        EXPECT_LT(flattest, 0.6) << "benches somewhere on the wall at " << theta;
+        EXPECT_GT(steepest, 1.2) << "scarps between them";
+    }
+}
+
+}  // namespace
+
+TEST(CraterTerraces, StepTheWallMonotonicallyBetweenTheFloorAndTheRim) {
+    terraingen::CraterTerraces stepped = Terraces();
+    stepped.blockOffset = 1.0;
+    stepped.rimVariation = 0.3;
+    stepped.maxBenches = 8;
+    stepped.fullDiameter = 30000.0;
+    for (const auto& terraces : {Terraces(), stepped}) {
+        SCOPED_TRACE(terraces.maxBenches);
+        ExpectSteppedMonotonicWall(TerracedCrater(terraces));
+    }
+}
+
+TEST(CraterTerraces, ScallopTheRimCrestAroundTheRoundRadius) {
+    const TerracedCrater crater(Terraces());
+    terraingen::CraterData view;
+    view.values = crater.data.data();
+    double lowest = 2.0;
+    double highest = 0.0;
+    double sum = 0.0;
+    constexpr int kSamples = 3600;
+    for (int n = 0; n < kSamples; ++n) {
+        const double scale = terraingen::KernelTerraceRimScale(
+            view, crater.record,
+            static_cast<float>(2.0 * terraingen::kPi * n / kSamples - terraingen::kPi));
+        lowest = std::min(lowest, scale);
+        highest = std::max(highest, scale);
+        sum += scale;
+    }
+    EXPECT_NEAR(sum / kSamples, 1.0, 1e-3) << "the mean radius stays";
+    EXPECT_GT(highest - lowest, 0.01) << "scalloped";
+    EXPECT_LT(highest - lowest, 0.08 * 0.5 * 1.4 + 1e-6) << "within the rim variation";
+}
+
+TEST(CraterTerraces, BreakBenchesIntoBlocksThatStepAndGoMissing) {
+    terraingen::CraterTerraces whole = Terraces();
+    whole.arcShare = 1.0;
+    whole.blockGaps = 0.0;
+    terraingen::CraterTerraces gappy = whole;
+    gappy.blockGaps = 0.5;
+    const auto benched = [](const TerracedCrater& crater) {
+        const double inner = crater.data[0];
+        const double step = (1.0 - inner) / 500.0;
+        int count = 0;
+        for (double theta = -3.1; theta < 3.1; theta += 0.02) {
+            for (double x = inner + step; x < 1.0 - step; x += step) {
+                count += crater.Radii(x + step, theta) - crater.Radii(x, theta) < 0.3 * step;
+            }
+        }
+        return count;
+    };
+    const int full = benched(TerracedCrater(whole));
+    EXPECT_GT(full, 0);
+    EXPECT_LT(benched(TerracedCrater(gappy)), 0.8 * full) << "missing blocks leave no bench";
+    terraingen::CraterTerraces level = whole;
+    level.blockOffset = 0.0;
+    const TerracedCrater offset(whole);
+    const TerracedCrater straight(level);
+    int moved = 0;
+    for (double theta = -3.1; theta < 3.1; theta += 0.05) {
+        const double x = double{offset.data[0]} + 0.5 * (1.0 - double{offset.data[0]});
+        moved += offset.Radii(x, theta) != straight.Radii(x, theta) ? 1 : 0;
+    }
+    EXPECT_GT(moved, 10) << "block offsets move the scarps";
+}
+
+TEST(CraterTerraces, VaryAroundTheRimAndByCraterButRepeatForTheSameCrater) {
+    const TerracedCrater a(Terraces(), 1.0, 7u);
+    const TerracedCrater again(Terraces(), 1.0, 7u);
+    const TerracedCrater b(Terraces(), 1.0, 8u);
+    EXPECT_EQ(a.data, again.data);
+    EXPECT_NE(a.data, b.data);
+    const double x = double{a.data[0]} + 0.4 * (1.0 - double{a.data[0]});
+    EXPECT_NE(a.Radii(x, 0.3), a.Radii(x, 2.3)) << "benches wander around the rim";
+}
+
+TEST(CraterTerraces, AreOffBelowTheOnsetWhenDisabledAndOnceWorn) {
+    terraingen::CraterTerraces small = Terraces();
+    small.onsetDiameter = 80000.0;
+    small.fullDiameter = 100000.0;
+    EXPECT_EQ(TerracedCrater(small).record.terraceCount, 0u);
+    terraingen::CraterTerraces off = Terraces();
+    off.enabled = false;
+    EXPECT_EQ(TerracedCrater(off).record.terraceCount, 0u);
+    EXPECT_EQ(TerracedCrater(Terraces(), 0.25).record.terraceCount, 0u) << "worn below 0.3";
+    const TerracedCrater worn(Terraces(), 0.5);
+    const TerracedCrater fresh(Terraces(), 1.0);
+    ASSERT_GE(worn.record.terraceCount, 1u);
+    EXPECT_LT(worn.data[2], fresh.data[2]) << "softer as the crater wears";
+    EXPECT_TRUE(terraingen::DefaultCraterApply().terraces.enabled) << "on for crater layers";
+    EXPECT_FALSE(CraterApplyOptions{}.terraces.enabled);
+}
+
+TEST(CraterTerraces, GiveMoreBenchesAndFullerArcsToLargerCraters) {
+    terraingen::CraterTerraces terraces = Terraces();
+    terraces.onsetDiameter = 59000.0;
+    terraces.fullDiameter = 200000.0;
+    const TerracedCrater nearOnset(terraces);
+    terraces.onsetDiameter = 10000.0;
+    terraces.fullDiameter = 50000.0;
+    const TerracedCrater full(terraces);
+    EXPECT_LE(nearOnset.record.terraceCount, 2u);
+    EXPECT_EQ(full.record.terraceCount, 4u);
+    EXPECT_GT(full.data[4], -1.5f) << "even full craters have benches of limited length";
+    EXPECT_LT(full.data[4], nearOnset.data[4]) << "more of the wall from the full diameter";
+    terraces.arcShare = 1.0;
+    EXPECT_LT(TerracedCrater(terraces).data[4], -1.5f)
+        << "an arc share of 1 goes all the way round";
+}
+
+TEST(CraterTerraces, RejectInvalidSettings) {
+    const auto rejects = [](auto change) {
+        terraingen::CraterTerraces terraces;
+        change(terraces);
+        EXPECT_THROW(terraingen::ValidateCraterTerraces(terraces), std::invalid_argument);
+    };
+    EXPECT_NO_THROW(terraingen::ValidateCraterTerraces(terraingen::CraterTerraces{}));
+    rejects([](auto& t) { t.onsetDiameter = 0.0; });
+    rejects([](auto& t) { t.fullDiameter = t.onsetDiameter; });
+    rejects([](auto& t) { t.minBenches = 0; });
+    rejects([](auto& t) { t.maxBenches = 13; });
+    rejects([](auto& t) { t.minBenches = 5; });
+    rejects([](auto& t) { t.benchSlopeDegrees = 45.0; });
+    rejects([](auto& t) { t.scarpShare = 1.0; });
+    rejects([](auto& t) { t.arcShare = 0.0; });
+    rejects([](auto& t) { t.rimVariation = -0.1; });
+    rejects([](auto& t) { t.blockOffset = 1.1; });
+    rejects([](auto& t) { t.blockGaps = 1.0; });
+    rejects([](auto& t) { t.minFreshness = 1.0; });
 }

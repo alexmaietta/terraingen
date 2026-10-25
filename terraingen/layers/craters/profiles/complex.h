@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief `ComplexCraterProfile`: flat floors, terraced walls and central peaks.
+/// @brief `ComplexCraterProfile`: flat floors, concave walls and central peaks; `CraterTerraces`
+/// steps the walls into slump terraces.
 #pragma once
 
 #include "terraingen/layers/craters/profiles/profile.h"

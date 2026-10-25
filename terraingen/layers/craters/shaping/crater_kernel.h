@@ -65,6 +65,15 @@ struct CraterKernelBatch {
     }
 };
 
+/// Sets the wall terraces of prepared crater `p` on its kernel record, their shape appended to
+/// `data` (`KernelTerracedRadii`): none below the onset diameter, without `terraces.enabled` or
+/// once worn below `terraces.minFreshness`. The floor edge is `profile`'s complex floor diameter,
+/// else Pike's (1980, USGS PP 1046-C, eq. 15) 0.187 D^1.249 km; the bench's share of the
+/// wall's slope sets benches `terraces.benchSlopeDegrees` steep on its mean slope.
+void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terraces,
+                          const CraterProfile& profile, CraterRecord& record,
+                          std::vector<float>& data);
+
 /// The records of `craters` of `prepared`, in order, with their datums as fitted; `profile`
 /// tabulated for each when `kernel` asks for it. The data is never empty, so a GPU can bind it.
 /// @throws std::invalid_argument for a crater state the profile rejects.

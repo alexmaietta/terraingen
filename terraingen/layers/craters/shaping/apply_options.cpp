@@ -23,6 +23,35 @@ void ValidateRimSmoothing(const RimSmoothing& smoothing) {
     }
 }
 
+void ValidateCraterTerraces(const CraterTerraces& terraces) {
+    RequirePositive(terraces.onsetDiameter, "Crater terrace onset diameter");
+    if (!(terraces.fullDiameter > terraces.onsetDiameter && std::isfinite(terraces.fullDiameter))) {
+        throw std::invalid_argument(
+            "Crater terrace full diameter must be finite and above the onset diameter");
+    }
+    if (!(terraces.minBenches >= 1 && terraces.minBenches <= terraces.maxBenches &&
+          terraces.maxBenches <= 12)) {
+        throw std::invalid_argument("Crater terrace benches must satisfy 1 <= min <= max <= 12");
+    }
+    if (!(terraces.benchSlopeDegrees > 0.0 && terraces.benchSlopeDegrees < 45.0)) {
+        throw std::invalid_argument("Crater terrace bench slope must be in (0, 45) degrees");
+    }
+    if (!(terraces.scarpShare > 0.0 && terraces.scarpShare < 1.0)) {
+        throw std::invalid_argument("Crater terrace scarp share must be in (0, 1)");
+    }
+    if (!(terraces.arcShare > 0.0 && terraces.arcShare <= 1.0)) {
+        throw std::invalid_argument("Crater terrace arc share must be in (0, 1]");
+    }
+    RequireNonNegative(terraces.rimVariation, "Crater terrace rim variation");
+    RequireUnitInterval(terraces.blockOffset, "Crater terrace block offset");
+    if (!(terraces.blockGaps >= 0.0 && terraces.blockGaps < 1.0)) {
+        throw std::invalid_argument("Crater terrace block gaps must be in [0, 1)");
+    }
+    if (!(terraces.minFreshness >= 0.0 && terraces.minFreshness < 1.0)) {
+        throw std::invalid_argument("Crater terrace minimum freshness must be in [0, 1)");
+    }
+}
+
 void ValidateCraterNoise(const CraterNoise& noise) {
     RequireNonNegative(noise.amplitude, "Crater noise amplitude");
     RequireNonNegative(noise.rimAmplitude, "Crater rim noise amplitude");
@@ -55,6 +84,7 @@ void ValidateCraterTexture(const CraterTexture& texture) {
 CraterApplyOptions DefaultCraterApply() {
     CraterApplyOptions apply;
     apply.irregularity.enabled = true;
+    apply.terraces.enabled = true;
     return apply;
 }
 
@@ -68,6 +98,7 @@ CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t see
     follow(apply.noise.seed, kCraterNoiseStream);
     follow(apply.texture.seed, kCraterTextureStream);
     follow(apply.slope.seed, kCraterSlopeStream);
+    follow(apply.terraces.seed, kCraterTerraceStream);
     return apply;
 }
 
@@ -78,6 +109,7 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateCraterIrregularity(options.irregularity);
     ValidateRimSmoothing(options.rimSmoothing);
     ValidateCraterSlopeResponse(options.slope);
+    ValidateCraterTerraces(options.terraces);
     if ((options.slope.asymmetric || options.slope.criticalGradient) &&
         options.datum != CraterDatum::Plane) {
         throw std::invalid_argument("A crater slope response needs the plane datum");

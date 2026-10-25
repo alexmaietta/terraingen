@@ -7,15 +7,47 @@
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/apply.h"
+#include "terraingen/layers/fade.h"
 #include "terraingen/random/stream.h"
+#include "terraingen/random/streams.h"
+#include "terraingen/util/geometry.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <map>
 #include <stdexcept>
 
 namespace terraingen {
 
 namespace {
+
+/// Share of the wall the benches cover from the full terrace diameter: even fully terraced
+/// craters have terraces of limited length, up to about half the rim in craters 20-130 km across
+/// (Du et al. 2024, LPSC 55, abstract 1382).
+constexpr double kFullTerraceCover = 0.9;
+
+/// Width in harmonic units over which a bench's arc fades in and out.
+constexpr double kTerraceArcWidth = 0.1;
+
+/// How much wider the outermost step is drawn than the innermost, on average: the largest
+/// terraces lie near the rim crest (Du et al. 2024, LPSC 55, abstract 1382, Copernicus).
+constexpr double kOuterTerraceWidening = 0.8;
+
+/// A scarp's room, as a share of the narrower of its two steps.
+constexpr double kTerraceScarpRoom = 0.4;
+
+/// Most a scarp may move, scallops, wobble and block offset together, in units of its room: with
+/// the room 0.4 of the narrower step, two neighboring scarps stay 4% of a step apart.
+constexpr double kTerraceScarpReach = 1.2;
+
+/// Fewest and most scallops a scarp has around the rim, as slump blocks scallop the walls of
+/// fresh complex craters.
+constexpr double kMinTerraceScallops = 6.0;
+constexpr double kMaxTerraceScallops = 12.0;
+
+/// Height of the rim crest's scallops, in radii, per unit of `CraterTerraces::rimVariation`.
+constexpr double kTerraceRimScallop = 0.5;
 
 /// Whether the simple profile shapes `crater` in `state`: not where the table or the complex
 /// form does.
@@ -225,6 +257,131 @@ CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const 
     return f;
 }
 
+void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terraces,
+                          const CraterProfile& profile, CraterRecord& record,
+                          std::vector<float>& data) {
+    const double diameter = p.crater.diameter;
+    if (!terraces.enabled || diameter < terraces.onsetDiameter) {
+        return;
+    }
+    const CraterState& state = p.state;
+    const double freshness =
+        state.fresh.depthRatio > 0.0 ? state.current.depthRatio / state.fresh.depthRatio : 1.0;
+    const double strength =
+        Smoothstep((freshness - terraces.minFreshness) / (1.0 - terraces.minFreshness));
+    if (!(strength > 0.0)) {
+        return;
+    }
+    KilometerPowerLaw floor{0.187, 1.249};
+    if (const auto* complex = dynamic_cast<const ComplexCraterProfile*>(&profile)) {
+        floor = complex->Shape().floorDiameter;
+    }
+    const double inner = std::clamp(floor.At(diameter) / diameter, 0.2, 0.9);
+    const double radius = 0.5 * diameter;
+    const double drop =
+        profile.Height(radius, diameter, state) - profile.Height(inner * radius, diameter, state);
+    const double meanSlope = drop / ((1.0 - inner) * radius);
+    const double benchSlope = std::tan(terraces.benchSlopeDegrees * kDegree);
+    const double slopeShare = meanSlope > 0.0 ? std::clamp(benchSlope / meanSlope, 0.02, 0.5) : 0.5;
+    const double size = std::clamp((diameter - terraces.onsetDiameter) /
+                                       (terraces.fullDiameter - terraces.onsetDiameter),
+                                   0.0, 1.0);
+    const IdWords id = SplitId(p.crater.id);
+    RandomStream random(terraces.seed.value_or(0u), kCraterTerraceStream, id.low, id.high);
+    const double spread = terraces.maxBenches - terraces.minBenches;
+    const int benches =
+        std::clamp(static_cast<int>(std::lround(terraces.minBenches + spread * size +
+                                                random.NextDouble() - 0.5)),
+                   terraces.minBenches, terraces.maxBenches);
+    const auto harmonics = [&](int first, int count) {
+        std::vector<double> pairs;
+        double total = 0.0;
+        for (int k = first; k < first + count; ++k) {
+            total += 1.0 / k;
+        }
+        for (int k = first; k < first + count; ++k) {
+            pairs.push_back(1.0 / k / total);
+            pairs.push_back(2.0 * kPi * random.NextDouble());
+        }
+        return pairs;
+    };
+    const std::vector<double> arcs = harmonics(2, 5);
+    const double cover =
+        terraces.arcShare >= 1.0
+            ? 1.0
+            : terraces.arcShare + std::max(0.0, kFullTerraceCover - terraces.arcShare) * size;
+    double cut = -2.0;
+    if (cover < 1.0) {
+        constexpr std::size_t kSamples = 360;
+        std::vector<double> values(kSamples);
+        for (std::size_t n = 0; n < kSamples; ++n) {
+            const double theta = 2.0 * kPi * static_cast<double>(n) / double{kSamples};
+            double sum = 0.0;
+            for (std::size_t k = 0; k < 5; ++k) {
+                sum += arcs[2 * k] *
+                       std::cos((static_cast<double>(k) + 2.0) * theta + arcs[2 * k + 1]);
+            }
+            values[n] = sum;
+        }
+        const auto at =
+            values.begin() + static_cast<std::ptrdiff_t>((1.0 - cover) * double{kSamples - 1});
+        std::nth_element(values.begin(), at, values.end());
+        cut = *at;
+    }
+    record.terraceCount = static_cast<std::uint32_t>(benches);
+    record.terraceOffset = static_cast<std::uint32_t>(data.size());
+    for (const double value :
+         {inner, slopeShare, strength, 1.0 - terraces.scarpShare, cut, kTerraceArcWidth}) {
+        data.push_back(static_cast<float>(value));
+    }
+    for (const double value : arcs) {
+        data.push_back(static_cast<float>(value));
+    }
+    const auto scallopCount = [&random] {
+        return kMinTerraceScallops +
+               std::floor((kMaxTerraceScallops - kMinTerraceScallops + 1.0) * random.NextDouble());
+    };
+    const double rimScallop =
+        kTerraceRimScallop * terraces.rimVariation * strength * (0.6 + 0.8 * random.NextDouble());
+    for (const double value :
+         {rimScallop, scallopCount(), random.NextDouble(), terraces.blockGaps}) {
+        data.push_back(static_cast<float>(value));
+    }
+    std::vector<double> bases{0.0};
+    double total = 0.0;
+    for (int i = 0; i < benches; ++i) {
+        const double outward = benches > 1 ? static_cast<double>(i) / (benches - 1) : 0.0;
+        total += (0.5 + random.NextDouble()) * (1.0 + kOuterTerraceWidening * outward);
+        bases.push_back(total);
+    }
+    for (double& base : bases) {
+        base /= total;
+    }
+    const double variation = terraces.rimVariation / (1.0 - inner);
+    for (std::size_t k = 1; k < bases.size() - 1; ++k) {
+        const double room =
+            kTerraceScarpRoom * std::min(bases[k] - bases[k - 1], bases[k + 1] - bases[k]);
+        double scallop = std::min(variation * (0.6 + 0.8 * random.NextDouble()), 0.9 * room);
+        const double scallops = scallopCount();
+        const double phase = random.NextDouble();
+        double wobble = std::min(0.5 * variation * random.NextDouble(), 0.4 * room);
+        const double wobblePhase = 2.0 * kPi * random.NextDouble();
+        double block = terraces.blockOffset * room;
+        const double reach = 2.0 / 3.0 * scallop + wobble + block;
+        if (reach > kTerraceScarpReach * room) {
+            const double fit = kTerraceScarpReach * room / reach;
+            scallop *= fit;
+            wobble *= fit;
+            block *= fit;
+        }
+        const double key = static_cast<double>(random.NextU32() >> 8u);
+        for (const double value :
+             {bases[k], scallop, scallops, phase, wobble, wobblePhase, block, key}) {
+            data.push_back(static_cast<float>(value));
+        }
+    }
+}
+
 CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
                                         const CraterProfile& profile,
                                         const std::vector<PreparedCrater>& prepared,
@@ -239,6 +396,7 @@ CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
         CheckProfileState(kernel, p.crater.diameter, p.state);
         CraterRecord r = BaseRecord(p, options);
         AppendKernelOutline(p.outline, r, batch.data);
+        AppendKernelTerraces(p, options.terraces, profile, r, batch.data);
         tables.Append(p, r, batch.data);
         batch.records.push_back(r);
     }
