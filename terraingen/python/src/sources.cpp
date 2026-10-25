@@ -339,7 +339,9 @@ void BindRasterSources(nb::module_& m) {
     nb::class_<GeoTiffSource, Source>(
         m, "GeoTiffSource",
         "Heights from band `band` of a GeoTIFF, scaled (height * scale + offset), its cells "
-        "refined by `upsampler` (cubic when None). With `crop` (min_x, min_y, max_x, max_y) it "
+        "refined by `upsampler` (cubic when None). A projected file suits a plane terrain and one "
+        "in longitude and latitude a terrain on a body, its crop and cell sizes in degrees. "
+        "With `crop` (min_x, min_y, max_x, max_y) it "
         "covers only the cells meeting that box and reads only a window of the file, giving the "
         "same heights there as without it. `effective_pixel_size` is the cell size the heights "
         "truly resolve, for a DEM upsampled before it was saved.")

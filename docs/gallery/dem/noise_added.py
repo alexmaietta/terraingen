@@ -7,10 +7,10 @@ octaves from 16 km down to 1 km, 250 m high at 8 km and rising as wavelength^0.8
 everywhere, so its long octaves pile hills onto relief the DEM already measures; the same stack
 with every octave 2 or more of the DEM's posts long left out, keeping only detail the DEM cannot
 hold; and spectral continuation, which carries on below the posts' resolution the power law
-fitted to them over 24 degrees around the window; their spectrum falls faster than the steepest
-slope the continuation takes, 4, so the fit is clipped to it.
-Bottom: the radially averaged power spectra, the 24 degrees of posts as dots and their Nyquist
-frequency marked."""
+fitted to them over 48 degrees around the window, wide enough that Copernicus does not set it;
+fitted over the 12 degrees alone, the crater fills the fit and the slope clips at 4. Bottom: the
+radially averaged power spectra, the 12 degrees of posts as dots and their Nyquist frequency
+marked."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ ASSETS = [assets.LOLA_LDEM_8]
 RADIUS_M = 1737400.0
 CENTER = (-20.08, 9.62)
 HALF_WIDTH_DEG = 6.0
-FIT_HALF_WIDTH_DEG = 12.0
+FIT_HALF_WIDTH_DEG = 24.0
 POSTS_PER_DEG = 8
 OCTAVES_M = [16000.0, 8000.0, 4000.0, 2000.0, 1000.0]
 COLORS = ["#555555", "#d62728", "#1f77b4", "#2ca02c"]
@@ -105,7 +105,9 @@ def figure(quick=False):
         ax.set_title(title, color=color)
         frequencies, power = gallery.radial_power_spectrum(np.asarray(refined, dtype=float), pixel_m)
         spectrum_ax.loglog(frequencies * 1000.0, power, color=color, lw=1.4, label=title)
-    frequencies, power = gallery.radial_power_spectrum(np.asarray(posts, dtype=float), post_m)
+    margin = int((FIT_HALF_WIDTH_DEG - HALF_WIDTH_DEG) * POSTS_PER_DEG)
+    shown = posts[margin:-margin, margin:-margin]
+    frequencies, power = gallery.radial_power_spectrum(np.asarray(shown, dtype=float), post_m)
     spectrum_ax.loglog(frequencies * 1000.0, power, "o", color="black", ms=3, label="LDEM_8 posts")
     spectrum_ax.axvline(500.0 / post_m, color="#b5b5b3", lw=0.8)
     spectrum_ax.set_xlabel("Frequency (cycles per km)")
