@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 
 namespace terraingen {

@@ -87,9 +87,11 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, Terrai
         FollowDensityMap();
     }
     const CraterGenerationOptions& generation = options_.generation;
+    if (!options_.generateRandom || !candidates_) {
+        return;
+    }
     const double dMax = ResolveDMax(generation.dMax, *candidates_);
-    if (options_.generateRandom && std::isfinite(dMax) && dMax > generation.dMin &&
-        generation.dMin > 0.0) {
+    if (std::isfinite(dMax) && dMax > generation.dMin && generation.dMin > 0.0) {
         for (const CraterBand& band :
              CraterBands(generation.dMin, dMax, generation.cellSizeFactor)) {
             bandCounts_.push_back(

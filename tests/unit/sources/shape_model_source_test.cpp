@@ -47,8 +47,8 @@ Vec2d LonLat(const Vec3d& u) {
 }  // namespace
 
 TEST(ShapeModelSource, NeedsAShapeModelBody) {
-    EXPECT_THROW(ShapeModelSource(Surface::Sphere(100.0)), std::invalid_argument);
-    EXPECT_THROW(ShapeModelSource(Surface::Plane()), std::invalid_argument);
+    EXPECT_THROW(ShapeModelSource{Surface::Sphere(100.0)}, std::invalid_argument);
+    EXPECT_THROW(ShapeModelSource{Surface::Plane()}, std::invalid_argument);
 }
 
 TEST(ShapeModelSource, CoversTheWholeBodyAtTheLabelSpacing) {
