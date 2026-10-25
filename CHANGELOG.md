@@ -87,6 +87,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UnresolvedCraterLimit` (`unresolved_crater_limit`; use `SourceResolvedLimit`), `CraterBlend::Weight`, `RimSmoothing::Weight`, `EjectaThicknessShare`, `CraterLayer::Attributes` and `SecondaryCraterLayer::Attributes`, `ApplyCraterTo`, `CraterCellCache::Size` and `Evictions`, `SecondaryDensity::Diameter`.
 - `AddBoulder`, `BoulderLayer::DensityAt`, `BoulderMesh`, `BandFrequencies`, `EdgeDistanceAt`, `ReliefAt`, `BedPositionAt`; `DomeHeight`, `NormalizedBoulderShape`, `TargetPsd`, `TerracedAt`, `EstimateBaseRoughness`, `RadialPowerSpectrum` and the five boulder sub-validators are internal.
 
+### Fixed
+
+- Boulder layers measure unresolved cover, and rock albedo shades, at spacings where the fade reaches the largest boulder: `ForEachLogSimpsonNode` ends exactly at its bounds, so a size distribution is no longer evaluated just past its largest diameter (default boulders threw at 2 m spacing).
+
 ## [0.2.0] - 2026-10-23
 
 Sources replace the base: DEMs are upsampled rather than resampled, synthetic sources generate heights from noise, and layers leave out what the source already resolves. Outputs set their own pixel size and extent, `GenerateFromConfig` returns everything it computes, and the core types are renamed. Configurations and code written for 0.1.0 need the changes under [Migrating from 0.1.0](#migrating-from-010).

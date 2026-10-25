@@ -1354,3 +1354,15 @@ TEST(BoulderLayer, ReadsTheGroundBeneathItsBouldersInOnePass) {
         EXPECT_EQ(fast[n].tilt, slow[n].tilt);
     }
 }
+
+TEST(BoulderLayer, MeasuresUnresolvedCoverUpToItsLargestBoulder) {
+    terraingen::BoulderLayerOptions options;
+    options.seed = 3;
+    const terraingen::BoulderLayer layer(options);
+    for (const double spacing : {0.5, 1.0, 2.0, 2.93, 4.0, 10.0}) {
+        const terraingen::UnresolvedCover cover = layer.UnresolvedCoverAt(0.0, 0.0, spacing);
+        EXPECT_GE(cover.mean, 0.0) << spacing;
+        EXPECT_GE(cover.variance, 0.0) << spacing;
+    }
+    EXPECT_GT(layer.UnresolvedCoverAt(0.0, 0.0, 2.0).mean, 0.0);
+}
