@@ -165,7 +165,9 @@ template <> struct SpecName<SyntheticSourceSpec> {
 };
 template <typename IO> void Fields(IO& io, SyntheticSourceSpec& source) {
     io("elevation_m", source.elevation, "Height in meters added everywhere.", "m");
-    io("stack", source.stack, NoiseStackHelp(0) + " None gives a flat source.");
+    io("stack", source.stack,
+       NoiseStackHelp(0) + " Unset is one layer of fBm noise 400 m in wavelength and 12 m in "
+                           "amplitude; an empty stack gives a flat source.");
     io("pixel_size_m", source.pixelSize,
        "Spacing in meters of posts the noise is sampled at, as for a DEM of that cell size, "
        "which upsampling refines. Unset evaluates the noise at every point, at any spacing.",

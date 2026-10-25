@@ -27,7 +27,8 @@ template <typename IO> void Fields(IO& io, TerrainGenConfig& config) {
     io("source", config.source,
        "Where the heights come from: a GeoTIFF, a chain of sources, or synthetic noise, and how "
        "its posts are upsampled to finer spacings. A raster's grid is what outputs cover unless "
-       "they give an extent and pixel size; unset is flat at the body's datum, 0 m, everywhere.");
+       "they give an extent and pixel size; unset is a synthetic source of rolling fBm noise, 400 "
+       "m in wavelength and 12 m in amplitude, at the body's datum.");
     io("layers", config.layers,
        "Relief and features added to the source's heights, applied in order: noise, craters, "
        "boulders and more.");

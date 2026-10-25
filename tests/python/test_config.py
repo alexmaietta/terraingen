@@ -324,7 +324,17 @@ def test_build_generator_builds_on_a_given_source():
         {"schema_version": 1, "layers": [{"type": "craters", "generate_random": False, "manual": [crater]}]}
     )
     terrain = terraingen.build_generator(config, source=dem)
-    alone = terraingen.build_generator(config)
+    on_flat = terraingen.TerrainGenConfig.from_dict(
+        {
+            "schema_version": 1,
+            "source": {"type": "synthetic", "stack": []},
+            "layers": [{"type": "craters", "generate_random": False, "manual": [crater]}],
+        }
+    )
+    alone = terraingen.build_generator(on_flat)
+    assert terraingen.height_at(terraingen.build_generator(config), 0.0, 0.0, 1.0) != terraingen.height_at(
+        alone, 0.0, 0.0, 1.0
+    ), "without a source the crater lies on the default fBm base"
     assert terraingen.height_at(terrain, 300.0, 300.0, 1.0) == pytest.approx(100.0, abs=1e-4)
     assert terraingen.height_at(terrain, 0.0, 0.0, 1.0) == pytest.approx(
         100.0 + terraingen.height_at(alone, 0.0, 0.0, 1.0), abs=1e-3

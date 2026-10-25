@@ -151,12 +151,16 @@ inline SteadyStateAgesSpec LunarAgesSpec(double ageGyr = 3.5) {
                                ChronologyModel::Neukum};
 }
 
-/// @brief A small, fast configuration: a noise layer, then a crater layer of 8 to 60 m craters on
-/// a 3.5 Gyr lunar surface, and a heightmap over 65 x 49 cells of 2 m (`SmallRegion`).
+/// @brief A small, fast configuration on a flat synthetic source: a noise layer, then a crater
+/// layer of 8 to 60 m craters on a 3.5 Gyr lunar surface, and a heightmap over 65 x 49 cells of 2 m
+/// (`SmallRegion`).
 /// @return The configuration.
 inline TerrainGenConfig Small() {
     TerrainGenConfig config;
     config.outputs = {Heightmap("terrain.tif")};
+    terraingen::SyntheticSourceSpec flat;
+    flat.stack.clear();
+    config.source = flat;
     NoiseLayerSpec noise;
     noise.stack[0].layer.fractal.wavelength = 200.0f;
     noise.stack[0].amplitude = 10.0f;

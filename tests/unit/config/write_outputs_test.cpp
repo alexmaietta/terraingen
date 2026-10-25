@@ -250,6 +250,9 @@ TEST(WriteOutputs, WritesWholeBodyMeshes) {
 TEST(WriteOutputs, WritesEllipsoidBodiesAsIcqShapeModels) {
     TerrainGenConfig config;
     config.body = terraingen::EllipsoidSurfaceSpec{{267500.0, 147000.0, 104500.0}};
+    terraingen::SyntheticSourceSpec flat;
+    flat.stack.clear();
+    config.source = flat;
     config.outputs = {terraingen::MeshOutput{"body.icq", 8, std::nullopt}};
     EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "valid");
     const auto terrain = GenerateFromConfig(config);

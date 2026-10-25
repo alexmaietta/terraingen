@@ -586,9 +586,8 @@ TerrainGenerator BuildValidGenerator(const TerrainGenConfig& config,
     if (external) {
         generator.source = external;
     } else {
-        generator.source = config.source
-                               ? BuildSource(*config.source, directory, generator.surface, "source")
-                               : std::make_shared<SyntheticSource>();
+        generator.source = BuildSource(config.source.value_or(SourceSpec{SyntheticSourceSpec{}}),
+                                       directory, generator.surface, "source");
     }
     const std::shared_ptr<const Source> given =
         external ? external : (config.source ? generator.source : nullptr);

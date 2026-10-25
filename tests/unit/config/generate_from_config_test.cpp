@@ -108,6 +108,28 @@ TEST(GenerateFromConfig, AppliesTheHurstExponentToTheGain) {
                            expected.Values().begin()));
 }
 
+TEST(GenerateFromConfig, ShowsEveryDefaultLayerOnTheDefaultFbmBaseAtAMeterPerPixel) {
+    const auto heights = [](const std::string& layers) {
+        const TerrainGenConfig config =
+            terraingen::ParseConfig(R"({"schema_version": 1, "layers": [)" + layers +
+                                    R"(], "outputs": [{"type": "heightmap", "pixel_size_m": 1,
+                "extent_m": {"center": [0, 0], "size": [200, 200]}}]})");
+        return HeightsOf(GenerateFromConfig(config));
+    };
+    const terraingen::Raster<float> base = heights("");
+    const auto [lowest, highest] = std::minmax_element(base.Values().begin(), base.Values().end());
+    EXPECT_GT(*highest - *lowest, 1.0f) << "rolling fBm ground, not flat";
+    for (const char* layer : {R"({"type": "craters"})", R"({"type": "boulders"})",
+                              R"({"type": "roughness"})", R"({"type": "noise"})"}) {
+        const terraingen::Raster<float> with = heights(layer);
+        double change = 0.0;
+        for (std::size_t i = 0; i < base.Size(); ++i) {
+            change = std::max(change, std::fabs(double(with.Values()[i]) - base.Values()[i]));
+        }
+        EXPECT_GT(change, 0.01) << layer << " shows on the default base";
+    }
+}
+
 TEST(GenerateFromConfig, SupportsNoLayersNoCratersAndManualCratersOnly) {
     TerrainGenConfig config = Small();
     config.layers.clear();

@@ -125,11 +125,24 @@ struct RasterSourceSpec {
 /// (`NoiseStackLayerSpec::EffectiveRelief`).
 SyntheticTerrainParams StackParams(const std::vector<NoiseStackLayerSpec>& stack);
 
+/// The noise layer a synthetic source starts from by default: fBm 400 m in wavelength and 12 m in
+/// amplitude, seed 2, the `FractalParams` defaults otherwise; rolling ground that craters and
+/// boulders look natural on at a meter per pixel.
+inline NoiseStackLayerSpec DefaultBaseNoise() {
+    NoiseStackLayerSpec base;
+    base.layer.fractal.seed = 2;
+    base.layer.fractal.wavelength = 400.0f;
+    base.layer.fractal.amplitude = 12.0f;
+    base.amplitude = 12.0f;
+    return base;
+}
+
 /// Source "synthetic": `elevation` plus a stack of noise layers (`SyntheticSource`), evaluated at
 /// every point, or with `pixelSize` sampled at posts that `upsampling` refines (cubic unset).
 struct SyntheticSourceSpec {
-    double elevation = 0.0;                      ///< Meters.
-    std::vector<NoiseStackLayerSpec> stack{};    ///< 0 to `kMaxNoiseLayers` layers; none is flat.
+    double elevation = 0.0;  ///< Meters.
+    /// 0 to `kMaxNoiseLayers` layers, by default `DefaultBaseNoise`; an empty stack is flat.
+    std::vector<NoiseStackLayerSpec> stack{DefaultBaseNoise()};
     std::optional<double> pixelSize{};           ///< Meters between posts; unset for none.
     std::optional<UpsamplingSpec> upsampling{};  ///< Needs `pixelSize`.
 };
@@ -823,7 +836,7 @@ struct MaterialsSpec {
 struct TerrainGenConfig {
     int schemaVersion = kConfigSchemaVersion;
     SurfaceSpec body{};
-    /// None for a flat synthetic source at the body's datum, 0 m, everywhere.
+    /// None for the default synthetic source, `DefaultBaseNoise` at the body's datum.
     std::optional<SourceSpec> source{};
     std::vector<LayerSpec> layers;
     std::vector<OutputSpec> outputs;

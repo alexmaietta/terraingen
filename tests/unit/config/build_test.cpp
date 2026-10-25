@@ -869,13 +869,33 @@ TEST(BuildGenerator, UpsamplesTheSourceAsItsUpsamplingSays) {
               cubic(8, 6));
 }
 
-TEST(BuildGenerator, BuildsASyntheticSourceOrAFlatOneWithoutASource) {
+TEST(BuildGenerator, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
     TerrainGenConfig config = Small();
     config.source.reset();
+    const terraingen::TerrainGenerator rolling = terraingen::BuildGenerator(config);
+    const auto base = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(rolling.source);
+    ASSERT_NE(base, nullptr);
+    ASSERT_EQ(base->Params().layers.size(), 1u);
+    const terraingen::FractalParams& fractal = base->Params().layers[0].fractal;
+    EXPECT_EQ(fractal.seed, 2u);
+    EXPECT_EQ(fractal.wavelength, 400.0f);
+    EXPECT_EQ(fractal.amplitude, 12.0f);
+    EXPECT_EQ(fractal.type, terraingen::FractalType::Fbm);
+    EXPECT_NE(base->HeightAt(123.0, -4.0, 1.0), 0.0f);
+    EXPECT_LE(std::fabs(base->HeightAt(123.0, -4.0, 1.0)), 12.0f);
+    config.source = terraingen::SyntheticSourceSpec{};
+    const terraingen::RasterGrid grid =
+        terraingen::RasterGrid::Centered({0.0, 0.0}, {64.0, 64.0}, 1.0);
+    const terraingen::Raster<float> given =
+        terraingen::Evaluate(terraingen::BuildGenerator(config), grid);
+    const terraingen::Raster<float> unset = terraingen::Evaluate(rolling, grid);
+    EXPECT_TRUE(std::equal(given.Values().begin(), given.Values().end(), unset.Values().begin()))
+        << "a synthetic source without a stack is the same default";
+    std::get<terraingen::SyntheticSourceSpec>(*config.source).stack.clear();
     const terraingen::TerrainGenerator flat = terraingen::BuildGenerator(config);
     const auto datum = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(flat.source);
     ASSERT_NE(datum, nullptr);
-    EXPECT_TRUE(datum->Params().layers.empty());
+    EXPECT_TRUE(datum->Params().layers.empty()) << "an empty stack is flat";
     EXPECT_EQ(datum->HeightAt(123.0, -4.0, 1.0), 0.0f);
 
     terraingen::SyntheticSourceSpec synthetic;
@@ -1101,7 +1121,11 @@ TEST(BuildGenerator, BuildsOnAGivenSourceAsMeasuredData) {
     })");
     const auto dem = FlatDem();
     const terraingen::TerrainGenerator onDem = terraingen::BuildGenerator(config, dem);
-    const terraingen::TerrainGenerator alone = terraingen::BuildGenerator(config);
+    TerrainGenConfig onFlat = config;
+    terraingen::SyntheticSourceSpec flat;
+    flat.stack.clear();
+    onFlat.source = flat;
+    const terraingen::TerrainGenerator alone = terraingen::BuildGenerator(onFlat);
 
     EXPECT_EQ(onDem.source, dem);
     EXPECT_NEAR(terraingen::HeightAt(onDem, 300.0, 300.0, 1.0), 100.0, 1e-4);
