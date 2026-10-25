@@ -158,10 +158,36 @@ def test_boulder_fillets_and_burial_by_wear_are_options():
     boulders = terraingen.BoulderLayerOptions(pose=terraingen.BoulderPose(burial_by_wear=0.5), fillet=fillet)
     assert (boulders.pose.burial_by_wear, boulders.fillet.height_share) == (0.5, 0.4)
     boulder = terraingen.Boulder(0.0, 0.0, 2.0, 1.0, burial=0.25)
-    assert terraingen.fillet_height(boulder, 1.25, fillet) == pytest.approx(0.075)
+    contact = terraingen.dome_fillet_contact(boulder, fillet)
+    assert (contact.distance, contact.height) == pytest.approx((np.sqrt(1.0 - 0.4**2), 0.3))
+    assert terraingen.fillet_height(boulder, 0.0, fillet) == 0.0
+    assert terraingen.fillet_height(boulder, contact.distance, fillet) == pytest.approx(0.3)
+    t = (1.25 - contact.distance) / (1.5 - contact.distance)
+    assert terraingen.fillet_height(boulder, 1.25, fillet) == pytest.approx(0.3 * (1.0 - t) ** 2)
     assert terraingen.fillet_height(boulder, 2.0, fillet) == 0.0
+    wide = terraingen.FilletContact(distance=1.2, height=0.2)
+    assert terraingen.fillet_height(boulder, 1.45, fillet, wide) == pytest.approx(0.05)
     with pytest.raises(ValueError):
         terraingen.validate_boulder_fillet(terraingen.BoulderFillet(height_share=2.0))
+
+
+def test_boulder_fillets_ramp_into_the_dome_with_no_bench():
+    options = terraingen.BoulderLayerOptions(
+        fillet=terraingen.BoulderFillet(height_share=0.5, width_ratio=0.3),
+        rendering=terraingen.BoulderRendering(relief=terraingen.BoulderRelief.DOME),
+    )
+    boulder = terraingen.ManualBoulder(
+        0.0, 0.0, 2.0, height=1.0, burial=0.0, yaw_degrees=0.0, lean_degrees=0.0, tilt_degrees=0.0
+    )
+    layer = terraingen.BoulderLayer.manual([boulder], options)
+    heights = terraingen.evaluate(terraingen.TerrainGenerator(terraingen.FlatSource(401, 401, 0.01), [layer]))
+    values = np.asarray(heights.values, dtype=float)
+    row, col = np.unravel_index(np.argmax(values), values.shape)
+    line = values[row, col:]
+    distance = np.arange(len(line)) * 0.01
+    slope = -np.diff(line) / 0.01
+    ramp = (distance[:-1] >= 0.5) & (line[:-1] > 0.02) & (line[1:] > 0.02)
+    assert ramp.sum() > 50 and (slope[ramp] > 0.05).all()
 
 
 def test_worn_boulders_break_into_pieces_that_replace_them():

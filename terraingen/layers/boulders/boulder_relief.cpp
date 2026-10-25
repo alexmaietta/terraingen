@@ -3,10 +3,14 @@
 #include "terraingen/layers/boulders/boulder_layer.h"
 
 #include "terraingen/raster/cell_loops.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -51,6 +55,185 @@ double DomeHeight(const Boulder& boulder, double distance, double width) {
     return boulder.ExposedHeight() * (area(high) - area(low)) * radius / width;
 }
 
+/// Where a fillet `top` meters high meets a round dome averaged over `width` meters
+/// (`DomeHeight`), the same in every direction and no farther out than its radius.
+FilletContact RoundDomeContact(const Boulder& boulder, double width, double top) {
+    const double radius = 0.5 * boulder.diameter;
+    const double height = std::fmin(top, DomeHeight(boulder, 0.0, width));
+    if (!(height > 0.0)) {
+        return {};
+    }
+    if (!(width > 0.0)) {
+        const double share = std::fmin(height / boulder.ExposedHeight(), 1.0);
+        return {radius * std::sqrt(1.0 - share * share), height};
+    }
+    if (DomeHeight(boulder, radius, width) >= height) {
+        return {radius, height};
+    }
+    double inside = 0.0;
+    double outside = radius;
+    for (int step = 0; step < 50; ++step) {
+        const double middle = 0.5 * (inside + outside);
+        if (DomeHeight(boulder, middle, width) >= height) {
+            inside = middle;
+        } else {
+            outside = middle;
+        }
+    }
+    return {inside, height};
+}
+
+/// Where a fillet `top` meters high meets a dome averaged over `width` meters and cut by the
+/// boulder's facets along the unit `direction` from its center: the outermost point within its
+/// radius where the rock stands that high, or as high as it stands along `direction`.
+FilletContact FacetedDomeContact(const Boulder& boulder, const Vec2d& direction, double width,
+                                 double top) {
+    const double outer = 0.5 * boulder.diameter;
+    const auto rock = [&](double distance) {
+        return boulder.CutByFacets({distance * direction.x, distance * direction.y},
+                                   DomeHeight(boulder, distance, width));
+    };
+    constexpr int kSteps = 64;
+    std::array<double, kSteps + 1> heights{};
+    double highest = 0.0;
+    for (int step = 0; step <= kSteps; ++step) {
+        heights[step] = rock(outer * step / kSteps);
+        highest = std::fmax(highest, heights[step]);
+    }
+    const double height = std::fmin(top, highest);
+    if (!(height > 0.0)) {
+        return {};
+    }
+    int last = 0;
+    for (int step = 0; step <= kSteps; ++step) {
+        if (heights[step] >= height) {
+            last = step;
+        }
+    }
+    double inside = outer * last / kSteps;
+    double outside = outer * std::min(last + 1, kSteps) / kSteps;
+    for (int step = 0; step < 40; ++step) {
+        const double middle = 0.5 * (inside + outside);
+        if (rock(middle) >= height) {
+            inside = middle;
+        } else {
+            outside = middle;
+        }
+    }
+    return {inside, height};
+}
+
+/// How many directions a shape's fillet contacts are found in for a boulder of `diameter` at
+/// `spacing`: about two per sample around its rim.
+std::size_t FilletDirections(double diameter, double spacing) {
+    const double around = kPi * diameter / std::fmax(spacing, 1e-9);
+    return static_cast<std::size_t>(std::clamp(std::ceil(2.0 * around), 16.0, 256.0));
+}
+
+/// Where a fillet `top` meters high meets the top surface of `placed` (a shape placed on level
+/// ground at 0, centered on `center`) in `count` directions at even steps of azimuth from east.
+std::vector<FilletContact> ShapeContacts(const TriangleMesh& placed, const Vec2d& center,
+                                         double top, std::size_t count) {
+    struct Piece {
+        double inner;
+        double innerHeight;
+        double outer;
+        double outerHeight;
+    };
+    std::vector<FilletContact> contacts(count);
+    std::vector<Piece> pieces;
+    for (std::size_t k = 0; k < count; ++k) {
+        const double azimuth = 2.0 * kPi * static_cast<double>(k) / static_cast<double>(count);
+        const Vec2d along{std::cos(azimuth), std::sin(azimuth)};
+        pieces.clear();
+        double highest = 0.0;
+        for (const auto& triangle : placed.triangles) {
+            double a[3];
+            double s[3];
+            double z[3];
+            for (int j = 0; j < 3; ++j) {
+                const Vec3d& p = placed.positions[triangle[j]];
+                a[j] = (p.x - center.x) * along.x + (p.y - center.y) * along.y;
+                s[j] = (p.y - center.y) * along.x - (p.x - center.x) * along.y;
+                z[j] = p.z;
+            }
+            double lowA = std::numeric_limits<double>::infinity();
+            double highA = -lowA;
+            double lowZ = 0.0;
+            double highZ = 0.0;
+            const auto add = [&](double at, double height) {
+                if (at < lowA) {
+                    lowA = at;
+                    lowZ = height;
+                }
+                if (at > highA) {
+                    highA = at;
+                    highZ = height;
+                }
+            };
+            for (int j = 0; j < 3; ++j) {
+                const int n = (j + 1) % 3;
+                if (s[j] == 0.0) {
+                    add(a[j], z[j]);
+                }
+                if ((s[j] < 0.0 && s[n] > 0.0) || (s[j] > 0.0 && s[n] < 0.0)) {
+                    const double t = s[j] / (s[j] - s[n]);
+                    add(a[j] + t * (a[n] - a[j]), z[j] + t * (z[n] - z[j]));
+                }
+            }
+            if (!(highA >= 0.0)) {
+                continue;
+            }
+            if (lowA < 0.0) {
+                lowZ = highA > lowA ? lowZ + (highZ - lowZ) * (-lowA) / (highA - lowA) : highZ;
+                lowA = 0.0;
+            }
+            highest = std::fmax(highest, std::fmax(lowZ, highZ));
+            pieces.push_back({lowA, lowZ, highA, highZ});
+        }
+        const double height = std::fmin(top, highest);
+        if (!(height > 0.0)) {
+            continue;
+        }
+        double distance = 0.0;
+        for (const Piece& piece : pieces) {
+            if (piece.outerHeight >= height) {
+                distance = std::fmax(distance, piece.outer);
+            } else if (piece.innerHeight >= height) {
+                const double t =
+                    (piece.innerHeight - height) / (piece.innerHeight - piece.outerHeight);
+                distance = std::fmax(distance, piece.inner + t * (piece.outer - piece.inner));
+            }
+        }
+        contacts[k] = {distance, height};
+    }
+    return contacts;
+}
+
+/// Where the fillet meets its boulder in the direction of `offset` (m east and north of its
+/// center): the one contact of a round dome, those of a shape interpolated in azimuth, or found
+/// on the dome averaged over `width` meters and cut by its facets.
+FilletContact SampleContact(const Boulder& boulder, const Vec2d& offset,
+                            const std::vector<FilletContact>& contacts, double width, double top) {
+    if (contacts.size() == 1) {
+        return contacts.front();
+    }
+    if (!contacts.empty()) {
+        double turn = std::atan2(offset.y, offset.x) / (2.0 * kPi);
+        turn -= std::floor(turn);
+        const double at = turn * static_cast<double>(contacts.size());
+        const std::size_t k = static_cast<std::size_t>(at) % contacts.size();
+        const FilletContact& a = contacts[k];
+        const FilletContact& b = contacts[(k + 1) % contacts.size()];
+        const double t = at - std::floor(at);
+        return {a.distance + t * (b.distance - a.distance), a.height + t * (b.height - a.height)};
+    }
+    const double distance = std::hypot(offset.x, offset.y);
+    const Vec2d direction =
+        distance > 0.0 ? Vec2d{offset.x / distance, offset.y / distance} : Vec2d{1.0, 0.0};
+    return FacetedDomeContact(boulder, direction, width, top);
+}
+
 }  // namespace
 
 Boulder BoulderLayer::InLocalFrame(const Boulder& boulder) const {
@@ -72,8 +255,8 @@ TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
 }
 
 float BoulderLayer::AddRelief(float height, float base, double x, double y, const Boulder& boulder,
-                              const TriangleMesh* placed, double weight, bool rock,
-                              double width) const {
+                              const TriangleMesh* placed, double weight, bool rock, double width,
+                              const std::vector<FilletContact>& contacts) const {
     const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
     const double relief = rock ? RockRelief(x, y, boulder, placed, width) : 0.0;
     double result = static_cast<double>(height);
@@ -81,8 +264,9 @@ float BoulderLayer::AddRelief(float height, float base, double x, double y, cons
         result = std::fmax(result, static_cast<double>(base) + weight * relief);
     }
     if (options_.fillet.heightShare > 0.0) {
-        const double fillet =
-            FilletHeight(boulder, std::hypot(offset.x, offset.y), options_.fillet);
+        const double top = options_.fillet.heightShare * boulder.ExposedHeight();
+        const double fillet = FilletHeight(boulder, std::hypot(offset.x, offset.y), options_.fillet,
+                                           SampleContact(boulder, offset, contacts, width, top));
         if (fillet > 0.0) {
             result = std::fmax(result, static_cast<double>(base) + weight * fillet);
         }
@@ -124,7 +308,7 @@ double BoulderLayer::MaterialCoverAt(double x, double y, double spacing,
                                      const Ground* ground) const {
     const std::vector<Boulder> boulders = ReliefBoulders({x, y, x, y}, spacing, ground);
     double cover = 0.0;
-    for (const Relief& relief : PrepareRelief(boulders, spacing)) {
+    for (const Relief& relief : PrepareRelief(boulders, spacing, false)) {
         cover = std::fmax(cover, RockCover(relief, {x, y}));
     }
     for (const Boulder& boulder : boulders) {
@@ -138,7 +322,7 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid, double sp
     Raster<double> cover(grid.width, grid.height);
     cover.SetTransform(grid.transform);
     const std::vector<Boulder> boulders = ReliefBoulders(grid.Bounds(), spacing, ground);
-    std::vector<Relief> reliefs = PrepareRelief(boulders, spacing);
+    std::vector<Relief> reliefs = PrepareRelief(boulders, spacing, false);
     reliefs.erase(std::remove_if(reliefs.begin(), reliefs.end(),
                                  [](const Relief& relief) { return !relief.rock; }),
                   reliefs.end());
@@ -196,7 +380,7 @@ std::vector<Bounds2d> BoulderLayer::Boxes(const std::vector<Relief>& reliefs) {
 }
 
 std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<Boulder>& boulders,
-                                                              double spacing) const {
+                                                              double spacing, bool fillets) const {
     const BoulderRelief look = options_.rendering.relief;
     const bool filleted = options_.fillet.heightShare > 0.0;
     std::vector<Relief> reliefs;
@@ -219,6 +403,29 @@ std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<
         if (filleted) {
             reach = std::fmax(reach, FilletReach(boulder, options_.fillet));
         }
+        if (filleted && fillets) {
+            const double top = options_.fillet.heightShare * boulder.ExposedHeight();
+            if (rock && look == BoulderRelief::Dome) {
+                if (boulder.facetCount == 0) {
+                    relief.contacts.push_back(RoundDomeContact(boulder, width, top));
+                }
+            } else {
+                std::optional<TriangleMesh> own;
+                const TriangleMesh* shape = relief.Shape();
+                if (shape == nullptr) {
+                    own = PlacedOnLevel(boulder);
+                    shape = &*own;
+                }
+                const Boulder local = InLocalFrame(boulder);
+                relief.contacts = ShapeContacts(*shape, {local.x, local.y}, top,
+                                                FilletDirections(boulder.diameter, spacing));
+                double farthest = 0.5 * boulder.diameter;
+                for (const FilletContact& contact : relief.contacts) {
+                    farthest = std::fmax(farthest, contact.distance);
+                }
+                reach = std::fmax(reach, farthest + options_.fillet.widthRatio * boulder.diameter);
+            }
+        }
         relief.box = ReliefBox(boulder.x, boulder.y, reach, surface_);
         reliefs.push_back(std::move(relief));
     }
@@ -231,12 +438,12 @@ void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& contex
     }
     const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
     const std::vector<Boulder> boulders = ReliefBoulders(samples.Bounds(), spacing, context.ground);
-    const std::vector<Relief> reliefs = PrepareRelief(boulders, spacing);
+    const std::vector<Relief> reliefs = PrepareRelief(boulders, spacing, true);
     DrawFeatures(samples, context.threads, Boxes(reliefs), surface_,
                  [&](float height, float base, const Vec2d& p, std::size_t n) {
                      const Relief& relief = reliefs[n];
                      return AddRelief(height, base, p.x, p.y, *relief.boulder, relief.Shape(),
-                                      relief.weight, relief.rock, relief.width);
+                                      relief.weight, relief.rock, relief.width, relief.contacts);
                  });
 }
 

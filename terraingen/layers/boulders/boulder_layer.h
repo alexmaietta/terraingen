@@ -274,9 +274,11 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// `height` at (`x`, `y`) raised to at least `base` (the height before any boulder) plus the
     /// boulder's exposed part and its fillet, so boulders and fillets form a union instead of
     /// stacking; `placed` is its shape placed on level ground at 0 for `BoulderRelief::Shape`, a
-    /// dome is averaged over `width` meters, and without `rock` only the fillet is drawn.
+    /// dome is averaged over `width` meters, without `rock` only the fillet is drawn, and the
+    /// fillet meets the boulder at `contacts` as in `Relief`.
     float AddRelief(float height, float base, double x, double y, const Boulder& boulder,
-                    const TriangleMesh* placed, double weight, bool rock, double width) const;
+                    const TriangleMesh* placed, double weight, bool rock, double width,
+                    const std::vector<FilletContact>& contacts) const;
     /// The height of `boulder`'s exposed rock above the ground at (`x`, `y`), 0 off it; `placed`
     /// and `width` as in `AddRelief`.
     double RockRelief(double x, double y, const Boulder& boulder, const TriangleMesh* placed,
@@ -303,6 +305,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         double width;  ///< Width a dome is averaged over: the spacing, or 0 for shapes.
         std::optional<TriangleMesh> placed;
         Bounds2d box;
+        /// Where the fillet meets the boulder: one contact for every direction around a round
+        /// dome, contacts at even steps of azimuth from east around a shape or model, and none
+        /// for a dome cut by facets, met where each sample is drawn.
+        std::vector<FilletContact> contacts{};
 
         /// The placed shape, or null for a dome.
         const TriangleMesh* Shape() const {
@@ -321,8 +327,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
                                         const Ground* ground) const;
     /// The boxes of `reliefs`, in order.
     static std::vector<Bounds2d> Boxes(const std::vector<Relief>& reliefs);
-    /// The boulders of `boulders` resolved at `spacing` with relief or a fillet to draw, in order.
-    std::vector<Relief> PrepareRelief(const std::vector<Boulder>& boulders, double spacing) const;
+    /// The boulders of `boulders` resolved at `spacing` with relief or a fillet to draw, in order,
+    /// with where their fillets meet them when `fillets` is set.
+    std::vector<Relief> PrepareRelief(const std::vector<Boulder>& boulders, double spacing,
+                                      bool fillets) const;
 
     /// The ejecta craters that can add blocks in `region`, indexed by how far their blocks reach.
     EjectaIndex EjectaCraters(const Bounds2d& region) const;

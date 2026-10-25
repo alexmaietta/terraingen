@@ -98,6 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Boulder fillets no longer leave a level bench where they meet the boulder: the fillet stood at its full height all the way in to the boulder's radius, so between there and where the rock rose above it the heights were flat. It now meets the rock where the rock stands as high as the fillet (`FilletContact`; on an uncut dome `DomeFilletContact`, `sqrt(1 - height_share^2)` radii out), in every direction around shapes and models, and along each direction on domes cut by ventifact facets, and gives way to the rock inside. `FilletHeight` (Python `fillet_height`) is 0 within the contact and takes the contact as an optional fourth argument; Python adds `FilletContact` and `dome_fillet_contact`.
 - Boulder layers measure unresolved cover, and rock albedo shades, at spacings where the fade reaches the largest boulder: `ForEachLogSimpsonNode` ends exactly at its bounds, so a size distribution is no longer evaluated just past its largest diameter (default boulders threw at 2 m spacing).
 
 ## [0.2.0] - 2026-10-23

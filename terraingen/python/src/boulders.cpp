@@ -264,12 +264,35 @@ void BindClustersAndFragments(nb::module_& m) {
 void BindFillet(nb::module_& m) {
     BindOptions<BoulderFillet>(
         m, "BoulderFillet",
-        "Regolith piled against each boulder's base: `height_share` of its exposed height out to "
-        "its radius, falling to nothing `width_ratio` diameters further out; 0 `height_share` "
-        "draws none.",
+        "Regolith piled against each boulder's base: it meets the boulder's flank where the rock "
+        "stands `height_share` of its exposed height, falling to nothing `width_ratio` diameters "
+        "beyond its radius; 0 `height_share` draws none.",
         {&ValidateBoulderFillet, "validate_boulder_fillet", "fillet"});
-    m.def("fillet_height", &FilletHeight, "boulder"_a, "distance"_a, "fillet"_a,
-          "The height (m) of `boulder`'s fillet `distance` meters from its center.");
+    nb::class_<FilletContact>(m, "FilletContact",
+                              "Where a fillet meets its boulder along one direction: `distance` "
+                              "(m) from the center and the rock's `height` (m) there.")
+        .def(nb::init<>())
+        .def(
+            "__init__",
+            [](FilletContact* self, double distance, double height) {
+                new (self) FilletContact{distance, height};
+            },
+            "distance"_a, "height"_a)
+        .def_rw("distance", &FilletContact::distance)
+        .def_rw("height", &FilletContact::height);
+    m.def("dome_fillet_contact", &DomeFilletContact, "boulder"_a, "fillet"_a,
+          "Where `fillet` meets `boulder` drawn as an uncut dome, the same in every direction.");
+    m.def("fillet_height",
+          nb::overload_cast<const Boulder&, double, const BoulderFillet&>(&FilletHeight),
+          "boulder"_a, "distance"_a, "fillet"_a,
+          "The height (m) of `boulder`'s fillet `distance` meters from its center around "
+          "`boulder` drawn as an uncut dome.");
+    m.def("fillet_height",
+          nb::overload_cast<const Boulder&, double, const BoulderFillet&, const FilletContact&>(
+              &FilletHeight),
+          "boulder"_a, "distance"_a, "fillet"_a, "contact"_a,
+          "The height (m) of `boulder`'s fillet `distance` meters from its center along a "
+          "direction where it meets the boulder at `contact`: 0 nearer the center.");
     BindOptions<BoulderVentifacts>(
         m, "BoulderVentifacts",
         "Windward facets planed on `share` of the boulders by wind blowing toward "

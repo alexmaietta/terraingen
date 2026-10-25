@@ -493,16 +493,140 @@ TEST(BoulderLayer, SharesShapesBetweenBouldersOfOnePrototype) {
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
 
-TEST(FilletHeight, IsLevelToTheRadiusThenFallsToNothingAtItsReach) {
+TEST(FilletHeight, RisesFromItsReachToWhereTheDomeStandsAsHighThenGivesWayToTheRock) {
     const Boulder boulder{0.0, 0.0, 2.0, 1.0, 0.25, 0.0, 0.0, 1u};
     const terraingen::BoulderFillet fillet{0.4, 0.25};
-    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 0.0, fillet), 0.3);
-    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 1.0, fillet), 0.3);
-    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 1.25, fillet), 0.075);
+    const terraingen::FilletContact contact = terraingen::DomeFilletContact(boulder, fillet);
+    EXPECT_DOUBLE_EQ(contact.distance, std::sqrt(1.0 - 0.4 * 0.4));
+    EXPECT_DOUBLE_EQ(contact.height, 0.3);
+    EXPECT_EQ(terraingen::FilletHeight(boulder, 0.0, fillet), 0.0) << "under the rock";
+    EXPECT_EQ(terraingen::FilletHeight(boulder, 0.9 * contact.distance, fillet), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, contact.distance, fillet), 0.3);
+    const double t = (1.25 - contact.distance) / (1.5 - contact.distance);
+    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 1.25, fillet), 0.3 * (1.0 - t) * (1.0 - t));
     EXPECT_EQ(terraingen::FilletHeight(boulder, 1.5, fillet), 0.0);
     EXPECT_DOUBLE_EQ(terraingen::FilletReach(boulder, fillet), 1.5);
+    const double dome =
+        boulder.ExposedHeight() * std::sqrt(1.0 - contact.distance * contact.distance);
+    EXPECT_NEAR(dome, contact.height, 1e-12) << "it meets the dome's flank at its own height";
+
+    const terraingen::FilletContact wide{1.2, 0.2};
+    EXPECT_EQ(terraingen::FilletHeight(boulder, 1.1, fillet, wide), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 1.2, fillet, wide), 0.2);
+    EXPECT_DOUBLE_EQ(terraingen::FilletHeight(boulder, 1.45, fillet, wide), 0.05)
+        << "it reaches its width beyond a contact past the radius";
+    EXPECT_EQ(terraingen::FilletHeight(boulder, 1.7, fillet, wide), 0.0);
     EXPECT_THROW(terraingen::ValidateBoulderFillet({1.5, 0.25}), std::invalid_argument);
     EXPECT_THROW(terraingen::ValidateBoulderFillet({0.4, 0.0}), std::invalid_argument);
+}
+
+namespace {
+
+/// A layer of one unburied 2 m boulder 1 m high at the origin with a fillet, drawn as `relief`;
+/// a model with `model`, cut by a facet facing west with `facets`.
+std::shared_ptr<BoulderLayer> FilletedBoulder(terraingen::BoulderRelief relief, double share,
+                                              bool model = false, bool facets = false) {
+    BoulderLayerOptions options;
+    options.rendering.relief = relief;
+    options.fillet = {share, 0.3};
+    if (facets) {
+        options.ventifacts.share = 1.0;
+        options.ventifacts.windAzimuthDegrees = 0.0;
+    }
+    terraingen::ManualBoulder boulder(0.0, 0.0, 2.0);
+    boulder.Height(1.0).Burial(0.0).YawDegrees(0.0).LeanDegrees(0.0).TiltDegrees(0.0).Wear(0.5);
+    boulder.Model(model);
+    return BoulderLayer::Manual({boulder}, options);
+}
+
+/// Heights of `layer` on level ground at 0, every `step` meters from `from` to `to` meters out
+/// from the origin toward `azimuth` (radians from east), drawn at `step` spacing.
+std::vector<float> RadialProfile(const BoulderLayer& layer, double azimuth, double from, double to,
+                                 double step) {
+    std::vector<float> heights;
+    for (double d = from; d <= to + 1e-9; d += step) {
+        heights.push_back(
+            layer.ApplyAt(0.0f, d * std::cos(azimuth), d * std::sin(azimuth), {step}));
+    }
+    return heights;
+}
+
+/// The longest run of steps of `profile`, `step` meters apart, whose ends both stand between `low`
+/// and `high` meters and whose slope is under `slope`: a bench.
+std::size_t LongestBench(const std::vector<float>& profile, double step, double low, double high,
+                         double slope) {
+    std::size_t longest = 0;
+    std::size_t run = 0;
+    for (std::size_t i = 0; i + 1 < profile.size(); ++i) {
+        const double a = profile[i];
+        const double b = profile[i + 1];
+        const bool level =
+            a > low && b > low && a < high && b < high && std::fabs(b - a) < slope * step;
+        run = level ? run + 1 : 0;
+        longest = std::max(longest, run);
+    }
+    return longest;
+}
+
+}  // namespace
+
+TEST(BoulderLayer, FilletsRampIntoDomesWithNoBenchAtTheContact) {
+    const double step = 0.01;
+    const auto layer = FilletedBoulder(terraingen::BoulderRelief::Dome, 0.5);
+    for (const double azimuth : {0.0, 1.0, 2.5, 4.0}) {
+        const std::vector<float> profile = RadialProfile(*layer, azimuth, 0.5, 1.6, step);
+        for (std::size_t i = 0; i + 1 < profile.size(); ++i) {
+            ASSERT_LE(profile[i + 1], profile[i] + 1e-5f)
+                << "heights fall from the flank down the fillet at " << 0.5 + step * i << " m";
+        }
+        EXPECT_GT(profile[static_cast<std::size_t>(0.6 / step)], 0.1f) << "the fillet at 1.1 m";
+        EXPECT_LE(LongestBench(profile, step, 0.02, 2.0, 0.05), 1u)
+            << "no level ring where the fillet meets the dome, azimuth " << azimuth;
+    }
+}
+
+TEST(BoulderLayer, FilletsRampIntoFacetedDomesWithNoBenchAtTheContact) {
+    const double step = 0.01;
+    const auto layer = FilletedBoulder(terraingen::BoulderRelief::Dome, 0.5, false, true);
+    const auto records = terraingen::testing::Records(layer->Boulders({-3.0, -3.0, 3.0, 3.0}));
+    ASSERT_EQ(records.size(), 1u);
+    ASSERT_EQ(static_cast<int>(records[0].facetCount), 1);
+    for (const double azimuth : {0.0, 2.5, terraingen::kPi, 4.0}) {
+        const std::vector<float> profile = RadialProfile(*layer, azimuth, 0.0, 1.6, step);
+        EXPECT_LE(LongestBench(profile, step, 0.02, 0.52, 0.05), 1u)
+            << "no shelf at the fillet's height over the facet, azimuth " << azimuth;
+    }
+}
+
+TEST(BoulderLayer, FilletsRampIntoShapesAndModelsWithNoBench) {
+    const double step = 0.01;
+    for (const bool model : {false, true}) {
+        const auto relief =
+            model ? terraingen::BoulderRelief::None : terraingen::BoulderRelief::Shape;
+        const auto filleted = FilletedBoulder(relief, 0.4, model);
+        const auto bare = FilletedBoulder(relief, 0.0, model);
+        if (model) {
+            EXPECT_EQ(filleted->ApplyAt(0.0f, 0.0, 0.0, {step}), 0.0f)
+                << "no fillet under the model";
+        }
+        std::size_t seen = 0;
+        for (int k = 0; k < 16; ++k) {
+            const double azimuth = 2.0 * terraingen::kPi * k / 16.0;
+            const std::vector<float> piled = RadialProfile(*filleted, azimuth, 0.0, 1.8, step);
+            const std::vector<float> rock = RadialProfile(*bare, azimuth, 0.0, 1.8, step);
+            for (std::size_t i = 0; i + 1 < piled.size(); ++i) {
+                const bool shown = piled[i] > rock[i] + 1e-4f && piled[i + 1] > rock[i + 1] + 1e-4f;
+                if (!shown || piled[i] < 0.02f) {
+                    continue;
+                }
+                ++seen;
+                ASSERT_GE(piled[i] - piled[i + 1], 0.02 * step)
+                    << "the fillet falls away from the boulder wherever it shows, azimuth "
+                    << azimuth << " at " << step * i << " m" << (model ? " around a model" : "");
+            }
+        }
+        EXPECT_GT(seen, 100u) << "the fillet shows around the boulder";
+    }
 }
 
 TEST(BoulderLayer, PilesFilletsAroundBouldersThatPointQueriesMatch) {

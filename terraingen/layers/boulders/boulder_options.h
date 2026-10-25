@@ -295,9 +295,9 @@ struct BoulderPose {
 };
 
 /// Regolith piled against each boulder's base, drawn into the heights around boulders drawn
-/// there and around boulder models alike: `heightShare` of the exposed height out to the boulder's
-/// radius, then falling as (1 - t)^2 to nothing `widthRatio` diameters further out. Where the
-/// boulder stands above it, the boulder shows.
+/// there and around boulder models alike: it meets the boulder's flank where the rock stands
+/// `heightShare` of the exposed height (`FilletContact`), then falls as (1 - t)^2 to nothing
+/// `widthRatio` diameters beyond the boulder's radius. Within that contact the boulder shows.
 struct BoulderFillet {
     double heightShare = 0.0;  ///< Height over the boulder's exposed height, in [0, 1]; 0 for none.
     double widthRatio = 0.3;   ///< Reach beyond the boulder's radius, over its diameter.
@@ -341,10 +341,35 @@ void ValidateBoulderVentifacts(const BoulderVentifacts& ventifacts);
 /// winds are left to the site: Gale's came from the southwest and north-northeast.
 BoulderVentifacts GaleVentifacts();
 
-/// The height (m) of `boulder`'s fillet `distance` meters from its center.
+/// Where a fillet meets its boulder along one direction from the boulder's center: the rock's
+/// outermost point there as high as the fillet stands, `heightShare` of the boulder's exposed
+/// height, or the rock's highest point where it stands lower.
+struct FilletContact {
+    double distance = 0.0;  ///< Distance (m) from the boulder's center.
+    double height = 0.0;    ///< Height (m) of the rock there, which the fillet rises to.
+
+    bool operator==(const FilletContact& other) const {
+        return distance == other.distance && height == other.height;
+    }
+};
+
+/// Where `fillet` meets `boulder` drawn as an uncut dome, the same in every direction: where the
+/// dome stands `heightShare` of its exposed height.
+FilletContact DomeFilletContact(const Boulder& boulder, const BoulderFillet& fillet);
+
+/// The height (m) of `boulder`'s fillet `distance` meters from its center along a direction where
+/// it meets the boulder at `contact`: 0 nearer the center, where the rock stands above it, then
+/// falling from the contact's height as (1 - t)^2 to nothing `widthRatio` diameters beyond the
+/// farther of the boulder's radius and the contact.
+double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet,
+                    const FilletContact& contact);
+
+/// The height (m) of `boulder`'s fillet `distance` meters from its center around `boulder` drawn
+/// as an uncut dome (`DomeFilletContact`).
 double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet);
 
-/// How far (m) from its center `boulder`'s fillet reaches: its radius plus the fillet's width.
+/// How far (m) from its center `boulder`'s fillet reaches: its radius plus the fillet's width, or
+/// that width beyond a contact farther out on a shape wider than its diameter.
 double FilletReach(const Boulder& boulder, const BoulderFillet& fillet);
 
 /// Which boulders are drawn into the heights: those from `minDiameter` up to `maxDiameter` that are

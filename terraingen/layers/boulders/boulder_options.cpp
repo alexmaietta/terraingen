@@ -8,6 +8,7 @@
 #include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -265,14 +266,25 @@ double FilletReach(const Boulder& boulder, const BoulderFillet& fillet) {
     return (0.5 + fillet.widthRatio) * boulder.diameter;
 }
 
-double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet) {
-    const double radius = 0.5 * boulder.diameter;
-    const double top = fillet.heightShare * boulder.ExposedHeight();
-    if (distance <= radius) {
-        return top;
+FilletContact DomeFilletContact(const Boulder& boulder, const BoulderFillet& fillet) {
+    const double share = std::clamp(fillet.heightShare, 0.0, 1.0);
+    return {0.5 * boulder.diameter * std::sqrt(1.0 - share * share),
+            share * boulder.ExposedHeight()};
+}
+
+double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet,
+                    const FilletContact& contact) {
+    if (distance < contact.distance || !(contact.height > 0.0)) {
+        return 0.0;
     }
-    const double t = (distance - radius) / (fillet.widthRatio * boulder.diameter);
-    return t >= 1.0 ? 0.0 : top * (1.0 - t) * (1.0 - t);
+    const double reach =
+        std::fmax(0.5 * boulder.diameter, contact.distance) + fillet.widthRatio * boulder.diameter;
+    const double t = (distance - contact.distance) / (reach - contact.distance);
+    return t >= 1.0 ? 0.0 : contact.height * (1.0 - t) * (1.0 - t);
+}
+
+double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet& fillet) {
+    return FilletHeight(boulder, distance, fillet, DomeFilletContact(boulder, fillet));
 }
 
 void ValidateManualBoulder(const ManualBoulder& boulder) {
