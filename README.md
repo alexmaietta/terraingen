@@ -35,8 +35,9 @@ We also provide:
 - Smart and tested defaults for various surface features.
 - A command-line interface that generates terrain from JSON configuration files.
 - A GUI for editing configurations and viewing the results in 3D, rendered with Ernie.
-- Planned: a standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
-- Planned: example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
+- A standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
+- Example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
+- A broad and comprehensive [gallery](https://alexmaietta.github.io/terraingen/gallery) showcasing the various features and capabilities of TerrainGen.
 
 For more information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
 
@@ -82,6 +83,10 @@ EOF
 terraingen validate config.json # optionally validate the config
 terraingen config.json # will output terrain.tif
 ```
+
+For more examples, guides, and snippets to building terrains and using TerrainGen, see our latest [guides](https://alexmaietta.github.io/terraingen/guides).
+
+Looking for a theoretical background behind TerrainGen, see our [concepts](https://alexmaietta.github.io/terraingen/concepts) and [features](https://alexmaietta.github.io/terraingen/features) documentation pages.
 
 ## Requirements
 
