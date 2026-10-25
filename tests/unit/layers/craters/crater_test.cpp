@@ -152,3 +152,29 @@ TEST(CraterList, BuildsFromAListOfCratersInOrder) {
     EXPECT_EQ(list.At(0), terraingen::ManualCrater(0.0, 0.0, 10.0).Depth(2.0));
     EXPECT_EQ(list.At(1), (Crater{5.0, 6.0, 7.0, 1.5, 42u}));
 }
+
+TEST(CraterList, KeepsTheReplaceColumn) {
+    terraingen::CraterList list;
+    list.Append(Crater{0.0, 0.0, 10.0, 0.0, 1u});
+    EXPECT_FALSE(list.AnyReplace());
+    list.Append(terraingen::ManualCrater(5.0, 0.0, 20.0).Replace());
+    ASSERT_EQ(list.Replace().size(), 2u);
+    EXPECT_EQ(list.Replace()[0], 0u);
+    EXPECT_EQ(list.Replace()[1], 1u);
+    EXPECT_TRUE(list.AnyReplace());
+    EXPECT_TRUE(list.At(1).replace);
+    terraingen::CraterList copy;
+    copy.Append(list);
+    EXPECT_EQ(copy.At(1), list.At(1));
+    EXPECT_NE(list.At(1), terraingen::ManualCrater(5.0, 0.0, 20.0));
+    EXPECT_FALSE(terraingen::ManualCrater(5.0, 0.0, 20.0).Replace().Replace(false).replace);
+}
+
+TEST(CraterSelection, TakesReplacingCratersAsGenerated) {
+    terraingen::CraterSelection generated;
+    generated.manual = false;
+    EXPECT_FALSE(generated.Includes(terraingen::ManualCrater(0.0, 0.0, 10.0)));
+    EXPECT_TRUE(generated.Includes(terraingen::ManualCrater(0.0, 0.0, 10.0).Replace()));
+    generated.maxDiameter = 5.0;
+    EXPECT_FALSE(generated.Includes(terraingen::ManualCrater(0.0, 0.0, 10.0).Replace()));
+}

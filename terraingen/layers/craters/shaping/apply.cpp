@@ -31,6 +31,22 @@ Bounds2d Footprint(const PreparedCrater& prepared, double reachRadii, const Surf
                           CraterReach(prepared, reachRadii));
 }
 
+/// Craters `indices` of `prepared` split into those that replace the terrain beneath them and the
+/// others, each in order.
+struct ReplacingSplit {
+    std::vector<std::size_t> replacing;
+    std::vector<std::size_t> others;
+};
+
+ReplacingSplit SplitReplacing(const std::vector<PreparedCrater>& prepared,
+                              const std::vector<std::size_t>& indices) {
+    ReplacingSplit split;
+    for (const std::size_t k : indices) {
+        (prepared[k].crater.replace ? split.replacing : split.others).push_back(k);
+    }
+    return split;
+}
+
 /// A prepared crater with the box its profile can reach.
 struct ReachingCrater {
     PreparedCrater* prepared;
@@ -270,12 +286,19 @@ bool ApplyAtPoints(SampleBlock& samples, const CraterList& craters, const Crater
     for (const ReachingCrater& crater : reaching) {
         indices.push_back(static_cast<std::size_t>(crater.prepared - prepared.data()));
     }
-    if (options.datum != CraterDatum::None && !reaching.empty()) {
-        if (!cached) {
-            FitPointDatums(prepared, indices, models, kernel, options, sampling);
-        } else if (!UseCachedDatums(prepared, indices, models, options, sampling)) {
+    const ReplacingSplit split = SplitReplacing(prepared, indices);
+    if (!split.replacing.empty() && !sampling.ground) {
+        throw std::invalid_argument("Replacing craters at points need the ground");
+    }
+    if (cached) {
+        if (!UseCachedDatums(prepared, indices, models, options, sampling)) {
             return false;
         }
+    } else {
+        if (options.datum != CraterDatum::None && !split.others.empty()) {
+            FitPointDatums(prepared, split.others, models, kernel, options, sampling);
+        }
+        FitReplacementDatums(prepared, split.replacing, nullptr, models, kernel, options, sampling);
     }
     const CraterKernelBatch batch =
         MakeCraterKernelBatch(kernel, profile, prepared, indices, options);
@@ -324,9 +347,11 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     const std::vector<std::size_t> onRaster = CratersOnRaster(
         raster, prepared, CraterReachRadii(profile, options), options.surface, windows);
     const CraterShapeKernel kernel = MakeCraterShapeKernel(profile, options);
-    if (options.datum != CraterDatum::None && !onRaster.empty()) {
-        FitGridDatums(prepared, onRaster, raster, models, kernel, options, sampling);
+    const ReplacingSplit split = SplitReplacing(prepared, onRaster);
+    if (options.datum != CraterDatum::None && !split.others.empty()) {
+        FitGridDatums(prepared, split.others, raster, models, kernel, options, sampling);
     }
+    FitReplacementDatums(prepared, split.replacing, &raster, models, kernel, options, sampling);
     CraterKernelBatch batch = MakeCraterKernelBatch(kernel, profile, prepared, onRaster, options);
     if (!ShapeTilesOnGpu(raster, sampling.backend, sampling.threads, kernel, batch, prepared,
                          onRaster, windows, options.surface)) {

@@ -60,8 +60,9 @@ std::optional<CpuColumn<T>> TableColumn(const nb::dict& table, const char* name,
 }
 
 /// @brief A crater list from NumPy columns 'x', 'y', 'diameter' and optionally 'age_gyr', 'id',
-/// 'manual', 'depth' and 'rim_height'; IDs of 0 are hashed from position and size. 'rim_height'
-/// is read only with 'depth', since attribute tables report the shaped rim under that name.
+/// 'manual', 'replace', 'depth' and 'rim_height'; IDs of 0 are hashed from position and size.
+/// 'rim_height' is read only with 'depth', since attribute tables report the shaped rim under that
+/// name.
 CraterList FromTable(const nb::dict& table) {
     const CpuColumn<double> x = *TableColumn<double>(table, "x", "float64");
     const CpuColumn<double> y = *TableColumn<double>(table, "y", "float64");
@@ -72,10 +73,11 @@ CraterList FromTable(const nb::dict& table) {
     const auto age = TableColumn<double>(table, "age_gyr", "float64");
     const auto ids = TableColumn<std::uint64_t>(table, "id", "uint64");
     const auto manual = TableColumn<double>(table, "manual", "float64");
+    const auto replace = TableColumn<double>(table, "replace", "float64");
     const auto depth = TableColumn<double>(table, "depth", "float64");
     const auto rimHeight =
         depth ? TableColumn<double>(table, "rim_height", "float64") : std::nullopt;
-    for (const auto* column : {&age, &manual, &depth, &rimHeight}) {
+    for (const auto* column : {&age, &manual, &replace, &depth, &rimHeight}) {
         if (*column && (*column)->shape(0) != x.shape(0)) {
             throw std::invalid_argument("Crater columns must have the same length");
         }
@@ -86,6 +88,7 @@ CraterList FromTable(const nb::dict& table) {
         Crater crater{x.data()[i], y.data()[i], diameter.data()[i]};
         crater.ageGyr = age ? age->data()[i] : 0.0;
         crater.manual = manual ? manual->data()[i] != 0.0 : true;
+        crater.replace = replace && replace->data()[i] != 0.0;
         if (depth) {
             crater.depth = UnlessNan(depth->data()[i]);
         }
@@ -108,11 +111,11 @@ void BindCrater(nb::module_& m) {
         .def(
             "__init__",
             [](Crater* self, double x, double y, double diameter, double ageGyr, std::uint64_t id,
-               std::optional<double> depth, std::optional<double> rimHeight) {
-                new (self) Crater{x, y, diameter, ageGyr, id, true, depth, rimHeight};
+               std::optional<double> depth, std::optional<double> rimHeight, bool replace) {
+                new (self) Crater{x, y, diameter, ageGyr, id, true, depth, rimHeight, replace};
             },
             "x"_a, "y"_a, "diameter"_a, "age_gyr"_a = 0.0, "id"_a = 0,
-            "depth"_a.none() = nb::none(), "rim_height"_a.none() = nb::none())
+            "depth"_a.none() = nb::none(), "rim_height"_a.none() = nb::none(), "replace"_a = false)
         .def_rw("x", &Crater::x)
         .def_rw("y", &Crater::y)
         .def_rw("diameter", &Crater::diameter)
@@ -124,6 +127,9 @@ void BindCrater(nb::module_& m) {
                 "model.")
         .def_rw("rim_height", &Crater::rimHeight,
                 "Rim crest above the pre-impact surface (m), with a depth; None derives it.")
+        .def_rw("replace", &Crater::replace,
+                "Replaces whatever the terrain holds beneath it with this crater, cut into a plane "
+                "fitted around it (`CraterReplacement`).")
         .def("__repr__", [](const Crater& c) {
             std::string text = "Crater(" + std::to_string(c.x) + ", " + std::to_string(c.y) + ", " +
                                std::to_string(c.diameter) + ", age_gyr=" + std::to_string(c.ageGyr);
@@ -132,6 +138,9 @@ void BindCrater(nb::module_& m) {
             }
             if (c.rimHeight) {
                 text += ", rim_height=" + std::to_string(*c.rimHeight);
+            }
+            if (c.replace) {
+                text += ", replace=True";
             }
             return text + ")";
         });
@@ -183,7 +192,13 @@ void BindCraterList(nb::module_& m) {
             "Every explicit rim-to-floor depth (m), NaN where the models give it.")
         .def_prop_ro(
             "rim_heights", [](const CraterList& list) { return Column(list.RimHeights()); },
-            "Every explicit rim height (m), NaN where it is derived.");
+            "Every explicit rim height (m), NaN where it is derived.")
+        .def_prop_ro(
+            "replace",
+            [](const CraterList& list) {
+                return Column(std::vector<std::uint8_t>(list.Replace()));
+            },
+            "1 for craters that replace the terrain beneath them, 0 for others.");
 }
 
 void BindSpacing(nb::module_& m) {
@@ -268,6 +283,12 @@ void BindApplyEnums(nb::module_& m) {
     BindOptions<CraterBlend>(
         m, "CraterBlend",
         "Where a crater's replaced interior blends into the draped exterior, in radii.");
+    BindOptions<CraterReplacement>(
+        m, "CraterReplacement",
+        "How craters with `replace` replace the terrain beneath them: in full to `start_radii`, "
+        "blending to none at `end_radii` (None for the profile's reach), cut into a plane fitted "
+        "on a ring `fit_width_radii` wide beyond it.",
+        {&ValidateCraterReplacement, "validate_crater_replacement", "replacement"});
 }
 
 void BindSelectionClass(nb::module_& m) {
@@ -433,7 +454,26 @@ void BindLayerOptions(nb::module_& m) {
                 "The secondaries layers throw from these craters, taken out of a total map.")
         .def_rw("source_resolves_pixels", &CraterLayerOptions::sourceResolvesPixels,
                 "Source cells across from which a layer's source holds a crater, so generated "
-                "craters that large are dropped; None keeps every one. Unit: px.");
+                "craters that large are dropped; None keeps every one. Unit: px.")
+        .def_rw("inherited", &CraterLayerOptions::inherited,
+                "Craters of a coarser level stamped again sharp where the source softened them.");
+}
+
+void BindInheritedCraters(nb::module_& m) {
+    auto inherited = nb::class_<InheritedCraters>(
+        m, "InheritedCraters",
+        "Craters a coarser level holds that the layer's source softens, such as a coarser run's "
+        "`read_crater_list` over the heights it wrote, or a DEM's catalog: each one the source "
+        "resolves, from `min_source_px` (None follows the layer's `source_resolves_px`) "
+        "up to `max_source_px` of its cells across, replaces what the source holds with its "
+        "ID, age, depth and rim as listed; generation fills the gaps beneath. Without a source "
+        "every one is stamped.");
+    BindKwargsInit<InheritedCraters>(inherited);
+    inherited.def_rw("craters", &InheritedCraters::craters)
+        .def_rw("min_source_px", &InheritedCraters::minSourcePixels)
+        .def_rw("max_source_px", &InheritedCraters::maxSourcePixels)
+        .def("validate", &ValidateInheritedCraters, kValidateDoc);
+    m.def("validate_inherited_craters", &ValidateInheritedCraters, "inherited"_a, kValidateDoc);
 }
 
 nb::dict CraterLayerTable(const CraterLayer& layer, const Bounds2d& region, double spacing) {
@@ -446,6 +486,7 @@ nb::dict CraterLayerTable(const CraterLayer& layer, const Bounds2d& region, doub
 }
 
 void BindCraterLayer(nb::module_& m) {
+    BindInheritedCraters(m);
     BindLayerOptions(m);
     m.def("default_crater_models", &DefaultCraterModels,
           "The crater models a configuration's crater layer has by default.");

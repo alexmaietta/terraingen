@@ -33,6 +33,43 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
        "Height of the rim crest above the surface the crater formed on, in meters; needs a "
        "depth. Unset lowers the fresh rim in proportion to the depth.",
        "m", AtLeast(0.0));
+    io("replace", crater.replace,
+       "Replaces whatever the terrain holds there with a sharp crater of this diameter and depth, "
+       "cut into a plane fitted around it, such as a crater a DEM holds blurred; apply.replacement "
+       "sets how far. It takes the irregular outline, secondaries and albedo generated craters "
+       "get.");
+}
+
+template <typename IO> void Fields(IO& io, CraterReplacement& replacement) {
+    io("start_radii", replacement.startRadii,
+       "Distance from the center, in crater radii, up to which a replacing crater replaces the "
+       "terrain in full.",
+       "", Above(0.0));
+    io("end_radii", replacement.endRadii,
+       "Distance from the center, in crater radii, from which nothing is replaced; at most the "
+       "profile's reach, and unset for that reach, so the replaced crater's rim goes too.",
+       "", Above(0.0));
+    io("fit_width_radii", replacement.fitWidthRadii,
+       "Width, in crater radii, of the ring outside end_radii that the replacing crater's plane "
+       "datum is fitted on.",
+       "", Above(0.0));
+}
+
+template <typename IO> void Fields(IO& io, InheritedCratersSpec& inherited) {
+    io("path", inherited.path,
+       InputPathHelp("Crater list of the coarser level, CSV or JSON as a crater_list output "
+                     "writes it (with attributes for the realized depths and rims), or a catalog "
+                     "of the craters a DEM holds"));
+    io("min_source_px", inherited.minSourcePixels,
+       "Source cells across from which a listed crater is stamped again sharp and generated "
+       "craters are dropped; smaller ones are left to generation, which fills the gaps. Unset "
+       "follows source_resolves_px; lower it to clean up the smaller craters a coarser run drew "
+       "blurred into the source.",
+       "px", Above(0.0));
+    io("max_source_px", inherited.maxSourcePixels,
+       "Source cells across from which listed craters are left as the source holds them, since "
+       "interpolation barely softens them; unset stamps every one from min_source_px.",
+       "px", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, CraterSpacing& spacing) {
@@ -163,7 +200,8 @@ template <typename IO> void Fields(IO& io, CraterIrregularity& irregularity) {
        "Seed the outlines are drawn with, along with each crater's ID; changing it reshapes every "
        "irregular crater. Unset follows the layer's seed.");
     SelectionFields(io, irregularity.selection, "craters made irregular",
-                    "Makes manual craters irregular too; otherwise only generated craters are.");
+                    "Makes manual craters irregular too; otherwise only generated and replacing "
+                    "craters are.");
     RoughRimFields(io, irregularity);
     ElongationFields(io, irregularity);
     RadialMarkFields(io, irregularity);
@@ -375,6 +413,10 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
        "", UnitInterval());
     io("blend", apply.blend,
        "Where and how a crater's replaced interior blends into the surrounding terrain.");
+    io("replacement", apply.replacement,
+       "How manual craters with replace set replace the terrain beneath them, whatever the "
+       "datum: in full to start_radii, blending out to end_radii, on a plane fitted on a ring "
+       "beyond.");
     io("irregularity", apply.irregularity,
        "Irregular, non-circular crater outlines: which craters have them and how their shapes "
        "are drawn.");
@@ -447,6 +489,10 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
     SourceResolvesField(io, craters.sourceResolvesPixels,
                         "craters (the smaller of this and completeness when both are set)",
                         "diameter");
+    io("replace_inherited_craters", craters.replaceInheritedCraters,
+       "Craters of a coarser level, such as a coarser run whose heights are the source, stamped "
+       "again sharp with their IDs, ages, depths and rims where the source's upsampling softened "
+       "them; null for none.");
 }
 
 template <typename IO> void Fields(IO& io, RayLayout& layout) {
@@ -522,7 +568,8 @@ template <typename IO> void Fields(IO& io, SecondaryCraterOptions& o) {
     primaryKeys.maxDiameter = "max_primary_diameter_m";
     SelectionFields(
         io, o.selection, "primary craters that throw secondaries",
-        "Lets manual primary craters throw secondaries too; otherwise only generated ones do.",
+        "Lets manual primary craters throw secondaries too; otherwise only generated and "
+        "replacing ones do.",
         primaryKeys);
     io("cell_size_factor", o.cellSizeFactor,
        "Side of the polar cells secondaries are drawn in, as a multiple of each size band's "

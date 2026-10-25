@@ -32,6 +32,10 @@ struct CraterShapeModels;
 CraterState ResolvedCraterState(const CraterProfile& profile, const DegradationModel& degradation,
                                 const Crater& crater, double rate = 1.0);
 
+/// Whether `profile` takes an explicit rim height for a crater `diameter` meters across: not a
+/// `DiffusedProfile`, nor a `FassettThomsonProfile` simple crater, which tie it to the depth.
+bool TakesRimHeight(const CraterProfile& profile, double diameter);
+
 /// `ResolvedCraterState` with the models' profile and degradation, neither null.
 CraterState ResolvedCraterState(const CraterShapeModels& models, const Crater& crater,
                                 double rate = 1.0);

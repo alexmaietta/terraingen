@@ -27,6 +27,15 @@ void FitPointDatums(std::vector<PreparedCrater>& prepared, const std::vector<std
                     const CraterShapeModels& models, const CraterShapeKernel& kernel,
                     const CraterApplyOptions& options, const CraterSampling& sampling);
 
+/// Fits the datums of craters `replacing` of `prepared`, which replace the terrain beneath them
+/// (`FitReplacementDatum`), to `sampling.ground` plus the relief of the craters before each, or
+/// without a ground to `raster`; at points, keeps each in `sampling.cache` where given.
+/// @param raster The grid being shaped, or null for points, which need `sampling.ground`.
+void FitReplacementDatums(std::vector<PreparedCrater>& prepared,
+                          const std::vector<std::size_t>& replacing, const Raster<float>* raster,
+                          const CraterShapeModels& models, const CraterShapeKernel& kernel,
+                          const CraterApplyOptions& options, const CraterSampling& sampling);
+
 /// Gives craters `fitted` of `prepared` their datums from `sampling.cache`, as `FitPointDatums`
 /// kept them, and their shapes on slopes; false, changing nothing, when any datum is not held.
 bool UseCachedDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::size_t>& fitted,

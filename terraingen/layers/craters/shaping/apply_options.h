@@ -10,6 +10,7 @@
 #include "terraingen/layers/fade.h"
 #include "terraingen/util/surface.h"
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -45,6 +46,37 @@ struct CraterBlend {
         return !(*this == other);
     }
 };
+
+/// How craters with `Crater::replace` replace the terrain beneath them: in full out to
+/// `startRadii`, blending to none at `endRadii`, cut into a plane fitted to the ground on a ring
+/// from `endRadii` out to `endRadii` + `fitWidthRadii`, so neither the crater replaced nor its
+/// rim pulls the datum, whatever datum the other craters have.
+struct CraterReplacement {
+    double startRadii = 1.0;  ///< Replaced in full up to here, in crater radii.
+    /// Nothing replaced from here, in crater radii, above `startRadii`; at most the profile's
+    /// reach, and unset for that reach, so the replaced crater's rim and flanks go too.
+    std::optional<double> endRadii{};
+    double fitWidthRadii = 1.0;  ///< Width of the ring the datum is fitted on, in crater radii.
+
+    /// `endRadii`, or a profile reach of `reachRadii` where unset or further.
+    double EndRadii(double reachRadii) const {
+        return endRadii ? std::fmin(*endRadii, reachRadii) : reachRadii;
+    }
+
+    /// Memberwise equality.
+    bool operator==(const CraterReplacement& other) const {
+        return startRadii == other.startRadii && endRadii == other.endRadii &&
+               fitWidthRadii == other.fitWidthRadii;
+    }
+    bool operator!=(const CraterReplacement& other) const {
+        return !(*this == other);
+    }
+};
+
+/// Checks crater replacement settings.
+/// @throws std::invalid_argument for a `startRadii` that is not positive and finite, an
+/// `endRadii` not above it or not finite, or a `fitWidthRadii` that is not positive and finite.
+void ValidateCraterReplacement(const CraterReplacement& replacement);
 
 /// How crater rims are rounded: near the rim, the profile is blended toward itself smoothed across
 /// distance by a Gaussian, with full weight at the rim fading to none at the band's edges.
@@ -287,6 +319,9 @@ struct CraterApplyOptions {
     /// and walls; 1 gives a clean cut.
     double interiorReplacement = 0.0;
     CraterBlend blend{};  ///< Where the replaced interior blends out.
+    /// How craters with `Crater::replace` replace the terrain beneath them, with or without a
+    /// datum for the others.
+    CraterReplacement replacement{};
     /// Irregular, non-circular outlines; off by default.
     CraterIrregularity irregularity{};
     RimSmoothing rimSmoothing{};  ///< Rounded rims; off by default.
@@ -306,9 +341,10 @@ struct CraterApplyOptions {
         return order == other.order && fade == other.fade && datum == other.datum &&
                datumFitRadii == other.datumFitRadii &&
                interiorReplacement == other.interiorReplacement && blend == other.blend &&
-               irregularity == other.irregularity && rimSmoothing == other.rimSmoothing &&
-               noise == other.noise && texture == other.texture && slope == other.slope &&
-               terraces == other.terraces && peaks == other.peaks && surface == other.surface;
+               replacement == other.replacement && irregularity == other.irregularity &&
+               rimSmoothing == other.rimSmoothing && noise == other.noise &&
+               texture == other.texture && slope == other.slope && terraces == other.terraces &&
+               peaks == other.peaks && surface == other.surface;
     }
     bool operator!=(const CraterApplyOptions& other) const {
         return !(*this == other);
@@ -324,10 +360,10 @@ CraterApplyOptions DefaultCraterApply();
 CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t seed);
 
 /// Checks crater apply options.
-/// @throws std::invalid_argument for an invalid `fade`, `irregularity`, `rimSmoothing` or `slope`,
-/// a slope response without the `Plane` datum, a
-/// non-positive `datumFitRadii`, an `interiorReplacement` outside [0, 1], or a blend that does not
-/// satisfy 0 <= `startRadii` < `endRadii`.
+/// @throws std::invalid_argument for an invalid `fade`, `irregularity`, `rimSmoothing`, `slope` or
+/// `replacement`, a slope response without the `Plane` datum, a non-positive `datumFitRadii`, an
+/// `interiorReplacement` outside [0, 1], or a blend that does not satisfy
+/// 0 <= `startRadii` < `endRadii`.
 void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 
 /// Indices into `craters` in the order they are applied; ties fall to age, then diameter, then

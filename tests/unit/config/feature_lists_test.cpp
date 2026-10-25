@@ -4,6 +4,7 @@
 #include "support/temp_path.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/util/bits.h"
+#include "terraingen/util/text.h"
 
 #include <nlohmann/json.hpp>
 
@@ -11,8 +12,10 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 using terraingen::CraterList;
 using terraingen::ListFormat;
@@ -25,9 +28,9 @@ TEST(WriteCraterList, WritesCsvAndJsonExactly) {
     craters.Append({3.0, 4.0, 5.0, 0.0, 7u, true});
     const auto csv = TempPath("terraingen_craters.csv");
     terraingen::WriteCraterList(craters, csv, ListFormat::Csv);
-    EXPECT_EQ(ReadText(csv), "x,y,diameter,age_gyr,id,manual\n"
-                             "0.10000000000000001,-2.5,12.345678901234567,0.25,42,0\n"
-                             "3,4,5,0,7,1\n");
+    EXPECT_EQ(ReadText(csv), "x,y,diameter,age_gyr,id,manual,replace\n"
+                             "0.10000000000000001,-2.5,12.345678901234567,0.25,42,0,0\n"
+                             "3,4,5,0,7,1,0\n");
     const auto json = TempPath("terraingen_craters.json");
     terraingen::WriteCraterList(craters, json, ListFormat::Json);
     const std::string text = ReadText(json);
@@ -50,10 +53,10 @@ TEST(WriteCraterList, AddsAttributesWhenGivenOnePerCrater) {
     const auto csv = TempPath("terraingen_craters_detailed.csv");
     terraingen::WriteCraterList(craters, csv, ListFormat::Csv, attributes);
     EXPECT_EQ(ReadText(csv),
-              "x,y,diameter,age_gyr,id,manual,floor_depth,rim_height,depth_ratio,"
+              "x,y,diameter,age_gyr,id,manual,replace,floor_depth,rim_height,depth_ratio,"
               "freshness,complex\n"
-              "0.10000000000000001,-2.5,12.345678901234567,0.25,42,0,2.5,0.5,0.25,0.75,0\n"
-              "3,4,5,0,7,1,1,0.125,0.20000000000000001,1,1\n");
+              "0.10000000000000001,-2.5,12.345678901234567,0.25,42,0,0,2.5,0.5,0.25,0.75,0\n"
+              "3,4,5,0,7,1,0,1,0.125,0.20000000000000001,1,1\n");
     const auto json = TempPath("terraingen_craters_detailed.json");
     terraingen::WriteCraterList(craters, json, ListFormat::Json, attributes);
     EXPECT_NE(ReadText(json).find("\"freshness\": 0.75"), std::string::npos);
@@ -162,4 +165,100 @@ TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
     EXPECT_GT(std::filesystem::file_size(directory / "baked.glb"),
               std::filesystem::file_size(directory / "x.glb"))
         << "each boulder written whole rather than its shape once";
+}
+
+namespace {
+
+/// Writes `text` to a temporary file `name` and gives its path.
+std::filesystem::path WriteTemp(const std::string& name, const std::string& text) {
+    const auto path = TempPath(name);
+    std::ofstream(path) << text;
+    return path;
+}
+
+}  // namespace
+
+TEST(ReadCraterList, ReadsBackWhatWriteCraterListWrites) {
+    CraterList craters;
+    craters.Append({0.1, -2.5, 12.345678901234567, 0.25, 18446744073709551557u, false});
+    terraingen::Crater replacing{3.0, 4.0, 5.0, 0.0, 7u, true, 1.0, 0.25};
+    replacing.Replace();
+    craters.Append(replacing);
+    for (const char* name : {"terraingen_read.csv", "terraingen_read.json"}) {
+        const auto path = TempPath(name);
+        terraingen::WriteCraterList(craters, path,
+                                    terraingen::HasExtension(path, {".json"}) ? ListFormat::Json
+                                                                              : ListFormat::Csv);
+        const CraterList read = terraingen::ReadCraterList(path);
+        ASSERT_EQ(read.Size(), 2u) << name;
+        terraingen::Crater expected = replacing;
+        expected.depth.reset();
+        expected.rimHeight.reset();
+        EXPECT_EQ(read.At(0), craters.At(0)) << name;
+        EXPECT_EQ(read.At(1), expected) << name << ": depths come from attributes only";
+    }
+}
+
+TEST(ReadCraterList, TakesRealizedDepthsAndRimsFromAttributes) {
+    CraterList craters;
+    craters.Append({1.0, 2.0, 20.0, 0.5, 3u});
+    const std::vector<terraingen::CraterAttributes> attributes{{3.0, 0.5, 0.175, 0.8, false}};
+    for (const char* name : {"terraingen_realized.csv", "terraingen_realized.json"}) {
+        const auto path = TempPath(name);
+        terraingen::WriteCraterList(craters, path,
+                                    terraingen::HasExtension(path, {".json"}) ? ListFormat::Json
+                                                                              : ListFormat::Csv,
+                                    attributes);
+        const terraingen::Crater read = terraingen::ReadCraterList(path).At(0);
+        EXPECT_DOUBLE_EQ(*read.depth, 3.5) << name;
+        EXPECT_EQ(read.rimHeight, 0.5) << name;
+    }
+}
+
+TEST(ReadCraterList, ReadsCatalogsInTheSameForm) {
+    const CraterList csv = terraingen::ReadCraterList(
+        WriteTemp("terraingen_catalog.csv", " Diameter , X,y,\"depth_m\",rim_height_m,replace\r\n"
+                                            "30,1.5,-2,6,,1\r\n"
+                                            "\n"
+                                            "10,0,0,,2,\n"));
+    ASSERT_EQ(csv.Size(), 2u);
+    EXPECT_EQ(csv.At(0).diameter, 30.0);
+    EXPECT_EQ(csv.At(0).x, 1.5);
+    EXPECT_EQ(csv.At(0).depth, 6.0);
+    EXPECT_FALSE(csv.At(0).rimHeight);
+    EXPECT_TRUE(csv.At(0).replace);
+    EXPECT_EQ(csv.At(0).id, 0u);
+    EXPECT_FALSE(csv.At(1).depth);
+    EXPECT_FALSE(csv.At(1).rimHeight) << "a rim height goes with a depth only";
+    EXPECT_FALSE(csv.At(1).replace);
+    const CraterList json = terraingen::ReadCraterList(WriteTemp(
+        "terraingen_catalog.json",
+        R"([{"x": 1, "y": 2, "diameter": 3, "replace": true, "depth_m": null, "id": null}])"));
+    ASSERT_EQ(json.Size(), 1u);
+    EXPECT_TRUE(json.At(0).replace);
+    EXPECT_FALSE(json.At(0).depth);
+}
+
+TEST(ReadCraterList, ReportsMalformedLists) {
+    const auto rejects = [](const std::string& name, const std::string& text,
+                            const std::string& message) {
+        try {
+            terraingen::ReadCraterList(WriteTemp(name, text));
+            ADD_FAILURE() << "accepted " << text;
+        } catch (const std::invalid_argument& error) {
+            EXPECT_NE(std::string(error.what()).find(message), std::string::npos) << error.what();
+        }
+    };
+    rejects("terraingen_bad.csv", "x,y\n1,2\n", "row 0: needs diameter");
+    rejects("terraingen_bad.csv", "x,y,diameter\n1,2,3\n1,two,3\n", "row 1: y 'two' is not");
+    rejects("terraingen_bad.csv", "x,y,diameter,id\n1,2,3,-4\n", "id '-4'");
+    rejects("terraingen_bad.json", "{", "not valid JSON");
+    rejects("terraingen_bad.json", R"({"boulders": []})", "needs a \"craters\" array");
+    rejects("terraingen_bad.json", R"({"craters": {}})", "needs a \"craters\" array");
+    rejects("terraingen_bad.json", R"([1])", "row 0: not an object");
+    rejects("terraingen_bad.json", R"([{"x": "1", "y": 0, "diameter": 1}])", "x is not a number");
+    rejects("terraingen_bad.json", R"([{"x": 1, "y": 0, "diameter": 1, "id": -1}])",
+            "id is not an unsigned integer");
+    EXPECT_THROW(terraingen::ReadCraterList(TempPath("terraingen_missing.csv")),
+                 std::runtime_error);
 }

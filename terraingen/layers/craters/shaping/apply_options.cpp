@@ -138,6 +138,16 @@ CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t see
     return apply;
 }
 
+void ValidateCraterReplacement(const CraterReplacement& replacement) {
+    RequirePositive(replacement.startRadii, "Crater replacement startRadii");
+    if (replacement.endRadii &&
+        !(std::isfinite(*replacement.endRadii) && *replacement.endRadii > replacement.startRadii)) {
+        throw std::invalid_argument("Crater replacement endRadii must be finite and above "
+                                    "startRadii");
+    }
+    RequirePositive(replacement.fitWidthRadii, "Crater replacement fitWidthRadii");
+}
+
 void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateCraterNoise(options.noise);
     ValidateCraterTexture(options.texture);
@@ -147,6 +157,7 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateCraterSlopeResponse(options.slope);
     ValidateCraterTerraces(options.terraces);
     ValidateCraterPeaks(options.peaks);
+    ValidateCraterReplacement(options.replacement);
     if ((options.slope.asymmetric || options.slope.criticalGradient) &&
         options.datum != CraterDatum::Plane) {
         throw std::invalid_argument("A crater slope response needs the plane datum");

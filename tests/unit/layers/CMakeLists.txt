@@ -58,6 +58,7 @@ terraingen_add_test_suite(
     craters/shaping/datum_test.cpp
     craters/shaping/irregularity_test.cpp
     craters/shaping/morphometry_test.cpp
+    craters/shaping/replacement_test.cpp
     craters/shaping/resolved_state_test.cpp
     craters/shaping/slope_test.cpp
     LIBRARIES

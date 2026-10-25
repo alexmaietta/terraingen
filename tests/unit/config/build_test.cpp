@@ -1218,3 +1218,45 @@ TEST(BuildGenerator, GivesAChainItsSeamsInTheSurfacesUnits) {
     EXPECT_EQ(dynamic_cast<const terraingen::SourceChain&>(*plane.source).Seams(), chain.seams)
         << "meters on a plane";
 }
+
+TEST(BuildGenerator, ReplacesTheInheritedCratersTheSourceResolves) {
+    const auto folder = terraingen::testing::TempDirectory("terraingen_inherited");
+    std::ofstream(folder / "coarse.csv") << "x,y,diameter,age_gyr,id,depth_ratio,rim_height\n"
+                                            "0,0,100,0.5,21,0.15,2\n"
+                                            "300,300,50,0.5,22,0.1,1\n";
+    const TerrainGenConfig config = terraingen::ParseConfig(R"({
+        "schema_version": 1,
+        "layers": [
+            {"type": "craters", "generate_random": false,
+             "manual": [{"x": 900, "y": 0, "diameter_m": 60, "replace": true}],
+             "replace_inherited_craters": {"path": "coarse.csv"}}
+        ]
+    })");
+    const terraingen::TerrainGenerator terrain =
+        terraingen::BuildGenerator(config, FlatDem(), folder);
+    const auto& layer = dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers[0]);
+    const terraingen::CraterList& manual = layer.Options().generation.manual;
+    ASSERT_EQ(manual.Size(), 2u) << "50 m is under 4 cells of 20 m";
+    EXPECT_TRUE(manual.At(0).replace);
+    EXPECT_EQ(manual.At(1).id, 21u);
+    EXPECT_TRUE(manual.At(1).replace);
+    EXPECT_DOUBLE_EQ(*manual.At(1).depth, 15.0);
+    EXPECT_FALSE(manual.At(1).rimHeight) << "the diffused profile ties the rim to the depth";
+    EXPECT_LT(terraingen::HeightAt(terrain, 0.0, 0.0, 1.0), 100.0 - 10.0)
+        << "cut sharp into the flat DEM";
+}
+
+TEST(BuildGenerator, ReportsAnUnreadableInheritedListAtItsPath) {
+    TerrainGenConfig config;
+    config.outputs = {
+        terraingen::testing::Heightmap("e.tif", terraingen::testing::GridRegion{65, 65})};
+    CraterLayerSpec craters;
+    craters.replaceInheritedCraters = terraingen::InheritedCratersSpec{"missing.csv"};
+    config.layers = {craters};
+    try {
+        terraingen::BuildGenerator(config, FlatDem(), "/nonexistent");
+        ADD_FAILURE() << "read a missing crater list";
+    } catch (const ConfigError& error) {
+        EXPECT_EQ(error.Path(), "layers[0].replace_inherited_craters.path");
+    }
+}

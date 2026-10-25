@@ -60,6 +60,8 @@ struct CraterShapeKernel {
     float blendEnd = 1.2f;
     uint32_t blendShape = 0;
     float interiorReplacement = 0.0f;
+    float replaceStart = 1.0f;  ///< `CraterReplacement::startRadii`.
+    float replaceEnd = 1.5f;    ///< `CraterReplacement::EndRadii` of the profile.
     float mantling = 0.0f;
     float ejectaReachRadii = 3.0f;
     float rimSigma = 0.0f;
@@ -118,6 +120,7 @@ struct CraterRecord {
     uint32_t terraceOffset = 0;  ///< The terraces' shape in `CraterData` (`KernelTerracedRadii`).
     uint32_t peakCount = 0;      ///< Massifs of the central peak; 0 keeps the profile's dome.
     uint32_t peakOffset = 0;     ///< The massifs in `CraterData` (`KernelPeakMassifs`).
+    uint32_t replace = 0;        ///< 1 when the crater replaces the terrain (`Crater::replace`).
 };
 
 /// A point east and north of a crater's center, in meters, as the kernel reads it.
@@ -1170,8 +1173,10 @@ inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
     const float radii = distance / radius;
     float replaced = 0.0f;
     if (c.hasDatum == 1u) {
-        float weight =
-            k.interiorReplacement * KernelFalloff(radii, k.blendStart, k.blendEnd, k.blendShape);
+        float weight = c.replace == 1u
+                           ? KernelFalloff(radii, k.replaceStart, k.replaceEnd, k.blendShape)
+                           : k.interiorReplacement *
+                                 KernelFalloff(radii, k.blendStart, k.blendEnd, k.blendShape);
         if (k.mantling > 0.0f && radii > 1.0f) {
             weight = max(weight, k.mantling * KernelEjectaShare(radii, k.ejectaReachRadii));
         }
@@ -1311,11 +1316,11 @@ inline float KernelBodyDatumRelief(KERNEL_IN(CraterShapeKernel) k, CraterData da
 #ifndef __SLANG__
 static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
-static_assert(sizeof(CraterShapeKernel) == 180, "CraterShapeKernel must match its std430 layout");
-static_assert(sizeof(CraterRecord) == 132, "CraterRecord must match its std430 layout");
+static_assert(sizeof(CraterShapeKernel) == 188, "CraterShapeKernel must match its std430 layout");
+static_assert(sizeof(CraterRecord) == 136, "CraterRecord must match its std430 layout");
 static_assert(sizeof(CraterFrame) == 40, "CraterFrame must match its std430 layout");
-static_assert(sizeof(CraterDatumKernel) == 192, "CraterDatumKernel must match its std430 layout");
-static_assert(sizeof(CraterBodyDatumKernel) == 180,
+static_assert(sizeof(CraterDatumKernel) == 200, "CraterDatumKernel must match its std430 layout");
+static_assert(sizeof(CraterBodyDatumKernel) == 188,
               "CraterBodyDatumKernel must match its std430 layout");
 
 /// The compiled forms of the crater kernel.

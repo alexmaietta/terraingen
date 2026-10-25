@@ -29,6 +29,7 @@ inline nb::dict CraterTable(const CraterList& craters,
     table["age_gyr"] = Column(craters.AgesGyr());
     table["id"] = Column(craters.Ids());
     table["manual"] = Column(std::vector<std::uint8_t>(craters.Manual()));
+    table["replace"] = Column(std::vector<std::uint8_t>(craters.Replace()));
     if (!attributes.empty() && attributes.size() == craters.Size()) {
         std::vector<double> floorDepth, rimHeight, depthRatio, freshness;
         std::vector<std::uint8_t> complex;

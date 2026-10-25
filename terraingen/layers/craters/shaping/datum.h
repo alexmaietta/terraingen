@@ -63,6 +63,22 @@ std::optional<Plane> FittedDatum(const PlaneFit& fit, CraterDatum datum);
 std::optional<Plane> FitCraterDatum(const Crater& crater, const CraterApplyOptions& options,
                                     const HeightSampler& ground);
 
+/// The datum a crater with `Crater::replace` is cut to: a plane fitted to the ground at 24 points
+/// on each of three circles across the ring `CraterReplacement` gives, its radii stretched by
+/// `outlineScale` so an irregular outline does not reach into it; nothing where the ground has
+/// no data there.
+/// @param reachRadii The profile's reach (`CraterProfile::ReachRadii`).
+/// @param outlineScale The crater outline's largest stretch (`CraterOutline::MaxScale`).
+std::optional<Plane> FitReplacementDatum(const Crater& crater, const CraterApplyOptions& options,
+                                         double reachRadii, double outlineScale,
+                                         const HeightSampler& ground);
+
+/// How far (m) beyond a grid replacing craters can change it through their datum fit: their fit
+/// ring, stretched by the largest outline, plus the profile's reach.
+/// @param maxDiameter The largest replacing crater's diameter, in meters; 0 for none.
+double ReplacementMargin(const CraterApplyOptions& options, const CraterProfile& profile,
+                         double maxDiameter);
+
 /// How far (m) beyond a grid craters with a datum can change it through their datum fit: the fit
 /// footprint plus the profile's reach for the largest crater; 0 without a datum. Craters for a
 /// grid or point should be generated this far around it.

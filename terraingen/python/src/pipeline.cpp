@@ -89,6 +89,12 @@ void BindFeatureWriters(nb::module_& m) {
     nb::enum_<ListFormat>(m, "ListFormat", "The file format of a crater or boulder list.")
         .value("CSV", ListFormat::Csv)
         .value("JSON", ListFormat::Json);
+    m.def("read_crater_list", &ReadCraterList, "path"_a,
+          "The craters a crater list holds, as `write_crater_list` writes them or a catalog in "
+          "the same form: JSON for a .json file, else CSV with a header. x, y and diameter are "
+          "needed; the depth is depth_m, else depth_ratio times the diameter, and with a depth "
+          "the rim height is rim_height_m, else rim_height, so a list written with attributes "
+          "reads back as realized.");
     m.def("write_crater_list", &WriteCraterList, "craters"_a, "path"_a, "format"_a,
           "attributes"_a = std::vector<CraterAttributes>{},
           "Writes `craters` (a CraterList) as CSV or JSON, with each crater's attributes when "

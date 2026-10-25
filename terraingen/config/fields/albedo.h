@@ -289,7 +289,8 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
        "gives a different pattern of the same statistics.");
     SelectionFields(
         io, options.selection, "craters given bright material",
-        "Gives manual craters bright material too; otherwise only generated craters have it.");
+        "Gives manual craters bright material too; otherwise only generated and replacing "
+        "craters have it.");
     io("share", options.share, "Share of eligible craters, from 0 to 1, given bright material.", "",
        UnitInterval());
     io("background_maturity", options.backgroundMaturity,

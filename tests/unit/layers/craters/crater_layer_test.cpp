@@ -10,6 +10,7 @@
 #include <cmath>
 #include <memory>
 #include <stdexcept>
+#include <utility>
 
 using terraingen::CraterLayer;
 using terraingen::CraterLayerOptions;
@@ -367,4 +368,136 @@ TEST(CraterLayer, LeavesOtherCratersAsTheyWereBesideAnExplicitOne) {
 TEST(CraterLayer, RejectsAManualRimHeightWithoutADepth) {
     const CraterLayer layer = ExplicitLayer(false, std::nan(""), 1.0);
     EXPECT_THROW(layer.Craters({-64.0, -64.0, 64.0, 64.0}), std::invalid_argument);
+}
+
+namespace {
+
+/// Ground at height 2 everywhere.
+class Level final : public terraingen::Ground {
+  public:
+    float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {
+        return 2.0f;
+    }
+};
+
+/// Craters 10, 30 and 200 m across, as a coarser level listed them.
+CraterList Coarser() {
+    CraterList craters;
+    craters.Append(terraingen::Crater{100.0, 100.0, 10.0, 0.5, 11u});
+    craters.Append(terraingen::Crater{150.0, 150.0, 30.0, 0.5, 12u, false, 4.0, 1.0});
+    craters.Append(terraingen::Crater{160.0, 160.0, 200.0, 0.5, 13u});
+    return craters;
+}
+
+/// A DEM of 5 m cells, which resolves craters 20 m across at 4 cells.
+std::shared_ptr<terraingen::RasterSource> Dem() {
+    Raster<float> heights(64, 64, 0.0f);
+    heights.SetTransform(GeoTransform::NorthUp(0.0, 320.0, 5.0));
+    return std::make_shared<terraingen::RasterSource>(heights);
+}
+
+}  // namespace
+
+TEST(CraterLayer, ReplacesTheInheritedCratersTheSourceResolves) {
+    CraterLayerOptions options = Options();
+    options.inherited.craters = Coarser();
+    options.inherited.maxSourcePixels = 30.0;
+    const CraterLayer layer(Models(), options, Dem());
+    const CraterList& manual = layer.Options().generation.manual;
+    ASSERT_EQ(manual.Size(), 1u) << "10 m is under 4 cells, 200 m over 30";
+    const terraingen::Crater crater = manual.At(0);
+    EXPECT_EQ(crater.id, 12u);
+    EXPECT_TRUE(crater.replace);
+    EXPECT_EQ(crater.depth, 4.0);
+    EXPECT_FALSE(crater.rimHeight) << "the Fassett-Thomson profile ties the rim to the depth";
+    EXPECT_EQ(layer.Options().generation.completeness->ValueAt(5.0, 5.0), 20.0);
+    const CraterList listed = layer.Craters({0.0, 0.0, 320.0, 320.0});
+    std::size_t generated = 0;
+    for (std::size_t n = 0; n < listed.Size(); ++n) {
+        const terraingen::Crater c = listed.At(n);
+        if (!c.manual && c.x > 0.0 && c.x < 320.0 && c.y > 0.0 && c.y < 320.0) {
+            ++generated;
+            EXPECT_LT(c.diameter, 20.0)
+                << "generated craters stop where the inherited ones stand in";
+        }
+    }
+    EXPECT_GT(generated, 0u) << "and fill the gaps beneath";
+}
+
+TEST(CraterLayer, InheritsSmallerCratersFromALowerMinimum) {
+    CraterLayerOptions options = Options();
+    options.inherited.craters = Coarser();
+    options.inherited.minSourcePixels = 1.0;
+    const CraterLayer layer(Models(), options, Dem());
+    EXPECT_EQ(layer.Options().generation.manual.Size(), 3u);
+    EXPECT_EQ(layer.Options().generation.completeness->ValueAt(5.0, 5.0), 5.0);
+}
+
+TEST(CraterLayer, StampsEveryInheritedCraterWithoutASource) {
+    CraterLayerOptions options = Options();
+    options.inherited.craters = Coarser();
+    options.inherited.maxSourcePixels = 30.0;
+    const CraterLayer layer(Models(), options);
+    EXPECT_EQ(layer.Options().generation.manual.Size(), 3u);
+    EXPECT_FALSE(layer.Options().generation.completeness);
+    options.sourceResolvesPixels.reset();
+    EXPECT_EQ(CraterLayer(Models(), options, Dem()).Options().generation.manual.Size(), 2u)
+        << "with neither minimum, every one up to the maximum";
+}
+
+TEST(CraterLayer, RejectsInvalidInheritedCraters) {
+    CraterLayerOptions options = Options();
+    options.inherited.minSourcePixels = 0.0;
+    EXPECT_THROW(CraterLayer(Models(), options), std::invalid_argument);
+    options.inherited.minSourcePixels = 8.0;
+    options.inherited.maxSourcePixels = 8.0;
+    EXPECT_THROW(CraterLayer(Models(), options), std::invalid_argument);
+    options.inherited.maxSourcePixels = 9.0;
+    EXPECT_NO_THROW(CraterLayer(Models(), options));
+}
+
+TEST(CraterLayer, ReplacingCratersAtPointsMatchTheGrid) {
+    CraterList craters;
+    craters.Append(terraingen::ManualCrater(-10.0, 6.0, 30.0).Replace());
+    const auto layer = CraterLayer::Manual(craters, Models(), terraingen::CraterApplyOptions{});
+    const Level level;
+    Raster<float> heights(64, 64, 2.0f);
+    heights.SetTransform(GeoTransform::NorthUp(-64.0, 64.0, 2.0));
+    layer->Apply(heights, {2.0, 1, &level});
+    for (const auto& [col, row] : {std::pair<int, int>{27, 29}, {20, 25}, {35, 40}}) {
+        const auto center = heights.Transform().PixelToWorld(col + 0.5, row + 0.5);
+        EXPECT_NEAR(layer->ApplyAt(2.0f, center.x, center.y, {2.0, 1, &level}),
+                    heights(static_cast<std::size_t>(col), static_cast<std::size_t>(row)), 1e-4)
+            << col << ", " << row;
+    }
+    EXPECT_LT(heights(27, 29), 0.0f) << "cut into the level ground";
+    EXPECT_THROW(layer->ApplyAt(2.0f, 0.0, 0.0, {2.0}), std::invalid_argument)
+        << "replacing craters at points need the ground";
+}
+
+TEST(CraterLayer, KeepsInheritedRimsWhereTheProfileTakesThem) {
+    CraterModels models = Models();
+    models.profile = std::make_shared<terraingen::MartinParkesDunstanProfile>();
+    CraterLayerOptions options = Options();
+    options.inherited.craters = Coarser();
+    const CraterLayer layer(models, options, Dem());
+    ASSERT_EQ(layer.Options().generation.manual.Size(), 2u);
+    EXPECT_EQ(layer.Options().generation.manual.At(0).rimHeight, 1.0);
+}
+
+TEST(CraterLayer, GivesInheritedCratersTheOutlinesOfGeneratedOnes) {
+    CraterLayerOptions options = Options();
+    options.apply = terraingen::DefaultCraterApply();
+    options.inherited.craters = Coarser();
+    options.inherited.minSourcePixels = 1.0;
+    options.inherited.craters.Append(terraingen::ManualCrater(60.0, 60.0, 30.0));
+    const CraterLayer layer(Models(), options, Dem());
+    const terraingen::CraterIrregularity& irregularity = layer.Options().apply.irregularity;
+    ASSERT_FALSE(irregularity.selection.manual) << "manual craters stay round by default";
+    for (std::size_t n = 0; n < layer.Options().generation.manual.Size(); ++n) {
+        const terraingen::Crater crater = layer.Options().generation.manual.At(n);
+        EXPECT_TRUE(irregularity.selection.Includes(crater)) << crater.diameter;
+        EXPECT_GT(terraingen::IrregularOutline(crater, irregularity).MaxScale(), 1.0)
+            << crater.diameter;
+    }
 }

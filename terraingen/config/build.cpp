@@ -34,6 +34,7 @@
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/shape_model.h"
+#include "terraingen/pipeline/feature_lists.h"
 #include "terraingen/sources/field.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/source_chain.h"
@@ -463,6 +464,10 @@ LayerPtr BuildLayerSpec(const CraterLayerSpec& craters, const std::string& path,
             *craters.completeness, Child(path, "completeness"), context.directory);
     }
     options.sourceResolvesPixels = craters.sourceResolvesPixels;
+    if (const auto& inherited = craters.replaceInheritedCraters) {
+        options.inherited = config::BuildInheritedCraters(
+            *inherited, Child(path, "replace_inherited_craters"), context.directory);
+    }
     CraterModels models = BuildCraterModels(craters, path);
     return At(path, [&] {
         return std::make_shared<CraterLayer>(std::move(models), std::move(options), context.base);
@@ -856,6 +861,16 @@ DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
     map.areaUnit = spec.areaUnit;
     map.total = spec.total;
     return map;
+}
+
+InheritedCraters BuildInheritedCraters(const InheritedCratersSpec& spec, const std::string& path,
+                                       const std::filesystem::path& directory) {
+    InheritedCraters inherited;
+    inherited.craters =
+        AtFile(Child(path, "path"), [&] { return ReadCraterList(Resolve(spec.path, directory)); });
+    inherited.minSourcePixels = spec.minSourcePixels;
+    inherited.maxSourcePixels = spec.maxSourcePixels;
+    return inherited;
 }
 
 std::optional<Bounds2d> ExtentBox(const ExtentSpec& extent) {

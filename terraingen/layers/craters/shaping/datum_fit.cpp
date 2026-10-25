@@ -700,6 +700,36 @@ void FitPointDatums(std::vector<PreparedCrater>& prepared, const std::vector<std
     }
 }
 
+void FitReplacementDatums(std::vector<PreparedCrater>& prepared,
+                          const std::vector<std::size_t>& replacing, const Raster<float>* raster,
+                          const CraterShapeModels& models, const CraterShapeKernel& kernel,
+                          const CraterApplyOptions& options, const CraterSampling& sampling) {
+    if (replacing.empty()) {
+        return;
+    }
+    const HeightSampler ground =
+        sampling.ground || raster == nullptr
+            ? sampling.ground
+            : HeightSampler([raster](double x, double y) {
+                  return SampleRaster(*raster, x, y, ResampleMethod::Bilinear);
+              });
+    const CraterProfile& profile = *models.profile;
+    const ReliefIndex index(prepared, kernel, profile, options);
+    const auto fit = [&](std::size_t k) {
+        return FitReplacementDatum(prepared[k].crater, options, profile.ReachRadii(),
+                                   prepared[k].outline.MaxScale(), GroundBefore(ground, index, k));
+    };
+    if (raster == nullptr && sampling.cache != nullptr) {
+        for (const std::size_t k : replacing) {
+            prepared[k].datum = *sampling.cache->Get<std::optional<Plane>>(
+                sampling.owner, prepared[k].crater.id, sampling.spacing, [&] { return fit(k); });
+        }
+        return;
+    }
+    ParallelFor(replacing.size(), sampling.threads,
+                [&](std::size_t n) { prepared[replacing[n]].datum = fit(replacing[n]); });
+}
+
 bool UseCachedDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::size_t>& fitted,
                      const CraterShapeModels& models, const CraterApplyOptions& options,
                      const CraterSampling& sampling) {

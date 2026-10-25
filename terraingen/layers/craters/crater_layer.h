@@ -50,6 +50,31 @@ struct CraterModels {
 /// profiles, and diffusion matched to the ages from the lunar fresh morphometry.
 CraterModels DefaultCraterModels();
 
+/// Craters a coarser level holds that the layer's source softens, stamped again sharp: those a
+/// coarser run listed (`ReadCraterList`) over the heights it wrote, which the source now
+/// upsamples, or a catalog of the craters a DEM holds. Each one the source resolves replaces
+/// (`Crater::replace`) what the source holds there, with its ID, age, depth and rim as listed, the
+/// rim only where the profile takes one (`TakesRimHeight`);
+/// smaller ones are left to generation, which fills the gaps beneath them, and generated craters
+/// the inherited ones stand in for are dropped. Without a source every inherited crater is
+/// stamped.
+struct InheritedCraters {
+    CraterList craters;  ///< The coarser level's craters; empty for none.
+    /// Source cells across from which an inherited crater is stamped again and generated craters
+    /// are dropped; unset follows `CraterLayerOptions::sourceResolvesPixels`, and with both unset
+    /// every inherited crater is stamped. Lower than that to clean up the smaller craters a
+    /// coarser run of the same layer drew blurred into the source.
+    std::optional<double> minSourcePixels{};
+    /// Source cells across from which inherited craters are left as the source holds them, since
+    /// interpolation barely softens them; unset stamps every one from `minSourcePixels`.
+    std::optional<double> maxSourcePixels{};
+};
+
+/// Checks inherited crater settings.
+/// @throws std::invalid_argument for a source pixel count that is set and not positive and finite,
+/// or a `maxSourcePixels` not above `minSourcePixels`.
+void ValidateInheritedCraters(const InheritedCraters& inherited);
+
 /// How a `CraterLayer` generates and applies its craters.
 struct CraterLayerOptions {
     /// Draws random craters from the density; off places only the manual craters in
@@ -83,6 +108,9 @@ struct CraterLayerOptions {
     /// dropped (`SourceResolvedLimit`), the minimum with `generation.completeness` when both are
     /// set. Unset, or without a source, keeps every generated crater.
     std::optional<double> sourceResolvesPixels = 4.0;
+    /// Craters of a coarser level stamped again sharp where the source softened them; none by
+    /// default.
+    InheritedCraters inherited{};
 };
 
 /// Craters generated over the grid being evaluated (`GenerateCraters`) and applied to it
@@ -150,6 +178,9 @@ class CraterLayer final : public Layer, public CraterPlacer {
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
+    /// Adds the inherited craters `source` resolves to the manual ones, replacing, and drops the
+    /// generated craters they stand in for.
+    void Inherit(const std::shared_ptr<const Source>& source);
     /// Draws craters at the density map's largest scale and thins them by the map, taking the
     /// secondaries out of a `total` map.
     void FollowDensityMap();
@@ -173,6 +204,8 @@ class CraterLayer final : public Layer, public CraterPlacer {
     std::shared_ptr<const DensityScale> scale_;
     /// Craters at least this large (m) throw secondaries the map measures and follow it alone.
     double throwFrom_ = std::numeric_limits<double>::infinity();
+    /// How far (m) beyond a grid the replacing manual craters can change it (`ReplacementMargin`).
+    double replacementMargin_ = 0.0;
 };
 
 }  // namespace terraingen

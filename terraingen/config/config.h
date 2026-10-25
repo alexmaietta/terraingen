@@ -354,6 +354,14 @@ enum class CraterMorphometryFit {
     Mars,   ///< "mars": `MarsFreshCraterMorphometry` and `MarsComplexCraterShape`.
 };
 
+/// Gives `CraterLayerOptions::inherited`: the craters of a coarser level read from a crater list.
+struct InheritedCratersSpec {
+    /// A crater list (`ReadCraterList`), relative to the configuration's folder.
+    std::string path{};
+    std::optional<double> minSourcePixels{};  ///< Unset follows the layer's source_resolves_px.
+    std::optional<double> maxSourcePixels{};  ///< Unset stamps every one from the minimum.
+};
+
 /// Layer "craters": craters generated over the grid and applied to it (`CraterLayer`).
 struct CraterLayerSpec {
     CraterMorphometryFit morphometry = CraterMorphometryFit::Lunar;
@@ -385,6 +393,8 @@ struct CraterLayerSpec {
     /// minimum with `completeness` when both are set. Ignored on a synthetic source and where the
     /// source has no measured data; unset generates every crater.
     std::optional<double> sourceResolvesPixels = 4.0;
+    /// Craters of a coarser level stamped again sharp where the source softened them.
+    std::optional<InheritedCratersSpec> replaceInheritedCraters{};
 };
 
 /// Boulder sizes "golombek_rapp": the layer's coverage, qa and qb.

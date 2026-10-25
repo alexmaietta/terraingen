@@ -76,7 +76,9 @@ TerrainGenConfig Everything() {
     craters.maxDiameter = 90.0;
     craters.spacing = {2.0, 0.75};
     craters.maxCraters = 1234;
-    craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u}, {6.0, 4.0, 6.0, 0.0, 0u, false, 0.9, 0.25}};
+    craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u},
+                      {6.0, 4.0, 6.0, 0.0, 0u, false, 0.9, 0.25, true}};
+    craters.replaceInheritedCraters = terraingen::InheritedCratersSpec{"coarse.json", 2.0, 40.0};
     craters.profile = terraingen::ComplexProfileSpec{terraingen::MartinParkesDunstanSpec{}};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
     craters.apply = terraingen::CraterApplyOptions{};
@@ -86,6 +88,7 @@ TerrainGenConfig Everything() {
     craters.apply.datumFitRadii = 1.5;
     craters.apply.interiorReplacement = 0.5;
     craters.apply.blend = {0.7, 1.3, terraingen::BlendShape::Gaussian};
+    craters.apply.replacement = {0.9, 1.4, 0.5};
     terraingen::CraterIrregularity& irregularity = craters.apply.irregularity;
     irregularity.enabled = true;
     irregularity.seed = 4;

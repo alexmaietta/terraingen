@@ -68,9 +68,12 @@ double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& 
 /// Each crater adds its profile, noise and texture weighted by `ResolutionWeight`; with a datum,
 /// fitted to `sampling.ground` plus the relief of the craters before it, it also moves the terrain
 /// toward the datum by `interiorReplacement` times the blend weight, or by the texture's mantling
-/// outside the rim where that is more. No-data cells are left unchanged and excluded from the fit.
+/// outside the rim where that is more. A crater with `Crater::replace` is cut into its own datum
+/// (`FitReplacementDatum`) whatever the others' and moves the terrain to it as
+/// `options.replacement` blends it out. No-data cells are left unchanged and excluded from the fit.
 /// @param raster Its transform maps pixels to the craters' surface coordinates.
-/// @param craters With a datum, those within `DatumMargin` of the raster.
+/// @param craters With a datum, those within `DatumMargin` of the raster, and with replacing
+/// craters those within `ReplacementMargin` of it.
 /// @param models Neither may be null.
 /// @throws std::invalid_argument for invalid `options` or a negative or non-finite spacing.
 /// @throws std::domain_error if the raster's transform is not invertible.
@@ -80,7 +83,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
 /// `ApplyCraters` on a sample block: a grid as above, or scattered points, each of which ends at
 /// the same height as a grid cell centered there.
 /// @throws std::invalid_argument as above; for points also without a positive spacing, or with a
-/// datum and no `sampling.ground`.
+/// datum or a replacing crater reaching them and no `sampling.ground`.
 void ApplyCraters(SampleBlock& samples, const CraterList& craters, const CraterShapeModels& models,
                   const CraterApplyOptions& options = {}, const CraterSampling& sampling = {});
 

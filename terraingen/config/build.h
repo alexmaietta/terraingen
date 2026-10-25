@@ -97,6 +97,11 @@ std::shared_ptr<const SurfaceField> BuildField(const FieldSpec& spec, const std:
 DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
                            const std::filesystem::path& directory = {});
 
+/// The inherited craters a spec describes, unchecked, their crater list read (`ReadCraterList`).
+/// @throws ConfigError at `path`.path for an unreadable or malformed crater list.
+InheritedCraters BuildInheritedCraters(const InheritedCratersSpec& spec, const std::string& path,
+                                       const std::filesystem::path& directory = {});
+
 /// The region shape a spec describes, unchecked.
 RegionShape BuildRegionShape(const RegionShapeSpec& spec);
 

@@ -633,3 +633,77 @@ def test_crater_peaks_raise_massifs_only_when_enabled():
     assert terraingen.default_crater_apply().peaks.enabled
     with pytest.raises(ValueError):
         terraingen.validate_crater_peaks(terraingen.CraterPeaks(spread_radii=3.0))
+
+
+def test_craters_carry_a_replace_flag_through_lists_and_tables():
+    crater = terraingen.Crater(1.0, 2.0, 30.0, replace=True)
+    assert crater.replace and "replace=True" in repr(crater)
+    assert not terraingen.Crater(1.0, 2.0, 30.0).replace
+    craters = terraingen.CraterList([crater, terraingen.Crater(0.0, 0.0, 10.0)])
+    assert list(craters.replace) == [1, 0]
+    assert list(craters.table["replace"]) == [1, 0]
+    assert [c.replace for c in terraingen.CraterList.from_table(craters.table)] == [True, False]
+
+
+def test_a_replacing_crater_swaps_the_crater_beneath_it_for_its_own():
+    sharp = carved_raster(terraingen.CraterList([terraingen.Crater(0.0, 0.0, 60.0, id=1)]))
+    replaced = carved_raster(terraingen.CraterList([terraingen.Crater(0.0, 0.0, 30.0, id=2)]))
+    terraingen.apply_craters(
+        replaced,
+        terraingen.CraterList([terraingen.Crater(0.0, 0.0, 60.0, id=1, replace=True)]),
+        terraingen.FassettThomsonProfile(),
+        terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
+        spacing=2.0,
+    )
+    center = np.s_[90:110, 90:110]
+    assert np.abs(replaced.values[center] - sharp.values[center]).max() < 1e-3
+
+
+def test_crater_replacement_settings_are_validated():
+    assert terraingen.CraterApplyOptions().replacement.end_radii is None
+    terraingen.validate_crater_replacement(terraingen.CraterReplacement(end_radii=1.5))
+    with pytest.raises(ValueError):
+        terraingen.validate_crater_replacement(terraingen.CraterReplacement(start_radii=0.0))
+    with pytest.raises(ValueError):
+        terraingen.CraterReplacement(start_radii=1.2, end_radii=1.1).validate()
+
+
+def test_read_crater_list_reads_back_realized_depths(tmp_path):
+    craters = terraingen.CraterList([terraingen.Crater(1.0, 2.0, 20.0, age_gyr=0.5, id=9, replace=True)])
+    attributes = [
+        terraingen.compute_crater_attributes(
+            craters[0],
+            terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry).state(craters[0]),
+            terraingen.MartinParkesDunstanProfile(),
+        )
+    ]
+    for name, list_format in (
+        ("list.csv", terraingen.ListFormat.CSV),
+        ("list.json", terraingen.ListFormat.JSON),
+    ):
+        path = tmp_path / name
+        terraingen.write_crater_list(craters, str(path), list_format, attributes)
+        read = terraingen.read_crater_list(str(path))[0]
+        assert (read.id, read.replace) == (9, True)
+        assert read.depth == pytest.approx(attributes[0].depth_ratio * 20.0)
+        assert read.rim_height == pytest.approx(attributes[0].rim_height)
+
+
+def test_a_crater_layer_replaces_the_inherited_craters_its_source_resolves():
+    heights = terraingen.Raster.from_array(
+        np.zeros((64, 64), dtype=np.float32), terraingen.GeoTransform.north_up(0.0, 320.0, 5.0)
+    )
+    inherited = terraingen.CraterList(
+        [terraingen.Crater(100.0, 100.0, 10.0, id=1), terraingen.Crater(150.0, 150.0, 30.0, id=2)]
+    )
+    options = terraingen.CraterLayerOptions(
+        generate_random=False,
+        inherited=terraingen.InheritedCraters(craters=inherited, max_source_px=30.0),
+    )
+    layer = terraingen.CraterLayer(
+        None, options, terraingen.TerrainBase(terraingen.Surface(), terraingen.RasterSource(heights))
+    )
+    manual = terraingen.CraterList(layer.options.generation.manual)
+    assert [(c.id, c.replace) for c in manual] == [(2, True)]
+    with pytest.raises(ValueError):
+        terraingen.validate_inherited_craters(terraingen.InheritedCraters(min_source_px=0.0))

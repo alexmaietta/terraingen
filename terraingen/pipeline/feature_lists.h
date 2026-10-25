@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief Writing crater and boulder lists as CSV or JSON, and boulder models as 3D scenes.
+/// @brief Reading and writing crater lists and writing boulder lists as CSV or JSON, and boulder
+/// models as 3D scenes.
 #pragma once
 
 #include "terraingen/layers/boulders/boulder_placer.h"
@@ -20,7 +21,19 @@ enum class ListFormat { Csv, Json };
 /// Largest crease angle of boulder models, in degrees.
 inline constexpr double kMaxCreaseAngle = 180.0;
 
-/// Writes craters as CSV (columns x, y, diameter, age_gyr, id, manual) or as JSON
+/// Reads a crater list `WriteCraterList` wrote, or a catalog in the same form: JSON
+/// ({"craters": [...]} or a bare array) for a .json file, else CSV with a header row. x, y and
+/// diameter are needed; age_gyr, id, manual and replace are read where given. The depth is
+/// depth_m, else depth_ratio times the diameter, which a list written with attributes holds as
+/// realized, and with a depth the rim height is rim_height_m, else rim_height; so craters read
+/// back from such a list are shaped as listed whatever the models. Empty CSV cells and JSON nulls
+/// leave a value unset.
+/// @throws std::runtime_error if the file cannot be read.
+/// @throws std::invalid_argument for invalid JSON, an entry without x, y or diameter, or a value
+/// that is not a number.
+CraterList ReadCraterList(const std::filesystem::path& path);
+
+/// Writes craters as CSV (columns x, y, diameter, age_gyr, id, manual, replace) or as JSON
 /// ({"craters": [{"x": ..., "y": ..., ...}]}), with doubles written exactly. With an attributes
 /// entry for every crater, each also gets floor_depth, rim_height, depth_ratio, freshness and
 /// complex.

@@ -7,6 +7,7 @@
 #include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -68,6 +69,7 @@ void CraterList::Reserve(std::size_t count) {
     manual_.reserve(count);
     depth_.reserve(count);
     rimHeight_.reserve(count);
+    replace_.reserve(count);
 }
 
 void CraterList::Append(const Crater& crater) {
@@ -79,6 +81,7 @@ void CraterList::Append(const Crater& crater) {
     manual_.push_back(crater.manual ? 1 : 0);
     depth_.push_back(crater.depth.value_or(std::numeric_limits<double>::quiet_NaN()));
     rimHeight_.push_back(crater.rimHeight.value_or(std::numeric_limits<double>::quiet_NaN()));
+    replace_.push_back(crater.replace ? 1 : 0);
 }
 
 void CraterList::Append(const CraterList& other) {
@@ -90,19 +93,30 @@ void CraterList::Append(const CraterList& other) {
     manual_.insert(manual_.end(), other.manual_.begin(), other.manual_.end());
     depth_.insert(depth_.end(), other.depth_.begin(), other.depth_.end());
     rimHeight_.insert(rimHeight_.end(), other.rimHeight_.begin(), other.rimHeight_.end());
+    replace_.insert(replace_.end(), other.replace_.begin(), other.replace_.end());
 }
 
 Crater CraterList::At(std::size_t index) const {
     if (index >= Size()) {
         throw std::out_of_range("Crater index out of range");
     }
-    return {
-        x_[index],  y_[index],           diameter_[index],         ageGyr_[index],
-        id_[index], manual_[index] != 0, UnlessNan(depth_[index]), UnlessNan(rimHeight_[index])};
+    return {x_[index],
+            y_[index],
+            diameter_[index],
+            ageGyr_[index],
+            id_[index],
+            manual_[index] != 0,
+            UnlessNan(depth_[index]),
+            UnlessNan(rimHeight_[index]),
+            replace_[index] != 0};
+}
+
+bool CraterList::AnyReplace() const {
+    return std::find(replace_.begin(), replace_.end(), std::uint8_t{1}) != replace_.end();
 }
 
 bool CraterSelection::Includes(const Crater& crater) const {
-    return !((crater.manual && !manual) || crater.diameter < minDiameter ||
+    return !((crater.manual && !crater.replace && !manual) || crater.diameter < minDiameter ||
              crater.diameter > maxDiameter || crater.ageGyr < minAgeGyr ||
              crater.ageGyr > maxAgeGyr);
 }

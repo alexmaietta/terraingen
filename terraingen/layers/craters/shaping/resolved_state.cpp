@@ -139,6 +139,11 @@ CraterState ResolvedCraterState(const CraterProfile& profile, const DegradationM
     return {fresh, current, 0.0};
 }
 
+bool TakesRimHeight(const CraterProfile& profile, double diameter) {
+    return dynamic_cast<const DiffusedProfile*>(&profile) == nullptr &&
+           dynamic_cast<const FassettThomsonProfile*>(&FreshShape(profile, diameter)) == nullptr;
+}
+
 CraterState ResolvedCraterState(const CraterShapeModels& models, const Crater& crater,
                                 double rate) {
     return ResolvedCraterState(*models.profile, *models.degradation, crater, rate);

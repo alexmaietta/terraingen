@@ -13,6 +13,7 @@
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
+#include "terraingen/layers/craters/shaping/resolved_state.h"
 #include "terraingen/layers/source_resolved.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bisection.h"
@@ -59,8 +60,18 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, Terrai
         completeness = completeness ? std::make_shared<const MinimumField>(completeness, limit)
                                     : std::move(limit);
     }
+    ValidateInheritedCraters(options_.inherited);
+    Inherit(base.source);
     options_.generation.marginRadii = CraterReachRadii(*models_.profile, options_.apply) *
                                       MaxOutlineScale(options_.apply.irregularity);
+    const CraterList& manual = options_.generation.manual;
+    double largestReplacing = 0.0;
+    for (std::size_t n = 0; n < manual.Size(); ++n) {
+        if (manual.Replace()[n] != 0) {
+            largestReplacing = std::fmax(largestReplacing, manual.Diameters()[n]);
+        }
+    }
+    replacementMargin_ = ReplacementMargin(options_.apply, *models_.profile, largestReplacing);
     options_.generation.surface = surface_;
     options_.apply.surface = surface_;
     cells_ = MakeCells(surface_);
@@ -73,6 +84,44 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, Terrai
     candidates_ = models_.density;
     if (options_.densityMap) {
         FollowDensityMap();
+    }
+}
+
+void ValidateInheritedCraters(const InheritedCraters& inherited) {
+    ValidateSourceResolvesPixels(inherited.minSourcePixels);
+    ValidateSourceResolvesPixels(inherited.maxSourcePixels);
+    if (inherited.minSourcePixels && inherited.maxSourcePixels &&
+        !(*inherited.maxSourcePixels > *inherited.minSourcePixels)) {
+        throw std::invalid_argument(
+            "Inherited craters' maxSourcePixels must be above their minSourcePixels");
+    }
+}
+
+void CraterLayer::Inherit(const std::shared_ptr<const Source>& source) {
+    const InheritedCraters& inherited = options_.inherited;
+    if (inherited.craters.Empty()) {
+        return;
+    }
+    const auto from = LayerResolvedLimit(source,
+                                         inherited.minSourcePixels ? inherited.minSourcePixels
+                                                                   : options_.sourceResolvesPixels,
+                                         surface_);
+    const auto upTo = LayerResolvedLimit(source, inherited.maxSourcePixels, surface_);
+    const CraterList stamped = FilterCraters(inherited.craters, [&](std::size_t, const Crater& c) {
+        return (!from || InSource(from.get(), c.diameter, c.x, c.y)) &&
+               !InSource(upTo.get(), c.diameter, c.x, c.y);
+    });
+    for (std::size_t n = 0; n < stamped.Size(); ++n) {
+        Crater crater = stamped.At(n);
+        if (!TakesRimHeight(*models_.profile, crater.diameter)) {
+            crater.rimHeight.reset();
+        }
+        options_.generation.manual.Append(crater.Replace());
+    }
+    if (from && inherited.minSourcePixels) {
+        std::shared_ptr<const SurfaceField>& completeness = options_.generation.completeness;
+        completeness =
+            completeness ? std::make_shared<const MinimumField>(completeness, from) : from;
     }
 }
 
@@ -221,6 +270,9 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     if (grid == nullptr && options_.apply.datum != CraterDatum::None) {
         RequireGround(context.ground, "Point queries of craters with a datum");
     }
+    if (grid == nullptr && replacementMargin_ > 0.0) {
+        RequireGround(context.ground, "Point queries of replacing craters");
+    }
     if (grid == nullptr && options_.generation.maxCraters) {
         throw std::invalid_argument(
             "Point queries cannot use maxCraters, which ranks craters over a whole grid");
@@ -233,7 +285,8 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
                                    options_.apply, sampling)) {
         return;
     }
-    const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
+    const double margin = std::fmax(
+        DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter()), replacementMargin_);
     const CraterList craters = Craters(surface_.Expand(bounds, margin), spacing);
     ApplyCraters(samples, craters, models_.Shape(), options_.apply, sampling);
 }

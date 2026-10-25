@@ -274,3 +274,14 @@ TEST(ResolvedCraterState, RejectsInvalidExplicitValues) {
     EXPECT_NE(Rejection(mpd, kFresh, Manual(10.0, -1.0)), "");
     EXPECT_NE(Rejection(mpd, kFresh, Manual(10.0, 1.0, -0.5)), "");
 }
+
+TEST(TakesRimHeight, OnlyWhereTheProfileDoesNotTieItToTheDepth) {
+    const auto mpd = std::make_shared<terraingen::MartinParkesDunstanProfile>();
+    const auto ft = std::make_shared<terraingen::FassettThomsonProfile>();
+    EXPECT_TRUE(terraingen::TakesRimHeight(*mpd, 100.0));
+    EXPECT_FALSE(terraingen::TakesRimHeight(*ft, 100.0));
+    EXPECT_FALSE(terraingen::TakesRimHeight(terraingen::DiffusedProfile(mpd), 100.0));
+    const ComplexCraterProfile complex(ft, terraingen::LunarComplexCraterShape());
+    EXPECT_FALSE(terraingen::TakesRimHeight(complex, 100.0)) << "simple below the transition";
+    EXPECT_TRUE(terraingen::TakesRimHeight(complex, 1e5));
+}

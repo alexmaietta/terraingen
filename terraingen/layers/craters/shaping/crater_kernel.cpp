@@ -140,6 +140,8 @@ void SetShapeOptions(CraterShapeKernel& k, const CraterProfile& profile,
     k.blendEnd = static_cast<float>(options.blend.endRadii);
     k.blendShape = static_cast<std::uint32_t>(options.blend.shape);
     k.interiorReplacement = static_cast<float>(options.interiorReplacement);
+    k.replaceStart = static_cast<float>(options.replacement.startRadii);
+    k.replaceEnd = static_cast<float>(options.replacement.EndRadii(profile.ReachRadii()));
     k.mantling = static_cast<float>(options.texture.mantling);
     k.ejectaReachRadii = static_cast<float>(options.texture.ejectaReachRadii);
     const RimSmoothing& rim = options.rimSmoothing;
@@ -191,6 +193,7 @@ CraterRecord BaseRecord(const PreparedCrater& p, const CraterApplyOptions& optio
         r.datumB = static_cast<float>(p.datum->b);
         r.datumC = static_cast<float>(p.datum->c);
     }
+    r.replace = p.crater.replace ? 1u : 0u;
     r.shiftX = static_cast<float>(p.slope.shift.x);
     r.shiftY = static_cast<float>(p.slope.shift.y);
     r.upslopeX = static_cast<float>(p.slope.upslope.x);

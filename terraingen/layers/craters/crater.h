@@ -39,6 +39,11 @@ struct Crater {
     /// Rim crest above the pre-impact surface (m) of a manual crater with a `depth`; unset derives
     /// it from the depth (`ResolvedCraterState`).
     std::optional<double> rimHeight{};
+    /// Replaces whatever the terrain holds where it lies with a sharp crater cut into a datum
+    /// fitted around it (`CraterReplacement`), such as a crater a DEM holds blurred. It stands in
+    /// for a crater the terrain held, so selections take it as generated (`CraterSelection`): it
+    /// gets the irregular outline, secondaries and albedo generated craters get.
+    bool replace = false;
 
     /// Sets the age in Gyr, for chaining after `ManualCrater`.
     Crater& AgeGyr(double gyr) {
@@ -55,11 +60,16 @@ struct Crater {
         rimHeight = meters;
         return *this;
     }
+    /// Sets whether the crater replaces the terrain beneath it.
+    Crater& Replace(bool replaces = true) {
+        replace = replaces;
+        return *this;
+    }
 
     bool operator==(const Crater& other) const {
         return x == other.x && y == other.y && diameter == other.diameter &&
                ageGyr == other.ageGyr && id == other.id && manual == other.manual &&
-               depth == other.depth && rimHeight == other.rimHeight;
+               depth == other.depth && rimHeight == other.rimHeight && replace == other.replace;
     }
     bool operator!=(const Crater& other) const {
         return !(*this == other);
@@ -163,6 +173,14 @@ class CraterList {
         return rimHeight_;
     }
 
+    /// 1 for craters that replace the terrain beneath them (`Crater::replace`), 0 for others.
+    const std::vector<std::uint8_t>& Replace() const {
+        return replace_;
+    }
+
+    /// Whether any crater replaces the terrain beneath it.
+    bool AnyReplace() const;
+
   private:
     std::vector<double> x_;
     std::vector<double> y_;
@@ -172,6 +190,7 @@ class CraterList {
     std::vector<std::uint8_t> manual_;
     std::vector<double> depth_;
     std::vector<double> rimHeight_;
+    std::vector<std::uint8_t> replace_;
 };
 
 /// The craters `keep(index, crater)` keeps, in their order.
@@ -202,10 +221,12 @@ struct CraterSelection {
     double maxDiameter = std::numeric_limits<double>::infinity();  ///< Largest diameter (m).
     double minAgeGyr = 0.0;                                        ///< Youngest age (Gyr).
     double maxAgeGyr = std::numeric_limits<double>::infinity();    ///< Oldest age (Gyr).
-    bool manual = true;  ///< Whether manual craters are included.
+    /// Whether manual craters are included; replacing craters (`Crater::replace`), which stand in
+    /// for craters the terrain held, are selected as generated craters are either way.
+    bool manual = true;
 
-    /// Whether a crater is selected: not for a manual crater without `manual`, or a diameter or age
-    /// outside its range.
+    /// Whether a crater is selected: not for a manual crater that does not replace without
+    /// `manual`, or a diameter or age outside its range.
     bool Includes(const Crater& crater) const;
 
     /// Memberwise equality.
