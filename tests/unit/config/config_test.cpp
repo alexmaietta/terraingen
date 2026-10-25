@@ -134,17 +134,17 @@ TEST(RoughnessLayerSpec, TakesTheDefaultsTheGivenValuesOrTheBaseEstimates) {
 TEST(SyntheticAlbedoSpec, GivesTheColorAndEachNoiseStack) {
     terraingen::SyntheticAlbedoSpec spec;
     spec.rgb = true;
-    spec.hue = 30.0;
+    spec.hueDegrees = 30.0;
     spec.saturation = 0.2;
     spec.value = 0.4;
-    spec.hueNoise = {NoiseStackLayerSpec{}};
+    spec.hueNoiseDegrees = {NoiseStackLayerSpec{}};
     spec.valueNoise = {NoiseStackLayerSpec{{}, 0.5f, {}}, NoiseStackLayerSpec{}};
     const terraingen::SyntheticAlbedoOptions params = spec.Options();
     EXPECT_TRUE(params.rgb);
-    EXPECT_EQ(params.hue, 30.0);
+    EXPECT_EQ(params.hueDegrees, 30.0);
     EXPECT_EQ(params.saturation, 0.2);
     EXPECT_EQ(params.value, 0.4);
-    EXPECT_EQ(params.hueNoise.size(), 1u);
+    EXPECT_EQ(params.hueNoiseDegrees.size(), 1u);
     EXPECT_TRUE(params.saturationNoise.empty());
     ASSERT_EQ(params.valueNoise.size(), 2u);
     EXPECT_EQ(params.valueNoise[0], spec.valueNoise[0].Effective());

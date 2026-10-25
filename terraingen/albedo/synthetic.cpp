@@ -14,11 +14,11 @@
 namespace terraingen {
 
 void ValidateSyntheticAlbedoOptions(const SyntheticAlbedoOptions& options) {
-    RequireFinite(options.hue, "The albedo hue");
+    RequireFinite(options.hueDegrees, "The albedo hue");
     if (!(IsInUnitInterval(options.saturation) && IsInUnitInterval(options.value))) {
         throw std::invalid_argument("The albedo saturation and value must be in [0, 1]");
     }
-    ValidateNoiseLayers(options.hueNoise);
+    ValidateNoiseLayers(options.hueNoiseDegrees);
     ValidateNoiseLayers(options.saturationNoise);
     ValidateNoiseLayers(options.valueNoise);
 }
@@ -62,7 +62,7 @@ AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const AlbedoContext& /
     if (!options_.rgb) {
         return {static_cast<float>(value), 0.0f, 0.0f};
     }
-    const double hue = options_.hue + Noise(options_.hueNoise, x, y);
+    const double hue = options_.hueDegrees + Noise(options_.hueNoiseDegrees, x, y);
     const double saturation =
         std::clamp(options_.saturation + Noise(options_.saturationNoise, x, y), 0.0, 1.0);
     return HsvToRgb(hue, saturation, value);

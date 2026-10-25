@@ -119,10 +119,10 @@ TEST(SyntheticAlbedo, DefaultsToAUniformMareReflectance) {
 TEST(SyntheticAlbedo, ColorAndNoiseVaryEachChannel) {
     SyntheticAlbedoOptions params;
     params.rgb = true;
-    params.hue = 30.0;
+    params.hueDegrees = 30.0;
     params.saturation = 0.2;
     params.value = 0.3;
-    params.hueNoise = {Noise(10.0f, 40.0f, 1)};
+    params.hueNoiseDegrees = {Noise(10.0f, 40.0f, 1)};
     params.saturationNoise = {Noise(0.1f, 40.0f, 2)};
     params.valueNoise = {Noise(0.5f, 20.0f, 3)};
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{5.0, 5.0}), {}};
@@ -159,7 +159,7 @@ TEST(SyntheticAlbedo, ClampsTheValue) {
 
 TEST(SyntheticAlbedo, RejectsInvalidParameters) {
     SyntheticAlbedoOptions params;
-    params.hue = kInf;
+    params.hueDegrees = kInf;
     EXPECT_THROW(SyntheticAlbedo{params}, std::invalid_argument);
     params = {};
     params.saturation = 1.5;
@@ -171,7 +171,7 @@ TEST(SyntheticAlbedo, RejectsInvalidParameters) {
     params.valueNoise.assign(terraingen::kMaxNoiseLayers + 1, Noise(0.1f, 10.0f, 0));
     EXPECT_THROW(SyntheticAlbedo{params}, std::invalid_argument);
     params = {};
-    params.hueNoise = {Noise(0.1f, -10.0f, 0)};
+    params.hueNoiseDegrees = {Noise(0.1f, -10.0f, 0)};
     EXPECT_THROW(SyntheticAlbedo{params}, std::invalid_argument);
 }
 
@@ -328,7 +328,7 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
     params.rgb = true;
     params.saturation = 0.1;
     params.valueNoise = {Noise(0.3f, 2000.0f, 3)};
-    params.hueNoise = {Noise(20.0f, 5000.0f, 4)};
+    params.hueNoiseDegrees = {Noise(20.0f, 5000.0f, 4)};
     const SyntheticAlbedo albedo(params, {}, moon);
     const AlbedoContext context{10.0};
     const AlbedoSample east = albedo.ValueAt(180.0, 3.0, context);

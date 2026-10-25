@@ -517,11 +517,11 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     TerrainGenConfig config;
     terraingen::SyntheticAlbedoSpec synthetic;
     synthetic.rgb = true;
-    synthetic.hue = 30.0;
+    synthetic.hueDegrees = 30.0;
     synthetic.saturation = 0.1;
     synthetic.value = 0.2;
     synthetic.valueNoise = {terraingen::NoiseStackLayerSpec{{}, 0.8f, {}}};
-    synthetic.hueNoise = {terraingen::NoiseStackLayerSpec{}};
+    synthetic.hueNoiseDegrees = {terraingen::NoiseStackLayerSpec{}};
     terraingen::CraterAlbedoSpec craters;
     craters.craterLayer = 1;
     craters.options.selection.maxDiameter = 5000.0;

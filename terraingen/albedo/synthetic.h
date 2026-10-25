@@ -21,18 +21,19 @@ inline constexpr double kDefaultSyntheticAlbedoValue = 0.110;
 struct SyntheticAlbedoOptions {
     /// Three bands (red, green, blue) from the color; otherwise one band, its value.
     bool rgb = false;
-    double hue = 0.0;         ///< Degrees; noise added to it wraps around.
+    double hueDegrees = 0.0;  ///< Degrees; noise added to it wraps around.
     double saturation = 0.0;  ///< In [0, 1]; 0 is gray.
     /// In [0, 1]: the brightest band's reflectance (`kDefaultSyntheticAlbedoValue` by default).
     double value = kDefaultSyntheticAlbedoValue;
-    std::vector<NoiseLayer> hueNoise;         ///< Added to the hue, in degrees.
+    std::vector<NoiseLayer> hueNoiseDegrees;  ///< Added to the hue, in degrees.
     std::vector<NoiseLayer> saturationNoise;  ///< Added to the saturation.
     /// Relative: the value is multiplied by 1 + the noise, so its contrast scales with it.
     std::vector<NoiseLayer> valueNoise;
 
     bool operator==(const SyntheticAlbedoOptions& other) const {
-        return rgb == other.rgb && hue == other.hue && saturation == other.saturation &&
-               value == other.value && hueNoise == other.hueNoise &&
+        return rgb == other.rgb && hueDegrees == other.hueDegrees &&
+               saturation == other.saturation && value == other.value &&
+               hueNoiseDegrees == other.hueNoiseDegrees &&
                saturationNoise == other.saturationNoise && valueNoise == other.valueNoise;
     }
     bool operator!=(const SyntheticAlbedoOptions& other) const {
@@ -47,10 +48,10 @@ void ValidateSyntheticAlbedoOptions(const SyntheticAlbedoOptions& options);
 
 /// Converts a color from hue, saturation and value to red, green and blue in [0, 1] by the
 /// hexcone model (Smith 1978).
-/// @param hue Hue in degrees; any value, wrapped.
+/// @param hueDegrees Hue in degrees; any value, wrapped.
 /// @param saturation Saturation in [0, 1].
 /// @param value Value in [0, 1].
-AlbedoSample HsvToRgb(double hue, double saturation, double value);
+AlbedoSample HsvToRgb(double hueDegrees, double saturation, double value);
 
 /// An albedo for terrain without data: a base color with noise in each channel, the
 /// saturation and value clamped to [0, 1] after it. Noise is measured from `origin`; on a sphere it

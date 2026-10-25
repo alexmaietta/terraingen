@@ -967,7 +967,7 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
     EXPECT_EQ(error([](TerrainGenConfig&) {}), "valid");
     EXPECT_EQ(error([&](TerrainGenConfig& c) { synthetic(c).value = 2.0; }), "albedo.source.value");
     EXPECT_EQ(error([&](TerrainGenConfig& c) {
-                  synthetic(c).hueNoise.assign(terraingen::kMaxNoiseLayers + 1, {});
+                  synthetic(c).hueNoiseDegrees.assign(terraingen::kMaxNoiseLayers + 1, {});
               }),
               "albedo.source.hue_noise_deg");
     EXPECT_EQ(error([&](TerrainGenConfig& c) {

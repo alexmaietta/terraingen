@@ -929,7 +929,7 @@ void CheckAlbedoNoiseStack(const std::vector<NoiseStackLayerSpec>& layers,
 
 void CheckAlbedoSource(const SyntheticAlbedoSpec& spec, const std::filesystem::path& /*directory*/,
                        const std::string& path) {
-    CheckAlbedoNoiseStack(spec.hueNoise, Child(path, "hue_noise_deg"));
+    CheckAlbedoNoiseStack(spec.hueNoiseDegrees, Child(path, "hue_noise_deg"));
     CheckAlbedoNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"));
     CheckAlbedoNoiseStack(spec.valueNoise, Child(path, "value_noise"));
     At(path, [&] { ValidateSyntheticAlbedoOptions(spec.Options()); });

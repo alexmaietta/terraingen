@@ -72,7 +72,9 @@ def test_optical_maturity_origin_is_the_clementine_reflectance():
 
 def test_hsv_to_rgb_of_half_bright_red():
     assert terraingen.hsv_to_rgb(0.0, 1.0, 0.5) == pytest.approx((0.5, 0.0, 0.0))
-    assert terraingen.hsv_to_rgb(hue_deg=120.0, saturation=1.0, value=1.0) == pytest.approx((0.0, 1.0, 0.0))
+    assert terraingen.hsv_to_rgb(hue_degrees=120.0, saturation=1.0, value=1.0) == pytest.approx(
+        (0.0, 1.0, 0.0)
+    )
 
 
 def test_crater_albedo_brightens_a_young_crater_beyond_its_rim(lunar_models):
@@ -115,12 +117,12 @@ def test_albedo_keeps_its_layers(lunar_models):
 
 def test_rgb_synthetic_albedo_has_three_bands():
     rgb = terraingen.evaluate_albedo(
-        terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue_deg=30.0, saturation=0.2)),
+        terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue_degrees=30.0, saturation=0.2)),
         terraingen.RasterGrid.centered((0, 0), (129 * 8.0, 129 * 8.0), 8.0),
     )
     assert len(rgb) == 3
     on_a_plane = terraingen.SyntheticAlbedo(
-        rgb=True, hue_deg=30.0, saturation=0.3, surface=terraingen.Surface()
+        rgb=True, hue_degrees=30.0, saturation=0.3, surface=terraingen.Surface()
     )
     assert on_a_plane.bands() == 3
 

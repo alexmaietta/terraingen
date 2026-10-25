@@ -235,7 +235,7 @@ def test_geotiff_heights_round_trip(tmp_path, lunar_models, crater_layer):
 
 def test_geotiff_bands_round_trip_and_out_of_range_bands_raise(tmp_path):
     rgb = terraingen.evaluate_albedo(
-        terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue_deg=30.0, saturation=0.2)),
+        terraingen.Albedo(terraingen.SyntheticAlbedo(rgb=True, hue_degrees=30.0, saturation=0.2)),
         terraingen.RasterGrid.centered((0, 0), (129 * 8.0, 129 * 8.0), 8.0),
     )
     terraingen.write_geotiff(tmp_path / "rgb.tif", rgb)

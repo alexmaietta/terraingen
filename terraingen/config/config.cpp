@@ -82,10 +82,10 @@ RoughnessOptions RoughnessLayerSpec::EstimatedOptions(BaseRoughness source) cons
 SyntheticAlbedoOptions SyntheticAlbedoSpec::Options() const {
     SyntheticAlbedoOptions options;
     options.rgb = rgb;
-    options.hue = hue;
+    options.hueDegrees = hueDegrees;
     options.saturation = saturation;
     options.value = value;
-    AppendEffective(hueNoise, options.hueNoise);
+    AppendEffective(hueNoiseDegrees, options.hueNoiseDegrees);
     AppendEffective(saturationNoise, options.saturationNoise);
     AppendEffective(valueNoise, options.valueNoise);
     return options;

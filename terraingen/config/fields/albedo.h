@@ -23,7 +23,7 @@ template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
     io("rgb", spec.rgb,
        "Gives three bands, red, green and blue, from the color; off gives one band of the value "
        "alone, ignoring hue and saturation.");
-    io("hue_deg", spec.hue,
+    io("hue_deg", spec.hueDegrees,
        "Hue of the base color in degrees, wrapping around; used with rgb only.", "deg");
     io("saturation", spec.saturation,
        "Saturation of the base color, from 0 for gray to 1; used with rgb only.", "",
@@ -33,7 +33,7 @@ template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
        "Higher values give a brighter surface.",
        "", UnitInterval());
     const std::string layers = "Noise layers, " + CountText(0, kMaxNoiseLayers);
-    io("hue_noise_deg", spec.hueNoise,
+    io("hue_noise_deg", spec.hueNoiseDegrees,
        layers + ", whose sum in degrees is added to the hue; used with rgb only.");
     io("saturation_noise", spec.saturationNoise,
        layers + ", added to the saturation, which is then clamped to [0, 1]; used with rgb only.");

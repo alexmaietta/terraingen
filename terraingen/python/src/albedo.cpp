@@ -117,26 +117,26 @@ void BindSynthetic(nb::module_& m) {
     nb::class_<SyntheticAlbedo, AlbedoSource>(
         m, "SyntheticAlbedo",
         "A synthetic albedo: `value` (reflectance), varied by `value_noise` (relative), and with "
-        "`rgb` three bands from `hue_deg` (degrees) and `saturation` and their noise.")
+        "`rgb` three bands from `hue_degrees` and `saturation` and their noise.")
         .def(
             "__init__",
             [](SyntheticAlbedo* self, double value, std::vector<NoiseLayer> valueNoise, bool rgb,
-               double hue, double saturation, std::vector<NoiseLayer> hueNoise,
+               double hue, double saturation, std::vector<NoiseLayer> hueNoiseDegrees,
                std::vector<NoiseLayer> saturationNoise, const Vec2d& origin,
                const Surface& surface) {
                 SyntheticAlbedoOptions params;
                 params.value = value;
                 params.valueNoise = std::move(valueNoise);
                 params.rgb = rgb;
-                params.hue = hue;
+                params.hueDegrees = hue;
                 params.saturation = saturation;
-                params.hueNoise = std::move(hueNoise);
+                params.hueNoiseDegrees = std::move(hueNoiseDegrees);
                 params.saturationNoise = std::move(saturationNoise);
                 new (self) SyntheticAlbedo(std::move(params), origin, surface);
             },
             "value"_a = kDefaultSyntheticAlbedoValue, "value_noise"_a = std::vector<NoiseLayer>{},
-            "rgb"_a = false, "hue_deg"_a = 0.0, "saturation"_a = 0.0,
-            "hue_noise_deg"_a = std::vector<NoiseLayer>{},
+            "rgb"_a = false, "hue_degrees"_a = 0.0, "saturation"_a = 0.0,
+            "hue_noise_degrees"_a = std::vector<NoiseLayer>{},
             "saturation_noise"_a = std::vector<NoiseLayer>{}, "origin"_a = Vec2d{},
             "surface"_a = Surface{});
     m.def(
@@ -145,7 +145,7 @@ void BindSynthetic(nb::module_& m) {
             const AlbedoSample rgb = HsvToRgb(hue, saturation, value);
             return std::tuple{rgb[0], rgb[1], rgb[2]};
         },
-        "hue_deg"_a, "saturation"_a, "value"_a, "A color's (red, green, blue).");
+        "hue_degrees"_a, "saturation"_a, "value"_a, "A color's (red, green, blue).");
 }
 
 void BindRasterAlbedo(nb::module_& m) {

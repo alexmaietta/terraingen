@@ -695,10 +695,10 @@ using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOu
 /// point.
 struct SyntheticAlbedoSpec {
     bool rgb = false;
-    double hue = 0.0;
+    double hueDegrees = 0.0;
     double saturation = 0.0;
     double value = kDefaultSyntheticAlbedoValue;
-    std::vector<NoiseStackLayerSpec> hueNoise;
+    std::vector<NoiseStackLayerSpec> hueNoiseDegrees;
     std::vector<NoiseStackLayerSpec> saturationNoise;
     std::vector<NoiseStackLayerSpec> valueNoise;
 
