@@ -1,7 +1,6 @@
 # Crater degradation
 
-The degradation model wears craters down with their age: not at all, shallower in proportion to age,
-or by topographic diffusion.
+The degradation model wears craters down with their age: not at all, shallower in proportion to age, or by topographic diffusion.
 
 <figure markdown>
 
@@ -17,8 +16,7 @@ or by topographic diffusion.
     --8<-- "docs/gallery/craters/degradation_by_age.py"
     ```
 
-Freshness degradation instead sets each crater's depth from its freshness, its depth over its fresh
-depth, whatever its size; Martin, Parkes and Dunstan's profile lowers and rounds the rim with it.
+Freshness degradation instead sets each crater's depth from its freshness, its depth over its fresh depth, whatever its size; Martin, Parkes and Dunstan's profile lowers and rounds the rim with it.
 
 <figure markdown>
 
@@ -32,18 +30,4 @@ depth, whatever its size; Martin, Parkes and Dunstan's profile lowers and rounds
 
     ```python
     --8<-- "docs/gallery/craters/degradation_by_freshness.py"
-    ```
-
-<figure markdown>
-
-![The same crater field under four degradation models: none, freshness, and diffusion with the Fassett and Thomson (2014) and Fassett et al. (2022) diffusivities](../../images/gallery/craters/degradation.jpg)
-
-<figcaption>The same craters under each degradation model.</figcaption>
-
-</figure>
-
-??? example "Reproduce this figure"
-
-    ```python
-    --8<-- "docs/gallery/craters/degradation.py"
     ```

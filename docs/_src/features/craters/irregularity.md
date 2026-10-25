@@ -1,7 +1,6 @@
 # Irregular outlines
 
-Rims can be roughened by random harmonics, set by their RMS deviation from a circle in radii, and
-some craters stretched into ellipses.
+Rims can be roughened by random harmonics, set by their RMS deviation from a circle in radii, and some craters stretched into ellipses.
 
 <figure markdown>
 

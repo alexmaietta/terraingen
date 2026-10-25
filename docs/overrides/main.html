@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+
+{#- The home page marks itself, so its sidebar can list every section rather than only its own. -#}
+{% block content %}
+  {% if page and page.is_homepage %}<span class="tg-home" hidden></span>{% endif %}
+  {{ super() }}
+{% endblock %}

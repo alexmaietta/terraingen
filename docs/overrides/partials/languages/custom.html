@@ -1,0 +1,5 @@
+{#- English labels, with the page's own headings titled "On this page". -#}
+{% import "partials/languages/en.html" as language %}
+{% macro t(key) %}{{ {
+  "toc": "On this page",
+}[key] or language.t(key) }}{% endmacro %}

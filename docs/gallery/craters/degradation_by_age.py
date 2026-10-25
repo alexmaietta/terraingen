@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+PAGE = "features/craters/degradation.md"
+
 AGES_GYR = [0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5]
 DIAMETER = 150.0
 SPACING = 240.0

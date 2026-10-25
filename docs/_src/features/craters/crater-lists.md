@@ -1,7 +1,6 @@
 # Crater lists
 
-Every crater a layer places, with its position, diameter, depth and age, can be read back or written
-to CSV or JSON.
+Every crater a layer places, with its position, diameter, depth and age, can be read back or written to CSV or JSON.
 
 === "Python"
 

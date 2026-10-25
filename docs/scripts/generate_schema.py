@@ -407,11 +407,13 @@ def on_config(config):
     _STATE["schema"] = schema
     _STATE["catalog"] = catalog
     entry = {"Configuration": nav}
-    position = next(
-        (i for i, item in enumerate(config.nav) if isinstance(item, dict) and "API" in item),
-        len(config.nav),
+    section = next(
+        (item["Reference"] for item in config.nav if isinstance(item, dict) and "Reference" in item), None
     )
-    config.nav.insert(position, entry)
+    if section is None:
+        config.nav.append({"Reference": [entry]})
+    else:
+        section.insert(0, entry)
     return config
 
 

@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+PAGE = "features/craters/degradation.md"
+
 FRESHNESS = [1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2]
 LIFETIME_GYR = 1.0
 DIAMETER = 150.0

@@ -8,8 +8,9 @@ ROOT := $(abspath ..)
 build:
 	cd $(ROOT) && $(PYTHON) -m mkdocs build
 
+# Serves on PORT, or the first free port from 8000.
 serve:
-	cd $(ROOT) && $(PYTHON) -m mkdocs serve
+	cd $(ROOT) && port=$${PORT:-$$($(PYTHON) -c "import socket; print(next(p for p in range(8000, 8100) if socket.socket().connect_ex(('127.0.0.1', p))))")} && $(PYTHON) -m mkdocs serve -a 127.0.0.1:$$port
 
 # Renders the gallery figures into _src/images/gallery, to commit when their look should change.
 gallery:

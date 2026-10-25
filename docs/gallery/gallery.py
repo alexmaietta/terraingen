@@ -2,8 +2,9 @@
 
 """
 Renders the documentation's gallery: each docs/gallery/<category>/<name>.py defines `figure(quick)`,
-saved as docs/_src/images/gallery/<category>/<name>.jpg. Needs TerrainGen built with Python in
-build/ and matplotlib (docs/requirements.txt).
+saved as docs/_src/images/gallery/<category>/<name>.jpg, and sets `PAGE`, the page that explains it;
+its docstring is its caption on the Gallery page (docs/scripts/gallery_page.py). Needs TerrainGen built
+with Python in build/ and matplotlib (docs/requirements.txt).
 
     python docs/gallery/gallery.py [NAME ...] [--quick] [--output-dir DIR]
 """
