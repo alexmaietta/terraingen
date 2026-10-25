@@ -3,11 +3,14 @@
 """Adding noise to a measured DEM: the LOLA global lunar DEM at 8 pixels per degree (about 3.8 km
 posts, LDEM_8, Smith et al. 2010) over 12 degrees around Copernicus, refined by cubic
 interpolation to about 500 m on the Moon's sphere. Left to right: the DEM alone; a stack of fBm
-octaves from 16 km down to 1 km, 250 m high at 8 km and rising as wavelength^0.8, added everywhere, so its long
-octaves pile hills onto relief the DEM already measures; the same stack with every octave 2 or
-more of the DEM's posts long left out, keeping only detail the DEM cannot hold; and spectral
-continuation, which carries on the power law fitted to the DEM's own posts below their resolution.
-Bottom: the radially averaged power spectra, the posts' Nyquist frequency marked."""
+octaves from 16 km down to 1 km, 250 m high at 8 km and rising as wavelength^0.8, added
+everywhere, so its long octaves pile hills onto relief the DEM already measures; the same stack
+with every octave 2 or more of the DEM's posts long left out, keeping only detail the DEM cannot
+hold; and spectral continuation, which carries on below the posts' resolution the power law
+fitted to them over 24 degrees around the window; their spectrum falls faster than the steepest
+slope the continuation takes, 4, so the fit is clipped to it.
+Bottom: the radially averaged power spectra, the 24 degrees of posts as dots and their Nyquist
+frequency marked."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -22,6 +25,7 @@ ASSETS = [assets.LOLA_LDEM_8]
 RADIUS_M = 1737400.0
 CENTER = (-20.08, 9.62)
 HALF_WIDTH_DEG = 6.0
+FIT_HALF_WIDTH_DEG = 12.0
 POSTS_PER_DEG = 8
 OCTAVES_M = [16000.0, 8000.0, 4000.0, 2000.0, 1000.0]
 COLORS = ["#555555", "#d62728", "#1f77b4", "#2ca02c"]
@@ -58,9 +62,9 @@ def figure(quick=False):
     post_m = np.radians(post) * RADIUS_M
 
     lon, lat = CENTER
-    first_row = int((90.0 - lat - HALF_WIDTH_DEG) * POSTS_PER_DEG)
-    first_column = int((lon - HALF_WIDTH_DEG) % 360.0 * POSTS_PER_DEG)
-    count = int(2 * HALF_WIDTH_DEG * POSTS_PER_DEG)
+    first_row = int((90.0 - lat - FIT_HALF_WIDTH_DEG) * POSTS_PER_DEG)
+    first_column = int((lon - FIT_HALF_WIDTH_DEG) % 360.0 * POSTS_PER_DEG)
+    count = int(2 * FIT_HALF_WIDTH_DEG * POSTS_PER_DEG)
     posts = heights[first_row : first_row + count, first_column : first_column + count]
     fit = terraingen.estimate_power_law_spectrum(
         terraingen.Raster.from_array(
@@ -80,7 +84,10 @@ def figure(quick=False):
         ("LDEM_8, cubic", []),
         ("fBm octaves everywhere", [octave_stack(moon, source, None)]),
         ("Only octaves finer than 2 posts", [octave_stack(moon, source, 2.0)]),
-        (f"Spectral continuation, slope {fit.slope:.2f}", [continuation]),
+        (
+            f"Spectral continuation, slope {fit.slope:.2f}" + (" (clipped)" if fit.clipped else ""),
+            [continuation],
+        ),
     ]
     window = terraingen.RasterGrid.covering(
         (lon - HALF_WIDTH_DEG, lat - HALF_WIDTH_DEG, lon + HALF_WIDTH_DEG, lat + HALF_WIDTH_DEG), pixel_deg

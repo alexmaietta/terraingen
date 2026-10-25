@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""Filling the gaps in a DEM with a source chain, which tries its sources in order at each point: a
-512 m DEM with 2 m posts missing a strip and a corner, chained over an unrelated synthetic source of
-fractal noise, as a regional model or a generic fallback would be. The chain switches sources
-outright, matching neither height nor slope, so each gap's edge shows as a step. Top left: the DEM,
-its gaps in red. Top middle: the synthetic fallback alone. Top right: the chain, gaps outlined.
-Bottom: a west to east profile across the strip, the chain against the DEM's own ground before the
-strip was cut out (dashed), the gap shaded."""
+"""Filling the gaps in a DEM with a source chain and matching it at the seams: a 512 m DEM with 2 m
+posts missing a strip and a corner (outlined), chained over an unrelated synthetic source of
+fractal noise, as a regional model or a generic fallback would be. Left to right: no matching, the
+chain switching sources outright so each gap's edge steps; a 20 m feather blending the two across
+the edge; height matching, the fallback shifted by the gap between the sources along the edge,
+spread smoothly into the gap; and slope matching, which also carries the DEM's slope across the
+edge. Top: hillshades. Middle: a west to east height profile across the strip against the DEM
+before the strip was cut out (dashed), the gap shaded. Bottom: the slope along it."""
 
 import gallery
 import matplotlib.pyplot as plt
@@ -20,6 +21,13 @@ PIXEL = 2.0
 POSTS = 257
 STRIP = (100, 130)
 PROFILE_ROW = 60
+MODES = [
+    ("No matching", "NONE"),
+    ("Feather, 20 m", "FEATHER"),
+    ("Height", "HEIGHT"),
+    ("Slope", "SLOPE"),
+]
+COLORS = ["#7f7f7f", "#ff7f0e", "#1f77b4", "#2ca02c"]
 
 
 def figure(quick=False):
@@ -43,41 +51,43 @@ def figure(quick=False):
     fallback = terraingen.SyntheticSource(
         [terraingen.NoiseLayer(terraingen.FractalParams(seed=21, wavelength=300.0, amplitude=20.0))]
     )
-    grid = source.grid()
-    fallback_heights = terraingen.evaluate(terraingen.TerrainGenerator(fallback, []), grid=grid).values
-    chained = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.SourceChain([source, fallback]), [])
-    ).values
     gaps = np.isnan(holed)
-
-    fig = plt.figure(figsize=(16, 10), layout="constrained")
-    layout = fig.add_gridspec(2, 3, height_ratios=[1, 0.6])
-    axes = [fig.add_subplot(layout[0, column]) for column in range(3)]
-    profile_ax = fig.add_subplot(layout[1, :])
-    gallery.show_hillshade(axes[0], np.where(gaps, np.nanmean(holed), holed), PIXEL)
-    axes[0].imshow(np.ma.masked_where(~gaps, gaps), cmap="autumn", alpha=0.7)
-    axes[0].axhline(PROFILE_ROW, color="#1f77b4", lw=1.0, ls="--")
-    axes[0].set_title(f"DEM, {int(gaps.sum())} cells without data")
-    gallery.show_hillshade(axes[1], fallback_heights, PIXEL)
-    axes[1].set_title("Unrelated synthetic fallback")
-    gallery.show_hillshade(axes[2], chained, PIXEL)
-    axes[2].contour(gaps, levels=[0.5], colors="#d62728", linewidths=1.0)
-    axes[2].axhline(PROFILE_ROW, color="#1f77b4", lw=1.0, ls="--")
-    axes[2].set_title("Chain: steps at every gap edge")
-
     x = (np.arange(POSTS) - 0.5 * (POSTS - 1)) * PIXEL
     window = slice(STRIP[0] - 40, STRIP[1] + 40)
-    profile_ax.axvspan(x[STRIP[0]] - 0.5 * PIXEL, x[STRIP[1] - 1] + 0.5 * PIXEL, color="#d62728", alpha=0.12)
-    profile_ax.plot(
+
+    fig = plt.figure(figsize=(18, 12), layout="constrained")
+    layout = fig.add_gridspec(3, len(MODES), height_ratios=[1, 0.55, 0.45])
+    height_ax = fig.add_subplot(layout[1, :])
+    slope_ax = fig.add_subplot(layout[2, :], sharex=height_ax)
+    for ax in (height_ax, slope_ax):
+        ax.axvspan(x[STRIP[0]] - 0.5 * PIXEL, x[STRIP[1] - 1] + 0.5 * PIXEL, color="#d62728", alpha=0.1)
+    height_ax.plot(
         x[window],
         truth[PROFILE_ROW, window],
-        color="0.35",
+        color="black",
         lw=1.0,
         ls="--",
         label="DEM before the gap was cut",
     )
-    profile_ax.plot(x[window], chained[PROFILE_ROW, window], color="#1f77b4", lw=1.6, label="Chain")
-    profile_ax.set_xlabel("West to east (m)")
-    profile_ax.set_ylabel("Height (m)")
-    profile_ax.legend()
+    for column, ((title, mode), color) in enumerate(zip(MODES, COLORS, strict=True)):
+        seams = terraingen.ChainSeams()
+        seams.mode = getattr(terraingen.ChainSeamMode, mode)
+        seams.width = 20.0
+        seams.decay_length = 60.0
+        chain = terraingen.SourceChain([source, fallback], seams)
+        chained = terraingen.evaluate(terraingen.TerrainGenerator(chain, [])).values
+        ax = fig.add_subplot(layout[0, column])
+        gallery.show_hillshade(ax, chained, PIXEL)
+        ax.contour(gaps, levels=[0.5], colors="#d62728", linewidths=0.8)
+        ax.axhline(PROFILE_ROW, color=color, lw=1.0, ls="--")
+        ax.set_title(title, color=color)
+        profile = chained[PROFILE_ROW, window]
+        height_ax.plot(x[window], profile, color=color, lw=1.5, label=title)
+        slope_ax.plot(
+            x[window], np.degrees(np.arctan(np.gradient(profile, PIXEL))), color=color, lw=1.3, label=title
+        )
+    height_ax.set_ylabel("Height (m)")
+    height_ax.legend(ncol=5)
+    slope_ax.set_xlabel("West to east (m)")
+    slope_ax.set_ylabel("Slope east (degrees)")
     return fig
