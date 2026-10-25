@@ -25,14 +25,14 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
        "Gyr", AtLeast(0.0));
     io("id", crater.id,
        "Stable ID that seeds the crater's outline; 0 derives one from its position and diameter.");
-    NanField(io, "depth", crater.depth,
-             "Rim-to-floor depth in meters, in place of the one the degradation model and age "
-             "give; unset keeps the model's.",
-             "m", Above(0.0));
-    NanField(io, "rim_height", crater.rimHeight,
-             "Height of the rim crest above the surface the crater formed on, in meters; needs a "
-             "depth. Unset lowers the fresh rim in proportion to the depth.",
-             "m", AtLeast(0.0));
+    io("depth", crater.depth,
+       "Rim-to-floor depth in meters, in place of the one the degradation model and age "
+       "give; unset keeps the model's.",
+       "m", Above(0.0));
+    io("rim_height", crater.rimHeight,
+       "Height of the rim crest above the surface the crater formed on, in meters; needs a "
+       "depth. Unset lowers the fresh rim in proportion to the depth.",
+       "m", AtLeast(0.0));
 }
 
 template <typename IO> void Fields(IO& io, CraterSpacing& spacing) {
@@ -315,7 +315,8 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
        "Size-frequency distribution of the generated craters: how many of each diameter per unit "
        "area.");
     io("ages", craters.ages,
-       "How generated craters are given ages, which the degradation model wears them down by.");
+       "How generated craters are given ages, which the degradation model wears them down by; "
+       "unset gives steady-state ages on the density's production surface and equilibrium.");
     io("min_diameter_m", craters.minDiameter,
        "Smallest crater generated, in meters; lower values add many more small craters.", "m",
        Above(0.0));

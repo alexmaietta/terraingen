@@ -8,6 +8,7 @@
 #include "terraingen/util/checks.h"
 
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -31,14 +32,14 @@ void AppendManualCraters(const CraterList& manual, CraterList& craters,
             throw std::invalid_argument("Manual craters need finite positions, positive diameters "
                                         "and non-negative ages");
         }
-        if (!(std::isnan(crater.depth) || IsPositive(crater.depth))) {
+        if (crater.depth && !IsPositive(*crater.depth)) {
             throw std::invalid_argument("A manual crater's depth must be unset or positive");
         }
-        if (!(std::isnan(crater.rimHeight) || IsNonNegative(crater.rimHeight))) {
+        if (crater.rimHeight && !IsNonNegative(*crater.rimHeight)) {
             throw std::invalid_argument(
                 "A manual crater's rim height must be unset or not negative");
         }
-        if (std::isnan(crater.depth) && !std::isnan(crater.rimHeight)) {
+        if (!crater.depth && crater.rimHeight) {
             throw std::invalid_argument("A manual crater's rim height needs its depth too");
         }
         crater.manual = true;
@@ -76,8 +77,8 @@ void CraterList::Append(const Crater& crater) {
     ageGyr_.push_back(crater.ageGyr);
     id_.push_back(crater.id);
     manual_.push_back(crater.manual ? 1 : 0);
-    depth_.push_back(crater.depth);
-    rimHeight_.push_back(crater.rimHeight);
+    depth_.push_back(crater.depth.value_or(std::numeric_limits<double>::quiet_NaN()));
+    rimHeight_.push_back(crater.rimHeight.value_or(std::numeric_limits<double>::quiet_NaN()));
 }
 
 void CraterList::Append(const CraterList& other) {
@@ -95,8 +96,9 @@ Crater CraterList::At(std::size_t index) const {
     if (index >= Size()) {
         throw std::out_of_range("Crater index out of range");
     }
-    return {x_[index],  y_[index],           diameter_[index], ageGyr_[index],
-            id_[index], manual_[index] != 0, depth_[index],    rimHeight_[index]};
+    return {
+        x_[index],  y_[index],           diameter_[index],         ageGyr_[index],
+        id_[index], manual_[index] != 0, UnlessNan(depth_[index]), UnlessNan(rimHeight_[index])};
 }
 
 bool CraterSelection::Includes(const Crater& crater) const {

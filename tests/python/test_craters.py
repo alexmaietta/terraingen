@@ -90,13 +90,13 @@ def test_crater_fields_are_writable():
 
 def test_crater_takes_an_explicit_depth_and_rim_height():
     plain = terraingen.Crater(1.0, 2.0, 6.0)
-    assert math.isnan(plain.depth) and math.isnan(plain.rim_height)
+    assert plain.depth is None and plain.rim_height is None
     assert "depth" not in repr(plain)
     crater = terraingen.Crater(1.0, 2.0, 6.0, depth=0.9, rim_height=0.2)
     assert (crater.depth, crater.rim_height) == (0.9, 0.2)
     assert "depth=0.9" in repr(crater) and "rim_height=0.2" in repr(crater)
-    crater.rim_height = float("nan")
-    assert math.isnan(crater.rim_height)
+    crater.rim_height = None
+    assert crater.rim_height is None
     listed = terraingen.CraterList([crater, plain])
     assert listed.depths[0] == 0.9 and math.isnan(listed.depths[1])
     assert math.isnan(listed.rim_heights[0])
@@ -112,11 +112,11 @@ def test_crater_list_reads_depth_and_rim_height_columns():
     }
     craters = terraingen.CraterList.from_table(table)
     assert (craters[0].depth, craters[0].rim_height) == (0.9, 0.2)
-    assert math.isnan(craters[1].depth)
+    assert craters[1].depth is None
     attributes_only = terraingen.CraterList.from_table(
         {"x": [0.0], "y": [0.0], "diameter": [6.0], "rim_height": [0.3]}
     )
-    assert math.isnan(attributes_only[0].rim_height), "a rim height without depths is an attribute"
+    assert attributes_only[0].rim_height is None, "a rim height without depths is an attribute"
     with pytest.raises(ValueError):
         terraingen.CraterList.from_table({"x": [0.0], "y": [0.0], "diameter": [6.0], "depth": [1.0, 2.0]})
 
@@ -156,7 +156,7 @@ def test_manual_crater_id_is_deterministic():
 
 def test_manual_crater_flags_a_hand_placed_crater():
     plain = terraingen.manual_crater(1.0, -2.0, 30.0)
-    assert plain.manual and math.isnan(plain.depth) and math.isnan(plain.rim_height)
+    assert plain.manual and plain.depth is None and plain.rim_height is None
     deep = terraingen.manual_crater(1.0, -2.0, 30.0)
     deep.depth, deep.rim_height = 6.0, 1.2
     assert (deep.x, deep.y, deep.diameter, deep.depth, deep.rim_height) == (1.0, -2.0, 30.0, 6.0, 1.2)

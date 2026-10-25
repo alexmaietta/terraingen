@@ -108,7 +108,7 @@ void CheckLayer(const LayerSpec& spec, const std::string& path, LayerChecks& con
 /// @throws ConfigError at a manual crater with a rim height but no depth.
 void CheckManualCraters(const std::vector<Crater>& manual, const std::string& path) {
     for (std::size_t n = 0; n < manual.size(); ++n) {
-        if (std::isnan(manual[n].depth) && !std::isnan(manual[n].rimHeight)) {
+        if (!manual[n].depth && manual[n].rimHeight) {
             throw ConfigError(Child(Element(path, n), "rim_height"), "needs a depth");
         }
     }
@@ -119,7 +119,7 @@ void CheckManualCraters(const std::vector<Crater>& manual, const std::string& pa
 void CheckExplicitShapes(const std::vector<Crater>& manual, const CraterModels& models,
                          const std::string& path) {
     for (std::size_t n = 0; n < manual.size(); ++n) {
-        if (!std::isnan(manual[n].depth)) {
+        if (manual[n].depth) {
             At(Element(path, n), [&] { ResolvedCraterState(models.Shape(), manual[n]); });
         }
     }
@@ -166,7 +166,8 @@ void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
         const DiameterRange& density = models.density->ValidRange();
         std::string message =
             "the density or ages are not defined at " + Meters(craters.minDiameter) + " m";
-        if (const auto* steady = std::get_if<SteadyStateAgesSpec>(&craters.ages)) {
+        const AgesSpec ages = config::LayerAges(craters);
+        if (const auto* steady = std::get_if<SteadyStateAgesSpec>(&ages)) {
             message += "; steady-state ages need the production function's diameters, from " +
                        Meters(config::BuildProduction(steady->production)->ValidRange().min) + " m";
         } else if (density.min > 0.0) {
@@ -180,31 +181,17 @@ void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
 /// chronology, surface age or equilibrium than a density of a production surface capped by an
 /// equilibrium, so the ages would not follow the craters drawn.
 void CheckMatchingAges(const CraterLayerSpec& craters, const std::string& path) {
-    const auto* steady = std::get_if<SteadyStateAgesSpec>(&craters.ages);
-    const auto* minimum = std::get_if<MinimumSpec>(&craters.density);
-    if (!steady || !minimum) {
+    const auto* steady = craters.ages ? std::get_if<SteadyStateAgesSpec>(&*craters.ages) : nullptr;
+    const std::optional<SteadyStateAgesSpec> matching = config::MatchingAges(craters.density);
+    if (!steady || !matching) {
         return;
     }
-    const ProductionSurfaceSpec* surface = nullptr;
-    std::optional<EquilibriumModel> equilibrium;
-    for (const DensitySpec& distribution : minimum->distributions) {
-        if (const auto* s = std::get_if<ProductionSurfaceSpec>(&distribution)) {
-            surface = s;
-        } else if (std::holds_alternative<TraskSpec>(distribution)) {
-            equilibrium = EquilibriumModel::Trask;
-        } else if (std::holds_alternative<HartmannSpec>(distribution)) {
-            equilibrium = EquilibriumModel::Hartmann;
-        }
-    }
-    if (!surface || !equilibrium) {
-        return;
-    }
-    if (surface->production != steady->production || surface->chronology != steady->chronology ||
-        surface->ageGyr != steady->ageGyr || *equilibrium != steady->equilibrium) {
+    if (matching->production != steady->production || matching->chronology != steady->chronology ||
+        matching->ageGyr != steady->ageGyr || matching->equilibrium != steady->equilibrium) {
         throw ConfigError(Child(path, "ages"),
                           "steady-state ages must name the production function, chronology, "
                           "age_gyr and equilibrium of the density's production surface and "
-                          "equilibrium");
+                          "equilibrium, or be left out to follow them");
     }
 }
 

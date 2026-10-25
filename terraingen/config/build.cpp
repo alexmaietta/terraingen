@@ -754,6 +754,36 @@ std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& s
 
 namespace config {
 
+std::optional<SteadyStateAgesSpec> MatchingAges(const DensitySpec& density) {
+    const auto* minimum = std::get_if<MinimumSpec>(&density);
+    if (!minimum) {
+        return std::nullopt;
+    }
+    const ProductionSurfaceSpec* surface = nullptr;
+    std::optional<EquilibriumModel> equilibrium;
+    for (const DensitySpec& distribution : minimum->distributions) {
+        if (const auto* s = std::get_if<ProductionSurfaceSpec>(&distribution)) {
+            surface = s;
+        } else if (std::holds_alternative<TraskSpec>(distribution)) {
+            equilibrium = EquilibriumModel::Trask;
+        } else if (std::holds_alternative<HartmannSpec>(distribution)) {
+            equilibrium = EquilibriumModel::Hartmann;
+        }
+    }
+    if (!surface || !equilibrium) {
+        return std::nullopt;
+    }
+    return SteadyStateAgesSpec{surface->ageGyr, surface->production, *equilibrium,
+                               surface->chronology};
+}
+
+AgesSpec LayerAges(const CraterLayerSpec& craters) {
+    if (craters.ages) {
+        return *craters.ages;
+    }
+    return MatchingAges(craters.density).value_or(SteadyStateAgesSpec{});
+}
+
 std::filesystem::path Resolve(const std::string& path, const std::filesystem::path& directory) {
     const std::filesystem::path resolved = path;
     return resolved.is_relative() && !directory.empty() ? directory / resolved : resolved;
@@ -976,7 +1006,7 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
 CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string& path) {
     CraterModels models;
     models.density = At(Child(path, "density"), [&] { return BuildDensity(craters.density); });
-    models.ages = At(Child(path, "ages"), [&] { return BuildAges(craters.ages); });
+    models.ages = At(Child(path, "ages"), [&] { return BuildAges(config::LayerAges(craters)); });
     models.profile = At(Child(path, "profile"),
                         [&] { return BuildProfile(craters.profile, craters.morphometry); });
     At(Child(path, "degradation"), [&] { AddDegradation(craters, models); });

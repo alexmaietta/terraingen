@@ -53,13 +53,13 @@ class CratersManualDepth : public terraingen::examples::Example {
             const terraingen::Crater crater = craters_.craters.At(i);
             const terraingen::CraterAttributes& attributes = craters_.attributes[i];
             Out() << crater.diameter << " m crater, ";
-            if (std::isnan(crater.depth)) {
+            if (!crater.depth) {
                 Out() << "depth from the model";
             } else {
-                Out() << "asked " << crater.depth << " m deep";
+                Out() << "asked " << *crater.depth << " m deep";
             }
-            if (!std::isnan(crater.rimHeight)) {
-                Out() << " with a " << crater.rimHeight << " m rim";
+            if (crater.rimHeight) {
+                Out() << " with a " << *crater.rimHeight << " m rim";
             }
             Out() << ": floor " << attributes.floorDepth << " m below and rim "
                   << attributes.rimHeight << " m above the surface, rim to floor "
@@ -88,13 +88,13 @@ class CratersManualDepth : public terraingen::examples::Example {
             const terraingen::Crater crater = craters.At(i);
             const terraingen::CraterAttributes& a = craters_.attributes[i];
             const double tolerance = 1e-3 * crater.diameter;
-            if (std::isnan(crater.depth)) {
+            if (!crater.depth) {
                 modeled = a.floorDepth + a.rimHeight > 1.0;
                 continue;
             }
-            depths = depths && std::fabs(a.floorDepth + a.rimHeight - crater.depth) < tolerance;
-            rims = rims && (std::isnan(crater.rimHeight) ||
-                            std::fabs(a.rimHeight - crater.rimHeight) < tolerance);
+            depths = depths && std::fabs(a.floorDepth + a.rimHeight - *crater.depth) < tolerance;
+            rims = rims &&
+                   (!crater.rimHeight || std::fabs(a.rimHeight - *crater.rimHeight) < tolerance);
         }
         Check(depths, "each crater given a depth is that deep from rim to floor");
         Check(rims, "each crater given a rim height has that rim");

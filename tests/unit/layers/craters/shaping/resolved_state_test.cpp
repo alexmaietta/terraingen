@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -30,7 +31,8 @@ using terraingen::ResolvedCraterState;
 namespace {
 
 /// A manual crater `diameter` across at the origin, `ageGyr` old, `depth` deep with rim `rim`.
-Crater Manual(double diameter, double depth, double rim = std::nan(""), double ageGyr = 1.0) {
+Crater Manual(double diameter, std::optional<double> depth,
+              std::optional<double> rim = std::nullopt, double ageGyr = 1.0) {
     return Crater{0.0, 0.0, diameter, ageGyr, 7u, true, depth, rim};
 }
 
@@ -91,9 +93,9 @@ TEST(ResolvedCraterState, GivesMartinParkesDunstanCratersTheirDepthAndRim) {
     for (const Crater& crater :
          {Manual(6.0, 0.9, 0.2), Manual(60.0, 4.0, 0.0), Manual(200.0, 30.0, 12.0, 0.0)}) {
         const CraterAttributes shaped = Shaped(mpd, kWorn, crater);
-        EXPECT_NEAR(shaped.rimHeight, crater.rimHeight, 1e-3 * crater.diameter);
-        EXPECT_NEAR(shaped.floorDepth + shaped.rimHeight, crater.depth, 1e-3 * crater.diameter);
-        EXPECT_DOUBLE_EQ(shaped.depthRatio, crater.depth / crater.diameter);
+        EXPECT_NEAR(shaped.rimHeight, *crater.rimHeight, 1e-3 * crater.diameter);
+        EXPECT_NEAR(shaped.floorDepth + shaped.rimHeight, *crater.depth, 1e-3 * crater.diameter);
+        EXPECT_DOUBLE_EQ(shaped.depthRatio, *crater.depth / crater.diameter);
         EXPECT_LE(shaped.freshness, 1.0);
     }
     const CraterState deep = ResolvedCraterState(mpd, kFresh, Manual(6.0, 0.9, 0.3));
@@ -143,7 +145,7 @@ TEST(ResolvedCraterState, SolvesTheDiffusionAgeForADepthUnderDiffusion) {
     EXPECT_NEAR(state.current.depthRatio, 0.5 * fresh.depthRatio, 1e-8);
     EXPECT_LT(state.current.rimHeightRatio, fresh.rimHeightRatio);
     const CraterAttributes shaped = terraingen::ComputeCraterAttributes(crater, state, *Diffused());
-    EXPECT_NEAR(shaped.floorDepth + shaped.rimHeight, crater.depth, 0.02 * crater.depth);
+    EXPECT_NEAR(shaped.floorDepth + shaped.rimHeight, *crater.depth, 0.02 * *crater.depth);
     EXPECT_EQ(ResolvedCraterState(*Diffused(), Diffusion(), crater, 5.0), state);
 
     const CraterState deep = ResolvedCraterState(*Diffused(), Diffusion(), Manual(diameter, 30.0));
@@ -208,7 +210,7 @@ TEST(ApplyCraters, LeavesExplicitCratersUnwornOnSteepGround) {
     steep.slope.criticalGradient = 0.7;
     const Crater generated{0.0, 0.0, 100.0, 0.8, 1u};
     ASSERT_GT(depth(generated, level), depth(generated, steep) + 0.1) << "worn faster";
-    const Crater manual = Manual(100.0, 8.0, std::nan(""), 0.8);
+    const Crater manual = Manual(100.0, 8.0, std::nullopt, 0.8);
     EXPECT_EQ(depth(manual, level), depth(manual, steep));
 }
 
@@ -223,7 +225,7 @@ TEST(ApplyCraters, ShapesExplicitCratersOnEveryAvailableGpuAsOnTheCpu) {
         craters.Append({std::fmod(37.0 * i, 900.0) - 450.0, std::fmod(53.0 * i, 900.0) - 450.0,
                         diameter, 0.05 * (i % 40), static_cast<std::uint64_t>(i + 1), true,
                         (0.05 + 0.005 * (i % 20)) * diameter,
-                        i % 2 == 0 ? 0.02 * diameter : std::nan("")});
+                        i % 2 == 0 ? std::optional<double>(0.02 * diameter) : std::nullopt});
     }
     craters.Append(Manual(30000.0, 2500.0, 600.0));
     const std::vector<terraingen::CraterShapeModels> cases{
@@ -236,7 +238,7 @@ TEST(ApplyCraters, ShapesExplicitCratersOnEveryAvailableGpuAsOnTheCpu) {
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             Crater crater = craters.At(n);
             if (c == 2) {
-                crater.rimHeight = std::nan("");
+                crater.rimHeight.reset();
             }
             shaped.Append(crater);
         }
@@ -268,7 +270,7 @@ TEST(ApplyCraters, ShapesExplicitCratersOnEveryAvailableGpuAsOnTheCpu) {
 
 TEST(ResolvedCraterState, RejectsInvalidExplicitValues) {
     const MartinParkesDunstanProfile mpd;
-    EXPECT_NE(Rejection(mpd, kFresh, Manual(10.0, std::nan(""), 0.2)), "");
+    EXPECT_NE(Rejection(mpd, kFresh, Manual(10.0, std::nullopt, 0.2)), "");
     EXPECT_NE(Rejection(mpd, kFresh, Manual(10.0, -1.0)), "");
     EXPECT_NE(Rejection(mpd, kFresh, Manual(10.0, 1.0, -0.5)), "");
 }

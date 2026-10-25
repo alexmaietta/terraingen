@@ -87,10 +87,10 @@ CraterList FromTable(const nb::dict& table) {
         crater.ageGyr = age ? age->data()[i] : 0.0;
         crater.manual = manual ? manual->data()[i] != 0.0 : true;
         if (depth) {
-            crater.depth = depth->data()[i];
+            crater.depth = UnlessNan(depth->data()[i]);
         }
         if (rimHeight) {
-            crater.rimHeight = rimHeight->data()[i];
+            crater.rimHeight = UnlessNan(rimHeight->data()[i]);
         }
         crater.id = ids && ids->data()[i] != 0
                         ? ids->data()[i]
@@ -104,16 +104,15 @@ void BindCrater(nb::module_& m) {
     nb::class_<Crater>(m, "Crater",
                        "One crater: center (m), rim-to-rim diameter (m), age (Gyr), a stable "
                        "ID (0 for one hashed from its position and size), and optionally its "
-                       "rim-to-floor depth and rim height (m), NaN to take them from the models.")
+                       "rim-to-floor depth and rim height (m), None to take them from the models.")
         .def(
             "__init__",
             [](Crater* self, double x, double y, double diameter, double ageGyr, std::uint64_t id,
-               double depth, double rimHeight) {
+               std::optional<double> depth, std::optional<double> rimHeight) {
                 new (self) Crater{x, y, diameter, ageGyr, id, true, depth, rimHeight};
             },
             "x"_a, "y"_a, "diameter"_a, "age_gyr"_a = 0.0, "id"_a = 0,
-            "depth"_a = std::numeric_limits<double>::quiet_NaN(),
-            "rim_height"_a = std::numeric_limits<double>::quiet_NaN())
+            "depth"_a.none() = nb::none(), "rim_height"_a.none() = nb::none())
         .def_rw("x", &Crater::x)
         .def_rw("y", &Crater::y)
         .def_rw("diameter", &Crater::diameter)
@@ -121,18 +120,18 @@ void BindCrater(nb::module_& m) {
         .def_rw("id", &Crater::id)
         .def_rw("manual", &Crater::manual)
         .def_rw("depth", &Crater::depth,
-                "Rim-to-floor depth (m) of a manual crater; NaN takes it from the degradation "
+                "Rim-to-floor depth (m) of a manual crater; None takes it from the degradation "
                 "model.")
         .def_rw("rim_height", &Crater::rimHeight,
-                "Rim crest above the pre-impact surface (m), with a depth; NaN derives it.")
+                "Rim crest above the pre-impact surface (m), with a depth; None derives it.")
         .def("__repr__", [](const Crater& c) {
             std::string text = "Crater(" + std::to_string(c.x) + ", " + std::to_string(c.y) + ", " +
                                std::to_string(c.diameter) + ", age_gyr=" + std::to_string(c.ageGyr);
-            if (!std::isnan(c.depth)) {
-                text += ", depth=" + std::to_string(c.depth);
+            if (c.depth) {
+                text += ", depth=" + std::to_string(*c.depth);
             }
-            if (!std::isnan(c.rimHeight)) {
-                text += ", rim_height=" + std::to_string(c.rimHeight);
+            if (c.rimHeight) {
+                text += ", rim_height=" + std::to_string(*c.rimHeight);
             }
             return text + ")";
         });

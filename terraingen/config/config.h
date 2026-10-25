@@ -343,8 +343,8 @@ struct CraterLayerSpec {
     /// By default a 3.5 Gyr extended Neukum production surface capped by Hartmann equilibrium
     /// (Fassett 2022, https://doi.org/10.1029/2022JE007510).
     DensitySpec density{MinimumSpec{{ProductionSurfaceSpec{}, HartmannSpec{}}}};
-    /// By default steady-state ages on that surface, matching the density.
-    AgesSpec ages{SteadyStateAgesSpec{}};
+    /// Unset gives steady-state ages matching the density (`LayerAges`).
+    std::optional<AgesSpec> ages{};
     /// Meters; by default 2.5, where the extended Neukum production function begins.
     double minDiameter = 2.5;
     double maxDiameter = 250.0;  ///< Meters.

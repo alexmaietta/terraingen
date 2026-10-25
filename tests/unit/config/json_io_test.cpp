@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "configs.h"
+#include "terraingen/config/build.h"
 #include "terraingen/config/fields/json_io.h"
 #include "terraingen/layers/bedforms.h"
 
@@ -389,9 +390,9 @@ TEST(ConfigJson, ReadsAndWritesManualCraterDepthsAndRimHeights) {
     const auto& manual = std::get<CraterLayerSpec>(config.layers[0]).manual;
     ASSERT_EQ(manual.size(), 3u);
     EXPECT_EQ(manual[0].depth, 0.9);
-    EXPECT_TRUE(std::isnan(manual[0].rimHeight));
+    EXPECT_FALSE(manual[0].rimHeight.has_value());
     EXPECT_EQ(manual[1].rimHeight, 0.2);
-    EXPECT_TRUE(std::isnan(manual[2].depth));
+    EXPECT_FALSE(manual[2].depth.has_value());
     const std::string json = ConfigToJson(config);
     const std::size_t last = json.find("\"x\": 5.0,");
     ASSERT_NE(last, std::string::npos) << json;
@@ -654,7 +655,7 @@ TEST(ConfigJson, ReadsProductionSurfacesMinimumsAndSteadyStateAges) {
     const terraingen::SteadyStateAgesSpec ages{2.5, terraingen::ProductionFunction::Neukum,
                                                terraingen::EquilibriumModel::Hartmann,
                                                terraingen::ChronologyModel::Ivanov};
-    EXPECT_EQ(SpecJson(craters.ages), SpecJson(AgesSpec{ages}));
+    EXPECT_EQ(SpecJson(*craters.ages), SpecJson(AgesSpec{ages}));
     const TerrainGenConfig secondaries = ParseConfig(R"({"schema_version": 1, "layers": [
         {"type": "craters"}, {"type": "secondaries", "onset_count": 3, "morphometry": "lunar"}]})");
     EXPECT_EQ(std::get<terraingen::SecondaryLayerSpec>(secondaries.layers.at(1)).morphometry,
@@ -675,7 +676,7 @@ TEST(ConfigJson, ReadsFreshnessAgesWithTheirDistribution) {
         "ages": {"type": "freshness",
                  "freshness": {"kind": "piecewise", "edges": [0, 0.3, 1], "weights": [2, 1]}}}]})");
     const auto& ages = std::get<terraingen::FreshnessAgesSpec>(
-        std::get<CraterLayerSpec>(shaped.layers.at(0)).ages);
+        *std::get<CraterLayerSpec>(shaped.layers.at(0)).ages);
     EXPECT_EQ(ages.lifetimeGyr, 1.0);
     EXPECT_EQ(ages.freshness.edges, (std::vector<double>{0.0, 0.3, 1.0}));
     EXPECT_EQ(ages.freshness.weights, (std::vector<double>{2.0, 1.0}));
@@ -692,7 +693,8 @@ TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {
     const terraingen::SteadyStateAgesSpec ages{3.5, terraingen::ProductionFunction::ExtendedNeukum,
                                                terraingen::EquilibriumModel::Hartmann,
                                                terraingen::ChronologyModel::Neukum};
-    EXPECT_EQ(SpecJson(craters.ages), SpecJson(AgesSpec{ages}));
+    EXPECT_FALSE(craters.ages);
+    EXPECT_EQ(SpecJson(terraingen::config::LayerAges(craters)), SpecJson(AgesSpec{ages}));
     EXPECT_TRUE(std::holds_alternative<terraingen::DiffusionDegradationSpec>(craters.degradation));
     EXPECT_TRUE(craters.apply.irregularity.enabled);
     EXPECT_EQ(craters.minDiameter, 2.5);
@@ -702,6 +704,25 @@ TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {
     const auto& production = std::get<terraingen::ProductionSurfaceSpec>(
         std::get<CraterLayerSpec>(surface.layers.at(0)).density);
     EXPECT_EQ(SpecJson(production), SpecJson(terraingen::ProductionSurfaceSpec{}));
+}
+
+TEST(ConfigJson, UnsetCraterAgesFollowTheDensitysSurface) {
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1, "layers": [{"type":
+        "craters", "density": {"type": "minimum", "distributions": [{"type":
+        "production_surface", "production": "neukum", "age_gyr": 2.0}, {"type": "trask"}]},
+        "min_diameter_m": 10}]})");
+    const auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
+    const terraingen::SteadyStateAgesSpec ages{2.0, terraingen::ProductionFunction::Neukum,
+                                               terraingen::EquilibriumModel::Trask,
+                                               terraingen::ChronologyModel::Neukum};
+    EXPECT_EQ(SpecJson(terraingen::config::LayerAges(craters)), SpecJson(AgesSpec{ages}));
+    EXPECT_NO_THROW(terraingen::ValidateConfig(config));
+    const TerrainGenConfig power = ParseConfig(R"({"schema_version": 1, "layers": [{"type":
+        "craters", "density": {"type": "trask"}}]})");
+    EXPECT_EQ(
+        SpecJson(terraingen::config::LayerAges(std::get<CraterLayerSpec>(power.layers.at(0)))),
+        SpecJson(AgesSpec{terraingen::SteadyStateAgesSpec{}}))
+        << "a density with no production surface keeps the default ages";
 }
 
 TEST(ConfigJson, RejectsUnknownProductionsChronologiesAndMorphometries) {

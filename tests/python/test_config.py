@@ -281,7 +281,7 @@ def test_crater_layers_default_to_a_steady_state_surface_below_trask():
     layer = terraingen.TerrainGenConfig.from_dict(crater_config()).to_dict()["layers"][0]
     assert layer["density"]["type"] == "minimum"
     assert [d["type"] for d in layer["density"]["distributions"]] == ["production_surface", "hartmann"]
-    assert layer["ages"]["type"] == "steady_state" and layer["ages"]["equilibrium"] == "hartmann"
+    assert layer.get("ages") is None, "unset ages follow the density"
     assert layer["degradation"]["type"] == "diffusion"
     assert layer["morphometry"] == "lunar"
 

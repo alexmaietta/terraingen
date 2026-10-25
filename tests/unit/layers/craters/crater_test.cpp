@@ -58,8 +58,8 @@ TEST(ValidateCraterSelection, RejectsInvertedOrNegativeRangesNamingTheModel) {
 
 TEST(Crater, LeavesDepthAndRimHeightUnsetAndComparesNanAsEqual) {
     const Crater plain{1.0, 2.0, 30.0, 0.5, 4u};
-    EXPECT_TRUE(std::isnan(plain.depth));
-    EXPECT_TRUE(std::isnan(plain.rimHeight));
+    EXPECT_FALSE(plain.depth.has_value());
+    EXPECT_FALSE(plain.rimHeight.has_value());
     EXPECT_EQ(plain, plain);
     Crater deep = plain;
     deep.depth = 3.0;
@@ -96,7 +96,7 @@ TEST(AppendManualCraters, KeepsExplicitDepthsAndRimHeights) {
     terraingen::AppendManualCraters(manual, craters);
     ASSERT_EQ(craters.Size(), 2u);
     EXPECT_EQ(craters.At(0).depth, 0.9);
-    EXPECT_TRUE(std::isnan(craters.At(0).rimHeight));
+    EXPECT_FALSE(craters.At(0).rimHeight.has_value());
     EXPECT_EQ(craters.At(1).rimHeight, 0.0);
     EXPECT_EQ(craters.At(0).id, terraingen::ManualCraterId(0.0, 0.0, 6.0))
         << "the ID ignores the depth";
@@ -133,8 +133,8 @@ TEST(AppendManualCraters, RejectsInvalidDepthsAndRimHeights) {
 TEST(ManualCrater, FlagsAHandPlacedCraterWithItsDepthAndRim) {
     const Crater plain = terraingen::ManualCrater(1.0, -2.0, 30.0);
     EXPECT_EQ(plain, (Crater{1.0, -2.0, 30.0, 0.0, 0u, true}));
-    EXPECT_TRUE(std::isnan(plain.depth));
-    EXPECT_TRUE(std::isnan(plain.rimHeight));
+    EXPECT_FALSE(plain.depth.has_value());
+    EXPECT_FALSE(plain.rimHeight.has_value());
     const Crater deep =
         terraingen::ManualCrater(1.0, -2.0, 30.0).AgeGyr(0.4).Depth(6.0).RimHeight(1.2);
     EXPECT_TRUE(deep.manual);

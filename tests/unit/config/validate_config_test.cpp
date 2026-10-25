@@ -233,7 +233,7 @@ const PathCase kPathCases[] = {
      "layers[1].manual[0].rim_height"},
     {"ManualRimHeightWithoutDepth",
      [](TerrainGenConfig& c) {
-         Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nan(""), 0.2}};
+         Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nullopt, 0.2}};
      },
      "layers[1].manual[0].rim_height"},
     {"ManualRimHeightTheProfileFixes",
@@ -604,7 +604,7 @@ TEST(ValidateConfig, SaysWhyAManualCratersShapeIsRejected) {
         return std::string("valid");
     };
     EXPECT_NE(message([](TerrainGenConfig& c) {
-                  Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nan(""), 0.2}};
+                  Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nullopt, 0.2}};
               }).find("needs a depth"),
               std::string::npos);
     const std::string shallow = message([](TerrainGenConfig& c) {

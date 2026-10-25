@@ -62,13 +62,13 @@ void CheckFassettThomson(const FassettThomsonProfile& profile, const Crater& cra
                          const CraterMorphometry& fresh) {
     const std::string honored = "; the Martin-Parkes-Dunstan profile and complex craters honor "
                                 "both depth and rim height";
-    if (!std::isnan(crater.rimHeight)) {
+    if (crater.rimHeight) {
         throw std::invalid_argument(CraterName(crater) +
                                     " has a rim height, which the Fassett-Thomson profile fixes" +
                                     honored);
     }
     const double deepest = fresh.rimHeightRatio - FitFloorRatio(profile, crater.diameter, fresh);
-    if (crater.depth / crater.diameter > deepest * (1.0 + 1e-12)) {
+    if (*crater.depth / crater.diameter > deepest * (1.0 + 1e-12)) {
         throw std::invalid_argument(CraterName(crater) +
                                     " is deeper than the Fassett-Thomson fit (" +
                                     std::to_string(deepest * crater.diameter) + " m)" + honored);
@@ -79,7 +79,7 @@ void CheckFassettThomson(const FassettThomsonProfile& profile, const Crater& cra
 /// @throws std::invalid_argument for a rim height, or a depth shallower than the oldest table.
 CraterState DiffusedState(const DiffusedProfile& profile, const Crater& crater,
                           CraterMorphometry fresh, double depth) {
-    if (!std::isnan(crater.rimHeight)) {
+    if (crater.rimHeight) {
         throw std::invalid_argument(
             CraterName(crater) + " has a rim height, which a diffused profile ties to its depth; "
                                  "give the depth alone");
@@ -107,18 +107,18 @@ CraterState DiffusedState(const DiffusedProfile& profile, const Crater& crater,
 
 CraterState ResolvedCraterState(const CraterProfile& profile, const DegradationModel& degradation,
                                 const Crater& crater, double rate) {
-    if (std::isnan(crater.depth) && std::isnan(crater.rimHeight)) {
+    if (!crater.depth && !crater.rimHeight) {
         return rate > 1.0 ? degradation.WornState(crater, rate) : degradation.State(crater);
     }
-    if (!(IsPositive(crater.depth) &&
-          (std::isnan(crater.rimHeight) || IsNonNegative(crater.rimHeight)))) {
+    if (!(crater.depth && IsPositive(*crater.depth) &&
+          (!crater.rimHeight || IsNonNegative(*crater.rimHeight)))) {
         throw std::invalid_argument(CraterName(crater) +
                                     " needs a positive depth, and a rim height that is unset or "
                                     "not negative");
     }
     CraterMorphometry fresh = degradation.State(crater).fresh;
     const double diameter = crater.diameter;
-    const double depth = crater.depth / diameter;
+    const double depth = *crater.depth / diameter;
     if (const auto* ft =
             dynamic_cast<const FassettThomsonProfile*>(&FreshShape(profile, diameter))) {
         CheckFassettThomson(*ft, crater, fresh);
@@ -127,8 +127,8 @@ CraterState ResolvedCraterState(const CraterProfile& profile, const DegradationM
         return DiffusedState(*diffused, crater, fresh, depth);
     }
     CraterMorphometry current{depth, 0.0};
-    if (!std::isnan(crater.rimHeight)) {
-        current.rimHeightRatio = crater.rimHeight / diameter;
+    if (crater.rimHeight) {
+        current.rimHeightRatio = *crater.rimHeight / diameter;
     } else {
         const double kept =
             fresh.depthRatio > 0.0 ? std::clamp(depth / fresh.depthRatio, 0.0, 1.0) : 1.0;

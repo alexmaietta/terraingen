@@ -107,6 +107,14 @@ MaterialPhotometry BuildPhotometry(const PhotometrySpec& spec);
 /// The crater production function a configuration names.
 std::shared_ptr<const SizeFrequencyDistribution> BuildProduction(ProductionFunction production);
 
+/// Steady-state ages on the production surface and equilibrium `density` is the minimum of; none
+/// for another density.
+std::optional<SteadyStateAgesSpec> MatchingAges(const DensitySpec& density);
+
+/// The ages a crater layer gives its craters: its `ages`, or when unset `MatchingAges` of its
+/// density, else `SteadyStateAgesSpec`'s.
+AgesSpec LayerAges(const CraterLayerSpec& craters);
+
 /// `BuildAlbedo` for a configuration `ValidateConfig` has already checked.
 Albedo BuildValidAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
                         const std::filesystem::path& directory);

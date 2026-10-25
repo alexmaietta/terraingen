@@ -12,14 +12,15 @@
 #include <functional>
 #include <initializer_list>
 #include <limits>
+#include <optional>
 #include <string_view>
 #include <vector>
 
 namespace terraingen {
 
-/// Whether two values are equal or both NaN.
-inline bool SameOrBothNan(double a, double b) {
-    return a == b || (std::isnan(a) && std::isnan(b));
+/// `value`, unset when NaN, as a column of optional values holds it.
+inline std::optional<double> UnlessNan(double value) {
+    return std::isnan(value) ? std::nullopt : std::optional<double>(value);
 }
 
 /// One crater: center in surface coordinates, rim-to-rim diameter, age and a stable ID, and for a
@@ -33,11 +34,11 @@ struct Crater {
     /// Placed by hand, identified in imagery or read from a catalog rather than generated; takes
     /// precedence over generated craters and is never removed by spacing.
     bool manual = false;
-    /// Rim-to-floor depth (m) of a manual crater; NaN takes it from the degradation model.
-    double depth = std::numeric_limits<double>::quiet_NaN();
-    /// Rim crest above the pre-impact surface (m) of a manual crater with a `depth`; NaN derives
+    /// Rim-to-floor depth (m) of a manual crater; unset takes it from the degradation model.
+    std::optional<double> depth{};
+    /// Rim crest above the pre-impact surface (m) of a manual crater with a `depth`; unset derives
     /// it from the depth (`ResolvedCraterState`).
-    double rimHeight = std::numeric_limits<double>::quiet_NaN();
+    std::optional<double> rimHeight{};
 
     /// Sets the age in Gyr, for chaining after `ManualCrater`.
     Crater& AgeGyr(double gyr) {
@@ -55,11 +56,10 @@ struct Crater {
         return *this;
     }
 
-    /// Memberwise equality, with NaN depths and rim heights equal to each other.
     bool operator==(const Crater& other) const {
         return x == other.x && y == other.y && diameter == other.diameter &&
                ageGyr == other.ageGyr && id == other.id && manual == other.manual &&
-               SameOrBothNan(depth, other.depth) && SameOrBothNan(rimHeight, other.rimHeight);
+               depth == other.depth && rimHeight == other.rimHeight;
     }
     bool operator!=(const Crater& other) const {
         return !(*this == other);

@@ -475,17 +475,15 @@ TEST(ConfigSchema, ListsProductionSurfacesMinimumsAndTheirModels) {
     EXPECT_EQ(distributions["kind"], "array");
     EXPECT_EQ(distributions["of"], density) << "a minimum holds densities of the same choice";
 
-    const SchemaJson ages = Resolve(schema, FieldOf(craters, "ages")["schema"]);
+    const SchemaJson unsetAges = FieldOf(craters, "ages")["schema"];
+    ASSERT_EQ(unsetAges["kind"], "optional");
+    const SchemaJson ages = Resolve(schema, unsetAges["of"]);
     std::vector<std::string> types;
     for (const SchemaJson& alternative : ages["alternatives"]) {
         types.push_back(alternative["type"]);
     }
     EXPECT_EQ(types, (std::vector<std::string>{"uniform", "fresh", "steady_state", "freshness"}));
-    EXPECT_EQ(FieldOf(craters, "ages")["default"], (SchemaJson{{"type", "steady_state"},
-                                                               {"age_gyr", 3.5},
-                                                               {"production", "extended_neukum"},
-                                                               {"equilibrium", "hartmann"},
-                                                               {"chronology", "neukum"}}));
+    EXPECT_TRUE(FieldOf(craters, "ages")["default"].is_null()) << "unset ages follow the density";
     EXPECT_EQ(FieldOf(craters, "density")["default"]["type"], "minimum");
     const SchemaJson steady = AlternativeOf(ages, "steady_state");
     EXPECT_EQ(FieldOf(steady, "production")["schema"]["choices"],
