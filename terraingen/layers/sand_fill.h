@@ -46,7 +46,7 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
 
     /// The sand thickness at world (x, y) over `ground`, in meters.
     /// @param spacing Sample spacing in meters the ground is read at.
-    double ThicknessAt(const Ground& ground, double x, double y, double spacing) const;
+    double ThicknessAt(double x, double y, double spacing, const Ground& ground) const;
 
     /// The options the layer was made with.
     const SandFillOptions& Options() const {

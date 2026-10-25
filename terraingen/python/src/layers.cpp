@@ -285,7 +285,7 @@ void BindSandFill(nb::module_& m) {
         layer, "thickness_at",
         [](const SandFillLayer& fill, double x, double y, double spacing, const Ground* ground) {
             RequireGround(ground, "Sand fill layers");
-            return fill.ThicknessAt(*ground, x, y, spacing);
+            return fill.ThicknessAt(x, y, spacing, *ground);
         },
         "The sand thickness at (x, y) in meters.");
     BindMaterialCover<SandFillLayer>(layer);

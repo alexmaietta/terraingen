@@ -60,7 +60,7 @@ TEST(SandFillLayer, FillsLowsUpToItsThicknessAndLeavesRisesBare) {
     const double center = Fill(layer, pit, 0.0, 0.0);
     EXPECT_GT(center, 0.1);
     EXPECT_LT(center, options.fill * 0.4) << "a share of the depth, approached smoothly";
-    EXPECT_NEAR(layer.ThicknessAt(pit, 0.0, 0.0, 0.1), center, 1e-6);
+    EXPECT_NEAR(layer.ThicknessAt(0.0, 0.0, 0.1, pit), center, 1e-6);
     EXPECT_EQ(Fill(layer, Mound(0.4, 3.0), 0.0, 0.0), 0.0) << "a hill holds no sand";
     EXPECT_EQ(Fill(layer, Mound(0.0, 3.0), 2.0, 1.0), 0.0) << "nor does level ground";
     EXPECT_LE(Fill(layer, Mound(-50.0, 3.0), 0.0, 0.0), options.maxThickness);
@@ -71,7 +71,7 @@ TEST(SandFillLayer, FillsLowsUpToItsThicknessAndLeavesRisesBare) {
     EXPECT_EQ(layer.MaterialCoverAt(20.0, 0.0, 0.1, &pit), 0.0);
     EXPECT_THROW(layer.MaterialCoverAt(0.0, 0.0, 0.1, nullptr), std::invalid_argument);
     EXPECT_THROW(layer.ApplyAt(0.0f, 0.0, 0.0, {0.1}), std::invalid_argument) << "needs ground";
-    EXPECT_EQ(SandFillLayer(SandFillOptions{8.0, 0.0, 0.5, 0.02}).ThicknessAt(pit, 0.0, 0.0, 0.1),
+    EXPECT_EQ(SandFillLayer(SandFillOptions{8.0, 0.0, 0.5, 0.02}).ThicknessAt(0.0, 0.0, 0.1, pit),
               0.0);
 }
 

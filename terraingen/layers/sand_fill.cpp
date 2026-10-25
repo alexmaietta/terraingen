@@ -58,14 +58,14 @@ double SandFillLayer::Thickness(const Ground& ground, double x, double y, double
     return options_.maxThickness * -std::expm1(-depth / options_.maxThickness);
 }
 
-double SandFillLayer::ThicknessAt(const Ground& ground, double x, double y, double spacing) const {
+double SandFillLayer::ThicknessAt(double x, double y, double spacing, const Ground& ground) const {
     return Thickness(ground, x, y, static_cast<double>(ground.HeightAt(x, y, spacing)), spacing);
 }
 
 double SandFillLayer::MaterialCoverAt(double x, double y, double spacing,
                                       const Ground* ground) const {
     RequireGround(ground, kGroundReader);
-    return Smoothstep(ThicknessAt(*ground, x, y, spacing) / options_.coverThickness);
+    return Smoothstep(ThicknessAt(x, y, spacing, *ground) / options_.coverThickness);
 }
 
 float SandFillLayer::HeightAt(float height, double x, double y, double spacing,
