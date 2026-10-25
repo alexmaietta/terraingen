@@ -38,6 +38,8 @@ struct PowerLawSpectrum {
     double slope = 3.0;
     /// RMS height in meters the power law holds at wavelengths from one to two base pixels.
     double octaveRms = 0.0;
+    /// Whether the fitted slope fell outside [2, 4] and `slope` holds the nearer limit.
+    bool clipped = false;
 
     /// The coefficient C in m^(4 - beta) for a base whose Nyquist frequency is `nyquist` cycles per
     /// meter.
@@ -46,7 +48,9 @@ struct PowerLawSpectrum {
 
 /// The power law fitted to the radially averaged spectrum of `heights` over `band`, by least
 /// squares of log power on log frequency, each bin weighted by its samples. The slope is clamped
-/// to [2, 4]; a raster without relief gives a slope of 3 and an RMS of 0.
+/// to [2, 4], setting `clipped`: steeper fits mostly come from windows a few large features
+/// dominate, or from DEMs smoothed by gridding, rather than from self-affine relief. A raster
+/// without relief gives a slope of 3 and an RMS of 0.
 /// @throws std::invalid_argument for a rotated raster, a window under 8 cells a side, one with no
 /// data, an invalid `band`, or a band holding fewer than 3 bins.
 PowerLawSpectrum EstimatePowerLawSpectrum(const Raster<float>& heights,

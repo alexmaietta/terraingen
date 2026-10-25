@@ -258,6 +258,7 @@ PowerLawSpectrum EstimatePowerLawSpectrum(const Raster<float>& heights,
     }
     const LogLine line = FitLogLine(bins);
     fit.slope = std::clamp(-line.gradient, kMinSlope, kMaxSlope);
+    fit.clipped = fit.slope != -line.gradient;
     const double logCoefficient = line.meanY + fit.slope * line.meanX;
     fit.octaveRms =
         std::sqrt(2.0 * kPi * std::exp(logCoefficient) * OctaveIntegral(fit.slope, 0.5 / pixel));

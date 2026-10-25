@@ -103,6 +103,7 @@ TEST(EstimatePowerLawSpectrum, RecoversTheSlopeAndOctaveRmsOfPowerLawSurfaces) {
         const Raster<float> heights = PowerLawSurface(slope, kCoefficient, 1024, 256, 3);
         const terraingen::PowerLawSpectrum fit = terraingen::EstimatePowerLawSpectrum(heights);
         EXPECT_NEAR(fit.slope, slope, 0.12) << slope;
+        EXPECT_FALSE(fit.clipped) << slope;
         const double integral =
             (std::pow(0.5, 2.0 - slope) * (std::pow(2.0, 2.0 - slope) - 1.0)) / (2.0 - slope);
         const double expected = std::sqrt(2.0 * terraingen::kPi * kCoefficient * integral);
@@ -110,11 +111,40 @@ TEST(EstimatePowerLawSpectrum, RecoversTheSlopeAndOctaveRmsOfPowerLawSurfaces) {
     }
 }
 
+TEST(EstimatePowerLawSpectrum, IgnoresATilt) {
+    const Raster<float> level = PowerLawSurface(3.0, 1e-3, 1024, 256, 5);
+    Raster<float> tilted = level;
+    for (std::size_t row = 0; row < tilted.Height(); ++row) {
+        for (std::size_t col = 0; col < tilted.Width(); ++col) {
+            tilted(col, row) += static_cast<float>(0.5 * static_cast<double>(col) -
+                                                   0.3 * static_cast<double>(row) + 40.0);
+        }
+    }
+    const terraingen::PowerLawSpectrum flat = terraingen::EstimatePowerLawSpectrum(level);
+    const terraingen::PowerLawSpectrum fit = terraingen::EstimatePowerLawSpectrum(tilted);
+    EXPECT_NEAR(fit.slope, flat.slope, 0.01);
+    EXPECT_NEAR(fit.octaveRms / flat.octaveRms, 1.0, 0.01);
+    EXPECT_FALSE(fit.clipped);
+}
+
+TEST(EstimatePowerLawSpectrum, ReportsSlopesClampedToItsRange) {
+    const terraingen::PowerLawSpectrum white =
+        terraingen::EstimatePowerLawSpectrum(PowerLawSurface(0.0, 1.0, 256, 128, 6));
+    EXPECT_EQ(white.slope, 2.0);
+    EXPECT_TRUE(white.clipped);
+    EXPECT_GT(white.octaveRms, 0.0);
+    const terraingen::PowerLawSpectrum smooth =
+        terraingen::EstimatePowerLawSpectrum(PowerLawSurface(5.0, 1e-3, 256, 128, 7));
+    EXPECT_EQ(smooth.slope, 4.0);
+    EXPECT_TRUE(smooth.clipped);
+}
+
 TEST(EstimatePowerLawSpectrum, HandlesFlatRastersHolesAndBadBands) {
     const terraingen::PowerLawSpectrum flat =
         terraingen::EstimatePowerLawSpectrum(Grid(64, 1.0).MakeRaster(4.0f));
     EXPECT_EQ(flat.slope, 3.0);
     EXPECT_EQ(flat.octaveRms, 0.0);
+    EXPECT_FALSE(flat.clipped);
 
     Raster<float> holed = PowerLawSurface(3.0, 1e-3, 256, 128, 4);
     holed.SetNoData(-9999.0f);

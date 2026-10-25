@@ -87,6 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A default `SyntheticTerrainParams` holds no layers and is flat, matching an empty `stack` in a configuration (it held one Perlin fBm layer); `ValidateSyntheticTerrain` accepts an empty stack, and only `NoiseRelief` still needs a layer.
 - Raster albedo measures the map's roughness and Hurst exponent with the raster variogram fit, and crater zones and splotches share one overlay of changes; albedo detail, zone and splotch values change slightly, and swarm splotches, crater zones and the crater albedo grid split into shorter steps.
 - Crater and boulder list outputs ending in `.json` in any case (`.JSON`) are written as JSON.
+- `EstimatePowerLawSpectrum` (`estimate_power_law_spectrum`) reports when it clamps the fitted slope to [2, 4] (`PowerLawSpectrum::clipped`, Python `PowerLawSpectrum.clipped`). The range stays [2, 4], Hurst exponents 0 to 1 by beta = 2 H + 2: the window is already detrended by its plane and Hann-tapered, and steeper fits come from windows a few large craters dominate or from smoothed gridded DEMs, not from relief a continuation should carry on.
 
 ### Removed
 

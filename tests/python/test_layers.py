@@ -615,6 +615,36 @@ def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum
     assert spec["slope"] == 2.6 and spec["fit_min_pixels"] == 4.0
 
 
+def power_law_heights(slope, size=256, crop=128, seed=2):
+    """A periodic surface of unit cells whose PSD falls as f^-slope, cropped to `crop` cells a side."""
+    rng = np.random.default_rng(seed)
+    frequency = np.hypot(*np.meshgrid(np.fft.fftfreq(size), np.fft.fftfreq(size)))
+    frequency[0, 0] = 1.0
+    spectrum = (rng.standard_normal((size, size)) + 1j * rng.standard_normal((size, size))) * frequency ** (
+        -slope / 2.0
+    )
+    spectrum[0, 0] = 0.0
+    return np.fft.ifft2(spectrum).real[:crop, :crop]
+
+
+def test_power_law_spectrum_ignores_a_tilt_and_reports_clipped_slopes():
+    transform = terraingen.GeoTransform.north_up(0.0, 128.0, 1.0)
+
+    def fit(heights):
+        raster = terraingen.Raster.from_array(np.ascontiguousarray(heights, dtype=np.float32), transform)
+        return terraingen.estimate_power_law_spectrum(raster)
+
+    level = power_law_heights(3.0)
+    rows, columns = np.mgrid[0:128, 0:128]
+    flat, tilted = fit(level), fit(level + 0.5 * columns - 0.3 * rows)
+    assert tilted.slope == pytest.approx(flat.slope, abs=0.01)
+    assert tilted.octave_rms == pytest.approx(flat.octave_rms, rel=0.01)
+    assert not tilted.clipped and 2.0 < tilted.slope < 4.0
+    white, smooth = fit(power_law_heights(0.0)), fit(power_law_heights(5.0))
+    assert white.clipped and white.slope == 2.0
+    assert smooth.clipped and smooth.slope == 4.0
+
+
 def self_affine_heights(hurst, size=96):
     """Cosines halving in wavelength by sqrt(2) from 128 m to 1/8 m, amplitudes as wavelength^hurst."""
     rng = np.random.default_rng(4)

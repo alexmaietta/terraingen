@@ -313,7 +313,9 @@ void BindSpectrumFit(nb::module_& m) {
                                  "holds in the octave just finer than the base's Nyquist "
                                  "wavelength.")
         .def_ro("slope", &PowerLawSpectrum::slope)
-        .def_ro("octave_rms", &PowerLawSpectrum::octaveRms);
+        .def_ro("octave_rms", &PowerLawSpectrum::octaveRms)
+        .def_ro("clipped", &PowerLawSpectrum::clipped,
+                "Whether the fitted slope fell outside [2, 4] and was clamped to it.");
     m.def("estimate_power_law_spectrum", &EstimatePowerLawSpectrum, "heights"_a,
           "band"_a = SpectrumFitBand{}, "The power law fitted to a raster's radial spectrum.");
 }
