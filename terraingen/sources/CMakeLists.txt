@@ -8,6 +8,7 @@ terraingen_add_library(
     flat_source.cpp
     geotiff_source.cpp
     raster_source.cpp
+    seam_field.cpp
     source_chain.cpp
     synthetic_source.cpp
     upsampling.cpp

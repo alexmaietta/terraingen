@@ -16,6 +16,7 @@ void BindGpu(nanobind::module_& m);
 void BindMesh(nanobind::module_& m);
 void BindDistribution(nanobind::module_& m);
 void BindCraterModels(nanobind::module_& m);
+void BindChainSeams(nanobind::module_& m);
 void BindSources(nanobind::module_& m);
 void BindLayers(nanobind::module_& m);
 void BindCraters(nanobind::module_& m);

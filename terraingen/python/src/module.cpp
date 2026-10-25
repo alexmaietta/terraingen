@@ -17,6 +17,7 @@ NB_MODULE(_terraingen, m) {
     BindMesh(m);
     BindDistribution(m);
     BindCraterModels(m);
+    BindChainSeams(m);
     BindSources(m);
     BindLayers(m);
     BindCraters(m);

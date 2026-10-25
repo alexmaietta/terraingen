@@ -384,13 +384,17 @@ void BindRasterSources(nb::module_& m) {
     nb::class_<SourceChain, Source>(
         m, "SourceChain",
         "Several sources tried in order, each filling where those before it have no data; the "
-        "grid is the first's.")
+        "grid is the first's. `seams` (ChainSeams) sets how each source is matched to the gaps "
+        "of those before it.")
         .def(
             "__init__",
-            [](SourceChain* self, const std::vector<std::shared_ptr<Source>>& sources) {
-                new (self) SourceChain({sources.begin(), sources.end()});
+            [](SourceChain* self, const std::vector<std::shared_ptr<Source>>& sources,
+               const ChainSeams& seams) {
+                new (self) SourceChain({sources.begin(), sources.end()}, seams);
             },
-            "sources"_a);
+            "sources"_a, "seams"_a = ChainSeams{})
+        .def_prop_ro("seams", &SourceChain::Seams,
+                     "How each source is joined to the gaps of those before it.");
 }
 
 /// A field written in Python: `value_at(x, y)` and `max()` are required.

@@ -18,6 +18,7 @@
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/noise/validate.h"
 #include "terraingen/raster/cell_loops.h"
+#include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/upsampling.h"
 #include "terraingen/util/overloaded.h"
 #include "terraingen/util/text.h"
@@ -477,12 +478,23 @@ std::optional<RasterGrid> DescribeChain(const ChainSourceSpec& chain,
     if (chain.sources.empty()) {
         throw ConfigError(sources, "must not be empty");
     }
+    ChainSeams seams = chain.seams;
+    seams.width /= surface.UnitLength();
+    seams.decayLength /= surface.UnitLength();
+    const bool feather = chain.seams.mode == ChainSeamMode::Feather;
+    const std::string reachPath =
+        Child(Child(path, "seams"), feather ? "width_m" : "decay_length_m");
     std::optional<RasterGrid> grid;
     for (std::size_t n = 0; n < chain.sources.size(); ++n) {
         const std::optional<RasterGrid> described =
             DescribeSource(chain.sources[n], directory, Element(sources, n), surface);
         if (n == 0) {
             grid = described;
+        }
+        if (described && chain.seams.mode != ChainSeamMode::None && n + 1 < chain.sources.size()) {
+            const RasterGrid lattice =
+                At(reachPath, [&] { return SeamLattice(*described, seams); });
+            CheckGridSize(lattice.width, lattice.height, reachPath);
         }
     }
     return grid;

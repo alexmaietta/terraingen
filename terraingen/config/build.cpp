@@ -320,7 +320,11 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
                     sources.push_back(BuildSource(s.sources[n], directory, surface,
                                                   Element(Child(path, "sources"), n)));
                 }
-                return At(path, [&] { return std::make_shared<SourceChain>(std::move(sources)); });
+                ChainSeams seams = s.seams;
+                seams.width /= unit;
+                seams.decayLength /= unit;
+                return At(path,
+                          [&] { return std::make_shared<SourceChain>(std::move(sources), seams); });
             },
             [&](const SyntheticSourceSpec& s) -> Result {
                 const std::optional<double> pixelSize = s.pixelSize;

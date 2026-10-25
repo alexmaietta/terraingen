@@ -111,6 +111,35 @@ TEST(ValidateConfig, ReportsChainProblemsByPath) {
               "source.sources[0].sources[0].path");
 }
 
+TEST(ValidateConfig, ReportsChainSeamProblemsByPath) {
+    const auto folder = TempPath("terraingen_chain_seam_errors");
+    terraingen::testing::WriteDem(folder, "dem.tif");
+    const auto error = [&](terraingen::ChainSeamMode mode, double width, double decayLength) {
+        terraingen::ChainSourceSpec chain{
+            {terraingen::RasterSourceSpec{"dem.tif"}, terraingen::SyntheticSourceSpec{}}};
+        chain.seams.mode = mode;
+        chain.seams.width = width;
+        chain.seams.decayLength = decayLength;
+        TerrainGenConfig config;
+        config.source = std::move(chain);
+        config.outputs = {terraingen::testing::Heightmap("h.tif", std::nullopt)};
+        return ValidationErrorPath(config, folder);
+    };
+    using terraingen::ChainSeamMode;
+    EXPECT_EQ(error(ChainSeamMode::None, 50.0, 50.0), "valid");
+    EXPECT_EQ(error(ChainSeamMode::Feather, 20.0, 50.0), "valid");
+    EXPECT_EQ(error(ChainSeamMode::Height, 50.0, 100.0), "valid");
+    EXPECT_EQ(error(ChainSeamMode::Slope, 50.0, 100.0), "valid");
+    EXPECT_EQ(error(ChainSeamMode::Feather, 0.0, 50.0), "source.seams.width_m");
+    EXPECT_EQ(error(ChainSeamMode::Height, 50.0, -1.0), "source.seams.decay_length_m");
+    EXPECT_EQ(error(ChainSeamMode::None, 50.0, 0.0), "source.seams.decay_length_m")
+        << "checked in every mode";
+    EXPECT_EQ(error(ChainSeamMode::Height, 50.0, 1e6), "source.seams.decay_length_m")
+        << "a lattice of 5 m posts reaching 3000 km";
+    EXPECT_EQ(error(ChainSeamMode::Feather, 1e6, 50.0), "source.seams.width_m");
+    EXPECT_EQ(error(ChainSeamMode::None, 1e6, 1e6), "valid") << "no lattice without seams";
+}
+
 TEST(ValidateConfig, ReportsOutputGridProblemsByPath) {
     const auto folder = TempPath("terraingen_output_grids");
     terraingen::testing::WriteDem(folder, "dem.tif");

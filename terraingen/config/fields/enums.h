@@ -177,6 +177,22 @@ template <> struct EnumNames<DiamondSquareInterp> {
     }};
 };
 
+template <> struct EnumNames<ChainSeamMode> {
+    static constexpr std::array<EnumEntry<ChainSeamMode>, 4> kValues{{
+        {"none", ChainSeamMode::None,
+         "Each cell takes the first source with data, unchanged: a step where a gap begins."},
+        {"feather", ChainSeamMode::Feather,
+         "Adds the height difference at the nearest edge post to the later source, fading it to "
+         "0 across width_m of the gap: the cheapest, without a solve."},
+        {"height", ChainSeamMode::Height,
+         "Shifts the later source by the edge's height difference spread smoothly into the gap, "
+         "fading out over decay_length_m beyond an open edge: heights meet (C0), keeping the "
+         "later source's relief."},
+        {"slope", ChainSeamMode::Slope,
+         "As height, with a biharmonic spread that matches slopes at the edge as well (C1)."},
+    }};
+};
+
 template <> struct EnumNames<EjectaProfile> {
     static constexpr std::array<EnumEntry<EjectaProfile>, 2> kValues{{
         {"smoothstep", EjectaProfile::Smoothstep,

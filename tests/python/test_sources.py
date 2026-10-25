@@ -111,6 +111,58 @@ def test_source_chain_takes_the_grid_of_its_first_source(tmp_path, coarse_dem):
     assert chain.width == raster.width
 
 
+def holed_plane():
+    """A 32 x 32 raster of 1 m cells around the origin holding 0.1 x + 0.05 y + 8, NaN in a 6 m hole."""
+    x = -15.5 + np.arange(32.0)
+    y = 15.5 - np.arange(32.0)
+    heights = (0.1 * x[np.newaxis, :] + 0.05 * y[:, np.newaxis] + 8.0).astype(np.float32)
+    heights[13:19, 13:19] = np.nan
+    return terraingen.RasterSource(heights, terraingen.GeoTransform.north_up(-16.0, 16.0, 1.0))
+
+
+def test_source_chain_seams_shift_the_later_source_to_meet_the_earlier_one():
+    dem = holed_plane()
+    datum = terraingen.FlatSource(1, 1, 1.0, elevation=7.5)
+    assert terraingen.SourceChain([dem, datum]).seams == terraingen.ChainSeams()
+    assert terraingen.ChainSeams().mode == terraingen.ChainSeamMode.NONE
+    assert terraingen.SourceChain([dem, datum]).height_at(0.5, 0.5, 1.0) == 7.5
+    seams = terraingen.ChainSeams(mode=terraingen.ChainSeamMode.HEIGHT, decay_length=20.0)
+    chain = terraingen.SourceChain([dem, datum], seams=seams)
+    assert chain.seams == seams
+    for x, y in [(0.5, 0.5), (-2.5, 1.5), (2.5, -2.5)]:
+        assert chain.height_at(x, y, 1.0) == pytest.approx(0.1 * x + 0.05 * y + 8.0, abs=0.05)
+    assert chain.height_at(90.0, 0.0, 1.0) == 7.5, "nothing beyond the reach of the open edge"
+    raster = terraingen.Raster(40, 40)
+    raster.transform = terraingen.GeoTransform.north_up(-20.0, 20.0, 1.0)
+    chain.fill(raster, 0.5)
+    centers = [(-19.5 + col, 19.5 - row) for row in range(40) for col in range(40)]
+    expected = np.array([chain.height_at(x, y, 0.5) for x, y in centers], dtype=np.float32)
+    np.testing.assert_array_equal(raster.values, expected.reshape(40, 40))
+
+
+def test_chain_seams_validate_and_give_their_lattice():
+    seams = terraingen.ChainSeams(mode=terraingen.ChainSeamMode.SLOPE, decay_length=4.0)
+    seams.validate()
+    assert terraingen.seam_reach(seams) == terraingen.SEAM_REACH_DECAYS * 4.0
+    lattice = terraingen.seam_lattice(holed_plane().grid(), seams)
+    assert (lattice.width, lattice.height) == (62, 62)
+    with pytest.raises(ValueError, match="width"):
+        terraingen.validate_chain_seams(terraingen.ChainSeams(width=0.0))
+    with pytest.raises(ValueError):
+        terraingen.SourceChain([holed_plane(), terraingen.FlatSource(1, 1, 1.0)], terraingen.ChainSeams(decay_length=-1.0))
+    config = terraingen.TerrainGenConfig.from_dict(
+        {
+            "schema_version": 1,
+            "source": {
+                "type": "chain",
+                "sources": [{"type": "synthetic"}, {"type": "synthetic"}],
+                "seams": {"mode": "feather", "width_m": 12},
+            },
+        }
+    )
+    assert config.to_dict()["source"]["seams"] == {"mode": "feather", "width_m": 12.0, "decay_length_m": 50.0}
+
+
 def test_python_source_describes_its_grid(paraboloid):
     assert paraboloid.width == 65 and paraboloid.reference_point() == (0.0, 0.0)
 

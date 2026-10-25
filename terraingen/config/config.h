@@ -186,9 +186,10 @@ struct ChainSourceSpec;
 using SourceSpec = std::variant<RasterSourceSpec, ChainSourceSpec, SyntheticSourceSpec>;
 
 /// Source "chain": `sources` tried in order, each filling where those before it have no
-/// data (`SourceChain`); its grid is the first source's.
+/// data (`SourceChain`), joined as `seams` say; its grid is the first source's.
 struct ChainSourceSpec {
     std::vector<SourceSpec> sources;
+    ChainSeams seams{};  ///< `width` and `decayLength` in meters.
 };
 
 /// Layer "noise": a stack of 1 to `kMaxNoiseLayers` noise layers added to the terrain

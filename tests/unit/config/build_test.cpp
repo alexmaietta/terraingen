@@ -1171,3 +1171,33 @@ TEST(BuildGenerator, AGivenSourceReplacesNoneOfTheConfigurations) {
     EXPECT_THROW(terraingen::BuildGenerator(withSource, FlatDem()), ConfigError);
     EXPECT_THROW(terraingen::BuildGenerator(Small(), nullptr), std::invalid_argument);
 }
+
+TEST(BuildGenerator, GivesAChainItsSeamsInTheSurfacesUnits) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_chain_seams");
+    std::filesystem::create_directories(folder);
+    terraingen::Raster<float> dem(8, 4, 1.0f);
+    dem.SetTransform(terraingen::GeoTransform::NorthUp(-4.0, 2.0, 1.0));
+    terraingen::WriteGeoTiff(folder / "degrees.tif", dem, terraingen::testing::Keys(true));
+    terraingen::ChainSourceSpec chain{
+        {terraingen::RasterSourceSpec{"degrees.tif"}, terraingen::SyntheticSourceSpec{}}};
+    chain.seams.mode = terraingen::ChainSeamMode::Slope;
+    chain.seams.width = 120.0;
+    chain.seams.decayLength = 300.0;
+    TerrainGenConfig config;
+    config.body = terraingen::SphereSurfaceSpec{1737400.0};
+    config.source = chain;
+    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config, folder);
+    const auto* built = dynamic_cast<const terraingen::SourceChain*>(terrain.source.get());
+    ASSERT_NE(built, nullptr);
+    const double unit = terraingen::Surface::Sphere(1737400.0).UnitLength();
+    EXPECT_EQ(built->Seams().mode, terraingen::ChainSeamMode::Slope);
+    EXPECT_DOUBLE_EQ(built->Seams().width, 120.0 / unit) << "degrees along a meridian";
+    EXPECT_DOUBLE_EQ(built->Seams().decayLength, 300.0 / unit);
+    config.body = terraingen::PlaneSurfaceSpec{};
+    chain.sources.front() = terraingen::RasterSourceSpec{"meters.tif"};
+    terraingen::WriteGeoTiff(folder / "meters.tif", dem, terraingen::testing::Keys());
+    config.source = chain;
+    const terraingen::TerrainGenerator plane = terraingen::BuildGenerator(config, folder);
+    EXPECT_EQ(dynamic_cast<const terraingen::SourceChain&>(*plane.source).Seams(), chain.seams)
+        << "meters on a plane";
+}

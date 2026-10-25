@@ -151,10 +151,31 @@ template <> struct SpecName<ChainSourceSpec> {
         "Several sources tried in order, each filling where those before it have no data; its "
         "grid is the first one's.";
 };
+/// The fields of how a chain joins each source to the gaps of those before it.
+template <typename IO> void Fields(IO& io, ChainSeams& seams) {
+    io("mode", seams.mode,
+       "How each source meets the gaps of those before it: none switches outright, feather "
+       "fades the edge's height difference out across the gap, height shifts the later source "
+       "to meet the earlier one's heights (C0) and slope to meet its heights and slopes (C1). "
+       "The match is solved on the posts of the source before each gap.");
+    io("width_m", seams.width,
+       "Width in meters of the band inside a gap over which feather fades the height difference "
+       "at the edge to 0.",
+       "m", Above(0.0));
+    io("decay_length_m", seams.decayLength,
+       "Length in meters over which height and slope fade the shift out where a gap is open, "
+       "beyond a source's edge; it is 0 from three decay lengths on. A hole much narrower than "
+       "it takes the whole shift.",
+       "m", Above(0.0));
+}
+
 template <typename IO> void Fields(IO& io, ChainSourceSpec& source) {
     io("sources", source.sources,
        "Sources tried in order, each filling where those before it have no data, each upsampled "
        "as it says; the chain's grid is the first one's.");
+    io("seams", source.seams,
+       "How each source is matched to the sources before it where it fills their gaps; by "
+       "default each switches outright.");
 }
 
 template <> struct SpecName<SyntheticSourceSpec> {

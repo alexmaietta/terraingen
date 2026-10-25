@@ -943,3 +943,46 @@ TEST(ParseConfig, ReadsTheDocumentedExample) {
                      "extent_m": {"center": [0, 0], "size": [1026, 1026]}}]})");
     EXPECT_EQ(config.layers.size(), 2u);
 }
+
+TEST(ConfigJson, RoundTripsChainSeams) {
+    const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1,
+        "source": {"type": "chain",
+                   "sources": [{"type": "raster", "path": "a.tif"}, {"type": "synthetic"}],
+                   "seams": {"mode": "slope", "decay_length_m": 120}}})");
+    const auto& chain = std::get<terraingen::ChainSourceSpec>(*config.source);
+    EXPECT_EQ(chain.seams.mode, terraingen::ChainSeamMode::Slope);
+    EXPECT_EQ(chain.seams.decayLength, 120.0);
+    EXPECT_EQ(chain.seams.width, terraingen::ChainSeams{}.width) << "unset keeps the default";
+    const std::string json = ConfigToJson(config);
+    EXPECT_NE(json.find(R"("mode": "slope")"), std::string::npos) << json;
+    EXPECT_EQ(ParseConfig(json), config);
+    EXPECT_EQ(ConfigToJson(ParseConfig(json)), json);
+    for (const auto& [name, mode] :
+         std::initializer_list<std::pair<const char*, terraingen::ChainSeamMode>>{
+             {"none", terraingen::ChainSeamMode::None},
+             {"feather", terraingen::ChainSeamMode::Feather},
+             {"height", terraingen::ChainSeamMode::Height},
+             {"slope", terraingen::ChainSeamMode::Slope}}) {
+        const TerrainGenConfig parsed = ParseConfig(
+            std::string(R"({"schema_version": 1, "source": {"type": "chain", "sources": )"
+                        R"([{"type": "synthetic"}], "seams": {"mode": ")") +
+            name + R"(", "width_m": 7.5}}})");
+        const auto& seams = std::get<terraingen::ChainSourceSpec>(*parsed.source).seams;
+        EXPECT_EQ(seams.mode, mode) << name;
+        EXPECT_EQ(seams.width, 7.5) << name;
+        EXPECT_EQ(ParseConfig(ConfigToJson(parsed)), parsed) << name;
+    }
+    const TerrainGenConfig plain = ParseConfig(R"({"schema_version": 1,
+        "source": {"type": "chain", "sources": [{"type": "synthetic"}]}})");
+    EXPECT_EQ(std::get<terraingen::ChainSourceSpec>(*plain.source).seams, terraingen::ChainSeams{})
+        << "switches outright by default";
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "chain",
+        "sources": [{"type": "synthetic"}], "seams": {"mode": "smooth"}}})"),
+              "source.seams.mode");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "chain",
+        "sources": [{"type": "synthetic"}], "seams": {"decay_length": 30}}})"),
+              "source.seams.decay_length");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "chain",
+        "sources": [{"type": "synthetic"}], "seams": "height"}})"),
+              "source.seams");
+}
