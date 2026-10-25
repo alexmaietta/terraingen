@@ -275,7 +275,7 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
        "Radius of the footprint the datum is fitted over, in crater radii.", "", Above(0.0));
     io("interior_replacement", apply.interiorReplacement,
        "Share of the interior replaced by datum plus profile, from 0 to 1: 1 erases older relief "
-       "inside the crater, 0 keeps it.",
+       "inside the crater for a clean cut, 0 keeps it on the floor and walls.",
        "", UnitInterval());
     io("blend", apply.blend,
        "Where and how a crater's replaced interior blends into the surrounding terrain.");

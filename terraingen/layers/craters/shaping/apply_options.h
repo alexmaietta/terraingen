@@ -161,8 +161,9 @@ struct CraterApplyOptions {
     /// Footprint the datum is fitted over, in crater radii.
     double datumFitRadii = 1.0;
     /// Share of the interior replaced by datum plus profile, in [0, 1]: 1 erases older relief, 0
-    /// keeps it.
-    double interiorReplacement = 1.0;
+    /// keeps it. By default 0, so craters cut into a datum keep the older relief on their floor
+    /// and walls; 1 gives a clean cut.
+    double interiorReplacement = 0.0;
     CraterBlend blend{};  ///< Where the replaced interior blends out.
     /// Irregular, non-circular outlines; off by default.
     CraterIrregularity irregularity{};

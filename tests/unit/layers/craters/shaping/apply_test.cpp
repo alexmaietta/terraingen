@@ -55,18 +55,20 @@ CraterList One(double x, double y, double diameter, double age = 0.0, std::uint6
     return craters;
 }
 
-/// Default options with another datum.
+/// Default options cutting cleanly into `datum`: the whole interior replaced.
 CraterApplyOptions Datum(CraterDatum datum) {
     CraterApplyOptions options;
     options.datum = datum;
+    options.interiorReplacement = 1.0;
     return options;
 }
 
-/// Default options with another order and datum.
+/// Default options with another order, cutting cleanly into `datum`.
 CraterApplyOptions Ordered(CraterOrder order, CraterDatum datum = CraterDatum::None) {
     CraterApplyOptions options;
     options.order = order;
     options.datum = datum;
+    options.interiorReplacement = 1.0;
     return options;
 }
 
@@ -341,6 +343,7 @@ TEST(CraterBlend, WeighsTheInteriorAlongItsFalloff) {
     terraingen::PreparedCrater datum = bare;
     datum.datum = terraingen::Plane{1.0, 0.0, 0.0};
     CraterApplyOptions options;
+    options.interiorReplacement = 1.0;
     options.blend = {0.8, 1.2, BlendShape::Linear};
     const auto weight = [&](double radii) {
         const double x = 10.0 * radii;
@@ -434,7 +437,13 @@ TEST(ApplyCraterTo, AddsTheProfileAndMovesTowardTheDatumInside) {
         << "beyond the profile's reach";
     prepared.datum = terraingen::Plane{1.0, 0.0, 0.0};
     EXPECT_FLOAT_EQ(terraingen::testing::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, {}),
+                    static_cast<float>(2.0 + 0.5 * height))
+        << "by default the older relief stays under a datum";
+    CraterApplyOptions clean;
+    clean.interiorReplacement = 1.0;
+    EXPECT_FLOAT_EQ(terraingen::testing::ApplyCraterTo(2.0f, 3.0, 0.0, prepared, profile, clean),
                     static_cast<float>(2.0 + 0.5 * height + 0.5 * (1.0 - 2.0)));
+    EXPECT_EQ(CraterApplyOptions{}.interiorReplacement, 0.0);
 }
 
 TEST(ApplyCraters, RoundsRimsByTheSmoothedProfileOnlyNearTheRim) {

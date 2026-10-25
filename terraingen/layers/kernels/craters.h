@@ -59,7 +59,7 @@ struct CraterShapeKernel {
     float blendStart = 0.8f;
     float blendEnd = 1.2f;
     uint32_t blendShape = 0;
-    float interiorReplacement = 1.0f;
+    float interiorReplacement = 0.0f;
     float mantling = 0.0f;
     float ejectaReachRadii = 3.0f;
     float rimSigma = 0.0f;

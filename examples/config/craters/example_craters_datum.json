@@ -40,6 +40,7 @@
             "max_diameter_m": 300,
             "apply": {
                 "datum": "plane",
+                "interior_replacement": 1,
                 "datum_fit_radii": 1.0
             }
         }

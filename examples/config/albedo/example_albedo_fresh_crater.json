@@ -44,6 +44,7 @@
             },
             "apply": {
                 "datum": "plane",
+                "interior_replacement": 1,
                 "irregularity": {
                     "enabled": true,
                     "manual": true

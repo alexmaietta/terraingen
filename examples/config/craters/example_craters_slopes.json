@@ -22,6 +22,7 @@
             "max_diameter_m": 300,
             "apply": {
                 "datum": "plane",
+                "interior_replacement": 1,
                 "slope": {
                     "asymmetric": true,
                     "upslope_rim": 0.1

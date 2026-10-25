@@ -43,7 +43,8 @@
                 "diffusivity": "matched"
             },
             "apply": {
-                "datum": "plane"
+                "datum": "plane",
+                "interior_replacement": 1
             }
         }
     ],

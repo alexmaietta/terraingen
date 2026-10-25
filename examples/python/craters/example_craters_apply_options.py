@@ -5,8 +5,8 @@
 By default a crater's profile is added to the terrain, so its floor follows the rough terrain
 beneath. A `datum` instead cuts the interior relative to the ground fitted under the crater: a
 plane, its mean height or the height at its center. With a datum, `interior_replacement` sets how
-much of the interior replaces the older relief (1 erases it, as an impact excavates it; 0 keeps it)
-and `blend` where the replaced interior gives way to the draped rim. Writes a montage of hillshades
+much of the interior replaces the older relief (1 erases it for a clean cut, as an impact excavates
+it; 0, the default, keeps it) and `blend` where the replaced interior gives way to the draped rim. Writes a montage of hillshades
 of the same craters on the same rough terrain.
 
     python example_craters_apply_options.py [--viewer window|null] [--output-dir DIR] [--test]
@@ -45,14 +45,21 @@ class Example(_common.Example):
         )
         options = {
             "default": terraingen.CraterApplyOptions(),
-            "plane datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.PLANE),
-            "mean-height datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.MEAN_HEIGHT),
-            "center-height datum": terraingen.CraterApplyOptions(datum=terraingen.CraterDatum.CENTER_HEIGHT),
+            "plane datum": terraingen.CraterApplyOptions(
+                datum=terraingen.CraterDatum.PLANE, interior_replacement=1.0
+            ),
+            "mean-height datum": terraingen.CraterApplyOptions(
+                datum=terraingen.CraterDatum.MEAN_HEIGHT, interior_replacement=1.0
+            ),
+            "center-height datum": terraingen.CraterApplyOptions(
+                datum=terraingen.CraterDatum.CENTER_HEIGHT, interior_replacement=1.0
+            ),
             "plane, half replaced": terraingen.CraterApplyOptions(
                 datum=terraingen.CraterDatum.PLANE, interior_replacement=0.5
             ),
             "plane, wide blend": terraingen.CraterApplyOptions(
                 datum=terraingen.CraterDatum.PLANE,
+                interior_replacement=1.0,
                 blend=terraingen.CraterBlend(
                     start_radii=0.5, end_radii=1.5, shape=terraingen.BlendShape.SMOOTHSTEP
                 ),
