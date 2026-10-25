@@ -4,7 +4,7 @@
 #include "support/temp_path.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/text.h"
+#include "util/text.h"
 
 #include <nlohmann/json.hpp>
 

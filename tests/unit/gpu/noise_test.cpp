@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/gpu/vulkan.h"
+#include "gpu/vulkan.h"
 #include "terraingen/noise/fractals.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/util/bits.h"

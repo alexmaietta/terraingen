@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/util/overloaded.h"
+#include "util/overloaded.h"
 
 #include <gtest/gtest.h>
 

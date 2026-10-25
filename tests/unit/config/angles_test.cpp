@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "config/fields/fields.h"
+#include "config/fields/json_io.h"
+#include "config/fields/ranges.h"
 #include "configs.h"
-#include "terraingen/config/fields/fields.h"
-#include "terraingen/config/fields/json_io.h"
-#include "terraingen/config/fields/ranges.h"
 #include "terraingen/util/geometry.h"
 
 #include <gtest/gtest.h>

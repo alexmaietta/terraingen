@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/util/quadrature.h"
+#include "util/quadrature.h"
 
 #include <gtest/gtest.h>
 

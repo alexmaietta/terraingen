@@ -11,8 +11,8 @@ function(terraingen_add_test_suite name)
     set(target terraingen_tests_${name})
     add_executable(${target} ${ARG_SOURCES})
     target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/tests")
-    target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES} GTest::gtest_main terraingen_warnings
-                                            terraingen_coverage)
+    target_link_libraries(${target} PRIVATE ${ARG_LIBRARIES} terraingen_internal GTest::gtest_main
+                                            terraingen_warnings terraingen_coverage)
     set_property(GLOBAL APPEND PROPERTY TERRAINGEN_TEST_TARGETS ${target})
     gtest_discover_tests(
         ${target}

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "layers/craters/shaping/resolved_state.h"
+
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>

@@ -4,7 +4,7 @@
 
 #include "support/referenced_source.h"
 
-#include "terraingen/gpu/kernel.h"
+#include "gpu/kernel.h"
 #include "terraingen/noise/fractals.h"
 #include "terraingen/noise/surface_noise.h"
 #include "terraingen/sources/synthetic_source.h"

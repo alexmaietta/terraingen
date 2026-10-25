@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/util/checks.h"
+#include "util/checks.h"
 
 #include <gtest/gtest.h>
 

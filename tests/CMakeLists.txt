@@ -33,8 +33,9 @@ if(TERRAINGEN_COVERAGE)
                 "^core\\.build_info_stable$"
         COMMAND
             "${GCOVR_EXECUTABLE}" --root "${PROJECT_SOURCE_DIR}" --gcov-executable "${gcov_command}"
-            -j 0 --filter "${PROJECT_SOURCE_DIR}/terraingen/" --gcov-exclude ".*build_info.*"
-            --gcov-exclude-directories ".*terraingen_build_info\\.dir.*"
+            -j 0 --filter "${PROJECT_SOURCE_DIR}/include/" --filter "${PROJECT_SOURCE_DIR}/src/"
+            --gcov-exclude ".*build_info.*" --gcov-exclude-directories
+            ".*terraingen_build_info\\.dir.*"
             --gcov-ignore-parse-errors=suspicious_hits.warn_once_per_file
             --gcov-ignore-parse-errors=negative_hits.warn_once_per_file
             --merge-mode-functions=separate --exclude-throw-branches --exclude-noncode-lines

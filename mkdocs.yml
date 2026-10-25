@@ -203,10 +203,7 @@ plugins:
         cpp:
           # The library's public headers, as installed; the Python bindings and the app are not
           # part of the C++ API.
-          src-dirs: >-
-            terraingen/util terraingen/raster terraingen/noise terraingen/gpu terraingen/random
-            terraingen/mesh terraingen/distribution terraingen/sources terraingen/layers
-            terraingen/albedo terraingen/pipeline terraingen/config
+          src-dirs: include/terraingen
           full-doc: true
           doxy-cfg:
             FILE_PATTERNS: "*.h"
@@ -215,8 +212,8 @@ plugins:
             JAVADOC_AUTOBRIEF: true
             # Includes as users write them: "terraingen/layers/layer.h".
             FULL_PATH_NAMES: true
-            STRIP_FROM_PATH: .
-            STRIP_FROM_INC_PATH: .
+            STRIP_FROM_PATH: include
+            STRIP_FROM_INC_PATH: include
       save-api: .mkdoxy
   - mkdocstrings:
       default_handler: python

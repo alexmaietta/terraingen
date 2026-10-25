@@ -5,7 +5,7 @@
 #include "support/boulder_records.h"
 #include "support/golombek_rapp.h"
 #include "terraingen/terraingen.h"
-#include "tests/unit/pipeline/terrains.h"
+#include "terrains.h"
 
 #include <gtest/gtest.h>
 

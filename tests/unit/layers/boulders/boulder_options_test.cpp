@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "layers/boulders/boulder_clusters.h"
 #include "support/golombek_rapp.h"
-#include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/terraingen.h"
 
 #include <gtest/gtest.h>

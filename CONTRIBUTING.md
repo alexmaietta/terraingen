@@ -14,7 +14,7 @@ ctest --test-dir build -j 8 --output-on-failure
 
 The Vulkan compute tests skip on machines without a Vulkan device. The Python bindings build with `pip install .` (or into `build/python` with the CMake build); run their tests with `pytest tests/python`.
 
-Tests are grouped by kind: `tests/unit` mirrors `terraingen/` one folder per module, `tests/statistical` checks sampled distributions against their models, `tests/golden` pins generated values, `tests/integration` tests the build, install and packages, and `tests/python` has one file per module. Shared helpers live in `tests/support`.
+Tests are grouped by kind: `tests/unit` mirrors `src/` one folder per module, `tests/statistical` checks sampled distributions against their models, `tests/golden` pins generated values, `tests/integration` tests the build, install and packages, and `tests/python` has one file per module. Shared helpers live in `tests/support`.
 
 Coverage needs GCC or Clang; the `coverage` target runs the tests and writes a report to `build-coverage/coverage/`:
 
@@ -38,7 +38,7 @@ The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a l
 - **Plain ASCII** in code, comments, docs and commit messages: write "meters", "degrees", "D^-2" and "sigma" rather than Unicode symbols.
 - **Document public headers** with short `///` comments: a `@file` line saying what the header holds, then one sentence per type and function. Add `@param` only for units, ranges or special values, `@return` only when the sentence does not say it, and `@throws` for each exception a function raises on purpose. Leave overrides undocumented, and prefer clear names to inline comments.
 - **Dependencies:** TerrainGen stays light. Please discuss a new third-party library in an issue before adding it; vendored code in `third_party/` stays byte-identical to upstream.
-- **Configuration fields** carry a description and, for numbers, a unit (see the field lists in `terraingen/config/fields/`); a test checks every field has them.
+- **Configuration fields** carry a description and, for numbers, a unit (see the field lists in `src/config/fields/`); a test checks every field has them.
 
 ## Reporting bugs
 

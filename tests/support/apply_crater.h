@@ -4,8 +4,8 @@
 /// @brief `ApplyCraterTo`, one crater applied at one point through the crater kernel.
 #pragma once
 
+#include "layers/craters/shaping/crater_kernel.h"
 #include "terraingen/layers/craters/shaping/apply.h"
-#include "terraingen/layers/craters/shaping/crater_kernel.h"
 
 namespace terraingen::testing {
 

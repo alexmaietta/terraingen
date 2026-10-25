@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/layers/lattice.h"
+#include "layers/lattice.h"
 
 #include <gtest/gtest.h>
 

@@ -1,0 +1,208 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
+#include "terraingen/layers/craters/shaping/apply_options.h"
+
+#include "terraingen/random/stream.h"
+#include "terraingen/random/streams.h"
+#include "util/checks.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <optional>
+#include <stdexcept>
+
+namespace terraingen {
+
+void ValidateRimSmoothing(const RimSmoothing& smoothing) {
+    RequireNonNegative(smoothing.sigmaRadii, "Rim smoothing sigma");
+    RequireUnitInterval(smoothing.strength, "Rim smoothing strength");
+    if (!(smoothing.innerRadii >= 0.0 && smoothing.innerRadii < 1.0 && smoothing.outerRadii > 1.0 &&
+          std::isfinite(smoothing.outerRadii))) {
+        throw std::invalid_argument("Rim smoothing band must satisfy 0 <= inner < 1 < outer");
+    }
+}
+
+void ValidateCraterTerraces(const CraterTerraces& terraces) {
+    RequirePositive(terraces.onsetDiameter, "Crater terrace onset diameter");
+    if (!(terraces.fullDiameter > terraces.onsetDiameter && std::isfinite(terraces.fullDiameter))) {
+        throw std::invalid_argument(
+            "Crater terrace full diameter must be finite and above the onset diameter");
+    }
+    if (!(terraces.minBenches >= 1 && terraces.minBenches <= terraces.maxBenches &&
+          terraces.maxBenches <= 12)) {
+        throw std::invalid_argument("Crater terrace benches must satisfy 1 <= min <= max <= 12");
+    }
+    if (!(terraces.benchSlopeDegrees > 0.0 && terraces.benchSlopeDegrees < 45.0)) {
+        throw std::invalid_argument("Crater terrace bench slope must be in (0, 45) degrees");
+    }
+    if (!(terraces.scarpShare > 0.0 && terraces.scarpShare < 1.0)) {
+        throw std::invalid_argument("Crater terrace scarp share must be in (0, 1)");
+    }
+    if (!(terraces.scarpSlopeDegrees > terraces.benchSlopeDegrees &&
+          terraces.scarpSlopeDegrees < 60.0)) {
+        throw std::invalid_argument(
+            "Crater terrace scarp slope must be above the bench slope and under 60 degrees");
+    }
+    if (!(terraces.arcShare > 0.0 && terraces.arcShare <= 1.0)) {
+        throw std::invalid_argument("Crater terrace arc share must be in (0, 1]");
+    }
+    RequireNonNegative(terraces.rimVariation, "Crater terrace rim variation");
+    RequireUnitInterval(terraces.blockOffset, "Crater terrace block offset");
+    if (!(terraces.blockGaps >= 0.0 && terraces.blockGaps < 1.0)) {
+        throw std::invalid_argument("Crater terrace block gaps must be in [0, 1)");
+    }
+    if (!(terraces.minFreshness >= 0.0 && terraces.minFreshness < 1.0)) {
+        throw std::invalid_argument("Crater terrace minimum freshness must be in [0, 1)");
+    }
+}
+
+void ValidateCraterPeaks(const CraterPeaks& peaks) {
+    if (!(peaks.minMassifs >= 1 && peaks.minMassifs <= peaks.maxMassifs && peaks.maxMassifs <= 8)) {
+        throw std::invalid_argument("Crater peak massifs must satisfy 1 <= min <= max <= 8");
+    }
+    if (!(peaks.spreadRadii >= 0.0 && peaks.spreadRadii <= 2.0)) {
+        throw std::invalid_argument("Crater peak spread must be in [0, 2] peak base radii");
+    }
+    if (!(peaks.elongation >= 1.0 && peaks.elongation <= 4.0)) {
+        throw std::invalid_argument("Crater peak elongation must be in [1, 4]");
+    }
+    if (!(peaks.chainSpreadDegrees >= 0.0 && peaks.chainSpreadDegrees <= 360.0)) {
+        throw std::invalid_argument("Crater peak chain spread must be in [0, 360] degrees");
+    }
+    RequireUnitInterval(peaks.sharpness, "Crater peak sharpness");
+    RequireUnitInterval(peaks.lopsidedness, "Crater peak lopsidedness");
+    RequireUnitInterval(peaks.heightVariation, "Crater peak height variation");
+    RequireUnitInterval(peaks.roughness, "Crater peak roughness");
+    RequirePositive(peaks.roughnessWavelength, "Crater peak roughness wavelength");
+    if (!(peaks.warp >= 0.0 && peaks.warp <= 0.3)) {
+        throw std::invalid_argument("Crater peak warp must be in [0, 0.3]");
+    }
+    if (!(peaks.heightScale > 0.0 && peaks.heightScale <= 4.0)) {
+        throw std::invalid_argument("Crater peak height scale must be in (0, 4]");
+    }
+    if (!(peaks.widthScale > 0.0 && peaks.widthScale <= 3.0)) {
+        throw std::invalid_argument("Crater peak width scale must be in (0, 3]");
+    }
+}
+
+void ValidateCraterNoise(const CraterNoise& noise) {
+    RequireNonNegative(noise.amplitude, "Crater noise amplitude");
+    RequireNonNegative(noise.rimAmplitude, "Crater rim noise amplitude");
+    RequirePositive(noise.wavelengthRadii, "Crater noise wavelength");
+    RequirePositive(noise.rimWavelengthRadii, "Crater rim noise wavelength");
+    RequirePositive(noise.gain, "Crater noise gain");
+    if (noise.octaves < 1 || noise.octaves > 12) {
+        throw std::invalid_argument("Crater noise needs 1 to 12 octaves");
+    }
+    if (!(noise.rimInnerRadii >= 0.0 && noise.rimInnerRadii < 1.0 && noise.rimOuterRadii > 1.0 &&
+          std::isfinite(noise.rimOuterRadii))) {
+        throw std::invalid_argument("Crater rim noise band must satisfy 0 <= inner < 1 < outer");
+    }
+}
+
+void ValidateCraterTexture(const CraterTexture& texture) {
+    RequireNonNegative(texture.wallStreaks, "Crater wall streak amplitude");
+    RequireNonNegative(texture.ejecta, "Crater ejecta texture amplitude");
+    RequirePositive(texture.wallStreakWidthRadii, "Crater wall streak width");
+    RequirePositive(texture.ejectaLineationRadii, "Crater ejecta lineation width");
+    RequireUnitInterval(texture.mantling, "Crater ejecta mantling");
+    if (!(texture.ejectaReachRadii > 1.0 && std::isfinite(texture.ejectaReachRadii))) {
+        throw std::invalid_argument("Crater ejecta must reach beyond 1 radius");
+    }
+    if (!(texture.minFreshness >= 0.0 && texture.minFreshness < 1.0)) {
+        throw std::invalid_argument("Crater texture minFreshness must be in [0, 1)");
+    }
+}
+
+CraterApplyOptions DefaultCraterApply() {
+    CraterApplyOptions apply;
+    apply.irregularity.enabled = true;
+    apply.terraces.enabled = true;
+    apply.peaks.enabled = true;
+    return apply;
+}
+
+CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t seed) {
+    const auto follow = [seed](std::optional<std::uint32_t>& own, std::uint32_t stream) {
+        if (!own) {
+            own = SubstreamSeed(seed, stream);
+        }
+    };
+    follow(apply.irregularity.seed, kCraterIrregularityStream);
+    follow(apply.noise.seed, kCraterNoiseStream);
+    follow(apply.texture.seed, kCraterTextureStream);
+    follow(apply.slope.seed, kCraterSlopeStream);
+    follow(apply.terraces.seed, kCraterTerraceStream);
+    follow(apply.peaks.seed, kCraterPeakStream);
+    return apply;
+}
+
+void ValidateCraterReplacement(const CraterReplacement& replacement) {
+    RequirePositive(replacement.startRadii, "Crater replacement startRadii");
+    if (replacement.endRadii &&
+        !(std::isfinite(*replacement.endRadii) && *replacement.endRadii > replacement.startRadii)) {
+        throw std::invalid_argument("Crater replacement endRadii must be finite and above "
+                                    "startRadii");
+    }
+    RequirePositive(replacement.fitWidthRadii, "Crater replacement fitWidthRadii");
+}
+
+void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
+    ValidateCraterNoise(options.noise);
+    ValidateCraterTexture(options.texture);
+    ValidateResolutionFade(options.fade);
+    ValidateCraterIrregularity(options.irregularity);
+    ValidateRimSmoothing(options.rimSmoothing);
+    ValidateCraterSlopeResponse(options.slope);
+    ValidateCraterTerraces(options.terraces);
+    ValidateCraterPeaks(options.peaks);
+    ValidateCraterReplacement(options.replacement);
+    if ((options.slope.asymmetric || options.slope.criticalGradient) &&
+        options.datum != CraterDatum::Plane) {
+        throw std::invalid_argument("A crater slope response needs the plane datum");
+    }
+    RequirePositive(options.datumFitRadii, "datumFitRadii");
+    RequireUnitInterval(options.interiorReplacement, "interiorReplacement");
+    const CraterBlend& blend = options.blend;
+    if (!(std::isfinite(blend.startRadii) && std::isfinite(blend.endRadii) &&
+          blend.startRadii >= 0.0 && blend.endRadii > blend.startRadii)) {
+        throw std::invalid_argument("Crater blend must satisfy 0 <= startRadii < endRadii");
+    }
+}
+
+std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder order) {
+    struct Key {
+        double age;
+        double diameter;
+        std::uint64_t id;
+        std::size_t index;
+    };
+    const auto& age = craters.AgesGyr();
+    const auto& diameter = craters.Diameters();
+    const auto& id = craters.Ids();
+    std::vector<Key> keys(craters.Size());
+    for (std::size_t n = 0; n < keys.size(); ++n) {
+        keys[n] = {age[n], diameter[n], id[n], n};
+    }
+    const bool oldestFirst = order == CraterOrder::OldestFirst;
+    std::sort(keys.begin(), keys.end(), [oldestFirst](const Key& a, const Key& b) {
+        if (oldestFirst && a.age != b.age) {
+            return a.age > b.age;
+        }
+        if (a.diameter != b.diameter) {
+            return a.diameter > b.diameter;
+        }
+        if (a.age != b.age) {
+            return a.age > b.age;
+        }
+        return a.id != b.id ? a.id < b.id : a.index < b.index;
+    });
+    std::vector<std::size_t> indices(keys.size());
+    for (std::size_t n = 0; n < keys.size(); ++n) {
+        indices[n] = keys[n].index;
+    }
+    return indices;
+}
+
+}  // namespace terraingen

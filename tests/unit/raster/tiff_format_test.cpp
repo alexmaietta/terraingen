@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/raster/geotiff/tiff_format.h"
+#include "raster/geotiff/tiff_format.h"
 
-#include "terraingen/raster/geotiff/tiff_codecs.h"
+#include "raster/geotiff/tiff_codecs.h"
 
 #include <gtest/gtest.h>
 

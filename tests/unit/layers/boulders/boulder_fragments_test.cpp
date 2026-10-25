@@ -5,8 +5,8 @@
 #include "support/golombek_rapp.h"
 #include "support/mesh_measures.h"
 
+#include "layers/boulders/boulder_clusters.h"
 #include "support/boulder_records.h"
-#include "terraingen/layers/boulders/boulder_clusters.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/terraingen.h"
 #include "terraingen/util/bits.h"

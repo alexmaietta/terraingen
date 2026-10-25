@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "app/gui/gui_app.h"
+#include "app/gui/terrain_scene.h"
 #include "support/temp_path.h"
-#include "terraingen/app/gui/gui_app.h"
-#include "terraingen/app/gui/terrain_scene.h"
 #include "terraingen/config/json.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 

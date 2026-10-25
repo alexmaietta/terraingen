@@ -4,8 +4,8 @@
 /// @brief Small configurations and raster fixtures shared by the pipeline tests.
 #pragma once
 
+#include "config/fields/json_io.h"
 #include "terraingen/config/build.h"
-#include "terraingen/config/fields/json_io.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"

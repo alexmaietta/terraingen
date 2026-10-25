@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/distribution/composition.h"
+#include "distribution/composition.h"
 
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/summed.h"

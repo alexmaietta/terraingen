@@ -1,0 +1,221 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
+/// @file
+/// @brief The JSON fields of bodies, sources and upsampling.
+#pragma once
+
+#include "config/fields/common.h"
+#include "terraingen/config/config.h"
+
+#include <cstddef>
+#include <string>
+#include <string_view>
+
+namespace terraingen::config {
+
+/// The cells along a cube face edge a body mesh or shape model may have.
+inline FieldRange CubeFaceCellsRange() {
+    return Between(1.0, static_cast<double>(kMaxCubeFaceCells));
+}
+
+/// The fields of a box in a raster's CRS units, as a GeoTIFF's `crop`.
+template <typename IO> void Fields(IO& io, Bounds2d& box) {
+    io("min_x", box.minX, "Lower edge along x, in the raster's CRS units.");
+    io("min_y", box.minY, "Lower edge along y, in the raster's CRS units.");
+    io("max_x", box.maxX, "Upper edge along x, in the raster's CRS units; above min_x.");
+    io("max_y", box.maxY, "Upper edge along y, in the raster's CRS units; above min_y.");
+}
+
+/// The fields of diamond-square upsampling, beside its "type".
+template <typename IO> void Fields(IO& io, DiamondSquareOptions& options) {
+    io("fractal_dimension", options.fractalDimension,
+       "Fractal dimension, from 2 (smooth) to 3 (rough): each square or diamond step scales the "
+       "displacement by 2^-((3 - F) / 2). Unset estimates it from the median height differences of "
+       "the posts at lags of 1 to 8 posts.",
+       "", Between(2.0, 3.0));
+    io("scale_m", options.scale,
+       "Standard deviation in meters of the displacement at the posts' own last diamond step. "
+       "Unset estimates it from the posts, window by window (fit_window_px), as 1.4826 times the "
+       "median absolute difference of each post and the mean of its four neighbors, so craters "
+       "and massifs do not roughen the plains around them.",
+       "m", AtLeast(0.0));
+    io("fit_window_px", options.fitWindow,
+       "Side in posts of the overlapping windows, centered every half side, that an unset "
+       "scale_m is fitted over; each node's scale is bilinear between the windows around it. 0 "
+       "fits one scale to a sample of the posts; else 4 to " +
+           std::to_string(kMaxDiamondSquareFitWindow) + ".",
+       "px", Between(0.0, static_cast<double>(kMaxDiamondSquareFitWindow)));
+    io("interp", options.interp,
+       "How new nodes are filled from the coarser ones and samples read between the finest "
+       "nodes.");
+    io("min_pixel_size_m", options.minPixelSize,
+       "Finest node spacing in meters the posts are refined to; 0 refines down to the sample "
+       "spacing.",
+       "m", AtLeast(0.0));
+    io("seed", options.seed, "Seed of the displacements.");
+}
+
+/// The description of a terrain noise stack of `fewest` to `kMaxFractals` layers.
+inline std::string NoiseStackHelp(std::size_t fewest) {
+    return "Noise layers, " + CountText(fewest, kMaxFractals) +
+           ", combined in order: the first enabled layer sets the height and each later one is "
+           "combined with it by its blend mode.";
+}
+
+/// The description of a source's upsampling.
+inline constexpr std::string_view kUpsamplingHelp =
+    "How the posts become heights between them and at sample spacings finer than them: a name "
+    "(nearest, bilinear, cubic, catmull_rom, lanczos3, cubic_bspline, or a type registered in "
+    "code), or an object with a \"type\" and its settings, such as {\"type\": \"diamond_square\", "
+    "\"fractal_dimension\": 2.3}, which adds fractal detail below the posts' spacing.";
+
+template <> struct SpecName<PlaneSurfaceSpec> {
+    static constexpr std::string_view kName = "plane";
+    static constexpr std::string_view kDescription =
+        "A flat projected frame in meters, for local sites.";
+};
+template <typename IO> void Fields(IO& /*io*/, PlaneSurfaceSpec& /*spec*/) {}
+
+template <> struct SpecName<SphereSurfaceSpec> {
+    static constexpr std::string_view kName = "sphere";
+    static constexpr std::string_view kDescription =
+        "A whole body such as a planet or moon: positions in longitude and latitude (degrees) and "
+        "features generated over the whole body.";
+};
+template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
+    io("radius_m", spec.radius, "Radius of the body's datum sphere, in meters; required.", "m",
+       Above(0.0));
+}
+
+template <> struct SpecName<EllipsoidSurfaceSpec> {
+    static constexpr std::string_view kName = "ellipsoid";
+    static constexpr std::string_view kDescription =
+        "A whole body shaped as a triaxial ellipsoid, such as an elongated moon or asteroid: "
+        "planetocentric longitude and latitude (degrees), heights along the direction from the "
+        "center, and features generated over the whole body.";
+};
+template <typename IO> void Fields(IO& io, EllipsoidSurfaceSpec& spec) {
+    io("radii_m", spec.radii,
+       "Semi-axes a, b and c of the datum ellipsoid in meters, along x (longitude 0), y "
+       "(longitude 90) and z (the north pole); exactly three, each positive.",
+       "m", Above(0.0));
+}
+
+template <> struct SpecName<ShapeModelSurfaceSpec> {
+    static constexpr std::string_view kName = "shape_model";
+    static constexpr std::string_view kDescription =
+        "A whole star-shaped body such as an asteroid, from a shape model: planetocentric "
+        "longitude and latitude (degrees), heights along the direction from the center, and "
+        "features generated over the whole body. The model is resampled along rays from its "
+        "origin, keeping the outermost surface where a ray crosses it more than once.";
+};
+template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
+    io("path", spec.path,
+       InputPathHelp("Shape model in body-fixed coordinates around its origin: a Gaskell ICQ "
+                     "model (.icq) or a closed mesh (.obj, .gltf, .glb or .stl)"));
+    io("q", spec.q,
+       "Intervals per cube face edge of the radial grid the model is resampled on, " +
+           CountText(1, kMaxCubeFaceCells) +
+           "; unset keeps an ICQ model's own Q and uses 256 for a mesh.",
+       "", CubeFaceCellsRange());
+    io("meters_per_unit", spec.metersPerUnit,
+       "Meters per unit of the file's coordinates; unset is 1000 for an ICQ model, whose "
+       "coordinates are kilometers, and 1 for a mesh.",
+       "m/unit", Above(0.0));
+}
+
+template <> struct SpecName<RasterSourceSpec> {
+    static constexpr std::string_view kName = "raster";
+    static constexpr std::string_view kDescription =
+        "A heightmap read from a GeoTIFF in its own projected coordinates, its cells upsampled to "
+        "finer spacings, to add relief to a real DEM.";
+};
+template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
+    io("path", source.path, InputPathHelp("GeoTIFF to read the heights from"));
+    GeoTiffSourceOptions& read = source.read;
+    io("band", read.band, "Band of the file to read, counting from 0.");
+    io("scale", read.scale,
+       "Factor each sample is multiplied by, replacing the band's scale from the file's GDAL "
+       "metadata. Unset keeps the file's.");
+    io("offset_m", read.offset,
+       "Added to each scaled sample, replacing the band's offset from the file's GDAL metadata. "
+       "Unset keeps the file's.",
+       "m");
+    io("crop", read.crop,
+       "Box in the raster's CRS units the source covers: only the cells meeting it are used, "
+       "with the same heights there as the whole file. Unset covers the whole file; either way "
+       "only the tiles or strips that outputs and layers ask heights of are read.");
+    io("effective_pixel_size_m", read.effectivePixelSize,
+       "Cell size in meters the heights truly resolve, for a DEM that was upsampled or smoothed "
+       "before it was saved; it replaces the cell size as the scale below which the source "
+       "resolves no features. Unset uses the cell size.",
+       "m", Above(0.0));
+    io("upsampling", source.upsampling, kUpsamplingHelp);
+}
+
+template <> struct SpecName<ChainSourceSpec> {
+    static constexpr std::string_view kName = "chain";
+    static constexpr std::string_view kDescription =
+        "Several sources tried in order, each filling where those before it have no data; its "
+        "grid is the first one's.";
+};
+/// The fields of how a chain joins each source to the gaps of those before it.
+template <typename IO> void Fields(IO& io, ChainSeams& seams) {
+    io("mode", seams.mode,
+       "How each source meets the gaps of those before it: none switches outright, feather "
+       "fades the edge's height difference out across the gap, height shifts the later source "
+       "to meet the earlier one's heights (C0) and slope to meet its heights and slopes (C1). "
+       "The match is solved on the posts of the source before each gap.");
+    io("width_m", seams.width,
+       "Width in meters of the band inside a gap over which feather fades the height difference "
+       "at the edge to 0.",
+       "m", Above(0.0));
+    io("decay_length_m", seams.decayLength,
+       "Length in meters over which height and slope fade the shift out where a gap is open, "
+       "beyond a source's edge; it is 0 from three decay lengths on. A hole much narrower than "
+       "it takes the whole shift.",
+       "m", Above(0.0));
+}
+
+template <typename IO> void Fields(IO& io, ChainSourceSpec& source) {
+    io("sources", source.sources,
+       "Sources tried in order, each filling where those before it have no data, each upsampled "
+       "as it says; the chain's grid is the first one's.");
+    io("seams", source.seams,
+       "How each source is matched to the sources before it where it fills their gaps; by "
+       "default each switches outright.");
+}
+
+template <> struct SpecName<SyntheticSourceSpec> {
+    static constexpr std::string_view kName = "synthetic";
+    static constexpr std::string_view kDescription =
+        "Heights generated from a stack of fractal noise layers over an unbounded plane or the "
+        "whole body; outputs give their own extents and pixel sizes.";
+};
+template <typename IO> void Fields(IO& io, SyntheticSourceSpec& source) {
+    io("elevation_m", source.elevation, "Height in meters added everywhere.", "m");
+    io("stack", source.stack,
+       NoiseStackHelp(0) + " Unset is one layer of fBm noise 400 m in wavelength and 12 m in "
+                           "amplitude; an empty stack gives a flat source.");
+    io("pixel_size_m", source.pixelSize,
+       "Spacing in meters of posts the noise is sampled at, as for a DEM of that cell size, "
+       "which upsampling refines. Unset evaluates the noise at every point, at any spacing.",
+       "m", Above(0.0));
+    io("upsampling", source.upsampling,
+       std::string(kUpsamplingHelp) + " Needs pixel_size_m; unset is cubic.");
+}
+
+template <> struct SpecName<ShapeModelSourceSpec> {
+    static constexpr std::string_view kName = "shape_model";
+    static constexpr std::string_view kDescription =
+        "The shape_model body's own labels refined by an upsampler, the source a shape-model body "
+        "has unless one is given: heights are the refined radius less the body's, which "
+        "interpolates the labels bilinearly, so 0 at every label. Posts beyond a cube face are "
+        "read from its neighbors and the faces are blended within half a label of their edges, "
+        "so there are no seams.";
+};
+template <typename IO> void Fields(IO& io, ShapeModelSourceSpec& source) {
+    io("upsampling", source.upsampling, std::string(kUpsamplingHelp) + " Unset is cubic.");
+}
+
+}  // namespace terraingen::config

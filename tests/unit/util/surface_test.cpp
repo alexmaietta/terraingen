@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "terraingen/util/cells.h"
-#include "terraingen/util/cube_faces.h"
 #include "terraingen/util/radial_shape.h"
 #include "terraingen/util/surface.h"
+#include "util/cube_faces.h"
 
 #include "terraingen/random/stream.h"
 

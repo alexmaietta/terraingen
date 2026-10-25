@@ -115,10 +115,6 @@ docker run --rm ghcr.io/alexmaietta/terraingen:latest terraingen --help
 
 The `latest` tag is the newest release, and each release is also tagged with its version without the `v`, such as `0.2.0` and `0.2`. The `dev` tag follows `main`.
 
-### Demos
-
-Planned: larger showcases, such as terrain over a whole asteroid built from the Itokawa shape model.
-
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test and submit changes.

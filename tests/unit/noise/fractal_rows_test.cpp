@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/noise/fractal_rows.h"
+#include "noise/fractal_rows.h"
 
 #include "terraingen/noise/surface_noise.h"
 #include "terraingen/util/bits.h"

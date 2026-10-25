@@ -2,11 +2,11 @@
 
 #include "terraingen/raster/geotiff/geotiff.h"
 
+#include "raster/geotiff/tiff_codecs.h"
+#include "raster/geotiff/tiff_format.h"
 #include "support/gdal_fixtures.h"
 #include "support/raster_equality.h"
 #include "support/temp_path.h"
-#include "terraingen/raster/geotiff/tiff_codecs.h"
-#include "terraingen/raster/geotiff/tiff_format.h"
 #include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>

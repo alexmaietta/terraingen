@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/layers/prefetched_ground.h"
+#include "layers/prefetched_ground.h"
 
 #include <gtest/gtest.h>
 

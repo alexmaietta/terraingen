@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "app/cli.h"
+#include "app/gui/run.h"
 #include "support/temp_path.h"
-#include "terraingen/app/cli.h"
-#include "terraingen/app/gui/run.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include <gtest/gtest.h>

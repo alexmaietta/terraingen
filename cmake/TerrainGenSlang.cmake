@@ -37,8 +37,9 @@ function(terraingen_compile_slang target symbol source slang_target extension)
         COMMAND ${CMAKE_COMMAND} -E make_directory "${directory}"
         COMMAND
             ${CMAKE_COMMAND} -E env ${ARG_ENV} "${TERRAINGEN_SLANGC}" "${source}" -target
-            ${slang_target} ${ARG_FLAGS} -stage compute -entry main -O2 -I "${PROJECT_SOURCE_DIR}"
-            -o "${output}" -depfile "${output}.d"
+            ${slang_target} ${ARG_FLAGS} -stage compute -entry main -O2 -I
+            "${PROJECT_SOURCE_DIR}/include" -I "${PROJECT_SOURCE_DIR}/src" -o "${output}" -depfile
+            "${output}.d"
         DEPENDS "${source}"
         DEPFILE "${output}.d"
         COMMENT "Compiling the Slang kernel ${symbol}"
@@ -76,7 +77,7 @@ function(terraingen_add_slang_kernel target symbol source)
 endfunction()
 
 # terraingen_add_kernel(<target> <symbol> <type> <header> <source>): compiles the Slang compute
-# kernel <source> (entry point "main", including terraingen/gpu/kernel.slang) for every GPU backend
+# kernel <source> (entry point "main", including src/gpu/kernel.slang) for every GPU backend
 # the build supports and defines `CompiledKernel<type>()` in <target>. <header>, relative to the
 # repository root, is the kernel header (see util/portable.h) declaring the plain struct <type>
 # that <source> binds and the `CompiledKernel` specialization. A form the build cannot make is

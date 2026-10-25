@@ -8,8 +8,8 @@ add_executable(
                           bench_ground_reads.cpp bench_point_queries.cpp bench_sources.cpp)
 target_include_directories(terraingen_benchmarks PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                          "${PROJECT_SOURCE_DIR}/tests")
-target_link_libraries(terraingen_benchmarks PRIVATE terraingen::terraingen benchmark::benchmark
-                                                    terraingen_warnings)
+target_link_libraries(terraingen_benchmarks PRIVATE terraingen::terraingen terraingen_internal
+                                                    benchmark::benchmark terraingen_warnings)
 
 if(TERRAINGEN_BUILD_TESTS)
     # One iteration of the smallest case of each benchmark, to catch benchmarks that no longer run.

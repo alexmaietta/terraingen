@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/app/gui/terrain_scene.h"
+#include "app/gui/terrain_scene.h"
 
 #include <ernie/scene/tokens.h>
 #include <ernie/util/tensor.h>

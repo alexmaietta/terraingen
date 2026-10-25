@@ -2,7 +2,7 @@
 
 # The build info keeps its build time, and nothing is relinked, when a build has nothing to do;
 # rebuilding one of a module's objects regenerates it with a new time.
-set(module_dir "${BUILD_DIR}/terraingen")
+set(module_dir "${BUILD_DIR}/src")
 set(build_info "${module_dir}/build_info.cpp")
 
 function(build)
@@ -59,7 +59,7 @@ set(pinned "${WORK_DIR}/build_info.cpp")
 execute_process(
     COMMAND
         ${CMAKE_COMMAND} -DMODE=source -DSTATE=${module_dir}/git_state.txt
-        -DTEMPLATE=${SOURCE_DIR}/terraingen/util/build_info.cpp.in -DOUTPUT=${pinned} -P
+        -DTEMPLATE=${SOURCE_DIR}/src/util/build_info.cpp.in -DOUTPUT=${pinned} -P
         ${SOURCE_DIR}/cmake/BuildInfo.cmake
     RESULT_VARIABLE result)
 file(READ "${pinned}" content)

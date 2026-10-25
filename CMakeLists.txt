@@ -17,7 +17,7 @@ project(
     TerrainGen
     VERSION ${TERRAINGEN_VERSION}
     LANGUAGES C CXX)
-# The Metal backend (terraingen/gpu/metal.cpp) is Objective-C++ on Apple platforms. It is enabled
+# The Metal backend (src/gpu/metal.cpp) is Objective-C++ on Apple platforms. It is enabled
 # here, above every target that links the gpu module.
 if(APPLE)
     enable_language(OBJCXX)
@@ -107,7 +107,13 @@ if(TERRAINGEN_BUILD_GUI AND TERRAINGEN_BUILD_APP)
     include("${PROJECT_SOURCE_DIR}/cmake/third_party/ernie.cmake")
 endif()
 
-add_subdirectory(terraingen)
+add_subdirectory(src)
+if(TERRAINGEN_BUILD_PYTHON)
+    add_subdirectory(python)
+endif()
+if(TERRAINGEN_BUILD_APP)
+    add_subdirectory(app)
+endif()
 
 if(TERRAINGEN_BUILD_TESTS)
     enable_testing()

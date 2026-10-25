@@ -2,9 +2,9 @@
 
 #include "terraingen/mesh/io/mesh_io.h"
 
+#include "mesh/io/formats.h"
 #include "support/mesh_measures.h"
 #include "support/temp_path.h"
-#include "terraingen/mesh/io/formats.h"
 #include "terraingen/mesh/polyhedra.h"
 
 #include <gtest/gtest.h>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/albedo/bands.h"
+#include "albedo/bands.h"
 
 #include "terraingen/albedo/maturity.h"
 #include "terraingen/layers/fade.h"
