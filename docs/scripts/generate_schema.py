@@ -14,7 +14,6 @@ from pathlib import Path
 from mkdocs.structure.files import File
 
 ROOT = Path(__file__).resolve().parents[2]
-REPO_BLOB = "https://github.com/alexmaietta/terraingen/blob/main/"
 
 # Titles and slugs of the choices, keyed by where they are first reached from the root.
 CHOICES = {
@@ -115,14 +114,13 @@ def range_text(field):
 class Reference:
     """The pages of the configuration reference, built from one schema."""
 
-    def __init__(self, schema, catalog, examples):
+    def __init__(self, schema, catalog):
         self.schema = schema
         self.catalog = catalog
         self.definitions = schema["definitions"]
         self.paths = {}  # choice id -> path first reached from the root
         self.names = defaultdict(set)  # choice id -> the field names that refer to it
         self.enums = {}  # tuple of choices -> (anchor, name, descriptions)
-        self.examples = examples
         self.walk(schema["root"], "")
 
     # Discovery ---------------------------------------------------------------------------------
@@ -242,15 +240,7 @@ class Reference:
             lines += self.fields(target["fields"], here, indent + "    ")
         return lines
 
-    def used_in(self, names, type_name):
-        files = sorted({path for name in names for path in self.examples.get((name, type_name), [])})
-        if not files:
-            return []
-        links = ", ".join(f"[{Path(p).stem}]({REPO_BLOB}{p})" for p in files[:8])
-        more = f" and {len(files) - 8} more" if len(files) > 8 else ""
-        return [f"**Used in:** {links}{more}", ""]
-
-    def alternative(self, alternative, names, here, level="##"):
+    def alternative(self, alternative, here, level="##"):
         lines = [f"{level} `{alternative['type']}` {{#{alternative['type']}}}", ""]
         lines += [alternative["description"], ""]
         lines += self.fields(alternative["fields"], here)
@@ -262,7 +252,6 @@ class Reference:
             "    ```",
             "",
         ]
-        lines += self.used_in(names, alternative["type"])
         return lines
 
     def choice_page(self, ref):
@@ -277,13 +266,12 @@ class Reference:
             lines.append(f"| [`{alternative['type']}`](#{alternative['type']}) | {cell(first)}. |")
         lines.append("")
         for alternative in choice["alternatives"]:
-            lines += self.alternative(alternative, names, slug)
+            lines += self.alternative(alternative, slug)
         return slug, title, "\n".join(lines)
 
     def layer_pages(self):
         ref = self.ref_of("layers")
         choice = self.definitions[ref]
-        names = self.names[ref]
         index = ["# Layers", "", "Relief and features added to the source, applied in order.", ""]
         index += ["| Type | Description |", "| --- | --- |"]
         pages = []
@@ -291,7 +279,7 @@ class Reference:
             slug = f"layers/{alternative['type']}"
             first = alternative["description"].split(". ")[0].rstrip(".")
             index.append(f"| [`{alternative['type']}`]({alternative['type']}.md) | {cell(first)}. |")
-            body = self.alternative(alternative, names, slug, level="#")
+            body = self.alternative(alternative, slug, level="#")
             pages.append((slug, alternative["type"], "\n".join(body)))
         return ("layers/index", "Layers", "\n".join(index + [""])), pages
 
@@ -377,31 +365,12 @@ class Reference:
         return pages, nav
 
 
-def scan_examples():
-    """(key, type) -> the example configurations using that type under that key."""
-    found = defaultdict(set)
-
-    def walk(value, key, path):
-        if isinstance(value, dict):
-            if "type" in value and key:
-                found[(key, value["type"])].add(path)
-            for child_key, child in value.items():
-                walk(child, child_key, path)
-        elif isinstance(value, list):
-            for child in value:
-                walk(child, key, path)
-
-    for file in sorted((ROOT / "examples" / "config").rglob("*.json")):
-        walk(json.loads(file.read_text()), "", str(file.relative_to(ROOT)))
-    return found
-
-
 _STATE = {}
 
 
 def on_config(config):
     schema, catalog = load_schema()
-    reference = Reference(schema, catalog, scan_examples())
+    reference = Reference(schema, catalog)
     pages, nav = reference.pages()
     _STATE["pages"] = pages
     _STATE["schema"] = schema

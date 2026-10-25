@@ -29,10 +29,5 @@ __pycache__/
 /*.[tT][iI][fF].aux.xml
 /*.[tT][iI][fF][fF].aux.xml
 
-# Default output folders of the examples
-examples/**/output/
+# Default output folder
 /output/
-examples/config/**/*.tif
-examples/config/**/*.csv
-examples/config/**/*.glb
-examples/config/**/*.aux.xml

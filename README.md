@@ -35,7 +35,6 @@ We also provide:
 - Smart and tested defaults for various surface features.
 - A command-line interface that generates terrain from JSON configuration files.
 - A GUI for editing configurations and viewing the results in 3D, in builds made with Ernie, the renderer.
-- Examples in C++, Python and JSON.
 - Planned: a standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
 - Planned: example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
 
@@ -43,12 +42,18 @@ For more information on the concepts behind TerrainGen and the API, see our late
 
 ## Quick Start
 
-We recommend getting started by installing `terraingenpy` from PyPI and generating one of the example configurations.
+We recommend getting started by installing `terraingenpy` from PyPI and generating a cratered terrain.
 
 ```sh
 pip install terraingenpy
-git clone https://github.com/alexmaietta/terraingen
-terraingen terraingen/examples/config/craters/example_craters_simple.json --output-dir output
+```
+
+```python
+import terraingen
+
+craters = terraingen.CraterLayer()
+terrain = terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, 1.0), [craters])
+heights = terraingen.evaluate(terrain)
 ```
 
 The wheels leave out the GUI; `terraingen --gui` needs a build from source with Ernie (see [CONTRIBUTING.md](CONTRIBUTING.md)).
@@ -133,14 +138,6 @@ int main() {
     terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
     terraingen::WriteGeoTiff("terrain.tif", heights);
 }
-```
-
-### Examples
-
-[examples/](examples/) has the same terrains as JSON configurations, C++ programs and Python scripts, covering basic terrains, craters, boulders, albedo, planets, and DEM detail:
-
-```sh
-terraingen examples/config/craters/example_craters_simple.json
 ```
 
 ### Demos

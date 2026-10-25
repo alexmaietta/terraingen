@@ -34,8 +34,6 @@ add_compile_options(
 option(TERRAINGEN_BUILD_TESTS "Build the test suite" ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_BENCHMARKS "Build the benchmarks (Google Benchmark)"
        ${PROJECT_IS_TOP_LEVEL})
-option(TERRAINGEN_BUILD_EXAMPLES "Build the C++ examples and test every example"
-       ${PROJECT_IS_TOP_LEVEL})
 option(TERRAINGEN_BUILD_PYTHON "Build the Python bindings" ON)
 option(TERRAINGEN_BUILD_APP "Build the terraingen command-line app" ON)
 option(TERRAINGEN_BUILD_GUI
@@ -114,9 +112,6 @@ add_subdirectory(terraingen)
 if(TERRAINGEN_BUILD_TESTS)
     enable_testing()
     include("${PROJECT_SOURCE_DIR}/cmake/TerrainGenTesting.cmake")
-endif()
-if(TERRAINGEN_BUILD_EXAMPLES)
-    add_subdirectory(examples/cpp)
 endif()
 if(TERRAINGEN_BUILD_TESTS)
     add_subdirectory(tests)

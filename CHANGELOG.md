@@ -92,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `examples/` (the JSON configurations, C++ programs and Python scripts), the `TERRAINGEN_BUILD_EXAMPLES` option, the example tests and the example configurations installed with the Python wheel; the documentation's gallery and tested snippets show the library instead.
 - APIs the library itself never used, in C++ and Python alike: `GaussianBlur` (`gaussian_blur`), `Resample` and `ResampleTo` (`resample`, `resample_to`), `SampleTruncatedPowerLaw`, `SampleExponential`, `SampleNormal` and `TabulatedDistribution`, `RandomStream::NextFloat` and `NextDoubleOpenBelow`, the mesh `Volume`, `SurfaceArea` and `Transformed` (`volume`, `surface_area`, `transformed`), `Icosphere` (`icosphere`; subdivide the icosahedron base solid onto the unit sphere instead), and the `WriteGeoTiff` overload taking band pointers.
 - C++ declarations only tests used: `ResampleWindow`, `SampleRasterWindow`, `SampleAtCenters`, `RequireIncreasing`, `ResolveThreads`, `StandardErrorLogSink`, `Variogram`, `LruCache::Capacity`, the `PixelWindowIn` overload taking a raster, `kSqrt2`, `kEulerGamma` and `TERRAINGEN_VERSION_STRING`; `KernelWeight`, `ParseGdalBandScaling`, `RotationQuaternion` and `GeoKeys::ShortKey` (now `ShortGeoKey`) moved to `detail`.
 - `DescribeSource` and Python `TerrainGenConfig.source_grid` (use `ValidateConfig(...).source`), `LayerAt` and `LayerTimer::Callback`.

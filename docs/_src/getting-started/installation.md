@@ -42,7 +42,6 @@ These options choose what is built:
 | `TERRAINGEN_BUILD_APP` | `ON` | The `terraingen` command |
 | `TERRAINGEN_BUILD_GUI` | `ON` | `terraingen --gui`, when `TERRAINGEN_ERNIE_DIR` points at an Ernie checkout |
 | `TERRAINGEN_BUILD_TESTS` | `ON` at the top level | The test suite |
-| `TERRAINGEN_BUILD_EXAMPLES` | `ON` at the top level | The C++ examples |
 | `TERRAINGEN_INSTALL` | `ON` at the top level | The install rules and CMake package |
 
 The GUI builds with Ernie, the renderer, from a local checkout: `-DTERRAINGEN_ERNIE_DIR=../ernie`. Without one, configuring warns and builds everything else; `-DTERRAINGEN_BUILD_GUI=OFF` leaves the GUI out without the warning.

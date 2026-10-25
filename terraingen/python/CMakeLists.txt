@@ -59,7 +59,4 @@ set_property(GLOBAL APPEND PROPERTY TERRAINGEN_TEST_TARGETS _terraingen _terrain
 if(SKBUILD)
     install(TARGETS _terraingen LIBRARY DESTINATION terraingen)
     install(FILES "${package_dir}/_terraingen.pyi" "${package_dir}/py.typed" DESTINATION terraingen)
-    # The example configurations, ready for `terraingen CONFIG --output-dir DIR`.
-    install(DIRECTORY "${PROJECT_SOURCE_DIR}/examples/config/"
-            DESTINATION terraingen/examples/config)
 endif()

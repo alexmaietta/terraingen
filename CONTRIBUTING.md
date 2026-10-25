@@ -4,7 +4,7 @@ Thank you for helping. Bug reports, questions, references and pull requests are 
 
 ## Building and testing
 
-TerrainGen needs CMake 3.22 or newer and a C++17 compiler (tested with GCC 11, Clang 14, Apple Clang 15 and MSVC 2022). Everything else is fetched by CMake. Keep the library, tests and examples C++17: no `std::span` (use `terraingen::Span`), `std::numbers` (use `kPi` from `util/bits.h`), defaulted comparisons, concepts or designated initializers.
+TerrainGen needs CMake 3.22 or newer and a C++17 compiler (tested with GCC 11, Clang 14, Apple Clang 15 and MSVC 2022). Everything else is fetched by CMake. Keep the library and tests C++17: no `std::span` (use `terraingen::Span`), `std::numbers` (use `kPi` from `util/bits.h`), defaulted comparisons, concepts or designated initializers.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -14,7 +14,7 @@ ctest --test-dir build -j 8 --output-on-failure
 
 The Vulkan compute tests skip on machines without a Vulkan device. The Python bindings build with `pip install .` (or into `build/python` with the CMake build); run their tests with `pytest tests/python`.
 
-Tests are grouped by kind: `tests/unit` mirrors `terraingen/` one folder per module, `tests/statistical` checks sampled distributions against their models, `tests/golden` pins generated values, `tests/integration` runs every example and configuration, and `tests/python` has one file per module. Shared helpers live in `tests/support`.
+Tests are grouped by kind: `tests/unit` mirrors `terraingen/` one folder per module, `tests/statistical` checks sampled distributions against their models, `tests/golden` pins generated values, `tests/integration` tests the build, install and packages, and `tests/python` has one file per module. Shared helpers live in `tests/support`.
 
 Coverage needs GCC or Clang; the `coverage` target runs the tests and writes a report to `build-coverage/coverage/`:
 
@@ -28,7 +28,7 @@ The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a l
 ## Pull requests
 
 - Every change comes with tests, and new code should be covered by them.
-- Run [pre-commit](https://pre-commit.com) before committing (`pre-commit install` once): it formats C++ with clang-format, CMake with cmake-format, Python with ruff and the example JSON configurations, and runs cppcheck and ruff's linter.
+- Run [pre-commit](https://pre-commit.com) before committing (`pre-commit install` once): it formats C++ with clang-format, CMake with cmake-format, Python with ruff, and runs cppcheck and ruff's linter.
 - Keep commits focused, with a one-line message saying what changed.
 - CI must pass on Linux, macOS and Windows.
 

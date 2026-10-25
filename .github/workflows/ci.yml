@@ -167,11 +167,11 @@ jobs:
           -DTERRAINGEN_BUILD_BENCHMARKS=OFF
           "-DPython_EXECUTABLE=$(python -c 'import sys; print(sys.executable)')"
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-      # Everything first: the coverage target builds only the test programs, not the command and
-      # examples that the integration tests run.
+      # Everything first: the coverage target builds only the test programs, not the command that the
+      # integration tests run.
       - name: Build
         run: cmake --build build --parallel 4
-      # The tests four at a time (ctest reads CTEST_PARALLEL_LEVEL), the long examples first.
+      # The tests four at a time (ctest reads CTEST_PARALLEL_LEVEL), the long ones first.
       - name: Test and report
         env:
           CTEST_PARALLEL_LEVEL: "4"
@@ -338,7 +338,7 @@ jobs:
         shell: bash
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DTERRAINGEN_BUILD_TESTS=OFF \
-            -DTERRAINGEN_BUILD_BENCHMARKS=OFF -DTERRAINGEN_BUILD_EXAMPLES=OFF \
+            -DTERRAINGEN_BUILD_BENCHMARKS=OFF \
             -DTERRAINGEN_BUILD_PYTHON=OFF -DTERRAINGEN_INSTALL=ON
           cmake --build build --parallel 4
           cmake --install build --prefix "$ARCHIVE"

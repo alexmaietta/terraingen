@@ -107,7 +107,6 @@ nav:
       - guides/index.md
       - Command line: guides/command-line.md
       - GUI: guides/gui.md
-      - Examples: guides/examples.md
       - Contributing: guides/contributing.md
   - Concepts:
       - concepts/index.md
