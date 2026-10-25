@@ -53,6 +53,8 @@ regex = 'set\(TERRAINGEN_FULL_VERSION "(?P<value>\d+\.\d+\.\d+(\.dev\d+)?)"\)'
 
 [tool.ruff]
 line-length = 110
+# The package sits in python/terraingen, so imports of it sort as first-party.
+src = [".", "python"]
 target-version = "py310"
 # The docs pages include their code from tested files with --8<-- lines, which formatting would break.
 extend-exclude = ["third_party/", "docs/_src/"]
