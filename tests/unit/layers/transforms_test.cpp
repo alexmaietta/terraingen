@@ -87,3 +87,14 @@ TEST(FunctionLayer, CallsTheFunctionAtCellCentersWithTheSpacing) {
     ExpectGridMatchesPoints(layer);
     EXPECT_THROW(FunctionLayer(nullptr), std::invalid_argument);
 }
+
+TEST(FunctionLayer, ReportsItsBaseSurfaceWhileScaleAndClampWorkOnAny) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const FunctionLayer onMoon([](double, double, double, double height) { return height; }, moon);
+    EXPECT_EQ(onMoon.LayerSurface(), moon);
+    EXPECT_EQ(
+        FunctionLayer([](double, double, double, double height) { return height; }).LayerSurface(),
+        terraingen::Surface::Plane());
+    EXPECT_FALSE(ScaleLayer(2.0).LayerSurface());
+    EXPECT_FALSE(ClampLayer(0.0, 1.0).LayerSurface());
+}
