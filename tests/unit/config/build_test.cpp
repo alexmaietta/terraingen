@@ -848,6 +848,23 @@ TEST(BuildGenerator, ReadsOnlyTheCropOfARasterSource) {
     EXPECT_TRUE(std::isnan(terrain.source->HeightAt(1010.0, 1990.0, 1.0))) << "outside the crop";
 }
 
+TEST(BuildGenerator, ReadsALongitudeAndLatitudeRasterOnABody) {
+    const auto folder = terraingen::testing::TempPath("terraingen_config_lonlat");
+    std::filesystem::create_directories(folder);
+    terraingen::Raster<float> dem(8, 4, 0.0f);
+    dem.SetTransform(terraingen::GeoTransform::NorthUp(-180.0, 90.0, 45.0));
+    dem(3, 1) = 250.0f;
+    terraingen::WriteGeoTiff(folder / "moon.tif", dem, terraingen::GeographicSphereKeys(1737400.0));
+    TerrainGenConfig config = terraingen::testing::RasterConfig("moon.tif");
+    config.body = terraingen::SphereSurfaceSpec{1737400.0};
+    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config, folder);
+    EXPECT_TRUE(terrain.surface.IsBody());
+    EXPECT_TRUE(terraingen::TerrainGeoKeys(terrain).IsGeographic());
+    const terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
+    EXPECT_EQ(heights.Width(), 8u);
+    EXPECT_EQ(heights(3, 1), 250.0f);
+}
+
 TEST(BuildGenerator, UpsamplesTheSourceAsItsUpsamplingSays) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_upsampling");
     const terraingen::Raster<float> dem = terraingen::testing::WriteDem(folder, "dem.tif");

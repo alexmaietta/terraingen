@@ -357,25 +357,29 @@ void BindRasterSources(nb::module_& m) {
         m, "RasterSource",
         "Heights from a raster held in memory, used as given with its no-data value, its cells "
         "refined by `upsampler` (cubic when None); `effective_pixel_size` (CRS units) is the "
-        "cell size the heights truly resolve.")
+        "cell size the heights truly resolve. `keys` is the projection outputs are written with; "
+        "geographic keys on columns spanning 360 degrees wrap the raster in longitude.")
         .def(
             "__init__",
             [](RasterSource* self, const Raster<float>& heights,
-               std::optional<double> effectivePixelSize, std::shared_ptr<Upsampler> upsampler) {
-                new (self) RasterSource(heights,
-                                        SamplingOptions(effectivePixelSize, std::move(upsampler)));
+               std::optional<double> effectivePixelSize, std::shared_ptr<Upsampler> upsampler,
+               const GeoKeys& keys) {
+                new (self) RasterSource(
+                    heights, SamplingOptions(effectivePixelSize, std::move(upsampler)), keys);
             },
-            "heights"_a, "effective_pixel_size"_a = nb::none(), "upsampler"_a = nb::none())
+            "heights"_a, "effective_pixel_size"_a = nb::none(), "upsampler"_a = nb::none(),
+            "keys"_a = GeoKeys{})
         .def(
             "__init__",
             [](RasterSource* self, const CpuMatrix<float>& heights, const GeoTransform& transform,
                std::optional<float> noData, std::optional<double> effectivePixelSize,
-               std::shared_ptr<Upsampler> upsampler) {
-                new (self) RasterSource(HeightsFromArray(heights, transform, noData),
-                                        SamplingOptions(effectivePixelSize, std::move(upsampler)));
+               std::shared_ptr<Upsampler> upsampler, const GeoKeys& keys) {
+                new (self)
+                    RasterSource(HeightsFromArray(heights, transform, noData),
+                                 SamplingOptions(effectivePixelSize, std::move(upsampler)), keys);
             },
             "heights"_a, "transform"_a = GeoTransform{}, "no_data"_a = nb::none(),
-            "effective_pixel_size"_a = nb::none(), "upsampler"_a = nb::none(),
+            "effective_pixel_size"_a = nb::none(), "upsampler"_a = nb::none(), "keys"_a = GeoKeys{},
             "From a float32 array of shape (height, width), copied, placed by `transform`, with "
             "`no_data` marking cells without data.")
         .def_prop_ro(

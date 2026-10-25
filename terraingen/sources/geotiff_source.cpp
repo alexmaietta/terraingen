@@ -56,11 +56,6 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
     detail::ValidateRasterSourceOptions(SamplingOptions(options_));
     scaling_ = {scale.value_or(info_.bandScaling[band].scale),
                 offset.value_or(info_.bandScaling[band].offset)};
-    if (info_.geoKeys.IsGeographic()) {
-        throw std::invalid_argument(
-            "The raster's CRS is geographic (degrees); craters are sized in meters, so reproject "
-            "it first, for example with gdalwarp -t_srs");
-    }
     lattice_ = {info_.width, info_.height, info_.transform};
     cells_ = options_.crop ? CropCells(lattice_, *options_.crop) : WholeWindow(lattice_);
 }
@@ -68,8 +63,13 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
 const detail::RasterHeights& GeoTiffSource::Heights() const {
     std::call_once(loaded_, [this] {
         const RasterSourceOptions sampling = SamplingOptions(options_);
-        const PixelWindow window =
+        const bool wraps = detail::WrapsLongitude(info_.geoKeys, lattice_);
+        PixelWindow window =
             detail::NativeWindow(lattice_, detail::OptionUpsampler(sampling)->Reach(), cells_);
+        if (wraps) {
+            window.colBegin = 0;
+            window.colEnd = lattice_.width;
+        }
         GeoTiff tiff = ReadGeoTiffWindow(path_, options_.band, window);
         if (!scaling_.Identity()) {
             Raster<float>& raster = tiff.raster;
@@ -86,7 +86,7 @@ const detail::RasterHeights& GeoTiffSource::Heights() const {
         }
         heights_.emplace(std::make_shared<const Raster<float>>(std::move(tiff.raster)),
                          RasterPlacement{lattice_, window.colBegin, window.rowBegin}, sampling,
-                         cells_, path_.string());
+                         cells_, path_.string(), wraps);
     });
     return *heights_;
 }

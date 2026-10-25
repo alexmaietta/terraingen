@@ -14,6 +14,9 @@ namespace terraingen {
 
 namespace {
 
+/// A turn of longitude, in degrees.
+constexpr double kTurnDegrees = 360.0;
+
 /// `value` as an integer when it is one to within rounding, as offsets between lattices are.
 std::optional<long long> Whole(double value) {
     const double rounded = std::round(value);
@@ -30,7 +33,7 @@ std::size_t ClampTo(double value, std::size_t limit) {
 
 /// The heights over the whole of a raster.
 detail::RasterHeights WholeHeights(std::shared_ptr<const Raster<float>> heights,
-                                   const RasterSourceOptions& options) {
+                                   const RasterSourceOptions& options, const GeoKeys& keys) {
     if (!heights) {
         throw std::invalid_argument("A raster source cannot hold a null raster");
     }
@@ -40,12 +43,20 @@ detail::RasterHeights WholeHeights(std::shared_ptr<const Raster<float>> heights,
     detail::ValidateRasterSourceOptions(options);
     const RasterPlacement placement = RasterPlacement::Whole(*heights);
     return detail::RasterHeights(std::move(heights), placement, options,
-                                 WholeWindow(placement.whole), "the raster");
+                                 WholeWindow(placement.whole), "the raster",
+                                 detail::WrapsLongitude(keys, placement.whole));
 }
 
 }  // namespace
 
 namespace detail {
+
+bool WrapsLongitude(const GeoKeys& keys, const RasterGrid& lattice) {
+    const GeoTransform& transform = lattice.transform;
+    const double span = std::fabs(static_cast<double>(lattice.width) * transform.pixelWidth);
+    return keys.IsGeographic() && !transform.IsRotated() &&
+           std::fabs(span - kTurnDegrees) <= 1e-9 * kTurnDegrees;
+}
 
 void ValidateRasterSourceOptions(const RasterSourceOptions& options) {
     if (options.effectivePixelSize) {
@@ -67,10 +78,10 @@ PixelWindow NativeWindow(const RasterGrid& native, int reach, const PixelWindow&
 
 RasterHeights::RasterHeights(std::shared_ptr<const Raster<float>> native,
                              const RasterPlacement& placement, const RasterSourceOptions& options,
-                             const PixelWindow& cells, std::string name)
+                             const PixelWindow& cells, std::string name, bool wrapLongitude)
     : native_(native), nativePlacement_(placement), lattice_(placement.whole), cells_(cells),
-      posts_(std::move(native), placement), upsampler_(OptionUpsampler(options)),
-      name_(std::move(name)) {
+      posts_(std::move(native), placement, wrapLongitude), upsampler_(OptionUpsampler(options)),
+      name_(std::move(name)), wrapLongitude_(wrapLongitude) {
     if (std::shared_ptr<const Upsampler> fitted = upsampler_->FitTo(posts_)) {
         upsampler_ = std::move(fitted);
     }
@@ -123,7 +134,7 @@ void RasterHeights::CopyFromLattice(Raster<float>& heights, LatticeOffset offset
     heights.SetNoData(FilledNoData(data.NoData(), outside));
 }
 
-void RasterHeights::Fill(Raster<float>& heights, double spacing) const {
+void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing) const {
     if (AtPostSpacing(lattice_.transform, spacing)) {
         if (const auto offset = OffsetOnLattice(heights.Transform())) {
             CopyFromLattice(heights, *offset);
@@ -147,13 +158,57 @@ void RasterHeights::Fill(Raster<float>& heights, double spacing) const {
     MarkMissing(heights, native_->NoData());
 }
 
+double RasterHeights::Turns(double x) const {
+    if (!wrapLongitude_) {
+        return 0.0;
+    }
+    const GeoTransform& transform = lattice_.transform;
+    const double left =
+        std::min(transform.originX,
+                 transform.originX + static_cast<double>(lattice_.width) * transform.pixelWidth);
+    return std::floor((x - left) / kTurnDegrees);
+}
+
+void RasterHeights::Fill(Raster<float>& heights, double spacing) const {
+    const std::size_t width = heights.Width();
+    const auto turnsAt = [&](std::size_t col) { return Turns(heights.CellCenter(col, 0).x); };
+    if (!wrapLongitude_ || heights.Empty() || heights.Transform().IsRotated() ||
+        (turnsAt(0) == 0.0 && turnsAt(width - 1) == 0.0)) {
+        FillUnwrapped(heights, spacing);
+        return;
+    }
+    std::optional<float> noData;
+    for (std::size_t begin = 0; begin < width;) {
+        const double turns = turnsAt(begin);
+        std::size_t end = begin + 1;
+        while (end < width && turnsAt(end) == turns) {
+            ++end;
+        }
+        GeoTransform transform = heights.Transform();
+        transform.originX +=
+            static_cast<double>(begin) * transform.pixelWidth - turns * kTurnDegrees;
+        Raster<float> part(end - begin, heights.Height());
+        part.SetTransform(transform);
+        FillUnwrapped(part, spacing);
+        for (std::size_t row = 0; row < part.Height(); ++row) {
+            for (std::size_t col = 0; col < part.Width(); ++col) {
+                heights(begin + col, row) = part(col, row);
+            }
+        }
+        noData = noData ? noData : part.NoData();
+        begin = end;
+    }
+    heights.SetNoData(noData);
+}
+
 float RasterHeights::HeightAt(double x, double y, double spacing) const {
     constexpr float kMissing = std::numeric_limits<float>::quiet_NaN();
-    const Vec2d pixel = lattice_.transform.WorldToPixel(x, y);
+    const double wrappedX = x - Turns(x) * kTurnDegrees;
+    const Vec2d pixel = lattice_.transform.WorldToPixel(wrappedX, y);
     if (!Covers(pixel.x, pixel.y)) {
         return kMissing;
     }
-    return UpsampledHeight(*upsampler_, posts_, x, y, spacing);
+    return UpsampledHeight(*upsampler_, posts_, wrappedX, y, spacing);
 }
 
 double RasterHeights::ResolutionAt(double x, double y) const {
@@ -170,6 +225,6 @@ RasterSource::RasterSource(Raster<float> heights, RasterSourceOptions options, G
 RasterSource::RasterSource(std::shared_ptr<const Raster<float>> heights,
                            RasterSourceOptions options, GeoKeys keys)
     : options_(std::move(options)), keys_(std::move(keys)),
-      heights_(WholeHeights(std::move(heights), options_)) {}
+      heights_(WholeHeights(std::move(heights), options_, keys_)) {}
 
 }  // namespace terraingen

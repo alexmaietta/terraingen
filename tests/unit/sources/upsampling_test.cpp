@@ -108,6 +108,27 @@ TEST(RasterPosts, ReadsTheWindowRepeatingTheEdgesAndNoDataAsNan) {
     EXPECT_THROW(RasterPosts(nullptr, {}), std::invalid_argument);
 }
 
+TEST(RasterPosts, WrappingColumnsRepeatWithTheLatticesWidth) {
+    const Raster<float> raster = Heights();
+    const auto shared = std::make_shared<const Raster<float>>(raster);
+    const RasterPosts posts(shared, RasterPlacement::Whole(raster), true);
+    std::vector<float> values(4);
+    posts.Read(-2, 3, 4, 1, terraingen::Span<float>(values));
+    EXPECT_EQ(values[0], raster(10, 3));
+    EXPECT_EQ(values[1], raster(11, 3));
+    EXPECT_EQ(values[2], raster(0, 3));
+    EXPECT_EQ(values[3], raster(1, 3));
+    posts.Read(23, 3, 2, 1, terraingen::Span<float>(values).subspan(0, 2));
+    EXPECT_EQ(values[0], raster(11, 3));
+    EXPECT_EQ(values[1], raster(0, 3));
+    posts.Read(0, -1, 1, 1, terraingen::Span<float>(values).subspan(0, 1));
+    EXPECT_EQ(values[0], raster(0, 0)) << "rows still repeat their edge";
+
+    const auto window = std::make_shared<const Raster<float>>(3, 2, 5.0f);
+    EXPECT_THROW(RasterPosts(window, {RasterGrid::FromRaster(raster), 4, 6}, true),
+                 std::invalid_argument);
+}
+
 TEST(KernelUpsampler, GivesSampleRastersBitsForEveryKernel) {
     const Raster<float> raster = Heights();
     const RasterPosts posts = Posts(raster);

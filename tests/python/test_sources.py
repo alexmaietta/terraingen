@@ -149,7 +149,9 @@ def test_chain_seams_validate_and_give_their_lattice():
     with pytest.raises(ValueError, match="width"):
         terraingen.validate_chain_seams(terraingen.ChainSeams(width=0.0))
     with pytest.raises(ValueError):
-        terraingen.SourceChain([holed_plane(), terraingen.FlatSource(1, 1, 1.0)], terraingen.ChainSeams(decay_length=-1.0))
+        terraingen.SourceChain(
+            [holed_plane(), terraingen.FlatSource(1, 1, 1.0)], terraingen.ChainSeams(decay_length=-1.0)
+        )
     config = terraingen.TerrainGenConfig.from_dict(
         {
             "schema_version": 1,
@@ -318,6 +320,20 @@ def test_geotiff_source_crop_reads_the_same_heights_over_its_grid(tmp_path, coar
     assert np.isnan(part.height_at(left + 1.0, top - 1.0, 2.0))
     with pytest.raises(ValueError):
         terraingen.GeoTiffSource(tmp_path / "dem.tif", crop=(1e7, 1e7, 1e7 + 1.0, 1e7 + 1.0))
+
+
+def test_geotiff_source_reads_longitude_and_latitude_on_a_body(tmp_path):
+    heights = np.arange(32, dtype=np.float32).reshape(4, 8)
+    raster = terraingen.Raster.from_array(
+        heights, terraingen.GeoTransform.from_gdal((-180.0, 45.0, 0.0, 90.0, 0.0, -45.0))
+    )
+    terraingen.write_geotiff(tmp_path / "moon.tif", raster, terraingen.geographic_sphere_keys(1737400.0))
+    source = terraingen.GeoTiffSource(tmp_path / "moon.tif")
+    assert source.resolution_at(-157.5, 67.5) == 45.0
+    moon = terraingen.TerrainGenerator(source, [], surface=terraingen.Surface.sphere(1737400.0))
+    np.testing.assert_array_equal(terraingen.evaluate(moon).values, heights)
+    with pytest.raises(ValueError, match="longitude and latitude"):
+        terraingen.evaluate(terraingen.TerrainGenerator(source))
 
 
 def test_source_resolved_limit_drops_the_craters_a_dem_resolves():

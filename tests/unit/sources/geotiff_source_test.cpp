@@ -146,7 +146,7 @@ TEST(GeoTiffSource, RejectsUnusableFiles) {
     EXPECT_THROW(GeoTiffSource(TempPath("geotiff_source_missing.tif")), terraingen::GeoTiffError);
     const auto degrees = TempPath("geotiff_source_degrees.tif");
     WriteDem(degrees, Keys(true));
-    EXPECT_THROW(GeoTiffSource{degrees}, std::invalid_argument);
+    EXPECT_NO_THROW(GeoTiffSource{degrees});
     Raster<float> rotated(4, 4, 1.0f);
     rotated.SetTransform(GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
     const auto turned = TempPath("geotiff_source_rotated.tif");
@@ -404,4 +404,55 @@ TEST(GeoTiffSource, ResolvesTheFilesCellsOrItsEffectivePixelSize) {
     options.effectivePixelSize = 16.0;
     EXPECT_EQ(GeoTiffSource(path, options).ResolutionAt(1010.0, 1990.0), 16.0);
     EXPECT_TRUE(std::isinf(GeoTiffSource(path, options).ResolutionAt(990.0, 1990.0)));
+}
+
+TEST(GeoTiffSource, ReadsLongitudeAndLatitudeForATerrainOnABody) {
+    const auto path = TempPath("geotiff_source_lonlat.tif");
+    Raster<float> dem(8, 4);
+    dem.SetTransform(GeoTransform::NorthUp(-180.0, 90.0, 45.0));
+    for (std::size_t row = 0; row < dem.Height(); ++row) {
+        for (std::size_t col = 0; col < dem.Width(); ++col) {
+            dem(col, row) = static_cast<float>(col) - 10.0f * static_cast<float>(row);
+        }
+    }
+    const GeoKeys keys = terraingen::GeographicSphereKeys(1737400.0);
+    terraingen::WriteGeoTiff(path, dem, keys);
+    const GeoTiffSource source(path);
+    EXPECT_TRUE(source.Keys().IsGeographic());
+    EXPECT_EQ(source.ResolutionAt(-157.5, 67.5), 45.0);
+    EXPECT_EQ(source.HeightAt(-157.5, 67.5, 45.0), dem(0, 0));
+    EXPECT_EQ(source.HeightAt(157.5, -67.5, 45.0), dem(7, 3));
+
+    auto filled = source.Grid().MakeRaster();
+    source.Fill(filled);
+    for (std::size_t i = 0; i < dem.Size(); ++i) {
+        ASSERT_EQ(filled.Values()[i], dem.Values()[i]) << i;
+    }
+}
+
+TEST(GeoTiffSource, WrapsAGlobeInLongitudeWithOrWithoutACrop) {
+    const auto path = TempPath("geotiff_source_globe.tif");
+    Raster<float> globe(24, 12);
+    globe.SetTransform(GeoTransform::NorthUp(0.0, 90.0, 15.0));
+    for (std::size_t row = 0; row < globe.Height(); ++row) {
+        for (std::size_t col = 0; col < globe.Width(); ++col) {
+            globe(col, row) = static_cast<float>(col) + 100.0f * static_cast<float>(row);
+        }
+    }
+    terraingen::WriteGeoTiff(path, globe, terraingen::GeographicSphereKeys(1737400.0));
+    GeoTiffSourceOptions cropped;
+    cropped.crop = terraingen::Bounds2d{0.0, -30.0, 360.0, 30.0};
+    for (const GeoTiffSourceOptions& options : {GeoTiffSourceOptions{}, cropped}) {
+        const GeoTiffSource source(path, options);
+        EXPECT_EQ(source.HeightAt(-172.5, 7.5, 15.0), globe(12, 5));
+        EXPECT_EQ(source.HeightAt(352.5, 7.5, 15.0), globe(23, 5));
+        Raster<float> seam(8, 2);
+        seam.SetTransform(GeoTransform::NorthUp(-30.0, 15.0, 7.5));
+        source.Fill(seam, 7.5);
+        for (std::size_t col = 0; col < seam.Width(); ++col) {
+            const terraingen::Vec2d center = seam.CellCenter(col, 0);
+            ASSERT_EQ(seam(col, 0), source.HeightAt(center.x, center.y, 7.5)) << col;
+            ASSERT_FALSE(std::isnan(seam(col, 0))) << col;
+        }
+    }
 }

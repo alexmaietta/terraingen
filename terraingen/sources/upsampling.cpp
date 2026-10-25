@@ -115,10 +115,13 @@ LatticeWindow<float> ReadPosts(const PostLattice& posts, const IndexBox& box) {
 }  // namespace detail
 
 RasterPosts::RasterPosts(std::shared_ptr<const Raster<float>> window,
-                         const RasterPlacement& placement)
-    : window_(std::move(window)), placement_(placement) {
+                         const RasterPlacement& placement, bool wrapColumns)
+    : window_(std::move(window)), placement_(placement), wrapColumns_(wrapColumns) {
     if (!window_ || window_->Empty()) {
         throw std::invalid_argument("Raster posts need a raster with cells");
+    }
+    if (wrapColumns_ && (placement_.col != 0 || window_->Width() != placement_.whole.width)) {
+        throw std::invalid_argument("Wrapping raster posts must span every column");
     }
 }
 
@@ -130,6 +133,10 @@ std::optional<PixelWindow> RasterPosts::Extent() const {
 void RasterPosts::Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
                        Span<float> heights) const {
     const Raster<float>& window = *window_;
+    const auto columns = static_cast<std::int64_t>(placement_.whole.width);
+    const auto wrapped = [&](std::int64_t at) {
+        return wrapColumns_ ? ((at % columns) + columns) % columns : at;
+    };
     const auto index = [](std::int64_t at, std::size_t wholeSize, std::size_t first,
                           std::size_t size) {
         const auto last = static_cast<std::int64_t>(wholeSize) - 1;
@@ -140,7 +147,7 @@ void RasterPosts::Read(std::int64_t col0, std::int64_t row0, std::size_t width, 
         const std::size_t row = index(row0 + static_cast<std::int64_t>(r), placement_.whole.height,
                                       placement_.row, window.Height());
         for (std::size_t c = 0; c < width; ++c) {
-            const std::size_t col = index(col0 + static_cast<std::int64_t>(c),
+            const std::size_t col = index(wrapped(col0 + static_cast<std::int64_t>(c)),
                                           placement_.whole.width, placement_.col, window.Width());
             const float value = window(col, row);
             heights[r * width + c] =

@@ -49,6 +49,10 @@ std::shared_ptr<const Upsampler> OptionUpsampler(const RasterSourceOptions& opti
 /// rounding, clamped to `native`.
 PixelWindow NativeWindow(const RasterGrid& native, int reach, const PixelWindow& cells);
 
+/// Whether a raster source with keys `keys` on `lattice` wraps in longitude: a geographic CRS
+/// and an unrotated lattice whose columns span exactly 360 degrees.
+bool WrapsLongitude(const GeoKeys& keys, const RasterGrid& lattice);
+
 /// The top-left corner of `lattice`, a raster source's reference point.
 inline Vec2d Corner(const RasterGrid& lattice) {
     return {lattice.transform.originX, lattice.transform.originY};
@@ -62,9 +66,12 @@ class RasterHeights {
     /// @param cells A non-empty window of the lattice; the whole lattice gives the heights over
     /// every cell, and also interpolates over the whole of the raster.
     /// @param name What the source is called in errors.
-    /// @throws std::invalid_argument as `Upsampler::FitTo`.
+    /// @param wrapLongitude Whether x is a longitude repeating every 360 degrees
+    /// (`WrapsLongitude`); `native` then spans every column.
+    /// @throws std::invalid_argument as `Upsampler::FitTo` and `RasterPosts`.
     RasterHeights(std::shared_ptr<const Raster<float>> native, const RasterPlacement& placement,
-                  const RasterSourceOptions& options, const PixelWindow& cells, std::string name);
+                  const RasterSourceOptions& options, const PixelWindow& cells, std::string name,
+                  bool wrapLongitude = false);
 
     /// The cells covered, on the lattice.
     RasterGrid Grid() const {
@@ -77,12 +84,14 @@ class RasterHeights {
     }
 
     /// Copies cells on the lattice at its spacing or coarser, otherwise upsamples; cells beyond
-    /// those covered are no-data.
+    /// those covered are no-data. A wrapping source fills each run of columns a turn of
+    /// longitude away from the lattice as the lattice's own longitudes.
     /// @throws std::invalid_argument for a rotated grid off the lattice.
     void Fill(Raster<float>& heights, double spacing) const;
 
     /// The height of the lattice cell centered at (`x`, `y`) at the lattice's spacing or coarser,
-    /// otherwise the upsampler's; NaN beyond the cells covered and where there is no data.
+    /// otherwise the upsampler's; NaN beyond the cells covered and where there is no data. A
+    /// wrapping source reads `x` a whole number of turns into the lattice's longitudes.
     float HeightAt(double x, double y, double spacing) const;
 
     /// The effective pixel size, or else the native cell size, where `HeightAt` has a height;
@@ -107,6 +116,10 @@ class RasterHeights {
     void CopyFromLattice(Raster<float>& heights, LatticeOffset offset) const;
     /// Whether lattice position (`col`, `row`), in cells, is covered.
     bool Covers(double col, double row) const;
+    /// The turns of longitude to take from `x` to bring it onto the lattice; 0 unless wrapping.
+    double Turns(double x) const;
+    /// `Fill` of a grid without wrapping.
+    void FillUnwrapped(Raster<float>& heights, double spacing) const;
 
     std::shared_ptr<const Raster<float>> native_;
     RasterPlacement nativePlacement_;
@@ -117,6 +130,7 @@ class RasterHeights {
     double cellSpacing_ = 0.0;
     double resolution_ = 0.0;
     std::string name_;
+    bool wrapLongitude_ = false;
 };
 
 }  // namespace detail
@@ -126,7 +140,8 @@ class RasterHeights {
 /// The heights are used as given, with the raster's no-data value. On the source's own lattice
 /// at its cell size or coarser `Fill` copies cells exactly; elsewhere, and at finer spacings,
 /// the upsampler gives each cell from the raster's cells, its posts. Cells beyond the raster are
-/// no-data.
+/// no-data. With geographic `keys` and columns spanning 360 degrees the raster wraps in
+/// longitude (`detail::WrapsLongitude`), so a file from 0 to 360 also serves -180 to 0.
 class RasterSource final : public Source {
   public:
     using Source::Fill;

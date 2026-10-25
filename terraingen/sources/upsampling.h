@@ -111,8 +111,12 @@ class RasterPosts final : public PostLattice {
   public:
     /// @param window A non-empty, unrotated raster; its no-data cells read as NaN.
     /// @param placement Where `window` lies in the whole lattice.
-    /// @throws std::invalid_argument for a null or empty window.
-    RasterPosts(std::shared_ptr<const Raster<float>> window, const RasterPlacement& placement);
+    /// @param wrapColumns Whether columns repeat with the lattice's width, as longitudes around a
+    /// body do, rather than repeating the edge posts; `window` then spans every column.
+    /// @throws std::invalid_argument for a null or empty window, or a wrapping one that does not
+    /// span every column.
+    RasterPosts(std::shared_ptr<const Raster<float>> window, const RasterPlacement& placement,
+                bool wrapColumns = false);
 
     /// The whole lattice's transform.
     GeoTransform Transform() const override {
@@ -128,6 +132,7 @@ class RasterPosts final : public PostLattice {
   private:
     std::shared_ptr<const Raster<float>> window_;
     RasterPlacement placement_;
+    bool wrapColumns_ = false;
 };
 
 /// The spacing of a lattice's posts: the longer side of a cell of `transform`, in its units.

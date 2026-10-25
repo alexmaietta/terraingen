@@ -133,6 +133,26 @@ TEST(Evaluate, RejectsIncompleteTerrainsAndBadSpacings) {
     EXPECT_THROW(Evaluate(terrain, grid), std::invalid_argument);
 }
 
+TEST(Evaluate, RejectsSourcesWhoseCoordinatesDoNotSuitTheSurface) {
+    terraingen::Raster<float> heights(4, 4, 1.0f);
+    heights.SetTransform(GeoTransform::NorthUp(10.0, 20.0, 0.25));
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const auto degrees = std::make_shared<terraingen::RasterSource>(
+        heights, terraingen::RasterSourceOptions{}, terraingen::GeographicSphereKeys(1737400.0));
+    TerrainGenerator terrain{degrees, {}, {}};
+    EXPECT_THROW(Evaluate(terrain), std::invalid_argument) << "degrees on a plane";
+    terrain.surface = moon;
+    EXPECT_EQ(Evaluate(terrain).Values()[0], 1.0f);
+
+    terraingen::GeoKeys projected;
+    projected.directory = {1, 1, 0, 1, 1024, 0, 1, 1};
+    terrain.source = std::make_shared<terraingen::RasterSource>(
+        heights, terraingen::RasterSourceOptions{}, projected);
+    EXPECT_THROW(Evaluate(terrain), std::invalid_argument) << "a projected source on a body";
+    terrain.surface = {};
+    EXPECT_NO_THROW(Evaluate(terrain));
+}
+
 TEST(HeightAt, EqualsTheGridCellCenteredThereToTheBit) {
     const TerrainGenerator terrain = Rolling();
     for (const double spacing : {2.0, 5.0}) {

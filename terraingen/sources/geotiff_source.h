@@ -45,19 +45,21 @@ struct GeoTiffSourceOptions {
     }
 };
 
-/// Heights from one band of a GeoTIFF in a projected CRS, read on first use (only a window around
-/// `crop` when set, giving the same bits as the whole file) and served as a `RasterSource` serves
-/// its raster; samples take the band's scale and offset, or `scale` and `offset`.
+/// Heights from one band of a GeoTIFF in a projected CRS, or in longitude and latitude (a
+/// geographic CRS) for a terrain on a body, read on first use (only a window around `crop` when
+/// set, giving the same bits as the whole file) and served as a `RasterSource` serves its raster;
+/// samples take the band's scale and offset, or `scale` and `offset`. A file in longitude and
+/// latitude whose columns span 360 degrees wraps in longitude as a `RasterSource` does, and then
+/// reads every column of the rows a crop meets.
 class GeoTiffSource final : public Source {
   public:
     using Source::Fill;
 
     /// Reads the file's header.
     /// @throws GeoTiffError if the file cannot be read.
-    /// @throws std::invalid_argument for a missing band, a geographic CRS (craters are sized in
-    /// meters), a `scale` or `offset` that is not finite, an `effectivePixelSize` that is not
-    /// positive and finite, or a `crop` that is not finite, is empty (`minX` >= `maxX` or `minY`
-    /// >= `maxY`) or misses the file.
+    /// @throws std::invalid_argument for a missing band, a `scale` or `offset` that is not finite,
+    /// an `effectivePixelSize` that is not positive and finite, or a `crop` that is not finite, is
+    /// empty (`minX` >= `maxX` or `minY` >= `maxY`) or misses the file.
     explicit GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options = {});
 
     /// The file's grid, clipped to the cells that meet `crop` when set.
@@ -81,8 +83,8 @@ class GeoTiffSource final : public Source {
     /// @throws GeoTiffError if the file cannot be read.
     float HeightAt(double x, double y, double spacing) const override;
 
-    /// `effectivePixelSize`, or else the file's cell size in meters, the larger side of a cell;
-    /// infinity where `HeightAt` is NaN.
+    /// `effectivePixelSize`, or else the file's cell size in CRS units (degrees when geographic),
+    /// the larger side of a cell; infinity where `HeightAt` is NaN.
     /// @throws GeoTiffError if the file cannot be read.
     double ResolutionAt(double x, double y) const override;
 

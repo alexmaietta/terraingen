@@ -239,3 +239,67 @@ TEST(RasterSource, ResolvesItsCellsOrItsEffectivePixelSize) {
     oblong.SetTransform(GeoTransform{0.0, 2.0, 0.0, 0.0, 0.0, -5.0});
     EXPECT_EQ(RasterSource(oblong).ResolutionAt(3.0, -7.0), 5.0);
 }
+
+namespace {
+
+/// A 24 x 12 globe of uneven heights in 15 degree cells, its west edge at longitude `west`.
+Raster<float> Globe(double west, std::size_t shift = 0) {
+    Raster<float> globe(24, 12);
+    globe.SetTransform(GeoTransform::NorthUp(west, 90.0, 15.0));
+    for (std::size_t row = 0; row < globe.Height(); ++row) {
+        for (std::size_t col = 0; col < globe.Width(); ++col) {
+            const double at = static_cast<double>((col + shift) % globe.Width());
+            globe(col, row) = static_cast<float>(40.0 * std::sin(0.7 * at) + 3.0 * at +
+                                                 5.0 * static_cast<double>(row));
+        }
+    }
+    return globe;
+}
+
+}  // namespace
+
+TEST(RasterSource, WrapsAGlobeInLongitude) {
+    const GeoKeys degrees = terraingen::GeographicSphereKeys(1737400.0);
+    const Raster<float> globe = Globe(0.0);
+    const RasterSource source(globe, {}, degrees);
+    EXPECT_EQ(source.HeightAt(-172.5, 82.5, 15.0), globe(12, 0));
+    EXPECT_EQ(source.HeightAt(547.5, 82.5, 15.0), globe(12, 0));
+    EXPECT_EQ(source.HeightAt(367.5, -82.5, 15.0), globe(0, 11));
+    EXPECT_EQ(source.ResolutionAt(-172.5, 0.0), 15.0);
+
+    Raster<float> east(24, 12);
+    east.SetTransform(GeoTransform::NorthUp(-180.0, 90.0, 15.0));
+    source.Fill(east, 15.0);
+    for (std::size_t row = 0; row < east.Height(); ++row) {
+        for (std::size_t col = 0; col < east.Width(); ++col) {
+            ASSERT_EQ(east(col, row), globe((col + 12) % 24, row)) << col << ", " << row;
+        }
+    }
+    EXPECT_FALSE(east.NoData().has_value());
+
+    const RasterSource centered(Globe(-180.0, 12), {}, degrees);
+    Raster<float> seam(36, 6);
+    seam.SetTransform(GeoTransform::NorthUp(-45.0, 45.0, 2.5));
+    Raster<float> across = seam;
+    source.Fill(seam, 2.5);
+    centered.Fill(across, 2.5);
+    for (std::size_t row = 0; row < seam.Height(); ++row) {
+        for (std::size_t col = 0; col < seam.Width(); ++col) {
+            const terraingen::Vec2d center = seam.CellCenter(col, row);
+            ASSERT_NEAR(seam(col, row), across(col, row), 1e-3) << col << ", " << row;
+            ASSERT_TRUE(SameBits(seam(col, row), source.HeightAt(center.x, center.y, 2.5)))
+                << col << ", " << row;
+        }
+    }
+}
+
+TEST(RasterSource, WrapsOnlyGeographicRastersSpanningATurn) {
+    const GeoKeys degrees = terraingen::GeographicSphereKeys(1737400.0);
+    EXPECT_TRUE(terraingen::detail::WrapsLongitude(degrees, RasterGrid::FromRaster(Globe(0.0))));
+    EXPECT_TRUE(std::isnan(RasterSource(Globe(0.0), {}, Keys()).HeightAt(-172.5, 0.0, 15.0)));
+    EXPECT_TRUE(std::isnan(RasterSource(Globe(0.0)).HeightAt(-172.5, 0.0, 15.0)));
+    Raster<float> partial(23, 12, 1.0f);
+    partial.SetTransform(GeoTransform::NorthUp(0.0, 90.0, 15.0));
+    EXPECT_FALSE(terraingen::detail::WrapsLongitude(degrees, RasterGrid::FromRaster(partial)));
+    EXPECT_TRUE(std::isnan(RasterSource(partial, {}, degrees).HeightAt(-7.5, 0.0, 15.0)));
+}

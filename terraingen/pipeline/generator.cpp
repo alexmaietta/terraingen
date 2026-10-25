@@ -238,6 +238,19 @@ void ValidateGenerator(const TerrainGenerator& generator) {
                     [](const auto& l) { return !l; })) {
         throw std::invalid_argument("A terrain's layers must not be null");
     }
+    if (generator.source) {
+        const GeoKeys keys = generator.source->Keys();
+        if (keys.IsGeographic() && !generator.surface.IsBody()) {
+            throw std::invalid_argument(
+                "The source is in longitude and latitude (a geographic CRS); craters are sized in "
+                "meters, so reproject it first, for example with gdalwarp -t_srs, or set the "
+                "terrain's surface to a sphere or ellipsoid");
+        }
+        if (generator.surface.IsBody() && !keys.Empty() && !keys.IsGeographic()) {
+            throw std::invalid_argument(
+                "On a body the source must be in longitude and latitude (a geographic CRS)");
+        }
+    }
     for (std::size_t i = 0; i < generator.layers.size(); ++i) {
         const Layer& layer = *generator.layers[i];
         const std::optional<Surface> surface = layer.LayerSurface();

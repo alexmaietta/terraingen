@@ -138,8 +138,9 @@ void FillHeights(const TerrainGenerator& generator, const RasterGrid& grid, Span
                  const EvaluationOptions& options = {});
 
 /// Checks that a generator can be evaluated.
-/// @throws std::invalid_argument if `generator` holds a null layer, a layer built for another
-/// surface than `generator.surface` (`Layer::LayerSurface`), or a layer whose
+/// @throws std::invalid_argument if `generator` holds a source in longitude and latitude on a
+/// plane or a projected source on a body (`Source::Keys`), a null layer, a layer built for
+/// another surface than `generator.surface` (`Layer::LayerSurface`), or a layer whose
 /// `Layer::Dependencies` do not all come before it.
 void ValidateGenerator(const TerrainGenerator& generator);
 
