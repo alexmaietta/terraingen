@@ -7,9 +7,12 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
+#include <initializer_list>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 using terraingen::TerrainGenConfig;
@@ -909,6 +912,35 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
               }),
               "valid")
         << "boulders inside a region see the crater layers before it";
+}
+
+TEST(ValidateConfig, SaysWhyAPolygonRegionIsRejected) {
+    using terraingen::PolygonRegionSpec;
+    const auto message = [](PolygonRegionSpec polygon) {
+        TerrainGenConfig config = Small();
+        config.layers.push_back(terraingen::MaskedLayerSpec{std::move(polygon), 2.0});
+        try {
+            ValidateConfig(config);
+        } catch (const terraingen::ConfigError& error) {
+            return error.Path() + ": " + error.what();
+        }
+        return std::string("valid");
+    };
+    const std::vector<std::array<double, 2>> square{{0, 0}, {10, 0}, {10, 10}, {0, 10}};
+    EXPECT_EQ(message({square, {}}), "valid");
+    EXPECT_EQ(message({square, {{{2, 2}, {4, 2}, {2, 4}}}}), "valid");
+    for (const auto& [polygon, part] :
+         std::initializer_list<std::pair<PolygonRegionSpec, const char*>>{
+             {{}, "needs at least 3 points, not 0"},
+             {{{{0, 0}, {1, 0}}, {}}, "needs at least 3 points, not 2"},
+             {{{{0, 0}, {1, 0}, {1, 0}, {0, 1}}, {}}, "zero-length edge"},
+             {{{{0, 0}, {1, 0}, {0, 1}, {0, 0}}, {}}, "do not repeat the first point"},
+             {{{{0, 0}, {1, 1}, {3, 3}}, {}}, "no area"},
+             {{square, {{{2, 2}, {4, 2}}}}, "hole 0 needs at least 3 points"}}) {
+        const std::string why = message(polygon);
+        EXPECT_EQ(why.rfind("layers[2].shape: ", 0), 0u) << why;
+        EXPECT_NE(why.find(part), std::string::npos) << why;
+    }
 }
 
 TEST(ValidateConfig, ReportsDiffusionProblemsByPath) {

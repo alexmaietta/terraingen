@@ -42,6 +42,7 @@
 #include "terraingen/util/overloaded.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <limits>
@@ -991,6 +992,22 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
                 return RegionShape::Rectangle({s.minX, s.minY, s.maxX, s.maxY});
             },
             [](const CircleRegionSpec& s) { return RegionShape::Circle({s.x, s.y}, s.radius); },
+            [](const PolygonRegionSpec& s) {
+                const auto vertices = [](const std::vector<std::array<double, 2>>& pairs) {
+                    std::vector<Vec2d> ring;
+                    ring.reserve(pairs.size());
+                    for (const std::array<double, 2>& p : pairs) {
+                        ring.push_back({p[0], p[1]});
+                    }
+                    return ring;
+                };
+                std::vector<std::vector<Vec2d>> holes;
+                holes.reserve(s.holes.size());
+                for (const auto& hole : s.holes) {
+                    holes.push_back(vertices(hole));
+                }
+                return RegionShape::Polygon(vertices(s.points), std::move(holes));
+            },
         },
         spec);
 }

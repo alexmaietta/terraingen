@@ -118,7 +118,7 @@ TEST(ConfigJson, ReadsTransformsAndNestedMaskedLayers) {
         {"type": "masked", "layer": {"type": "clamp", "mid": 0}}]})"),
               "layers[0].layer.mid");
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [
-        {"type": "masked", "shape": {"type": "polygon"}}]})"),
+        {"type": "masked", "shape": {"type": "hexagon"}}]})"),
               "layers[0].shape.type");
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [
         {"type": "region", "layer": {"type": "clamp"}}]})"),

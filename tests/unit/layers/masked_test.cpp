@@ -10,6 +10,8 @@
 #include <cmath>
 #include <memory>
 #include <stdexcept>
+#include <string>
+#include <utility>
 
 using terraingen::Bounds2d;
 using terraingen::GeoTransform;
@@ -47,16 +49,18 @@ std::shared_ptr<const terraingen::CraterLayer> ManualCraters() {
 
 }  // namespace
 
-TEST(RegionShape, MeasuresDistancesOutsideRectanglesAndCircles) {
+TEST(RegionShape, MeasuresSignedDistancesToRectanglesAndCircles) {
     const auto box = RegionShape::Rectangle({-2.0, -1.0, 2.0, 1.0});
-    EXPECT_EQ(box.DistanceOutside(0.0, 0.0), 0.0);
+    EXPECT_EQ(box.DistanceOutside(0.0, 0.0), -1.0);
+    EXPECT_EQ(box.DistanceOutside(1.5, 0.0), -0.5);
     EXPECT_EQ(box.DistanceOutside(2.0, 1.0), 0.0);
     EXPECT_EQ(box.DistanceOutside(5.0, 0.0), 3.0);
     EXPECT_EQ(box.DistanceOutside(0.0, -4.0), 3.0);
     EXPECT_DOUBLE_EQ(box.DistanceOutside(5.0, 5.0), 5.0);
     EXPECT_EQ(box.Bounds().maxX, 2.0);
     const auto disc = RegionShape::Circle({1.0, 1.0}, 2.0);
-    EXPECT_EQ(disc.DistanceOutside(1.0, 2.0), 0.0);
+    EXPECT_EQ(disc.DistanceOutside(1.0, 2.0), -1.0);
+    EXPECT_EQ(disc.DistanceOutside(1.0, 3.0), 0.0);
     EXPECT_DOUBLE_EQ(disc.DistanceOutside(1.0, 6.0), 3.0);
     EXPECT_EQ(disc.Bounds().minX, -1.0);
     EXPECT_EQ(disc.Bounds().maxY, 3.0);
@@ -67,6 +71,129 @@ TEST(RegionShape, MeasuresDistancesOutsideRectanglesAndCircles) {
                  std::invalid_argument);
     EXPECT_THROW(terraingen::ValidateRegionShape(RegionShape::Circle({std::nan(""), 0.0}, 1.0)),
                  std::invalid_argument);
+}
+
+TEST(RegionShape, MeasuresSignedDistancesToAConcavePolygon) {
+    // A U open to the north: 6 wide, 4 tall, a 2 wide notch 3 deep in the middle.
+    const auto u = RegionShape::Polygon({{0.0, 0.0},
+                                         {6.0, 0.0},
+                                         {6.0, 4.0},
+                                         {4.0, 4.0},
+                                         {4.0, 1.0},
+                                         {2.0, 1.0},
+                                         {2.0, 4.0},
+                                         {0.0, 4.0}});
+    EXPECT_NO_THROW(terraingen::ValidateRegionShape(u));
+    EXPECT_DOUBLE_EQ(u.DistanceOutside(1.0, 2.0), -1.0) << "in the west arm";
+    EXPECT_DOUBLE_EQ(u.DistanceOutside(3.0, 0.5), -0.5) << "in the base under the notch";
+    EXPECT_DOUBLE_EQ(u.DistanceOutside(3.0, 3.0), 1.0) << "in the notch, outside";
+    EXPECT_DOUBLE_EQ(u.DistanceOutside(3.0, 2.0), 1.0);
+    EXPECT_DOUBLE_EQ(u.DistanceOutside(3.0, 5.0), std::sqrt(2.0)) << "nearest the arm corners";
+    EXPECT_DOUBLE_EQ(u.DistanceOutside(-3.0, 2.0), 3.0);
+    EXPECT_DOUBLE_EQ(u.DistanceOutside(9.0, 8.0), 5.0) << "from the corner (6, 4)";
+    EXPECT_EQ(u.DistanceOutside(4.0, 2.0), 0.0) << "on an edge";
+    EXPECT_EQ(u.DistanceOutside(0.0, 0.0), 0.0) << "on a vertex";
+    const Bounds2d box = u.Bounds();
+    EXPECT_EQ(box.minX, 0.0);
+    EXPECT_EQ(box.minY, 0.0);
+    EXPECT_EQ(box.maxX, 6.0);
+    EXPECT_EQ(box.maxY, 4.0);
+
+    const auto reversed = RegionShape::Polygon({{0.0, 4.0},
+                                                {2.0, 4.0},
+                                                {2.0, 1.0},
+                                                {4.0, 1.0},
+                                                {4.0, 4.0},
+                                                {6.0, 4.0},
+                                                {6.0, 0.0},
+                                                {0.0, 0.0}});
+    for (const auto& [x, y] : {std::pair{1.0, 2.0}, {3.0, 3.0}, {3.0, 0.5}, {7.0, 7.0}}) {
+        EXPECT_DOUBLE_EQ(reversed.DistanceOutside(x, y), u.DistanceOutside(x, y))
+            << "winding does not matter at " << x << ", " << y;
+    }
+}
+
+TEST(RegionShape, CountsAPolygonsHolesAsOutside) {
+    const auto frame = RegionShape::Polygon({{-5.0, -5.0}, {5.0, -5.0}, {5.0, 5.0}, {-5.0, 5.0}},
+                                            {{{-2.0, -2.0}, {2.0, -2.0}, {2.0, 2.0}, {-2.0, 2.0}}});
+    EXPECT_NO_THROW(terraingen::ValidateRegionShape(frame));
+    EXPECT_DOUBLE_EQ(frame.DistanceOutside(0.0, 0.0), 2.0) << "the hole's middle";
+    EXPECT_DOUBLE_EQ(frame.DistanceOutside(1.5, 0.0), 0.5);
+    EXPECT_DOUBLE_EQ(frame.DistanceOutside(3.0, 0.0), -1.0) << "between hole and outline";
+    EXPECT_DOUBLE_EQ(frame.DistanceOutside(4.5, 0.0), -0.5);
+    EXPECT_DOUBLE_EQ(frame.DistanceOutside(8.0, 0.0), 3.0);
+    EXPECT_EQ(frame.DistanceOutside(2.0, 0.0), 0.0) << "on the hole's edge";
+    EXPECT_EQ(frame.Bounds().minX, -5.0);
+    EXPECT_EQ(frame.Bounds().maxY, 5.0);
+    EXPECT_NE(frame, RegionShape::Polygon(frame.points));
+    EXPECT_EQ(frame, RegionShape::Polygon(frame.points, frame.holes));
+}
+
+TEST(RegionShape, MeasuresPolygonsInTheLocalFrameOnASphere) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const auto square =
+        RegionShape::Polygon({{10.0, 59.0}, {12.0, 59.0}, {12.0, 61.0}, {10.0, 61.0}});
+    const auto box = RegionShape::Rectangle({10.0, 59.0, 12.0, 61.0});
+    for (const auto& [x, y] : {std::pair{11.0, 60.0}, {13.0, 60.0}, {11.0, 62.0}, {11.5, 60.2}}) {
+        EXPECT_NEAR(square.DistanceOutside(x, y, moon), box.DistanceOutside(x, y, moon), 1e-6)
+            << x << ", " << y;
+    }
+    EXPECT_LT(square.DistanceOutside(371.0, 60.0, moon), 0.0) << "a turn east is the same place";
+}
+
+TEST(RegionShape, RejectsDegeneratePolygons) {
+    const auto rejects = [](const RegionShape& shape, const std::string& part) {
+        try {
+            terraingen::ValidateRegionShape(shape);
+            ADD_FAILURE() << "expected std::invalid_argument for " << part;
+        } catch (const std::invalid_argument& error) {
+            EXPECT_NE(std::string(error.what()).find(part), std::string::npos) << error.what();
+        }
+    };
+    rejects(RegionShape::Polygon({}), "at least 3 points, not 0");
+    rejects(RegionShape::Polygon({{0.0, 0.0}, {1.0, 0.0}}), "at least 3 points, not 2");
+    rejects(RegionShape::Polygon({{0.0, 0.0}, {1.0, std::nan("")}, {0.0, 1.0}}),
+            "point 1 not finite");
+    rejects(RegionShape::Polygon({{0.0, 0.0}, {1.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}}),
+            "zero-length edge: point 2 repeats point 1");
+    rejects(RegionShape::Polygon({{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}, {0.0, 0.0}}),
+            "do not repeat the first point");
+    rejects(RegionShape::Polygon({{0.0, 0.0}, {1.0, 1.0}, {2.0, 2.0}}), "no area");
+    rejects(RegionShape::Polygon({{0.0, 0.0}, {4.0, 0.0}, {0.0, 4.0}},
+                                 {{{1.0, 1.0}, {2.0, 1.0}, {1.0, 2.0}}, {{1.0, 1.0}, {2.0, 1.0}}}),
+            "hole 1 needs at least 3 points");
+    EXPECT_THROW(MaskedLayer(std::make_shared<terraingen::ScaleLayer>(1.0, 1.0),
+                             RegionShape::Polygon({{0.0, 0.0}, {1.0, 0.0}})),
+                 std::invalid_argument);
+}
+
+TEST(MaskedLayer, AppliesInsideAConcavePolygonAndFeathersFromItsEdges) {
+    const auto inner = std::make_shared<terraingen::ScaleLayer>(1.0, 10.0);
+    const MaskedLayer layer(inner,
+                            RegionShape::Polygon({{-20.0, -10.0},
+                                                  {20.0, -10.0},
+                                                  {20.0, 10.0},
+                                                  {10.0, 10.0},
+                                                  {10.0, 0.0},
+                                                  {-10.0, 0.0},
+                                                  {-10.0, 10.0},
+                                                  {-20.0, 10.0}}),
+                            4.0, terraingen::BlendShape::Linear);
+    EXPECT_EQ(layer.Weight(-15.0, 5.0), 1.0);
+    EXPECT_EQ(layer.Weight(0.0, 8.0), 0.0) << "deep in the notch";
+    EXPECT_DOUBLE_EQ(layer.Weight(0.0, 1.0), 0.75);
+    EXPECT_EQ(layer.ApplyAt(1.0f, -15.0, 5.0, {0.5}), 11.0f);
+    EXPECT_EQ(layer.ApplyAt(1.0f, 0.0, 8.0, {0.5}), 1.0f);
+    const auto before = Slope();
+    auto after = before;
+    layer.Apply(after, {0.5, 4});
+    for (std::size_t row = 0; row < after.Height(); ++row) {
+        for (std::size_t col = 0; col < after.Width(); ++col) {
+            const auto center = after.CellCenter(col, row);
+            ASSERT_EQ(after(col, row), layer.ApplyAt(before(col, row), center.x, center.y, {0.5}))
+                << col << ", " << row;
+        }
+    }
 }
 
 TEST(MaskedLayer, WeighsTheInnerLayerFullyInsideAndFeathersOut) {

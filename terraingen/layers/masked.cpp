@@ -12,6 +12,7 @@
 #include <iterator>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -55,34 +56,148 @@ Raster<float> CopyWindow(const Raster<float>& heights, const PixelWindow& window
     return copy;
 }
 
+/// The signed distance from (`px`, `py`) to the edge of `box`, east offsets scaled by `xScale`.
+double BoxDistance(const Bounds2d& box, double px, double py, double xScale) {
+    const double dx = xScale * std::fmax(box.minX - px, px - box.maxX);
+    const double dy = std::fmax(box.minY - py, py - box.maxY);
+    if (dx <= 0.0 && dy <= 0.0) {
+        return std::fmax(dx, dy);
+    }
+    return std::hypot(std::fmax(dx, 0.0), std::fmax(dy, 0.0));
+}
+
+/// The squared distance from `p` to the segment from `a` to `b`, x scaled by `xScale`, and
+/// whether the segment crosses the ray east of `p`.
+struct EdgeProbe {
+    double squared;
+    bool crosses;
+};
+EdgeProbe ProbeEdge(Vec2d p, Vec2d a, Vec2d b, double xScale) {
+    const bool crosses =
+        (a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) * (b.x - a.x) / (b.y - a.y);
+    const double ex = xScale * (b.x - a.x);
+    const double ey = b.y - a.y;
+    const double wx = xScale * (p.x - a.x);
+    const double wy = p.y - a.y;
+    const double length = ex * ex + ey * ey;
+    const double t = length > 0.0 ? std::clamp((wx * ex + wy * ey) / length, 0.0, 1.0) : 0.0;
+    const double dx = wx - t * ex;
+    const double dy = wy - t * ey;
+    return {dx * dx + dy * dy, crosses};
+}
+
+/// The signed distance from `p` to the edges of `points` and `holes`, x scaled by `xScale`;
+/// negative where a ray from `p` crosses them an odd number of times.
+double PolygonDistance(const std::vector<Vec2d>& points,
+                       const std::vector<std::vector<Vec2d>>& holes, Vec2d p, double xScale) {
+    double squared = std::numeric_limits<double>::infinity();
+    bool inside = false;
+    const auto ring = [&](const std::vector<Vec2d>& vertices) {
+        for (std::size_t i = 0, j = vertices.size() - 1; i < vertices.size(); j = i++) {
+            const EdgeProbe probe = ProbeEdge(p, vertices[j], vertices[i], xScale);
+            squared = std::fmin(squared, probe.squared);
+            inside = inside != probe.crosses;
+        }
+    };
+    if (points.empty()) {
+        return squared;
+    }
+    ring(points);
+    for (const std::vector<Vec2d>& hole : holes) {
+        if (!hole.empty()) {
+            ring(hole);
+        }
+    }
+    const double distance = std::sqrt(squared);
+    return inside ? -distance : distance;
+}
+
+/// Twice the signed area of the polygon `vertices`.
+double TwiceArea(const std::vector<Vec2d>& vertices) {
+    double sum = 0.0;
+    for (std::size_t i = 0, j = vertices.size() - 1; i < vertices.size(); j = i++) {
+        sum += (vertices[j].x - vertices[i].x) * (vertices[j].y + vertices[i].y);
+    }
+    return sum;
+}
+
+/// Checks one outline of a polygonal region, named `what` in errors.
+/// @throws std::invalid_argument for fewer than 3 points, a point that is not finite, a
+/// zero-length edge or no area.
+void ValidateRing(const std::vector<Vec2d>& vertices, const std::string& what) {
+    if (vertices.size() < 3) {
+        throw std::invalid_argument("A polygonal region's " + what +
+                                    " needs at least 3 points, not " +
+                                    std::to_string(vertices.size()));
+    }
+    for (std::size_t i = 0; i < vertices.size(); ++i) {
+        if (!(std::isfinite(vertices[i].x) && std::isfinite(vertices[i].y))) {
+            throw std::invalid_argument("A polygonal region's " + what + " has point " +
+                                        std::to_string(i) + " not finite");
+        }
+    }
+    for (std::size_t i = 0, j = vertices.size() - 1; i < vertices.size(); j = i++) {
+        if (vertices[i] == vertices[j]) {
+            throw std::invalid_argument(
+                "A polygonal region's " + what + " has a zero-length edge: point " +
+                std::to_string(i) + " repeats point " + std::to_string(j) +
+                (i == 0 ? "; the outline closes itself, so do not repeat the first point" : ""));
+        }
+    }
+    if (TwiceArea(vertices) == 0.0) {
+        throw std::invalid_argument("A polygonal region's " + what +
+                                    " has no area: its points are all on one line");
+    }
+}
+
 }  // namespace
 
 double RegionShape::DistanceOutside(double x, double y, const Surface& surface) const {
-    const auto outside = [&](double px, double cosLat) {
-        const double dx = std::fmax(0.0, std::fmax(rectangle.minX - px, px - rectangle.maxX));
-        const double dy = std::fmax(0.0, std::fmax(rectangle.minY - y, y - rectangle.maxY));
-        return std::hypot(dx * cosLat, dy);
+    const auto local = [&](double px, double xScale) {
+        if (kind == Kind::Polygon) {
+            return PolygonDistance(points, holes, {px, y}, xScale);
+        }
+        return BoxDistance(rectangle, px, y, xScale);
     };
     if (surface.IsBody()) {
         if (kind == Kind::Circle) {
-            return std::fmax(0.0, surface.Distance(center, {x, y}) - radius);
+            return surface.Distance(center, {x, y}) - radius;
         }
         const double cosLat = std::cos(y * kDegree);
         double best = std::numeric_limits<double>::infinity();
         for (const double shift : {-360.0, 0.0, 360.0}) {
-            best = std::fmin(best, surface.UnitLength() * outside(x + shift, cosLat));
+            best = std::fmin(best, surface.UnitLength() * local(x + shift, cosLat));
         }
         return best;
     }
     if (kind == Kind::Circle) {
-        return std::fmax(0.0, std::hypot(x - center.x, y - center.y) - radius);
+        return std::hypot(x - center.x, y - center.y) - radius;
     }
-    return outside(x, 1.0);
+    return local(x, 1.0);
 }
 
 Bounds2d RegionShape::Bounds(const Surface& surface) const {
     if (kind == Kind::Circle) {
         return surface.Expand({center.x, center.y, center.x, center.y}, radius);
+    }
+    if (kind == Kind::Polygon) {
+        if (points.empty()) {
+            return {};
+        }
+        Bounds2d box{points.front().x, points.front().y, points.front().x, points.front().y};
+        const auto grow = [&](const std::vector<Vec2d>& vertices) {
+            for (const Vec2d& v : vertices) {
+                box.minX = std::fmin(box.minX, v.x);
+                box.minY = std::fmin(box.minY, v.y);
+                box.maxX = std::fmax(box.maxX, v.x);
+                box.maxY = std::fmax(box.maxY, v.y);
+            }
+        };
+        grow(points);
+        for (const std::vector<Vec2d>& hole : holes) {
+            grow(hole);
+        }
+        return box;
     }
     return rectangle;
 }
@@ -92,6 +207,13 @@ void ValidateRegionShape(const RegionShape& shape) {
         if (!(std::isfinite(shape.center.x) && std::isfinite(shape.center.y) &&
               IsNonNegative(shape.radius))) {
             throw std::invalid_argument("A circular region needs a finite center and radius >= 0");
+        }
+        return;
+    }
+    if (shape.kind == RegionShape::Kind::Polygon) {
+        ValidateRing(shape.points, "outline");
+        for (std::size_t h = 0; h < shape.holes.size(); ++h) {
+            ValidateRing(shape.holes[h], "hole " + std::to_string(h));
         }
         return;
     }

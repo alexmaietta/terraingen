@@ -484,15 +484,21 @@ TEST(BuildBoulderOptions, BuildsTheSizesAndReportsThemAtTheirKeys) {
     }
 }
 
-TEST(BuildRegionShape, BuildsRectanglesAndCircles) {
+TEST(BuildRegionShape, BuildsRectanglesCirclesAndPolygons) {
     const auto rectangle =
         terraingen::config::BuildRegionShape(terraingen::RectangleRegionSpec{-1.0, -2.0, 3.0, 4.0});
-    EXPECT_EQ(rectangle.DistanceOutside(2.5, 3.5), 0.0);
+    EXPECT_DOUBLE_EQ(rectangle.DistanceOutside(2.5, 3.5), -0.5);
     EXPECT_DOUBLE_EQ(rectangle.DistanceOutside(3.5, 0.0), 0.5);
     const auto circle =
         terraingen::config::BuildRegionShape(terraingen::CircleRegionSpec{10.0, 0.0, 2.0});
-    EXPECT_EQ(circle.DistanceOutside(11.0, 1.0), 0.0);
+    EXPECT_DOUBLE_EQ(circle.DistanceOutside(11.0, 0.0), -1.0);
     EXPECT_DOUBLE_EQ(circle.DistanceOutside(12.5, 0.0), 0.5);
+    const auto polygon = terraingen::config::BuildRegionShape(terraingen::PolygonRegionSpec{
+        {{0.0, 0.0}, {4.0, 0.0}, {4.0, 4.0}, {0.0, 4.0}}, {{{1.0, 1.0}, {2.0, 1.0}, {1.0, 2.0}}}});
+    EXPECT_EQ(polygon,
+              terraingen::RegionShape::Polygon({{0.0, 0.0}, {4.0, 0.0}, {4.0, 4.0}, {0.0, 4.0}},
+                                               {{{1.0, 1.0}, {2.0, 1.0}, {1.0, 2.0}}}));
+    EXPECT_DOUBLE_EQ(polygon.DistanceOutside(3.0, 2.0), -1.0);
 }
 
 TEST(Resolve, ResolvesRelativePathsAgainstAFolder) {

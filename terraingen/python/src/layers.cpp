@@ -151,7 +151,8 @@ void BindTransforms(nb::module_& m) {
 }
 
 void BindRegions(nb::module_& m) {
-    nb::class_<RegionShape>(m, "RegionShape", "A rectangle or circle in surface coordinates.")
+    nb::class_<RegionShape>(m, "RegionShape",
+                            "A rectangle, circle or polygon in surface coordinates.")
         .def_static(
             "rectangle",
             [](double minX, double minY, double maxX, double maxY) {
@@ -162,8 +163,15 @@ void BindRegions(nb::module_& m) {
             "circle",
             [](double x, double y, double radius) { return RegionShape::Circle({x, y}, radius); },
             "x"_a, "y"_a, "radius"_a)
+        .def_static("polygon", &RegionShape::Polygon, "points"_a,
+                    "holes"_a = std::vector<std::vector<Vec2d>>{},
+                    "A polygon outlined by `points`, (x, y) pairs closed from the last back to the "
+                    "first, less the polygons `holes`; concave outlines are allowed.")
+        .def_ro("points", &RegionShape::points, "A polygon's outline; empty for other shapes.")
+        .def_ro("holes", &RegionShape::holes, "A polygon's holes.")
         .def("distance_outside", &RegionShape::DistanceOutside, "x"_a, "y"_a,
-             "surface"_a = Surface{});
+             "surface"_a = Surface{},
+             "Signed distance in meters to the shape's edge: positive outside, negative inside.");
     m.def("validate_region_shape", &ValidateRegionShape, "shape"_a, kValidateDoc);
     nb::class_<MaskedLayer, Layer>(
         m, "MaskedLayer",

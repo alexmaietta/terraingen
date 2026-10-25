@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -132,8 +133,6 @@ TerrainGenConfig Everything() {
     craters.apply.terraces.blockOffset = 0.3;
     craters.apply.terraces.blockGaps = 0.1;
     craters.apply.terraces.seed = 9;
-    terraingen::DensityMapSpec craterMap;
-    craterMap.field.path = "map.tif";
     craters.apply.terraces.scarpSlopeDegrees = 30.0;
     craters.apply.peaks.enabled = true;
     craters.apply.peaks.maxMassifs = 5;
@@ -144,6 +143,8 @@ TerrainGenConfig Everything() {
     craters.apply.peaks.seed = 10;
     craters.apply.peaks.heightScale = 1.5;
     craters.apply.peaks.widthScale = 1.2;
+    terraingen::DensityMapSpec craterMap;
+    craterMap.field.path = "map.tif";
     craterMap.field.band = 1;
     craterMap.field.method = terraingen::ResampleMethod::Nearest;
     craterMap.field.scale = 0.001;
@@ -599,6 +600,36 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "albedo": {"layers": [{"type": "craters",
               "rays": {"glow": 1}}]}})"),
               "albedo.layers[0].rays.glow");
+}
+
+TEST(ConfigJson, RoundTripsPolygonRegions) {
+    const TerrainGenConfig parsed = ParseConfig(R"({"schema_version": 1, "layers": [
+        {"type": "masked", "feather_m": 3, "layer": {"type": "scale", "scale": 2},
+         "shape": {"type": "polygon", "points": [[0, 0], [6, 0], [6, 4], [4, 4], [4, 1], [2, 1],
+                                                 [2, 4], [0, 4]],
+                   "holes": [[[0.5, 0.25], [1.5, 0.25], [1, 0.75]]]}},
+        {"type": "masked", "layer": {"type": "scale", "scale": 2},
+         "shape": {"type": "polygon", "points": [[0, 0], [1, 0], [0, 1]]}}]})");
+    const auto& u = std::get<terraingen::PolygonRegionSpec>(
+        std::get<terraingen::MaskedLayerSpec>(parsed.layers.at(0)).shape);
+    ASSERT_EQ(u.points.size(), 8u);
+    EXPECT_EQ(u.points[4], (std::array<double, 2>{4.0, 1.0}));
+    ASSERT_EQ(u.holes.size(), 1u);
+    EXPECT_EQ(u.holes[0][2], (std::array<double, 2>{1.0, 0.75}));
+    EXPECT_TRUE(std::get<terraingen::PolygonRegionSpec>(
+                    std::get<terraingen::MaskedLayerSpec>(parsed.layers.at(1)).shape)
+                    .holes.empty())
+        << "holes are optional";
+    EXPECT_EQ(ParseConfig(ConfigToJson(parsed)), parsed);
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "masked",
+        "shape": {"type": "polygon", "points": [[0, 0], [1, 0, 2], [0, 1]]}}]})"),
+              "layers[0].shape.points[1]");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "masked",
+        "shape": {"type": "polygon", "points": [[0, 0], [1, 0], [0, 1]], "holes": [[0, 1]]}}]})"),
+              "layers[0].shape.holes[0][0]");
+    EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "layers": [{"type": "masked",
+        "shape": {"type": "polygon", "vertices": [[0, 0], [1, 0], [0, 1]]}}]})"),
+              "layers[0].shape.vertices");
 }
 
 TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {

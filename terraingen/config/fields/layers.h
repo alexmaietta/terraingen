@@ -608,14 +608,32 @@ template <typename IO> void Fields(IO& io, CircleRegionSpec& spec) {
        AtLeast(0.0));
 }
 
+template <> struct SpecName<PolygonRegionSpec> {
+    static constexpr std::string_view kName = "polygon";
+    static constexpr std::string_view kDescription =
+        "A simple polygon in the surface's coordinates, concave or with holes: to follow a "
+        "mapped unit or a traverse corridor.";
+};
+template <typename IO> void Fields(IO& io, PolygonRegionSpec& spec) {
+    io("points", spec.points,
+       "Vertices of the outline as [x, y] pairs, x east and y north in the surface's coordinates "
+       "(longitude and latitude in degrees on a sphere); at least 3, closed from the last back to "
+       "the first, so the first is not repeated. Points inside an odd number of outlines and "
+       "holes are inside.");
+    io("holes", spec.holes,
+       "Outlines cut out of the polygon, each a list of at least 3 [x, y] vertices as `points`; "
+       "the masked layer fades out from their edges as from the outline's.");
+}
+
 template <> struct SpecName<MaskedLayerSpec> {
     static constexpr std::string_view kName = "masked";
     static constexpr std::string_view kDescription =
-        "Another layer applied only inside a rectangle or circle, feathered outside it: to "
-        "confine craters to an area or flatten a landing pad.";
+        "Another layer applied only inside a rectangle, circle or polygon, feathered outside it: "
+        "to confine craters to an area or flatten a landing pad.";
 };
 template <typename IO> void Fields(IO& io, MaskedLayerSpec& spec) {
-    io("shape", spec.shape, "Area the inner layer is applied in: a rectangle or a circle.");
+    io("shape", spec.shape,
+       "Area the inner layer is applied in: a rectangle, a circle or a polygon.");
     io("feather_m", spec.feather,
        "Distance in meters outside the shape over which the inner layer fades back to the "
        "unchanged height; 0 gives a hard edge.",

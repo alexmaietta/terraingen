@@ -95,6 +95,49 @@ def test_masked_layer_keeps_its_inner_layer():
 
 def test_rectangle_distance_outside():
     assert terraingen.RegionShape.rectangle(0, 0, 10, 10).distance_outside(15.0, 5.0) == pytest.approx(5.0)
+    assert terraingen.RegionShape.rectangle(0, 0, 10, 10).distance_outside(2.0, 5.0) == pytest.approx(-2.0)
+
+
+def test_polygon_region_with_a_hole():
+    outline = [(0, 0), (6, 0), (6, 4), (4, 4), (4, 1), (2, 1), (2, 4), (0, 4)]
+    u = terraingen.RegionShape.polygon(outline)
+    assert u.points == [
+        (0.0, 0.0),
+        (6.0, 0.0),
+        (6.0, 4.0),
+        (4.0, 4.0),
+        (4.0, 1.0),
+        (2.0, 1.0),
+        (2.0, 4.0),
+        (0.0, 4.0),
+    ]
+    assert u.holes == []
+    assert u.distance_outside(1.0, 2.0) == pytest.approx(-1.0)
+    assert u.distance_outside(3.0, 3.0) == pytest.approx(1.0)
+    framed = terraingen.RegionShape.polygon(
+        [(-5, -5), (5, -5), (5, 5), (-5, 5)], holes=[[(-2, -2), (2, -2), (2, 2), (-2, 2)]]
+    )
+    assert framed.distance_outside(0.0, 0.0) == pytest.approx(2.0)
+    assert framed.distance_outside(3.0, 0.0) == pytest.approx(-1.0)
+    terraingen.validate_region_shape(framed)
+    with pytest.raises(ValueError, match="zero-length edge"):
+        terraingen.validate_region_shape(terraingen.RegionShape.polygon([(0, 0), (1, 0), (1, 0), (0, 1)]))
+    layer = terraingen.MaskedLayer(terraingen.ScaleLayer(1.0, 5.0), u)
+    assert layer.weight(1.0, 2.0) == 1.0
+    assert layer.weight(3.0, 3.0) == 0.0
+    config = terraingen.TerrainGenConfig.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [
+                {
+                    "type": "masked",
+                    "shape": {"type": "polygon", "points": [list(p) for p in outline], "holes": []},
+                    "layer": {"type": "scale", "scale": 2},
+                }
+            ],
+        }
+    )
+    assert config.to_dict()["layers"][0]["shape"]["points"][4] == [4.0, 1.0]
 
 
 def test_clamp_layer_caps_heights():

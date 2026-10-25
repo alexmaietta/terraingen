@@ -43,8 +43,10 @@
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/diamond_square.h"
 #include "terraingen/sources/geotiff_source.h"
+#include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_source.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -534,8 +536,13 @@ struct CircleRegionSpec {
     double y = 0.0;
     double radius = 0.0;  ///< Meters.
 };
+/// Region shape "polygon": outlined by `points`, less `holes`, in surface coordinates.
+struct PolygonRegionSpec {
+    std::vector<std::array<double, 2>> points{};              ///< [x, y] of each vertex.
+    std::vector<std::vector<std::array<double, 2>>> holes{};  ///< Each hole's vertices.
+};
 /// A region shape, named in JSON by its "type".
-using RegionShapeSpec = std::variant<RectangleRegionSpec, CircleRegionSpec>;
+using RegionShapeSpec = std::variant<RectangleRegionSpec, CircleRegionSpec, PolygonRegionSpec>;
 
 /// A value held by pointer, so that a spec can hold the variant it belongs to; it is copied by
 /// value.

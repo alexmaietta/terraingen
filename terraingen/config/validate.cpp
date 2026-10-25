@@ -444,6 +444,7 @@ void CheckLayerSpec(const MaskedLayerSpec& layer, const std::string& path, Layer
         Overloaded{
             [](const RectangleRegionSpec& r) { return !(r.maxX > r.minX && r.maxY > r.minY); },
             [](const CircleRegionSpec& c) { return !(c.radius > 0.0); },
+            [](const PolygonRegionSpec&) { return false; },
         },
         layer.shape);
     if (empty) {
