@@ -81,13 +81,17 @@ ORDER = {
     ],
     "customization": [
         "stack-noise-fractals",
-        "use-rock-meshes-for-boulders",
-        "write-a-layer",
         "write-a-source",
+        "write-a-layer",
+        "write-an-upsampler",
         "write-a-size-distribution",
+        "write-a-crater-age-model",
         "write-a-crater-profile",
         "write-a-degradation-model",
-        "write-an-upsampler",
+        "write-a-surface-field",
+        "write-an-albedo-source",
+        "write-an-albedo-layer",
+        "use-rock-meshes-for-boulders",
     ],
 }
 

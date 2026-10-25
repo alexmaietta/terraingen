@@ -23,7 +23,7 @@ TerrainGen makes scientific terrain for planetary surfaces, with craters, boulde
 - **Published crater and boulder models.** Populations follow published size-frequency distributions, and each crater gets a profile, an age, degradation and an irregular rim. [Learn more](features/distributions/index.md)
 - **Albedo that ages.** Synthetic albedo maps, with crater ejecta and rays that fade as craters age. [Learn more](features/albedo/index.md)
 - **Geologic features.** Secondary and complex craters, boulder ejecta, dunes and ripples, terraced strata and fractured bedrock. [Learn more](features/geology/index.md)
-- **Customizable throughout.** Replace any part with your own in Python or C++, from sources, layers and upsamplers to size distributions, crater profiles, degradation models and rock meshes, and use it like the built-in ones. [Learn more](guides/workflows/customize-terraingen.md)
+- **Customizable throughout.** Replace any part with your own in Python or C++, from sources, layers and upsamplers to crater models, density maps, albedo and rock meshes, and use it like the built-in ones. [Learn more](guides/workflows/customize-terraingen.md)
 - **Simulation-ready outputs.** GeoTIFF heightmaps and albedo, crater and boulder lists, and terrain and 3D boulder meshes as glTF, OBJ or STL. [Learn more](features/outputs.md)
 - **Fast and deterministic.** Noise and crater shaping on the GPU through Vulkan, CUDA or Metal, and the same seed gives the same terrain on any grid or thread count. [Learn more](concepts/gpu.md)
 

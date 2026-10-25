@@ -54,11 +54,13 @@ def test_category_page_shows_figure(gallery_page, name):
     page = gallery_page.markdown(category, gallery_page.categories()[category])
     assert f"images/gallery/{name}.jpg" in page, f"the {category} page shows {stem}"
     assert f'data-gallery="{category}"' in page, f"{stem} opens in the {category} lightbox"
-    assert f"[Code]({name}.md)" in page, f"{stem} links to its script's page"
+    assert f"Code]({name}.md){{ .tg-gallery__code }}" in page, f"{stem} links to its script's page"
+    assert f'<figure id="{stem}"' in page, f"{stem} has an anchor to come back to"
     (figure,) = [f for f in gallery_page.categories()[category] if f["name"] == stem]
     code = gallery_page.code_page(category, figure)
     assert f'--8<-- "docs/gallery/{name}.py"' in code, f"{stem}'s page shows its script"
     assert f"../../images/gallery/{name}.jpg" in code, f"{stem}'s page shows the figure"
+    assert f"](../{category}.md#{stem}){{ .tg-gallery__back }}" in code, f"{stem}'s page links back to it"
 
 
 def test_jobs_render_in_processes_and_keep_the_order(tmp_path):

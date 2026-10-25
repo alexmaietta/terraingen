@@ -125,14 +125,16 @@ def grid(category, figures_in_section):
     for figure in figures_in_section:
         title, caption = figure["title"], figure["caption"]
         description = caption.replace('"', "'")
+        classes = ' class="tg-gallery__wide"' if figure["wide"] else ""
         lines += [
-            '<figure class="tg-gallery__wide" markdown>' if figure["wide"] else "<figure markdown>",
+            f'<figure id="{figure["name"]}"{classes} markdown>',
             "",
             f"![{caption}](../images/gallery/{category}/{figure['name']}.jpg)"
             f'{{ data-gallery="{category}" data-title="{title}" data-description="{description}" }}',
             "",
-            f'<figcaption markdown="span">**{title}.** {caption} '
-            f"[Code]({category}/{figure['name']}.md){{ .tg-gallery__code }}</figcaption>",
+            f'<figcaption markdown="span">**{title}.** {caption}</figcaption>',
+            "",
+            f"[:material-code-tags: Code]({category}/{figure['name']}.md){{ .tg-gallery__code }}",
             "",
             "</figure>",
             "",
@@ -141,17 +143,21 @@ def grid(category, figures_in_section):
 
 
 def code_page(category, figure):
-    """The page of one figure's script: the figure and its caption, then the whole script."""
+    """The page of one figure's script: a link back to the figure in its gallery, the figure and its
+    caption, then the whole script."""
     name = figure["name"]
+    back = f"../{category}.md#{name}"
     return "\n".join(
         [
+            f"[:material-arrow-left: {title_text(category)}]({back}){{ .tg-gallery__back }}",
+            "",
             f"# {figure['title']}",
             "",
             f"![{figure['caption']}](../../images/gallery/{category}/{name}.jpg)",
             "",
             figure["caption"],
             "",
-            f"Made by `docs/gallery/{category}/{name}.py`; back to [{title_text(category)}](../{category}.md).",
+            f"Made by `docs/gallery/{category}/{name}.py`; back to [the figure in {title_text(category)}]({back}).",
             "",
             "```py",
             f'--8<-- "docs/gallery/{category}/{name}.py"',

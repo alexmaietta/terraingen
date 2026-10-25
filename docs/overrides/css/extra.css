@@ -404,14 +404,60 @@
     color: var(--md-default-fg-color--light);
 }
 
-/* The link from a gallery figure's caption to the page of its script. */
-.md-typeset .tg-gallery figcaption .tg-gallery__code {
-    margin-left: 0.2rem;
-    padding: 0 0.35rem;
-    border: 1px solid var(--md-default-fg-color--lightest);
-    border-radius: 0.2rem;
+/* The button under a gallery figure's caption that opens the page of its script, and the one on
+   that page back to the figure. */
+.md-typeset .tg-gallery__code,
+.md-typeset .tg-gallery__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.55rem 0.15rem 0.45rem;
+    border: 1px solid var(--tg-rule-strong);
+    border-radius: 0.25rem;
+    background: var(--tg-surface);
+    color: var(--md-default-fg-color--light);
     font-size: 0.6rem;
+    font-weight: 500;
+    line-height: 1.4;
     white-space: nowrap;
+    transition: color 125ms, border-color 125ms, background-color 125ms;
+}
+
+.md-typeset .tg-gallery__code:hover,
+.md-typeset .tg-gallery__back:hover {
+    border-color: var(--md-accent-fg-color);
+    background: var(--md-accent-fg-color--transparent);
+    color: var(--md-accent-fg-color);
+}
+
+.md-typeset .tg-gallery__code .twemoji,
+.md-typeset .tg-gallery__back .twemoji {
+    height: 0.9rem;
+}
+
+.md-typeset .tg-gallery__code:is(:link, :visited, :hover),
+.md-typeset .tg-gallery__back:is(:link, :visited, :hover) {
+    text-decoration: none;
+}
+
+.md-typeset .tg-gallery figure > p:last-child {
+    margin: 0.4rem 0 0;
+    text-align: left;
+}
+
+.md-typeset .tg-gallery__back {
+    margin-bottom: 0.4rem;
+    font-size: 0.65rem;
+}
+
+/* A figure reached from its code page's back button scrolls clear of the header and is marked. */
+.md-typeset .tg-gallery figure {
+    scroll-margin-top: 4.5rem;
+}
+
+.md-typeset .tg-gallery figure:target img {
+    outline: 2px solid var(--md-accent-fg-color);
+    outline-offset: 2px;
 }
 
 /* ---- API reference ------------------------------------------------------------------------ */
