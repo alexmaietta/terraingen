@@ -96,8 +96,8 @@ FilletContact FacetedDomeContact(const Boulder& boulder, const Vec2d& direction,
     constexpr int kSteps = 64;
     std::array<double, kSteps + 1> heights{};
     double highest = 0.0;
-    for (int step = 0; step <= kSteps; ++step) {
-        heights[step] = rock(outer * step / kSteps);
+    for (std::size_t step = 0; step < heights.size(); ++step) {
+        heights[step] = rock(outer * static_cast<double>(step) / kSteps);
         highest = std::fmax(highest, heights[step]);
     }
     const double height = std::fmin(top, highest);
@@ -105,9 +105,9 @@ FilletContact FacetedDomeContact(const Boulder& boulder, const Vec2d& direction,
         return {};
     }
     int last = 0;
-    for (int step = 0; step <= kSteps; ++step) {
+    for (std::size_t step = 0; step < heights.size(); ++step) {
         if (heights[step] >= height) {
-            last = step;
+            last = static_cast<int>(step);
         }
     }
     double inside = outer * last / kSteps;

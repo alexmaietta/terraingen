@@ -3,9 +3,8 @@
 include("${PROJECT_SOURCE_DIR}/cmake/third_party/benchmark.cmake")
 
 # Timings are only meaningful from an optimized build: configure with -DCMAKE_BUILD_TYPE=Release.
-add_executable(
-    terraingen_benchmarks bench_boulders.cpp bench_craters.cpp bench_grids.cpp
-                          bench_ground_reads.cpp bench_point_queries.cpp)
+add_executable(terraingen_benchmarks bench_boulders.cpp bench_craters.cpp bench_grids.cpp
+                                     bench_ground_reads.cpp bench_point_queries.cpp)
 target_include_directories(terraingen_benchmarks PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                          "${PROJECT_SOURCE_DIR}/tests")
 target_link_libraries(terraingen_benchmarks PRIVATE terraingen::terraingen benchmark::benchmark
