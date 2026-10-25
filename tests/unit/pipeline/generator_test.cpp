@@ -16,6 +16,8 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <mutex>
+#include <set>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -293,6 +295,48 @@ TEST(Evaluate, GivesTheSourceTheSampleSpacingInItsUnits) {
     terraingen::HeightAt(terrain, 1.0, 1.0, 0.25);
     EXPECT_DOUBLE_EQ(probe->last, 0.25 / terrain.surface.UnitLength()) << "degrees on a body";
     EXPECT_THROW(Evaluate(terrain), std::invalid_argument) << "a source without bounds";
+}
+
+namespace {
+
+/// A bowl over a 64 x 64 grid of 1 m cells that notes each thread reading it.
+class ThreadNotingSource final : public terraingen::Source {
+  public:
+    RasterGrid Grid() const override {
+        return {64, 64, GeoTransform::NorthUp(-32.0, 32.0, 1.0)};
+    }
+    void Fill(terraingen::Raster<float>& heights, double spacing, unsigned threads) const override {
+        terraingen::ParallelFor(heights.Height(), threads, [&](std::size_t row) {
+            for (std::size_t col = 0; col < heights.Width(); ++col) {
+                const terraingen::Vec2d center = heights.CellCenter(col, row);
+                heights(col, row) = HeightAt(center.x, center.y, spacing);
+            }
+        });
+    }
+    float HeightAt(double x, double y, double /*spacing*/) const override {
+        {
+            const std::lock_guard lock(mutex);
+            threads.insert(std::this_thread::get_id());
+        }
+        return static_cast<float>(0.01 * (x * x + y * y));
+    }
+    mutable std::mutex mutex;
+    mutable std::set<std::thread::id> threads;
+};
+
+}  // namespace
+
+TEST(Evaluate, ReadsTheGroundBeneathALayerOnTheEvaluationsThreads) {
+    const auto source = std::make_shared<ThreadNotingSource>();
+    TerrainGenerator terrain;
+    terrain.source = source;
+    terrain.layers.push_back(std::make_shared<terraingen::SandFillLayer>());
+    const RasterGrid grid = source->Grid();
+    const terraingen::Raster<float> one =
+        Evaluate(terrain, grid, terraingen::EvaluationOptions{0.0, 1});
+    EXPECT_EQ(source->threads, std::set<std::thread::id>{std::this_thread::get_id()})
+        << "the sand fill's ground reads stay on the one thread asked for";
+    ExpectSameRaster(one, Evaluate(terrain, grid));
 }
 
 TEST(HeightsAt, EqualsGridsOverAnUpsampledDemAtTheirSpacing) {

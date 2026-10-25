@@ -2,6 +2,7 @@
 
 #include "terraingen/sources/raster_source.h"
 
+#include "terraingen/util/arithmetic.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/parallel.h"
 
@@ -114,7 +115,8 @@ bool RasterHeights::Covers(double col, double row) const {
            col < static_cast<double>(cells_.colEnd) && row < static_cast<double>(cells_.rowEnd);
 }
 
-void RasterHeights::CopyFromLattice(Raster<float>& heights, LatticeOffset offset) const {
+void RasterHeights::CopyFromLattice(Raster<float>& heights, LatticeOffset offset,
+                                    unsigned threads) const {
     const float fill = noData_.value_or(std::numeric_limits<float>::quiet_NaN());
     const auto clamp = [](long long at, std::size_t begin, std::size_t end) {
         return std::clamp(at, static_cast<long long>(begin), static_cast<long long>(end));
@@ -131,16 +133,22 @@ void RasterHeights::CopyFromLattice(Raster<float>& heights, LatticeOffset offset
         value = fill;
     }
     if (inWidth > 0 && inHeight > 0) {
-        std::vector<float> posts(inWidth * inHeight);
-        posts_->Read(colBegin, rowBegin, inWidth, inHeight, Span<float>(posts));
-        for (std::size_t row = 0; row < inHeight; ++row) {
-            for (std::size_t col = 0; col < inWidth; ++col) {
-                const float value = posts[row * inWidth + col];
-                heights(static_cast<std::size_t>(colBegin - offset.col) + col,
-                        static_cast<std::size_t>(rowBegin - offset.row) + row) =
-                    std::isnan(value) ? fill : value;
+        constexpr std::size_t kStripRows = 64;
+        ParallelFor(CeilDiv(inHeight, kStripRows), threads, [&](std::size_t strip) {
+            const std::size_t first = strip * kStripRows;
+            const std::size_t rows = std::min(kStripRows, inHeight - first);
+            std::vector<float> posts(inWidth * rows);
+            posts_->Read(colBegin, rowBegin + static_cast<long long>(first), inWidth, rows,
+                         Span<float>(posts));
+            for (std::size_t row = 0; row < rows; ++row) {
+                for (std::size_t col = 0; col < inWidth; ++col) {
+                    const float value = posts[row * inWidth + col];
+                    heights(static_cast<std::size_t>(colBegin - offset.col) + col,
+                            static_cast<std::size_t>(rowBegin - offset.row) + first + row) =
+                        std::isnan(value) ? fill : value;
+                }
             }
-        }
+        });
     }
     heights.SetNoData(FilledNoData(noData_, inWidth * inHeight < heights.Size()));
 }
@@ -148,7 +156,7 @@ void RasterHeights::CopyFromLattice(Raster<float>& heights, LatticeOffset offset
 void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing, unsigned threads) const {
     if (AtPostSpacing(lattice_.transform, spacing)) {
         if (const auto offset = OffsetOnLattice(heights.Transform())) {
-            CopyFromLattice(heights, *offset);
+            CopyFromLattice(heights, *offset, threads);
             return;
         }
     }

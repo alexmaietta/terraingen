@@ -416,7 +416,7 @@ TEST(PrepareCraters, KeepsResolvedCratersInApplyOrderWithStateAndOutline) {
     craters.Append({9.0, 0.0, 20.0, 1.0, 3u});
     const terraingen::CraterShapeModels models{std::make_shared<FassettThomsonProfile>(),
                                                std::make_shared<NoDegradation>(kFresh)};
-    const auto prepared = terraingen::PrepareCraters(craters, {}, 1.0, models);
+    const auto prepared = terraingen::PrepareCraters(craters, {}, 1.0, models, 0);
     ASSERT_EQ(prepared.size(), 2u) << "the 1 m crater spans a single sample";
     EXPECT_EQ(prepared[0].crater.id, 3u) << "oldest first";
     EXPECT_EQ(prepared[1].crater.id, 1u);
@@ -424,6 +424,55 @@ TEST(PrepareCraters, KeepsResolvedCratersInApplyOrderWithStateAndOutline) {
     EXPECT_EQ(prepared[1].state, kFresh.State(craters.At(0)));
     EXPECT_TRUE(prepared[1].outline.Round());
     EXPECT_FALSE(prepared[1].datum.has_value());
+}
+
+TEST(PrepareCraters, ReusesAThreadsCratersOnlyForTheSameCacheOwnerAndCrater) {
+    CraterList craters;
+    for (std::uint64_t id = 1; id <= 40; ++id) {
+        craters.Append(
+            {3.0 * static_cast<double>(id), 0.0, 10.0 + static_cast<double>(id), 0.5, id});
+    }
+    terraingen::CraterApplyOptions options;
+    options.irregularity.enabled = true;
+    options.irregularity.seed = 5u;
+    options.irregularity.elongatedShare = 0.5;
+    const terraingen::CraterShapeModels models{std::make_shared<FassettThomsonProfile>(),
+                                               std::make_shared<NoDegradation>(kFresh)};
+    const auto same = [](const terraingen::PreparedCrater& a, const terraingen::PreparedCrater& b) {
+        return a.crater == b.crater && a.state == b.state &&
+               a.outline.ellipticity == b.outline.ellipticity &&
+               a.outline.heading == b.outline.heading &&
+               a.outline.amplitudes == b.outline.amplitudes &&
+               a.outline.phases == b.outline.phases && a.outline.table == b.outline.table &&
+               a.outline.marks == b.outline.marks;
+    };
+    const auto fresh = terraingen::PrepareCraters(craters, options, 1.0, models, 1);
+    const int owner = 0;
+    const terraingen::PreparedReuse reuse{77777u, &owner};
+    for (int pass = 0; pass < 2; ++pass) {
+        const auto reused = terraingen::PrepareCraters(craters, options, 1.0, models, 1, {}, reuse);
+        ASSERT_EQ(reused.size(), fresh.size());
+        for (std::size_t n = 0; n < fresh.size(); ++n) {
+            EXPECT_TRUE(same(reused[n], fresh[n])) << "pass " << pass << ", crater " << n;
+        }
+    }
+    terraingen::CraterApplyOptions round = options;
+    round.irregularity.enabled = false;
+    const auto other = terraingen::PrepareCraters(craters, round, 1.0, models, 1, {},
+                                                  terraingen::PreparedReuse{77778u, &owner});
+    for (const terraingen::PreparedCrater& crater : other) {
+        EXPECT_TRUE(crater.outline.Round()) << "another cache is not served the first one's";
+    }
+    CraterList moved;
+    for (std::size_t n = 0; n < craters.Size(); ++n) {
+        Crater crater = craters.At(n);
+        crater.diameter += 1.0;
+        moved.Append(crater);
+    }
+    const auto changed = terraingen::PrepareCraters(moved, round, 1.0, models, 1, {}, reuse);
+    for (const terraingen::PreparedCrater& crater : changed) {
+        EXPECT_TRUE(crater.outline.Round()) << "a crater with the same ID but another size";
+    }
 }
 
 TEST(ApplyCraterTo, AddsTheProfileAndMovesTowardTheDatumInside) {

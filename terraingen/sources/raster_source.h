@@ -117,7 +117,7 @@ class RasterHeights {
     /// The offset of a grid with transform `target` when it lies on the lattice.
     std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& target) const;
     /// Copies the cells under `heights`, which starts at `offset`.
-    void CopyFromLattice(Raster<float>& heights, LatticeOffset offset) const;
+    void CopyFromLattice(Raster<float>& heights, LatticeOffset offset, unsigned threads) const;
     /// Whether lattice position (`col`, `row`), in cells, is covered.
     bool Covers(double col, double row) const;
     /// The turns of longitude to take from `x` to bring it onto the lattice; 0 unless wrapping.

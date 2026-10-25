@@ -94,6 +94,9 @@ class SyntheticSource final : public Source {
     /// The elevation plus the noise at (`x`, `y`).
     float NoiseAt(double x, double y) const;
 
+    /// `NoiseAt` each of `points`, into `heights` of the same size.
+    void NoiseAt(Span<const Vec2d> points, Span<float> heights) const;
+
     std::vector<Fractal> fractals_;
     float elevation_;
     std::optional<double> pixelSize_;

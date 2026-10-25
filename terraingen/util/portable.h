@@ -24,6 +24,7 @@
 #define constexpr
 #define inline
 #define KERNEL_IN(type) type
+#define TERRAINGEN_KERNEL_INLINE
 
 #else
 
@@ -36,6 +37,14 @@
 /// A kernel parameter read but not changed: by value in Slang, which has no references, and by
 /// reference in C++, so large structs are not copied per sample.
 #define KERNEL_IN(type) const type&
+
+/// Inlines a kernel function into its callers, such as the loops over runs of points that GCC and
+/// Clang vectorize; a plain `inline` elsewhere.
+#if defined(__GNUC__) || defined(__clang__)
+#define TERRAINGEN_KERNEL_INLINE inline __attribute__((always_inline))
+#else
+#define TERRAINGEN_KERNEL_INLINE inline
+#endif
 
 namespace terraingen {
 using std::abs;

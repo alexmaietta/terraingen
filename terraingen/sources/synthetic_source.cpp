@@ -20,14 +20,15 @@ SyntheticSource::NoisePosts::NoisePosts(const SyntheticSource& source, double pi
 
 void SyntheticSource::NoisePosts::Read(std::int64_t col0, std::int64_t row0, std::size_t width,
                                        std::size_t height, Span<float> heights) const {
+    std::vector<Vec2d> points(width * height);
     for (std::size_t r = 0; r < height; ++r) {
         const double row = static_cast<double>(row0 + static_cast<std::int64_t>(r)) + 0.5;
         for (std::size_t c = 0; c < width; ++c) {
             const double col = static_cast<double>(col0 + static_cast<std::int64_t>(c)) + 0.5;
-            const Vec2d at = transform_.PixelToWorld(col, row);
-            heights[r * width + c] = source_.NoiseAt(at.x, at.y);
+            points[r * width + c] = transform_.PixelToWorld(col, row);
         }
     }
+    source_.NoiseAt(points, heights);
 }
 
 SyntheticSource::SyntheticSource(std::vector<Fractal> fractals, float elevation,
@@ -58,6 +59,13 @@ float SyntheticSource::NoiseAt(double x, double y) const {
     return elevation_ + FractalStackAt(fractals_, {}, surface_, x, y);
 }
 
+void SyntheticSource::NoiseAt(Span<const Vec2d> points, Span<float> heights) const {
+    FractalStackRows(fractals_, {}, surface_, points, heights);
+    for (float& height : heights) {
+        height = elevation_ + height;
+    }
+}
+
 RasterGrid SyntheticSource::Grid() const {
     return {0, 0, posts_ ? posts_->Transform() : GeoTransform::NorthUp(0.0, 0.0, 1.0)};
 }
@@ -67,10 +75,11 @@ void SyntheticSource::Fill(Raster<float>& heights, double spacing, unsigned thre
         FillUpsampled(*upsampler_, *posts_, heights, spacing, threads);
     } else {
         ParallelFor(heights.Height(), threads, [&](std::size_t row) {
-            for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const Vec2d center = heights.CellCenter(col, row);
-                heights(col, row) = NoiseAt(center.x, center.y);
+            std::vector<Vec2d> points(heights.Width());
+            for (std::size_t col = 0; col < points.size(); ++col) {
+                points[col] = heights.CellCenter(col, row);
             }
+            NoiseAt(points, heights.Values().subspan(row * heights.Width(), heights.Width()));
         });
     }
     MarkMissing(heights, std::nullopt);

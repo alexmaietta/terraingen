@@ -94,7 +94,7 @@ void BindLayerBase(nb::module_& m) {
             [](const Layer& layer, Raster<float>& heights, const LayerContext& context) {
                 layer.Apply(heights, context);
             },
-            "heights"_a, "context"_a)
+            "heights"_a, "context"_a, nb::call_guard<nb::gil_scoped_release>())
         .def("apply_at", &Layer::ApplyAt, "height"_a, "x"_a, "y"_a, "context"_a)
         .def("layer_surface", &Layer::LayerSurface,
              "The surface the layer was built for, which a terrain's must be; None for a layer "

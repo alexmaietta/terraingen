@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -92,9 +93,10 @@ std::shared_ptr<EvaluationCache> DefaultCache(const TerrainGenerator& generator)
 }
 
 /// Sets `heights` to the generator's source at `points`, then applies its first `layers` layers to
-/// them all at once, each on the ground beneath it, which shares `cache`.
+/// them all at once, each on the ground beneath it, which shares `cache` and reads in batches over
+/// `threads` threads.
 void EvaluateStack(const TerrainGenerator& generator, std::size_t layers, Span<const Vec2d> points,
-                   Span<float> heights, double spacing, EvaluationCache* cache) {
+                   Span<float> heights, double spacing, EvaluationCache* cache, unsigned threads) {
     const double sourceSpacing = spacing / generator.surface.UnitLength();
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[i] = generator.source
@@ -102,7 +104,7 @@ void EvaluateStack(const TerrainGenerator& generator, std::size_t layers, Span<c
                          : 0.0f;
     }
     for (std::size_t n = 0; n < layers; ++n) {
-        const TerrainGround ground(generator, n, cache);
+        const TerrainGround ground(generator, n, cache, threads);
         SampleBlock samples(points, heights);
         generator.layers[n]->Apply(samples, LayerContext{spacing, 1, &ground, Backend::Cpu, cache});
     }
@@ -132,14 +134,25 @@ std::vector<std::size_t> MortonOrder(Span<const Vec2d> points) {
         bounds = {std::fmin(bounds.minX, p.x), std::fmin(bounds.minY, p.y),
                   std::fmax(bounds.maxX, p.x), std::fmax(bounds.maxY, p.y)};
     }
-    std::vector<std::pair<std::uint32_t, std::size_t>> keyed(points.size());
+    std::vector<std::size_t> order(points.size());
+    if (points.size() > std::numeric_limits<std::uint32_t>::max()) {
+        std::vector<std::pair<std::uint32_t, std::size_t>> keyed(points.size());
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            keyed[i] = {MortonKey(points[i], bounds), i};
+        }
+        std::sort(keyed.begin(), keyed.end());
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            order[i] = keyed[i].second;
+        }
+        return order;
+    }
+    std::vector<std::uint64_t> keyed(points.size());
     for (std::size_t i = 0; i < points.size(); ++i) {
-        keyed[i] = {MortonKey(points[i], bounds), i};
+        keyed[i] = (std::uint64_t{MortonKey(points[i], bounds)} << 32U) | std::uint64_t{i};
     }
     std::sort(keyed.begin(), keyed.end());
-    std::vector<std::size_t> order(points.size());
     for (std::size_t i = 0; i < points.size(); ++i) {
-        order[i] = keyed[i].second;
+        order[i] = static_cast<std::size_t>(keyed[i] & 0xFFFFFFFFU);
     }
     return order;
 }
@@ -152,7 +165,7 @@ void EvaluateBatched(const TerrainGenerator& generator, std::size_t layers,
                      unsigned threads, EvaluationCache* shared) {
     constexpr std::size_t kBatch = 256;
     if (points.size() <= kBatch) {
-        EvaluateStack(generator, layers, points, heights, spacing, shared);
+        EvaluateStack(generator, layers, points, heights, spacing, shared, threads);
         return;
     }
     const std::vector<std::size_t> order = MortonOrder(points);
@@ -167,7 +180,7 @@ void EvaluateBatched(const TerrainGenerator& generator, std::size_t layers,
         const std::size_t begin = batch * kBatch;
         const std::size_t count = std::min(kBatch, points.size() - begin);
         EvaluateStack(generator, layers, Span<const Vec2d>(sorted).subspan(begin, count),
-                      Span<float>(values).subspan(begin, count), spacing, cache);
+                      Span<float>(values).subspan(begin, count), spacing, cache, threads);
     });
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[order[i]] = values[i];
@@ -212,7 +225,7 @@ Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid
     for (std::size_t n = 0; n < generator.layers.size(); ++n) {
         const Stopwatch stopwatch;
         EvaluationCache cache;
-        const TerrainGround ground(generator, n, &cache);
+        const TerrainGround ground(generator, n, &cache, options.threads);
         generator.layers[n]->Apply(heights,
                                    LayerContext{resolved, options.threads, &ground, backend});
         if (options.onLayer) {
@@ -302,8 +315,8 @@ float HeightAt(const TerrainGenerator& generator, double x, double y, double spa
 }
 
 TerrainGround::TerrainGround(const TerrainGenerator& generator, std::size_t layers,
-                             EvaluationCache* cache)
-    : generator_(generator), layers_(layers), cache_(cache) {
+                             EvaluationCache* cache, unsigned threads)
+    : generator_(generator), layers_(layers), cache_(cache), threads_(threads) {
     if (layers_ > generator_.layers.size()) {
         throw std::invalid_argument("The terrain has fewer layers than the ground asks for");
     }
@@ -312,12 +325,12 @@ TerrainGround::TerrainGround(const TerrainGenerator& generator, std::size_t laye
 float TerrainGround::HeightAt(double x, double y, double spacing) const {
     const Vec2d point{x, y};
     float height = 0.0f;
-    EvaluateStack(generator_, layers_, {&point, 1}, {&height, 1}, spacing, cache_);
+    EvaluateStack(generator_, layers_, {&point, 1}, {&height, 1}, spacing, cache_, threads_);
     return height;
 }
 
 void TerrainGround::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
-    EvaluateBatched(generator_, layers_, points, heights, spacing, 0, cache_);
+    EvaluateBatched(generator_, layers_, points, heights, spacing, threads_, cache_);
 }
 
 std::shared_ptr<const Ground> SharedGround(const TerrainGenerator& generator, std::size_t layers) {

@@ -487,6 +487,27 @@ TEST(GenerateCraters, CellCraterSourcesGiveTheSameCraters) {
     }
 }
 
+TEST(GenerateCraters, DrawsTheSameCratersOnEveryThreadCount) {
+    const terraingen::PowerLawSfd density(0.05, 2.0);
+    const terraingen::UniformAges ages(1.0);
+    const terraingen::Bounds2d region{-220.0, -180.0, 240.0, 190.0};
+    for (const terraingen::CraterSpacing spacing :
+         {terraingen::CraterSpacing{}, terraingen::CraterSpacing{1.5, 1.0}}) {
+        terraingen::CraterGenerationOptions options{3.0, 60.0, 1.5};
+        options.spacing = spacing;
+        const auto serial = terraingen::GenerateCraters(terraingen::PlanarCells(), region, density,
+                                                        ages, 5u, options);
+        for (const unsigned threads : {0u, 3u}) {
+            options.threads = threads;
+            const auto parallel = terraingen::GenerateCraters(terraingen::PlanarCells(), region,
+                                                              density, ages, 5u, options);
+            EXPECT_EQ(parallel.Ids(), serial.Ids()) << threads << " threads";
+            EXPECT_EQ(parallel.X(), serial.X());
+            EXPECT_EQ(parallel.AgesGyr(), serial.AgesGyr());
+        }
+    }
+}
+
 TEST(GenerateCraters, CellCraterSourcesOutsideTheirBandKeepCratersWithinTheirOwnMargin) {
     const terraingen::PowerLawSfd density(0.05, 2.0);
     const terraingen::UniformAges ages(1.0);

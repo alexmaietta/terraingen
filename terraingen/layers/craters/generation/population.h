@@ -106,6 +106,13 @@ struct CraterGenerationOptions {
     double maxBandDiameter = std::numeric_limits<double>::infinity();
     /// Where each cell's craters come from; empty draws them with `GenerateCellCraters`.
     CellCraterSource cellCraters{};
+    /// The craters per unit area expected in a band, the density's `ExpectedCount(1, band.low,
+    /// band.high)` to the bit, for example from a table; empty asks the density. Must be
+    /// thread-safe.
+    std::function<double(const CraterBand& band)> bandCount{};
+    /// Threads the cells are drawn on, merged in their order so the craters do not depend on it;
+    /// 0 for every hardware thread.
+    unsigned threads = 1;
     /// The share of generated craters like each one kept, in [0, 1], from its position and size:
     /// drawing at the density's highest local level and keeping each crater with its share, by a
     /// uniform keyed to its ID, makes the density vary over the surface. Must be thread-safe and

@@ -81,21 +81,23 @@ class TerrainGround final : public Ground {
     /// @param layers The number of layers the ground includes.
     /// @param cache Values the layers beneath share with the evaluation reading this ground, such
     /// as crater datums, so nested reads do not compute them again; null for a cache per read.
+    /// @param threads Threads `HeightsAt` splits its batches over; 0 for every hardware thread.
     /// @throws std::invalid_argument if `generator` has fewer than `layers` layers.
     TerrainGround(const TerrainGenerator& generator, std::size_t layers,
-                  EvaluationCache* cache = nullptr);
+                  EvaluationCache* cache = nullptr, unsigned threads = 0);
 
     /// The starting height at surface point (`x`, `y`) after each included layer's `ApplyAt`, at
     /// a sample spacing of `spacing` meters.
     float HeightAt(double x, double y, double spacing) const override;
 
-    /// The heights at `points` in batches over every hardware thread, as the free `HeightsAt` does.
+    /// The heights at `points` in batches over the ground's threads, as the free `HeightsAt` does.
     void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
 
   private:
     const TerrainGenerator& generator_;
     std::size_t layers_;
     EvaluationCache* cache_;
+    unsigned threads_;
 };
 
 /// A `TerrainGround` beneath the first `layers` layers of a copy of `generator` that it keeps, so

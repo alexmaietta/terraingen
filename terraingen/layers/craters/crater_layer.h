@@ -150,8 +150,10 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// @param minDiameter,maxDiameter Diameters (m) of the craters wanted: generated bands wholly
     /// outside them may be skipped (`maxBandDiameter`), so craters outside them can still come
     /// back.
+    /// @param threads Threads the cells are drawn on; the craters do not depend on it.
     CraterList Craters(const Bounds2d& region, double spacing = 0.0, double minDiameter = 0.0,
-                       double maxDiameter = std::numeric_limits<double>::infinity()) const;
+                       double maxDiameter = std::numeric_limits<double>::infinity(),
+                       unsigned threads = 1) const;
 
     CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const override;
 
@@ -193,6 +195,15 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// The keep share for craters over `region`: the map's, less the secondaries thrown there
     /// by the craters around it that are large enough, when they are taken out of the map.
     CraterKeepShare KeepShare(const Bounds2d& region) const;
+    /// Sets `generation.bandCount` to read the bands' counts from `bandCounts_`.
+    void CountBands(CraterGenerationOptions& generation) const;
+
+    /// A band's expected craters per square meter at the density of `candidates_`.
+    struct BandCount {
+        double low = 0.0;
+        double high = 0.0;
+        double count = 0.0;
+    };
 
     CraterModels models_;
     CraterLayerOptions options_;
@@ -202,6 +213,8 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// The density craters are drawn at: `models_.density`, times the map's largest scale.
     std::shared_ptr<const SizeFrequencyDistribution> candidates_;
     std::shared_ptr<const DensityScale> scale_;
+    /// The counts of the bands generation draws, so point queries do not compute them each time.
+    std::vector<BandCount> bandCounts_;
     /// Craters at least this large (m) throw secondaries the map measures and follow it alone.
     double throwFrom_ = std::numeric_limits<double>::infinity();
     /// How far (m) beyond a grid the replacing manual craters can change it (`ReplacementMargin`).

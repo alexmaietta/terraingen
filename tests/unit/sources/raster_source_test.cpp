@@ -303,3 +303,28 @@ TEST(RasterSource, WrapsOnlyGeographicRastersSpanningATurn) {
     EXPECT_FALSE(terraingen::detail::WrapsLongitude(degrees, RasterGrid::FromRaster(partial)));
     EXPECT_TRUE(std::isnan(RasterSource(partial, {}, degrees).HeightAt(-7.5, 0.0, 15.0)));
 }
+
+TEST(RasterSource, CopiesItsLatticeInStripsOnEveryThreadCount) {
+    Raster<float> heights(150, 200, 0.0f);
+    heights.SetTransform(GeoTransform::NorthUp(0.0, 400.0, 2.0));
+    heights.SetNoData(-9999.0f);
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            heights(col, row) = static_cast<float>(col) + 1000.0f * static_cast<float>(row);
+        }
+    }
+    heights(7, 130) = -9999.0f;
+    const RasterSource source(heights);
+    Raster<float> serial(140, 210);
+    serial.SetTransform(GeoTransform::NorthUp(10.0, 410.0, 2.0));
+    Raster<float> parallel(140, 210);
+    parallel.SetTransform(serial.Transform());
+    source.Fill(serial, 2.0, 1);
+    source.Fill(parallel, 2.0, 0);
+    terraingen::testing::ExpectSameRaster(serial, parallel);
+    EXPECT_EQ(serial(0, 5), 5.0f + 0.0f) << "lattice column 5, row 0";
+    EXPECT_EQ(serial(100, 150), 105.0f + 145000.0f);
+    EXPECT_TRUE(serial.IsNoData(serial(2, 135))) << "the no-data post";
+    EXPECT_TRUE(serial.IsNoData(serial(0, 0))) << "above the lattice";
+    EXPECT_TRUE(serial.IsNoData(serial(139, 209))) << "beyond the lattice";
+}

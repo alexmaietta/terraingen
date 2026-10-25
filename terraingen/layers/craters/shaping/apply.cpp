@@ -272,13 +272,23 @@ void ShapePoints(SampleBlock& samples, const std::vector<ReachingCrater>& reachi
     });
 }
 
+/// The prepared craters point queries reuse: those of `sampling`'s owner kept for its cache, when
+/// it has both.
+PreparedReuse PointReuse(const CraterSampling& sampling) {
+    if (sampling.cache == nullptr || sampling.owner == nullptr) {
+        return {};
+    }
+    return {sampling.cache->Id(), sampling.owner};
+}
+
 /// Shapes the craters reaching `samples` at their points, with datums fitted, or with `cached`
 /// taken from `sampling.cache`; false, leaving the samples as they are, when a datum is not held.
 bool ApplyAtPoints(SampleBlock& samples, const CraterList& craters, const CraterShapeModels& models,
                    const CraterApplyOptions& options, const CraterSampling& sampling, bool cached) {
     const CraterProfile& profile = *models.profile;
     std::vector<PreparedCrater> prepared =
-        PrepareCraters(craters, options, sampling.spacing, models, sampling.reshape);
+        PrepareCraters(craters, options, sampling.spacing, models, sampling.threads,
+                       sampling.reshape, PointReuse(sampling));
     const std::vector<ReachingCrater> reaching =
         CratersReaching(samples, prepared, CraterReachRadii(profile, options), options.surface);
     const CraterShapeKernel kernel = MakeCraterShapeKernel(profile, options);
@@ -342,7 +352,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     const double resolved = ResolvedSpacing(raster, sampling.spacing, options.surface);
     const CraterProfile& profile = *models.profile;
     std::vector<PreparedCrater> prepared =
-        PrepareCraters(craters, options, resolved, models, sampling.reshape);
+        PrepareCraters(craters, options, resolved, models, sampling.threads, sampling.reshape);
     std::vector<std::vector<PixelWindow>> windows;
     const std::vector<std::size_t> onRaster = CratersOnRaster(
         raster, prepared, CraterReachRadii(profile, options), options.surface, windows);

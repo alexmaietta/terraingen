@@ -18,7 +18,8 @@ namespace terraingen {
 /// each cell once.
 ///
 /// Holds about `maxCraters` craters at most, evicting least recently used cells; thread-safe.
-/// Cells regenerate identically, so eviction never changes results.
+/// Each thread also keeps the last cells it read in a small table of its own, so repeated point
+/// queries skip the shared cache. Cells regenerate identically, so eviction never changes results.
 class CraterCellCache {
   public:
     /// @param maxCraters Most craters held across every cell; positive.
@@ -27,9 +28,7 @@ class CraterCellCache {
 
     /// The craters of `cell` in the band of `exponent`, drawn by `generate` when not held.
     std::shared_ptr<const CellCraters> Get(int exponent, const CellIndex& cell,
-                                           const std::function<CellCraters()>& generate) {
-        return cache_.Get({exponent, cell.i, cell.j}, generate);
-    }
+                                           const std::function<CellCraters()>& generate);
 
   private:
     struct Key {
@@ -49,6 +48,8 @@ class CraterCellCache {
     };
 
     LruCache<Key, CellCraters, KeyHash> cache_;
+    /// This cache among every one made, which the threads' tables of recent cells key on.
+    std::uint64_t id_;
 };
 
 /// A source for `CraterGenerationOptions::cellCraters` that draws each cell with

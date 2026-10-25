@@ -7,13 +7,54 @@
 #include "terraingen/noise/surface_noise.h"
 #include "terraingen/noise/validate.h"
 #include "terraingen/raster/cell_loops.h"
+#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <utility>
+#include <vector>
 
 namespace terraingen {
+
+namespace {
+
+/// Adds the noise of `fractals` (`FractalStackAt`) to each sample of `samples` holding data, to
+/// the same bits: a grid row by row over `threads` threads, or the points in one run
+/// (`FractalStackRows`).
+void AddNoiseRows(SampleBlock& samples, unsigned threads, const std::vector<Fractal>& fractals,
+                  const Vec2d& origin, const Surface& surface) {
+    if (Raster<float>* grid = samples.Grid()) {
+        ParallelFor(grid->Height(), threads, [&](std::size_t row) {
+            std::vector<Vec2d> points(grid->Width());
+            std::vector<float> noise(grid->Width());
+            for (std::size_t col = 0; col < points.size(); ++col) {
+                points[col] = grid->CellCenter(col, row);
+            }
+            FractalStackRows(fractals, origin, surface, points, noise);
+            for (std::size_t col = 0; col < points.size(); ++col) {
+                float& cell = (*grid)(col, row);
+                if (!grid->IsNoData(cell)) {
+                    cell = cell + noise[col];
+                }
+            }
+        });
+        return;
+    }
+    std::vector<Vec2d> points(samples.Size());
+    std::vector<float> noise(samples.Size());
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        points[i] = samples.Position(i);
+    }
+    FractalStackRows(fractals, origin, surface, points, noise);
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        if (!samples.IsNoData(i)) {
+            samples.Height(i) = samples.Height(i) + noise[i];
+        }
+    }
+}
+
+}  // namespace
 
 NoiseLayer::NoiseLayer(NoiseLayerOptions options, TerrainBase base)
     : options_(std::move(options)), origin_(base.ReferencePoint()), surface_(base.surface) {
@@ -55,13 +96,13 @@ void NoiseLayer::ApplySamples(SampleBlock& samples, const LayerContext& context)
         });
         return;
     }
-    if (!surface_.IsBody()) {
-        ApplyKernel(samples, context, kernel_, origin_);
+    Raster<float>* grid = samples.Grid();
+    if (!surface_.IsBody() && grid != nullptr && context.backend != Backend::Cpu &&
+        RunKernel(context.backend, CompiledKernel<NoiseLayerKernel>(), AsBytes(Span(&kernel_, 1)),
+                  *grid, origin_)) {
         return;
     }
-    MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
-        return height + FractalStackAt(options_.fractals, origin_, surface_, p.x, p.y);
-    });
+    AddNoiseRows(samples, context.threads, options_.fractals, origin_, surface_);
 }
 
 }  // namespace terraingen

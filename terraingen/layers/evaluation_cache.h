@@ -8,6 +8,7 @@
 #include "terraingen/util/bits.h"
 #include "terraingen/util/lru_cache.h"
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -25,7 +26,13 @@ class EvaluationCache {
   public:
     /// An empty cache holding at most `capacity` values.
     explicit EvaluationCache(std::size_t capacity = 1 << 20)
-        : values_(capacity, [](const Holder&) { return std::size_t{1}; }) {}
+        : values_(capacity, [](const Holder&) { return std::size_t{1}; }), id_(NextId()) {}
+
+    /// This cache among every one made, never 0 and never reused, so values a thread keeps
+    /// for it can be told from another's.
+    std::uint64_t Id() const {
+        return id_;
+    }
 
     /// The value of `owner` for feature `id` at `spacing`, computed by `compute` when not held.
     template <typename T>
@@ -64,7 +71,13 @@ class EvaluationCache {
         std::shared_ptr<const void> value;
     };
 
+    static std::uint64_t NextId() {
+        static std::atomic<std::uint64_t> next{1};
+        return next.fetch_add(1);
+    }
+
     LruCache<Key, Holder, KeyHash> values_;
+    std::uint64_t id_;
 };
 
 }  // namespace terraingen

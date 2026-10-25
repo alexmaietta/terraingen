@@ -85,6 +85,31 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, Terrai
     if (options_.densityMap) {
         FollowDensityMap();
     }
+    const CraterGenerationOptions& generation = options_.generation;
+    const double dMax = ResolveDMax(generation.dMax, *candidates_);
+    if (options_.generateRandom && std::isfinite(dMax) && dMax > generation.dMin &&
+        generation.dMin > 0.0) {
+        for (const CraterBand& band :
+             CraterBands(generation.dMin, dMax, generation.cellSizeFactor)) {
+            bandCounts_.push_back(
+                {band.low, band.high, candidates_->ExpectedCount(1.0, band.low, band.high)});
+        }
+    }
+}
+
+void CraterLayer::CountBands(CraterGenerationOptions& generation) const {
+    if (bandCounts_.empty()) {
+        return;
+    }
+    generation.bandCount = [counts = &bandCounts_,
+                            density = candidates_.get()](const CraterBand& band) {
+        for (const BandCount& entry : *counts) {
+            if (entry.low == band.low && entry.high == band.high) {
+                return entry.count;
+            }
+        }
+        return density->ExpectedCount(1.0, band.low, band.high);
+    };
 }
 
 void ValidateInheritedCraters(const InheritedCraters& inherited) {
@@ -185,6 +210,7 @@ CraterList CraterLayer::Throwers(const Bounds2d& region) const {
     CraterGenerationOptions large = options_.generation;
     large.dMin = std::fmax(large.dMin, throwFrom_);
     large.minResolvedDiameter = 0.0;
+    CountBands(large);
     double reach = 0.0;
     for (const SecondaryCraterOptions& secondaries : options_.secondaries) {
         reach = std::fmax(reach, SecondaryOuterRange(MaxFeatureDiameter(), secondaries));
@@ -248,8 +274,9 @@ CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
 }
 
 CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double minDiameter,
-                                double maxDiameter) const {
+                                double maxDiameter, unsigned threads) const {
     CraterGenerationOptions generation = options_.generation;
+    generation.threads = threads;
     if (options_.generateRandom) {
         if (spacing > 0.0) {
             generation.minResolvedDiameter = options_.apply.fade.startSamples * spacing;
@@ -259,6 +286,7 @@ CraterList CraterLayer::Craters(const Bounds2d& region, double spacing, double m
         if (std::isfinite(throwFrom_)) {
             generation.keepShare = KeepShare(region);
         }
+        CountBands(generation);
         return GenerateCachedCraters(cache_.get(), *cells_, region, *candidates_, *models_.ages,
                                      options_.seed, std::move(generation));
     }
@@ -287,7 +315,9 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
     }
     const double margin = std::fmax(
         DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter()), replacementMargin_);
-    const CraterList craters = Craters(surface_.Expand(bounds, margin), spacing);
+    const CraterList craters =
+        Craters(surface_.Expand(bounds, margin), spacing, 0.0,
+                std::numeric_limits<double>::infinity(), grid != nullptr ? context.threads : 1);
     ApplyCraters(samples, craters, models_.Shape(), options_.apply, sampling);
 }
 

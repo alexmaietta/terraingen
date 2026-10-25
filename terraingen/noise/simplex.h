@@ -17,11 +17,9 @@ namespace detail {
 /// @param dy Offset y from the corner, unskewed.
 inline float SimplexCorner(uint32_t ci, uint32_t cj, float dx, float dy, uint32_t seed) {
     const float t = 0.5f - dx * dx - dy * dy;
-    if (t <= 0.0f) {
-        return 0.0f;
-    }
     const float t2 = t * t;
-    return t2 * t2 * PerlinGradient2(PerlinCornerHash2(ci, cj, seed), dx, dy);
+    const float corner = t2 * t2 * PerlinGradient2(PerlinCornerHash2(ci, cj, seed), dx, dy);
+    return !(t <= 0.0f) ? corner : 0.0f;
 }
 
 /// The contribution (0.5 - r^2)^4 dot(g, d) of one corner of a 3D simplex, with `PerlinNoise3`'s
@@ -41,7 +39,7 @@ inline float SimplexCorner3(uint32_t ci, uint32_t cj, uint32_t ck, float dx, flo
 /// 2D simplex noise at a point in lattice units, with the gradients and corner hash of
 /// `PerlinNoise2`.
 /// @return Noise in [-1, 1].
-inline float SimplexNoise2(float x, float y, uint32_t seed) {
+TERRAINGEN_KERNEL_INLINE float SimplexNoise2(float x, float y, uint32_t seed) {
     constexpr float kSkew = 0.366025403784438647f;    // (sqrt(3) - 1) / 2
     constexpr float kUnskew = 0.211324865405187118f;  // (3 - sqrt(3)) / 6
     constexpr float kScale = 99.0f;

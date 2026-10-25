@@ -34,16 +34,27 @@ inline double CraterReach(const PreparedCrater& prepared, double reachRadii) {
 
 struct CraterShapeModels;
 
+/// Whose outlines and states `PrepareCraters` may reuse from those a thread prepared before: an
+/// `EvaluationCache::Id` and the layer that owns the craters; a zero `cache` reuses nothing. The
+/// owner must prepare each crater with the same options, models and reshaping every time.
+struct PreparedReuse {
+    std::uint64_t cache = 0;
+    const void* owner = nullptr;
+};
+
 /// The craters with a non-zero resolution weight at `spacing`, prepared in `CraterApplyOrder`
 /// without datums, each in its `ResolvedCraterState`; `reshape`, when set, changes each outline
-/// after `IrregularOutline`.
+/// after `IrregularOutline` and may be called on several threads at once.
 /// @param spacing Sample spacing in meters; positive.
 /// @param models Neither may be null.
+/// @param threads Threads to prepare the craters over; 0 for every hardware thread.
+/// @param reuse Whose craters a thread prepared before may be reused, as point queries do.
 /// @throws std::domain_error as `DegradationModel::State`.
 /// @throws std::invalid_argument as `ResolvedCraterState`.
 std::vector<PreparedCrater>
 PrepareCraters(const CraterList& craters, const CraterApplyOptions& options, double spacing,
-               const CraterShapeModels& models,
-               const std::function<void(const Crater&, CraterOutline&)>& reshape = {});
+               const CraterShapeModels& models, unsigned threads,
+               const std::function<void(const Crater&, CraterOutline&)>& reshape = {},
+               PreparedReuse reuse = {});
 
 }  // namespace terraingen

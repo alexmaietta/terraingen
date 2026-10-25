@@ -3,6 +3,7 @@
 terraingen_add_test_suite(
     noise
     SOURCES
+    fractal_rows_test.cpp
     fractal_test.cpp
     fractals_test.cpp
     hash_test.cpp

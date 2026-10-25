@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include <stdexcept>
 
 using terraingen::CellIndex;
@@ -40,6 +42,26 @@ TEST(CraterCellCache, GeneratesEachCellOnceAndReturnsTheHeldCraters) {
     EXPECT_EQ(first->craters.Size(), 5u);
     cache.Get(3, CellIndex{3, 4}, generate);
     EXPECT_EQ(calls, 2) << "another band is another cell";
+}
+
+TEST(CraterCellCache, KeepsTheCellsOfEachCacheApartOnEveryThread) {
+    int calls = 0;
+    for (int n = 0; n < 3; ++n) {
+        const auto cache = std::make_unique<CraterCellCache>(1000);
+        const auto craters = cache->Get(1, CellIndex{7, 8}, [&] {
+            ++calls;
+            return terraingen::CellCraters(Cell(n, 2 + n));
+        });
+        EXPECT_EQ(craters->craters.Size(), static_cast<std::size_t>(2 + n))
+            << "a new cache, even at a freed one's address, draws its own cell";
+        EXPECT_EQ(cache->Get(1, CellIndex{7, 8},
+                             [&] {
+                                 ++calls;
+                                 return terraingen::CellCraters(Cell(9, 9));
+                             }),
+                  craters);
+    }
+    EXPECT_EQ(calls, 3);
 }
 
 TEST(CraterCellCache, StaysWithinItsBudgetByEvictingTheLeastRecentlyUsed) {

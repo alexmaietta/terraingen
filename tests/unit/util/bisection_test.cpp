@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <functional>
+#include <vector>
 
 TEST(Bisect, NarrowsAroundWhereTheConditionTurnsTrue) {
     const terraingen::BisectionInterval found =
@@ -28,4 +30,47 @@ TEST(BisectLog, BisectsInLogSpace) {
     EXPECT_GE(found, 37.0);
     EXPECT_DOUBLE_EQ(terraingen::BisectLog(1.0, 100.0, 1, 0.0, [](double) { return true; }), 10.0)
         << "the first middle is the geometric mean";
+}
+
+TEST(BisectRising, GivesBisectsIntervalToTheBitWithFewerCallsWhenSmooth) {
+    struct Rising {
+        std::function<double(double)> value;
+        bool smooth;
+    };
+    const std::vector<Rising> rising{
+        {[](double t) { return 5.44e-14 * std::expm1(6.93 * t) + 8.38e-4 * t; }, true},
+        {[](double t) { return t * t * t; }, true},
+        {[](double t) { return std::fmin(t, 1.5); }, false},
+        {[](double t) { return t < 2.0 ? 0.0 : 1.0; }, false},
+        {[](double t) { return 0.0 * t; }, false},
+    };
+    for (const auto& [value, smooth] : rising) {
+        int bisectTotal = 0;
+        int risingTotal = 0;
+        for (int k = 0; k <= 64; ++k) {
+            const double target = value(3.5) * static_cast<double>(k) / 64.0;
+            int bisectCalls = 0;
+            const terraingen::BisectionInterval expected =
+                terraingen::Bisect(0.0, 3.5, 100, 3.5e-15, [&](double t) {
+                    ++bisectCalls;
+                    return !(value(t) < target);
+                });
+            int risingCalls = 0;
+            const terraingen::BisectionInterval found =
+                terraingen::BisectRising(0.0, 3.5, 100, 3.5e-15, target, [&](double t) {
+                    ++risingCalls;
+                    return value(t);
+                });
+            EXPECT_EQ(found.low, expected.low) << "target " << target;
+            EXPECT_EQ(found.high, expected.high) << "target " << target;
+            bisectTotal += bisectCalls;
+            risingTotal += risingCalls;
+        }
+        if (smooth) {
+            EXPECT_LT(risingTotal, bisectTotal / 2) << "about half the calls or fewer";
+        }
+    }
+    const terraingen::BisectionInterval beyond =
+        terraingen::BisectRising(0.0, 1.0, 100, 1e-15, 5.0, [](double t) { return t; });
+    EXPECT_EQ(beyond.high, 1.0) << "a target above every value leaves the high end";
 }

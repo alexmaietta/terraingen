@@ -2,19 +2,28 @@
 
 #include "terraingen/util/cells.h"
 
+#include "terraingen/util/bits.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/cube_faces.h"
 #include "terraingen/util/surface.h"
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 
 namespace terraingen {
 
 namespace {
+
+/// A new ID for a set of cube-sphere cells, never 0.
+std::uint64_t NextCellsId() {
+    static std::atomic<std::uint64_t> next{1};
+    return next.fetch_add(1);
+}
 
 using detail::kQuarter;
 
@@ -75,11 +84,12 @@ double CornerAngle(const detail::CubeFace& face, const std::array<double, 4>& bo
 
 }  // namespace
 
-CubeSphereCells::CubeSphereCells(double radius) : surface_(Surface::Sphere(radius)) {
+CubeSphereCells::CubeSphereCells(double radius)
+    : surface_(Surface::Sphere(radius)), id_(NextCellsId()) {
     sphere_ = surface_;
 }
 
-CubeSphereCells::CubeSphereCells(const Surface& surface) : surface_(surface) {
+CubeSphereCells::CubeSphereCells(const Surface& surface) : surface_(surface), id_(NextCellsId()) {
     if (!surface.IsBody()) {
         throw std::invalid_argument("Cube-sphere cells need a body, not a plane");
     }
@@ -289,6 +299,25 @@ std::vector<CellIndex> CubeSphereCells::KeepReaching(const Bounds2d& box,
 }
 
 double CubeSphereCells::CellArea(const CellIndex& cell, double cellSize) const {
+    struct Recalled {
+        std::uint64_t cells = 0;
+        std::uint64_t size = 0;
+        CellIndex cell;
+        double area = 0.0;
+    };
+    thread_local std::array<Recalled, 256> recalled;
+    const std::uint64_t size = BitCast<std::uint64_t>(cellSize);
+    const std::uint32_t mixed = (static_cast<std::uint32_t>(cell.i) * 0x9E3779B1u) ^
+                                (static_cast<std::uint32_t>(cell.j) * 0x85EBCA77u) ^
+                                static_cast<std::uint32_t>(size >> 29U);
+    Recalled& slot = recalled[(mixed >> 16U) % recalled.size()];
+    if (slot.cells != id_ || slot.size != size || slot.cell != cell) {
+        slot = {id_, size, cell, ComputeCellArea(cell, cellSize)};
+    }
+    return slot.area;
+}
+
+double CubeSphereCells::ComputeCellArea(const CellIndex& cell, double cellSize) const {
     const std::int32_t n = CellsPerEdge(cellSize);
     const std::array<double, 4> bounds = Bounds(cell, n);
     if (surface_.IsSphere()) {

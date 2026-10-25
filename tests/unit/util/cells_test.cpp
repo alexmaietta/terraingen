@@ -87,3 +87,19 @@ TEST(PlanarCells, RejectsInvalidRegionsAndCellSizes) {
     EXPECT_THROW(cells.CellsCovering({-kInf, 0.0, 1.0, 1.0}, 1.0), std::invalid_argument);
     EXPECT_THROW(cells.CellsCovering({0.0, 0.0, 1e12, 1.0}, 1e-3), std::invalid_argument);
 }
+
+TEST(CubeSphereCells, RecallsEachCellsAreaApartFromOtherCells) {
+    const terraingen::CubeSphereCells small(1000.0);
+    const terraingen::CubeSphereCells large(2000.0);
+    for (int pass = 0; pass < 2; ++pass) {
+        for (std::int32_t i = 0; i < 40; ++i) {
+            const terraingen::CellIndex cell{i, i % 7};
+            const double a = small.CellArea(cell, 100.0);
+            const double b = large.CellArea(cell, 100.0);
+            EXPECT_GT(a, 0.0);
+            EXPECT_NE(a, b) << "another radius gives other areas";
+            EXPECT_EQ(small.CellArea(cell, 100.0), a) << "recalled to the bit";
+            EXPECT_NE(small.CellArea(cell, 200.0), a) << "another cell size is another cell";
+        }
+    }
+}

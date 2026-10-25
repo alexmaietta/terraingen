@@ -8,6 +8,7 @@
 #include "terraingen/util/bisection.h"
 #include "terraingen/util/checks.h"
 #include "terraingen/util/log.h"
+#include "terraingen/util/parallel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -107,6 +108,9 @@ class Generation {
     }
 
     void Log(std::size_t kept, const GenerationCounts& counts, const Stopwatch& stopwatch) const {
+        if (!LogEnabled(LogLevel::Debug)) {
+            return;
+        }
         const bool spaced = options_.spacing.Enabled();
         const std::size_t manual = options_.manual.Size();
         LogDebug(options_.logName, "Generated ", kept, " ", options_.logName, " (", options_.dMin,
@@ -151,7 +155,9 @@ class Generation {
             const double margin = CandidateMargin(band.high);
             BandPlan entry{band,
                            cells_.CellsCovering(surface_.Expand(region_, margin), band.cellSize)};
-            const double countPerArea = density_.ExpectedCount(1.0, band.low, band.high);
+            const double countPerArea = options_.bandCount
+                                            ? options_.bandCount(band)
+                                            : density_.ExpectedCount(1.0, band.low, band.high);
             for (const CellIndex& cell : entry.cells) {
                 entry.expected += countPerArea * cells_.CellArea(cell, band.cellSize);
             }
@@ -166,25 +172,27 @@ class Generation {
     CraterList DrawPlannedCells(const std::vector<BandPlan>& plan, double expected) const {
         CraterList craters;
         craters.Reserve(static_cast<std::size_t>(expected));
-        for (const BandPlan& entry : plan) {
-            const BandRegion region = BandBounds(entry.band);
-            for (const CellIndex& cell : entry.cells) {
-                const std::shared_ptr<const CellCraters> drawn = DrawCell(entry.band, cell);
-                const CraterList& list = drawn->craters;
-                const Bounds2d reach =
-                    drawn->maxDiameter > entry.band.high
-                        ? surface_.Expand(region_, CandidateMargin(drawn->maxDiameter))
-                        : region.outer;
-                for (const std::uint32_t n : drawn->Rows(reach.minY, reach.maxY)) {
-                    if (OutsideBand(region, list.Diameters()[n], list.X()[n], list.Y()[n])) {
-                        continue;
-                    }
-                    const Crater crater = list.At(n);
-                    if (InBandRegion(region, crater) && Kept(crater)) {
-                        craters.Append(crater);
-                    }
-                }
+        std::vector<BandRegion> regions;
+        std::vector<std::pair<std::size_t, CellIndex>> cells;
+        for (std::size_t b = 0; b < plan.size(); ++b) {
+            regions.push_back(BandBounds(plan[b].band));
+            for (const CellIndex& cell : plan[b].cells) {
+                cells.emplace_back(b, cell);
             }
+        }
+        if (options_.threads == 1 || cells.size() < 2) {
+            for (const auto& [b, cell] : cells) {
+                DrawKept(plan[b].band, regions[b], cell, craters);
+            }
+            return craters;
+        }
+        std::vector<CraterList> kept(cells.size());
+        ParallelFor(cells.size(), options_.threads, [&](std::size_t n) {
+            const auto& [b, cell] = cells[n];
+            DrawKept(plan[b].band, regions[b], cell, kept[n]);
+        });
+        for (const CraterList& some : kept) {
+            craters.Append(some);
         }
         return craters;
     }
@@ -196,6 +204,26 @@ class Generation {
         Bounds2d inner;
         Bounds2d outer;
     };
+
+    /// Appends to `craters` those of `cell` of `band` kept in the band's `region`, in the order
+    /// drawn.
+    void DrawKept(const CraterBand& band, const BandRegion& region, const CellIndex& cell,
+                  CraterList& craters) const {
+        const std::shared_ptr<const CellCraters> drawn = DrawCell(band, cell);
+        const CraterList& list = drawn->craters;
+        const Bounds2d reach = drawn->maxDiameter > band.high
+                                   ? surface_.Expand(region_, CandidateMargin(drawn->maxDiameter))
+                                   : region.outer;
+        for (const std::uint32_t n : drawn->Rows(reach.minY, reach.maxY)) {
+            if (OutsideBand(region, list.Diameters()[n], list.X()[n], list.Y()[n])) {
+                continue;
+            }
+            const Crater crater = list.At(n);
+            if (InBandRegion(region, crater) && Kept(crater)) {
+                craters.Append(crater);
+            }
+        }
+    }
 
     BandRegion BandBounds(const CraterBand& band) const {
         return {band, surface_.Expand(region_, CandidateMargin(band.low)),

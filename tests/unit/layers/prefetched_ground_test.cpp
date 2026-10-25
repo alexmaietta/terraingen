@@ -11,8 +11,9 @@
 
 using terraingen::Ground;
 using terraingen::GroundRead;
-using terraingen::PrefetchedGround;
+using terraingen::GroundReads;
 using terraingen::RecordingGround;
+using terraingen::ReplayedGround;
 using terraingen::Span;
 using terraingen::Vec2d;
 
@@ -59,39 +60,65 @@ TEST(RecordingGround, RecordsEveryReadAndGivesZero) {
     EXPECT_EQ(reads[2].spacing, 2.0);
 }
 
-TEST(PrefetchedGround, ReadsEachDistinctPointOncePerSpacingAndFallsBackForOthers) {
+TEST(GroundReads, ReadsEachDistinctReadOnceInOneBatchPerSpacing) {
     const Counted ground;
-    std::vector<GroundRead> reads{{{1.0, 2.0}, 1.0}, {{3.0, -4.0}, 1.0}, {{1.0, 2.0}, 1.0},
-                                  {{1.0, 2.0}, 2.0}, {{0.0, 0.0}, 1.0},  {{-0.0, 0.0}, 1.0}};
-    const PrefetchedGround ahead(ground, reads);
-    EXPECT_EQ(ahead.Size(), 5u) << "duplicates are read once; -0 and 0 are distinct reads";
+    const std::vector<GroundRead> reads{{{1.0, 2.0}, 1.0},  {{3.0, -4.0}, 1.0}, {{1.0, 2.0}, 2.0},
+                                        {{0.0, 0.0}, 1.0},  {{1.0, 2.0}, 1.0},  {{-0.0, 0.0}, 1.0},
+                                        {{3.0, -4.0}, 1.0}, {{1.0, 2.0}, 2.0}};
+    const GroundReads held(ground, reads);
+    ASSERT_EQ(held.Heights().size(), reads.size());
+    for (std::size_t i = 0; i < reads.size(); ++i) {
+        const GroundRead& read = reads[i];
+        EXPECT_EQ(held.Heights()[i], Counted::Value(read.point.x, read.point.y, read.spacing));
+        ASSERT_NE(held.Find(read.point.x, read.point.y, read.spacing), nullptr);
+        EXPECT_EQ(*held.Find(read.point.x, read.point.y, read.spacing), held.Heights()[i]);
+    }
+    EXPECT_EQ(held.Distinct(), 5u) << "-0 and 0 are distinct reads";
     EXPECT_EQ(ground.batches.load(), 2u) << "one batch per spacing";
     EXPECT_EQ(ground.batched.load(), 5u);
     EXPECT_EQ(ground.single.load(), 0u);
-    for (const GroundRead& read : reads) {
-        EXPECT_EQ(ahead.HeightAt(read.point.x, read.point.y, read.spacing),
-                  Counted::Value(read.point.x, read.point.y, read.spacing));
-    }
-    EXPECT_EQ(ground.single.load(), 0u) << "held reads do not reach the ground";
-    EXPECT_EQ(ahead.HeightAt(3.0, -4.0, 2.0), Counted::Value(3.0, -4.0, 2.0));
-    EXPECT_EQ(ahead.HeightAt(9.0, 9.0, 1.0), Counted::Value(9.0, 9.0, 1.0));
-    EXPECT_EQ(ground.single.load(), 2u) << "another spacing or point is read from the ground";
-    const std::vector<Vec2d> points{{1.0, 2.0}, {7.0, 8.0}, {3.0, -4.0}, {-7.0, 1.0}};
+    EXPECT_EQ(held.Find(3.0, -4.0, 2.0), nullptr);
+    EXPECT_EQ(held.Find(9.0, 9.0, 1.0), nullptr);
+    EXPECT_EQ(&held.Read(), &ground);
+    const GroundReads none(ground, {});
+    EXPECT_TRUE(none.Heights().empty());
+    EXPECT_EQ(none.Find(1.0, 2.0, 1.0), nullptr);
+    EXPECT_EQ(ground.batches.load(), 2u);
+}
+
+TEST(ReplayedGround, ReplaysReadsInOrderFindsOthersHeldAndReadsTheRest) {
+    const Counted ground;
+    const std::vector<GroundRead> reads{{{1.0, 2.0}, 1.0},
+                                        {{3.0, -4.0}, 1.0},
+                                        {{5.0, 6.0}, 1.0},
+                                        {{7.0, 8.0}, 1.0},
+                                        {{0.0, 0.0}, 1.0}};
+    const GroundReads held(ground, reads);
+    const ReplayedGround replay(held, Span<const GroundRead>(reads).subspan(1), 1);
+    ground.batches = 0;
+    EXPECT_EQ(replay.HeightAt(3.0, -4.0, 1.0), Counted::Value(3.0, -4.0, 1.0));
+    EXPECT_EQ(replay.Replayed(), 1u);
+    EXPECT_EQ(replay.HeightAt(1.0, 2.0, 1.0), Counted::Value(1.0, 2.0, 1.0))
+        << "held, though out of order";
+    EXPECT_EQ(replay.Replayed(), 1u) << "a read out of order leaves the replay where it is";
+    EXPECT_EQ(ground.single.load(), 0u);
+    EXPECT_EQ(replay.HeightAt(3.0, -4.0, 2.0), Counted::Value(3.0, -4.0, 2.0));
+    EXPECT_EQ(ground.single.load(), 1u) << "another spacing is read from the ground";
+    const std::vector<Vec2d> points{{5.0, 6.0}, {9.0, 9.0}, {7.0, 8.0}};
     std::vector<float> heights(points.size());
-    ahead.HeightsAt(points, heights, 1.0);
+    replay.HeightsAt(points, heights, 1.0);
     for (std::size_t i = 0; i < points.size(); ++i) {
         EXPECT_EQ(heights[i], Counted::Value(points[i].x, points[i].y, 1.0));
     }
-    EXPECT_EQ(ground.batches.load(), 3u) << "the misses are read in one batch";
-    EXPECT_EQ(ground.batched.load(), 7u);
-}
-
-TEST(PrefetchedGround, HoldsNothingWithoutReads) {
-    const Counted ground;
-    const PrefetchedGround ahead(ground, {});
-    EXPECT_EQ(ahead.Size(), 0u);
-    EXPECT_EQ(ground.batches.load(), 0u);
-    EXPECT_EQ(ahead.HeightAt(1.0, 1.0, 1.0), Counted::Value(1.0, 1.0, 1.0));
+    EXPECT_EQ(ground.batches.load(), 1u) << "the misses are read in one batch";
+    EXPECT_EQ(ground.batched.load(), reads.size() + 1);
+    EXPECT_EQ(replay.Replayed(), 3u);
+    EXPECT_EQ(replay.HeightAt(-0.0, 0.0, 1.0), Counted::Value(-0.0, 0.0, 1.0));
+    EXPECT_EQ(ground.single.load(), 2u) << "-0 is not the recorded 0";
+    EXPECT_EQ(replay.HeightAt(0.0, 0.0, 1.0), Counted::Value(0.0, 0.0, 1.0));
+    EXPECT_EQ(replay.Replayed(), 4u);
+    EXPECT_EQ(replay.HeightAt(0.0, 0.0, 1.0), Counted::Value(0.0, 0.0, 1.0));
+    EXPECT_EQ(ground.single.load(), 2u) << "past the last recorded read, still held";
 }
 
 TEST(MapReadingGround, GivesTheValuesOfReadingTheGroundDirectly) {

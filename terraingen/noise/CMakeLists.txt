@@ -5,6 +5,7 @@
 terraingen_add_library(
     noise
     SOURCES
+    fractal_rows.cpp
     structure_function.cpp
     surface_noise.cpp
     validate.cpp

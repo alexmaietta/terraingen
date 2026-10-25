@@ -18,9 +18,8 @@ namespace {
 /// N1(T).
 double SampleFormationAge(RandomStream& random, const Chronology& chronology, double maxAgeGyr) {
     const double target = random.NextDouble() * chronology(maxAgeGyr);
-    const BisectionInterval age =
-        Bisect(0.0, maxAgeGyr, 100, 1e-15 * maxAgeGyr,
-               [&](double middle) { return !(chronology(middle) < target); });
+    const BisectionInterval age = BisectRising(0.0, maxAgeGyr, 100, 1e-15 * maxAgeGyr, target,
+                                               [&](double t) { return chronology(t); });
     return 0.5 * (age.low + age.high);
 }
 

@@ -8,7 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <numeric>
+#include <cstdint>
 #include <optional>
 #include <stdexcept>
 
@@ -172,23 +172,36 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
 }
 
 std::vector<std::size_t> CraterApplyOrder(const CraterList& craters, CraterOrder order) {
-    std::vector<std::size_t> indices(craters.Size());
-    std::iota(indices.begin(), indices.end(), std::size_t{0});
+    struct Key {
+        double age;
+        double diameter;
+        std::uint64_t id;
+        std::size_t index;
+    };
     const auto& age = craters.AgesGyr();
     const auto& diameter = craters.Diameters();
     const auto& id = craters.Ids();
-    std::sort(indices.begin(), indices.end(), [&](std::size_t a, std::size_t b) {
-        if (order == CraterOrder::OldestFirst && age[a] != age[b]) {
-            return age[a] > age[b];
+    std::vector<Key> keys(craters.Size());
+    for (std::size_t n = 0; n < keys.size(); ++n) {
+        keys[n] = {age[n], diameter[n], id[n], n};
+    }
+    const bool oldestFirst = order == CraterOrder::OldestFirst;
+    std::sort(keys.begin(), keys.end(), [oldestFirst](const Key& a, const Key& b) {
+        if (oldestFirst && a.age != b.age) {
+            return a.age > b.age;
         }
-        if (diameter[a] != diameter[b]) {
-            return diameter[a] > diameter[b];
+        if (a.diameter != b.diameter) {
+            return a.diameter > b.diameter;
         }
-        if (age[a] != age[b]) {
-            return age[a] > age[b];
+        if (a.age != b.age) {
+            return a.age > b.age;
         }
-        return id[a] < id[b];
+        return a.id != b.id ? a.id < b.id : a.index < b.index;
     });
+    std::vector<std::size_t> indices(keys.size());
+    for (std::size_t n = 0; n < keys.size(); ++n) {
+        indices[n] = keys[n].index;
+    }
     return indices;
 }
 
