@@ -15,6 +15,7 @@ terraingen_add_library(
     noise_relief.cpp
     masked.cpp
     pavement.cpp
+    prefetched_ground.cpp
     roughness.cpp
     roughness_estimate.cpp
     sand_fill.cpp

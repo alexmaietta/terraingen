@@ -15,6 +15,7 @@ terraingen_add_test_suite(
     noise_relief_test.cpp
     masked_test.cpp
     pavement_test.cpp
+    prefetched_ground_test.cpp
     source_resolved_test.cpp
     roughness_test.cpp
     roughness_estimate_test.cpp

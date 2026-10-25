@@ -5,6 +5,7 @@ terraingen_add_test_suite(
     SOURCES
     features_test.cpp
     generator_test.cpp
+    ground_reads_test.cpp
     materials_test.cpp
     mesh_build_test.cpp
     report_test.cpp
