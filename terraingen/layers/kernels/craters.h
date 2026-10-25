@@ -662,23 +662,41 @@ inline float KernelMarksWindow(float radii, float inner, float outer, float fade
            KernelSmoothstep((outer + fade - radii) / fade);
 }
 
-/// How far the outline reaches toward (`dx`, `dy`), over the round radius (`CraterOutline::Scale`).
-inline float KernelOutlineScale(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
+/// The outline's reach with its rough wobble kept by `share`, from 0 (none) to 1 (all): the rim
+/// table by `share` and each harmonic of order k by `share`^(k / 2), so the short ones fade first.
+inline float KernelOutlineScaleAt(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy,
+                                  float share) {
     const float theta = KernelAngle(dy, dx);
     const float scale =
         c.ellipticity != 1.0f ? KernelEllipseScale(theta, c.ellipticity, c.heading) : 1.0f;
     float wobble = 1.0f;
-    if (c.tableCount > 0u) {
+    if (c.tableCount > 0u && share > 0.0f) {
         const KernelPeriodicCell cell = KernelPeriodicAt(theta / kKernelTwoPi, c.tableCount);
-        wobble += (1.0f - cell.t) * CraterValue(data, c.tableOffset + cell.index) +
-                  cell.t * CraterValue(data, c.tableOffset + (cell.index + 1u) % c.tableCount);
+        wobble +=
+            share * ((1.0f - cell.t) * CraterValue(data, c.tableOffset + cell.index) +
+                     cell.t * CraterValue(data, c.tableOffset + (cell.index + 1u) % c.tableCount));
     }
-    for (uint32_t n = 0u; n < c.harmonicCount; ++n) {
-        const float order = float(c.firstHarmonic + n);
-        wobble += CraterValue(data, c.harmonicOffset + 2u * n) *
-                  cos(order * theta + CraterValue(data, c.harmonicOffset + 2u * n + 1u));
+    if (share > 0.0f) {
+        for (uint32_t n = 0u; n < c.harmonicCount; ++n) {
+            const float order = float(c.firstHarmonic + n);
+            const float kept = share < 1.0f ? pow(share, 0.5f * order) : 1.0f;
+            wobble += kept * CraterValue(data, c.harmonicOffset + 2u * n) *
+                      cos(order * theta + CraterValue(data, c.harmonicOffset + 2u * n + 1u));
+        }
     }
     return scale * wobble;
+}
+
+/// How far the outline reaches toward (`dx`, `dy`), over the round radius (`CraterOutline::Scale`).
+inline float KernelOutlineScale(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
+    return KernelOutlineScaleAt(data, c, dx, dy, 1.0f);
+}
+
+/// The share of an outline's rough wobble a crater's profile follows `radii` from its center:
+/// none at the center, rising along a smoothstep to all of it at the rim and beyond, so the floor
+/// stays round and rim kinks fade down the wall instead of running to the center.
+inline float KernelOutlineShare(float radii) {
+    return KernelSmoothstep(radii);
 }
 
 /// The shift in radii crater `c`'s wall marks add at `radii` toward (`dx`, `dy`)
@@ -706,7 +724,8 @@ inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float d
 inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
     float distance = sqrt(dx * dx + dy * dy);
     if (c.ellipticity != 1.0f || c.harmonicCount > 0u || c.tableCount > 0u || c.markCount > 0u) {
-        distance /= KernelOutlineScale(data, c, dx, dy);
+        distance /= KernelOutlineScaleAt(data, c, dx, dy,
+                                         KernelOutlineShare(distance / (0.5f * c.diameter)));
     }
     if (c.markCount > 0u) {
         const float radius = 0.5f * c.diameter;

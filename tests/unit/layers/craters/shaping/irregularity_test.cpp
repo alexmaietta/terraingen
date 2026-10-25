@@ -52,6 +52,46 @@ TEST(CraterProfileDistance, StretchesTheDistanceByTheOutline) {
         << "twice as long along the heading";
 }
 
+TEST(CraterProfileDistance, FadesARoughRimTowardARoundFloor) {
+    const Crater crater{0.0, 0.0, 100.0, 0.0, 9u, true};
+    CraterIrregularity irregularity;
+    irregularity.enabled = true;
+    irregularity.selection.manual = true;
+    irregularity.elongatedShare = 0.0;
+    irregularity.roughness = ValueDistribution::Constant(0.1);
+    const terraingen::CraterOutline outline = IrregularOutline(crater, irregularity);
+    ASSERT_FALSE(outline.amplitudes.empty());
+    const auto spread = [&](double radii) {
+        double low = 1e9;
+        double high = 0.0;
+        for (int k = 0; k < 720; ++k) {
+            const double angle = 2.0 * terraingen::kPi * k / 720.0;
+            const double read = terraingen::CraterProfileDistance(
+                crater, outline, 50.0 * radii * std::cos(angle), 50.0 * radii * std::sin(angle));
+            low = std::fmin(low, read);
+            high = std::fmax(high, read);
+        }
+        return (high - low) / (50.0 * radii);
+    };
+    EXPECT_LT(spread(0.1), 0.01) << "the floor stays round";
+    EXPECT_GT(spread(1.0), 0.15) << "the rim keeps its outline";
+    EXPECT_LT(spread(0.4), spread(1.0));
+    for (int k = 0; k < 360; ++k) {
+        const double angle = 2.0 * terraingen::kPi * k / 360.0;
+        double before = 0.0;
+        for (int step = 1; step <= 200; ++step) {
+            const double r = 0.75 * step;
+            const double read = terraingen::CraterProfileDistance(
+                crater, outline, r * std::cos(angle), r * std::sin(angle));
+            ASSERT_GT(read, before) << "the wall never folds, at " << k << " deg and " << r << " m";
+            before = read;
+        }
+    }
+    EXPECT_NEAR(terraingen::CraterProfileDistance(crater, outline, 80.0, 0.0),
+                80.0 / outline.Scale(80.0, 0.0), 1e-4)
+        << "beyond the rim the full outline";
+}
+
 TEST(IrregularOutline, ShapesOnlyEligibleCratersAndStaysTheSameForAnID) {
     CraterIrregularity irregularity;
     EXPECT_TRUE(IrregularOutline(At(1), irregularity).Round()) << "off by default";
