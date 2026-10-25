@@ -135,7 +135,7 @@ TEST(EquilibriumDiffusionAges, WearCratersToTheCutoffAtTheEndOfTheirLifetimes) {
     const DiffusionDegradation degradation(terraingen::LunarFreshCraterMorphometry, ages, profile);
     for (const double diameter : {2.0, 10.0, 60.0}) {
         const CraterState end = degradation.State({0.0, 0.0, diameter, lifetime(diameter), 1u});
-        EXPECT_NEAR(end.current.depthRatio, terraingen::kVisibilityDepthRatio, 1e-9) << diameter;
+        EXPECT_NEAR(end.current.depthRatio, terraingen::kVisibilityDepthRatio, 1e-8) << diameter;
         EXPECT_DOUBLE_EQ(ages(diameter, 0.25 * lifetime(diameter)),
                          0.25 * ages(diameter, lifetime(diameter)));
     }

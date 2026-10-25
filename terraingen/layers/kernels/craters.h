@@ -283,6 +283,17 @@ inline float KernelEjectaShare(float radii, float reachRadii) {
     return (1.0f / (radii * radii * radii) - atReach) / (1.0f - atReach);
 }
 
+/// Fassett and Thomson's exterior polynomial over the diameter at `x` radii, which falls to 0 at
+/// 1.5, tapered by 1 - u^2 for u from 0 where it starts at `start` radii to 1 there, so its slope
+/// also falls to 0 and the crater joins the ground smoothly; the taper leaves the height and slope
+/// where it starts unchanged.
+inline float FassettThomsonExterior(float x, float start) {
+    const float polynomial =
+        0.188253307f + x * (-0.187050452f + x * (0.01844746f + x * 0.01505647f));
+    const float u = (x - start) / (1.5f - start);
+    return polynomial * (1.0f - u * u);
+}
+
 /// `FassettThomsonProfile::Height` over the diameter.
 inline float FassettThomsonShape(float x, uint32_t rim, float freshRim, float currentDepth) {
     if (x > 1.5f) {
@@ -290,7 +301,6 @@ inline float FassettThomsonShape(float x, uint32_t rim, float freshRim, float cu
     }
     const float interior =
         -0.228809953f + x * (0.227533882f + x * (0.083116795f - x * 0.039499407f));
-    const float exterior = 0.188253307f + x * (-0.187050452f + x * (0.01844746f + x * 0.01505647f));
     float h = 0.0f;
     if (rim == 2u) {
         if (x <= 0.98f) {
@@ -298,7 +308,7 @@ inline float FassettThomsonShape(float x, uint32_t rim, float freshRim, float cu
         } else if (x <= 1.02f) {
             h = freshRim;
         } else {
-            h = exterior;
+            h = FassettThomsonExterior(x, 1.02f);
         }
     } else {
         const float edge = rim == 0u ? 0.98f : 1.0f;
@@ -307,7 +317,7 @@ inline float FassettThomsonShape(float x, uint32_t rim, float freshRim, float cu
         } else if (x <= edge) {
             h = interior;
         } else {
-            h = exterior;
+            h = FassettThomsonExterior(x, edge);
         }
     }
     return max(h, freshRim - currentDepth);
@@ -354,7 +364,8 @@ inline float MartinParkesDunstanHeight(float distance, float diameter, KERNEL_IN
     if (x <= 0.0f) {
         return k * (alpha + 1.0f) / alpha * x * x + rim;
     }
-    const float ejectaScale = KernelEjectaScale(radius);
+    const float ejectaScale =
+        freshRim > 0.0f ? KernelEjectaScale(radius) * rim / freshRim : KernelEjectaScale(radius);
     const float beta = min(1.0f, 1.5f * (freshRim - rim) / k);
     if (x <= beta) {
         const KernelProfilePoint join = MartinParkesDunstanExterior(beta, rim, ejectaScale);
@@ -722,6 +733,13 @@ inline float KernelOutlineShare(float radii) {
     return KernelSmoothstep(radii);
 }
 
+/// The share of an outline's rough wobble crater `c` keeps as it wears: its current rim height over
+/// its fresh one, so worn rims lose their short wiggles first and round out as they lower, as
+/// diffusion rounds them; 1 without a fresh rim height.
+inline float KernelWornOutlineShare(KERNEL_IN(CraterRecord) c) {
+    return c.freshRim > 0.0f ? clamp(c.currentRim / c.freshRim, 0.0f, 1.0f) : 1.0f;
+}
+
 /// The shift in radii crater `c`'s wall marks add at `radii` toward (`dx`, `dy`)
 /// (`CraterOutline::MarkShift`).
 inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy,
@@ -747,8 +765,9 @@ inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float d
 inline float KernelProfileDistance(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy) {
     float distance = sqrt(dx * dx + dy * dy);
     if (c.ellipticity != 1.0f || c.harmonicCount > 0u || c.tableCount > 0u || c.markCount > 0u) {
-        distance /= KernelOutlineScaleAt(data, c, dx, dy,
-                                         KernelOutlineShare(distance / (0.5f * c.diameter)));
+        const float share =
+            KernelOutlineShare(distance / (0.5f * c.diameter)) * KernelWornOutlineShare(c);
+        distance /= KernelOutlineScaleAt(data, c, dx, dy, share);
     }
     if (c.markCount > 0u) {
         const float radius = 0.5f * c.diameter;

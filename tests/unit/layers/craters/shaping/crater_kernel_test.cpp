@@ -530,3 +530,65 @@ TEST(KernelEjectaShare, FallsAsTheInverseCubeAndTapersToTheReach) {
     EXPECT_EQ(terraingen::KernelEjectaShare(3.0f, 3.0f), 0.0f);
     EXPECT_FLOAT_EQ(terraingen::KernelEjectaScale(1.0f), 0.14f);
 }
+
+TEST(KernelWornOutlineShare, KeepsTheWobbleInProportionToTheRimLeft) {
+    terraingen::CraterRecord record{};
+    EXPECT_EQ(terraingen::KernelWornOutlineShare(record), 1.0f) << "no fresh rim";
+    record.freshRim = 0.04f;
+    record.currentRim = 0.04f;
+    EXPECT_EQ(terraingen::KernelWornOutlineShare(record), 1.0f);
+    record.currentRim = 0.01f;
+    EXPECT_FLOAT_EQ(terraingen::KernelWornOutlineShare(record), 0.25f);
+    record.currentRim = 0.0f;
+    EXPECT_EQ(terraingen::KernelWornOutlineShare(record), 0.0f);
+}
+
+TEST(CraterKernel, WornRimsRoundOutTheirShortWiggles) {
+    CraterApplyOptions options;
+    options.irregularity.enabled = true;
+    options.irregularity.selection.manual = true;
+    const Crater crater{0.0, 0.0, 200.0, 0.0, 11u, true};
+    const terraingen::CraterOutline outline =
+        terraingen::IrregularOutline(crater, options.irregularity);
+    ASSERT_FALSE(outline.Round());
+    const auto spread = [&](float currentRim) {
+        terraingen::CraterRecord record{};
+        std::vector<float> data;
+        terraingen::AppendKernelOutline(outline, record, data);
+        record.diameter = 200.0f;
+        record.freshRim = 0.04f;
+        record.currentRim = currentRim;
+        terraingen::CraterData view;
+        view.values = data.data();
+        double lowest = 1e9;
+        double highest = 0.0;
+        for (int k = 0; k < 720; ++k) {
+            const double a = terraingen::kPi * k / 360.0;
+            const double d = terraingen::KernelProfileDistance(
+                view, record, static_cast<float>(100.0 * std::cos(a)),
+                static_cast<float>(100.0 * std::sin(a)));
+            lowest = std::min(lowest, d);
+            highest = std::max(highest, d);
+        }
+        return highest - lowest;
+    };
+    const double fresh = spread(0.04f);
+    const double worn = spread(0.01f);
+    EXPECT_GT(fresh, 1.0) << "a rough fresh rim";
+    EXPECT_LT(worn, 0.5 * fresh) << "a worn rim follows less of the wobble";
+}
+
+TEST(MartinParkesDunstanProfile, WornEjectaLowersWithTheRimAndNeverDipsBelowTheGround) {
+    const terraingen::MartinParkesDunstanProfile profile;
+    const double d = 150.0;
+    const CraterState fresh{{0.2, 0.036}, {0.2, 0.036}};
+    for (const double freshness : {0.7, 0.4, 0.2, 0.05}) {
+        const CraterState worn{{0.2, 0.036}, {0.2 * (0.2 + 0.8 * freshness), 0.036 * freshness}};
+        for (double r = 76.0; r < 150.0; r += 0.5) {
+            EXPECT_GE(profile.Height(r, d, worn), 0.0) << freshness << " at " << r;
+        }
+        EXPECT_NEAR(profile.Height(140.0, d, worn), freshness * profile.Height(140.0, d, fresh),
+                    1e-4)
+            << "beyond the rounded rim the ejecta is the fresh ejecta lowered with the rim";
+    }
+}

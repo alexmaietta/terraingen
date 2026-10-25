@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
@@ -31,6 +32,12 @@ double Exterior(double x) {
     return 0.188253307 - 0.187050452 * x + 0.01844746 * x * x + 0.01505647 * x * x * x;
 }
 
+/// `Exterior` tapered to a zero slope at 1.5 radii from where it starts at `start` radii.
+double TaperedExterior(double x, double start) {
+    const double u = (x - start) / (1.5 - start);
+    return Exterior(x) * (1.0 - u * u);
+}
+
 }  // namespace
 
 TEST(FassettThomsonProfile, EvaluatesTheFitsWithAFlatFloor) {
@@ -39,7 +46,7 @@ TEST(FassettThomsonProfile, EvaluatesTheFitsWithAFlatFloor) {
     const CraterState deep = Fresh(kLunarFreshRimHeightRatio + 0.181);
     EXPECT_NEAR(profile.Height(0.0, d, deep), -0.181 * d, 1e-7 * d);
     EXPECT_NEAR(profile.Height(0.6 * 50.0, d, deep), Interior(0.6) * d, 1e-7 * d);
-    EXPECT_NEAR(profile.Height(1.2 * 50.0, d, deep), Exterior(1.2) * d, 1e-7 * d);
+    EXPECT_NEAR(profile.Height(1.2 * 50.0, d, deep), TaperedExterior(1.2, 0.98) * d, 1e-7 * d);
     EXPECT_EQ(profile.Height(1.51 * 50.0, d, deep), 0.0);
     EXPECT_EQ(profile.ReachRadii(), 1.5);
     const CraterState shallow = Fresh(0.13);
@@ -70,5 +77,29 @@ TEST(FassettThomsonProfile, RimVariantsJoinAsPublished) {
         const double h = original.Height(i * 0.01 * 0.5 * d, d, state);
         EXPECT_GE(h, previous - 1e-12) << i;
         previous = h;
+    }
+}
+
+TEST(FassettThomsonProfile, ExteriorEasesToTheGroundAtItsReach) {
+    const double d = 150.0;
+    const double radius = 0.5 * d;
+    const double step = 0.01;
+    const CraterState state = Fresh(0.2);
+    for (const auto rim : {FassettThomsonRim::Original, FassettThomsonRim::AtOneRadius,
+                           FassettThomsonRim::Plateau}) {
+        const FassettThomsonProfile profile(rim);
+        double previous = 0.0;
+        double largest = 0.0;
+        for (double r = 1.03 * radius; r + step < 1.5 * radius; r += step) {
+            const double slope =
+                (profile.Height(r + step, d, state) - profile.Height(r, d, state)) / step;
+            if (r > 1.03 * radius) {
+                largest = std::max(largest, std::fabs(slope - previous));
+            }
+            previous = slope;
+        }
+        EXPECT_LT(largest, 2e-3) << "a slope break on the exterior";
+        EXPECT_LT(std::fabs(previous), 2e-3) << "the exterior still slopes at its reach";
+        EXPECT_GE(profile.Height(1.4 * radius, d, state), 0.0);
     }
 }
