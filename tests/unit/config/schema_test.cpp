@@ -553,8 +553,8 @@ TEST(ConfigSchema, GivesGeoTiffReadsACropAndLayersASourceResolvedLimit) {
     for (const SchemaJson& field : diamondSquare["fields"]) {
         fractal.push_back(field["name"]);
     }
-    EXPECT_EQ(fractal, (std::vector<std::string>{"fractal_dimension", "scale_m", "interp",
-                                                 "min_pixel_size_m", "seed"}));
+    EXPECT_EQ(fractal, (std::vector<std::string>{"fractal_dimension", "scale_m", "fit_window_px",
+                                                 "interp", "min_pixel_size_m", "seed"}));
     const SchemaJson synthetic = AlternativeOf(Resolve(schema, base["of"]), "synthetic");
     EXPECT_EQ(FieldOf(synthetic, "upsampling")["schema"]["of"],
               FieldOf(raster, "upsampling")["schema"]);

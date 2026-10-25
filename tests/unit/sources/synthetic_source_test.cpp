@@ -101,7 +101,7 @@ TEST(SyntheticSource, RefinesItsPostsWithDiamondSquare) {
         source.UpsamplerInUse());
     ASSERT_NE(fitted, nullptr);
     EXPECT_TRUE(fitted->Options().fractalDimension.has_value()) << "estimated from the posts";
-    EXPECT_TRUE(fitted->Options().scale.has_value());
+    EXPECT_FALSE(fitted->Options().scale.has_value()) << "fitted window by window as it refines";
     const float post = terraingen::NoiseLayersAt(Hills().layers, {}, {}, 16.0, -24.0);
     EXPECT_EQ(source.HeightAt(16.0, -24.0, 0.5), post);
     ExpectPointsTilesAndGridAgree(source, {24, 18, GeoTransform::NorthUp(-31.0, 17.0, 0.9)});

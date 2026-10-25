@@ -569,7 +569,46 @@ def test_diamond_square_upsampling_expands_posts_keeping_them():
     with pytest.raises(ValueError):
         terraingen.validate_diamond_square_options(terraingen.DiamondSquareOptions(fractal_dimension=3.5))
     fitted = terraingen.DiamondSquareUpsampler().fit_to(terraingen.RasterPosts(heights))
+    assert fitted.options.scale is None and fitted.options.fractal_dimension is not None
+    whole = terraingen.DiamondSquareUpsampler(terraingen.DiamondSquareOptions(fit_window=0))
+    fitted = whole.fit_to(terraingen.RasterPosts(heights))
     assert fitted.options.scale > 0.0 and fitted.options.fractal_dimension is not None
+
+
+def test_diamond_square_fits_its_scale_window_by_window():
+    assert terraingen.DiamondSquareOptions().fit_window == 32
+    assert terraingen.DiamondSquareOptions(fit_window=0) != terraingen.DiamondSquareOptions()
+    terraingen.validate_diamond_square_options(terraingen.DiamondSquareOptions(fit_window=4))
+    for bad in (3, terraingen.MAX_DIAMOND_SQUARE_FIT_WINDOW + 1):
+        with pytest.raises(ValueError):
+            terraingen.DiamondSquareOptions(fit_window=bad).validate()
+
+    rows, cols = np.mgrid[0:64, 0:64]
+    rough = np.where(cols < 32, np.sin(1.7 * cols + 2.3 * rows), 0.01 * np.sin(1.7 * cols + 2.3 * rows))
+    posts = terraingen.Raster.from_array(
+        rough.astype(np.float32), terraingen.GeoTransform.north_up(0.0, 256.0, 4.0)
+    )
+    lattice = terraingen.RasterPosts(posts)
+    whole = terraingen.DiamondSquareUpsampler(terraingen.DiamondSquareOptions(fit_window=0)).fit_to(lattice)
+    assert whole.options.scale == pytest.approx(terraingen.estimate_midpoint_scale(posts))
+    assert terraingen.estimate_midpoint_roughness(posts).scale == terraingen.estimate_midpoint_scale(posts)
+
+    options = terraingen.DiamondSquareOptions(fractal_dimension=2.4, fit_window=8, seed=3)
+    upsampler = terraingen.DiamondSquareUpsampler(options)
+    assert upsampler.fit_to(lattice) is None, "nothing left to fit"
+    unscaled = terraingen.DiamondSquareOptions(fractal_dimension=2.4, scale=0.0)
+    smooth = terraingen.DiamondSquareUpsampler(unscaled)
+    grid = terraingen.RasterGrid(256, 256, terraingen.GeoTransform.north_up(0.0, 256.0, 1.0))
+
+    def refined(refiner):
+        source = terraingen.RasterSource(posts, upsampler=refiner)
+        return terraingen.evaluate(terraingen.TerrainGenerator(source), grid=grid).values
+
+    added = refined(upsampler) - refined(smooth)
+    assert np.all(np.isfinite(added))
+    west = np.abs(added[16:-16, 16:96]).mean()
+    east = np.abs(added[16:-16, 160:240]).mean()
+    assert 0.0 < east < 0.05 * west, "the smooth half keeps its own small roughness"
 
 
 def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum():

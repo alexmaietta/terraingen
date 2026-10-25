@@ -30,13 +30,21 @@ template <typename IO> void Fields(IO& io, Bounds2d& box) {
 template <typename IO> void Fields(IO& io, DiamondSquareOptions& options) {
     io("fractal_dimension", options.fractalDimension,
        "Fractal dimension, from 2 (smooth) to 3 (rough): each square or diamond step scales the "
-       "displacement by 2^-((3 - F) / 2). Unset estimates it from the posts' variogram.",
+       "displacement by 2^-((3 - F) / 2). Unset estimates it from the median height differences of "
+       "the posts at lags of 1 to 8 posts.",
        "", Between(2.0, 3.0));
     io("scale_m", options.scale,
        "Standard deviation in meters of the displacement at the posts' own last diamond step. "
-       "Unset estimates it from the posts as the RMS of each post minus the mean of its four "
-       "neighbors.",
+       "Unset estimates it from the posts, window by window (fit_window_px), as 1.4826 times the "
+       "median absolute difference of each post and the mean of its four neighbors, so craters "
+       "and massifs do not roughen the plains around them.",
        "m", AtLeast(0.0));
+    io("fit_window_px", options.fitWindow,
+       "Side in posts of the overlapping windows, centered every half side, that an unset "
+       "scale_m is fitted over; each node's scale is bilinear between the windows around it. 0 "
+       "fits one scale to a sample of the posts; else 4 to " +
+           std::to_string(kMaxDiamondSquareFitWindow) + ".",
+       "px", Between(0.0, static_cast<double>(kMaxDiamondSquareFitWindow)));
     io("interp", options.interp,
        "How new nodes are filled from the coarser ones and samples read between the finest "
        "nodes.");

@@ -5,12 +5,14 @@
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/raster/variogram.h"
 #include "terraingen/sources/raster_source.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/fft.h"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstddef>
@@ -26,6 +28,7 @@ using terraingen::DiamondSquareInterp;
 using terraingen::DiamondSquareOptions;
 using terraingen::DiamondSquareUpsampler;
 using terraingen::EstimateMidpointRoughness;
+using terraingen::EstimateMidpointScale;
 using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::RasterGrid;
@@ -119,6 +122,92 @@ Raster<float> GoldenDem() {
     return dem;
 }
 
+/// A periodic 256 x 256 fractional Brownian surface of fractal dimension `dimension` from its
+/// spectrum, scaled to a standard deviation of 1.
+Raster<float> FractionalBrownianSurface(double dimension) {
+    constexpr std::size_t kSize = 256;
+    const double hurst = 3.0 - dimension;
+    std::vector<std::complex<double>> spectrum(kSize * kSize);
+    for (std::size_t v = 0; v < kSize; ++v) {
+        for (std::size_t u = 0; u < kSize; ++u) {
+            const double ku = static_cast<double>(u <= kSize / 2 ? u : kSize - u);
+            const double kv = static_cast<double>(v <= kSize / 2 ? v : kSize - v);
+            const double k = std::hypot(ku, kv);
+            if (k == 0.0) {
+                continue;
+            }
+            terraingen::RandomStream random(3, 0, static_cast<std::uint32_t>(u),
+                                            static_cast<std::uint32_t>(v));
+            const double amplitude =
+                std::pow(k, -(hurst + 1.0)) * terraingen::StandardNormal(random);
+            const double phase = 2.0 * terraingen::kPi * random.NextDouble();
+            spectrum[v * kSize + u] = {amplitude * std::cos(phase), amplitude * std::sin(phase)};
+        }
+    }
+    std::vector<std::complex<double>> line(kSize);
+    for (int pass = 0; pass < 2; ++pass) {
+        for (std::size_t a = 0; a < kSize; ++a) {
+            for (std::size_t b = 0; b < kSize; ++b) {
+                line[b] = pass == 0 ? spectrum[a * kSize + b] : spectrum[b * kSize + a];
+            }
+            terraingen::Fft(line, 1.0);
+            for (std::size_t b = 0; b < kSize; ++b) {
+                (pass == 0 ? spectrum[a * kSize + b] : spectrum[b * kSize + a]) = line[b];
+            }
+        }
+    }
+    double sum = 0.0;
+    double squares = 0.0;
+    for (const std::complex<double>& value : spectrum) {
+        sum += value.real();
+        squares += value.real() * value.real();
+    }
+    const double count = static_cast<double>(spectrum.size());
+    const double mean = sum / count;
+    const double deviation = std::sqrt(squares / count - mean * mean);
+    Raster<float> heights(kSize, kSize);
+    heights.SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
+    for (std::size_t i = 0; i < spectrum.size(); ++i) {
+        heights(i % kSize, i / kSize) = static_cast<float>((spectrum[i].real() - mean) / deviation);
+    }
+    return heights;
+}
+
+/// `heights` with a parabolic bowl `depth` deep and `radius` cells across its rim centered on
+/// cell (128, 128), and, with `rim`, a raised rim a tenth of the depth high whose ejecta falls
+/// off as the cube of the distance; without it the cells beyond the rim are unchanged.
+Raster<float> WithBowl(Raster<float> heights, double depth, double radius, bool rim) {
+    const double height = rim ? 0.1 * depth : 0.0;
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            const double r =
+                std::hypot(static_cast<double>(col) - 128.0, static_cast<double>(row) - 128.0) /
+                radius;
+            const double bowl = r < 1.0 ? depth * (r * r - 1.0) + height : height / (r * r * r);
+            heights(col, row) += static_cast<float>(bowl);
+        }
+    }
+    return heights;
+}
+
+/// `heights` as bounded posts, its cell (0, 0) post (0, 0).
+terraingen::RasterPosts Posts(const Raster<float>& heights) {
+    const auto shared = std::make_shared<const Raster<float>>(heights);
+    return terraingen::RasterPosts(shared, terraingen::RasterPlacement::Whole(*shared));
+}
+
+/// Cells [`col0`, `col0` + `width`) x [`row0`, `row0` + `height`) of `heights`.
+Raster<float> Crop(const Raster<float>& heights, std::size_t col0, std::size_t row0,
+                   std::size_t width, std::size_t height) {
+    Raster<float> crop(width, height);
+    for (std::size_t row = 0; row < height; ++row) {
+        for (std::size_t col = 0; col < width; ++col) {
+            crop(col, row) = heights(col0 + col, row0 + row);
+        }
+    }
+    return crop;
+}
+
 }  // namespace
 
 TEST(DiamondSquareOptions, RejectInvalidValues) {
@@ -135,12 +224,26 @@ TEST(DiamondSquareOptions, RejectInvalidValues) {
     rejects([](DiamondSquareOptions& o) { o.fractalDimension = std::nan(""); });
     rejects([](DiamondSquareOptions& o) { o.scale = -1.0; });
     rejects([](DiamondSquareOptions& o) { o.minPixelSize = -1.0; });
+    rejects([](DiamondSquareOptions& o) { o.fitWindow = 1; });
+    rejects([](DiamondSquareOptions& o) { o.fitWindow = 3; });
+    rejects(
+        [](DiamondSquareOptions& o) { o.fitWindow = terraingen::kMaxDiamondSquareFitWindow + 1; });
+    for (const std::size_t window :
+         {std::size_t{0}, std::size_t{4}, std::size_t{5}, terraingen::kMaxDiamondSquareFitWindow}) {
+        DiamondSquareOptions options = Options();
+        options.fitWindow = window;
+        EXPECT_NO_THROW(terraingen::ValidateDiamondSquareOptions(options)) << window;
+    }
+    EXPECT_EQ(DiamondSquareOptions{}.fitWindow, 32u);
 }
 
 TEST(DiamondSquareOptions, CompareMemberwise) {
     DiamondSquareOptions other = Options();
     EXPECT_EQ(Options(), other);
     other.seed = 8;
+    EXPECT_NE(Options(), other);
+    other = Options();
+    other.fitWindow = 16;
     EXPECT_NE(Options(), other);
     EXPECT_NE(Options(), Options(DiamondSquareInterp::CatmullRom));
 }
@@ -254,11 +357,29 @@ TEST(DiamondSquareUpsampler, NestedGridsShareTheCoarserGridsCells) {
 }
 
 TEST(DiamondSquareUpsampler, PointsAndTilesMatchAGridOffTheLattice) {
-    const FunctionPosts posts(Hills);
+    const FunctionPosts hills(Hills);
+    const terraingen::RasterPosts bounded =
+        Posts(WithBowl(FractionalBrownianSurface(2.4), 40.0, 12.0, true));
+    std::vector<DiamondSquareOptions> variants;
     for (const DiamondSquareInterp interp :
          {DiamondSquareInterp::Bilinear, DiamondSquareInterp::CatmullRom}) {
-        const DiamondSquareUpsampler upsampler(Options(interp));
-        const RasterGrid grid{300, 140, GeoTransform::NorthUp(-31.3, 17.9, 0.7)};
+        variants.push_back(Options(interp));
+        DiamondSquareOptions windowed = Options(interp);
+        windowed.scale.reset();
+        windowed.fitWindow = 8;
+        variants.push_back(windowed);
+    }
+    struct Lattice {
+        const terraingen::PostLattice* posts;
+        RasterGrid grid;
+    };
+    const std::vector<Lattice> lattices{
+        {&hills, {300, 140, GeoTransform::NorthUp(-31.3, 17.9, 0.7)}},
+        {&bounded, {300, 140, GeoTransform::NorthUp(-40.3, 17.9, 0.7)}}};
+    for (std::size_t variant = 0; variant < lattices.size() * variants.size(); ++variant) {
+        const DiamondSquareUpsampler upsampler(variants[variant % variants.size()]);
+        const terraingen::PostLattice& posts = *lattices[variant / variants.size()].posts;
+        const RasterGrid& grid = lattices[variant / variants.size()].grid;
         const Raster<float> whole = Fill(upsampler, posts, grid);
         const RasterGrid tile = terraingen::Subgrid(grid, {130, 170, 120, 140});
         const Raster<float> part = Fill(upsampler, posts, tile);
@@ -302,6 +423,13 @@ TEST(DiamondSquareUpsampler, NeedsItsRoughnessAndAnUnrotatedLattice) {
     const DiamondSquareUpsampler unfitted{DiamondSquareOptions{}};
     EXPECT_THROW(static_cast<void>(unfitted.HeightAt(posts, 1.0, 1.0, 1.0)), std::invalid_argument);
     EXPECT_THROW(RefinedNodes(DiamondSquareOptions{}, posts, 1, 0, 0, 1, 1), std::invalid_argument);
+    DiamondSquareOptions windowed = Options();
+    windowed.scale.reset();
+    EXPECT_TRUE(std::isfinite(DiamondSquareUpsampler(windowed).HeightAt(posts, 1.3, 1.1, 1.0)))
+        << "a scale fitted window by window needs no fit";
+    windowed.fitWindow = 0;
+    EXPECT_THROW(static_cast<void>(DiamondSquareUpsampler(windowed).HeightAt(posts, 1.3, 1.1, 1.0)),
+                 std::invalid_argument);
     Raster<float> rotated(8, 8, 1.0f);
     rotated.SetTransform(GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
     const auto shared = std::make_shared<const Raster<float>>(rotated);
@@ -331,6 +459,7 @@ TEST(DiamondSquareUpsampler, FitsAnUnsetRoughnessToThePosts) {
         }
         const terraingen::RasterPosts expanded(raster, terraingen::RasterPlacement::Whole(*raster));
         DiamondSquareOptions unset;
+        unset.fitWindow = 0;
         unset.seed = 9;
         const auto fitted = std::dynamic_pointer_cast<const DiamondSquareUpsampler>(
             DiamondSquareUpsampler(unset).FitTo(expanded));
@@ -344,12 +473,61 @@ TEST(DiamondSquareUpsampler, FitsAnUnsetRoughnessToThePosts) {
         const auto partly = std::dynamic_pointer_cast<const DiamondSquareUpsampler>(
             DiamondSquareUpsampler(half).FitTo(expanded));
         EXPECT_EQ(*partly->Options().scale, 1.0) << "a given scale is kept";
+
+        DiamondSquareOptions windowed;
+        windowed.fitWindow = 16;
+        const auto local = std::dynamic_pointer_cast<const DiamondSquareUpsampler>(
+            DiamondSquareUpsampler(windowed).FitTo(expanded));
+        ASSERT_NE(local, nullptr);
+        EXPECT_EQ(local->Options().fractalDimension, fitted->Options().fractalDimension);
+        EXPECT_FALSE(local->Options().scale) << "read window by window as it refines";
+        const MidpointRefiner refiner(local->Options());
+        const double node = refiner.NodeScale(expanded, 2 * 256, -2 * 256, 1);
+        EXPECT_NEAR(node, last, 0.5 * last) << dimension;
+        EXPECT_EQ(node, EstimateMidpointScale(Crop(*raster, 248, 248, 16, 16)))
+            << "a node on a window's center takes that window's fit";
+        EXPECT_EQ(DiamondSquareUpsampler(local->Options()).FitTo(expanded), nullptr);
     }
 
+    DiamondSquareOptions whole;
+    whole.fitWindow = 0;
     const auto unbounded = std::dynamic_pointer_cast<const DiamondSquareUpsampler>(
-        DiamondSquareUpsampler{DiamondSquareOptions{}}.FitTo(posts));
+        DiamondSquareUpsampler{whole}.FitTo(posts));
     ASSERT_NE(unbounded, nullptr);
     EXPECT_GT(*unbounded->Options().scale, 0.0);
+}
+
+TEST(DiamondSquareUpsampler, FitsEachWindowToItsOwnPostsSoABowlRoughensOnlyItsNeighborhood) {
+    const Raster<float> gentle = FractionalBrownianSurface(2.4);
+    const Raster<float> cratered = WithBowl(gentle, 300.0, 30.0, false);
+    const terraingen::RasterPosts plain = Posts(gentle);
+    const terraingen::RasterPosts bowl = Posts(cratered);
+    DiamondSquareOptions options = Options();
+    options.scale.reset();
+    options.fitWindow = 16;
+    for (const DiamondSquareInterp interp :
+         {DiamondSquareInterp::Bilinear, DiamondSquareInterp::CatmullRom}) {
+        options.interp = interp;
+        const MidpointNodes far = RefinedNodes(options, plain, 2, 820, -600, 940, -400);
+        const MidpointNodes same = RefinedNodes(options, bowl, 2, 820, -600, 940, -400);
+        EXPECT_EQ(far.values, same.values) << "posts 205 to 235 across are 47 beyond the rim";
+    }
+    const MidpointRefiner refiner(options);
+    const double inside = refiner.NodeScale(bowl, 256, -256, 1);
+    const double outside = refiner.NodeScale(bowl, 440, -256, 1);
+    EXPECT_EQ(outside, refiner.NodeScale(plain, 440, -256, 1));
+    EXPECT_GT(inside, 3.0 * outside) << "the bowl's own windows are rough";
+
+    DiamondSquareOptions whole = options;
+    whole.fitWindow = 0;
+    const auto global = [&](const terraingen::PostLattice& posts) {
+        const auto fitted = std::dynamic_pointer_cast<const DiamondSquareUpsampler>(
+            DiamondSquareUpsampler(whole).FitTo(posts));
+        return fitted ? *fitted->Options().scale : -1.0;
+    };
+    EXPECT_GT(global(plain), 0.0);
+    EXPECT_NEAR(global(bowl), global(plain), 0.12 * global(plain))
+        << "a scale fitted to all the posts by medians is not set by the bowl either";
 }
 
 TEST(DiamondSquareUpsampler, MatchesTheMidpointDisplacementLayerItReplaces) {
@@ -404,44 +582,42 @@ TEST(EstimateMidpointRoughness, HandlesFlatGroundNoDataAndSmallRasters) {
 }
 
 TEST(EstimateMidpointRoughness, RecoversTheDimensionOfFractionalBrownianSurfaces) {
-    constexpr std::size_t kSize = 256;
     for (const auto [dimension, tolerance] : {std::pair{2.2, 0.1}, {2.5, 0.1}, {2.8, 0.2}}) {
-        const double hurst = 3.0 - dimension;
-        std::vector<std::complex<double>> spectrum(kSize * kSize);
-        for (std::size_t v = 0; v < kSize; ++v) {
-            for (std::size_t u = 0; u < kSize; ++u) {
-                const double ku = static_cast<double>(u <= kSize / 2 ? u : kSize - u);
-                const double kv = static_cast<double>(v <= kSize / 2 ? v : kSize - v);
-                const double k = std::hypot(ku, kv);
-                if (k == 0.0) {
-                    continue;
-                }
-                terraingen::RandomStream random(3, 0, static_cast<std::uint32_t>(u),
-                                                static_cast<std::uint32_t>(v));
-                const double amplitude =
-                    std::pow(k, -(hurst + 1.0)) * terraingen::StandardNormal(random);
-                const double phase = 2.0 * terraingen::kPi * random.NextDouble();
-                spectrum[v * kSize + u] = {amplitude * std::cos(phase),
-                                           amplitude * std::sin(phase)};
-            }
-        }
-        std::vector<std::complex<double>> line(kSize);
-        for (int pass = 0; pass < 2; ++pass) {
-            for (std::size_t a = 0; a < kSize; ++a) {
-                for (std::size_t b = 0; b < kSize; ++b) {
-                    line[b] = pass == 0 ? spectrum[a * kSize + b] : spectrum[b * kSize + a];
-                }
-                terraingen::Fft(line, 1.0);
-                for (std::size_t b = 0; b < kSize; ++b) {
-                    (pass == 0 ? spectrum[a * kSize + b] : spectrum[b * kSize + a]) = line[b];
-                }
-            }
-        }
-        Raster<float> heights(kSize, kSize);
-        for (std::size_t i = 0; i < spectrum.size(); ++i) {
-            heights(i % kSize, i / kSize) = static_cast<float>(spectrum[i].real());
-        }
+        const Raster<float> heights = FractionalBrownianSurface(dimension);
         EXPECT_NEAR(EstimateMidpointRoughness(heights).fractalDimension, dimension, tolerance)
             << dimension;
     }
+}
+
+TEST(EstimateMidpointRoughness, IsNotSetByOneLargeBowlInGentleRelief) {
+    for (const double dimension : {2.3, 2.5}) {
+        const Raster<float> gentle = FractionalBrownianSurface(dimension);
+        const Raster<float> cratered = WithBowl(gentle, 100.0, 30.0, true);
+        const auto alone = EstimateMidpointRoughness(gentle);
+        const auto bowl = EstimateMidpointRoughness(cratered);
+        EXPECT_GT(alone.scale, 0.0);
+        EXPECT_NEAR(bowl.scale, alone.scale, 0.12 * alone.scale) << dimension;
+        EXPECT_NEAR(bowl.fractalDimension, alone.fractalDimension, 0.05) << dimension;
+        EXPECT_EQ(EstimateMidpointScale(cratered), bowl.scale);
+        const auto rms = [](const Raster<float>& heights) {
+            return 3.0 - std::clamp(terraingen::FitDeviogram(heights).slope, 0.0, 1.0);
+        };
+        EXPECT_GT(rms(gentle) - rms(cratered), 0.15)
+            << "the RMS variogram the estimate replaced is set by the bowl";
+    }
+}
+
+TEST(EstimateMidpointScale, IsTheRmsOfGaussianResidualsAndZeroWithoutThem) {
+    Raster<float> noise(200, 200);
+    for (std::size_t row = 0; row < noise.Height(); ++row) {
+        for (std::size_t col = 0; col < noise.Width(); ++col) {
+            terraingen::RandomStream random(5, 0, static_cast<std::uint32_t>(col),
+                                            static_cast<std::uint32_t>(row));
+            noise(col, row) = static_cast<float>(terraingen::StandardNormal(random));
+        }
+    }
+    EXPECT_NEAR(EstimateMidpointScale(noise), std::sqrt(1.25), 0.03)
+        << "a cell minus the mean of four independent neighbors has a variance of 1 + 1/4";
+    EXPECT_EQ(EstimateMidpointScale(Raster<float>(8, 8, 3.0f)), 0.0);
+    EXPECT_EQ(EstimateMidpointScale(Raster<float>(2, 2, 1.0f)), 0.0);
 }

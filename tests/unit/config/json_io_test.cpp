@@ -41,6 +41,7 @@ TerrainGenConfig Everything() {
     raster.upsampling.type = "diamond_square";
     raster.upsampling.diamondSquare.fractalDimension = 2.35;
     raster.upsampling.diamondSquare.interp = terraingen::DiamondSquareInterp::CatmullRom;
+    raster.upsampling.diamondSquare.fitWindow = 16;
     raster.upsampling.diamondSquare.minPixelSize = 0.25;
     raster.upsampling.diamondSquare.seed = 4;
     config.source = raster;
@@ -851,7 +852,8 @@ TEST(ConfigJson, ReadsUpsamplingAsANameOrAnObjectAndWritesItBack) {
             {"type": "raster", "path": "b.tif", "upsampling": {"type": "nearest"}},
             {"type": "raster", "path": "c.tif",
              "upsampling": {"type": "diamond_square", "fractal_dimension": 2.3, "scale_m": 0.5,
-                            "interp": "catmull_rom", "min_pixel_size_m": 0.5, "seed": 1}},
+                            "fit_window_px": 0, "interp": "catmull_rom",
+                            "min_pixel_size_m": 0.5, "seed": 1}},
             {"type": "raster", "path": "d.tif", "upsampling": {"type": "mine", "taps": 3}},
             {"type": "synthetic", "elevation_m": 5, "pixel_size_m": 2,
              "stack": [{"wavelength_m": 50}], "upsampling": "diamond_square"}]}})");
@@ -866,6 +868,7 @@ TEST(ConfigJson, ReadsUpsamplingAsANameOrAnObjectAndWritesItBack) {
     EXPECT_EQ(diamond.diamondSquare.fractalDimension, 2.3);
     EXPECT_EQ(diamond.diamondSquare.scale, 0.5);
     EXPECT_EQ(diamond.diamondSquare.interp, terraingen::DiamondSquareInterp::CatmullRom);
+    EXPECT_EQ(diamond.diamondSquare.fitWindow, 0u);
     EXPECT_EQ(diamond.diamondSquare.minPixelSize, 0.5);
     EXPECT_EQ(upsampling(3).type, "mine");
     EXPECT_EQ(upsampling(3).settings, R"({"taps":3})");
@@ -875,6 +878,7 @@ TEST(ConfigJson, ReadsUpsamplingAsANameOrAnObjectAndWritesItBack) {
     ASSERT_EQ(synthetic.stack.size(), 1u);
     EXPECT_EQ(synthetic.upsampling->type, "diamond_square");
     EXPECT_FALSE(synthetic.upsampling->diamondSquare.fractalDimension);
+    EXPECT_EQ(synthetic.upsampling->diamondSquare.fitWindow, 32u) << "fitted window by window";
     const std::string json = ConfigToJson(config);
     EXPECT_NE(json.find(R"("upsampling": "catmull_rom")"), std::string::npos) << json;
     EXPECT_NE(json.find(R"("upsampling": "nearest")"), std::string::npos) << json;

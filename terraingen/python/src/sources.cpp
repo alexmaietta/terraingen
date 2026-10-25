@@ -243,11 +243,14 @@ void BindDiamondSquare(nb::module_& m) {
     auto options = nb::class_<DiamondSquareOptions>(
         m, "DiamondSquareOptions",
         "The fractal diamond-square refines posts with: `fractal_dimension` and `scale` (meters; "
-        "None estimates them from the posts), `interp`, `min_pixel_size` (posts' units, 0 for no "
-        "limit) and `seed`.");
+        "None estimates them from the posts), `fit_window` (side in posts of the overlapping "
+        "windows a None scale is fitted over, so each region follows its own roughness; 0 fits "
+        "one scale to the posts), `interp`, `min_pixel_size` (posts' units, 0 for no limit) and "
+        "`seed`.");
     BindKwargsInit<DiamondSquareOptions>(options);
     options.def_rw("fractal_dimension", &DiamondSquareOptions::fractalDimension)
         .def_rw("scale", &DiamondSquareOptions::scale)
+        .def_rw("fit_window", &DiamondSquareOptions::fitWindow)
         .def_rw("interp", &DiamondSquareOptions::interp)
         .def_rw("min_pixel_size", &DiamondSquareOptions::minPixelSize)
         .def_rw("seed", &DiamondSquareOptions::seed)
@@ -260,7 +263,12 @@ void BindDiamondSquare(nb::module_& m) {
         .def_ro("scale", &MidpointRoughness::scale)
         .def_ro("fractal_dimension", &MidpointRoughness::fractalDimension);
     m.def("estimate_midpoint_roughness", &EstimateMidpointRoughness, "heights"_a,
-          "The scale and fractal dimension of a raster's heights on its own cells.");
+          "The scale and fractal dimension of a raster's heights on its own cells, by medians so "
+          "that a few large features such as craters do not set them.");
+    m.def("estimate_midpoint_scale", &EstimateMidpointScale, "heights"_a,
+          "The displacement scale of a raster's heights on its own cells: 1.4826 times the median "
+          "absolute difference of each cell and the mean of its four neighbors.");
+    m.attr("MAX_DIAMOND_SQUARE_FIT_WINDOW") = kMaxDiamondSquareFitWindow;
     nb::class_<DiamondSquareUpsampler, Upsampler>(
         m, "DiamondSquareUpsampler",
         "Random midpoint displacement (diamond-square) of the posts: each level halves the node "

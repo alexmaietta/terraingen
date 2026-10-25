@@ -1123,6 +1123,13 @@ TEST(ValidateConfig, ReportsUpsamplingProblemsByPath) {
     RasterSpec(config).upsampling.diamondSquare.scale.reset();
     RasterSpec(config).upsampling.diamondSquare.minPixelSize = -1.0;
     EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling.min_pixel_size_m");
+    RasterSpec(config).upsampling.diamondSquare.minPixelSize = 0.0;
+    RasterSpec(config).upsampling.diamondSquare.fitWindow = 2048;
+    EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling.fit_window_px");
+    RasterSpec(config).upsampling.diamondSquare.fitWindow = 2;
+    EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling");
+    RasterSpec(config).upsampling.diamondSquare.fitWindow = 0;
+    EXPECT_EQ(ValidationErrorPath(config, folder), "valid");
     RasterSpec(config).upsampling = {"lanczos", {}, {}};
     EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling");
     try {
