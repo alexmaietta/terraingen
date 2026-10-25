@@ -140,6 +140,7 @@
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_source.h"
+#include "terraingen/sources/terrain_base.h"
 #include "terraingen/sources/upsampling.h"
 #include "terraingen/util/build_info.h"
 #include "terraingen/util/cells.h"

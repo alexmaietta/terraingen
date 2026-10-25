@@ -80,11 +80,10 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     /// Fields are drawn in the surface's cells (`MakeCells`) and shaped in their centers' local
     /// frames, with the azimuth counter-clockwise from local east. Applying the layer with the
     /// exposure field enabled needs `context.ground`.
-    /// @param source The source the terrain's heights come from, which with
-    /// `options.sourceResolvesPixels` holds the bedforms it resolves; null for none.
+    /// @param base The surface and the source, which with `options.sourceResolvesPixels` holds
+    /// the bedforms it resolves.
     /// @throws std::invalid_argument as `ValidateBedformOptions`.
-    explicit BedformLayer(BedformOptions options, Surface surface = {},
-                          std::shared_ptr<const Source> source = nullptr);
+    explicit BedformLayer(BedformOptions options, TerrainBase base = {});
 
     /// How fully world (x, y) lies in a field, in [0, 1]; independent of the spacing.
     /// @param ground Read by the exposure field; may be null without one.

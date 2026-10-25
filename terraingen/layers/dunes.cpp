@@ -314,10 +314,10 @@ DuneOptions MarsTransverseDunes() {
     return dunes;
 }
 
-DuneLayer::DuneLayer(DuneOptions options, Surface surface, std::shared_ptr<const Source> source)
-    : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
+DuneLayer::DuneLayer(DuneOptions options, TerrainBase base)
+    : FormulaLayer(base.surface), options_(options), plane_(base.surface, options.anchor) {
     ValidateDuneOptions(options_);
-    limit_ = LayerResolvedLimit(source, options_.sourceResolvesPixels, surface);
+    limit_ = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, base.surface);
     wind_ = {std::cos(options_.windAzimuthDegrees * kDegree),
              std::sin(options_.windAzimuthDegrees * kDegree)};
     const double widest = options_.width * (1.0 + options_.widthSpread);

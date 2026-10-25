@@ -6,6 +6,7 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/albedo/maturity.h"
+#include "terraingen/sources/terrain_base.h"
 #include "terraingen/util/surface.h"
 
 #include <vector>
@@ -46,7 +47,7 @@ void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options);
 class SlopeAlbedo final : public AlbedoLayer {
   public:
     /// @throws std::invalid_argument for options invalid as `ValidateSlopeAlbedoOptions`.
-    explicit SlopeAlbedo(SlopeAlbedoOptions options = {}, Surface surface = {});
+    explicit SlopeAlbedo(SlopeAlbedoOptions options = {}, TerrainBase base = {});
 
     /// Moves `value` to the maturity of the slope at (`x`, `y`); NaN stays NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,

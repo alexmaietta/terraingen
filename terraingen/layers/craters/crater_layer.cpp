@@ -35,9 +35,8 @@ constexpr double kLargestThrower = 5e5;
 
 }  // namespace
 
-CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
-                         std::shared_ptr<const Source> source)
-    : models_(std::move(models)), options_(std::move(options)) {
+CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, TerrainBase base)
+    : models_(std::move(models)), options_(std::move(options)), surface_(base.surface) {
     if (!models_.degradation) {
         throw std::invalid_argument("A crater layer needs a degradation model");
     }
@@ -55,16 +54,16 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options,
     ValidateCraterApplyOptions(options_.apply);
     options_.apply = SeededCraterApply(std::move(options_.apply), options_.seed);
     ValidateSourceResolvesPixels(options_.sourceResolvesPixels);
-    if (auto limit = LayerResolvedLimit(source, options_.sourceResolvesPixels, options_.surface)) {
+    if (auto limit = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, surface_)) {
         std::shared_ptr<const SurfaceField>& completeness = options_.generation.completeness;
         completeness = completeness ? std::make_shared<const MinimumField>(completeness, limit)
                                     : std::move(limit);
     }
     options_.generation.marginRadii = CraterReachRadii(*models_.profile, options_.apply) *
                                       MaxOutlineScale(options_.apply.irregularity);
-    options_.generation.surface = options_.surface;
-    options_.apply.surface = options_.surface;
-    cells_ = MakeCells(options_.surface);
+    options_.generation.surface = surface_;
+    options_.apply.surface = surface_;
+    cells_ = MakeCells(surface_);
     if (options_.cacheCraters > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheCraters);
     }
@@ -89,13 +88,12 @@ CraterModels DefaultCraterModels() {
 }
 
 std::shared_ptr<CraterLayer> CraterLayer::Manual(CraterList craters, CraterModels models,
-                                                 CraterApplyOptions apply, Surface surface) {
+                                                 CraterApplyOptions apply, TerrainBase base) {
     CraterLayerOptions options;
     options.generateRandom = false;
     options.generation.manual = std::move(craters);
     options.apply = std::move(apply);
-    options.surface = surface;
-    return std::make_shared<CraterLayer>(std::move(models), std::move(options));
+    return std::make_shared<CraterLayer>(std::move(models), std::move(options), std::move(base));
 }
 
 void CraterLayer::FollowDensityMap() {
@@ -142,7 +140,7 @@ CraterList CraterLayer::Throwers(const Bounds2d& region) const {
     for (const SecondaryCraterOptions& secondaries : options_.secondaries) {
         reach = std::fmax(reach, SecondaryOuterRange(MaxFeatureDiameter(), secondaries));
     }
-    const Bounds2d around = options_.surface.Expand(region, reach);
+    const Bounds2d around = surface_.Expand(region, reach);
     if (large.dMin < ResolveDMax(large.dMax, *candidates_)) {
         return GenerateCachedCraters(cache_.get(), *cells_, around, *candidates_, *models_.ages,
                                      options_.seed, large);
@@ -153,10 +151,10 @@ CraterList CraterLayer::Throwers(const Bounds2d& region) const {
 CraterList CraterLayer::ManualCratersNear(const Bounds2d& region, double marginRadii) const {
     CraterList craters;
     AppendManualCraters(options_.generation.manual, craters, [&](const Crater& crater) {
-        const Bounds2d near =
-            marginRadii > 0.0 ? options_.surface.Expand(region, 0.5 * marginRadii * crater.diameter)
-                              : region;
-        return options_.surface.Contains(near, {crater.x, crater.y});
+        const Bounds2d near = marginRadii > 0.0
+                                  ? surface_.Expand(region, 0.5 * marginRadii * crater.diameter)
+                                  : region;
+        return surface_.Contains(near, {crater.x, crater.y});
     });
     return craters;
 }
@@ -180,7 +178,7 @@ CraterKeepShare CraterLayer::KeepShare(const Bounds2d& region) const {
     const DensityMap& map = *options_.densityMap;
     const bool cover = map.measure == DensityMeasure::ArealFraction;
     return [scale = scale_, map, cover, thrown, from = throwFrom_,
-            surface = options_.surface](const Crater& crater) {
+            surface = surface_](const Crater& crater) {
         const double share = scale->At(crater.x, crater.y) / scale->Max();
         if (crater.diameter >= from) {
             return share;
@@ -227,7 +225,7 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
         throw std::invalid_argument(
             "Point queries cannot use maxCraters, which ranks craters over a whole grid");
     }
-    const double spacing = samples.ResolvedSpacing(context.spacing, options_.surface);
+    const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
     const Bounds2d bounds = samples.Bounds();
     const CraterSampling sampling = SamplingFrom(context, spacing, this);
     if (grid == nullptr && options_.apply.datum != CraterDatum::None && context.cache != nullptr &&
@@ -236,12 +234,12 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
         return;
     }
     const double margin = DatumMargin(options_.apply, *models_.profile, MaxFeatureDiameter());
-    const CraterList craters = Craters(options_.surface.Expand(bounds, margin), spacing);
+    const CraterList craters = Craters(surface_.Expand(bounds, margin), spacing);
     ApplyCraters(samples, craters, models_.Shape(), options_.apply, sampling);
 }
 
 CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {
-    return DescribeCraters(Craters(grid.Bounds(), ListedSpacing(grid, spacing, options_.surface)),
+    return DescribeCraters(Craters(grid.Bounds(), ListedSpacing(grid, spacing, surface_)),
                            models_.Shape());
 }
 

@@ -46,8 +46,8 @@ void ValidateStrataOptions(const StrataOptions& options) {
     RequireFinite(options.anchor.y, "Strata anchor y");
 }
 
-StrataLayer::StrataLayer(StrataOptions options, Surface surface)
-    : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
+StrataLayer::StrataLayer(StrataOptions options, TerrainBase base)
+    : FormulaLayer(base.surface), options_(options), plane_(base.surface, options.anchor) {
     ValidateStrataOptions(options_);
     dipDirection_ = {std::cos(options_.dipAzimuthDegrees * kDegree),
                      std::sin(options_.dipAzimuthDegrees * kDegree)};

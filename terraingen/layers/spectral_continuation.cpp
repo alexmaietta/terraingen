@@ -73,8 +73,8 @@ struct SpectralContinuationLayer::ImpulseTable {
 };
 
 SpectralContinuationLayer::SpectralContinuationLayer(SpectralContinuationOptions options,
-                                                     Surface surface)
-    : options_(options), surface_(surface) {
+                                                     TerrainBase base)
+    : options_(options), surface_(base.surface) {
     ValidateSpectralContinuationOptions(options_);
     const double nyquist = 0.5 / options_.pixelSize;
     coefficient_ = PowerLawSpectrum{options_.slope, options_.octaveRms}.Coefficient(nyquist);

@@ -68,31 +68,28 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// A layer of only `boulders`, with `generateRandom` off: no random boulders or crater blocks.
     /// @param options How the boulders are posed and drawn, such as `rendering`, `pose` and
     /// `fillet`; its `manual` must be empty, `boulders` taking its place.
-    /// @param surface What the boulders lie on.
     /// @throws std::invalid_argument as the constructor, or for `options.manual` not empty.
     static std::shared_ptr<BoulderLayer> Manual(std::vector<ManualBoulder> boulders,
                                                 BoulderLayerOptions options = {},
-                                                Surface surface = {});
+                                                TerrainBase base = {});
 
     /// On a sphere, candidates are drawn in `CubeSphereCells`, distances are great-circle, and
     /// relief and model placements are in each boulder's local east, north and up frame, its
     /// origin on the datum below the boulder.
     /// @param craters The crater layer whose craters throw blocks; may be null without ejecta or
     /// without `generateRandom`.
-    /// @param surface The crater layer's surface.
-    /// @param source The source the terrain's heights come from, which with
-    /// `options.sourceResolvesPixels` holds the boulders it resolves; null for none.
+    /// @param base What the boulders lie on, the crater layer's surface, and the source, which with
+    /// `options.sourceResolvesPixels` holds the boulders it resolves.
     /// @throws std::invalid_argument for invalid options, ejecta of random boulders without
     /// `craters`, or a crater layer on another surface.
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
-                 Surface surface = {}, std::shared_ptr<const Source> source = nullptr);
+                 TerrainBase base = {});
 
     /// Boulders whose ejecta come from every one of `craters`, each crater's blocks worn by its
     /// own layer's degradation; overlapping ejecta take the largest share as within one layer.
     /// @throws std::invalid_argument as the single-layer constructor, or for a null layer.
     BoulderLayer(BoulderLayerOptions options,
-                 std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface,
-                 std::shared_ptr<const Source> source = nullptr);
+                 std::vector<std::shared_ptr<const CraterLayer>> craters, TerrainBase base);
 
     /// The boulders centered in `region` (surface coordinates) or reaching it with their radius or
     /// fillet, in a fixed order.

@@ -112,11 +112,11 @@ TEST(LayerResolvedLimit, IsNullWithoutASourceOrACount) {
 TEST(DuneLayer, LeavesOutDunesTheSourceResolves) {
     const terraingen::DuneLayer free(Crests());
     const auto fine = Dem(20, 100.0, 0.0, 2000.0);
-    const terraingen::DuneLayer held(Crests(), {}, fine);
-    const terraingen::DuneLayer coarse(Crests(), {}, Dem(20, 200.0, 0.0, 4000.0));
+    const terraingen::DuneLayer held(Crests(), fine);
+    const terraingen::DuneLayer coarse(Crests(), Dem(20, 200.0, 0.0, 4000.0));
     terraingen::DuneOptions unset = Crests();
     unset.sourceResolvesPixels.reset();
-    const terraingen::DuneLayer ignored(unset, {}, fine);
+    const terraingen::DuneLayer ignored(unset, fine);
     bool relief = false;
     for (double x = 10.0; x < 1000.0; x += 37.0) {
         const float alone = free.ApplyAt(0.0f, x, 700.0, {1.0});
@@ -142,10 +142,10 @@ TEST(BoulderLayer, DropsTheBouldersTheSourceResolves) {
     const auto dem = Dem(80, 0.25, 0.0, 20.0);
     const terraingen::Bounds2d region{-20.0, 0.0, 20.0, 20.0};
     const auto all = terraingen::testing::Records(
-        terraingen::BoulderLayer(options, nullptr, {}, dem).Boulders(region));
+        terraingen::BoulderLayer(options, nullptr, dem).Boulders(region));
     options.sourceResolvesPixels = 4.0;
     const auto kept = terraingen::testing::Records(
-        terraingen::BoulderLayer(options, nullptr, {}, dem).Boulders(region));
+        terraingen::BoulderLayer(options, nullptr, dem).Boulders(region));
     std::size_t resolved = 0;
     std::size_t expected = 0;
     for (const terraingen::Boulder& boulder : all) {
@@ -169,8 +169,8 @@ TEST(BedformLayer, LeavesOutBedformsTheSourceResolves) {
     options.cover = 0.9;
     options.fieldSize = 20.0;
     const terraingen::BedformLayer free(options);
-    const terraingen::BedformLayer held(options, {}, Dem(50, 0.2, 0.0, 10.0));
-    const terraingen::BedformLayer coarse(options, {}, Dem(50, 0.5, 0.0, 25.0));
+    const terraingen::BedformLayer held(options, Dem(50, 0.2, 0.0, 10.0));
+    const terraingen::BedformLayer coarse(options, Dem(50, 0.5, 0.0, 25.0));
     bool relief = false;
     for (double x = 0.1; x < 9.9; x += 0.13) {
         const float alone = free.ApplyAt(0.0f, x, 5.0, {0.05});
@@ -192,10 +192,10 @@ TEST(NoiseRelief, LeavesOutTheNoiseLayersTheSourceResolves) {
     terraingen::SyntheticTerrainParams fine = params;
     fine.layers[0].enabled = false;
     const auto dem = Dem(20, 100.0, 0.0, 2000.0);
-    const terraingen::NoiseRelief held(params.layers, {}, {}, dem, 4.0);
-    const terraingen::NoiseRelief small(fine.layers);
-    const terraingen::NoiseRelief all(params.layers);
-    const terraingen::NoiseRelief unset(params.layers, {}, {}, dem);
+    const terraingen::NoiseRelief held(terraingen::NoiseReliefOptions{params.layers, 4.0}, dem);
+    const terraingen::NoiseRelief small(fine.layers, dem);
+    const terraingen::NoiseRelief all(params.layers, dem);
+    const terraingen::NoiseRelief unset(params.layers, dem);
     for (double x = 5.0; x < 1900.0; x += 97.0) {
         EXPECT_EQ(held.ApplyAt(0.0f, x, 300.0, {1.0}), small.ApplyAt(0.0f, x, 300.0, {1.0}))
             << "the 1000 m layer is in the 400 m limit";
@@ -212,8 +212,9 @@ TEST(NoiseRelief, LeavesOutTheNoiseLayersTheSourceResolves) {
             ASSERT_EQ(grid(col, row), held.ApplyAt(0.0f, center.x, center.y, {25.0}));
         }
     }
-    EXPECT_EQ(held.SourceResolvesPixels(), 4.0);
-    EXPECT_THROW(terraingen::NoiseRelief(params.layers, {}, {}, dem, -1.0), std::invalid_argument);
+    EXPECT_EQ(held.Options().sourceResolvesPixels, 4.0);
+    EXPECT_THROW(terraingen::NoiseRelief(terraingen::NoiseReliefOptions{params.layers, -1.0}, dem),
+                 std::invalid_argument);
 }
 
 TEST(CraterLayer, DropsGeneratedCratersTheSourceResolvesWithoutACatalog) {

@@ -41,7 +41,7 @@ class Example(_common.Example):
                     terraingen.FractalParams(seed=9, wavelength=20000.0, amplitude=300.0, octaves=6)
                 ),
             ],
-            surface=self.moon,
+            base=self.moon,
         )
         production = terraingen.extended_neukum_production_function()
         equilibrium = terraingen.trask_equilibrium()
@@ -57,7 +57,7 @@ class Example(_common.Example):
         )
         generation = terraingen.CraterGenerationOptions(d_min=1000.0, d_max=30000.0)
         craters = terraingen.CraterLayer(
-            models, terraingen.CraterLayerOptions(seed=3, generation=generation, surface=self.moon)
+            models, terraingen.CraterLayerOptions(seed=3, generation=generation), base=self.moon
         )
         self.site = terraingen.FlatSource(257, 257, PIXEL, center=SITE, surface=self.moon)
         terrain = terraingen.TerrainGenerator(self.site, [noise, craters], surface=self.moon)

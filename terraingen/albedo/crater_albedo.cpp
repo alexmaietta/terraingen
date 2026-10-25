@@ -359,7 +359,7 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
 }
 
 double CraterAlbedo::Excess(const Crater& crater, double x, double y, double spacing) const {
-    return Prepare(crater, spacing).Excess(options_, craters_->Options().surface, x, y);
+    return Prepare(crater, spacing).Excess(options_, craters_->Options().apply.surface, x, y);
 }
 
 double CraterAlbedo::ReflectanceChange(const Crater& crater, double x, double y, double spacing,
@@ -368,7 +368,7 @@ double CraterAlbedo::ReflectanceChange(const Crater& crater, double x, double y,
     if (ground != nullptr && options_.zones.shadows.enabled) {
         AddShadows(prepared, *ground, PointBounds(x, y));
     }
-    return prepared.Change(options_.texture, craters_->Options().surface, x, y);
+    return prepared.Change(options_.texture, craters_->Options().apply.surface, x, y);
 }
 
 void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
@@ -384,7 +384,7 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
         return;
     }
     const Vec2d center{crater.x, crater.y};
-    const Surface& surface = craters_->Options().surface;
+    const Surface& surface = craters_->Options().apply.surface;
     const detail::RayWindow window =
         detail::RaysOver(center, region, surface, static_cast<std::size_t>(s.azimuths));
     auto profile = std::make_shared<detail::ShadowProfile>(
@@ -433,7 +433,7 @@ double CraterAlbedo::GatherMargin() const {
 
 void CraterAlbedo::TakePrepared(const CraterList& list, const Bounds2d& region, double spacing,
                                 std::vector<Prepared>& prepared) const {
-    const Surface& surface = craters_->Options().surface;
+    const Surface& surface = craters_->Options().apply.surface;
     for (std::size_t i = 0; i < list.Size(); ++i) {
         Prepared one = Prepare(list.At(i), spacing);
         if (one.weight == 0.0) {
@@ -497,7 +497,7 @@ void Brighten(AlbedoSample& value, std::size_t bands, double excess, double chan
 std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region, double spacing,
                                                          const Ground* ground) const {
     const double margin = GatherMargin();
-    const Surface& surface = craters_->Options().surface;
+    const Surface& surface = craters_->Options().apply.surface;
     std::vector<Prepared> prepared;
     TakePrepared(craters_->Craters(surface.Expand(region, margin), spacing), region, spacing,
                  prepared);
@@ -524,7 +524,7 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
 
 void CraterAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                            const AlbedoContext& context) const {
-    const Surface& surface = craters_->Options().surface;
+    const Surface& surface = craters_->Options().apply.surface;
     double excess = 0.0;
     double change = 0.0;
     for (const Prepared& p : Gather(PointBounds(x, y), context.spacing, context.ground)) {
@@ -538,7 +538,7 @@ void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext&
     if (bands.empty()) {
         return;
     }
-    const Surface& surface = craters_->Options().surface;
+    const Surface& surface = craters_->Options().apply.surface;
     const Raster<float>& first = bands.front();
     const std::vector<Prepared> prepared =
         Gather(RasterGrid::FromRaster(first).Bounds(), context.spacing, context.ground);

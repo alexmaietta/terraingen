@@ -34,7 +34,7 @@ class Example(_common.Example):
                     terraingen.FractalParams(seed=8, wavelength=400000.0, amplitude=3000.0, octaves=6)
                 )
             ],
-            surface=self.moon,
+            base=self.moon,
         )
         ages = terraingen.UniformAges(4.0)
         models = terraingen.CraterModels(
@@ -51,7 +51,8 @@ class Example(_common.Example):
         generation = terraingen.CraterGenerationOptions(manual=basins)
         craters = terraingen.CraterLayer(
             models,
-            terraingen.CraterLayerOptions(generate_random=False, generation=generation, surface=self.moon),
+            terraingen.CraterLayerOptions(generate_random=False, generation=generation),
+            base=self.moon,
         )
         terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(8, 8, 1.0), [noise, craters], surface=self.moon

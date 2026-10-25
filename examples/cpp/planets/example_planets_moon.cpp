@@ -40,7 +40,7 @@ class PlanetsMoon : public terraingen::examples::Example {
         fine.fractal.wavelength = 20000.0f;
         fine.fractal.amplitude = 300.0f;
         const auto noise = std::make_shared<terraingen::NoiseRelief>(
-            std::vector<terraingen::NoiseLayer>{broad, fine}, terraingen::Vec2d{}, moon_);
+            std::vector<terraingen::NoiseLayer>{broad, fine}, moon_);
 
         const terraingen::EquilibriumSurface surface{
             std::make_shared<terraingen::SplicedSfd>(
@@ -51,7 +51,6 @@ class PlanetsMoon : public terraingen::examples::Example {
         const auto ages = surface.Ages();
         terraingen::CraterLayerOptions options;
         options.seed = 3;
-        options.surface = moon_;
         options.generation.dMin = 1000.0;
         options.generation.dMax = 30000.0;
         options.generation.manual.Append({0.0, 0.0, 300000.0, 3.9, 0u, true});
@@ -60,7 +59,7 @@ class PlanetsMoon : public terraingen::examples::Example {
                                      std::make_shared<terraingen::FreshnessDegradation>(
                                          ages, terraingen::LunarFreshCraterMorphometry),
                                      std::make_shared<terraingen::FassettThomsonProfile>()},
-            options);
+            options, moon_);
 
         const terraingen::Vec2d site{23.47, 0.67};
         const double pixel = 200.0;
@@ -92,7 +91,8 @@ class PlanetsMoon : public terraingen::examples::Example {
                                         terraingen::CraterLayerOptions basins = options;
                                         basins.generateRandom = false;
                                         return basins;
-                                    }())};
+                                    }(),
+                                    moon_)};
         mesh_ = terraingen::BodyMesh(global, 64);
         lowest_ = moon_.Radius();
         highest_ = moon_.Radius();

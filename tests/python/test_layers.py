@@ -245,21 +245,26 @@ def test_base_layer_without_overrides_raises(paraboloid):
 def test_region_weight_on_a_sphere_uses_degrees():
     moon = terraingen.Surface.sphere(1737400.0)
     region = terraingen.MaskedLayer(
-        terraingen.ScaleLayer(1.0, 100.0), terraingen.RegionShape.circle(23.47, 0.67, 1.0), surface=moon
+        terraingen.ScaleLayer(1.0, 100.0), terraingen.RegionShape.circle(23.47, 0.67, 1.0), base=moon
     )
     assert region.weight(23.47, 0.67) == 1.0
 
 
-def test_layers_accept_a_sphere_surface(lunar_models):
+def test_layers_are_built_on_one_terrain_base(lunar_models):
     moon = terraingen.Surface.sphere(1737400.0)
+    base = terraingen.TerrainBase(moon)
     generation = terraingen.CraterGenerationOptions(d_min=20000.0, d_max=300000.0)
     craters = terraingen.CraterLayer(
-        lunar_models(3.8), terraingen.CraterLayerOptions(surface=moon, generation=generation)
+        lunar_models(3.8), terraingen.CraterLayerOptions(generation=generation), base
     )
-    rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(), surface=moon)
-    boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, surface=moon)
-    bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples(), surface=moon)
-    assert all(part is not None for part in (rough, boulders, bedforms))
+    rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(), base)
+    boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, base)
+    bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples(), base=moon)
+    assert all(part.layer_surface() == moon for part in (craters, rough, boulders, bedforms))
+    assert not hasattr(terraingen.CraterLayerOptions(), "surface")
+    assert base.source is None and base.reference_point() == (0.0, 0.0)
+    with pytest.raises(ValueError):
+        terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters)
 
 
 def test_angles_are_degrees_in_options_and_configs():
@@ -625,7 +630,7 @@ def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path)
     base = terraingen.estimate_source_roughness(terrain.source)
     roughness = terrain.layers[1].options
     assert roughness.hurst == pytest.approx(base.hurst) and roughness.rms_slope == 0.3
-    noise = terrain.layers[0].layers[0]
+    noise = terrain.layers[0].options.layers[0]
     assert noise.fractal.gain == pytest.approx(terraingen.gain_from_hurst(base.hurst, 2.0), rel=1e-6)
     assert noise.fractal.amplitude > 0.0
     without_base = terraingen.TerrainGenConfig.from_dict(
@@ -643,14 +648,14 @@ def test_layers_leave_out_what_the_source_resolves():
     assert terraingen.source_resolved_limit(dem, 4.0).value_at(50.0, 50.0) == 400.0
     dunes = terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE)
     assert dunes.source_resolves_pixels == 4.0
-    held = terraingen.DuneLayer(dunes, source=dem)
+    held = terraingen.DuneLayer(dunes, base=dem)
     free = terraingen.DuneLayer(dunes)
     context = terraingen.LayerContext(spacing=1.0)
     xs = np.arange(10.0, 1000.0, 37.0)
     assert all(held.apply_at(0.0, x, 700.0, context) == 0.0 for x in xs), "550 m dunes over 400 m"
     assert any(free.apply_at(0.0, x, 700.0, context) != 0.0 for x in xs)
     dunes.source_resolves_pixels = None
-    assert terraingen.DuneLayer(dunes, source=dem).apply_at(0.0, 400.0, 700.0, context) == free.apply_at(
+    assert terraingen.DuneLayer(dunes, base=dem).apply_at(0.0, 400.0, 700.0, context) == free.apply_at(
         0.0, 400.0, 700.0, context
     )
     assert terraingen.BedformOptions().source_resolves_pixels == 4.0
@@ -659,10 +664,12 @@ def test_layers_leave_out_what_the_source_resolves():
     assert terraingen.CraterLayerOptions().source_resolves_pixels == 4.0
     big = terraingen.NoiseLayer()
     big.fractal.wavelength = 1000.0
-    noise = terraingen.NoiseRelief([big], source=dem, source_resolves_pixels=4.0)
-    assert noise.source_resolves_pixels == 4.0
+    noise = terraingen.NoiseRelief(
+        terraingen.NoiseReliefOptions(layers=[big], source_resolves_pixels=4.0), dem
+    )
+    assert noise.options.source_resolves_pixels == 4.0
     assert noise.apply_at(0.0, 300.0, 300.0, context) == 0.0
-    assert terraingen.NoiseRelief([big], source=dem).apply_at(0.0, 300.0, 300.0, context) != 0.0
+    assert terraingen.NoiseRelief([big], base=dem).apply_at(0.0, 300.0, 300.0, context) != 0.0
     apply = terraingen.CraterApplyOptions(fade_px=(1.0, 3.0))
     assert apply.fade_px == [1.0, 3.0] and not hasattr(apply, "fade")
     config = terraingen.TerrainGenConfig.from_dict(

@@ -77,7 +77,7 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
     /// On a body, plates are laid out in the tangent frame of `options.anchor`. Applying the layer
     /// with the exposure field enabled needs `context.ground`.
     /// @throws std::invalid_argument as `ValidatePavementOptions`.
-    explicit PavementLayer(PavementOptions options, Surface surface = {});
+    explicit PavementLayer(PavementOptions options, TerrainBase base = {});
 
     /// The options the layer was made with.
     const PavementOptions& Options() const {

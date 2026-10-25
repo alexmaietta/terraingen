@@ -122,8 +122,7 @@ void BindSynthetic(nb::module_& m) {
             "__init__",
             [](SyntheticAlbedo* self, double value, std::vector<NoiseLayer> valueNoise, bool rgb,
                double hue, double saturation, std::vector<NoiseLayer> hueNoiseDegrees,
-               std::vector<NoiseLayer> saturationNoise, const Vec2d& origin,
-               const Surface& surface) {
+               std::vector<NoiseLayer> saturationNoise, TerrainBase base) {
                 SyntheticAlbedoOptions params;
                 params.value = value;
                 params.valueNoise = std::move(valueNoise);
@@ -132,13 +131,12 @@ void BindSynthetic(nb::module_& m) {
                 params.saturation = saturation;
                 params.hueNoiseDegrees = std::move(hueNoiseDegrees);
                 params.saturationNoise = std::move(saturationNoise);
-                new (self) SyntheticAlbedo(std::move(params), origin, surface);
+                new (self) SyntheticAlbedo(std::move(params), std::move(base));
             },
             "value"_a = kDefaultSyntheticAlbedoValue, "value_noise"_a = std::vector<NoiseLayer>{},
             "rgb"_a = false, "hue_degrees"_a = 0.0, "saturation"_a = 0.0,
             "hue_noise_degrees"_a = std::vector<NoiseLayer>{},
-            "saturation_noise"_a = std::vector<NoiseLayer>{}, "origin"_a = Vec2d{},
-            "surface"_a = Surface{});
+            "saturation_noise"_a = std::vector<NoiseLayer>{}, "base"_a = TerrainBase{});
     m.def(
         "hsv_to_rgb",
         [](double hue, double saturation, double value) {
@@ -163,8 +161,8 @@ void BindRasterAlbedo(nb::module_& m) {
         m, "RasterAlbedo",
         "An albedo map (1 or 3 bands, such as a normal albedo mosaic from orbit) interpolated to "
         "the grid and given sub-cell detail; NaN outside it.")
-        .def(nb::init<std::vector<Raster<float>>, RasterAlbedoOptions, Surface>(), "bands"_a,
-             "options"_a = RasterAlbedoOptions{}, "surface"_a = Surface{})
+        .def(nb::init<std::vector<Raster<float>>, RasterAlbedoOptions, TerrainBase>(), "bands"_a,
+             "options"_a = RasterAlbedoOptions{}, "base"_a = TerrainBase{})
         .def_prop_ro("hurst", &RasterAlbedo::Hurst, "The Hurst exponent the detail uses.")
         .def_prop_ro("cell_roughness", &RasterAlbedo::CellRoughness,
                      "The roughness of the log brightness at one cell, as measured.");
@@ -282,8 +280,8 @@ void BindSplotches(nb::module_& m) {
              "Splotches of at least 1 m per m^2 at any time.");
     nb::class_<SplotchAlbedo, AlbedoLayer>(
         m, "SplotchAlbedo", "Dark and bright splotches over the surface, the youngest on top.")
-        .def(nb::init<SplotchAlbedoOptions, Surface>(), "options"_a = SplotchAlbedoOptions{},
-             "surface"_a = Surface{})
+        .def(nb::init<SplotchAlbedoOptions, TerrainBase>(), "options"_a = SplotchAlbedoOptions{},
+             "base"_a = TerrainBase{})
         .def(
             "count",
             [](const SplotchAlbedo& layer, const Bounds2d& region, double spacing) {
@@ -308,7 +306,7 @@ void BindBlastZones(nb::module_& m) {
         {&ValidateBlastZone, "validate_blast_zone", "zone"});
     nb::class_<BlastZoneAlbedo, AlbedoLayer>(m, "BlastZoneAlbedo",
                                              "Blast zones around landers, brightening the albedo.")
-        .def(nb::init<std::vector<BlastZone>, Surface>(), "zones"_a, "surface"_a = Surface{})
+        .def(nb::init<std::vector<BlastZone>, TerrainBase>(), "zones"_a, "base"_a = TerrainBase{})
         .def("change", &BlastZoneAlbedo::Change, "zone"_a, "x"_a, "y"_a,
              "The relative reflectance change `zone` gives (x, y).")
         .def_static("reach", &BlastZoneAlbedo::Reach, "zone"_a,
@@ -424,8 +422,8 @@ void BindSlopes(nb::module_& m) {
         {&ValidateSlopeAlbedoOptions, "validate_slope_albedo_options", "options"});
     nb::class_<SlopeAlbedo, AlbedoLayer>(m, "SlopeAlbedo",
                                          "Steep ground brightened as fresher material.")
-        .def(nb::init<SlopeAlbedoOptions, Surface>(), "options"_a = SlopeAlbedoOptions{},
-             "surface"_a = Surface{})
+        .def(nb::init<SlopeAlbedoOptions, TerrainBase>(), "options"_a = SlopeAlbedoOptions{},
+             "base"_a = TerrainBase{})
         .def(
             "slope_at",
             [](const SlopeAlbedo& slopes, double x, double y, const PyTerrainGenerator& generator) {

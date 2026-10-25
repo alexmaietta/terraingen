@@ -19,6 +19,11 @@ class ScaleLayer final : public FormulaLayer {
     /// @throws std::invalid_argument unless `scale` and `offset` are finite.
     ScaleLayer(double scale, double offset = 0.0);
 
+    /// None: scaling works on any surface.
+    std::optional<Surface> LayerSurface() const override {
+        return std::nullopt;
+    }
+
     /// The factor on the heights.
     double Scale() const {
         return scale_;
@@ -45,6 +50,11 @@ class ClampLayer final : public FormulaLayer {
     /// @throws std::invalid_argument for a bound that is not finite or `min` above `max`.
     ClampLayer(std::optional<double> min, std::optional<double> max);
 
+    /// None: clamping works on any surface.
+    std::optional<Surface> LayerSurface() const override {
+        return std::nullopt;
+    }
+
     /// The lowest height kept, in meters; none for no floor.
     std::optional<double> Min() const {
         return min_;
@@ -70,9 +80,9 @@ using HeightFunction = std::function<double(double x, double y, double spacing, 
 /// A layer from a function of position, sample spacing and the height so far.
 class FunctionLayer final : public FormulaLayer {
   public:
-    /// @param surface What the terrain lies on, which turns a grid's cell size into meters.
+    /// @param base What the terrain lies on, which turns a grid's cell size into meters.
     /// @throws std::invalid_argument for an empty `function`.
-    explicit FunctionLayer(HeightFunction function, Surface surface = {});
+    explicit FunctionLayer(HeightFunction function, TerrainBase base = {});
 
   protected:
     float HeightAt(float height, double x, double y, double spacing,

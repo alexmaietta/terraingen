@@ -102,8 +102,9 @@ void ValidateRegionShape(const RegionShape& shape) {
 }
 
 MaskedLayer::MaskedLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather,
-                         BlendShape blend, Surface surface)
-    : inner_(std::move(inner)), shape_(shape), feather_(feather), blend_(blend), surface_(surface) {
+                         BlendShape blend, TerrainBase base)
+    : inner_(std::move(inner)), shape_(shape), feather_(feather), blend_(blend),
+      surface_(base.surface) {
     if (!inner_) {
         throw std::invalid_argument("A masked layer needs a layer to apply");
     }

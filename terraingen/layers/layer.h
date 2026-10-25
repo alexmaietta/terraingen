@@ -8,6 +8,7 @@
 #include "terraingen/layers/ground.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/sources/terrain_base.h"
 #include "terraingen/util/surface.h"
 
 #include <optional>
@@ -78,6 +79,11 @@ class Layer {
 /// A layer whose height at a point depends only on the height there and the point (noise,
 /// roughness, transforms); the base applies `HeightAt` to every sample in parallel.
 class FormulaLayer : public Layer {
+  public:
+    std::optional<Surface> LayerSurface() const override {
+        return surface_;
+    }
+
   protected:
     /// @param surface What the layer's coordinates lie on, which converts a grid's cell size to
     /// meters for the sample spacing.

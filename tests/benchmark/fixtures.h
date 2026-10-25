@@ -25,7 +25,7 @@ inline TerrainGenerator LunarMare(double size, double pixelSize, double maxDiame
     SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 400.0f;
     noise.layers[0].fractal.amplitude = 8.0f;
-    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise.layers, Vec2d{}, body));
+    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise.layers, body));
     const auto density = testing::LunarCraterDensity(3.5);
     const auto ages = testing::LunarCraterAges(3.5);
     CraterLayerOptions options;
@@ -33,12 +33,11 @@ inline TerrainGenerator LunarMare(double size, double pixelSize, double maxDiame
     options.generation.dMax = maxDiameter;
     options.cacheCraters = cacheCraters;
     options.apply.datum = datum;
-    options.surface = body;
     terrain.layers.push_back(std::make_shared<CraterLayer>(
         CraterModels{density, ages,
                      std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry),
                      std::make_shared<FassettThomsonProfile>()},
-        options));
+        options, body));
     return terrain;
 }
 

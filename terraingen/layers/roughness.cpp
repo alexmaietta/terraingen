@@ -72,8 +72,8 @@ void ValidateRoughnessOptions(const RoughnessOptions& options) {
     ValidateResolutionFade(options.fade);
 }
 
-RoughnessLayer::RoughnessLayer(RoughnessOptions options, Surface surface)
-    : FormulaLayer(surface), options_(options) {
+RoughnessLayer::RoughnessLayer(RoughnessOptions options, TerrainBase base)
+    : FormulaLayer(base.surface), options_(options) {
     ValidateRoughnessOptions(options_);
     const double shortest = options_.minWavelength * (1.0 - 1e-12);
     double wavelength = options_.maxWavelength;

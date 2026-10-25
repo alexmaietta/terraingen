@@ -28,7 +28,6 @@ namespace {
 std::shared_ptr<const CraterLayer> Primaries(const Crater& primary, Surface surface = {}) {
     CraterLayerOptions options;
     options.generateRandom = false;
-    options.surface = surface;
     options.generation.manual.Append(primary);
     return std::make_shared<CraterLayer>(
         terraingen::CraterModels{
@@ -36,7 +35,7 @@ std::shared_ptr<const CraterLayer> Primaries(const Crater& primary, Surface surf
             std::make_shared<terraingen::FreshAges>(),
             std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()},
-        options);
+        options, surface);
 }
 
 terraingen::CraterShapeModels Models() {
@@ -123,7 +122,8 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
     for (const Surface& surface : {Surface{}, Surface::Sphere(1737400.0)}) {
         const double unit = surface.UnitLength();
         const Crater primary{0.0, 0.0, 1500.0, 0.1, 4u, true};
-        const SecondaryCraterLayer layer(Primaries(primary, surface), Models(), Options(30.0, 6.0));
+        const SecondaryCraterLayer layer(Primaries(primary, surface), Models(), Options(30.0, 6.0),
+                                         {}, surface);
         const double step = 4.0 / unit;
         terraingen::Raster<float> whole(96, 96, 0.0f);
         whole.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 / unit, 400.0 / unit, step));
@@ -253,6 +253,10 @@ TEST(SecondaryCraterLayer, RejectsInvalidSettings) {
         change(options);
         EXPECT_THROW(SecondaryCraterLayer(primaries, Models(), options), std::invalid_argument);
     };
+    EXPECT_THROW(
+        SecondaryCraterLayer(primaries, Models(), Options(), {}, Surface::Sphere(1737400.0)),
+        std::invalid_argument)
+        << "a base on another surface than the primaries'";
     rejects([](auto& o) { o.onsetCount.reset(); });
     rejects([](auto& o) { o.onsetCount = 0.0; });
     rejects([](auto& o) { o.countFraction = 0.0; });

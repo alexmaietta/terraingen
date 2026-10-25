@@ -223,8 +223,8 @@ void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options) {
     CheckSwarms(options.swarms);
 }
 
-SplotchAlbedo::SplotchAlbedo(SplotchAlbedoOptions options, Surface surface)
-    : options_(std::move(options)), surface_(std::move(surface)) {
+SplotchAlbedo::SplotchAlbedo(SplotchAlbedoOptions options, TerrainBase base)
+    : options_(std::move(options)), surface_(std::move(base.surface)) {
     ValidateSplotchAlbedoOptions(options_);
     cells_ = MakeCells(surface_);
 }

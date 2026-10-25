@@ -47,8 +47,8 @@ AlbedoSample HsvToRgb(double hue, double saturation, double value) {
     }
 }
 
-SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoOptions options, Vec2d origin, Surface surface)
-    : options_(std::move(options)), origin_(origin), surface_(surface) {
+SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoOptions options, TerrainBase base)
+    : options_(std::move(options)), origin_(base.ReferencePoint()), surface_(base.surface) {
     ValidateSyntheticAlbedoOptions(options_);
 }
 

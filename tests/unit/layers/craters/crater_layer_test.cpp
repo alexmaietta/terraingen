@@ -112,7 +112,7 @@ TEST(CraterLayer, ManualMakesALayerOfOnlyTheGivenCraters) {
         std::equal(heights.Values().begin(), heights.Values().end(), expected.Values().begin()));
 
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    EXPECT_EQ(CraterLayer::Manual(craters, Models(), {}, moon)->Options().surface, moon);
+    EXPECT_EQ(CraterLayer::Manual(craters, Models(), {}, moon)->Options().apply.surface, moon);
     EXPECT_THROW(CraterLayer::Manual(craters, CraterModels{}), std::invalid_argument);
 }
 

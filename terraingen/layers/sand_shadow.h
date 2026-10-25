@@ -50,7 +50,7 @@ class SandShadowLayer final : public Layer, public MaterialSource {
     /// @param boulders The boulder layer whose boulders cast shadows; on `surface`.
     /// @throws std::invalid_argument for invalid options or a null boulder layer.
     SandShadowLayer(std::shared_ptr<const BoulderLayer> boulders, SandShadowOptions options,
-                    Surface surface = {});
+                    TerrainBase base = {});
 
     /// The sand depth (m) the shadows lay at world (x, y).
     /// @param spacing Sample spacing in meters, which picks the boulders as the boulder layer does.

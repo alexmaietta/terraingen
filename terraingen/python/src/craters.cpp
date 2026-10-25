@@ -409,8 +409,6 @@ void BindLayerOptions(nb::module_& m) {
     options
         .def_rw("generate_random", &CraterLayerOptions::generateRandom,
                 "Draws random craters from the density; off places only the manual craters.")
-        .def_rw("surface", &CraterLayerOptions::surface,
-                "What the craters lie on; on a sphere they are placed by longitude and latitude.")
         .def_rw("seed", &CraterLayerOptions::seed)
         .def_rw("generation", &CraterLayerOptions::generation)
         .def_rw("apply", &CraterLayerOptions::apply)
@@ -444,24 +442,25 @@ void BindCraterLayer(nb::module_& m) {
         .def(
             "__init__",
             [](CraterLayer* self, std::optional<CraterModels> models, CraterLayerOptions options,
-               std::shared_ptr<const Source> source) {
+               TerrainBase base) {
                 new (self) CraterLayer(models ? std::move(*models) : DefaultCraterModels(),
-                                       std::move(options), std::move(source));
+                                       std::move(options), std::move(base));
             },
             "models"_a.none() = nb::none(), "options"_a = CraterLayerOptions{},
-            "source"_a = nb::none(),
-            "None models are `default_crater_models()`. With a `source`, generated craters at "
-            "least `options.source_resolves_pixels` of its cells across are dropped.")
+            "base"_a = TerrainBase{},
+            "None models are `default_crater_models()`. On a sphere in `base` craters are placed "
+            "by longitude and latitude; with a source in it, generated craters at least "
+            "`options.source_resolves_pixels` of its cells across are dropped.")
         .def_static(
             "manual",
             [](const std::vector<Crater>& craters, std::optional<CraterModels> models,
-               std::optional<CraterApplyOptions> apply, Surface surface) {
+               std::optional<CraterApplyOptions> apply, TerrainBase base) {
                 return CraterLayer::Manual(
                     ManualCraters(craters), models ? std::move(*models) : DefaultCraterModels(),
-                    apply ? std::move(*apply) : DefaultCraterApply(), surface);
+                    apply ? std::move(*apply) : DefaultCraterApply(), std::move(base));
             },
             "craters"_a, "models"_a.none() = nb::none(), "apply"_a.none() = nb::none(),
-            "surface"_a = Surface{},
+            "base"_a = TerrainBase{},
             "A layer of only `craters` (Crater), shaped by `models` and `apply`, with "
             "`generate_random` off; None takes `default_crater_models()` and "
             "`default_crater_apply()`.")
@@ -525,22 +524,23 @@ void BindSecondaries(nb::module_& m) {
             [](SecondaryCraterLayer* self, std::shared_ptr<CraterLayer> primaries,
                std::shared_ptr<CraterProfile> profile,
                std::shared_ptr<DegradationModel> degradation, SecondaryCraterOptions options,
-               std::shared_ptr<const Source> source) {
+               TerrainBase base) {
                 new (self) SecondaryCraterLayer(std::move(primaries),
                                                 {std::move(profile), std::move(degradation)},
-                                                std::move(options), {}, std::move(source));
+                                                std::move(options), {}, std::move(base));
             },
-            "primaries"_a, "profile"_a, "degradation"_a, "options"_a, "source"_a = nb::none(),
-            "With a `source`, secondaries at least `options.source_resolves_pixels` of its cells "
+            "primaries"_a, "profile"_a, "degradation"_a, "options"_a, "base"_a = TerrainBase{},
+            "`base` is on the primaries' surface. With a source in it, secondaries at least "
+            "`options.source_resolves_pixels` of its cells "
             "across are left out.")
         .def(
             "__init__",
             [](SecondaryCraterLayer* self, std::shared_ptr<CraterLayer> primaries,
-               SecondaryCraterOptions options, std::shared_ptr<const Source> source) {
+               SecondaryCraterOptions options, TerrainBase base) {
                 new (self) SecondaryCraterLayer(std::move(primaries), std::move(options),
-                                                CraterApplyOptions{}, std::move(source));
+                                                CraterApplyOptions{}, std::move(base));
             },
-            "primaries"_a, "options"_a, "source"_a = nb::none(),
+            "primaries"_a, "options"_a, "base"_a = TerrainBase{},
             "Secondaries shaped as the primaries are.")
         .def(
             "secondaries",

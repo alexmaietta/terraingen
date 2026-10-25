@@ -95,7 +95,10 @@ void BindLayerBase(nb::module_& m) {
                 layer.Apply(heights, context);
             },
             "heights"_a, "context"_a)
-        .def("apply_at", &Layer::ApplyAt, "height"_a, "x"_a, "y"_a, "context"_a);
+        .def("apply_at", &Layer::ApplyAt, "height"_a, "x"_a, "y"_a, "context"_a)
+        .def("layer_surface", &Layer::LayerSurface,
+             "The surface the layer was built for, which a terrain's must be; None for a layer "
+             "that works on any.");
 }
 
 void BindFades(nb::module_& m) {
@@ -113,22 +116,26 @@ void BindFades(nb::module_& m) {
 }
 
 void BindTransforms(nb::module_& m) {
+    nb::class_<NoiseReliefOptions> options(
+        m, "NoiseReliefOptions",
+        "The noise a NoiseRelief adds: `layers`, 1 to 8 noise layers, and with a source "
+        "`source_resolves_pixels`, the source cells across from which a layer is left out.");
+    options.def_rw("layers", &NoiseReliefOptions::layers)
+        .def_rw("source_resolves_pixels", &NoiseReliefOptions::sourceResolvesPixels,
+                nb::arg("value").none());
+    BindKwargsInit<NoiseReliefOptions>(options);
     nb::class_<NoiseRelief, Layer>(m, "NoiseRelief",
-                                   "A stack of 1 to 8 noise layers added to the terrain, measured "
-                                   "from `origin`.")
-        .def(nb::init<std::vector<NoiseLayer>, Vec2d, Surface, std::shared_ptr<const Source>,
-                      std::optional<double>>(),
-             "layers"_a, "origin"_a = Vec2d{}, "surface"_a = Surface{}, "source"_a = nb::none(),
-             "source_resolves_pixels"_a = nb::none(),
-             "On a sphere the noise is 3D at each point's position, seamless everywhere, and "
-             "`origin` is unused. With a `source` and `source_resolves_pixels`, each layer whose "
-             "wavelength is at least that many of the source's cells at a point is left out "
-             "there.")
-        .def_prop_ro("layers", &NoiseRelief::Layers,
-                     "The noise layers, with any Hurst exponents and amplitudes applied.")
-        .def_prop_ro("source_resolves_pixels", &NoiseRelief::SourceResolvesPixels,
-                     "Source cells across from which the source holds a noise layer; None for "
-                     "none.");
+                                   "A stack of noise layers added to the terrain, measured on a "
+                                   "plane from the base's reference point.")
+        .def(nb::init<NoiseReliefOptions, TerrainBase>(), "options"_a, "base"_a = TerrainBase{},
+             "On a sphere the noise is 3D at each point's position, seamless everywhere. With a "
+             "source and `source_resolves_pixels`, each layer whose wavelength is at least that "
+             "many of the source's cells at a point is left out there.")
+        .def(nb::init<std::vector<NoiseLayer>, TerrainBase>(), "layers"_a, "base"_a = TerrainBase{},
+             "Relief of the stack `layers`.")
+        .def_prop_ro("options", &NoiseRelief::Options,
+                     "The noise layers, with any Hurst exponents and amplitudes applied, and the "
+                     "source limit.");
     nb::class_<ScaleLayer, Layer>(m, "ScaleLayer", "height * scale + offset.")
         .def(nb::init<double, double>(), "scale"_a, "offset"_a = 0.0);
     nb::class_<ClampLayer, Layer>(m, "ClampLayer", "Heights held between `min` and `max`.")
@@ -140,7 +147,7 @@ void BindTransforms(nb::module_& m) {
         "than subclassing Layer for point-wise changes. The function is called for every sample "
         "from every evaluation thread, and Python calls take turns on the GIL, so evaluate "
         "terrains with it on one thread (`threads=1`).")
-        .def(nb::init<HeightFunction, Surface>(), "function"_a, "surface"_a = Surface{});
+        .def(nb::init<HeightFunction, TerrainBase>(), "function"_a, "base"_a = TerrainBase{});
 }
 
 void BindRegions(nb::module_& m) {
@@ -161,9 +168,9 @@ void BindRegions(nb::module_& m) {
     nb::class_<MaskedLayer, Layer>(
         m, "MaskedLayer",
         "`inner` applied only inside `shape`, faded out over `feather` meters outside it.")
-        .def(nb::init<std::shared_ptr<Layer>, RegionShape, double, BlendShape, Surface>(),
+        .def(nb::init<std::shared_ptr<Layer>, RegionShape, double, BlendShape, TerrainBase>(),
              "inner"_a, "shape"_a, "feather"_a = 0.0, "blend"_a = BlendShape::Smoothstep,
-             "surface"_a = Surface{})
+             "base"_a = TerrainBase{})
         .def("weight", &MaskedLayer::Weight, "x"_a, "y"_a)
         .def_prop_ro("inner", &MaskedLayer::Inner, nb::rv_policy::reference_internal,
                      "The layer applied inside the region.");
@@ -176,8 +183,8 @@ void BindRoughness(nb::module_& m) {
         "between `min_wavelength` and `max_wavelength` meters.",
         {&ValidateRoughnessOptions, "validate_roughness_options", "options"});
     nb::class_<RoughnessLayer, Layer>(m, "RoughnessLayer", "Fine roughness of a given RMS slope.")
-        .def(nb::init<RoughnessOptions, Surface>(), "options"_a = RoughnessOptions{},
-             "surface"_a = Surface{})
+        .def(nb::init<RoughnessOptions, TerrainBase>(), "options"_a = RoughnessOptions{},
+             "base"_a = TerrainBase{})
         .def("rms_slope", &RoughnessLayer::RmsSlope, "baseline"_a)
         .def("wavelengths", &RoughnessLayer::Wavelengths,
              "The wavelengths (m) of the roughness octaves.")
@@ -237,9 +244,7 @@ void BindBedforms(nb::module_& m) {
     m.def("mars_transverse_aeolian_ridges", &MarsTransverseAeolianRidges,
           "Martian transverse aeolian ridges.");
     auto bedforms = nb::class_<BedformLayer, Layer>(m, "BedformLayer", "Aeolian bedforms.");
-    bedforms
-        .def(nb::init<BedformOptions, Surface, std::shared_ptr<const Source>>(), "options"_a,
-             "surface"_a = Surface{}, "source"_a = nb::none())
+    bedforms.def(nb::init<BedformOptions, TerrainBase>(), "options"_a, "base"_a = TerrainBase{})
         .def(
             "cover_at",
             [](const BedformLayer& layer, double x, double y, const PyTerrainGenerator* generator,
@@ -273,8 +278,8 @@ void BindSandFill(nb::module_& m) {
     auto layer = nb::class_<SandFillLayer, Layer>(m, "SandFillLayer",
                                                   "Sand pooled in the lows of the ground beneath.");
     layer
-        .def(nb::init<SandFillOptions, Surface>(), "options"_a = SandFillOptions{},
-             "surface"_a = Surface{})
+        .def(nb::init<SandFillOptions, TerrainBase>(), "options"_a = SandFillOptions{},
+             "base"_a = TerrainBase{})
         .def_prop_ro("options", &SandFillLayer::Options);
     BindGroundQuery<SandFillLayer>(
         layer, "thickness_at",
@@ -316,7 +321,8 @@ void BindSpectralContinuation(nb::module_& m) {
     nb::class_<SpectralContinuationLayer, Layer>(
         m, "SpectralContinuationLayer",
         "Detail finer than a base continuing its power-law spectrum, as sparse Gabor noise.")
-        .def(nb::init<SpectralContinuationOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+        .def(nb::init<SpectralContinuationOptions, TerrainBase>(), "options"_a,
+             "base"_a = TerrainBase{})
         .def_prop_ro("options", &SpectralContinuationLayer::Options);
 }
 
@@ -350,7 +356,7 @@ void BindPavement(nb::module_& m) {
     m.def("mars_desiccation_ridges", &MarsDesiccationRidges,
           "The desiccation ridges of Gale crater's Old Soaker slab (Stein et al. 2018).");
     auto layer = nb::class_<PavementLayer, Layer>(m, "PavementLayer", "Fractured bedrock plates.");
-    layer.def(nb::init<PavementOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+    layer.def(nb::init<PavementOptions, TerrainBase>(), "options"_a, "base"_a = TerrainBase{})
         .def_prop_ro("options", &PavementLayer::Options);
     BindMaterialCover<PavementLayer>(layer);
 }
@@ -364,7 +370,7 @@ void BindStrata(nb::module_& m) {
         {&ValidateStrataOptions, "validate_strata_options", "options"});
     auto layer = nb::class_<StrataLayer, Layer>(m, "StrataLayer",
                                                 "Layered rock terraced into benches and cliffs.");
-    layer.def(nb::init<StrataOptions, Surface>(), "options"_a, "surface"_a = Surface{})
+    layer.def(nb::init<StrataOptions, TerrainBase>(), "options"_a, "base"_a = TerrainBase{})
         .def_prop_ro("options", &StrataLayer::Options);
     BindMaterialCover<StrataLayer>(layer);
 }
@@ -399,9 +405,7 @@ void BindDunes(nb::module_& m) {
           "The transverse dunes of Mars's north polar erg, with large ripples.");
     auto dunes =
         nb::class_<DuneLayer, Layer>(m, "DuneLayer", "Wind-blown dunes, with ripples on them.");
-    dunes
-        .def(nb::init<DuneOptions, Surface, std::shared_ptr<const Source>>(), "options"_a,
-             "surface"_a = Surface{}, "source"_a = nb::none())
+    dunes.def(nb::init<DuneOptions, TerrainBase>(), "options"_a, "base"_a = TerrainBase{})
         .def("dune_height_at", &DuneLayer::DuneHeightAt, "x"_a, "y"_a,
              "The dunes' height at (x, y) in meters, without ripples.")
         .def_prop_ro("options", &DuneLayer::Options);

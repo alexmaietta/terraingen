@@ -33,7 +33,7 @@ namespace {
 Albedo Gray(SplotchAlbedoOptions options, Surface surface = {}) {
     SyntheticAlbedoOptions params;
     params.value = 0.11;
-    return {std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{}, surface),
+    return {std::make_shared<SyntheticAlbedo>(params, surface),
             {std::make_shared<SplotchAlbedo>(options, surface)},
             surface};
 }

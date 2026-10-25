@@ -67,27 +67,27 @@ RandomStream BoulderLayer::AttributeStream(std::uint64_t id, BoulderDraw draw) c
 }
 
 BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters,
-                           Surface surface, std::shared_ptr<const Source> source)
+                           TerrainBase base)
     : BoulderLayer(std::move(options),
                    craters ? std::vector<std::shared_ptr<const CraterLayer>>{std::move(craters)}
                            : std::vector<std::shared_ptr<const CraterLayer>>{},
-                   surface, std::move(source)) {}
+                   std::move(base)) {}
 
 BoulderLayer::BoulderLayer(BoulderLayerOptions options,
-                           std::vector<std::shared_ptr<const CraterLayer>> craters, Surface surface,
-                           std::shared_ptr<const Source> source)
-    : options_(std::move(options)), craters_(std::move(craters)), surface_(surface) {
+                           std::vector<std::shared_ptr<const CraterLayer>> craters,
+                           TerrainBase base)
+    : options_(std::move(options)), craters_(std::move(craters)), surface_(base.surface) {
     for (const auto& layer : craters_) {
         if (!layer) {
             throw std::invalid_argument("A boulder layer's crater layers must not be null");
         }
-        if (!(layer->Options().surface == surface_)) {
+        if (!(layer->LayerSurface() == surface_)) {
             throw std::invalid_argument(
                 "A boulder layer and its crater layer must share a surface");
         }
     }
     ValidateBoulderLayerOptions(options_);
-    if (auto limit = LayerResolvedLimit(source, options_.sourceResolvesPixels, surface_)) {
+    if (auto limit = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, surface_)) {
         std::shared_ptr<const SurfaceField>& completeness = options_.completeness;
         completeness = completeness ? std::make_shared<const MinimumField>(completeness, limit)
                                     : std::move(limit);
@@ -120,7 +120,7 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options,
 }
 
 std::shared_ptr<BoulderLayer> BoulderLayer::Manual(std::vector<ManualBoulder> boulders,
-                                                   BoulderLayerOptions options, Surface surface) {
+                                                   BoulderLayerOptions options, TerrainBase base) {
     if (!options.manual.empty()) {
         throw std::invalid_argument(
             "BoulderLayer::Manual takes its boulders as an argument; leave options.manual empty");
@@ -128,7 +128,7 @@ std::shared_ptr<BoulderLayer> BoulderLayer::Manual(std::vector<ManualBoulder> bo
     options.generateRandom = false;
     options.manual = std::move(boulders);
     return std::make_shared<BoulderLayer>(std::move(options), std::shared_ptr<const CraterLayer>{},
-                                          surface);
+                                          std::move(base));
 }
 
 double BoulderLayer::MaxFeatureDiameter() const {

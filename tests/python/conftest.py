@@ -136,7 +136,7 @@ def build_noise_relief(seed, wavelength, amplitude, surface=None, **params):
     )
     if surface is None:
         return terraingen.NoiseRelief([layer])
-    return terraingen.NoiseRelief([layer], surface=surface)
+    return terraingen.NoiseRelief([layer], base=terraingen.TerrainBase(surface))
 
 
 @pytest.fixture(scope="session")

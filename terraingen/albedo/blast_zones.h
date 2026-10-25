@@ -5,6 +5,7 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
+#include "terraingen/sources/terrain_base.h"
 #include "terraingen/util/surface.h"
 
 #include <cstdint>
@@ -57,7 +58,7 @@ double BlastZoneMeanShare();
 class BlastZoneAlbedo final : public AlbedoLayer {
   public:
     /// @throws std::invalid_argument for a zone invalid as `ValidateBlastZone`.
-    explicit BlastZoneAlbedo(std::vector<BlastZone> zones, Surface surface = {});
+    explicit BlastZoneAlbedo(std::vector<BlastZone> zones, TerrainBase base = {});
 
     /// Changes the albedo at one point by the zones over it; NaN stays NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,

@@ -16,7 +16,7 @@
 #include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/layer.h"
-#include "terraingen/sources/source.h"
+#include "terraingen/sources/terrain_base.h"
 
 #include <cstdint>
 #include <limits>
@@ -68,8 +68,6 @@ struct CraterLayerOptions {
     CraterApplyOptions apply = DefaultCraterApply();
     /// Most craters to keep generated cells of (`CraterCellCache`); 0 regenerates cells every time.
     std::size_t cacheCraters = 4000000;
-    /// What the craters lie on, copied into `generation.surface` and `apply.surface`.
-    Surface surface{};
     /// A map that sets the density point by point (`DensityMap`); unset keeps the density the
     /// same everywhere. Manual craters are not thinned by it; with a catalog among them, set
     /// `generation.completeness` so generated craters do not repeat it.
@@ -97,22 +95,21 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// @param models The density and ages may be null without `generateRandom` or a density map,
     /// the ages may be null for those the degradation has, and the profile as `MatchedProfile`
     /// takes it.
-    /// @param source The source the terrain's heights come from, which with
-    /// `options.sourceResolvesPixels` holds the craters it resolves; null for none.
+    /// @param base What the craters lie on, copied into `generation.surface` and `apply.surface`,
+    /// and the source, which with `options.sourceResolvesPixels` holds the craters it resolves.
     /// @throws std::invalid_argument for a missing model, a profile `MatchedProfile` rejects, or
     /// invalid options.
     CraterLayer(CraterModels models = DefaultCraterModels(), CraterLayerOptions options = {},
-                std::shared_ptr<const Source> source = nullptr);
+                TerrainBase base = {});
 
     /// A layer of only `craters`, shaped by `models` and `apply`: `generateRandom` off, so no
     /// random craters, and the density and ages are not used.
     /// @param craters Flagged manual and given IDs as `AppendManualCraters` does.
-    /// @param surface What the craters lie on.
     /// @throws std::invalid_argument as the constructor.
     static std::shared_ptr<CraterLayer> Manual(CraterList craters,
                                                CraterModels models = DefaultCraterModels(),
                                                CraterApplyOptions apply = DefaultCraterApply(),
-                                               Surface surface = {});
+                                               TerrainBase base = {});
 
     /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater,
     /// in meters.
@@ -141,7 +138,7 @@ class CraterLayer final : public Layer, public CraterPlacer {
     }
 
     std::optional<Surface> LayerSurface() const override {
-        return options_.surface;
+        return surface_;
     }
 
   protected:
@@ -168,6 +165,7 @@ class CraterLayer final : public Layer, public CraterPlacer {
 
     CraterModels models_;
     CraterLayerOptions options_;
+    Surface surface_;
     std::shared_ptr<const SurfaceCells> cells_;
     std::shared_ptr<CraterCellCache> cache_;
     /// The density craters are drawn at: `models_.density`, times the map's largest scale.

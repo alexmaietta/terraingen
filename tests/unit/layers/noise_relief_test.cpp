@@ -2,6 +2,8 @@
 
 #include "terraingen/layers/noise_relief.h"
 
+#include "support/referenced_source.h"
+
 #include "terraingen/gpu/kernel.h"
 #include "terraingen/noise/noise_layers.h"
 #include "terraingen/noise/surface_noise.h"
@@ -51,7 +53,8 @@ TEST(NoiseRelief, MeasuresPositionsFromItsOriginAndSkipsNoData) {
     heights.SetNoData(std::numeric_limits<float>::quiet_NaN());
     heights(1, 2) = std::numeric_limits<float>::quiet_NaN();
     const SyntheticTerrainParams params = Params();
-    NoiseRelief(params.layers, {500000.0, 4000000.0}).Apply(heights, {1.0});
+    NoiseRelief(params.layers, terraingen::testing::ReferencedBase({500000.0, 4000000.0}))
+        .Apply(heights, {1.0});
     EXPECT_TRUE(std::isnan(heights(1, 2)));
     const auto center = heights.CellCenter(3, 1);
     EXPECT_EQ(heights(3, 1),
@@ -62,13 +65,13 @@ TEST(NoiseRelief, MeasuresPositionsFromItsOriginAndSkipsNoData) {
 
 TEST(NoiseRelief, RejectsInvalidParameters) {
     EXPECT_THROW(NoiseRelief{std::vector<terraingen::NoiseLayer>{}}, std::invalid_argument);
-    EXPECT_EQ(NoiseRelief(Params().layers).Layers(), Params().layers);
+    EXPECT_EQ(NoiseRelief(Params().layers).Options().layers, Params().layers);
 }
 
 TEST(NoiseRelief, PointQueriesMatchCellsAndKeepNoData) {
     Raster<float> heights(8, 8, 3.0f);
     heights.SetTransform(GeoTransform::NorthUp(-8.0, 8.0, 2.0));
-    const NoiseRelief relief(Params().layers, {1.0, -2.0});
+    const NoiseRelief relief(Params().layers, terraingen::testing::ReferencedBase({1.0, -2.0}));
     relief.Apply(heights, {2.0});
     const auto center = heights.CellCenter(5, 2);
     EXPECT_EQ(relief.ApplyAt(3.0f, center.x, center.y, {2.0}), heights(5, 2));
@@ -145,7 +148,8 @@ TEST(NoiseRelief, MatchesTheCpuOnEachGpuBackendAndSkipsNoData) {
     if (gpus.empty()) {
         GTEST_SKIP() << "No GPU backend runs here";
     }
-    const NoiseRelief relief(GpuParams().layers, {500000.0, 4000000.0});
+    const NoiseRelief relief(GpuParams().layers,
+                             terraingen::testing::ReferencedBase({500000.0, 4000000.0}));
     for (const terraingen::Backend backend : gpus) {
         SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
         for (const float noData : {std::numeric_limits<float>::quiet_NaN(), -9999.0f}) {
@@ -227,8 +231,8 @@ TEST(NoiseRelief, FallsBackToTheCpuOnSpheresAndRotatedOrVeryWideGrids) {
         };
         Raster<float> lonLat(16, 8, 0.0f);
         lonLat.SetTransform(GeoTransform::NorthUp(10.0, 20.0, 0.01));
-        expectSame(NoiseRelief(GpuParams().layers, {}, terraingen::Surface::Sphere(1737400.0)),
-                   lonLat, 300.0);
+        expectSame(NoiseRelief(GpuParams().layers, terraingen::Surface::Sphere(1737400.0)), lonLat,
+                   300.0);
         Raster<float> rotated(16, 8, 0.0f);
         rotated.SetTransform(GeoTransform{0.0, 2.0, 0.5, 0.0, 0.5, -2.0});
         expectSame(NoiseRelief(GpuParams().layers), rotated, 2.0);
@@ -244,7 +248,8 @@ TEST(NoiseRelief, SkipsDisabledLayersAsTheFullStackDoes) {
     EXPECT_EQ(kernel.layers.count, 2u);
     Raster<float> heights(9, 7, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(30.0, 40.0, 3.0));
-    NoiseRelief(params.layers, {10.0, 5.0}).Apply(heights, {3.0});
+    NoiseRelief(params.layers, terraingen::testing::ReferencedBase({10.0, 5.0}))
+        .Apply(heights, {3.0});
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             const auto center = heights.CellCenter(col, row);
@@ -258,7 +263,8 @@ TEST(NoiseRelief, SkipsDisabledLayersAsTheFullStackDoes) {
 }
 
 TEST(NoiseRelief, PointsStayOnTheCpuWhateverTheBackend) {
-    const NoiseRelief relief(GpuParams().layers, {-20.0, 15.0});
+    const NoiseRelief relief(GpuParams().layers,
+                             terraingen::testing::ReferencedBase({-20.0, 15.0}));
     const std::vector<terraingen::Vec2d> points{{1.5, 2.5}, {-300.0, 812.25}};
     std::vector<float> cpu(points.size(), 4.0f);
     std::vector<float> vulkan = cpu;
@@ -294,5 +300,6 @@ TEST(NoiseRelief, RunsOnEachGpuBackendItselfAndNotWithoutItsCompiledForm) {
 
 TEST(NoiseRelief, TakesOneLayerAlone) {
     const terraingen::NoiseLayer layer = terraingen::NoiseLayer::Fbm(3, 800.0, 40.0);
-    EXPECT_EQ(terraingen::NoiseRelief(layer).Layers(), std::vector<terraingen::NoiseLayer>{layer});
+    EXPECT_EQ(terraingen::NoiseRelief(layer).Options().layers,
+              std::vector<terraingen::NoiseLayer>{layer});
 }

@@ -199,11 +199,10 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, dunes are laid out in the tangent frame of `options.anchor`, with the azimuth
     /// counter-clockwise from local east.
-    /// @param source The source the terrain's heights come from, which with
-    /// `options.sourceResolvesPixels` holds the dunes it resolves; null for none.
+    /// @param base The surface and the source, which with `options.sourceResolvesPixels` holds
+    /// the dunes it resolves.
     /// @throws std::invalid_argument as `ValidateDuneOptions`.
-    explicit DuneLayer(DuneOptions options, Surface surface = {},
-                       std::shared_ptr<const Source> source = nullptr);
+    explicit DuneLayer(DuneOptions options, TerrainBase base = {});
 
     /// The dunes' height at world (x, y), without ripples (m).
     double DuneHeightAt(double x, double y) const;

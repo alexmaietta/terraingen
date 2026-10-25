@@ -2,6 +2,8 @@
 
 #include "terraingen/terraingen.h"
 
+#include "support/referenced_source.h"
+
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -125,7 +127,9 @@ TEST(SyntheticAlbedo, ColorAndNoiseVaryEachChannel) {
     params.hueNoiseDegrees = {Noise(10.0f, 40.0f, 1)};
     params.saturationNoise = {Noise(0.1f, 40.0f, 2)};
     params.valueNoise = {Noise(0.5f, 20.0f, 3)};
-    const Albedo albedo{std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{5.0, 5.0}), {}};
+    const Albedo albedo{
+        std::make_shared<SyntheticAlbedo>(params, terraingen::testing::ReferencedBase({5.0, 5.0})),
+        {}};
     const auto bands = EvaluateAlbedo(albedo, Grid(64, 1.0), {1.0, 4});
     ASSERT_EQ(bands.size(), 3u);
     double sum = 0.0;
@@ -329,7 +333,7 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
     params.saturation = 0.1;
     params.valueNoise = {Noise(0.3f, 2000.0f, 3)};
     params.hueNoiseDegrees = {Noise(20.0f, 5000.0f, 4)};
-    const SyntheticAlbedo albedo(params, {}, moon);
+    const SyntheticAlbedo albedo(params, moon);
     const AlbedoContext context{10.0};
     const AlbedoSample east = albedo.ValueAt(180.0, 3.0, context);
     const AlbedoSample west = albedo.ValueAt(-180.0, 3.0, context);
@@ -338,7 +342,7 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
     }
     EXPECT_NE(albedo.ValueAt(10.0, 3.0, context)[0], east[0]);
     params.valueNoise[0].fractal.basis = terraingen::NoiseBasis::Simplex;
-    const SyntheticAlbedo simplex(params, {}, moon);
+    const SyntheticAlbedo simplex(params, moon);
     EXPECT_FLOAT_EQ(simplex.ValueAt(180.0, 3.0, context)[0],
                     simplex.ValueAt(-180.0, 3.0, context)[0]);
 }

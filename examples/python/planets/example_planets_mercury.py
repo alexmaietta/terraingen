@@ -42,7 +42,7 @@ class Example(_common.Example):
                     terraingen.FractalParams(seed=5, wavelength=15000.0, amplitude=250.0, octaves=6)
                 ),
             ],
-            surface=self.mercury,
+            base=self.mercury,
         )
         ages = terraingen.UniformAges(4.0)
         models = terraingen.CraterModels(
@@ -53,7 +53,7 @@ class Example(_common.Example):
         )
         generation = terraingen.CraterGenerationOptions(d_min=1000.0, d_max=30000.0)
         craters = terraingen.CraterLayer(
-            models, terraingen.CraterLayerOptions(seed=4, generation=generation, surface=self.mercury)
+            models, terraingen.CraterLayerOptions(seed=4, generation=generation), base=self.mercury
         )
         site = terraingen.FlatSource(257, 257, PIXEL, center=(-30.0, 10.0), surface=self.mercury)
         terrain = terraingen.TerrainGenerator(site, [noise, craters], surface=self.mercury)

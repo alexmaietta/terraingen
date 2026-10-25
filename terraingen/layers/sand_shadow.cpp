@@ -26,8 +26,8 @@ void ValidateSandShadowOptions(const SandShadowOptions& options) {
 }
 
 SandShadowLayer::SandShadowLayer(std::shared_ptr<const BoulderLayer> boulders,
-                                 SandShadowOptions options, Surface surface)
-    : boulders_(std::move(boulders)), options_(options), surface_(surface) {
+                                 SandShadowOptions options, TerrainBase base)
+    : boulders_(std::move(boulders)), options_(options), surface_(base.surface) {
     ValidateSandShadowOptions(options_);
     if (!boulders_) {
         throw std::invalid_argument("Sand shadows need a boulder layer");

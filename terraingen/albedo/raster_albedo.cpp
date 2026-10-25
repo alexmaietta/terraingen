@@ -74,8 +74,8 @@ void ValidateAlbedoDetail(const AlbedoDetail& detail) {
 }
 
 RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options,
-                           Surface surface)
-    : bands_(std::move(bands)), options_(options), surface_(surface) {
+                           TerrainBase base)
+    : bands_(std::move(bands)), options_(options), surface_(base.surface) {
     if (bands_.size() != 1 && bands_.size() != kMaxAlbedoBands) {
         throw std::invalid_argument("An albedo map must have 1 or 3 bands");
     }

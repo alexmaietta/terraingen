@@ -7,6 +7,7 @@
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/raster/resample.h"
+#include "terraingen/sources/terrain_base.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -67,7 +68,7 @@ class RasterAlbedo final : public AlbedoSource {
     /// @throws std::invalid_argument for another band count, empty, rotated or mismatched rasters,
     /// or invalid options.
     RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options = {},
-                 Surface surface = {});
+                 TerrainBase base = {});
 
     /// 1 or 3 bands, as the map has.
     std::size_t Bands() const override {

@@ -42,7 +42,7 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, the rings lie in each point's local frame.
     /// @throws std::invalid_argument as `ValidateSandFillOptions`.
-    explicit SandFillLayer(SandFillOptions options = {}, Surface surface = {});
+    explicit SandFillLayer(SandFillOptions options = {}, TerrainBase base = {});
 
     /// The sand thickness at world (x, y) over `ground`, in meters.
     /// @param spacing Sample spacing in meters the ground is read at.

@@ -320,8 +320,7 @@ double SecondaryStretch(const SecondaryShapes& shapes) {
 
 SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
                                            CraterShapeModels models, SecondaryCraterOptions options,
-                                           CraterApplyOptions apply,
-                                           std::shared_ptr<const Source> source)
+                                           CraterApplyOptions apply, TerrainBase base)
     : primaries_(std::move(primaries)), models_(std::move(models)), options_(options),
       apply_(apply) {
     if (!primaries_ || !models_.degradation) {
@@ -341,15 +340,19 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
     if (apply_.datum != CraterDatum::None) {
         throw std::invalid_argument("Secondary craters are additive; datums are not supported");
     }
-    apply_.surface = primaries_->Options().surface;
-    limit_ = LayerResolvedLimit(source, options_.sourceResolvesPixels, apply_.surface);
+    if (!(primaries_->LayerSurface() == base.surface)) {
+        throw std::invalid_argument(
+            "Secondary craters must be built on the surface of their primaries");
+    }
+    apply_.surface = base.surface;
+    limit_ = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, apply_.surface);
 }
 
 SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
                                            SecondaryCraterOptions options, CraterApplyOptions apply,
-                                           std::shared_ptr<const Source> source)
+                                           TerrainBase base)
     : SecondaryCraterLayer(primaries, primaries ? primaries->Models().Shape() : CraterShapeModels{},
-                           std::move(options), std::move(apply), std::move(source)) {}
+                           std::move(options), std::move(apply), std::move(base)) {}
 
 double SecondaryCraterLayer::OuterRange(double diameter) const {
     return SecondaryOuterRange(diameter, options_);

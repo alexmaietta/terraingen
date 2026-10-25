@@ -40,8 +40,8 @@ void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options) {
     RequireFinite(o.originReflectance, "Slope origin reflectance");
 }
 
-SlopeAlbedo::SlopeAlbedo(SlopeAlbedoOptions options, Surface surface)
-    : options_(options), surface_(surface) {
+SlopeAlbedo::SlopeAlbedo(SlopeAlbedoOptions options, TerrainBase base)
+    : options_(options), surface_(base.surface) {
     ValidateSlopeAlbedoOptions(options_);
     step_ = options_.baseline / surface_.UnitLength();
 }

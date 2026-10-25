@@ -122,7 +122,7 @@ def test_rgb_synthetic_albedo_has_three_bands():
     )
     assert len(rgb) == 3
     on_a_plane = terraingen.SyntheticAlbedo(
-        rgb=True, hue_degrees=30.0, saturation=0.3, surface=terraingen.Surface()
+        rgb=True, hue_degrees=30.0, saturation=0.3, base=terraingen.TerrainBase(terraingen.Surface())
     )
     assert on_a_plane.bands() == 3
 

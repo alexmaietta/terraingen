@@ -52,7 +52,7 @@ class RoughnessLayer final : public FormulaLayer {
     /// On a sphere each octave is 3D Perlin noise at the 3D point, its lattice turned by a uniform
     /// random rotation.
     /// @throws std::invalid_argument as `ValidateRoughnessOptions`.
-    explicit RoughnessLayer(RoughnessOptions options, Surface surface = {});
+    explicit RoughnessLayer(RoughnessOptions options, TerrainBase base = {});
 
     /// The RMS slope (rise over run) over `baseline` meters with every octave resolved.
     double RmsSlope(double baseline) const;

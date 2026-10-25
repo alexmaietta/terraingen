@@ -10,6 +10,7 @@ terraingen_add_test_suite(
     raster_source_test.cpp
     source_chain_test.cpp
     synthetic_source_test.cpp
+    terrain_base_test.cpp
     upsampling_test.cpp
     LIBRARIES
     terraingen::sources)

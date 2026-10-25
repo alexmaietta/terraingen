@@ -9,6 +9,7 @@
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/random/value_distribution.h"
+#include "terraingen/sources/terrain_base.h"
 #include "terraingen/util/cells.h"
 #include "terraingen/util/surface.h"
 
@@ -139,7 +140,7 @@ struct Splotch {
 class SplotchAlbedo final : public AlbedoLayer {
   public:
     /// @throws std::invalid_argument for options invalid as `ValidateSplotchAlbedoOptions`.
-    explicit SplotchAlbedo(SplotchAlbedoOptions options = {}, Surface surface = {});
+    explicit SplotchAlbedo(SplotchAlbedoOptions options = {}, TerrainBase base = {});
 
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;

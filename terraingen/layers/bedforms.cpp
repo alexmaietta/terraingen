@@ -84,11 +84,10 @@ BedformOptions MarsTransverseAeolianRidges() {
     return ridges;
 }
 
-BedformLayer::BedformLayer(BedformOptions options, Surface surface,
-                           std::shared_ptr<const Source> source)
-    : FormulaLayer(surface), options_(options) {
+BedformLayer::BedformLayer(BedformOptions options, TerrainBase base)
+    : FormulaLayer(base.surface), options_(options) {
     ValidateBedformOptions(options_);
-    limit_ = LayerResolvedLimit(source, options_.sourceResolvesPixels, surface);
+    limit_ = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, base.surface);
     cell_ = options_.fieldSize / (kRadiusMin + kRadiusMax);
     const double meanArea = kPi * (std::pow(kRadiusMax, 3.0) - std::pow(kRadiusMin, 3.0)) /
                             (3.0 * (kRadiusMax - kRadiusMin));

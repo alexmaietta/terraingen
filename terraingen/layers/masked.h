@@ -70,7 +70,7 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
     /// @throws std::invalid_argument for a null `inner`, an invalid `shape`, or a negative or
     /// non-finite `feather`.
     MaskedLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather = 0.0,
-                BlendShape blend = BlendShape::Smoothstep, Surface surface = {});
+                BlendShape blend = BlendShape::Smoothstep, TerrainBase base = {});
 
     /// The inner layer's weight at surface (x, y): 1 inside the shape, 0 from `feather` outside
     /// it, the blend between.

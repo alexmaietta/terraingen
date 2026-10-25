@@ -145,8 +145,8 @@ PavementOptions MarsDesiccationRidges() {
     return ridges;
 }
 
-PavementLayer::PavementLayer(PavementOptions options, Surface surface)
-    : FormulaLayer(surface), options_(options), plane_(surface, options.anchor) {
+PavementLayer::PavementLayer(PavementOptions options, TerrainBase base)
+    : FormulaLayer(base.surface), options_(options), plane_(base.surface, options.anchor) {
     ValidatePavementOptions(options_);
     exposure_ =
         LayerExposure(options_.exposure, options_.exposureSpacing, surface_, kExposureReader);

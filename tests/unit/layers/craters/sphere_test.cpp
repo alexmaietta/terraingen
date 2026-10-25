@@ -39,7 +39,6 @@ CraterLayerOptions SphereOptions() {
     options.seed = 5;
     options.generation.dMin = 150.0;
     options.generation.dMax = 1200.0;
-    options.surface = Surface::Sphere(kMoon);
     return options;
 }
 
@@ -128,9 +127,8 @@ TEST(SphereCraterLayer, ShapesCratersInMetersAroundTheirCenters) {
     CraterLayerOptions options = SphereOptions();
     options.generateRandom = false;
     options.generation.manual.Append({30.0, 60.0, 2000.0, 1.0, 11u});
-    const CraterLayer sphere(Models(), options);
+    const CraterLayer sphere(Models(), options, Surface::Sphere(kMoon));
     CraterLayerOptions flat = options;
-    flat.surface = Surface::Plane();
     flat.generation.manual = {};
     flat.generation.manual.Append({0.0, 0.0, 2000.0, 1.0, 11u});
     const CraterLayer plane(Models(), flat);
@@ -153,7 +151,7 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
     options.apply.irregularity.elongatedShare = 0.5;
     options.generation.spacing = terraingen::CraterSpacing(1.5, 1.0);
     options.generation.manual.Append({179.99, 45.01, 3000.0, 0.5, 21u});
-    const CraterLayer layer(Models(), options);
+    const CraterLayer layer(Models(), options, Surface::Sphere(kMoon));
     Raster<float> one = Geographic(179.95, 45.05, 0.001, 100);
     Raster<float> many = one;
     layer.Apply(one, {0.0, 1});
@@ -164,9 +162,10 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
         changed += one.Values()[i] != 0.0f ? 1 : 0;
     }
     EXPECT_GT(changed, 1000);
-    const double spacing = terraingen::RasterGrid::FromRaster(one).Spacing(options.surface);
+    const double spacing =
+        terraingen::RasterGrid::FromRaster(one).Spacing(layer.Options().apply.surface);
     EXPECT_GT(layer.Craters(terraingen::RasterGrid::FromRaster(one).Bounds(), spacing).Size(), 1u);
-    EXPECT_NEAR(spacing, 0.001 * options.surface.UnitLength(), 1e-9);
+    EXPECT_NEAR(spacing, 0.001 * layer.Options().apply.surface.UnitLength(), 1e-9);
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{50, 50},
           std::pair<std::size_t, std::size_t>{95, 40},
@@ -190,7 +189,7 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
     options.generateRandom = false;
     options.apply.datum = terraingen::CraterDatum::Plane;
     options.generation.manual.Append({-20.0, -30.0, 2000.0, 1.0, 31u});
-    const CraterLayer layer(Models(), options);
+    const CraterLayer layer(Models(), options, Surface::Sphere(kMoon));
     class Tilted final : public terraingen::Ground {
       public:
         float HeightAt(double x, double y, double) const override {
@@ -205,7 +204,8 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
         }
     }
     const Raster<float> before = heights;
-    const double spacing = terraingen::RasterGrid::FromRaster(heights).Spacing(options.surface);
+    const double spacing =
+        terraingen::RasterGrid::FromRaster(heights).Spacing(layer.Options().apply.surface);
     layer.Apply(heights, {spacing, 1, &ground});
     const auto center = heights.CellCenter(25, 25);
     EXPECT_EQ(heights(25, 25),
@@ -308,7 +308,6 @@ TEST(BodyCraterLayer, GridsTilesPointsAndBackendsAgreeOnEveryBody) {
                                  terraingen::CraterDatum::CenterHeight}) {
             CraterLayerOptions options;
             options.generateRandom = false;
-            options.surface = body.surface;
             options.apply.datum = datum;
             options.apply.noise.amplitude = 0.005;
             options.apply.irregularity.enabled = true;
@@ -319,7 +318,7 @@ TEST(BodyCraterLayer, GridsTilesPointsAndBackendsAgreeOnEveryBody) {
                                                                  {0.3 * body.crater.diameter, 0.0});
             options.generation.manual.Append(
                 {beside.x, beside.y, 0.4 * body.crater.diameter, 0.5, body.crater.id + 100u});
-            const CraterLayer layer(Models(), options);
+            const CraterLayer layer(Models(), options, body.surface);
             ExpectGridsTilesAndPointsAgree(layer, body, &ground);
         }
     }
@@ -329,11 +328,9 @@ TEST(BodyCraterLayer, ShapesCratersInTheirLocalFrameOnEveryBody) {
     for (const BodyCase& body : Bodies()) {
         CraterLayerOptions options;
         options.generateRandom = false;
-        options.surface = body.surface;
         options.generation.manual.Append(body.crater);
-        const CraterLayer layer(Models(), options);
+        const CraterLayer layer(Models(), options, body.surface);
         CraterLayerOptions flat = options;
-        flat.surface = Surface::Plane();
         flat.generation.manual = {};
         flat.generation.manual.Append({0.0, 0.0, body.crater.diameter, 1.0, body.crater.id});
         const CraterLayer plane(Models(), flat);
@@ -358,12 +355,11 @@ TEST(BodyCraterLayer, ShapesProfilesOfYourOwnOnEveryBody) {
     for (const BodyCase& body : Bodies()) {
         CraterLayerOptions options;
         options.generateRandom = false;
-        options.surface = body.surface;
         options.apply.datum = terraingen::CraterDatum::Plane;
         options.generation.manual.Append(body.crater);
         CraterModels models = Models();
         models.profile = std::make_shared<Bowl>();
-        const CraterLayer layer(models, options);
+        const CraterLayer layer(models, options, body.surface);
         ExpectGridsTilesAndPointsAgree(layer, body, &ground);
         const double depth =
             terraingen::LunarFreshCraterMorphometry(body.crater.diameter).depthRatio *

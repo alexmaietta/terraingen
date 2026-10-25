@@ -14,6 +14,7 @@
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_source.h"
+#include "terraingen/sources/terrain_base.h"
 #include "terraingen/sources/upsampling.h"
 
 #include <nanobind/operators.h>
@@ -150,6 +151,22 @@ void BindSourceBase(nb::module_& m) {
         .def_prop_ro("width", [](const Source& source) { return source.Grid().width; })
         .def_prop_ro("height", [](const Source& source) { return source.Grid().height; })
         .def_prop_ro("transform", [](const Source& source) { return source.Grid().transform; });
+    nb::class_<TerrainBase>(m, "TerrainBase",
+                            "What a terrain's layers are built on: the `surface` they lie on and "
+                            "the `source` whose heights they add to, if any. Every layer takes one "
+                            "as `base`; a Surface or a Source alone converts to one.")
+        .def(nb::init<Surface, std::shared_ptr<const Source>>(), "surface"_a = Surface{},
+             "source"_a.none() = nb::none())
+        .def(nb::init_implicit<Surface>())
+        .def("__init__",
+             [](TerrainBase* self, std::shared_ptr<const Source> source) {
+                 new (self) TerrainBase(Surface{}, std::move(source));
+             })
+        .def_rw("surface", &TerrainBase::surface)
+        .def_rw("source", &TerrainBase::source, nb::arg("value").none())
+        .def("reference_point", &TerrainBase::ReferencePoint,
+             "Where noise on a plane is measured from: the source's reference point.");
+    nb::implicitly_convertible<std::shared_ptr<const Source>, TerrainBase>();
 }
 
 /// The posts [`col0`, `col0` + `width`) x [`row0`, `row0` + `height`) as an array of shape

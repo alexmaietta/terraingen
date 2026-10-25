@@ -108,11 +108,9 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     terraingen::SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 400.0f;
     noise.layers[0].fractal.amplitude = 6.0f;
-    terrain.layers.push_back(
-        std::make_shared<terraingen::NoiseRelief>(noise.layers, terraingen::Vec2d{}, moon));
+    terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(noise.layers, moon));
     terraingen::CraterLayerOptions options;
     options.seed = 4;
-    options.surface = moon;
     options.generation.dMin = 12.0;
     options.generation.dMax = 80.0;
     options.apply.rimSmoothing.sigmaRadii = 0.05;
@@ -122,7 +120,7 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
             std::make_shared<terraingen::UniformAges>(1.0),
             std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()},
-        options));
+        options, moon));
     const auto whole = Evaluate(terrain, terrain.source->Grid());
     EXPECT_GT(terraingen::PlacedCraters(terrain, terrain.source->Grid()).craters.Size(), 3u);
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{10, 10},
@@ -147,7 +145,6 @@ TEST(Evaluate, WholeBodyGridsAgreeAcrossTheAntimeridianAndAtThePole) {
     terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 0.0f);
     terraingen::CraterLayerOptions options;
     options.seed = 6;
-    options.surface = moon;
     options.generation.dMin = 300.0;
     options.generation.dMax = 1500.0;
     options.apply.rimSmoothing.sigmaRadii = 0.05;
@@ -157,7 +154,7 @@ TEST(Evaluate, WholeBodyGridsAgreeAcrossTheAntimeridianAndAtThePole) {
             std::make_shared<terraingen::UniformAges>(1.0),
             std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()},
-        options));
+        options, moon));
     const double size = 180.0 / 512.0;
     const double step = size / 16.0;
     const auto square = [&](double west, double north) {
@@ -196,8 +193,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     terraingen::SyntheticTerrainParams noise{{terraingen::NoiseLayer{}}};
     noise.layers[0].fractal.wavelength = 300000.0f;
     noise.layers[0].fractal.amplitude = 2000.0f;
-    terrain.layers.push_back(
-        std::make_shared<terraingen::NoiseRelief>(noise.layers, terraingen::Vec2d{}, moon));
+    terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(noise.layers, moon));
     const std::size_t n = 8;
     const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, n, 0.0, 2);
     ASSERT_EQ(mesh.positions.size(), 6 * (n + 1) * (n + 1));

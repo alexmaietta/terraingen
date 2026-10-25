@@ -15,25 +15,22 @@
 
 namespace terraingen {
 
-NoiseRelief::NoiseRelief(std::vector<NoiseLayer> layers, Vec2d origin, Surface surface,
-                         std::shared_ptr<const Source> source,
-                         std::optional<double> sourceResolvesPixels)
-    : layers_(std::move(layers)), origin_(origin), surface_(surface),
-      sourceResolvesPixels_(sourceResolvesPixels) {
-    ValidateNoiseLayers(layers_, 1);
-    ValidateSourceResolvesPixels(sourceResolvesPixels_);
-    kernel_ = MakeNoiseReliefKernel(layers_);
-    limit_ = LayerResolvedLimit(source, sourceResolvesPixels_, surface_);
+NoiseRelief::NoiseRelief(NoiseReliefOptions options, TerrainBase base)
+    : options_(std::move(options)), origin_(base.ReferencePoint()), surface_(base.surface) {
+    ValidateNoiseLayers(options_.layers, 1);
+    ValidateSourceResolvesPixels(options_.sourceResolvesPixels);
+    kernel_ = MakeNoiseReliefKernel(options_.layers);
+    limit_ = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, surface_);
     if (!limit_) {
         return;
     }
-    for (const NoiseLayer& layer : layers_) {
+    for (const NoiseLayer& layer : options_.layers) {
         wavelengths_.push_back(static_cast<double>(layer.fractal.wavelength));
     }
     std::sort(wavelengths_.begin(), wavelengths_.end());
     wavelengths_.erase(std::unique(wavelengths_.begin(), wavelengths_.end()), wavelengths_.end());
     for (std::size_t kept = 0; kept <= wavelengths_.size(); ++kept) {
-        std::vector<NoiseLayer> stack = layers_;
+        std::vector<NoiseLayer> stack = options_.layers;
         for (NoiseLayer& layer : stack) {
             if (kept < wavelengths_.size() &&
                 static_cast<double>(layer.fractal.wavelength) >= wavelengths_[kept]) {
@@ -63,7 +60,7 @@ void NoiseRelief::ApplySamples(SampleBlock& samples, const LayerContext& context
         return;
     }
     MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
-        return height + NoiseLayersAt(layers_, origin_, surface_, p.x, p.y);
+        return height + NoiseLayersAt(options_.layers, origin_, surface_, p.x, p.y);
     });
 }
 

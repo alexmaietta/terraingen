@@ -553,7 +553,7 @@ TEST(ValidateGenerator, RejectsLayersOfAnotherSurfaceAndDependenciesOutOfOrder) 
     terraingen::TerrainGenerator terrain;
     terrain.source = std::make_shared<terraingen::FlatSource>(9, 9, 1.0);
     terrain.layers = {std::make_shared<terraingen::NoiseRelief>(
-        terraingen::NoiseLayer::Fbm(1, 100.0, 1.0), terraingen::Vec2d{}, moon)};
+        terraingen::NoiseLayer::Fbm(1, 100.0, 1.0), moon)};
     EXPECT_THROW(terraingen::ValidateGenerator(terrain), std::invalid_argument)
         << "a layer for the Moon on a plane";
     terrain.surface = moon;

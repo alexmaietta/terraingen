@@ -38,20 +38,21 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
   public:
     /// @param primaries The layer whose craters throw secondaries.
     /// @param apply How secondaries are applied; without a datum.
-    /// @param source The source the terrain's heights come from, which with
-    /// `options.sourceResolvesPixels` holds the secondaries it resolves; null for none.
-    /// @throws std::invalid_argument for a null layer or degradation, a profile `MatchedProfile`
+    /// @param base What the terrain lies on, the primaries' surface, and the source, which with
+    /// `options.sourceResolvesPixels` holds the secondaries it resolves.
+    /// @throws std::invalid_argument for a null layer or degradation, a base on another surface
+    /// than the primaries', a profile `MatchedProfile`
     /// rejects, invalid options, apply options with a datum, or options missing from the
     /// primaries' `CraterLayerOptions::secondaries` when the primaries follow a density map.
     SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries, CraterShapeModels models,
                          SecondaryCraterOptions options, CraterApplyOptions apply = {},
-                         std::shared_ptr<const Source> source = nullptr);
+                         TerrainBase base = {});
 
     /// Secondaries shaped as the primaries are (`CraterModels::Shape`).
     /// @throws std::invalid_argument as the other constructor.
     SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
                          SecondaryCraterOptions options, CraterApplyOptions apply = {},
-                         std::shared_ptr<const Source> source = nullptr);
+                         TerrainBase base = {});
 
     /// The largest secondary the layer places, in meters.
     double MaxFeatureDiameter() const;

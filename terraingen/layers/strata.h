@@ -66,7 +66,7 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, the dip is measured in the tangent frame of `options.anchor`.
     /// @throws std::invalid_argument as `ValidateStrataOptions`.
-    explicit StrataLayer(StrataOptions options, Surface surface = {});
+    explicit StrataLayer(StrataOptions options, TerrainBase base = {});
 
     /// The options the layer was made with.
     const StrataOptions& Options() const {

@@ -398,7 +398,7 @@ TEST(GenerateFromConfig, EvaluatesTheAlbedoAsTheLibraryDoes) {
     ASSERT_TRUE(craters);
     const auto& synthetic = std::get<terraingen::SyntheticAlbedoSpec>(config.albedo->source);
     const terraingen::Albedo albedo{
-        std::make_shared<terraingen::SyntheticAlbedo>(synthetic.Options(), terraingen::Vec2d{}),
+        std::make_shared<terraingen::SyntheticAlbedo>(synthetic.Options()),
         {std::make_shared<terraingen::CraterAlbedo>(craters)}};
     const auto grid = terraingen::RasterGrid::FromRaster(HeightsOf(generated));
     const auto expected = terraingen::EvaluateAlbedo(albedo, grid, {grid.PixelSize()});
@@ -854,10 +854,11 @@ TEST(GenerateFromConfig, EstimatesRoughnessAndNoiseFromTheBaseAlikeForGridsTiles
                                         ->Options());
     const auto noise =
         std::dynamic_pointer_cast<const terraingen::NoiseRelief>(generated.generator.layers[0]);
-    EXPECT_GT(noise->Layers()[0].fractal.amplitude, 0.0f);
-    EXPECT_EQ(noise->Layers(),
+    EXPECT_GT(noise->Options().layers[0].fractal.amplitude, 0.0f);
+    EXPECT_EQ(noise->Options().layers,
               std::dynamic_pointer_cast<const terraingen::NoiseRelief>(shifted.generator.layers[0])
-                  ->Layers());
+                  ->Options()
+                  .layers);
 
     const terraingen::Raster<float>& grid = generated.grids[0].heights;
     const terraingen::RasterGrid lattice = terraingen::RasterGrid::FromRaster(grid);

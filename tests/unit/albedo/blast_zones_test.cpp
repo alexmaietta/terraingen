@@ -86,7 +86,7 @@ TEST(BlastZoneAlbedo, GridsAndPointsAgreeOnAPlaneAndASphere) {
         terraingen::SyntheticAlbedoOptions params;
         params.value = 0.1;
         const Albedo albedo{
-            std::make_shared<terraingen::SyntheticAlbedo>(params, terraingen::Vec2d{}, surface),
+            std::make_shared<terraingen::SyntheticAlbedo>(params, surface),
             {std::make_shared<BlastZoneAlbedo>(std::vector<BlastZone>{zone}, surface)},
             surface};
         const double step = 8.0 / surface.UnitLength();

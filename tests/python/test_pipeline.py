@@ -222,7 +222,7 @@ def lunar_site(moon, lunar_models, noise_relief):
     noise = noise_relief(1, 400000.0, 3000.0, surface=moon)
     generation = terraingen.CraterGenerationOptions(d_min=20000.0, d_max=300000.0)
     craters = terraingen.CraterLayer(
-        lunar_models(3.8), terraingen.CraterLayerOptions(surface=moon, generation=generation)
+        lunar_models(3.8), terraingen.CraterLayerOptions(generation=generation), moon
     )
     site = terraingen.FlatSource(65, 65, 4000.0, center=(23.47, 0.67), surface=moon)
     return terraingen.TerrainGenerator(site, [noise, craters], surface=moon)

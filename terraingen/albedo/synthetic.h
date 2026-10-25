@@ -6,6 +6,7 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/noise/noise_layers.h"
+#include "terraingen/sources/terrain_base.h"
 #include "terraingen/util/geometry.h"
 
 #include <vector>
@@ -54,16 +55,15 @@ void ValidateSyntheticAlbedoOptions(const SyntheticAlbedoOptions& options);
 AlbedoSample HsvToRgb(double hueDegrees, double saturation, double value);
 
 /// An albedo for terrain without data: a base color with noise in each channel, the
-/// saturation and value clamped to [0, 1] after it. Noise is measured from `origin`; on a sphere it
-/// is 3D noise at each point's 3D position (`EvaluateNoiseLayers3`).
+/// saturation and value clamped to [0, 1] after it. Noise is measured from the base's reference
+/// point; on a sphere it is 3D noise at each point's 3D position (`EvaluateNoiseLayers3`).
 class SyntheticAlbedo final : public AlbedoSource {
   public:
     /// The synthetic albedo with the color and noise of `options`.
-    /// @param origin Point noise is measured from, keeping single-precision noise accurate where
-    /// coordinates are large.
+    /// @param base The surface, and the source whose reference point noise is measured from,
+    /// keeping single-precision noise accurate where coordinates are large.
     /// @throws std::invalid_argument as `ValidateSyntheticAlbedoOptions`.
-    explicit SyntheticAlbedo(SyntheticAlbedoOptions options, Vec2d origin = {},
-                             Surface surface = {});
+    explicit SyntheticAlbedo(SyntheticAlbedoOptions options, TerrainBase base = {});
 
     /// 3 bands when `rgb` is set, otherwise 1.
     std::size_t Bands() const override {

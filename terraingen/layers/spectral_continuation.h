@@ -52,7 +52,7 @@ void ValidateSpectralContinuationOptions(const SpectralContinuationOptions& opti
 class SpectralContinuationLayer final : public Layer {
   public:
     /// @throws std::invalid_argument as `ValidateSpectralContinuationOptions`.
-    explicit SpectralContinuationLayer(SpectralContinuationOptions options, Surface surface = {});
+    explicit SpectralContinuationLayer(SpectralContinuationOptions options, TerrainBase base = {});
 
     /// The options the layer was made with.
     const SpectralContinuationOptions& Options() const {

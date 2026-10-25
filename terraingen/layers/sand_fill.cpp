@@ -25,8 +25,8 @@ void ValidateSandFillOptions(const SandFillOptions& options) {
     RequireUnitInterval(options.fill, "Sand fill share");
 }
 
-SandFillLayer::SandFillLayer(SandFillOptions options, Surface surface)
-    : FormulaLayer(surface), options_(options) {
+SandFillLayer::SandFillLayer(SandFillOptions options, TerrainBase base)
+    : FormulaLayer(base.surface), options_(options) {
     ValidateSandFillOptions(options_);
     for (int ring = 0; ring < 2; ++ring) {
         const double radius = options_.reach * (ring == 0 ? 0.5 : 1.0);

@@ -63,8 +63,8 @@ double BlastZoneMeanShare() {
     return share;
 }
 
-BlastZoneAlbedo::BlastZoneAlbedo(std::vector<BlastZone> zones, Surface surface)
-    : zones_(std::move(zones)), surface_(std::move(surface)) {
+BlastZoneAlbedo::BlastZoneAlbedo(std::vector<BlastZone> zones, TerrainBase base)
+    : zones_(std::move(zones)), surface_(std::move(base.surface)) {
     for (const BlastZone& zone : zones_) {
         ValidateBlastZone(zone);
     }

@@ -42,8 +42,8 @@ float ClampLayer::HeightAt(float height, double /*x*/, double /*y*/, double /*sp
     return static_cast<float>(value);
 }
 
-FunctionLayer::FunctionLayer(HeightFunction function, Surface surface)
-    : FormulaLayer(surface), function_(std::move(function)) {
+FunctionLayer::FunctionLayer(HeightFunction function, TerrainBase base)
+    : FormulaLayer(base.surface), function_(std::move(function)) {
     if (!function_) {
         throw std::invalid_argument("A function layer needs a function");
     }

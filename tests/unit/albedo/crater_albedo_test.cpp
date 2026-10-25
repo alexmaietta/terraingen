@@ -301,7 +301,6 @@ TEST(CraterAlbedo, WorksOnASphereInMeters) {
     const Surface moon = Surface::Sphere(1737400.0);
     terraingen::CraterLayerOptions sphereOptions;
     sphereOptions.generateRandom = false;
-    sphereOptions.surface = moon;
     sphereOptions.generation.manual.Append({179.99, -20.0, 2000.0, 0.0, 9u, true});
     const auto sphereCraters = std::make_shared<terraingen::CraterLayer>(
         terraingen::CraterModels{
@@ -309,7 +308,7 @@ TEST(CraterAlbedo, WorksOnASphereInMeters) {
             std::make_shared<terraingen::FreshAges>(),
             std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
             std::make_shared<terraingen::FassettThomsonProfile>()},
-        sphereOptions);
+        sphereOptions, moon);
     const CraterAlbedo sphere(sphereCraters);
     const CraterAlbedo plane(Craters({{0.0, 0.0, 2000.0, 0.0, 9u, true}}));
     const Crater onSphere = sphereCraters->Options().generation.manual.At(0);
@@ -325,7 +324,7 @@ TEST(CraterAlbedo, WorksOnASphereInMeters) {
     }
     SyntheticAlbedoOptions params;
     params.value = 0.11;
-    const Albedo albedo{std::make_shared<SyntheticAlbedo>(params, terraingen::Vec2d{}, moon),
+    const Albedo albedo{std::make_shared<SyntheticAlbedo>(params, moon),
                         {std::make_shared<CraterAlbedo>(sphereCraters)},
                         moon};
     const double step = 50.0 / moon.UnitLength();
