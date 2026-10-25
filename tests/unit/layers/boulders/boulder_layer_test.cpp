@@ -362,7 +362,7 @@ TEST(BoulderModelThreshold, SplitsBouldersByDiameterOrBySamplesAtTheSpacing) {
     EXPECT_TRUE(big.IsModel(2.0, 0.0));
     EXPECT_FALSE(big.IsModel(1.9, 0.0));
     terraingen::BoulderModelThreshold resolved;
-    resolved.minSamples = 8.0;
+    resolved.minPixels = 8.0;
     EXPECT_TRUE(resolved.IsModel(1.0, 0.125)) << "eight samples across at 12.5 cm";
     EXPECT_FALSE(resolved.IsModel(1.0, 0.5)) << "relief in a coarser level of detail";
     EXPECT_FALSE(resolved.IsModel(1.0, 0.0));
@@ -489,7 +489,7 @@ TEST(BoulderLayer, SharesShapesBetweenBouldersOfOnePrototype) {
     options.rendering.shapePrototypes = 0;
     const BoulderLayer unique(options);
     EXPECT_NE(unique.Shape(first)->mesh.positions, unique.Shape(other)->mesh.positions);
-    options.rendering.modelThreshold.minSamples = -1.0;
+    options.rendering.modelThreshold.minPixels = -1.0;
     EXPECT_THROW(BoulderLayer{options}, std::invalid_argument);
 }
 
@@ -583,8 +583,8 @@ TEST(BoulderModelThreshold, KeepsABandOfSizesAsModels) {
     EXPECT_TRUE(band.IsModel(1.0, 0.0));
     EXPECT_FALSE(band.IsModel(3.0, 0.0));
     band = terraingen::BoulderModelThreshold{};
-    band.minSamples = 4.0;
-    band.maxSamples = 10.0;
+    band.minPixels = 4.0;
+    band.maxPixels = 10.0;
     EXPECT_TRUE(band.IsModel(1.0, 0.2));
     EXPECT_FALSE(band.IsModel(2.0, 0.2));
     EXPECT_FALSE(band.IsModel(2.0, 0.0)) << "no samples without a spacing";

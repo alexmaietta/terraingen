@@ -178,8 +178,8 @@ TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
     EXPECT_EQ(boulders.fragmentation->minDiameter, 1.5);
     EXPECT_EQ(boulders.rendering.modelThreshold.minDiameter, 1.0);
     EXPECT_EQ(boulders.rendering.modelThreshold.maxDiameter, 3.0);
-    EXPECT_EQ(boulders.rendering.modelThreshold.minSamples, 4.0);
-    EXPECT_EQ(boulders.rendering.modelThreshold.maxSamples, 40.0);
+    EXPECT_EQ(boulders.rendering.modelThreshold.minPixels, 4.0);
+    EXPECT_EQ(boulders.rendering.modelThreshold.maxPixels, 40.0);
     EXPECT_EQ(boulders.rendering.reliefRange.minDiameter, 0.1);
     EXPECT_EQ(boulders.rendering.reliefRange.maxDiameter, 2.0);
     EXPECT_EQ(spec.slopeMap->referenceDiameter, 2.0);

@@ -4,7 +4,7 @@
 
 An exposure field estimates how exposed the ground is, from 0 (deep cover in hollows) to 1 (bare
 crests and steep slopes). Bedforms with `exposure` set grow only on covered ground, and boulders with
-`exposure` set gather on exposed ground (up to `bedrock_abundance` times more). Prints how much of
+`bedrock.exposure` set gather on exposed ground (up to `bedrock.abundance` times more). Prints how much of
 each lies on exposed ground and writes the heights, the exposure map and a hillshade.
 
     python example_planets_mars_exposure.py [--viewer window|null] [--output-dir DIR] [--test]
@@ -49,12 +49,10 @@ class Example(_common.Example):
         boulders = terraingen.BoulderLayer(
             terraingen.BoulderLayerOptions(
                 seed=3,
-                distribution=None,
-                coverage=0.02,
-                min_diameter=0.3,
-                max_diameter=3.0,
-                exposure=exposure,
-                bedrock_abundance=4.0,
+                sizes=terraingen.BoulderSizes(
+                    distribution=None, coverage=0.02, min_diameter=0.3, max_diameter=3.0
+                ),
+                bedrock=terraingen.BoulderBedrock(exposure=exposure, abundance=4.0),
             )
         )
         source = terraingen.FlatSource(SIZE, SIZE, PIXEL)

@@ -111,9 +111,11 @@ def test_renders_a_generated_terrain_headlessly():
 
 def boulder_models():
     options = tg.BoulderLayerOptions(
-        distribution=None, coverage=0.1, min_diameter_m=0.5, max_diameter_m=2.0, shape_prototypes=4
+        sizes=tg.BoulderSizes(distribution=None, coverage=0.1, min_diameter=0.5, max_diameter=2.0),
+        rendering=tg.BoulderRendering(
+            shape_prototypes=4, model_threshold=tg.BoulderModelThreshold(min_diameter=0.5)
+        ),
     )
-    options.models = tg.BoulderModelThreshold(min_diameter_m=0.5)
     terrain = tg.TerrainGenerator(None, [tg.BoulderLayer(options)])
     grid = tg.RasterGrid.centered((0, 0), (80 * 0.25, 80 * 0.25), 0.25)
     return tg.placed_boulders(terrain, grid, 0.25).models

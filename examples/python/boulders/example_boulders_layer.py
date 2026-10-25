@@ -53,11 +53,12 @@ class Example(_common.Example):
         self.heights, self.boulders = {}, {}
         for coverage in (0.02, 0.05, 0.10):
             options = terraingen.BoulderLayerOptions(
-                distribution=None,
-                coverage=coverage,
-                min_diameter=0.2,
-                max_diameter=3.0,
-                model_threshold=terraingen.BoulderModelThreshold(min_diameter=0.6),
+                sizes=terraingen.BoulderSizes(
+                    distribution=None, coverage=coverage, min_diameter=0.2, max_diameter=3.0
+                ),
+                rendering=terraingen.BoulderRendering(
+                    model_threshold=terraingen.BoulderModelThreshold(min_diameter=0.6)
+                ),
             )
             boulders = terraingen.BoulderLayer(options, craters)
             terrain = terraingen.TerrainGenerator(

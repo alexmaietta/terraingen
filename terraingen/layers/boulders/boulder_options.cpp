@@ -154,7 +154,7 @@ void ValidateBoulderPose(const BoulderPose& pose) {
 void ValidateBoulderRendering(const BoulderRendering& rendering) {
     const BoulderModelThreshold& models = rendering.modelThreshold;
     for (const auto& threshold :
-         {models.minDiameter, models.minSamples, models.maxDiameter, models.maxSamples}) {
+         {models.minDiameter, models.minPixels, models.maxDiameter, models.maxPixels}) {
         if (threshold) {
             RequirePositive(*threshold, "Boulder model thresholds");
         }
@@ -171,9 +171,9 @@ void ValidateBoulderRendering(const BoulderRendering& rendering) {
 
 bool BoulderModelThreshold::IsModel(double diameter, double spacing) const {
     const bool large = (minDiameter && diameter >= *minDiameter) ||
-                       (minSamples && spacing > 0.0 && diameter >= *minSamples * spacing);
+                       (minPixels && spacing > 0.0 && diameter >= *minPixels * spacing);
     return large && !(maxDiameter && diameter >= *maxDiameter) &&
-           !(maxSamples && spacing > 0.0 && diameter >= *maxSamples * spacing);
+           !(maxPixels && spacing > 0.0 && diameter >= *maxPixels * spacing);
 }
 
 std::shared_ptr<const SizeFrequencyDistribution> DefaultBoulderSizes() {

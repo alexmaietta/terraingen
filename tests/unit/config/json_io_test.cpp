@@ -182,7 +182,7 @@ TerrainGenConfig Everything() {
     options.ventifacts.keelShare = 0.3;
     options.rendering.relief = terraingen::BoulderRelief::Shape;
     options.rendering.modelThreshold.minDiameter = 2.0;
-    options.rendering.modelThreshold.minSamples = 6.0;
+    options.rendering.modelThreshold.minPixels = 6.0;
     terraingen::BoulderStyle slab;
     slab.name = "slab";
     slab.weight = 2.0;

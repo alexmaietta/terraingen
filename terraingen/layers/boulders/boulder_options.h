@@ -32,9 +32,9 @@ enum class BoulderRelief {
 /// below every upper one set; no lower threshold means no models.
 struct BoulderModelThreshold {
     std::optional<double> minDiameter{};  ///< Boulders at least this wide (m) are models.
-    std::optional<double> minSamples{};   ///< Boulders spanning at least this many samples are.
+    std::optional<double> minPixels{};    ///< Boulders spanning at least this many samples are.
     std::optional<double> maxDiameter{};  ///< Boulders this wide (m) or wider are not.
-    std::optional<double> maxSamples{};   ///< Boulders spanning this many samples or more are not.
+    std::optional<double> maxPixels{};    ///< Boulders spanning this many samples or more are not.
 
     /// Whether a boulder of `diameter` meters is a model: at or above a lower threshold and below
     /// the upper ones.
@@ -42,8 +42,8 @@ struct BoulderModelThreshold {
     bool IsModel(double diameter, double spacing) const;
 
     bool operator==(const BoulderModelThreshold& other) const {
-        return minDiameter == other.minDiameter && minSamples == other.minSamples &&
-               maxDiameter == other.maxDiameter && maxSamples == other.maxSamples;
+        return minDiameter == other.minDiameter && minPixels == other.minPixels &&
+               maxDiameter == other.maxDiameter && maxPixels == other.maxPixels;
     }
 };
 

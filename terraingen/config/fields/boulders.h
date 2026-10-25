@@ -175,7 +175,7 @@ template <typename IO> void Fields(IO& io, BoulderModelThreshold& models) {
        "Boulders at least this many meters across become 3D models; unset applies no diameter "
        "threshold.",
        "m", Above(0.0));
-    io("min_px", models.minSamples,
+    io("min_px", models.minPixels,
        "Boulders spanning at least this many samples at the spacing evaluated become 3D models, so "
        "finer levels of detail make more of them; unset applies no such threshold.",
        "px", Above(0.0));
@@ -183,7 +183,7 @@ template <typename IO> void Fields(IO& io, BoulderModelThreshold& models) {
        "Boulders this many meters across or wider are not models, keeping a band of sizes as "
        "models; unset applies no upper limit.",
        "m", Above(0.0));
-    io("max_px", models.maxSamples,
+    io("max_px", models.maxPixels,
        "Boulders spanning this many samples or more are not models; unset applies no such limit.",
        "px", Above(0.0));
 }
@@ -329,6 +329,11 @@ template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderLayerOptions& 
     io("generate_random", boulders.generateRandom,
        "Draws random boulders from the size distribution, between craters and around them; off "
        "places only the manual boulders, and the sizes, coverage and ejecta go unused.");
+    if constexpr (BindsNative<IO>) {
+        if (io.Group("sizes", sizes, "Sizes of the boulders between craters.")) {
+            return;
+        }
+    }
     io("coverage", sizes.coverage,
        "Golombek-Rapp k, the fraction of the ground covered by boulders, from 0 to below 1 and "
        "above 0 when generating random boulders; higher values give more boulders. Unset is "
@@ -386,6 +391,11 @@ template <typename IO> void BoulderPlacementFields(IO& io, BoulderLayerSpec& spe
 
 /// The fields of the boulders a layer adds where the ground beneath is bedrock.
 template <typename IO> void BoulderBedrockFields(IO& io, BoulderBedrock& bedrock) {
+    if constexpr (BindsNative<IO>) {
+        if (io.Group("bedrock", bedrock, "Extra boulders where the ground beneath is bedrock.")) {
+            return;
+        }
+    }
     io("exposure", bedrock.exposure,
        "Raises the abundance of boulders where the ground beneath is bedrock, judged from its "
        "shape; unset disables it.");
@@ -401,6 +411,11 @@ template <typename IO> void BoulderBedrockFields(IO& io, BoulderBedrock& bedrock
 
 /// The fields of how a boulder layer's boulders sit on the ground.
 template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
+    if constexpr (BindsNative<IO>) {
+        if (io.Group("pose", pose, "How the boulders sit on the ground: heights, burial, lean.")) {
+            return;
+        }
+    }
     io("min_height_ratio", pose.minHeightRatio,
        "Smallest boulder height over diameter; each boulder's is drawn uniformly between the two "
        "ratios.",
@@ -465,6 +480,12 @@ template <typename IO> void BoulderWearFields(IO& io, BoulderLayerOptions& bould
 
 /// The fields of how a boulder layer's boulders are drawn: as relief in the heights or as models.
 template <typename IO> void BoulderRenderingFields(IO& io, BoulderRendering& rendering) {
+    if constexpr (BindsNative<IO>) {
+        if (io.Group("rendering", rendering,
+                     "How the boulders are drawn: relief or models, and shapes.")) {
+            return;
+        }
+    }
     io("relief", rendering.relief, "How the boulders drawn into the heights look there.");
     io("model_threshold", rendering.modelThreshold,
        "Which boulders become 3D models of their own rather than relief in the heights; neither "
@@ -541,9 +562,11 @@ template <typename IO> void BoulderInputFields(IO& io, BoulderLayerSpec& spec) {
 
 /// The fields of how a boulder layer shares shapes, reads the ground and fades its boulders.
 template <typename IO> void BoulderSharingFields(IO& io, BoulderLayerOptions& boulders) {
-    io("shape_prototypes", boulders.rendering.shapePrototypes,
-       "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
-       "boulder a shape of its own.");
+    if constexpr (!BindsNative<IO>) {
+        io("shape_prototypes", boulders.rendering.shapePrototypes,
+           "How many shapes the boulders share, so they can be drawn as instances; 0 gives every "
+           "boulder a shape of its own.");
+    }
     io("ground_spacing_m", boulders.groundSpacing,
        "Spacing in meters at which the layer reads the ground beneath it, for the exposure field, "
        "placement, settling, slopes and breaking; fixed so that which boulders exist does not "

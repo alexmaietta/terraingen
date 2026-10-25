@@ -3,8 +3,8 @@
 """Boulders where bedrock is exposed: crests and steep slopes shed regolith and show boulder.
 
 An `ExposureField` estimates, from the ground beneath, how exposed each point is: 0 under a full
-regolith cover, 1 on bare crests and steep walls. With `BoulderLayerOptions.exposure` set, a boulder layer
-places up to `bedrock_abundance` times more boulders where the ground is exposed. This example writes
+regolith cover, 1 on bare crests and steep walls. With `BoulderBedrock.exposure` set, a boulder layer
+places up to `BoulderBedrock.abundance` times more boulders where the ground is exposed. This example writes
 the exposure map of a rough terrain and compares boulder counts on exposed and covered ground.
 
     python example_boulders_exposure.py [--viewer window|null] [--output-dir DIR] [--test]
@@ -42,12 +42,10 @@ class Example(_common.Example):
         boulders = terraingen.BoulderLayer(
             terraingen.BoulderLayerOptions(
                 seed=1,
-                distribution=None,
-                coverage=0.02,
-                min_diameter=0.3,
-                max_diameter=4.0,
-                exposure=exposure,
-                bedrock_abundance=4.0,
+                sizes=terraingen.BoulderSizes(
+                    distribution=None, coverage=0.02, min_diameter=0.3, max_diameter=4.0
+                ),
+                bedrock=terraingen.BoulderBedrock(exposure=exposure, abundance=4.0),
             )
         )
         terrain = terraingen.TerrainGenerator(ground.source, [relief, boulders])

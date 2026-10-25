@@ -30,27 +30,28 @@ SIZE = 401
 class Example(_common.Example):
     def generate(self):
         models = {
-            "Golombek-Rapp 3%": terraingen.BoulderLayerOptions(distribution=None, coverage=0.03),
-            "Golombek-Rapp 10%": terraingen.BoulderLayerOptions(distribution=None, coverage=0.10),
-            "SP-8023 intercrater max": terraingen.BoulderLayerOptions(
+            "Golombek-Rapp 3%": terraingen.BoulderSizes(distribution=None, coverage=0.03),
+            "Golombek-Rapp 10%": terraingen.BoulderSizes(distribution=None, coverage=0.10),
+            "SP-8023 intercrater max": terraingen.BoulderSizes(
                 distribution=terraingen.sp8023_intercrater_blocks(terraingen.SpecificationCurve.MAXIMUM)
             ),
-            "SP-8023 crater nominal": terraingen.BoulderLayerOptions(
+            "SP-8023 crater nominal": terraingen.BoulderSizes(
                 distribution=terraingen.sp8023_crater_blocks(terraingen.SpecificationCurve.NOMINAL)
             ),
-            "synthterrain Haworth": terraingen.BoulderLayerOptions(
+            "synthterrain Haworth": terraingen.BoulderSizes(
                 distribution=terraingen.synthterrain_boulder_distribution(
                     terraingen.SynthterrainBoulders.HAWORTH
                 )
             ),
-            "power law": terraingen.BoulderLayerOptions(distribution=terraingen.PowerLawSfd(0.02, 2.5)),
+            "power law": terraingen.BoulderSizes(distribution=terraingen.PowerLawSfd(0.02, 2.5)),
         }
         area = (SIZE * PIXEL) ** 2
         print(f"{'':24s}" + "".join(f"{f'>= {d} m':>10s}" for d in (0.2, 0.5, 1.0)) + "   per 100 m^2")
         self.heights, self.diameters, self.ranges = {}, {}, {}
-        for name, options in models.items():
-            low, high = options.distribution.valid_range if options.distribution else (0.0, float("inf"))
-            options.min_diameter, options.max_diameter, options.seed = max(0.2, low), min(3.0, high), 1
+        for name, sizes in models.items():
+            low, high = sizes.distribution.valid_range if sizes.distribution else (0.0, float("inf"))
+            sizes.min_diameter, sizes.max_diameter = max(0.2, low), min(3.0, high)
+            options = terraingen.BoulderLayerOptions(sizes=sizes, seed=1)
             terrain = terraingen.TerrainGenerator(
                 terraingen.FlatSource(SIZE, SIZE, PIXEL), [terraingen.BoulderLayer(options)]
             )
@@ -61,7 +62,7 @@ class Example(_common.Example):
                 + "".join(f"{100 * np.count_nonzero(diameters >= d) / area:10.2f}" for d in (0.2, 0.5, 1.0))
             )
             self.diameters[name] = diameters
-            self.ranges[name] = (options.min_diameter, options.max_diameter)
+            self.ranges[name] = (sizes.min_diameter, sizes.max_diameter)
             self.show(name, self.heights[name])
 
     def save(self, out):

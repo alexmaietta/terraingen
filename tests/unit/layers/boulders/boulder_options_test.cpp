@@ -44,7 +44,7 @@ TEST(ValidateBoulderOptions, ChecksEachGroupOnItsOwn) {
         o.pose.minBurial = 0.5;
         o.pose.maxBurial = 0.4;
     });
-    rejects([](BoulderLayerOptions& o) { o.rendering.modelThreshold.minSamples = 0.0; });
+    rejects([](BoulderLayerOptions& o) { o.rendering.modelThreshold.minPixels = 0.0; });
 }
 
 TEST(BoulderCandidates, CoverTheRichestBackgroundPlusCraterBlocks) {

@@ -48,11 +48,12 @@ class Example(_common.Example):
             terraingen.ManualBoulder(0.0, -6.0, 1.0),
         ]
         options = terraingen.BoulderLayerOptions(
-            distribution=None,
-            coverage=0.03,
-            min_diameter=0.1,
-            max_diameter=1.0,
-            model_threshold=terraingen.BoulderModelThreshold(min_diameter=0.5),
+            sizes=terraingen.BoulderSizes(
+                distribution=None, coverage=0.03, min_diameter=0.1, max_diameter=1.0
+            ),
+            rendering=terraingen.BoulderRendering(
+                model_threshold=terraingen.BoulderModelThreshold(min_diameter=0.5)
+            ),
             manual=self.manual,
         )
         terrain = terraingen.TerrainGenerator(

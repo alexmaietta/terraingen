@@ -268,7 +268,7 @@ void BindRendering(nb::module_& m) {
     BindOptions<BoulderModelThreshold>(
         m, "BoulderModelThreshold",
         "Which boulders are placed as 3D boulder models: at least `min_diameter` meters across, or "
-        "`min_samples` samples across, and below `max_diameter` and `max_samples` when set.")
+        "`min_pixels` samples across, and below `max_diameter` and `max_pixels` when set.")
         .def("is_model", &BoulderModelThreshold::IsModel, "diameter"_a, "spacing"_a = 0.0,
              "Whether a boulder of `diameter` meters is a model at `spacing`.");
     BindOptions<BoulderReliefRange>(
@@ -292,22 +292,97 @@ void BindManualBoulder(nb::module_& m) {
           "for 0.");
 }
 
-void BindLayerOptions(nb::module_& m) {
-    using O = BoulderLayerOptions;
-    BindOptions<O>(
-        m, "BoulderLayerOptions",
-        "A boulder layer's settings: sizes from Golombek and Rapp's model for `coverage` (or "
-        "`distribution`), between `min_diameter` and `max_diameter`; `patches`, `ejecta` and "
-        "`exposure` shape where they lie; heights, burial and lean shape each boulder; `relief` "
-        "and `models` how they are drawn.",
-        {&ValidateBoulderLayerOptions, "validate_boulder_layer_options", "options"})
+/// Binds `__init__` taking the properties `names` by position or keyword, and `__repr__`, for a
+/// struct bound member by member.
+template <typename T> void BindMemberInit(nb::class_<T>& cls, std::vector<std::string> names) {
+    const auto shared = std::make_shared<const std::vector<std::string>>(std::move(names));
+    BindFieldsInit(cls, shared);
+    BindFieldsRepr(cls, shared);
+}
+
+void BindSizesAndBedrock(nb::module_& m) {
+    using S = BoulderSizes;
+    nb::class_<S> sizes(m, "BoulderSizes",
+                        "Sizes of the boulders between craters: `distribution` per m^2, or "
+                        "Golombek-Rapp boulders of `coverage` when it is None, between "
+                        "`min_diameter` and `max_diameter` (m).");
+    sizes.def_rw("coverage", &S::coverage, "Golombek-Rapp k; None is 0.02.")
+        .def_rw("q_constant", &S::qConstant, "Golombek-Rapp qa (1/m); None is 1.79.")
+        .def_rw("q_coverage_coefficient", &S::qCoverageCoefficient,
+                "Golombek-Rapp qb (1/m); None is 0.152.")
         .def_prop_rw(
-            "distribution", [](const O& o) { return o.sizes.distribution; },
-            [](O& o, std::shared_ptr<const SizeFrequencyDistribution> distribution) {
-                o.sizes.distribution = std::move(distribution);
+            "distribution", [](const S& s) { return s.distribution; },
+            [](S& s, std::shared_ptr<const SizeFrequencyDistribution> distribution) {
+                s.distribution = std::move(distribution);
             },
             "Sizes per m^2 in place of Golombek-Rapp boulders of `coverage`; None for those.",
             nb::for_setter(nb::arg("value").none()))
+        .def_rw("min_diameter", &S::minDiameter, "Smallest boulder (m).")
+        .def_rw("max_diameter", &S::maxDiameter, "Largest boulder (m), exclusive.");
+    BindMemberInit(sizes, {"coverage", "q_constant", "q_coverage_coefficient", "distribution",
+                           "min_diameter", "max_diameter"});
+    using B = BoulderBedrock;
+    nb::class_<B> bedrock(m, "BoulderBedrock",
+                          "Extra boulders where the ground beneath is bedrock, judged by "
+                          "`exposure`: `abundance` times those on soil.");
+    bedrock.def_rw("exposure", &B::exposure, "The exposure field; None for no bedrock boulders.")
+        .def_rw("abundance", &B::abundance, "Abundance on bedrock over that on soil.")
+        .def_rw("mean_size", &B::meanSize,
+                "With a density map, the side (m) of the squares bedrock is held to the map's "
+                "mean over.");
+    BindMemberInit(bedrock, {"exposure", "abundance", "mean_size"});
+}
+
+void BindPoseAndRendering(nb::module_& m) {
+    using P = BoulderPose;
+    nb::class_<P> pose(m, "BoulderPose",
+                       "How boulders sit on the ground: heights, burial, lean, tilt and slopes; "
+                       "angles in degrees.");
+    pose.def_rw("min_height_ratio", &P::minHeightRatio, "Least height over diameter.")
+        .def_rw("max_height_ratio", &P::maxHeightRatio, "Greatest height over diameter.")
+        .def_rw("min_burial", &P::minBurial, "Least buried share of the height.")
+        .def_rw("max_burial", &P::maxBurial, "Greatest buried share of the height.")
+        .def_rw("max_lean_degrees", &P::maxLeanDegrees, "Largest tilt from the vertical.")
+        .def_rw("burial_by_wear", &P::burialByWear, "How far wear sets burial, from 0 to 1.")
+        .def_rw("side_share", &P::sideShare, "Share of boulders resting on a side.")
+        .def_rw("end_share", &P::endShare, "Share of boulders standing on an end.")
+        .def_rw("max_tilt_degrees", &P::maxTiltDegrees,
+                "Largest tilt of the up axis in a random direction, after the lean.")
+        .def_rw("follow_slope", &P::followSlope, "Settles each boulder on the ground's slope.")
+        .def_rw("settle", &P::settle, "Tips each boulder model over until it rests stably.")
+        .def_rw("max_slope_degrees", &P::maxSlopeDegrees,
+                "Steepest ground boulders stay on; None for any slope.")
+        .def_rw("roll_distance", &P::rollDistance,
+                "How far (m) boulders on steeper ground roll; None leaves them out.");
+    BindMemberInit(pose, {"min_height_ratio", "max_height_ratio", "min_burial", "max_burial",
+                          "max_lean_degrees", "burial_by_wear", "side_share", "end_share",
+                          "max_tilt_degrees", "follow_slope", "settle", "max_slope_degrees",
+                          "roll_distance"});
+    using R = BoulderRendering;
+    nb::class_<R> rendering(m, "BoulderRendering",
+                            "How boulders are drawn: as `relief` in the heights or as models, "
+                            "and their shapes.");
+    rendering.def_rw("relief", &R::relief, "Look of boulders drawn into the heights.")
+        .def_rw("model_threshold", &R::modelThreshold, "Which boulders are 3D models.")
+        .def_rw("relief_range", &R::reliefRange, "Which boulders are drawn into the heights.")
+        .def_rw("shapes", &R::shapes, "The 3D shapes of the boulders.")
+        .def_rw("shape_prototypes", &R::shapePrototypes,
+                "How many shapes the boulders share; 0 gives every boulder its own.");
+    BindMemberInit(rendering,
+                   {"relief", "model_threshold", "relief_range", "shapes", "shape_prototypes"});
+}
+
+void BindLayerOptions(nb::module_& m) {
+    BindSizesAndBedrock(m);
+    BindPoseAndRendering(m);
+    using O = BoulderLayerOptions;
+    BindOptions<O>(
+        m, "BoulderLayerOptions",
+        "A boulder layer's settings: their `sizes`; `patches`, `clusters`, `ejecta` and "
+        "`bedrock` shape where they lie; `pose` how each sits; `rendering` how they are drawn.",
+        {&ValidateBoulderLayerOptions, "validate_boulder_layer_options", "options"})
+        .def_rw("cache_boulders", &O::cacheBoulders,
+                "Most generated boulders the layer keeps cached between queries.")
         .def_rw("density_map", &O::densityMap)
         .def_rw("slope_map", &O::slopeMap)
         .def_rw("manual", &O::manual,
