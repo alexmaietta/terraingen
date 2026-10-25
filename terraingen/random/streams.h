@@ -19,6 +19,7 @@ inline constexpr std::uint32_t kCraterKeepStream = 0x43524B50u;     ///< Keep-sh
 inline constexpr std::uint32_t kCraterRayStream = 0x52415953u;      ///< A crater's ray layout.
 inline constexpr std::uint32_t kCraterSlopeStream = 0x534C4F50u;    ///< Wear on slopes per crater.
 inline constexpr std::uint32_t kCraterTerraceStream = 0x54455252u;  ///< Wall terraces per crater.
+inline constexpr std::uint32_t kCraterPeakStream = 0x5045414Bu;     ///< Central peaks per crater.
 inline constexpr std::uint32_t kCraterIrregularityStream = 0x49525247u;  ///< Outline harmonics.
 inline constexpr std::uint32_t kCraterMarkStream = 0x4D41524Bu;          ///< Outline marks.
 inline constexpr std::uint32_t kCraterTextureStream = 0x54455854u;       ///< Wall texture seed.
@@ -82,6 +83,7 @@ inline constexpr std::array kStreamTags = {kCraterStream,
                                            kCraterRayStream,
                                            kCraterSlopeStream,
                                            kCraterTerraceStream,
+                                           kCraterPeakStream,
                                            kCraterIrregularityStream,
                                            kCraterMarkStream,
                                            kCraterTextureStream,

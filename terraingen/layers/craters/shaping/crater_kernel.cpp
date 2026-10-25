@@ -27,12 +27,37 @@ namespace {
 /// (Du et al. 2024, LPSC 55, abstract 1382).
 constexpr double kFullTerraceCover = 0.9;
 
-/// Width in harmonic units over which a bench's arc fades in and out.
-constexpr double kTerraceArcWidth = 0.1;
+/// Width in harmonic units over which a bench's arc fades in and out, wide enough that a bench
+/// tapers into the unstepped wall over tens of degrees rather than ending in a radial cliff.
+constexpr double kTerraceArcWidth = 0.3;
 
-/// How much wider the outermost step is drawn than the innermost, on average: the largest
-/// terraces lie near the rim crest (Du et al. 2024, LPSC 55, abstract 1382, Copernicus).
-constexpr double kOuterTerraceWidening = 0.8;
+/// Samples of a crater's wall height across the wall, for splitting it into steps by height.
+constexpr int kTerraceWallSamples = 256;
+
+/// Narrowest step across the wall, as a share of an even step's width.
+constexpr double kNarrowestTerraceStep = 0.25;
+
+/// Share of a half-scarp over which its slope rounds into its brink or toe (`KernelTerraceEase`).
+constexpr double kTerraceScarpRounding = 0.4;
+
+/// Most share of a step its scarps take, so even steep steps keep a narrow bench.
+constexpr double kMostTerraceScarpShare = 0.9;
+
+/// Share of a step its scarps would need to stay at the scarp slope from which its bench fades,
+/// gone where the step is as steep as the scarps: walls too steep for a bench keep their slope.
+constexpr double kSteepTerraceStep = 0.7;
+
+/// Headroom on the scarp slope for scallops and block offsets, which narrow some steps.
+constexpr double kTerraceScarpSqueeze = 0.75;
+
+/// Samples of a step for its mean height, which its bench level keeps.
+constexpr int kTerraceMeanSamples = 64;
+
+/// Bisection steps for the bench level that keeps a step's mean height.
+constexpr int kTerraceLevelIterations = 30;
+
+/// Nearest a bench's level comes to the bottom or top of its step, as a share of the step.
+constexpr double kTerraceLevelMargin = 0.1;
 
 /// A scarp's room, as a share of the narrower of its two steps.
 constexpr double kTerraceScarpRoom = 0.4;
@@ -48,6 +73,24 @@ constexpr double kMaxTerraceScallops = 12.0;
 
 /// Height of the rim crest's scallops, in radii, per unit of `CraterTerraces::rimVariation`.
 constexpr double kTerraceRimScallop = 0.5;
+
+/// How far a central peak's massifs may reach before warping, in peak base radii; the kernel
+/// reads them out to 2.6.
+constexpr double kPeakRoom = 2.3;
+
+/// Radii of the main and of a typical lesser massif of a two-massif peak, in peak base radii;
+/// with more massifs they shrink with the square root of their number, so a cluster of
+/// separate mountains covers about the peak's base.
+constexpr double kMainMassifRadius = 1.0;
+constexpr double kLesserMassifRadius = 0.6;
+
+/// Spread (radians) of the lesser massifs' bearings about the peak's chain, which lines them up
+/// roughly across the center as the peaks of Copernicus are.
+constexpr double kPeakChainSpread = 1.2;
+
+/// Furthest a massif's summit sits off its center, in units of its footprint, at full
+/// lopsidedness.
+constexpr double kMaxSummitPull = 0.45;
 
 /// Whether the simple profile shapes `crater` in `state`: not where the table or the complex
 /// form does.
@@ -282,6 +325,8 @@ void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terrace
         profile.Height(radius, diameter, state) - profile.Height(inner * radius, diameter, state);
     const double meanSlope = drop / ((1.0 - inner) * radius);
     const double benchSlope = std::tan(terraces.benchSlopeDegrees * kDegree);
+    const double scarpSlope = std::tan(terraces.scarpSlopeDegrees * kDegree) *
+                              (1.0 - 0.5 * kTerraceScarpRounding) * kTerraceScarpSqueeze;
     const double slopeShare = meanSlope > 0.0 ? std::clamp(benchSlope / meanSlope, 0.02, 0.5) : 0.5;
     const double size = std::clamp((diameter - terraces.onsetDiameter) /
                                        (terraces.fullDiameter - terraces.onsetDiameter),
@@ -331,7 +376,7 @@ void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terrace
     record.terraceCount = static_cast<std::uint32_t>(benches);
     record.terraceOffset = static_cast<std::uint32_t>(data.size());
     for (const double value :
-         {inner, slopeShare, strength, 1.0 - terraces.scarpShare, cut, kTerraceArcWidth}) {
+         {inner, slopeShare, strength, kTerraceScarpRounding, cut, kTerraceArcWidth}) {
         data.push_back(static_cast<float>(value));
     }
     for (const double value : arcs) {
@@ -347,15 +392,48 @@ void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terrace
          {rimScallop, scallopCount(), random.NextDouble(), terraces.blockGaps}) {
         data.push_back(static_cast<float>(value));
     }
-    std::vector<double> bases{0.0};
+    std::vector<double> wall(kTerraceWallSamples + 1);
+    for (std::size_t n = 0; n < wall.size(); ++n) {
+        const double t = static_cast<double>(n) / kTerraceWallSamples;
+        const double height = profile.Height((inner + t * (1.0 - inner)) * radius, diameter, state);
+        wall[n] = n == 0 ? height : std::max(height, wall[n - 1]);
+    }
+    const double rise = wall.back() - wall.front();
+    const auto across = [&](double share) {
+        if (!(rise > 0.0)) {
+            return share;
+        }
+        const double target = wall.front() + share * rise;
+        const auto above = std::lower_bound(wall.begin(), wall.end(), target);
+        if (above == wall.begin()) {
+            return 0.0;
+        }
+        if (above == wall.end()) {
+            return 1.0;
+        }
+        const auto n = static_cast<double>(above - wall.begin());
+        const double gap = *above - *(above - 1);
+        const double part = gap > 0.0 ? (*above - target) / gap : 0.0;
+        return (n - part) / kTerraceWallSamples;
+    };
+    std::vector<double> heights{0.0};
     double total = 0.0;
     for (int i = 0; i < benches; ++i) {
-        const double outward = benches > 1 ? static_cast<double>(i) / (benches - 1) : 0.0;
-        total += (0.5 + random.NextDouble()) * (1.0 + kOuterTerraceWidening * outward);
-        bases.push_back(total);
+        total += 0.5 + random.NextDouble();
+        heights.push_back(total);
     }
-    for (double& base : bases) {
-        base /= total;
+    std::vector<double> bases;
+    for (double& height : heights) {
+        height /= total;
+        bases.push_back(across(height));
+    }
+    bases.back() = 1.0;
+    const double narrowest = kNarrowestTerraceStep / benches;
+    for (std::size_t k = 1; k + 1 < bases.size(); ++k) {
+        bases[k] = std::max(bases[k], bases[k - 1] + narrowest);
+    }
+    for (std::size_t k = bases.size() - 2; k > 0; --k) {
+        bases[k] = std::min(bases[k], bases[k + 1] - narrowest);
     }
     const double variation = terraces.rimVariation / (1.0 - inner);
     for (std::size_t k = 1; k < bases.size() - 1; ++k) {
@@ -380,6 +458,117 @@ void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terrace
             data.push_back(static_cast<float>(value));
         }
     }
+    const auto wallAt = [&](double t) {
+        const double at = std::clamp(t, 0.0, 1.0) * kTerraceWallSamples;
+        const auto n = std::min(static_cast<std::size_t>(at), wall.size() - 2);
+        return wall[n] + (at - static_cast<double>(n)) * (wall[n + 1] - wall[n]);
+    };
+    const auto stairAt = [&](double within, double level, double scarp) {
+        const auto rounding = static_cast<float>(kTerraceScarpRounding);
+        const double lower = scarp * level;
+        const double upper = scarp * (1.0 - level);
+        double stair = level;
+        if (within < lower) {
+            stair = level * (1.0 - double{KernelTerraceEase(
+                                       static_cast<float>(1.0 - within / lower), rounding)});
+        } else if (within > 1.0 - upper) {
+            stair =
+                level + (1.0 - level) *
+                            double{KernelTerraceEase(
+                                static_cast<float>((within - (1.0 - upper)) / upper), rounding)};
+        }
+        return slopeShare * within + (1.0 - slopeShare) * stair;
+    };
+    const auto meanHeight = [&](double from, double to, double level, double scarp) {
+        double weighted = 0.0;
+        double weights = 0.0;
+        for (int n = 0; n < kTerraceMeanSamples; ++n) {
+            const double within = (n + 0.5) / kTerraceMeanSamples;
+            const double r = inner + (from + within * (to - from)) * (1.0 - inner);
+            const double shaped = level < 0.0 ? within : stairAt(within, level, scarp);
+            weighted += r * wallAt(from + shaped * (to - from));
+            weights += r;
+        }
+        return weighted / weights;
+    };
+    for (std::size_t k = 0; k + 1 < bases.size(); ++k) {
+        const double from = bases[k];
+        const double to = bases[k + 1];
+        const double stepSlope =
+            (wallAt(to) - wallAt(from)) / ((to - from) * (1.0 - inner) * radius);
+        const double needed =
+            scarpSlope > benchSlope ? (stepSlope - benchSlope) / (scarpSlope - benchSlope) : 1.0;
+        const double scarp = std::clamp(needed, terraces.scarpShare, kMostTerraceScarpShare);
+        const double kept =
+            1.0 - Smoothstep((needed - kSteepTerraceStep) / (1.0 - kSteepTerraceStep));
+        const double target = meanHeight(from, to, -1.0, scarp);
+        double low = kTerraceLevelMargin;
+        double high = 1.0 - kTerraceLevelMargin;
+        for (int n = 0; n < kTerraceLevelIterations; ++n) {
+            const double level = 0.5 * (low + high);
+            (meanHeight(from, to, level, scarp) < target ? low : high) = level;
+        }
+        for (const double value : {0.5 * (low + high), scarp, kept}) {
+            data.push_back(static_cast<float>(value));
+        }
+    }
+}
+
+void AppendKernelPeaks(const PreparedCrater& p, const CraterPeaks& peaks,
+                       const CraterProfile& profile, CraterRecord& record,
+                       std::vector<float>& data) {
+    const auto* complex = dynamic_cast<const ComplexCraterProfile*>(&profile);
+    if (!peaks.enabled || complex == nullptr ||
+        p.crater.diameter < complex->Shape().transitionDiameter) {
+        return;
+    }
+    const CraterState& state = p.state;
+    const double freshness =
+        state.fresh.depthRatio > 0.0
+            ? std::clamp(state.current.depthRatio / state.fresh.depthRatio, 0.0, 1.0)
+            : 1.0;
+    const IdWords id = SplitId(p.crater.id);
+    RandomStream random(peaks.seed.value_or(0u), kCraterPeakStream, id.low, id.high);
+    const int massifs =
+        peaks.minMassifs +
+        std::min(peaks.maxMassifs - peaks.minMassifs,
+                 static_cast<int>((peaks.maxMassifs - peaks.minMassifs + 1) * random.NextDouble()));
+    record.peakCount = static_cast<std::uint32_t>(massifs);
+    record.peakOffset = static_cast<std::uint32_t>(data.size());
+    const double key = static_cast<double>(random.NextU32() >> 8u);
+    for (const double value : {peaks.roughness * freshness, peaks.roughnessWavelength, peaks.warp,
+                               key, peaks.heightScale, peaks.widthScale}) {
+        data.push_back(static_cast<float>(value));
+    }
+    const double chain = 2.0 * kPi * random.NextDouble();
+    const double room = kPeakRoom - peaks.warp;
+    for (int n = 0; n < massifs; ++n) {
+        const bool main = n == 0;
+        const double side = n % 2 == 0 ? kPi : 0.0;
+        const double bearing = main ? 2.0 * kPi * random.NextDouble()
+                                    : chain + side + kPeakChainSpread * (random.NextDouble() - 0.5);
+        const double reach = peaks.spreadRadii * (main ? 0.25 * random.NextDouble()
+                                                       : 0.35 + 0.65 * random.NextDouble());
+        const double aspect = 1.0 + (peaks.elongation - 1.0) * random.NextDouble();
+        const double stretch = std::sqrt(aspect);
+        const double crowding = massifs == 1 ? 1.0 : std::sqrt(2.0 / massifs);
+        double radius = crowding * (main ? kMainMassifRadius
+                                         : kLesserMassifRadius * (0.5 + random.NextDouble()));
+        radius = std::max(0.1, std::min(radius, (room - reach) / stretch));
+        const double heading =
+            main ? 2.0 * kPi * random.NextDouble() : bearing + 0.5 * (random.NextDouble() - 0.5);
+        const double height = main ? 1.0 : 1.0 - peaks.heightVariation * random.NextDouble();
+        const double exponent =
+            std::clamp((2.0 - 1.5 * peaks.sharpness) * (0.8 + 0.4 * random.NextDouble()), 0.4, 2.5);
+        const double pull = kMaxSummitPull * peaks.lopsidedness * std::sqrt(random.NextDouble());
+        const double pullBearing = 2.0 * kPi * random.NextDouble();
+        for (const double value :
+             {reach * std::cos(bearing), reach * std::sin(bearing), radius, stretch,
+              std::cos(heading), std::sin(heading), height, exponent, pull * std::cos(pullBearing),
+              pull * std::sin(pullBearing), 2.0 - peaks.sharpness}) {
+            data.push_back(static_cast<float>(value));
+        }
+    }
 }
 
 CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
@@ -397,6 +586,7 @@ CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
         CraterRecord r = BaseRecord(p, options);
         AppendKernelOutline(p.outline, r, batch.data);
         AppendKernelTerraces(p, options.terraces, profile, r, batch.data);
+        AppendKernelPeaks(p, options.peaks, profile, r, batch.data);
         tables.Append(p, r, batch.data);
         batch.records.push_back(r);
     }

@@ -134,6 +134,16 @@ TerrainGenConfig Everything() {
     craters.apply.terraces.seed = 9;
     terraingen::DensityMapSpec craterMap;
     craterMap.field.path = "map.tif";
+    craters.apply.terraces.scarpSlopeDegrees = 30.0;
+    craters.apply.peaks.enabled = true;
+    craters.apply.peaks.maxMassifs = 5;
+    craters.apply.peaks.spreadRadii = 1.5;
+    craters.apply.peaks.sharpness = 0.9;
+    craters.apply.peaks.lopsidedness = 0.7;
+    craters.apply.peaks.roughnessWavelength = 0.2;
+    craters.apply.peaks.seed = 10;
+    craters.apply.peaks.heightScale = 1.5;
+    craters.apply.peaks.widthScale = 1.2;
     craterMap.field.band = 1;
     craterMap.field.method = terraingen::ResampleMethod::Nearest;
     craterMap.field.scale = 0.001;

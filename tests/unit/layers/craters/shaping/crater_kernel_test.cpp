@@ -585,6 +585,33 @@ TEST(CraterKernel, WornRimsRoundOutTheirShortWiggles) {
     EXPECT_LT(worn, 0.5 * fresh) << "a worn rim follows less of the wobble";
 }
 
+TEST(CraterKernel, RimSmoothingRoundsTheCrestWithoutLeavingTerraces) {
+    const terraingen::FassettThomsonProfile profile;
+    const Crater crater{0.0, 0.0, 80.0, 0.0, 3u};
+    const CraterState state{{0.2, 0.04}, {0.2, 0.04}, 0.0};
+    const PreparedCrater prepared{crater, 1.0, state};
+    const auto sharpest = [&](double sigma) {
+        CraterApplyOptions options;
+        options.rimSmoothing.sigmaRadii = sigma;
+        const double step = 0.001 * 40.0;
+        double largest = 0.0;
+        for (int k = 1; k < 240; ++k) {
+            const double r = 40.0 * 0.88 + step * k;
+            const double before = ApplyCraterTo(0.0f, r - step, 0.0, prepared, profile, options);
+            const double here = ApplyCraterTo(0.0f, r, 0.0, prepared, profile, options);
+            const double after = ApplyCraterTo(0.0f, r + step, 0.0, prepared, profile, options);
+            largest = std::max(largest, std::abs(before - 2.0 * here + after));
+        }
+        return largest;
+    };
+    const double sharp = sharpest(0.0);
+    EXPECT_GT(sharp, 0.0);
+    for (const double sigma : {0.02, 0.05, 0.15}) {
+        EXPECT_LT(sharpest(sigma), 0.1 * sharp)
+            << "no kink left about a sigma from the rim at " << sigma << " radii";
+    }
+}
+
 TEST(MartinParkesDunstanProfile, WornEjectaLowersWithTheRimAndNeverDipsBelowTheGround) {
     const terraingen::MartinParkesDunstanProfile profile;
     const double d = 150.0;
@@ -646,12 +673,15 @@ terraingen::CraterTerraces Terraces() {
 }
 
 /// Expects `crater` to map its wall monotonically between an untouched floor, rim crest and
-/// exterior, with benches and scarps toward every azimuth.
+/// exterior, with benches and scarps toward most azimuths; missing blocks and arcs leave the rest
+/// unstepped.
 void ExpectSteppedMonotonicWall(const TerracedCrater& crater) {
     ASSERT_GE(crater.record.terraceCount, 1u);
     const double inner = crater.data[0];
     EXPECT_GT(inner, 0.2);
     EXPECT_LT(inner, 0.9);
+    int azimuths = 0;
+    int stepped = 0;
     for (double theta = 0.0; theta < 6.28; theta += 0.1) {
         EXPECT_EQ(crater.Radii(0.5 * inner, theta), static_cast<float>(0.5 * inner))
             << "the floor is untouched";
@@ -668,9 +698,10 @@ void ExpectSteppedMonotonicWall(const TerracedCrater& crater) {
             steepest = std::max(steepest, (mapped - previous) / step);
             previous = mapped;
         }
-        EXPECT_LT(flattest, 0.6) << "benches somewhere on the wall at " << theta;
-        EXPECT_GT(steepest, 1.2) << "scarps between them";
+        ++azimuths;
+        stepped += flattest < 0.6 && steepest > 1.2 ? 1 : 0;
     }
+    EXPECT_GT(stepped, 0.75 * azimuths) << "benches and scarps toward most azimuths";
 }
 
 }  // namespace
@@ -684,6 +715,38 @@ TEST(CraterTerraces, StepTheWallMonotonicallyBetweenTheFloorAndTheRim) {
     for (const auto& terraces : {Terraces(), stepped}) {
         SCOPED_TRACE(terraces.maxBenches);
         ExpectSteppedMonotonicWall(TerracedCrater(terraces));
+    }
+}
+
+TEST(CraterTerraces, DisplaceTheWallRatherThanCutIt) {
+    terraingen::CraterTerraces whole = Terraces();
+    whole.arcShare = 1.0;
+    whole.blockGaps = 0.0;
+    for (const int benches : {1, 4}) {
+        whole.minBenches = benches;
+        whole.maxBenches = benches;
+        const TerracedCrater crater(whole);
+        ASSERT_EQ(crater.record.terraceCount, static_cast<std::uint32_t>(benches));
+        const double radius = 30000.0;
+        const double inner = crater.data[0];
+        const auto height = [&](double radii) {
+            return crater.profile->Height(radii * radius, 60000.0, crater.prepared.state);
+        };
+        double net = 0.0;
+        double moved = 0.0;
+        double above = 0.0;
+        for (double theta = -3.1; theta < 3.1; theta += 0.1) {
+            for (double x = inner + 0.0005; x < 1.0; x += 0.001) {
+                const double change = height(crater.Radii(x, theta)) - height(x);
+                net += x * change;
+                moved += x * std::abs(change);
+                above = std::max(above, change);
+            }
+        }
+        SCOPED_TRACE(benches);
+        EXPECT_GT(moved, 0.0);
+        EXPECT_LT(std::abs(net), 0.25 * moved) << "the wall keeps about its volume";
+        EXPECT_GT(above, 100.0) << "slumped toes stand above the unterraced wall";
     }
 }
 
@@ -802,5 +865,160 @@ TEST(CraterTerraces, RejectInvalidSettings) {
     rejects([](auto& t) { t.rimVariation = -0.1; });
     rejects([](auto& t) { t.blockOffset = 1.1; });
     rejects([](auto& t) { t.blockGaps = 1.0; });
+    rejects([](auto& t) { t.scarpSlopeDegrees = t.benchSlopeDegrees; });
+    rejects([](auto& t) { t.scarpSlopeDegrees = 60.0; });
     rejects([](auto& t) { t.minFreshness = 1.0; });
+}
+
+namespace {
+
+/// A 60 km lunar complex crater prepared at the origin, its central peak set from `peaks`.
+struct PeakedCrater {
+    std::shared_ptr<const CraterProfile> profile;
+    PreparedCrater prepared;
+    terraingen::CraterRecord record{};
+    std::vector<float> data;
+
+    explicit PeakedCrater(const terraingen::CraterPeaks& peaks, double freshness = 1.0,
+                          std::uint64_t id = 7u, double diameter = 60000.0)
+        : profile(std::make_shared<terraingen::ComplexCraterProfile>(
+              std::make_shared<terraingen::FassettThomsonProfile>(),
+              terraingen::LunarComplexCraterShape())),
+          prepared{Crater{0.0, 0.0, diameter, 0.0, id}, 1.0, TerracedCrater::State(freshness)} {
+        record.diameter = static_cast<float>(diameter);
+        terraingen::AppendKernelPeaks(prepared, peaks, *profile, record, data);
+        if (data.empty()) {
+            data.push_back(0.0f);
+        }
+    }
+
+    /// The peak's height (m) at `px` east and `py` north of the center, in peak base radii, for
+    /// a peak 1000 m high on a base 5000 m in radius.
+    double Height(double px, double py) const {
+        terraingen::CraterData view;
+        view.values = data.data();
+        terraingen::KernelPeakSize size;
+        size.height = 1000.0f;
+        size.base = 5000.0f;
+        return terraingen::KernelPeakMassifs(view, record, size, static_cast<float>(5000.0 * px),
+                                             static_cast<float>(5000.0 * py));
+    }
+};
+
+terraingen::CraterPeaks Peaks() {
+    terraingen::CraterPeaks peaks;
+    peaks.enabled = true;
+    peaks.seed = 3u;
+    return peaks;
+}
+
+/// The highest point of `crater`'s peak on a grid of `step` base radii out to 2.6, with where it
+/// is.
+struct Summit {
+    double height = 0.0;
+    double x = 0.0;
+    double y = 0.0;
+};
+
+Summit HighestPoint(const PeakedCrater& crater, double step = 0.02) {
+    Summit summit;
+    for (double y = -2.6; y <= 2.6; y += step) {
+        for (double x = -2.6; x <= 2.6; x += step) {
+            const double height = crater.Height(x, y);
+            if (height > summit.height) {
+                summit = {height, x, y};
+            }
+        }
+    }
+    return summit;
+}
+
+}  // namespace
+
+TEST(CraterPeaks, RaiseSeveralMassifsAboutTheCenterRepeatablyPerCrater) {
+    terraingen::CraterPeaks peaks = Peaks();
+    peaks.minMassifs = 3;
+    peaks.maxMassifs = 3;
+    const PeakedCrater crater(peaks);
+    ASSERT_EQ(crater.record.peakCount, 3u);
+    EXPECT_EQ(crater.data.size(), terraingen::kPeakHeader + 3u * terraingen::kPeakMassifValues);
+    const Summit summit = HighestPoint(crater, 0.05);
+    EXPECT_GT(summit.height, 500.0);
+    EXPECT_LT(summit.height, 1000.0 * (1.0 + peaks.roughness) + 1e-3);
+    EXPECT_EQ(crater.Height(2.7, 0.0), 0.0) << "nothing beyond the massifs' reach";
+    EXPECT_EQ(PeakedCrater(peaks).data, crater.data);
+    EXPECT_NE(PeakedCrater(peaks, 1.0, 8u).data, crater.data);
+}
+
+TEST(CraterPeaks, SharpenAndTiltTheirMassifs) {
+    terraingen::CraterPeaks single = Peaks();
+    single.maxMassifs = 1;
+    single.roughness = 0.0;
+    single.warp = 0.0;
+    single.lopsidedness = 0.0;
+    const auto volume = [](const PeakedCrater& crater) {
+        double sum = 0.0;
+        for (double y = -1.5; y <= 1.5; y += 0.02) {
+            for (double x = -1.5; x <= 1.5; x += 0.02) {
+                sum += crater.Height(x, y);
+            }
+        }
+        return sum;
+    };
+    terraingen::CraterPeaks domed = single;
+    domed.sharpness = 0.0;
+    terraingen::CraterPeaks spired = single;
+    spired.sharpness = 1.0;
+    EXPECT_LT(volume(PeakedCrater(spired)), 0.8 * volume(PeakedCrater(domed)))
+        << "sharp massifs are spires";
+    const PeakedCrater upright(single);
+    const Summit centered = HighestPoint(upright);
+    EXPECT_NEAR(centered.height, 1000.0, 50.0) << "the grid misses the sharp summit a little";
+    terraingen::CraterPeaks tilted = single;
+    tilted.lopsidedness = 1.0;
+    const Summit leaning = HighestPoint(PeakedCrater(tilted));
+    EXPECT_NEAR(leaning.height, 1000.0, 50.0);
+    EXPECT_GT(std::hypot(leaning.x - centered.x, leaning.y - centered.y), 0.04)
+        << "a lopsided summit sits off its massif's center";
+}
+
+TEST(CraterPeaks, AreOffWhenDisabledForSimpleCratersAndSmootherOnceWorn) {
+    terraingen::CraterPeaks off = Peaks();
+    off.enabled = false;
+    EXPECT_EQ(PeakedCrater(off).record.peakCount, 0u);
+    EXPECT_EQ(PeakedCrater(Peaks(), 1.0, 7u, 5000.0).record.peakCount, 0u)
+        << "below the complex transition";
+    PreparedCrater simple{Crater{0.0, 0.0, 60000.0, 0.0, 7u}, 1.0, TerracedCrater::State(1.0)};
+    terraingen::CraterRecord record{};
+    std::vector<float> data;
+    terraingen::AppendKernelPeaks(simple, Peaks(), terraingen::FassettThomsonProfile(), record,
+                                  data);
+    EXPECT_EQ(record.peakCount, 0u) << "only complex profiles";
+    const PeakedCrater fresh(Peaks());
+    const PeakedCrater worn(Peaks(), 0.5);
+    EXPECT_FLOAT_EQ(worn.data[0], 0.5f * fresh.data[0]) << "roughness fades as the crater wears";
+    EXPECT_TRUE(terraingen::DefaultCraterApply().peaks.enabled) << "on for crater layers";
+    EXPECT_FALSE(CraterApplyOptions{}.peaks.enabled);
+}
+
+TEST(CraterPeaks, RejectInvalidSettings) {
+    const auto rejects = [](auto change) {
+        terraingen::CraterPeaks peaks;
+        change(peaks);
+        EXPECT_THROW(terraingen::ValidateCraterPeaks(peaks), std::invalid_argument);
+    };
+    EXPECT_NO_THROW(terraingen::ValidateCraterPeaks(terraingen::CraterPeaks{}));
+    rejects([](auto& p) { p.minMassifs = 0; });
+    rejects([](auto& p) { p.maxMassifs = 9; });
+    rejects([](auto& p) { p.minMassifs = 5; });
+    rejects([](auto& p) { p.spreadRadii = 2.1; });
+    rejects([](auto& p) { p.elongation = 0.9; });
+    rejects([](auto& p) { p.sharpness = 1.1; });
+    rejects([](auto& p) { p.lopsidedness = -0.1; });
+    rejects([](auto& p) { p.heightVariation = 1.5; });
+    rejects([](auto& p) { p.roughness = 2.0; });
+    rejects([](auto& p) { p.roughnessWavelength = 0.0; });
+    rejects([](auto& p) { p.warp = 0.4; });
+    rejects([](auto& p) { p.heightScale = 0.0; });
+    rejects([](auto& p) { p.widthScale = 3.5; });
 }

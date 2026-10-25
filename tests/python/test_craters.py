@@ -593,8 +593,9 @@ def test_describe_craters_gives_the_attributes_the_shape_models_give():
     assert built.attributes(crater).rim_height == pytest.approx(models.attributes(crater).rim_height)
 
 
-def terraced_heights(terraces):
-    """Heights of one fresh 30 km lunar complex crater on a 101 x 101 grid at 400 m."""
+def terraced_heights(terraces, peaks=None):
+    """Heights of one fresh 30 km lunar complex crater on a 101 x 101 grid at 400 m, its walls set by
+    `terraces` and its central peak by `peaks`."""
     profile = terraingen.ComplexCraterProfile(
         terraingen.MartinParkesDunstanProfile(), terraingen.lunar_complex_crater_shape()
     )
@@ -604,7 +605,7 @@ def terraced_heights(terraces):
         terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
         profile,
     )
-    apply = terraingen.CraterApplyOptions(terraces=terraces)
+    apply = terraingen.CraterApplyOptions(terraces=terraces, peaks=peaks or terraingen.CraterPeaks())
     crater = terraingen.Crater(0.0, 0.0, 30000.0, age_gyr=0.0, id=11)
     layer = terraingen.CraterLayer.manual([crater], models, apply=apply)
     source = terraingen.FlatSource(101, 101, 400.0)
@@ -621,3 +622,14 @@ def test_crater_terraces_step_large_walls_only_when_enabled():
     assert terraingen.default_crater_apply().terraces.enabled
     with pytest.raises(ValueError):
         terraingen.validate_crater_terraces(terraingen.CraterTerraces(block_gaps=1.0))
+
+
+def test_crater_peaks_raise_massifs_only_when_enabled():
+    plain = terraced_heights(terraingen.CraterTerraces(), terraingen.CraterPeaks())
+    peaks = terraingen.CraterPeaks(enabled=True, seed=4, min_massifs=3, max_massifs=3, sharpness=0.9)
+    assert peaks.min_massifs == 3 and peaks.sharpness == 0.9
+    peaked = terraced_heights(terraingen.CraterTerraces(), peaks)
+    assert (peaked != plain).any()
+    assert terraingen.default_crater_apply().peaks.enabled
+    with pytest.raises(ValueError):
+        terraingen.validate_crater_peaks(terraingen.CraterPeaks(spread_radii=3.0))

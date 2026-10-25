@@ -238,6 +238,43 @@ TEST(IrregularOutline, FollowsDuEtAlsFittedRimSpectra) {
               IrregularOutline(At(2, 60000.0), irregularity).table);
 }
 
+TEST(CraterProfileDistance, KeepsDuRimRoughnessAtTheCrestAndFadesItsFineWobbleDownTheWall) {
+    const Crater crater{0.0, 0.0, 10000.0, 0.0, 9u, true};
+    CraterIrregularity irregularity;
+    irregularity.enabled = true;
+    irregularity.selection.manual = true;
+    irregularity.elongatedShare = 0.0;
+    irregularity.model = terraingen::RimRoughnessModel::Du2024;
+    irregularity.scatter = false;
+    const terraingen::CraterOutline outline = IrregularOutline(crater, irregularity);
+    ASSERT_EQ(outline.table.size(), 1024u);
+    constexpr int kSteps = 2048;
+    const auto read = [&](double radii, int n) {
+        const double angle = 2.0 * terraingen::kPi * n / kSteps;
+        const double r = 5000.0 * radii;
+        return terraingen::CraterProfileDistance(crater, outline, r * std::cos(angle),
+                                                 r * std::sin(angle)) /
+               r;
+    };
+    const auto fine = [&](double radii) {
+        double squares = 0.0;
+        for (int n = 0; n < kSteps; ++n) {
+            const double bend = read(radii, n - 1) - 2.0 * read(radii, n) + read(radii, n + 1);
+            squares += bend * bend;
+        }
+        return std::sqrt(squares / kSteps);
+    };
+    for (int n = 0; n < kSteps; n += 97) {
+        const double angle = 2.0 * terraingen::kPi * n / kSteps;
+        EXPECT_NEAR(read(1.0, n), 1.0 / outline.Scale(std::cos(angle), std::sin(angle)), 1e-6)
+            << "the rim crest keeps the whole measured outline";
+    }
+    const double rim = fine(1.0);
+    EXPECT_GT(rim, 0.0);
+    EXPECT_LT(fine(0.7), 0.35 * rim) << "the fine wobble fades faster than the broad outline";
+    EXPECT_LT(fine(0.4), 0.03 * rim) << "and is gone from the bowl";
+}
+
 TEST(IrregularOutline, MarksTheShareAskedForWithoutChangingTheRestOfTheOutline) {
     CraterIrregularity irregularity;
     irregularity.enabled = true;

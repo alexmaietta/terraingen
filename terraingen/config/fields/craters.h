@@ -260,8 +260,13 @@ template <typename IO> void Fields(IO& io, CraterTerraces& terraces) {
                 "Slope of a bench, in degrees; mapped lunar terraces slope under 5 degrees.",
                 Inside(0.0, 45.0));
     io("scarp_share", terraces.scarpShare,
-       "Share of each step's width the scarp takes, from 0 to 1; the bench takes the rest.", "",
-       Inside(0.0, 1.0));
+       "Least share of each step's width the scarps take, from 0 to 1; steeper steps give them "
+       "more, and the bench takes the rest.",
+       "", Inside(0.0, 1.0));
+    DegreeField(io, "scarp_slope_deg", terraces.scarpSlopeDegrees,
+                "Slope the scarps rise at, in degrees, above the bench slope; each step gives its "
+                "scarps the share of its width that keeps them near it.",
+                Inside(0.0, 60.0));
     io("arc_share", terraces.arcShare,
        "Share of the wall's circumference each bench covers at the onset diameter, up to 1; it "
        "rises to 0.9 at the full diameter, and 1 gives benches all the way round.",
@@ -279,6 +284,46 @@ template <typename IO> void Fields(IO& io, CraterTerraces& terraces) {
        "Freshness, current over fresh depth, below which the terraces are gone; they soften as "
        "the crater wears down to it.",
        "", FromBelow(0.0, 1.0));
+}
+
+template <typename IO> void Fields(IO& io, CraterPeaks& peaks) {
+    io("enabled", peaks.enabled,
+       "Builds the central peaks of complex craters from massifs: mountains clustered about the "
+       "center in place of the profile's round dome.");
+    io("seed", peaks.seed,
+       "Varies each crater's massifs and their noise; unset follows the layer's seed.");
+    io("min_massifs", peaks.minMassifs, "Fewest massifs of a peak, at least 1.", "",
+       Between(1.0, 8.0));
+    io("max_massifs", peaks.maxMassifs, "Most massifs of a peak, at most 8.", "",
+       Between(1.0, 8.0));
+    io("spread_radii", peaks.spreadRadii,
+       "How far the lesser massifs' centers scatter from the crater's center, in peak base "
+       "radii.",
+       "", Between(0.0, 2.0));
+    io("elongation", peaks.elongation,
+       "Most aspect ratio of a massif's footprint; 1 keeps them round, larger makes ridges.", "",
+       Between(1.0, 4.0));
+    io("sharpness", peaks.sharpness,
+       "How sharp the massifs' crests are, from 0 (domes) to 1 (spires).", "", Between(0.0, 1.0));
+    io("lopsidedness", peaks.lopsidedness,
+       "How far each massif's summit sits off its center toward one flank, from 0 to 1.", "",
+       Between(0.0, 1.0));
+    io("height_variation", peaks.heightVariation,
+       "How much lower than the main massif the others may be, as a share of its height.", "",
+       Between(0.0, 1.0));
+    io("roughness", peaks.roughness,
+       "Ridged noise over the massifs, as a share of their height, carving spurs, gullies and "
+       "lesser summits; worn peaks lose it.",
+       "", Between(0.0, 1.0));
+    io("roughness_wavelength", peaks.roughnessWavelength,
+       "Wavelength of the massifs' noise, in peak base radii.", "", Above(0.0));
+    io("warp", peaks.warp, "How far the noise warps the massifs' outlines, in peak base radii.", "",
+       Between(0.0, 0.3));
+    io("height_scale", peaks.heightScale,
+       "The massifs' height over the profile's peak height, up to 4.", "", AboveUpTo(0.0, 4.0));
+    io("width_scale", peaks.widthScale,
+       "The massifs' spread and size over the profile's peak base, up to 3.", "",
+       AboveUpTo(0.0, 3.0));
 }
 
 template <typename IO> void Fields(IO& io, CraterSlopeResponse& slope) {
@@ -342,6 +387,8 @@ template <typename IO> void Fields(IO& io, CraterApplyOptions& apply) {
        "the plane datum.");
     io("terraces", apply.terraces,
        "Slump terraces on the walls of craters from the onset diameter, softening as they wear.");
+    io("peaks", apply.peaks,
+       "Central peaks of complex craters built from massifs, lowering as the craters wear.");
 }
 
 template <> struct SpecName<CraterLayerSpec> {

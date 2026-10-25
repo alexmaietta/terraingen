@@ -116,6 +116,28 @@ std::vector<double> DuRimTable(double diameter, bool scatter, double maxDeviatio
     return table;
 }
 
+/// Harmonics of a rim table the crater kernel follows toward the center one by one, as it does a
+/// power-law outline's; the table's finer rest fades as fast as the first harmonic past them. Set
+/// by eye to match the default highest power-law harmonic, not from a measurement.
+constexpr int kTableBroadHarmonics = 12;
+
+/// Appends the (amplitude, phase) pairs of harmonics 1 to `kTableBroadHarmonics` of the periodic
+/// `table` to `data`, as cosines of the angle plus the phase, the way the kernel reads harmonics.
+void AppendBroadHarmonics(const std::vector<double>& table, std::vector<float>& data) {
+    const double size = static_cast<double>(table.size());
+    for (int k = 1; k <= kTableBroadHarmonics; ++k) {
+        double re = 0.0;
+        double im = 0.0;
+        for (std::size_t n = 0; n < table.size(); ++n) {
+            const double angle = 2.0 * kPi * k * static_cast<double>(n) / size;
+            re += table[n] * std::cos(angle);
+            im -= table[n] * std::sin(angle);
+        }
+        data.push_back(static_cast<float>(2.0 * std::hypot(re, im) / size));
+        data.push_back(static_cast<float>(std::atan2(im, re)));
+    }
+}
+
 /// sum over k of k^-slope squared, from `first` to `last`.
 double PowerSum(int first, int last, double slope) {
     double sum = 0.0;
@@ -290,12 +312,18 @@ void AppendKernelOutline(const CraterOutline& outline, CraterRecord& record,
                          std::vector<float>& data) {
     record.ellipticity = static_cast<float>(outline.ellipticity);
     record.heading = static_cast<float>(outline.heading);
-    record.firstHarmonic = static_cast<std::uint32_t>(outline.firstHarmonic);
-    record.harmonicCount = static_cast<std::uint32_t>(outline.amplitudes.size());
     record.harmonicOffset = static_cast<std::uint32_t>(data.size());
-    for (std::size_t n = 0; n < outline.amplitudes.size(); ++n) {
-        data.push_back(static_cast<float>(outline.amplitudes[n]));
-        data.push_back(static_cast<float>(outline.phases[n]));
+    if (outline.table.empty()) {
+        record.firstHarmonic = static_cast<std::uint32_t>(outline.firstHarmonic);
+        record.harmonicCount = static_cast<std::uint32_t>(outline.amplitudes.size());
+        for (std::size_t n = 0; n < outline.amplitudes.size(); ++n) {
+            data.push_back(static_cast<float>(outline.amplitudes[n]));
+            data.push_back(static_cast<float>(outline.phases[n]));
+        }
+    } else {
+        record.firstHarmonic = 1u;
+        record.harmonicCount = static_cast<std::uint32_t>(kTableBroadHarmonics);
+        AppendBroadHarmonics(outline.table, data);
     }
     record.tableCount = static_cast<std::uint32_t>(outline.table.size());
     record.tableOffset = static_cast<std::uint32_t>(data.size());

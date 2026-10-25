@@ -348,10 +348,19 @@ void BindApplyOptions(nb::module_& m) {
     BindOptions<CraterTerraces>(
         m, "CraterTerraces",
         "Slump terraces on the walls of craters from `onset_diameter`: `min_benches` to "
-        "`max_benches` benches `bench_slope_degrees` steep and scarps of `scarp_share` of each "
-        "step, covering `arc_share` of the wall at the onset and wandering `rim_variation` radii, "
+        "`max_benches` benches `bench_slope_degrees` steep and scarps of at least `scarp_share` of "
+        "each step rising about `scarp_slope_degrees` steep, the benches covering `arc_share` of "
+        "the wall at the onset and wandering `rim_variation` radii, "
         "softening until `min_freshness`.",
         {&ValidateCraterTerraces, "validate_crater_terraces", "terraces"});
+    BindOptions<CraterPeaks>(
+        m, "CraterPeaks",
+        "Central peaks of complex craters built from `min_massifs` to `max_massifs` massifs "
+        "scattered `spread_radii` peak radii about the center, up to `elongation` long, "
+        "`sharpness` sharp and `lopsidedness` lopsided, lesser ones up to `height_variation` "
+        "lower, roughened by ridged noise of `roughness` and `roughness_wavelength` and warped by "
+        "`warp`, in place of the profile's round dome.",
+        {&ValidateCraterPeaks, "validate_crater_peaks", "peaks"});
     BindOptions<CraterSlopeResponse>(
         m, "CraterSlopeResponse",
         "Craters made asymmetric along the slope of the ground beneath their layer: the deepest "

@@ -145,7 +145,8 @@ CraterOutline IrregularOutline(const Crater& crater, const CraterIrregularity& i
 double MaxOutlineScale(const CraterIrregularity& irregularity);
 
 /// Appends `outline`'s harmonics, deviations and marks to `data` as the crater kernel reads them,
-/// noting where, and its ellipse, on `record`.
+/// noting where, and its ellipse, on `record`; with a table, its broad harmonics stand in for
+/// `amplitudes`, so the kernel can fade the table's fine roughness faster toward the center.
 void AppendKernelOutline(const CraterOutline& outline, CraterRecord& record,
                          std::vector<float>& data);
 

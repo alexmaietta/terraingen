@@ -169,7 +169,12 @@ struct CraterTerraces {
     /// Slope of a bench (degrees); terraces are mapped as surfaces under 5 degrees (Du et al.
     /// 2024, LPSC 55, abstract 1382).
     double benchSlopeDegrees = 3.0;
-    double scarpShare = 0.35;  ///< Share of each step's width the scarp takes, in (0, 1).
+    /// Least share of each step the scarps take, in (0, 1); steeper steps give them more.
+    double scarpShare = 0.25;
+    /// Slope the scarps rise at (degrees), above the bench slope and under 60: each step gives its
+    /// scarps the share of its width that keeps them near it, as fresh crater walls stand near
+    /// the angle of repose.
+    double scarpSlopeDegrees = 35.0;
     /// Share of the wall's circumference each bench covers at the onset diameter, in (0, 1],
     /// rising to 0.9 at the full diameter; 1 sets benches all the way round.
     double arcShare = 0.6;
@@ -190,10 +195,10 @@ struct CraterTerraces {
         return enabled == other.enabled && onsetDiameter == other.onsetDiameter &&
                fullDiameter == other.fullDiameter && minBenches == other.minBenches &&
                maxBenches == other.maxBenches && benchSlopeDegrees == other.benchSlopeDegrees &&
-               scarpShare == other.scarpShare && arcShare == other.arcShare &&
-               rimVariation == other.rimVariation && blockOffset == other.blockOffset &&
-               blockGaps == other.blockGaps && minFreshness == other.minFreshness &&
-               seed == other.seed;
+               scarpShare == other.scarpShare && scarpSlopeDegrees == other.scarpSlopeDegrees &&
+               arcShare == other.arcShare && rimVariation == other.rimVariation &&
+               blockOffset == other.blockOffset && blockGaps == other.blockGaps &&
+               minFreshness == other.minFreshness && seed == other.seed;
     }
     bool operator!=(const CraterTerraces& other) const {
         return !(*this == other);
@@ -206,6 +211,61 @@ struct CraterTerraces {
 /// outside (0, 1), an arc share outside (0, 1], a negative or non-finite rim variation, or a
 /// minimum freshness outside [0, 1).
 void ValidateCraterTerraces(const CraterTerraces& terraces);
+
+/// Central peaks of complex craters built from massifs in place of the profile's round dome:
+/// one to several mountains clustered about the center, each elongated, sharp-crested or domed
+/// and lopsided as drawn per crater ID, their outlines warped and slopes roughened by ridged
+/// noise. The peak's height and base are the complex profile's; the massifs keep its highest
+/// summit at about that height and lower with it as the crater wears. They shape craters whose
+/// profile is a closed-form `ComplexCraterProfile`; tabulated and diffused profiles keep their
+/// dome.
+struct CraterPeaks {
+    bool enabled = false;
+    int minMassifs = 1;  ///< Fewest massifs of a peak.
+    int maxMassifs = 4;  ///< Most massifs of a peak, at most 8.
+    /// How far the lesser massifs' centers scatter from the crater's center, in peak base radii,
+    /// at most 2.
+    double spreadRadii = 0.8;
+    double elongation = 2.0;  ///< Most aspect ratio of a massif's footprint, at least 1.
+    /// How sharp the massifs' crests are, in [0, 1]: 0 domes them, 1 makes spires.
+    double sharpness = 0.6;
+    /// How far each massif's summit sits off its center toward one flank, in [0, 1].
+    double lopsidedness = 0.5;
+    /// How much lower than the main massif the others may be, as a share of its height, in [0, 1].
+    double heightVariation = 0.5;
+    /// Ridged noise over the massifs, as a share of their height, in [0, 1]; worn peaks lose it.
+    double roughness = 0.35;
+    double roughnessWavelength = 0.35;  ///< The noise's wavelength, in peak base radii.
+    /// How far the noise warps the massifs' outlines, in peak base radii, at most 0.3.
+    double warp = 0.12;
+    /// The massifs' height over the profile's peak height, in (0, 4]: real peaks of a size
+    /// scatter widely about the fitted laws.
+    double heightScale = 1.0;
+    /// The massifs' spread and size over the profile's peak base, in (0, 3].
+    double widthScale = 1.0;
+    std::optional<std::uint32_t> seed{};  ///< Unset follows the crater layer's seed.
+
+    /// Memberwise equality.
+    bool operator==(const CraterPeaks& other) const {
+        return enabled == other.enabled && minMassifs == other.minMassifs &&
+               maxMassifs == other.maxMassifs && spreadRadii == other.spreadRadii &&
+               elongation == other.elongation && sharpness == other.sharpness &&
+               lopsidedness == other.lopsidedness && heightVariation == other.heightVariation &&
+               roughness == other.roughness && roughnessWavelength == other.roughnessWavelength &&
+               warp == other.warp && heightScale == other.heightScale &&
+               widthScale == other.widthScale && seed == other.seed;
+    }
+    bool operator!=(const CraterPeaks& other) const {
+        return !(*this == other);
+    }
+};
+
+/// Checks crater central peaks.
+/// @throws std::invalid_argument for massifs outside 1 <= min <= max <= 8, a spread outside
+/// [0, 2], an elongation under 1 or over 4, a sharpness, lopsidedness, height variation or
+/// roughness outside [0, 1], a non-positive roughness wavelength, a warp outside [0, 0.3], a height
+/// scale outside (0, 4] or a width scale outside (0, 3].
+void ValidateCraterPeaks(const CraterPeaks& peaks);
 
 /// How `ApplyCraters` shapes craters into the terrain.
 struct CraterApplyOptions {
@@ -231,6 +291,7 @@ struct CraterApplyOptions {
     /// beneath the layer; needs the `Plane` datum.
     CraterSlopeResponse slope{};
     CraterTerraces terraces{};  ///< Slump terraces on the walls of large craters; off by default.
+    CraterPeaks peaks{};        ///< Central peaks built from massifs; off by default.
     /// What craters are shaped on; on a sphere, centers and rasters are longitude and latitude and
     /// each crater is shaped in its local frame, spacings in meters.
     Surface surface{};
@@ -242,7 +303,7 @@ struct CraterApplyOptions {
                interiorReplacement == other.interiorReplacement && blend == other.blend &&
                irregularity == other.irregularity && rimSmoothing == other.rimSmoothing &&
                noise == other.noise && texture == other.texture && slope == other.slope &&
-               terraces == other.terraces && surface == other.surface;
+               terraces == other.terraces && peaks == other.peaks && surface == other.surface;
     }
     bool operator!=(const CraterApplyOptions& other) const {
         return !(*this == other);

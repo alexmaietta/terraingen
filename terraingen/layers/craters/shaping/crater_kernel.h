@@ -74,6 +74,14 @@ void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terrace
                           const CraterProfile& profile, CraterRecord& record,
                           std::vector<float>& data);
 
+/// Sets the central peak massifs of prepared crater `p` on its kernel record, appended to `data`
+/// (`KernelPeakMassifs`): none without `peaks.enabled`, for a `profile` that is not a
+/// `ComplexCraterProfile` or below its transition diameter. Their roughness fades with the
+/// crater's freshness, current over fresh depth.
+void AppendKernelPeaks(const PreparedCrater& p, const CraterPeaks& peaks,
+                       const CraterProfile& profile, CraterRecord& record,
+                       std::vector<float>& data);
+
 /// The records of `craters` of `prepared`, in order, with their datums as fitted; `profile`
 /// tabulated for each when `kernel` asks for it. The data is never empty, so a GPU can bind it.
 /// @throws std::invalid_argument for a crater state the profile rejects.

@@ -39,6 +39,11 @@ void ValidateCraterTerraces(const CraterTerraces& terraces) {
     if (!(terraces.scarpShare > 0.0 && terraces.scarpShare < 1.0)) {
         throw std::invalid_argument("Crater terrace scarp share must be in (0, 1)");
     }
+    if (!(terraces.scarpSlopeDegrees > terraces.benchSlopeDegrees &&
+          terraces.scarpSlopeDegrees < 60.0)) {
+        throw std::invalid_argument(
+            "Crater terrace scarp slope must be above the bench slope and under 60 degrees");
+    }
     if (!(terraces.arcShare > 0.0 && terraces.arcShare <= 1.0)) {
         throw std::invalid_argument("Crater terrace arc share must be in (0, 1]");
     }
@@ -49,6 +54,32 @@ void ValidateCraterTerraces(const CraterTerraces& terraces) {
     }
     if (!(terraces.minFreshness >= 0.0 && terraces.minFreshness < 1.0)) {
         throw std::invalid_argument("Crater terrace minimum freshness must be in [0, 1)");
+    }
+}
+
+void ValidateCraterPeaks(const CraterPeaks& peaks) {
+    if (!(peaks.minMassifs >= 1 && peaks.minMassifs <= peaks.maxMassifs && peaks.maxMassifs <= 8)) {
+        throw std::invalid_argument("Crater peak massifs must satisfy 1 <= min <= max <= 8");
+    }
+    if (!(peaks.spreadRadii >= 0.0 && peaks.spreadRadii <= 2.0)) {
+        throw std::invalid_argument("Crater peak spread must be in [0, 2] peak base radii");
+    }
+    if (!(peaks.elongation >= 1.0 && peaks.elongation <= 4.0)) {
+        throw std::invalid_argument("Crater peak elongation must be in [1, 4]");
+    }
+    RequireUnitInterval(peaks.sharpness, "Crater peak sharpness");
+    RequireUnitInterval(peaks.lopsidedness, "Crater peak lopsidedness");
+    RequireUnitInterval(peaks.heightVariation, "Crater peak height variation");
+    RequireUnitInterval(peaks.roughness, "Crater peak roughness");
+    RequirePositive(peaks.roughnessWavelength, "Crater peak roughness wavelength");
+    if (!(peaks.warp >= 0.0 && peaks.warp <= 0.3)) {
+        throw std::invalid_argument("Crater peak warp must be in [0, 0.3]");
+    }
+    if (!(peaks.heightScale > 0.0 && peaks.heightScale <= 4.0)) {
+        throw std::invalid_argument("Crater peak height scale must be in (0, 4]");
+    }
+    if (!(peaks.widthScale > 0.0 && peaks.widthScale <= 3.0)) {
+        throw std::invalid_argument("Crater peak width scale must be in (0, 3]");
     }
 }
 
@@ -85,6 +116,7 @@ CraterApplyOptions DefaultCraterApply() {
     CraterApplyOptions apply;
     apply.irregularity.enabled = true;
     apply.terraces.enabled = true;
+    apply.peaks.enabled = true;
     return apply;
 }
 
@@ -99,6 +131,7 @@ CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t see
     follow(apply.texture.seed, kCraterTextureStream);
     follow(apply.slope.seed, kCraterSlopeStream);
     follow(apply.terraces.seed, kCraterTerraceStream);
+    follow(apply.peaks.seed, kCraterPeakStream);
     return apply;
 }
 
@@ -110,6 +143,7 @@ void ValidateCraterApplyOptions(const CraterApplyOptions& options) {
     ValidateRimSmoothing(options.rimSmoothing);
     ValidateCraterSlopeResponse(options.slope);
     ValidateCraterTerraces(options.terraces);
+    ValidateCraterPeaks(options.peaks);
     if ((options.slope.asymmetric || options.slope.criticalGradient) &&
         options.datum != CraterDatum::Plane) {
         throw std::invalid_argument("A crater slope response needs the plane datum");

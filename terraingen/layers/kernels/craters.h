@@ -116,6 +116,8 @@ struct CraterRecord {
     float upslopeY = 0.0f;       ///< `CraterSlopeShape::upslope` north.
     uint32_t terraceCount = 0;   ///< Wall terrace benches; 0 for none.
     uint32_t terraceOffset = 0;  ///< The terraces' shape in `CraterData` (`KernelTerracedRadii`).
+    uint32_t peakCount = 0;      ///< Massifs of the central peak; 0 keeps the profile's dome.
+    uint32_t peakOffset = 0;     ///< The massifs in `CraterData` (`KernelPeakMassifs`).
 };
 
 /// A point east and north of a crater's center, in meters, as the kernel reads it.
@@ -396,6 +398,44 @@ inline float KilometerLaw(float coefficient, float exponent, float diameter, boo
     return volume ? kilometers * 1e9f : kilometers * 1000.0f;
 }
 
+/// The height (m) and base radius (m) of a complex crater's fresh central peak.
+struct KernelPeakSize {
+    float height;
+    float base;
+};
+
+/// `KernelPeakSize` of a complex crater `diameter` (m) across, from the profile's peak laws;
+/// craters larger than the laws were fitted to keep that size's peak, scaled with the crater.
+inline KernelPeakSize KernelComplexPeak(KERNEL_IN(CraterProfileKernel) p, float diameter) {
+    const float fitted =
+        p.peakFitMaxDiameter > 0.0f ? min(diameter, p.peakFitMaxDiameter) : diameter;
+    KernelPeakSize size;
+    size.height = KilometerLaw(p.peakHeightCoefficient, p.peakHeightExponent, fitted, false);
+    if (p.peakFromVolume == 1u) {
+        const float volume =
+            KilometerLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, true);
+        size.base = sqrt(3.0f * volume / (kKernelPi * size.height));
+    } else {
+        size.base = 0.5f * KilometerLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, false);
+    }
+    size.base *= diameter / fitted;
+    return size;
+}
+
+/// The round dome (m) of central peak `size` at `distance` (m) from its center.
+inline float KernelPeakDome(KernelPeakSize size, float distance) {
+    if (!(distance < size.base)) {
+        return 0.0f;
+    }
+    const float u = 1.0f - (distance / size.base) * (distance / size.base);
+    return size.height * u * u;
+}
+
+/// The share of its fresh depth crater `c` keeps, which lowers its central peak as it wears.
+inline float KernelKeptDepth(KERNEL_IN(CraterRecord) c) {
+    return c.freshDepth > 0.0f ? c.currentDepth / c.freshDepth : 1.0f;
+}
+
 /// `ComplexCraterProfile::Height` of a complex crater (m).
 inline float ComplexProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distance, float diameter,
                                   KERNEL_IN(CraterRecord) c) {
@@ -417,25 +457,7 @@ inline float ComplexProfileHeight(KERNEL_IN(CraterProfileKernel) p, float distan
         const float t = (x - floorShare) / (1.0f - floorShare);
         height += depth * t * t;
     }
-    const float fitted =
-        p.peakFitMaxDiameter > 0.0f ? min(diameter, p.peakFitMaxDiameter) : diameter;
-    const float peakHeight =
-        KilometerLaw(p.peakHeightCoefficient, p.peakHeightExponent, fitted, false);
-    float base = 0.0f;
-    if (p.peakFromVolume == 1u) {
-        const float volume =
-            KilometerLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, true);
-        base = sqrt(3.0f * volume / (kKernelPi * peakHeight));
-    } else {
-        base = 0.5f * KilometerLaw(p.peakWidthCoefficient, p.peakWidthExponent, fitted, false);
-    }
-    base *= diameter / fitted;
-    if (distance < base) {
-        const float kept = c.freshDepth > 0.0f ? c.currentDepth / c.freshDepth : 1.0f;
-        const float u = 1.0f - (distance / base) * (distance / base);
-        height += kept * peakHeight * u * u;
-    }
-    return height;
+    return height + KernelKeptDepth(c) * KernelPeakDome(KernelComplexPeak(p, diameter), distance);
 }
 
 /// The fresh profile's height (m): simple or complex.
@@ -560,7 +582,10 @@ inline float KernelProfileHeight(KERNEL_IN(CraterShapeKernel) k, CraterData data
     return FreshProfileHeight(k.profile, distance, diameter, c);
 }
 
-/// The profile's height with its rim rounded (`RimSmoothing`), by 9-point Gauss-Hermite.
+/// The profile's height with its rim rounded (`RimSmoothing`): a Gaussian of the profile sampled on
+/// a grid of half-sigma steps anchored at the rim, with weights that move smoothly with `distance`
+/// and taper to zero between 3 and 4 sigma. Sampling at fixed offsets from `distance` instead would
+/// copy the rim's kink to each offset, leaving terraces about a sigma from the crest.
 inline float KernelRoundedHeight(KERNEL_IN(CraterShapeKernel) k, CraterData data, float distance,
                                  float diameter, KERNEL_IN(CraterRecord) c) {
     const float height = KernelProfileHeight(k, data, distance, diameter, c);
@@ -576,20 +601,20 @@ inline float KernelRoundedHeight(KERNEL_IN(CraterShapeKernel) k, CraterData data
     if (weight == 0.0f) {
         return height;
     }
-    const float nodes[5] = {0.0f, 0.723551018752838f, 1.46855328921667f, 2.26658058453184f,
-                            3.19099320178153f};
-    const float weights[5] = {0.720235215606051f, 0.432651559002556f, 0.0884745273943766f,
-                              0.00494362427553695f, 0.0000396069772632645f};
-    const float step = 1.41421356237310f * k.rimSigma * radius;
-    float smoothed = weights[0] * height;
-    for (int i = 1; i < 5; ++i) {
-        smoothed +=
-            weights[i] * KernelProfileHeight(k, data, abs(distance - step * nodes[i]), diameter, c);
-        smoothed +=
-            weights[i] * KernelProfileHeight(k, data, abs(distance + step * nodes[i]), diameter, c);
+    const float sigma = k.rimSigma * radius;
+    const float step = 0.5f * sigma;
+    const float position = (distance - radius) / step;
+    const float first = floor(position) - 7.0f;
+    float smoothed = 0.0f;
+    float total = 0.0f;
+    for (int i = 0; i < 16; ++i) {
+        const float node = first + float(i);
+        const float z = 0.5f * (node - position);
+        const float w = exp(-0.5f * z * z) * KernelFalloff(abs(z), 3.0f, 4.0f, 2u);
+        smoothed += w * KernelProfileHeight(k, data, abs(radius + step * node), diameter, c);
+        total += w;
     }
-    smoothed /= 1.77245385090552f;
-    return height + weight * (smoothed - height);
+    return height + weight * (smoothed / total - height);
 }
 
 /// Fractal parameters with every field set, as kernels need: Slang does not apply a struct's
@@ -698,8 +723,16 @@ inline float KernelMarksWindow(float radii, float inner, float outer, float fade
            KernelSmoothstep((outer + fade - radii) / fade);
 }
 
-/// The outline's reach with its rough wobble kept by `share`, from 0 (none) to 1 (all): the rim
-/// table by `share` and each harmonic of order k by `share`^(k / 2), so the short ones fade first.
+/// The power of the share a rim table keeps of its fine rest, past the harmonics it carries: half
+/// the order of the first harmonic past them (13), as harmonic k keeps `share`^(k / 2). A smoothing
+/// choice so fine rim roughness stays near the crest, not a measured value.
+static const float kTableFineFade = 6.5f;
+
+/// The outline's reach with its rough wobble kept by `share`, from 0 (none) to 1 (all): each
+/// harmonic of order k by `share`^(k / 2), so the short ones fade first. A rim table comes with its
+/// broad harmonics, which fade the same way, and the rest of the table, its fine roughness, fades
+/// by `share`^`kTableFineFade`, so the fine rim wobble is not carried down the wall to the bowl;
+/// with all of the wobble kept the table alone is read.
 inline float KernelOutlineScaleAt(CraterData data, KERNEL_IN(CraterRecord) c, float dx, float dy,
                                   float share) {
     const float theta = KernelAngle(dy, dx);
@@ -708,11 +741,24 @@ inline float KernelOutlineScaleAt(CraterData data, KERNEL_IN(CraterRecord) c, fl
     float wobble = 1.0f;
     if (c.tableCount > 0u && share > 0.0f) {
         const KernelPeriodicCell cell = KernelPeriodicAt(theta / kKernelTwoPi, c.tableCount);
-        wobble +=
-            share * ((1.0f - cell.t) * CraterValue(data, c.tableOffset + cell.index) +
-                     cell.t * CraterValue(data, c.tableOffset + (cell.index + 1u) % c.tableCount));
-    }
-    if (share > 0.0f) {
+        const float rim =
+            (1.0f - cell.t) * CraterValue(data, c.tableOffset + cell.index) +
+            cell.t * CraterValue(data, c.tableOffset + (cell.index + 1u) % c.tableCount);
+        if (share >= 1.0f) {
+            wobble += share * rim;
+        } else {
+            float broad = 0.0f;
+            for (uint32_t n = 0u; n < c.harmonicCount; ++n) {
+                const float order = float(c.firstHarmonic + n);
+                const float wave =
+                    CraterValue(data, c.harmonicOffset + 2u * n) *
+                    cos(order * theta + CraterValue(data, c.harmonicOffset + 2u * n + 1u));
+                broad += wave;
+                wobble += pow(share, 0.5f * order) * wave;
+            }
+            wobble += pow(share, kTableFineFade) * (rim - broad);
+        }
+    } else if (share > 0.0f) {
         for (uint32_t n = 0u; n < c.harmonicCount; ++n) {
             const float order = float(c.firstHarmonic + n);
             const float kept = share < 1.0f ? pow(share, 0.5f * order) : 1.0f;
@@ -763,7 +809,7 @@ inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float d
 }
 
 /// Floats of a crater's terraces in `CraterData` before its scarps: the floor edge in radii, the
-/// bench's share of the wall's slope, the strength, the bench share of a step, the arcs' cut and
+/// bench's share of the wall's slope, the strength, the scarps' rounding share, the arcs' cut and
 /// width, (amplitude, phase) pairs of harmonics 2 to 6 of the arcs, and the rim crest's scallop
 /// height in radii, number and phase, and the share of slump blocks missing from the benches.
 static const uint32_t kTerraceHeader = 20u;
@@ -771,11 +817,17 @@ static const uint32_t kTerraceHeader = 20u;
 /// Floats of each scarp between two steps of a crater's terraces, after the header: its mean
 /// position across the wall, from 0 at the floor edge to 1 at the rim crest; the height of its
 /// scallops; their number around the rim and phase; the amplitude and phase of its slow wobble;
-/// and how far, and from which hash key, each scallop's block steps in or out.
+/// and how far, and from which hash key, each scallop's block steps in or out. After the scarps
+/// come each step's bench level, where across its step the bench stands, and scarp share, the
+/// share of the step its two half-scarps take.
 static const uint32_t kTerraceScarpValues = 8u;
 
+/// Floats of each step of a crater's terraces, after its scarps: its bench level, its scarp share
+/// and how much of its bench it keeps, less on walls too steep for one.
+static const uint32_t kTerraceStepValues = 3u;
+
 /// Share of a scallop's arc on each side of a cusp over which neighboring blocks' values blend.
-static const float kTerraceBlockBlend = 0.12f;
+static const float kTerraceBlockBlend = 0.3f;
 
 /// The value of block `cell` (taken modulo `count`) of a scarp hashed from `key`: the hash in
 /// [0, 1) for a negative `gaps`, else 1 when it stands and 0 when it is one of the `gaps` share
@@ -877,16 +929,29 @@ inline float KernelTerraceRimScale(CraterData data, KERNEL_IN(CraterRecord) c, f
     return 1.0f + CraterValue(data, o + 16u) * (1.0f - f * f - 2.0f / 3.0f);
 }
 
+/// A half-scarp rising from 0 to 1 as `v` goes from its brink at 0 to the step's edge at 1: its
+/// slope grows from 0 over the first `rounding` of it, then holds, so scarps rise at an even slope
+/// between rounded brinks and toes, 1 / (1 - rounding / 2) times their mean.
+inline float KernelTerraceEase(float v, float rounding) {
+    const float steepest = 1.0f / (1.0f - 0.5f * rounding);
+    if (v < rounding) {
+        return steepest * v * v / (2.0f * rounding);
+    }
+    return steepest * (v - 0.5f * rounding);
+}
+
 /// `radii` from crater `c`'s center toward `theta` with its wall terraced: between the floor edge
 /// and the rim crest the wall is remapped into `terraceCount` steps, each a bench of nearly
-/// constant radius in the round profile (so nearly level) and a steeper scarp rising to the next.
-/// Steps differ in width, each scarp scallops and wobbles around the rim on its own, and each
-/// bench covers its own arcs of the wall, less its missing slump blocks (those under its upper
-/// scarp's scallops, the top bench's under its lower one). The height of each step is read at the
-/// scarps' mean positions, so the wall keeps its mean shape; each step is blended toward an even
-/// rise by its bench's strength, the terraces' times its arc. The map is continuous, rises
-/// monotonically and leaves the floor and rim where they are; its slope breaks at the brinks of
-/// benches.
+/// constant radius in the round profile (so nearly level) between half-scarps rising from the
+/// bench below and to the bench above. Steps split the wall's height with jitter, and each bench
+/// stands at its step's mean height, so slumped blocks rise above the unterraced wall near their
+/// toes and drop below it under their headscarps, keeping its volume roughly. Each scarp scallops
+/// and wobbles around the rim on its own, and each bench covers its own arcs of the wall, less its
+/// missing slump blocks (those under its upper scarp's scallops, the top bench's under its lower
+/// one). The height of each step is read at the scarps' mean positions, so the wall keeps its mean
+/// shape; each step is blended toward an even rise by its bench's strength, the terraces' times its
+/// arc. The map is continuous, rises monotonically and leaves the floor and rim where they are; its
+/// slope breaks at the brinks of benches.
 inline float KernelTerracedRadii(CraterData data, KERNEL_IN(CraterRecord) c, float radii,
                                  float theta) {
     const uint32_t o = c.terraceOffset;
@@ -911,12 +976,23 @@ inline float KernelTerracedRadii(CraterData data, KERNEL_IN(CraterRecord) c, flo
         const uint32_t s = o + kTerraceHeader + kTerraceScarpValues * (k - 1u);
         strength *= KernelTerraceBlocks(data, s, theta, top ? 2u : 1u, CraterValue(data, o + 19u));
     }
-    const float bench = CraterValue(data, o + 3u);
+    const float rounding = CraterValue(data, o + 3u);
     const float slope = CraterValue(data, o + 1u);
-    float rise = slope * within;
-    if (within > bench) {
-        rise += (1.0f - slope) * KernelSmoothstep((within - bench) / (1.0f - bench));
+    const uint32_t s = o + kTerraceHeader + kTerraceScarpValues * (c.terraceCount - 1u) +
+                       kTerraceStepValues * step;
+    const float level = CraterValue(data, s);
+    const float scarp = CraterValue(data, s + 1u);
+    strength *= CraterValue(data, s + 2u);
+    const float lower = scarp * level;
+    const float upper = scarp * (1.0f - level);
+    float stair = level;
+    if (within < lower) {
+        stair = level * (1.0f - KernelTerraceEase(1.0f - within / lower, rounding));
+    } else if (within > 1.0f - upper) {
+        stair =
+            level + (1.0f - level) * KernelTerraceEase((within - (1.0f - upper)) / upper, rounding);
     }
+    const float rise = slope * within + (1.0f - slope) * stair;
     const float shaped = within + strength * (rise - within);
     const float from = KernelTerraceBase(data, c, step);
     const float to = KernelTerraceBase(data, c, step + 1u);
@@ -982,6 +1058,105 @@ inline float KernelUpslopeHeight(KERNEL_IN(CraterRecord) c, float height, float 
     return height;
 }
 
+/// Floats of a crater's central peak in `CraterData` before its massifs: the ridged roughness
+/// over the peak's height, its wavelength and the warp of the massifs' outlines in peak base
+/// radii, the noise's hash key, and the massifs' height and width over the profile's peak.
+static const uint32_t kPeakHeader = 6u;
+
+/// Floats of each massif of a central peak, after the header: its center east and north and its
+/// radius in peak base radii, the square root of its aspect ratio, the cosine and sine of its
+/// long axis's heading, its height over the peak's, the exponent of its flanks, and its summit's
+/// offset east and north within its footprint, and the power of its flanks.
+static const uint32_t kPeakMassifValues = 11u;
+
+/// How far a central peak's massifs reach, warp included, in peak base radii.
+static const float kPeakReach = 2.6f;
+
+/// The height of massif `m` of a central peak, over the peak's height, at `px` east and `py`
+/// north of the crater's center in peak base radii: an elliptical mountain of height h and
+/// flanks (1 - r^e)^q, sharp-crested for e under 1 and domed at 2, meeting the floor in a slope
+/// break for q near 1 and easing into it at 2, its summit pulled off center toward its offset so
+/// one flank is steeper than the other; 0 outside its footprint.
+inline float KernelPeakMassif(CraterData data, uint32_t m, float px, float py) {
+    const float ex = px - CraterValue(data, m);
+    const float ey = py - CraterValue(data, m + 1u);
+    const float radius = CraterValue(data, m + 2u);
+    const float stretch = CraterValue(data, m + 3u);
+    const float cosine = CraterValue(data, m + 4u);
+    const float sine = CraterValue(data, m + 5u);
+    const float qx = (ex * cosine + ey * sine) / (radius * stretch);
+    const float qy = (ey * cosine - ex * sine) * stretch / radius;
+    const float squared = qx * qx + qy * qy;
+    if (!(squared < 1.0f)) {
+        return 0.0f;
+    }
+    const float pull = 1.0f - squared;
+    const float sx = qx - CraterValue(data, m + 8u) * pull;
+    const float sy = qy - CraterValue(data, m + 9u) * pull;
+    const float r = min(sqrt(sx * sx + sy * sy), 1.0f);
+    const float flank = 1.0f - pow(r, CraterValue(data, m + 7u));
+    return CraterValue(data, m + 6u) * pow(flank, CraterValue(data, m + 10u));
+}
+
+/// Crater `c`'s central peak (m) of `size` at `dx` east and `dy` north of its center: the highest
+/// of its massifs, their outlines warped and their slopes roughened by ridged noise into spurs,
+/// gullies and lesser summits, as on the peaks of Copernicus and Tycho.
+inline float KernelPeakMassifs(CraterData data, KERNEL_IN(CraterRecord) c, KernelPeakSize size,
+                               float dx, float dy) {
+    const uint32_t o = c.peakOffset;
+    float px = dx / size.base;
+    float py = dy / size.base;
+    const float roughness = CraterValue(data, o);
+    const float wavelength = CraterValue(data, o + 1u);
+    const float warp = CraterValue(data, o + 2u);
+    const uint32_t key = uint32_t(CraterValue(data, o + 3u));
+    if (warp > 0.0f) {
+        const FractalParams shape = KernelFractalParams(key + 1u, 2.0f * wavelength, 3, 0.5f);
+        const float wx = Fractal2(px, py, shape);
+        const float wy = Fractal2(px + 17.31f, py - 9.73f, shape);
+        px += warp * wx;
+        py += warp * wy;
+    }
+    float height = 0.0f;
+    for (uint32_t n = 0u; n < c.peakCount; ++n) {
+        height =
+            max(height, KernelPeakMassif(data, o + kPeakHeader + kPeakMassifValues * n, px, py));
+    }
+    if (roughness > 0.0f && height > 0.0f) {
+        FractalParams ridges = KernelFractalParams(key, wavelength, 5, 0.5f);
+        ridges.type = FractalType::Ridged;
+        height *= 1.0f + roughness * Fractal2(px, py, ridges);
+    }
+    return size.height * height;
+}
+
+/// What crater `c`'s central peak adds (m) at `dx` east and `dy` north of its center to its
+/// profile height at `distance` (m): its massifs, moved with the floor's shift, in place of the
+/// profile's round dome, both lowered as the crater wears. 0 for craters without massifs, and for
+/// profiles that tabulate or diffuse their peak, which keep their dome.
+inline float KernelPeakRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
+                              KERNEL_IN(CraterRecord) c, float distance, float dx, float dy) {
+    if (c.peakCount == 0u || k.profile.complex != 1u || k.profile.diffused == 1u ||
+        k.profile.simple == CraterProfileKind::Tabulated ||
+        c.diameter < k.profile.transitionDiameter) {
+        return 0.0f;
+    }
+    const KernelPeakSize size = KernelComplexPeak(k.profile, c.diameter);
+    KernelPeakSize scaled = size;
+    scaled.height *= CraterValue(data, c.peakOffset + 4u);
+    scaled.base *= CraterValue(data, c.peakOffset + 5u);
+    const float shift =
+        c.shiftX != 0.0f || c.shiftY != 0.0f ? KernelSlopeShiftWeight(c, dx, dy) : 0.0f;
+    const float sx = dx - shift * c.shiftX;
+    const float sy = dy - shift * c.shiftY;
+    const float reach = kPeakReach * max(size.base, scaled.base);
+    if (!(sx * sx + sy * sy < reach * reach)) {
+        return 0.0f;
+    }
+    return KernelKeptDepth(c) *
+           (KernelPeakMassifs(data, c, scaled, sx, sy) - KernelPeakDome(size, distance));
+}
+
 /// `height` after crater `c`, at `dx` east and `dy` north of its center in meters, as
 /// `ApplyCraters` shapes a cell there; unchanged beyond its reach.
 inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
@@ -1003,7 +1178,8 @@ inline float ApplyCraterKernel(KERNEL_IN(CraterShapeKernel) k, CraterData data,
         replaced = weight * (c.datumA + c.datumB * dx + c.datumC * dy - height);
     }
     const float bare =
-        KernelUpslopeHeight(c, KernelRoundedHeight(k, data, distance, diameter, c), dx, dy);
+        KernelUpslopeHeight(c, KernelRoundedHeight(k, data, distance, diameter, c), dx, dy) +
+        KernelPeakRelief(k, data, c, distance, dx, dy);
     const float shaped =
         bare + KernelNoiseHeight(k, c, dx, dy, radii) + KernelTextureHeight(k, c, dx, dy, radii);
     return height + c.resolution * shaped + c.resolution * replaced;
@@ -1032,7 +1208,8 @@ inline float CraterRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
         return 0.0f;
     }
     return c.resolution *
-           KernelUpslopeHeight(c, KernelProfileHeight(k, data, distance, c.diameter, c), dx, dy);
+           (KernelUpslopeHeight(c, KernelProfileHeight(k, data, distance, c.diameter, c), dx, dy) +
+            KernelPeakRelief(k, data, c, distance, dx, dy));
 }
 
 /// The offset (m) of lattice point `index` of `side` across a footprint of `fitRadius`.
@@ -1135,7 +1312,7 @@ inline float KernelBodyDatumRelief(KERNEL_IN(CraterShapeKernel) k, CraterData da
 static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
 static_assert(sizeof(CraterShapeKernel) == 180, "CraterShapeKernel must match its std430 layout");
-static_assert(sizeof(CraterRecord) == 124, "CraterRecord must match its std430 layout");
+static_assert(sizeof(CraterRecord) == 132, "CraterRecord must match its std430 layout");
 static_assert(sizeof(CraterFrame) == 40, "CraterFrame must match its std430 layout");
 static_assert(sizeof(CraterDatumKernel) == 192, "CraterDatumKernel must match its std430 layout");
 static_assert(sizeof(CraterBodyDatumKernel) == 180,
