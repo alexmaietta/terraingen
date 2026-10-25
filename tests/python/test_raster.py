@@ -246,3 +246,11 @@ def test_geotiff_bands_round_trip_and_out_of_range_bands_raise(tmp_path):
 
 def test_sample_raster_nearest_reads_the_corner_cell():
     assert terraingen.sample_raster(ramp_raster(), -7.0, 7.0, terraingen.ResampleMethod.NEAREST) == 0.0
+
+
+def test_fit_deviogram_measures_a_ramp_and_nothing_on_flat_ground():
+    fit = terraingen.fit_deviogram(ramp_raster())
+    assert fit.lags >= 2 and fit.slope == pytest.approx(1.0, abs=1e-6)
+    assert fit.cell_rms > 0.0 and fit.intercept == pytest.approx(np.log2(fit.cell_rms), abs=1e-6)
+    flat = terraingen.fit_deviogram(terraingen.Raster(8, 8, 3.0))
+    assert flat.lags == 0 and flat.cell_rms == 0.0

@@ -332,3 +332,26 @@ def test_build_generator_builds_on_a_given_source():
     with pytest.raises(terraingen.ConfigError):
         own = terraingen.TerrainGenConfig.from_dict({"schema_version": 1, "source": {"type": "synthetic"}})
         terraingen.build_generator(own, source=dem)
+
+
+def test_validate_config_summarizes_what_a_configuration_generates():
+    config = terraingen.TerrainGenConfig.from_dict(
+        {
+            "schema_version": 1,
+            "layers": [{"type": "craters"}],
+            "outputs": [
+                {"type": "heightmap", "pixel_size_m": 1, "extent_m": {"center": [0, 0], "size": [64, 64]}}
+            ],
+        }
+    )
+    summary = terraingen.validate_config(config)
+    assert summary.source is None
+    assert len(summary.output_grids) == 1 and summary.output_grids[0].width == 64
+    assert summary.expected_craters is not None and summary.expected_craters > 0.0
+    assert config.validate().expected_craters == summary.expected_craters
+    assert (
+        terraingen.validate_config(
+            terraingen.TerrainGenConfig.from_dict({"schema_version": 1})
+        ).expected_craters
+        is None
+    )

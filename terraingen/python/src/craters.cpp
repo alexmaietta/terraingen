@@ -513,8 +513,61 @@ void BindSecondaryLaws(nb::module_& m) {
           "The median ray length (m) of a crater `diameter` meters across (Elliott et al. 2018).");
 }
 
+void BindSecondaryDensity(nb::module_& m) {
+    using F = SecondaryRayField;
+    nb::class_<F>(m, "SecondaryRayField",
+                  "Where a primary's secondaries gather: its rays and the clumps along them, as a "
+                  "density over the even spread's. Ranges in meters, azimuths in radians "
+                  "counter-clockwise from east.")
+        .def_ro("rays", &F::rays)
+        .def_ro("diameter", &F::diameter, "The primary's, in meters.")
+        .def_ro("onset", &F::onset, "secondary_onset_range, in meters.")
+        .def_ro("share", &F::share)
+        .def_ro("sin_floor", &F::sinFloor, "Sine of SecondaryRays.min_half_angle_degrees.")
+        .def_ro("clustering", &F::clustering)
+        .def_ro("spacing", &F::spacing, "SecondaryRays.cluster_spacing.")
+        .def_ro("mean_clump", &F::meanClump, "The mean clump bump the clumping is divided by.")
+        .def_static("make", &F::Make, "primary"_a, "rays"_a,
+                    "The rays of `primary`'s secondaries under `rays`; None when they are off or "
+                    "the primary has no rays.")
+        .def("width", &F::Width, "ray"_a, "range"_a,
+             "The across-ray half width of `ray` at `range` meters.")
+        .def("profile", &F::Profile, "ray"_a, "range"_a, "azimuth"_a,
+             "The across-ray profile of `ray` at `range` and `azimuth`, 1 on its center line.")
+        .def("clump", &F::Clump, "ray"_a, "range"_a,
+             "The clumping along `ray` at `range` meters, 1 on average.")
+        .def("mean_profile", &F::MeanProfile, "range"_a,
+             "The mean over azimuth of the summed profiles at `range` meters.")
+        .def("density", &F::Density, "range"_a, "azimuth"_a,
+             "The density of secondaries at `range` and `azimuth` over the even spread's.")
+        .def("peak", &F::Peak, "r0"_a, "r1"_a,
+             "An upper bound of `density` between `r0` and `r1` meters, with a margin.");
+    using D = SecondaryDensity;
+    nb::class_<D>(m, "SecondaryDensity",
+                  "The density of the secondaries one primary throws, on average, as "
+                  "SecondaryCraterLayer draws them, gathered into rays when they are on.")
+        .def(nb::init<const Crater&, const SecondaryCraterOptions&>(), "primary"_a, "options"_a)
+        .def("at", &D::At, "offset"_a, "d_min"_a, "d_max"_a,
+             "Secondaries per m^2 with diameters in [d_min, d_max) meters at `offset` meters east "
+             "and north of the primary's center.")
+        .def("cover_at", &D::CoverAt, "offset"_a, "d_min"_a, "d_max"_a,
+             "The share of ground those secondaries cover, pi d^2 / 4 summed per m^2.")
+        .def("reach", &D::Reach, "The farthest a secondary lands (m); 0 when it throws none.")
+        .def("onset", &D::Onset, "Where the secondaries start, in meters from the center.")
+        .def("onset_density", &D::OnsetDensity,
+             "Secondaries per m^2 at least `reference()` across at the onset.")
+        .def("reference", &D::Reference,
+             "The size onset_density counts from, count_fraction times the diameter (m).")
+        .def("rays", &D::Rays, "Where the secondaries gather; None spreads them evenly.")
+        .def("scaled_range", &D::ScaledRange, "range"_a,
+             "Chapman's scaled range 1 + (range - onset) / D at `range` meters.")
+        .def("size_share", &D::SizeShare, "low"_a, "high"_a,
+             "The share of the cumulative count at `reference()` with diameters in [low, high).");
+}
+
 void BindSecondaries(nb::module_& m) {
     BindSecondaryOptions(m);
+    BindSecondaryDensity(m);
     nb::class_<SecondaryCraterLayer, Layer>(
         m, "SecondaryCraterLayer",
         "Secondary craters around the craters of `primaries` (Singer et al. 2020 sizes, "

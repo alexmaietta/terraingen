@@ -561,3 +561,33 @@ def test_outline_heading_is_in_degrees():
     )
     outline = terraingen.irregular_outline(terraingen.Crater(0.0, 0.0, 50.0), irregular)
     assert outline.heading_deg == pytest.approx(30.0)
+
+
+def test_secondary_density_falls_off_beyond_its_onset_and_gathers_into_rays():
+    primary = terraingen.Crater(0.0, 0.0, 1000.0, age_gyr=0.1)
+    density = terraingen.SecondaryDensity(primary, terraingen.SecondaryCraterOptions(onset_count=3.0))
+    onset = density.onset()
+    assert 0.0 < onset < density.reach() and density.rays() is None
+    near = density.at((1.2 * onset, 0.0), 5.0, 50.0)
+    far = density.at((1.8 * onset, 0.0), 5.0, 50.0)
+    assert near > far > 0.0 and density.at((0.5 * onset, 0.0), 5.0, 50.0) == 0.0
+    assert 0.0 < density.cover_at((1.2 * onset, 0.0), 5.0, 50.0) < 1.0
+    assert (
+        density.scaled_range(onset) == 1.0
+        and density.size_share(5.0, 50.0) > density.size_share(10.0, 50.0) > 0.0
+    )
+    rays = terraingen.SecondaryRayField.make(primary, terraingen.SecondaryRays(enabled=True))
+    assert rays is not None and len(rays.rays) > 0 and rays.diameter == 1000.0
+    assert rays.mean_profile(1.5 * onset) > 0.0
+    assert terraingen.SecondaryRayField.make(primary, terraingen.SecondaryRays()) is None
+
+
+def test_describe_craters_gives_the_attributes_the_shape_models_give():
+    models = terraingen.default_crater_models().shape()
+    assert isinstance(models, terraingen.CraterShapeModels) and models.profile is not None
+    crater = terraingen.Crater(0.0, 0.0, 100.0, age_gyr=0.5)
+    features = terraingen.describe_craters(terraingen.CraterList([crater]), models)
+    assert len(features.attributes) == 1
+    assert features.attributes[0].floor_depth == pytest.approx(models.attributes(crater).floor_depth)
+    built = terraingen.CraterShapeModels(models.profile, models.degradation)
+    assert built.attributes(crater).rim_height == pytest.approx(models.attributes(crater).rim_height)

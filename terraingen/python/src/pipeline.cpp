@@ -85,9 +85,30 @@ void BindGeneratorClass(nb::module_& m) {
         .def_rw("layers", &PyTerrainGenerator::layers);
 }
 
+void BindFeatureWriters(nb::module_& m) {
+    nb::enum_<ListFormat>(m, "ListFormat", "The file format of a crater or boulder list.")
+        .value("CSV", ListFormat::Csv)
+        .value("JSON", ListFormat::Json);
+    m.def("write_crater_list", &WriteCraterList, "craters"_a, "path"_a, "format"_a,
+          "attributes"_a = std::vector<CraterAttributes>{},
+          "Writes `craters` (a CraterList) as CSV or JSON, with each crater's attributes when "
+          "`attributes` holds one per crater.");
+    m.def("write_boulder_list", &WriteBoulderList, "boulders"_a, "path"_a, "format"_a,
+          "Writes `boulders` (a BoulderList) as CSV or JSON, angles in degrees.");
+    m.def("write_boulder_models", &WriteBoulderModels, "boulders"_a, "path"_a,
+          "crease_angle"_a = 60.0, "surface"_a = Surface{}, "site"_a = Vec2d{},
+          "instanced"_a = true,
+          "Writes boulder models as a glTF (.glb, .gltf), OBJ or STL scene: each shape once, "
+          "drawn per boulder, or with `instanced` false every boulder as its own mesh. On a "
+          "sphere the world is the east-north-up frame of `site`. `crease_angle` in degrees.");
+}
+
 void BindFeatures(nb::module_& m) {
+    BindFeatureWriters(m);
     nb::class_<CraterFeatures>(m, "CraterFeatures", "Craters and their attributes, in step.")
         .def_ro("craters", &CraterFeatures::craters, "The craters, as a CraterList.")
+        .def_ro("attributes", &CraterFeatures::attributes,
+                "Each crater's attributes (CraterAttributes), in step.")
         .def_prop_ro(
             "table", [](const CraterFeatures& f) { return CraterTable(f.craters, f.attributes); },
             "The craters as NumPy columns 'x', 'y', 'diameter', 'age_gyr', 'id' and 'manual' (1 "
@@ -136,6 +157,9 @@ void BindFeatures(nb::module_& m) {
         nb::call_guard<nb::gil_scoped_release>(),
         "The craters the generator's crater and secondary crater layers apply over `grid` (by "
         "default its source's) at `spacing` meters (0 for the grid's), in layer order.");
+    m.def("describe_craters", &DescribeCraters, "craters"_a, "models"_a,
+          "`craters` (a CraterList) with their attributes under `models` (CraterShapeModels), as "
+          "CraterFeatures.");
     m.def(
         "placed_boulders",
         [](const PyTerrainGenerator& generator, std::optional<RasterGrid> grid, double spacing) {
@@ -339,12 +363,13 @@ void BindConfigQueries(nb::class_<TerrainGenConfig>& config) {
         .def(
             "validate",
             [](const TerrainGenConfig& c, const OptionalPath& directory) {
-                ValidateConfig(c, Directory(directory));
+                return ValidateConfig(c, Directory(directory));
             },
             "directory"_a = nb::none(),
             "Checks everything parsing cannot (grid limits, raster files, model parameters, "
-            "expected crater counts); relative input paths resolve against `directory`. Raises "
-            "ConfigError naming the first invalid value.")
+            "expected crater counts) and returns what it generates, a ConfigSummary; relative "
+            "input paths resolve against `directory`. Raises ConfigError naming the first invalid "
+            "value.")
         .def("__eq__", [](const TerrainGenConfig& a, const TerrainGenConfig& b) { return a == b; })
         .def(
             "body",
@@ -377,6 +402,22 @@ void BindConfig(nb::module_& m) {
         "terraingen command describe.");
     BindConfigIo(m, config);
     BindConfigQueries(config);
+    nb::class_<ConfigSummary>(m, "ConfigSummary",
+                              "What a valid configuration generates, as validate_config finds it.")
+        .def_ro("source", &ConfigSummary::source,
+                "The source's grid; None without a source or for one without bounds.")
+        .def_ro("output_grids", &ConfigSummary::outputGrids,
+                "The grid each output covers, in order; None for a body mesh or a report.")
+        .def_ro("expected_craters", &ConfigSummary::expectedCraters,
+                "Craters the top-level crater layers are expected to generate over the output "
+                "grid with the most; None when none generate or no output covers a grid.");
+    m.def(
+        "validate_config",
+        [](const TerrainGenConfig& c, const OptionalPath& directory) {
+            return ValidateConfig(c, Directory(directory));
+        },
+        "config"_a, "directory"_a = nb::none(),
+        "Checks `config` as TerrainGenConfig.validate does and returns its ConfigSummary.");
     m.def(
         "config_catalog", [] { return FromJson(ConfigCatalog(-1)); },
         "Every configuration type with its defaults, as a dict: the lists 'body', 'source', "

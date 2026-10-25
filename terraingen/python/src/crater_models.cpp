@@ -337,7 +337,22 @@ void BindCraterModelSet(nb::module_& m) {
         .def_prop_ro("density", [](const CraterModels& c) { return Mutable(c.density); })
         .def_prop_ro("ages", [](const CraterModels& c) { return Mutable(c.ages); })
         .def_prop_ro("degradation", [](const CraterModels& c) { return Mutable(c.degradation); })
-        .def_prop_ro("profile", [](const CraterModels& c) { return Mutable(c.profile); });
+        .def_prop_ro("profile", [](const CraterModels& c) { return Mutable(c.profile); })
+        .def("shape", &CraterModels::Shape, "The profile and degradation, which shape craters.");
+    nb::class_<CraterShapeModels>(m, "CraterShapeModels",
+                                  "The models that shape craters: a profile and a degradation.")
+        .def(
+            "__init__",
+            [](CraterShapeModels* self, std::shared_ptr<CraterProfile> profile,
+               std::shared_ptr<DegradationModel> degradation) {
+                new (self) CraterShapeModels{std::move(profile), std::move(degradation)};
+            },
+            "profile"_a, "degradation"_a)
+        .def_prop_ro("profile", [](const CraterShapeModels& c) { return Mutable(c.profile); })
+        .def_prop_ro("degradation",
+                     [](const CraterShapeModels& c) { return Mutable(c.degradation); })
+        .def("attributes", &CraterShapeModels::Attributes, "crater"_a,
+             "A crater's depth, rim height and freshness in its resolved state.");
 }
 
 void BindFreshCraterFits(nb::module_& m) {

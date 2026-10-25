@@ -442,3 +442,31 @@ def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(41, 41, 0.1), [centered])
     heights = terraingen.evaluate(terrain).values
     assert heights.max() > 0.2 and heights[0, 0] == 0.0
+
+
+def test_feature_lists_and_boulder_models_write_as_files(tmp_path, lunar_models, crater_layer):
+    terrain = boulder_terrain(lunar_models, crater_layer, size=101)
+    craters = terraingen.placed_craters(terrain)
+    boulders = terraingen.placed_boulders(terrain)
+    terraingen.write_crater_list(
+        craters.craters, tmp_path / "craters.csv", terraingen.ListFormat.CSV, craters.attributes
+    )
+    terraingen.write_crater_list(craters.craters, tmp_path / "craters.json", terraingen.ListFormat.JSON)
+    terraingen.write_boulder_list(boulders.boulders, tmp_path / "boulders.json", terraingen.ListFormat.JSON)
+    terraingen.write_boulder_models(boulders.models, tmp_path / "boulders.glb", crease_angle=45.0)
+    assert "floor_depth" in (tmp_path / "craters.csv").read_text().splitlines()[0]
+    assert (tmp_path / "craters.json").read_text().startswith("{")
+    assert (tmp_path / "boulders.json").read_text().startswith("{")
+    assert (tmp_path / "boulders.glb").read_bytes()[:4] == b"glTF"
+
+
+def test_fragment_boulder_shape_splits_a_shape_into_fitting_pieces():
+    parent = terraingen.generate_boulder_shape(3)
+    radial = terraingen.fragment_boulder_shape(parent, 4, 7)
+    slabs = terraingen.fragment_boulder_shape(parent, 3, 7, terraingen.BoulderCracks.SLABS)
+    assert len(radial) == 4 and len(slabs) == 3
+    assert all(0.0 < piece.scale <= 1.0 + 1e-9 and piece.shape.mesh.triangle_count > 0 for piece in radial)
+    again = terraingen.fragment_boulder_shape(parent, 4, 7)
+    assert [piece.center for piece in again] == [piece.center for piece in radial]
+    with pytest.raises(ValueError):
+        terraingen.fragment_boulder_shape(parent, 1, 7)

@@ -310,3 +310,8 @@ def test_slopes_mature_from_twenty_degrees():
     assert layer.slope_at(1.0, 2.0, terrain) == pytest.approx(0.0)
     with pytest.raises(ValueError):
         terraingen.validate_slope_albedo_options(terraingen.SlopeAlbedoOptions(baseline=0.0))
+
+
+def test_blast_zone_mean_share_lies_between_the_full_core_and_the_whole_zone():
+    share = terraingen.blast_zone_mean_share()
+    assert 0.3**2 < share < 1.0

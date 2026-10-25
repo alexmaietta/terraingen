@@ -304,6 +304,8 @@ void BindBlastZones(nb::module_& m) {
         "`change` on average, elongated along `heading_deg`, in a halo reaching `halo_reach` "
         "times as far, around a dark core of `core_radius` m.",
         {&ValidateBlastZone, "validate_blast_zone", "zone"});
+    m.def("blast_zone_mean_share", &BlastZoneMeanShare,
+          "The share of a zone's peak change it averages over its area, by the radial profile.");
     nb::class_<BlastZoneAlbedo, AlbedoLayer>(m, "BlastZoneAlbedo",
                                              "Blast zones around landers, brightening the albedo.")
         .def(nb::init<std::vector<BlastZone>, TerrainBase>(), "zones"_a, "base"_a = TerrainBase{})

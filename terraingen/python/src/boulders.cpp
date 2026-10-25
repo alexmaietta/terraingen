@@ -9,6 +9,7 @@
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/boulders/boulder_abundance.h"
 #include "terraingen/layers/boulders/boulder_clusters.h"
+#include "terraingen/layers/boulders/boulder_fragments.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
 #include "terraingen/layers/boulders/boulder_models.h"
 #include "terraingen/layers/boulders/boulder_options.h"
@@ -71,6 +72,24 @@ void BindBoulderShapes(nb::module_& m) {
           "The shape `shape_seed` gives: the same seed always gives the same shape.");
     m.def("boulder_shape_seed", &BoulderShapeSeed, "id"_a, "prototypes"_a = 0,
           "The shape seed of boulder `id`, or of one of `prototypes` shared shapes.");
+}
+
+void BindFragments(nb::module_& m) {
+    nb::enum_<BoulderCracks>(m, "BoulderCracks", "How the cracks of a split boulder run.")
+        .value("RADIAL", BoulderCracks::Radial, "Out from the middle, like wedges of a pie.")
+        .value("SLABS", BoulderCracks::Slabs, "Roughly parallel, right through it.");
+    nb::class_<BoulderFragment>(m, "BoulderFragment",
+                                "One piece of a split boulder shape: its `shape` in unit form, "
+                                "and its `center` and `scale` in the parent's unit form.")
+        .def_ro("shape", &BoulderFragment::shape)
+        .def_ro("center", &BoulderFragment::center,
+                "Center of the piece's box in the parent's unit form.")
+        .def_ro("scale", &BoulderFragment::scale,
+                "The piece's largest horizontal extent in the parent's unit form.");
+    m.def("fragment_boulder_shape", &FragmentBoulderShape, "parent"_a, "pieces"_a, "seed"_a,
+          "cracks"_a = BoulderCracks::Radial,
+          "`parent` (a BoulderShape) split into 2 to 12 `pieces` that fit back together, by "
+          "near-vertical cracks running as `cracks` says; the same seed gives the same pieces.");
 }
 
 void BindFacet(nb::module_& m) {
@@ -519,6 +538,7 @@ void BindSandShadows(nb::module_& m) {
 
 void BindBoulders(nb::module_& m) {
     BindBoulderShapes(m);
+    BindFragments(m);
     BindBoulder(m);
     BindPatchesAndEjecta(m);
     BindClustersAndFragments(m);

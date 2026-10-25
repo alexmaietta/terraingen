@@ -11,6 +11,7 @@
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/raster_stats.h"
 #include "terraingen/raster/resample.h"
+#include "terraingen/raster/variogram.h"
 
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>
@@ -142,6 +143,19 @@ void BindStats(nb::module_& m) {
         });
     m.def("compute_stats", &ComputeStats<float>, "raster"_a,
           "Statistics over cells that are finite and not the nodata value.");
+    nb::class_<DeviogramFit>(m, "DeviogramFit",
+                             "A line fitted to a deviogram's log2 RMS height difference by log2 "
+                             "lag: its `slope` is the Hurst exponent.")
+        .def_ro("lags", &DeviogramFit::lags, "Lags the line was fitted over; the slope needs 2.")
+        .def_ro("slope", &DeviogramFit::slope, "The Hurst exponent H, unclamped.")
+        .def_ro("intercept", &DeviogramFit::intercept,
+                "log2 of the RMS height difference at a lag of one cell.")
+        .def_ro("cell_rms", &DeviogramFit::cellRms,
+                "The measured RMS difference at one cell; 0 without pairs or relief.");
+    m.def("fit_deviogram", &FitDeviogram, "heights"_a,
+          "The deviogram of `heights` (RMS difference of cells a lag apart along rows and "
+          "columns) fitted at lags of 1, 2, 4 and 8 cells, stopping at the first lag with no "
+          "pairs or no relief.");
 }
 
 void BindGrid(nb::module_& m) {

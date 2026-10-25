@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Python bindings for `FitDeviogram` (`fit_deviogram`, `DeviogramFit`), `ValidateConfig` (`validate_config`, `ConfigSummary`; `TerrainGenConfig.validate` returns the summary), `WriteCraterList`, `WriteBoulderList` and `WriteBoulderModels` (`write_crater_list`, `write_boulder_list`, `write_boulder_models`, `ListFormat`), `FragmentBoulderShape` (`fragment_boulder_shape`, `BoulderFragment`, `BoulderCracks`), `SecondaryDensity` and `SecondaryRayField`, `DescribeCraters` (`describe_craters`, `CraterShapeModels`, `CraterModels.shape`, `CraterFeatures.attributes`) and `BlastZoneMeanShare` (`blast_zone_mean_share`).
 - `RasterGrid::Centered(center, size, pixelSize)` and `RasterGrid::Covering(box, pixelSize)`: the north-up grid covering a box, snapped outward to whole cells as configuration outputs snap their extents (`SnappedCells`, `kGridSnapTolerance`).
 - `ManualCrater(x, y, diameter, depth, rimHeight)` (`manual_crater`) and a `CraterList` built from a list of craters, `CraterList{a, b, c}`.
 - `BoulderList` (Python `BoulderList`): boulders stored one column per field, as `CraterList` stores craters, built from `Boulder` records (`Append`, `BoulderList{a, b, c}`) and read back with `At`.
