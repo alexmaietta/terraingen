@@ -4,9 +4,9 @@ terraingen_add_test_suite(
     noise
     SOURCES
     fractal_test.cpp
+    fractals_test.cpp
     hash_test.cpp
     noise3_test.cpp
-    noise_layers_test.cpp
     perlin_test.cpp
     simplex_test.cpp
     surface_noise_test.cpp

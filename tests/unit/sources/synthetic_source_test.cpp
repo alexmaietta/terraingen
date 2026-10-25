@@ -15,23 +15,22 @@
 #include <string>
 #include <vector>
 
+using terraingen::Fractal;
 using terraingen::GeoTransform;
-using terraingen::NoiseLayer;
 using terraingen::Raster;
 using terraingen::RasterGrid;
 using terraingen::SyntheticSource;
-using terraingen::SyntheticTerrainParams;
 using terraingen::testing::ExpectPointsTilesAndGridAgree;
 
 namespace {
 
-SyntheticTerrainParams Hills() {
-    NoiseLayer layer;
-    layer.fractal.seed = 5;
-    layer.fractal.wavelength = 80.0f;
-    layer.fractal.amplitude = 6.0f;
-    layer.fractal.octaves = 4;
-    return SyntheticTerrainParams{{layer}};
+std::vector<Fractal> Hills() {
+    Fractal layer;
+    layer.seed = 5;
+    layer.wavelength = 80.0f;
+    layer.amplitude = 6.0f;
+    layer.octaves = 4;
+    return std::vector<Fractal>{layer};
 }
 
 }  // namespace
@@ -39,7 +38,7 @@ SyntheticTerrainParams Hills() {
 TEST(SyntheticSource, AnEmptyStackIsFlatAtItsElevation) {
     const SyntheticSource flat;
     EXPECT_EQ(flat.HeightAt(1e6, -3.0, 1.0), 0.0f);
-    const SyntheticSource raised(SyntheticTerrainParams{{}}, 12.5f);
+    const SyntheticSource raised(std::vector<Fractal>{}, 12.5f);
     Raster<float> heights = RasterGrid{4, 3, GeoTransform::NorthUp(-1e5, 2e5, 7.0)}.MakeRaster();
     raised.Fill(heights);
     for (const float value : heights.Values()) {
@@ -57,15 +56,15 @@ TEST(SyntheticSource, EvaluatesTheNoiseAtEveryPointWithoutAPixelSize) {
     const SyntheticSource source(Hills(), 3.0f);
     for (const double spacing : {10.0, 0.1}) {
         EXPECT_EQ(source.HeightAt(17.3, -4.1, spacing),
-                  3.0f + terraingen::NoiseLayersAt(Hills().layers, {}, {}, 17.3, -4.1));
+                  3.0f + terraingen::FractalStackAt(Hills(), {}, {}, 17.3, -4.1));
     }
     Raster<float> filled = RasterGrid{64, 48, GeoTransform::NorthUp(-50.0, 40.0, 2.0)}.MakeRaster();
     source.Fill(filled);
-    const std::vector<NoiseLayer> layers = Hills().layers;
+    const std::vector<Fractal> layers = Hills();
     for (std::size_t row = 0; row < filled.Height(); ++row) {
         for (std::size_t col = 0; col < filled.Width(); ++col) {
             const terraingen::Vec2d c = filled.CellCenter(col, row);
-            ASSERT_EQ(filled(col, row), 3.0f + terraingen::EvaluateNoiseLayers(
+            ASSERT_EQ(filled(col, row), 3.0f + terraingen::EvaluateFractals(
                                                    static_cast<float>(c.x), static_cast<float>(c.y),
                                                    layers.data(), layers.size()));
         }
@@ -82,11 +81,11 @@ TEST(SyntheticSource, UpsamplesNoiseSampledAtPostsWithAPixelSize) {
     EXPECT_EQ(source.PixelSize(), 8.0);
     EXPECT_EQ(source.Grid().transform, GeoTransform::NorthUp(-4.0, 4.0, 8.0));
     EXPECT_FALSE(terraingen::BoundedGrid(source).has_value());
-    const float post = terraingen::NoiseLayersAt(Hills().layers, {}, {}, 16.0, -24.0);
+    const float post = terraingen::FractalStackAt(Hills(), {}, {}, 16.0, -24.0);
     EXPECT_EQ(source.HeightAt(16.0, -24.0, 8.0), post);
     EXPECT_EQ(source.HeightAt(16.0, -24.0, 1.0), post) << "cubic passes through the posts";
     const float between = source.HeightAt(19.0, -21.0, 1.0);
-    EXPECT_NE(between, terraingen::NoiseLayersAt(Hills().layers, {}, {}, 19.0, -21.0))
+    EXPECT_NE(between, terraingen::FractalStackAt(Hills(), {}, {}, 19.0, -21.0))
         << "noise finer than the posts is not evaluated";
     ExpectPointsTilesAndGridAgree(source, {24, 18, GeoTransform::NorthUp(-31.0, 17.0, 1.3)});
     ExpectPointsTilesAndGridAgree(source, {20, 16, GeoTransform::NorthUp(-4.0, 4.0, 8.0)});
@@ -102,7 +101,7 @@ TEST(SyntheticSource, RefinesItsPostsWithDiamondSquare) {
     ASSERT_NE(fitted, nullptr);
     EXPECT_TRUE(fitted->Options().fractalDimension.has_value()) << "estimated from the posts";
     EXPECT_FALSE(fitted->Options().scale.has_value()) << "fitted window by window as it refines";
-    const float post = terraingen::NoiseLayersAt(Hills().layers, {}, {}, 16.0, -24.0);
+    const float post = terraingen::FractalStackAt(Hills(), {}, {}, 16.0, -24.0);
     EXPECT_EQ(source.HeightAt(16.0, -24.0, 0.5), post);
     ExpectPointsTilesAndGridAgree(source, {24, 18, GeoTransform::NorthUp(-31.0, 17.0, 0.9)});
 }
@@ -111,17 +110,17 @@ TEST(SyntheticSource, EvaluatesNoiseIn3DOnABody) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const SyntheticSource source(Hills(), 0.0f, std::nullopt, nullptr, moon);
     EXPECT_EQ(source.HeightAt(10.0, 20.0, 1.0),
-              terraingen::NoiseLayersAt(Hills().layers, {}, moon, 10.0, 20.0));
+              terraingen::FractalStackAt(Hills(), {}, moon, 10.0, 20.0));
     EXPECT_NEAR(source.HeightAt(-180.0, 5.0, 1.0), source.HeightAt(180.0, 5.0, 1.0), 1e-3)
         << "seamless across the antimeridian";
 }
 
 TEST(SyntheticSource, RejectsInvalidSettings) {
-    SyntheticTerrainParams many;
-    many.layers.assign(terraingen::kMaxNoiseLayers + 1, NoiseLayer{});
+    std::vector<Fractal> many;
+    many.assign(terraingen::kMaxFractals + 1, Fractal{});
     EXPECT_THROW(SyntheticSource{many}, std::invalid_argument);
-    SyntheticTerrainParams bad = Hills();
-    bad.layers[0].fractal.octaves = 0;
+    std::vector<Fractal> bad = Hills();
+    bad[0].octaves = 0;
     EXPECT_THROW(SyntheticSource{bad}, std::invalid_argument);
     EXPECT_THROW(SyntheticSource(Hills(), std::numeric_limits<float>::infinity()),
                  std::invalid_argument);
@@ -132,31 +131,9 @@ TEST(SyntheticSource, RejectsInvalidSettings) {
         << "an upsampler needs posts";
 }
 
-TEST(ValidateSyntheticTerrain, AllowsAnEmptyStackAndNamesTheBadLayer) {
-    EXPECT_NO_THROW(terraingen::ValidateSyntheticTerrain(SyntheticTerrainParams{}));
-    SyntheticTerrainParams many;
-    many.layers.resize(terraingen::kMaxNoiseLayers + 1);
-    EXPECT_THROW(terraingen::ValidateSyntheticTerrain(many), std::invalid_argument);
-    SyntheticTerrainParams bad = Hills();
-    bad.layers.push_back(NoiseLayer{});
-    bad.layers[1].fractal.gain = 0.0f;
-    try {
-        terraingen::ValidateSyntheticTerrain(bad);
-        FAIL() << "expected std::invalid_argument";
-    } catch (const std::invalid_argument& error) {
-        EXPECT_EQ(std::string(error.what()).rfind("Layer 2:", 0), 0u) << error.what();
-    }
-}
-
-TEST(SyntheticTerrainParams, ComparesLayers) {
-    EXPECT_EQ(SyntheticTerrainParams{}, SyntheticTerrainParams{});
-    EXPECT_NE(Hills(), SyntheticTerrainParams{});
-}
-
 TEST(SyntheticSource, ADefaultStackFillsZeros) {
-    EXPECT_TRUE(SyntheticTerrainParams{}.layers.empty());
     Raster<float> heights = RasterGrid{5, 4, GeoTransform::NorthUp(-30.0, 20.0, 3.0)}.MakeRaster();
-    SyntheticSource(SyntheticTerrainParams{}).Fill(heights);
+    SyntheticSource().Fill(heights);
     for (const float value : heights.Values()) {
         EXPECT_EQ(value, 0.0f);
     }

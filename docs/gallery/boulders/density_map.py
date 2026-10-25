@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Placement"
 
 HALF_SIZE_M = 30.0
 MAP_PIXEL = 0.5
@@ -24,9 +25,7 @@ D_MAX = 5.0
 def figure(quick=False):
     region = (-HALF_SIZE_M, -HALF_SIZE_M, HALF_SIZE_M, HALF_SIZE_M)
     cells = int(2.0 * HALF_SIZE_M / MAP_PIXEL)
-    noise = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=7, wavelength=40.0, amplitude=1.0, octaves=4))]
-    )
+    noise = terraingen.NoiseLayer(seed=7, wavelength=40.0, amplitude=1.0, octaves=4)
     pattern = terraingen.evaluate(
         terraingen.TerrainGenerator(terraingen.FlatSource(cells, cells, MAP_PIXEL), [noise])
     ).values

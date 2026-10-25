@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Models"
 
 SEED = 5
 ROUNDING = [0.0, 0.33, 0.67, 1.0]

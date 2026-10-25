@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+SECTION = "Rim shapes"
+
 ROUGHNESS = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.1]
 DIAMETER = 150.0
 SPACING = 240.0
@@ -37,9 +39,7 @@ def figure(quick=False):
         terraingen.CraterLayer.manual([terraingen.Crater(x, y, DIAMETER, age_gyr=0.01)], apply=rough_rims(r))
         for (x, y), r in zip(gallery.grid_centers(SPACING), ROUGHNESS, strict=True)
     ]
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, *layers])
     heights = terraingen.evaluate(terrain).values
 

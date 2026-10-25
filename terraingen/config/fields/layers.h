@@ -15,14 +15,14 @@ namespace terraingen::config {
 
 /// The fields of a noise layer, its amplitude written as `amplitudeKey` in `amplitudeUnit`.
 template <typename IO>
-void NoiseLayerFields(IO& io, NoiseStackLayerSpec& config, std::string_view amplitudeKey,
-                      std::string_view amplitudeUnit, std::string_view amplitudeHelp) {
-    NoiseLayer& layer = config.layer;
-    FractalParams& fractal = layer.fractal;
-    io("enabled", layer.enabled, "Includes this layer in the stack; disabled layers are skipped.");
+void FractalFields(IO& io, FractalSpec& config, std::string_view amplitudeKey,
+                   std::string_view amplitudeUnit, std::string_view amplitudeHelp) {
+    Fractal& fractal = config.fractal;
+    io("enabled", fractal.enabled,
+       "Includes this layer in the stack; disabled layers are skipped.");
     io("basis", fractal.basis, "Single-octave noise the fractal is built from.");
     io("fractal", fractal.type, "How the octaves of the basis noise are combined.");
-    io("blend", layer.blend,
+    io("blend", fractal.blend,
        "How this layer combines with the height of the layers before it; the first enabled layer "
        "sets the height instead.");
     io("seed", fractal.seed,
@@ -46,24 +46,24 @@ void NoiseLayerFields(IO& io, NoiseStackLayerSpec& config, std::string_view ampl
        "rougher at short baselines. Unset uses the gain.");
     io("offset", fractal.offset,
        "Ridge offset of the ridged and hybrid multifractal types; greater than 0.", "", Above(0.0));
-    io("warp_amplitude_m", layer.warpAmplitude,
+    io("warp_amplitude_m", fractal.warpAmplitude,
        "Domain warp displacement in meters, which bends the noise into swirled shapes; 0 "
        "disables warping.",
        "m", AtLeast(0.0));
-    io("warp_wavelength_m", layer.warpWavelength, "Wavelength of the warp field, in meters.", "m",
+    io("warp_wavelength_m", fractal.warpWavelength, "Wavelength of the warp field, in meters.", "m",
        Above(0.0));
 }
 
-template <typename IO> void Fields(IO& io, NoiseStackLayerSpec& config) {
-    NoiseLayerFields(io, config, "amplitude_m", "m",
-                     "Largest height of the layer above or below 0, in meters; unset is 0.1 times "
-                     "the wavelength, near the lunar highland median slope at any wavelength.");
+template <typename IO> void Fields(IO& io, FractalSpec& config) {
+    FractalFields(io, config, "amplitude_m", "m",
+                  "Largest height of the layer above or below 0, in meters; unset is 0.1 times "
+                  "the wavelength, near the lunar highland median slope at any wavelength.");
 }
 
-template <typename IO> void Fields(IO& io, AlbedoNoiseLayerSpec& config) {
-    NoiseLayerFields(io, config, "amplitude", "",
-                     "Largest value of the layer above or below 0, in what its stack varies: "
-                     "relative brightness, saturation or degrees of hue; required.");
+template <typename IO> void Fields(IO& io, AlbedoFractalSpec& config) {
+    FractalFields(io, config, "amplitude", "",
+                  "Largest value of the layer above or below 0, in what its stack varies: "
+                  "relative brightness, saturation or degrees of hue; required.");
 }
 
 template <> struct SpecName<NoiseLayerSpec> {

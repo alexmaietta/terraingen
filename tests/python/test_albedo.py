@@ -51,9 +51,7 @@ def rayed_terrain(lunar_models):
 
 
 def noisy_albedo():
-    variation = terraingen.NoiseLayer(
-        terraingen.FractalParams(seed=4, wavelength=800.0, amplitude=0.02, octaves=3)
-    )
+    variation = terraingen.Fractal(seed=4, wavelength=800.0, amplitude=0.02, octaves=3)
     return terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11, value_noise=[variation]))
 
 

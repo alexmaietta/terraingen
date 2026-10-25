@@ -11,16 +11,13 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Background"
 
 SIZE_M = 400.0
 
 
 def noise(seed, wavelength, amplitude):
-    return [
-        terraingen.NoiseLayer(
-            terraingen.FractalParams(seed=seed, wavelength=wavelength, amplitude=amplitude, octaves=6)
-        )
-    ]
+    return [terraingen.Fractal(seed=seed, wavelength=wavelength, amplitude=amplitude, octaves=6)]
 
 
 def figure(quick=False):

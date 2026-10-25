@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Density maps"
 
 SIZE_M = 400.0
 MAP_PIXEL = 4.0
@@ -44,9 +45,7 @@ def figure(quick=False):
     density_map.field = terraingen.RasterField(raster)
     density_map.measure = terraingen.DensityMeasure.SCALE
     options.density_map = density_map
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     craters = terraingen.CraterLayer(models, options)
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
 

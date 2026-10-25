@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Models"
 
 SOLIDS = ["ICOSAHEDRON", "CUBE", "PYRAMID", "PRISM", "TETRAHEDRON"]
 SUBDIVISIONS = [1, 2, 3, 5]

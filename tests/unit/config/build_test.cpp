@@ -544,7 +544,7 @@ TEST(BuildGenerator, BuildsEveryLayerKindInOrder) {
     config.layers.push_back(terraingen::DuneLayerSpec{terraingen::MarsBarchans()});
     const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
     ASSERT_EQ(terrain.layers.size(), 10u);
-    EXPECT_NE(dynamic_cast<const terraingen::NoiseRelief*>(terrain.layers[0].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::NoiseLayer*>(terrain.layers[0].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::BoulderLayer*>(terrain.layers[2].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::SecondaryCraterLayer*>(terrain.layers[3].get()),
@@ -898,8 +898,8 @@ TEST(BuildGenerator, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
     const terraingen::TerrainGenerator rolling = terraingen::BuildGenerator(config);
     const auto base = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(rolling.source);
     ASSERT_NE(base, nullptr);
-    ASSERT_EQ(base->Params().layers.size(), 1u);
-    const terraingen::FractalParams& fractal = base->Params().layers[0].fractal;
+    ASSERT_EQ(base->Fractals().size(), 1u);
+    const terraingen::Fractal& fractal = base->Fractals()[0];
     EXPECT_EQ(fractal.seed, 2u);
     EXPECT_EQ(fractal.wavelength, 400.0f);
     EXPECT_EQ(fractal.amplitude, 12.0f);
@@ -918,12 +918,12 @@ TEST(BuildGenerator, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
     const terraingen::TerrainGenerator flat = terraingen::BuildGenerator(config);
     const auto datum = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(flat.source);
     ASSERT_NE(datum, nullptr);
-    EXPECT_TRUE(datum->Params().layers.empty()) << "an empty stack is flat";
+    EXPECT_TRUE(datum->Fractals().empty()) << "an empty stack is flat";
     EXPECT_EQ(datum->HeightAt(123.0, -4.0, 1.0), 0.0f);
 
     terraingen::SyntheticSourceSpec synthetic;
     synthetic.elevation = -20.0;
-    synthetic.stack = {terraingen::NoiseStackLayerSpec{}};
+    synthetic.stack = {terraingen::FractalSpec{}};
     synthetic.pixelSize = 16.0;
     terraingen::UpsamplingSpec bilinear;
     bilinear.type = "bilinear";
@@ -933,11 +933,11 @@ TEST(BuildGenerator, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
     const auto made = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(noise.source);
     ASSERT_NE(made, nullptr);
     const terraingen::SyntheticSource bilinearPosts(
-        terraingen::StackParams(synthetic.stack), -20.0f, 16.0,
+        terraingen::StackFractals(synthetic.stack), -20.0f, 16.0,
         std::make_shared<terraingen::KernelUpsampler>(terraingen::ResampleMethod::Bilinear));
     EXPECT_EQ(made->HeightAt(5.0, 3.0, 1.0), bilinearPosts.HeightAt(5.0, 3.0, 1.0));
     EXPECT_EQ(made->PixelSize(), 16.0);
-    EXPECT_EQ(made->Params(), terraingen::StackParams(synthetic.stack));
+    EXPECT_EQ(made->Fractals(), terraingen::StackFractals(synthetic.stack));
     const auto kernel =
         std::dynamic_pointer_cast<const terraingen::KernelUpsampler>(made->UpsamplerInUse());
     ASSERT_NE(kernel, nullptr);
@@ -1095,7 +1095,7 @@ TEST(BuildGenerator, LeavesOutWhatTheRasterResolvesInEveryLayerKind) {
     bedforms.bedforms.wavelength = 25.0;
     bedforms.bedforms.cover = 0.9;
     terraingen::NoiseLayerSpec noise;
-    noise.stack[0].layer.fractal.wavelength = 40.0f;
+    noise.stack[0].fractal.wavelength = 40.0f;
     noise.sourceResolvesPixels = 4.0;
     config.layers = {dunes, bedforms, noise};
     TerrainGenConfig unset = config;

@@ -19,9 +19,9 @@ using terraingen::AlbedoContext;
 using terraingen::AlbedoSample;
 using terraingen::EvaluateAlbedo;
 using terraingen::EvaluateAlbedoAt;
+using terraingen::Fractal;
 using terraingen::GeoTransform;
 using terraingen::HsvToRgb;
-using terraingen::NoiseLayer;
 using terraingen::Raster;
 using terraingen::RasterAlbedo;
 using terraingen::RasterAlbedoOptions;
@@ -39,12 +39,12 @@ RasterGrid Grid(std::size_t side, double cell, double originX = -50.0, double or
     return {side, side, GeoTransform::NorthUp(originX, originY, cell)};
 }
 
-NoiseLayer Noise(float amplitude, float wavelength, std::uint32_t seed) {
-    NoiseLayer layer;
-    layer.fractal.amplitude = amplitude;
-    layer.fractal.wavelength = wavelength;
-    layer.fractal.octaves = 4;
-    layer.fractal.seed = seed;
+Fractal Noise(float amplitude, float wavelength, std::uint32_t seed) {
+    Fractal layer;
+    layer.amplitude = amplitude;
+    layer.wavelength = wavelength;
+    layer.octaves = 4;
+    layer.seed = seed;
     return layer;
 }
 
@@ -172,7 +172,7 @@ TEST(SyntheticAlbedo, RejectsInvalidParameters) {
     params.value = -0.1;
     EXPECT_THROW(SyntheticAlbedo{params}, std::invalid_argument);
     params = {};
-    params.valueNoise.assign(terraingen::kMaxNoiseLayers + 1, Noise(0.1f, 10.0f, 0));
+    params.valueNoise.assign(terraingen::kMaxFractals + 1, Noise(0.1f, 10.0f, 0));
     EXPECT_THROW(SyntheticAlbedo{params}, std::invalid_argument);
     params = {};
     params.hueNoiseDegrees = {Noise(0.1f, -10.0f, 0)};
@@ -341,7 +341,7 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
         EXPECT_FLOAT_EQ(east[band], west[band]);
     }
     EXPECT_NE(albedo.ValueAt(10.0, 3.0, context)[0], east[0]);
-    params.valueNoise[0].fractal.basis = terraingen::NoiseBasis::Simplex;
+    params.valueNoise[0].basis = terraingen::NoiseBasis::Simplex;
     const SyntheticAlbedo simplex(params, moon);
     EXPECT_FLOAT_EQ(simplex.ValueAt(180.0, 3.0, context)[0],
                     simplex.ValueAt(-180.0, 3.0, context)[0]);

@@ -34,9 +34,7 @@ def bright_rays():
 def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     size = int(SIZE_M / pixel) + 1
-    hills = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    hills = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     roughness = terraingen.RoughnessLayer(
         terraingen.RoughnessOptions(
             rms_slope=float(np.tan(np.radians(3.4))), baseline=5.0, hurst=0.9, max_wavelength=64.0, seed=4
@@ -73,11 +71,7 @@ def figure(quick=False):
 
     base = terraingen.SyntheticAlbedo(
         value=0.11,
-        value_noise=[
-            terraingen.NoiseLayer(
-                terraingen.FractalParams(seed=8, wavelength=120.0, amplitude=0.12, octaves=5)
-            )
-        ],
+        value_noise=[terraingen.Fractal(seed=8, wavelength=120.0, amplitude=0.12, octaves=5)],
     )
     albedo_layers = [
         terraingen.SlopeAlbedo(),

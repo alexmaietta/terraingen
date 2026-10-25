@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "terraingen/gpu/vulkan.h"
-#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/fractals.h"
 #include "terraingen/random/philox.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/span.h"
@@ -21,40 +21,40 @@ extern const std::size_t terraingen_test_noise_conformance_size;
 
 using terraingen::AsBytes;
 using terraingen::AsWritableBytes;
+using terraingen::Fractal;
+using terraingen::FractalBlend;
+using terraingen::FractalStack;
 using terraingen::FractalType;
-using terraingen::LayerBlend;
 using terraingen::NoiseBasis;
-using terraingen::NoiseLayer;
-using terraingen::NoiseLayers;
 using terraingen::Span;
 
 namespace {
 
 constexpr std::uint32_t kValues = 22;
 
-static_assert(sizeof(NoiseLayer) == 52 && sizeof(NoiseLayers) == 420,
-              "NoiseLayers must match its std430 layout in GPU kernels");
+static_assert(sizeof(Fractal) == 52 && sizeof(FractalStack) == 420,
+              "FractalStack must match its std430 layout in GPU kernels");
 
 /// Eight layers covering every basis, fractal type, blend mode and the domain warp.
-std::vector<NoiseLayer> TestLayers() {
-    std::vector<NoiseLayer> layers(terraingen::kMaxNoiseLayers);
+std::vector<Fractal> TestLayers() {
+    std::vector<Fractal> layers(terraingen::kMaxFractals);
     const NoiseBasis bases[] = {
         NoiseBasis::Perlin,   NoiseBasis::Simplex,         NoiseBasis::Value,  NoiseBasis::WorleyF1,
         NoiseBasis::WorleyF2, NoiseBasis::WorleyF2MinusF1, NoiseBasis::Perlin, NoiseBasis::Simplex};
     const FractalType types[] = {FractalType::Fbm, FractalType::Ridged, FractalType::Billow,
                                  FractalType::HybridMultifractal};
-    const LayerBlend blends[] = {LayerBlend::Add, LayerBlend::Max, LayerBlend::Min,
-                                 LayerBlend::Mask};
+    const FractalBlend blends[] = {FractalBlend::Add, FractalBlend::Max, FractalBlend::Min,
+                                   FractalBlend::Mask};
     for (std::size_t j = 0; j < layers.size(); ++j) {
-        NoiseLayer& layer = layers[j];
+        Fractal& layer = layers[j];
         layer.enabled = j != 5;
-        layer.fractal.seed = 11u + static_cast<std::uint32_t>(j);
-        layer.fractal.wavelength = 300.0f + 150.0f * static_cast<float>(j);
-        layer.fractal.amplitude = 5.0f + static_cast<float>(j);
-        layer.fractal.octaves = 3 + static_cast<int>(j % 4);
-        layer.fractal.offset = j == 1 ? 0.8f : 1.0f;
-        layer.fractal.basis = bases[j];
-        layer.fractal.type = types[j % 4];
+        layer.seed = 11u + static_cast<std::uint32_t>(j);
+        layer.wavelength = 300.0f + 150.0f * static_cast<float>(j);
+        layer.amplitude = 5.0f + static_cast<float>(j);
+        layer.octaves = 3 + static_cast<int>(j % 4);
+        layer.offset = j == 1 ? 0.8f : 1.0f;
+        layer.basis = bases[j];
+        layer.type = types[j % 4];
         layer.blend = blends[j % 4];
         layer.warpAmplitude = j == 6 ? 40.0f : 0.0f;
         layer.warpWavelength = 700.0f;
@@ -62,22 +62,30 @@ std::vector<NoiseLayer> TestLayers() {
     return layers;
 }
 
-/// `layers` as the bytes of a `NoiseLayers` block, with every padding byte zero so that each
+/// `layers` as the bytes of a `FractalStack` block, with every padding byte zero so that each
 /// `bool` reads back as 0 or 1 on the GPU.
-std::vector<std::byte> Upload(const std::vector<NoiseLayer>& layers) {
-    std::vector<std::byte> bytes(sizeof(NoiseLayers));
+std::vector<std::byte> Upload(const std::vector<Fractal>& layers) {
+    std::vector<std::byte> bytes(sizeof(FractalStack));
     const auto put = [&](std::size_t offset, const auto& value) {
         std::memcpy(bytes.data() + offset, &value, sizeof(value));
     };
     for (std::size_t j = 0; j < layers.size(); ++j) {
-        const std::size_t at = offsetof(NoiseLayers, layers) + j * sizeof(NoiseLayer);
-        put(at + offsetof(NoiseLayer, enabled), layers[j].enabled);
-        put(at + offsetof(NoiseLayer, fractal), layers[j].fractal);
-        put(at + offsetof(NoiseLayer, blend), layers[j].blend);
-        put(at + offsetof(NoiseLayer, warpAmplitude), layers[j].warpAmplitude);
-        put(at + offsetof(NoiseLayer, warpWavelength), layers[j].warpWavelength);
+        const std::size_t at = offsetof(FractalStack, fractals) + j * sizeof(Fractal);
+        put(at + offsetof(Fractal, enabled), layers[j].enabled);
+        put(at + offsetof(Fractal, seed), layers[j].seed);
+        put(at + offsetof(Fractal, wavelength), layers[j].wavelength);
+        put(at + offsetof(Fractal, amplitude), layers[j].amplitude);
+        put(at + offsetof(Fractal, octaves), layers[j].octaves);
+        put(at + offsetof(Fractal, lacunarity), layers[j].lacunarity);
+        put(at + offsetof(Fractal, gain), layers[j].gain);
+        put(at + offsetof(Fractal, basis), layers[j].basis);
+        put(at + offsetof(Fractal, type), layers[j].type);
+        put(at + offsetof(Fractal, offset), layers[j].offset);
+        put(at + offsetof(Fractal, blend), layers[j].blend);
+        put(at + offsetof(Fractal, warpAmplitude), layers[j].warpAmplitude);
+        put(at + offsetof(Fractal, warpWavelength), layers[j].warpWavelength);
     }
-    put(offsetof(NoiseLayers, count), static_cast<std::uint32_t>(layers.size()));
+    put(offsetof(FractalStack, count), static_cast<std::uint32_t>(layers.size()));
     return bytes;
 }
 
@@ -97,7 +105,7 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
         points[3u * i + 1u] = 37.0f - 0.0173f * t + 3.0f * std::sin(0.01f * t);
         points[3u * i + 2u] = 0.011f * t - 20.0f;
     }
-    const std::vector<NoiseLayer> layers = TestLayers();
+    const std::vector<Fractal> layers = TestLayers();
     std::vector<std::byte> block = Upload(layers);
     std::vector<float> values(kValues * count, 0.0f);
     std::vector<std::uint32_t> words(4u * count, 0u);
@@ -115,9 +123,9 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
     compute->Run(program, buffers, AsBytes(Span(&push, 1)),
                  {{(count + 63u) / 64u, 1u, 1u}, {64u, 1u, 1u}});
 
-    NoiseLayers cpuBlock;
-    for (const NoiseLayer& layer : layers) {
-        cpuBlock.layers[cpuBlock.count++] = layer;
+    FractalStack cpuBlock;
+    for (const Fractal& layer : layers) {
+        cpuBlock.fractals[cpuBlock.count++] = layer;
     }
     std::vector<double> worst(kValues, 0.0);
     std::uint32_t cellMismatches = 0;
@@ -134,10 +142,10 @@ TEST(GpuNoise, MatchesTheCpuWithinTolerancesAndPhiloxExactly) {
             worley.f2,
             terraingen::PerlinNoise3(x, y, z, seed),
             terraingen::BasisNoise3(NoiseBasis::Value, terraingen::SplitLattice3(x, y, z), seed)};
-        for (std::uint32_t j = 0; j < terraingen::kMaxNoiseLayers; ++j) {
-            expected[7u + j] = terraingen::EvaluateNoiseLayer(100.0f * x, 100.0f * y, layers[j]);
+        for (std::uint32_t j = 0; j < terraingen::kMaxFractals; ++j) {
+            expected[7u + j] = terraingen::EvaluateFractal(100.0f * x, 100.0f * y, layers[j]);
         }
-        expected[15] = terraingen::EvaluateNoiseLayers(100.0f * x, 100.0f * y, cpuBlock);
+        expected[15] = terraingen::EvaluateFractals(100.0f * x, 100.0f * y, cpuBlock);
         expected[16] =
             terraingen::HashToUnitFloat(terraingen::PcgHash(terraingen::BitCast<std::uint32_t>(x)));
         const terraingen::WorleyDistances worley3 = terraingen::Worley3(x, y, z, seed);

@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Models"
 
 SEEDS = [18, 74, 55, 17]
 DIAMETER = 2.0

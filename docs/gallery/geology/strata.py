@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Bedrock and sand"
 
 SIZE_M = 400.0
 PANELS = [
@@ -24,9 +25,7 @@ PANELS = [
 def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     size = int(SIZE_M / pixel) + 1
-    hills = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=5, wavelength=300.0, amplitude=40.0, octaves=5))]
-    )
+    hills = terraingen.NoiseLayer(seed=5, wavelength=300.0, amplitude=40.0, octaves=5)
 
     fig, axes = plt.subplots(1, len(PANELS), figsize=(18, 4.8), layout="constrained")
     for ax, (title, fields) in zip(axes, PANELS, strict=True):

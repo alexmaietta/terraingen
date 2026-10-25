@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Profiles"
 
 DIAMETER = 80.0
 SPACING = 130.0
@@ -22,9 +23,7 @@ def figure(quick=False):
     pixel = 1.5 if quick else 0.3
     columns = int(len(SIGMAS) * SPACING / pixel) + 1
     rows = int(1.2 * SPACING / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     layers = [relief]
     for index, sigma in enumerate(SIGMAS):
         apply = terraingen.CraterApplyOptions()

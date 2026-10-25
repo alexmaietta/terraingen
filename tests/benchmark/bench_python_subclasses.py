@@ -83,9 +83,7 @@ def crater_layer(density, profile, degradation):
 
 
 def cases():
-    noise = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=80.0, amplitude=2.0, octaves=4))]
-    )
+    noise = terraingen.NoiseLayer(seed=1, wavelength=80.0, amplitude=2.0, octaves=4)
     profile, degradation, density = (
         terraingen.FassettThomsonProfile(),
         terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry, depth_ratio=0.12),

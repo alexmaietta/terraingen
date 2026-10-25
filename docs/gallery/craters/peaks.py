@@ -14,6 +14,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Central peaks"
 
 DIAMETERS = [30000.0, 60000.0, 120000.0]
 SPACING = 150000.0
@@ -43,9 +44,7 @@ def figure(quick=False):
     pixel = 750.0 if quick else 180.0
     columns = 2 * int(1.5 * SPACING / pixel) + 1
     rows = 2 * int(0.5 * SPACING / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=50000.0, amplitude=600.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=50000.0, amplitude=600.0)
     layers = [relief] + [
         crater_layer((index - 1) * SPACING, diameter, True) for index, diameter in enumerate(DIAMETERS)
     ]

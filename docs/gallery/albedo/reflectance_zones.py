@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Impacts and landers"
 
 SIZE_M = 4400.0
 DIAMETER = 20.0
@@ -20,9 +21,7 @@ DIAMETER = 20.0
 def figure(quick=False):
     pixel = 20.0 if quick else 5.0
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=700.0, amplitude=40.0, octaves=5))]
-    )
+    relief = terraingen.NoiseLayer(seed=3, wavelength=700.0, amplitude=40.0, octaves=5)
     crater = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)])
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, crater])
     grid = terraingen.RasterGrid.from_raster(terraingen.evaluate(terrain))

@@ -32,7 +32,7 @@ template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
        "Reflectance of the brightest band, from 0 to 1; the one band's value without rgb. "
        "Higher values give a brighter surface.",
        "", UnitInterval());
-    const std::string layers = "Noise layers, " + CountText(0, kMaxNoiseLayers);
+    const std::string layers = "Noise layers, " + CountText(0, kMaxFractals);
     io("hue_noise_deg", spec.hueNoiseDegrees,
        layers + ", whose sum in degrees is added to the hue; used with rgb only.");
     io("saturation_noise", spec.saturationNoise,

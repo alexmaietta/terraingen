@@ -11,6 +11,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Published distributions"
 
 AGES_GYR = [0.01, 0.1, 1.0, 3.0, 3.9]
 

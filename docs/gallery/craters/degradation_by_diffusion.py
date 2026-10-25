@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+SECTION = "Degradation"
+
 DIFFUSION_AGES = [0.0, 0.0002, 0.0005, 0.001, 0.002, 0.003, 0.005, 0.008, 0.012]
 DIFFUSIVITY = 1.0
 DIAMETER = 150.0
@@ -41,9 +43,7 @@ def figure(quick=False):
         for (x, y), tau in zip(gallery.grid_centers(SPACING), DIFFUSION_AGES, strict=True)
     ]
     layer = terraingen.CraterLayer.manual(craters, models, apply=apply)
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, layer])
     heights = terraingen.evaluate(terrain).values
 

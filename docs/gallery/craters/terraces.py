@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Terraces"
 
 DIAMETERS = [25000.0, 45000.0, 90000.0]
 SPACING = 120000.0
@@ -40,9 +41,7 @@ def figure(quick=False):
     pixel = 600.0 if quick else 150.0
     columns = 2 * int(1.5 * SPACING / pixel) + 1
     rows = 2 * int(0.5 * SPACING / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=50000.0, amplitude=600.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=50000.0, amplitude=600.0)
     on = terraingen.CraterTerraces()
     on.enabled = True
     off = terraingen.CraterTerraces()

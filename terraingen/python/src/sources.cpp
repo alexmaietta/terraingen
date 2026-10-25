@@ -315,20 +315,20 @@ void BindGeneratedSources(nb::module_& m) {
              "meters, converted to degrees along a meridian.");
     nb::class_<SyntheticSource, Source>(
         m, "SyntheticSource",
-        "Heights generated from noise without bounds: `elevation` meters plus the noise `layers` "
+        "Heights generated from noise without bounds: `elevation` meters plus the `fractals` "
         "(none is flat), evaluated at every point, or with `pixel_size` (meters) "
         "sampled at posts that `upsampler` refines (cubic when None).")
         .def(
             "__init__",
-            [](SyntheticSource* self, std::vector<NoiseLayer> layers, float elevation,
+            [](SyntheticSource* self, std::vector<Fractal> fractals, float elevation,
                std::optional<double> pixelSize, std::shared_ptr<Upsampler> upsampler,
                const Surface& surface) {
-                new (self) SyntheticSource(SyntheticTerrainParams{std::move(layers)}, elevation,
-                                           pixelSize, std::move(upsampler), surface);
+                new (self) SyntheticSource(std::move(fractals), elevation, pixelSize,
+                                           std::move(upsampler), surface);
             },
-            "layers"_a = std::vector<NoiseLayer>{}, "elevation"_a = 0.0f,
+            "fractals"_a = std::vector<Fractal>{}, "elevation"_a = 0.0f,
             "pixel_size"_a = nb::none(), "upsampler"_a = nb::none(), "surface"_a = Surface{})
-        .def_prop_ro("layers", [](const SyntheticSource& s) { return s.Params().layers; })
+        .def_prop_ro("fractals", &SyntheticSource::Fractals)
         .def_prop_ro("pixel_size", [](const SyntheticSource& s) { return s.PixelSize(); })
         .def_prop_ro(
             "upsampler", [](const SyntheticSource& s) { return Mutable(s.UpsamplerInUse()); },
@@ -464,24 +464,6 @@ void BindFields(nb::module_& m) {
           "band"_a = 0, "A field read from one band of a GeoTIFF in the surface's coordinates.");
 }
 
-void BindSyntheticTerrain(nb::module_& m) {
-    nb::class_<SyntheticTerrainParams>(m, "SyntheticTerrainParams",
-                                       "A stack of 0 to 8 noise layers, none flat. `layers` is "
-                                       "copied on access; assign a new list to change it.")
-        .def(
-            "__init__",
-            [](SyntheticTerrainParams* params, std::optional<std::vector<NoiseLayer>> layers) {
-                new (params) SyntheticTerrainParams{};
-                if (layers) {
-                    params->layers = *layers;
-                }
-            },
-            "layers"_a = nb::none())
-        .def_rw("layers", &SyntheticTerrainParams::layers)
-        .def(nb::self == nb::self);
-    m.def("validate_synthetic_terrain", &ValidateSyntheticTerrain, "params"_a, kValidateDoc);
-}
-
 }  // namespace
 
 void BindSources(nb::module_& m) {
@@ -493,7 +475,6 @@ void BindSources(nb::module_& m) {
     BindGeneratedSources(m);
     BindRasterSources(m);
     BindFields(m);
-    BindSyntheticTerrain(m);
 }
 
 }  // namespace terraingen::python

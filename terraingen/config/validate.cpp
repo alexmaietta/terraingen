@@ -15,7 +15,7 @@
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
-#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/fractals.h"
 #include "terraingen/noise/validate.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/sources/source_chain.h"
@@ -71,16 +71,16 @@ void CheckExpectedCount(double expected, std::string_view items, std::string_vie
     }
 }
 
-/// @throws ConfigError for a stack of more than `kMaxNoiseLayers` layers, or none unless
+/// @throws ConfigError for a stack of more than `kMaxFractals` layers, or none unless
 /// `allowEmpty`, or an invalid layer.
 template <typename Spec>
 void CheckNoiseStack(const std::vector<Spec>& layers, const std::string& path, bool allowEmpty) {
     const std::size_t fewest = allowEmpty ? 0 : 1;
-    if (layers.size() < fewest || layers.size() > kMaxNoiseLayers) {
-        throw ConfigError(path, "needs " + config::CountText(fewest, kMaxNoiseLayers) + " layers");
+    if (layers.size() < fewest || layers.size() > kMaxFractals) {
+        throw ConfigError(path, "needs " + config::CountText(fewest, kMaxFractals) + " layers");
     }
     for (std::size_t i = 0; i < layers.size(); ++i) {
-        At(Element(path, i), [&] { ValidateNoiseLayer(layers[i].Effective()); });
+        At(Element(path, i), [&] { ValidateFractal(layers[i].Effective()); });
     }
 }
 
@@ -917,8 +917,7 @@ void CheckBody(const SurfaceSpec& body, const std::string& path) {
 }
 
 /// Checks an albedo noise stack, whose layers must give their amplitude: it has no default.
-void CheckAlbedoNoiseStack(const std::vector<AlbedoNoiseLayerSpec>& layers,
-                           const std::string& path) {
+void CheckAlbedoNoiseStack(const std::vector<AlbedoFractalSpec>& layers, const std::string& path) {
     CheckNoiseStack(layers, path, true);
     for (std::size_t i = 0; i < layers.size(); ++i) {
         if (!layers[i].amplitude) {

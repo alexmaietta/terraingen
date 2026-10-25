@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+SECTION = "Named craters"
+
 DIAMETER = 93000.0
 
 
@@ -49,9 +51,9 @@ def copernicus_apply():
 
 def plains():
     """Mare-like plains for the crater to sit in: gentle swells and fine fractal texture."""
-    broad = terraingen.FractalParams(seed=4, wavelength=10000.0, amplitude=80.0, octaves=3, gain=0.45)
-    fine = terraingen.FractalParams(seed=6, wavelength=3000.0, amplitude=100.0, octaves=7, gain=0.5)
-    return terraingen.NoiseRelief([terraingen.NoiseLayer(broad), terraingen.NoiseLayer(fine)])
+    broad = terraingen.Fractal(seed=4, wavelength=10000.0, amplitude=80.0, octaves=3, gain=0.45)
+    fine = terraingen.Fractal(seed=6, wavelength=3000.0, amplitude=100.0, octaves=7, gain=0.5)
+    return terraingen.NoiseLayer([broad, fine])
 
 
 def figure(quick=False):

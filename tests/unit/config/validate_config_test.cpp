@@ -94,7 +94,7 @@ const PathCase kPathCases[] = {
      },
      "valid"},
     {"EmptyNoiseStack", [](TerrainGenConfig& c) { Noise(c).stack.clear(); }, "layers[0].stack"},
-    {"NoOctaves", [](TerrainGenConfig& c) { Noise(c).stack[0].layer.fractal.octaves = 0; },
+    {"NoOctaves", [](TerrainGenConfig& c) { Noise(c).stack[0].fractal.octaves = 0; },
      "layers[0].stack[0].octaves"},
     {"InfiniteHurst",
      [](TerrainGenConfig& c) { Noise(c).stack[0].hurst = std::numeric_limits<float>::infinity(); },
@@ -338,7 +338,7 @@ const PathCase kPathCases[] = {
     {"SyntheticSourceIsValid",
      [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
-         synthetic.stack = {terraingen::NoiseStackLayerSpec{}};
+         synthetic.stack = {terraingen::FractalSpec{}};
          c.source = synthetic;
      },
      "valid"},
@@ -371,7 +371,7 @@ const PathCase kPathCases[] = {
     {"SyntheticStackTooLong",
      [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
-         synthetic.stack.assign(terraingen::kMaxNoiseLayers + 1, terraingen::NoiseStackLayerSpec{});
+         synthetic.stack.assign(terraingen::kMaxFractals + 1, terraingen::FractalSpec{});
          c.source = synthetic;
      },
      "source.stack"},
@@ -385,7 +385,7 @@ const PathCase kPathCases[] = {
     {"EstimateFromNoiseWithoutPosts",
      [](TerrainGenConfig& c) {
          terraingen::SyntheticSourceSpec synthetic;
-         synthetic.stack = {terraingen::NoiseStackLayerSpec{}};
+         synthetic.stack = {terraingen::FractalSpec{}};
          c.source = synthetic;
          terraingen::RoughnessLayerSpec roughness;
          roughness.estimateFromSource = true;
@@ -1000,12 +1000,12 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
     EXPECT_EQ(error([](TerrainGenConfig&) {}), "valid");
     EXPECT_EQ(error([&](TerrainGenConfig& c) { synthetic(c).value = 2.0; }), "albedo.source.value");
     EXPECT_EQ(error([&](TerrainGenConfig& c) {
-                  synthetic(c).hueNoiseDegrees.assign(terraingen::kMaxNoiseLayers + 1, {});
+                  synthetic(c).hueNoiseDegrees.assign(terraingen::kMaxFractals + 1, {});
               }),
               "albedo.source.hue_noise_deg");
     EXPECT_EQ(error([&](TerrainGenConfig& c) {
-                  synthetic(c).saturationNoise = {terraingen::AlbedoNoiseLayerSpec{}};
-                  synthetic(c).saturationNoise[0].layer.fractal.octaves = 0;
+                  synthetic(c).saturationNoise = {terraingen::AlbedoFractalSpec{}};
+                  synthetic(c).saturationNoise[0].fractal.octaves = 0;
               }),
               "albedo.source.saturation_noise[0].octaves");
     EXPECT_EQ(error([&](TerrainGenConfig& c) { synthetic(c).valueNoise[0].hurst = NAN; }),

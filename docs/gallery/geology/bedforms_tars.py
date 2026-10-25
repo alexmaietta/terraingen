@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Dunes and bedforms"
 
 SIZE_M = 1200.0
 COVERS = [0.15, 0.35, 0.6]
@@ -18,9 +19,7 @@ COVERS = [0.15, 0.35, 0.6]
 def figure(quick=False):
     pixel = 4.0 if quick else 1.0
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
 
     fig, axes = plt.subplots(1, len(COVERS), figsize=(15, 5.2), layout="constrained")
     for ax, cover in zip(axes, COVERS, strict=True):

@@ -84,8 +84,8 @@ class SelfAffineSurface {
 
 /// The RMS height difference in meters of `layer` at a lag of its wavelength on a lattice unlike
 /// the one `MatchedNoiseAmplitude` measures on.
-double LayerDeviation(const terraingen::NoiseLayer& layer) {
-    const double lag = static_cast<double>(layer.fractal.wavelength);
+double LayerDeviation(const terraingen::Fractal& layer) {
+    const double lag = static_cast<double>(layer.wavelength);
     double sum = 0.0;
     int count = 0;
     for (int row = 0; row < 80; ++row) {
@@ -93,8 +93,8 @@ double LayerDeviation(const terraingen::NoiseLayer& layer) {
             const double x = 3.1 + 0.37 * lag * col;
             const double y = -7.9 + 0.41 * lag * row;
             const auto at = [&](double px, double py) {
-                return static_cast<double>(layer.fractal.amplitude) *
-                       static_cast<double>(terraingen::EvaluateNoiseLayer(
+                return static_cast<double>(layer.amplitude) *
+                       static_cast<double>(terraingen::EvaluateFractal(
                            static_cast<float>(px), static_cast<float>(py), layer));
             };
             const double difference = at(x + lag, y) - at(x, y);
@@ -181,15 +181,15 @@ TEST(EstimateSourceRoughness, ReadsTheSourceOnItsNativeCells) {
     EXPECT_EQ(coarser.cellSize, 4.0) << "read on cells of the effective pixel size";
     EXPECT_NEAR(coarser.hurst, direct.hurst, 0.15);
 
-    terraingen::NoiseLayer layer;
-    layer.fractal.wavelength = 200.0f;
-    layer.fractal.amplitude = 20.0f;
-    layer.fractal.octaves = 6;
-    const terraingen::SyntheticSource posts(terraingen::SyntheticTerrainParams{{layer}}, 0.0f, 2.0);
+    terraingen::Fractal layer;
+    layer.wavelength = 200.0f;
+    layer.amplitude = 20.0f;
+    layer.octaves = 6;
+    const terraingen::SyntheticSource posts(std::vector<terraingen::Fractal>{layer}, 0.0f, 2.0);
     EXPECT_EQ(terraingen::EstimateSourceRoughness(posts).cellSize, 2.0)
         << "synthetic noise is read on its posts";
     EXPECT_THROW(terraingen::EstimateSourceRoughness(
-                     terraingen::SyntheticSource(terraingen::SyntheticTerrainParams{{layer}})),
+                     terraingen::SyntheticSource(std::vector<terraingen::Fractal>{layer})),
                  std::invalid_argument)
         << "noise without posts has no cell size to read it on";
 
@@ -199,18 +199,18 @@ TEST(EstimateSourceRoughness, ReadsTheSourceOnItsNativeCells) {
 }
 
 TEST(MatchedNoiseAmplitude, GivesTheLayerTheBaseDeviationAtItsWavelength) {
-    terraingen::NoiseLayer layer;
-    layer.fractal.wavelength = 10.0f;
-    layer.fractal.octaves = 4;
-    layer.fractal.seed = 5;
-    layer.fractal.gain = terraingen::GainFromHurst(0.7f, 2.0f);
+    terraingen::Fractal layer;
+    layer.wavelength = 10.0f;
+    layer.octaves = 4;
+    layer.seed = 5;
+    layer.gain = terraingen::GainFromHurst(0.7f, 2.0f);
     BaseRoughness roughness;
     roughness.hurst = 0.7;
     roughness.deviation = 0.3;
     roughness.cellSize = 2.0;
     const float amplitude = terraingen::MatchedNoiseAmplitude(layer, roughness);
-    terraingen::NoiseLayer matched = layer;
-    matched.fractal.amplitude = amplitude;
+    terraingen::Fractal matched = layer;
+    matched.amplitude = amplitude;
     EXPECT_NEAR(LayerDeviation(matched), roughness.Deviation(10.0),
                 0.1 * roughness.Deviation(10.0));
     EXPECT_EQ(terraingen::MatchedNoiseAmplitude(layer, roughness), amplitude);

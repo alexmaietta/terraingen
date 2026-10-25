@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Models"
 
 SEED = 11
 FRACTURES = [0, 3, 8, 16]

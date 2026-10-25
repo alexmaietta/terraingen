@@ -129,20 +129,23 @@ def crater_layer():
     return build_crater_layer
 
 
-def build_noise_relief(seed, wavelength, amplitude, surface=None, **params):
-    """Single-layer fractal noise relief; extra keywords go to `FractalParams`."""
-    layer = terraingen.NoiseLayer(
-        terraingen.FractalParams(seed=seed, wavelength=wavelength, amplitude=amplitude, **params)
-    )
+def build_noise_layer(seed, wavelength, amplitude, surface=None, **params):
+    """Single-fractal noise layer; extra keywords go to `Fractal`."""
     if surface is None:
-        return terraingen.NoiseRelief([layer])
-    return terraingen.NoiseRelief([layer], base=terraingen.TerrainBase(surface))
+        return terraingen.NoiseLayer(seed=seed, wavelength=wavelength, amplitude=amplitude, **params)
+    return terraingen.NoiseLayer(
+        seed=seed,
+        wavelength=wavelength,
+        amplitude=amplitude,
+        base=terraingen.TerrainBase(surface),
+        **params,
+    )
 
 
 @pytest.fixture(scope="session")
-def noise_relief():
-    """The `build_noise_relief` factory."""
-    return build_noise_relief
+def noise_layer():
+    """The `build_noise_layer` factory."""
+    return build_noise_layer
 
 
 class InverseSquare(terraingen.SizeFrequencyDistribution):

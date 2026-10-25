@@ -12,7 +12,7 @@ terraingen_add_library(
     ground.cpp
     layer.cpp
     material.cpp
-    noise_relief.cpp
+    noise_layer.cpp
     masked.cpp
     pavement.cpp
     prefetched_ground.cpp
@@ -76,8 +76,8 @@ terraingen_add_library(
     terraingen_raster
     terraingen_sources
     terraingen_util)
-terraingen_add_kernel(terraingen_layers terraingen_kernel_noise_relief NoiseReliefKernel
-                      terraingen/layers/kernels/noise_relief.h kernels/noise_relief.slang)
+terraingen_add_kernel(terraingen_layers terraingen_kernel_noise_layer NoiseLayerKernel
+                      terraingen/layers/kernels/noise_layer.h kernels/noise_layer.slang)
 terraingen_add_kernel(terraingen_layers terraingen_kernel_craters CraterShapeKernel
                       terraingen/layers/kernels/craters.h kernels/craters.slang)
 terraingen_add_kernel(terraingen_layers terraingen_kernel_crater_datums CraterDatumKernel

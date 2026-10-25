@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+SECTION = "Named craters"
+
 DIAMETER = 85000.0
 
 
@@ -54,9 +56,9 @@ def tycho_apply():
 def highlands():
     """Rugged highland relief for the crater to sit in: broad swells and finer fractal texture,
     about 4 degrees of median slope at 140 m."""
-    broad = terraingen.FractalParams(seed=4, wavelength=12000.0, amplitude=200.0, octaves=3, gain=0.45)
-    fine = terraingen.FractalParams(seed=6, wavelength=4000.0, amplitude=250.0, octaves=7, gain=0.5)
-    return terraingen.NoiseRelief([terraingen.NoiseLayer(broad), terraingen.NoiseLayer(fine)])
+    broad = terraingen.Fractal(seed=4, wavelength=12000.0, amplitude=200.0, octaves=3, gain=0.45)
+    fine = terraingen.Fractal(seed=6, wavelength=4000.0, amplitude=250.0, octaves=7, gain=0.5)
+    return terraingen.NoiseLayer([broad, fine])
 
 
 def figure(quick=False):

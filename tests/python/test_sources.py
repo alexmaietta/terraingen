@@ -8,26 +8,22 @@ import pytest
 import terraingen
 
 
-def synthetic_params():
-    return terraingen.SyntheticTerrainParams(
-        [
-            terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=50.0)),
-            terraingen.NoiseLayer(
-                terraingen.FractalParams(
-                    basis=terraingen.NoiseBasis.SIMPLEX,
-                    type=terraingen.FractalType.RIDGED,
-                    wavelength=10.0,
-                    amplitude=2.0,
-                )
-            ),
-        ]
-    )
+def synthetic_fractals():
+    return [
+        terraingen.Fractal(seed=3, wavelength=50.0),
+        terraingen.Fractal(
+            basis=terraingen.NoiseBasis.SIMPLEX,
+            type=terraingen.FractalType.RIDGED,
+            wavelength=10.0,
+            amplitude=2.0,
+        ),
+    ]
 
 
 @pytest.fixture
-def coarse_dem(tmp_path, noise_relief):
+def coarse_dem(tmp_path, noise_layer):
     """A 33 x 33 noise DEM at 8 m written to dem.tif; returns its heights."""
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(33, 33, 8.0), [noise_relief(3, 200.0, 20.0)])
+    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(33, 33, 8.0), [noise_layer(3, 200.0, 20.0)])
     coarse = terraingen.evaluate(terrain)
     terraingen.write_geotiff(tmp_path / "dem.tif", coarse)
     return coarse
@@ -174,39 +170,38 @@ def test_python_source_fills_the_heights(paraboloid):
     assert plain[32, 32] == pytest.approx(0.0, abs=1e-6) and plain[0, 0] > 4.0
 
 
-def test_synthetic_source_samples_the_noise_layers_at_cell_centers():
-    params = synthetic_params()
+def test_synthetic_source_samples_the_fractals_at_cell_centers():
+    fractals = synthetic_fractals()
     raster = terraingen.Raster(17, 9)
     raster.transform = terraingen.GeoTransform.north_up(-12.75, 6.75, 1.5)
-    terraingen.SyntheticSource(params.layers).fill(raster)
+    terraingen.SyntheticSource(fractals).fill(raster)
     cols, rows = np.meshgrid(np.arange(17), np.arange(9))
     x = (-12.75 + (cols + 0.5) * 1.5).astype(np.float32)
     y = (6.75 - (rows + 0.5) * 1.5).astype(np.float32)
-    np.testing.assert_array_equal(raster.values, terraingen.evaluate_noise_layers(x, y, params))
+    np.testing.assert_array_equal(raster.values, terraingen.evaluate_fractals(x, y, fractals))
 
 
 def test_synthetic_sources_evaluate_noise_or_upsample_it_from_posts():
-    layers = synthetic_params().layers
-    noise = terraingen.SyntheticSource(layers, elevation=2.0)
+    fractals = synthetic_fractals()
+    noise = terraingen.SyntheticSource(fractals, elevation=2.0)
+    assert noise.fractals == fractals
     assert not noise.bounded and noise.upsampler is None
     assert noise.resolution_at(0.0, 0.0) == float("inf")
-    expected = 2.0 + float(
-        terraingen.evaluate_noise_layers(np.float32([7.25]), np.float32([-3.5]), synthetic_params())[0]
-    )
+    expected = 2.0 + float(terraingen.evaluate_fractals(np.float32([7.25]), np.float32([-3.5]), fractals)[0])
     assert noise.height_at(7.25, -3.5, 1.0) == pytest.approx(expected, rel=1e-6)
     with pytest.raises(ValueError):
         terraingen.evaluate(terraingen.TerrainGenerator(noise))
     grid = terraingen.RasterGrid(16, 8, terraingen.GeoTransform.north_up(-8.0, 4.0, 1.0))
     heights = terraingen.evaluate(terraingen.TerrainGenerator(noise), grid=grid).values
     assert heights[0, 0] == noise.height_at(-7.5, 3.5, 1.0)
-    posts = terraingen.SyntheticSource(layers, pixel_size=4.0)
+    posts = terraingen.SyntheticSource(fractals, pixel_size=4.0)
     assert posts.resolution_at(0.0, 0.0) == 4.0
     assert isinstance(posts.upsampler, terraingen.KernelUpsampler)
     assert posts.height_at(8.0, -4.0, 0.5) == posts.height_at(8.0, -4.0, 4.0)
     flat = terraingen.SyntheticSource()
     assert flat.height_at(123.0, 4.0, 1.0) == 0.0
     with pytest.raises(ValueError):
-        terraingen.SyntheticSource(layers, upsampler=terraingen.KernelUpsampler())
+        terraingen.SyntheticSource(fractals, upsampler=terraingen.KernelUpsampler())
 
 
 def test_upsamplers_written_in_python_refine_a_raster_source():

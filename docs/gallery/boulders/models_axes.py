@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Models"
 
 SEED = 11
 AXES = [("Slab", 0.9, 0.25), ("Default", 0.75, 0.55), ("Rod", 0.5, 0.45), ("Equant", 0.95, 0.9)]

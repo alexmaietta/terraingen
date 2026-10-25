@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Rim shapes"
 
 DIAMETER = 150.0
 SPACING = 220.0
@@ -59,9 +60,7 @@ def figure(quick=False):
     pixel = 1.5 if quick else 0.4
     columns = 2 * int(1.5 * SPACING / pixel) + 1
     rows = 2 * int(0.5 * SPACING / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=3.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=3.0)
     layers = [relief] + [crater_layer((i - 1) * SPACING, m, s) for i, (_, m, s) in enumerate(SETTINGS)]
     heights = terraingen.evaluate(
         terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), layers)

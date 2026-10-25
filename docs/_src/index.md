@@ -14,7 +14,7 @@ title: TerrainGen
 
 Scientific terrain for planetary surfaces: craters, boulders, dunes, layered rock and albedo from published models, on real elevation data or from scratch. From a landing site to the whole Moon, Mars or asteroids.
 
-[Get started](getting-started/index.md){ .md-button .md-button--primary } [Quickstart](getting-started/quickstart.md){ .md-button } [GitHub](https://github.com/alexmaietta/terraingen){ .md-button }
+[Get started](getting-started/first-terrain.md){ .md-button .md-button--primary } [Quickstart](getting-started/quickstart.md){ .md-button } [GitHub](https://github.com/alexmaietta/terraingen){ .md-button }
 { .tg-actions }
 
 ## Features
@@ -39,8 +39,8 @@ See [Installation](getting-started/installation.md) for releases, Docker and bui
 
 ## Where to go next
 
-- [Getting started](getting-started/index.md): install TerrainGen and make a first terrain, step by step.
-- [Guides](guides/index.md): how to do specific tasks, such as using the command line, the GUI or the examples.
+- [Your first terrain](getting-started/first-terrain.md): build a terrain one layer at a time, from a flat source to craters, boulders and albedo.
+- [Guides](guides/index.md): how to do specific tasks, such as using the command line or the GUI, and short Python and C++ examples of single tasks.
 - [Concepts](concepts/index.md): how TerrainGen is designed, from surfaces and sources to layers and the GPU.
 - [Features](features/index.md): each model in detail, with its equations, code and figures.
 - [Reference](reference/index.md): the configuration schema, the Python and C++ APIs, the changelog and the bibliography.

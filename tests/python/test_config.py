@@ -125,7 +125,7 @@ def test_a_synthetic_source_has_no_grid_and_upsamples_only_posts():
     terrain = terraingen.build_generator(config)
     assert isinstance(terrain.source, terraingen.SyntheticSource)
     assert terrain.source.pixel_size == 4.0
-    noise = terraingen.SyntheticSource(terrain.source.layers)
+    noise = terraingen.SyntheticSource(terrain.source.fractals)
     expected = 3.0 + noise.height_at(8.0, 4.0, 4.0)
     assert terrain.source.height_at(8.0, 4.0, 4.0) == pytest.approx(expected)
     assert isinstance(terrain.source.upsampler, terraingen.KernelUpsampler)

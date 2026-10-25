@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Bedrock and sand"
 
 SIZE_M = 100.0
 FILLS = [0.3, 0.6, 0.9]
@@ -18,9 +19,7 @@ FILLS = [0.3, 0.6, 0.9]
 def figure(quick=False):
     pixel = 0.5 if quick else 0.15
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=40.0, amplitude=2.0, octaves=6))]
-    )
+    relief = terraingen.NoiseLayer(seed=4, wavelength=40.0, amplitude=2.0, octaves=6)
     craters = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
             seed=3, generation=terraingen.CraterGenerationOptions(d_min=2.5, d_max=20.0)

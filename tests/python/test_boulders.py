@@ -284,12 +284,12 @@ def test_boulder_abundance_is_uniform_without_exposure():
     assert terraingen.BoulderLayer(options).abundance_at(0.0, 0.0) == (1.0, 0.0)
 
 
-def test_boulder_abundance_follows_exposed_bedrock(noise_relief):
+def test_boulder_abundance_follows_exposed_bedrock(noise_layer):
     exposure = terraingen.ExposureParams(reach=8.0)
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(bedrock=terraingen.BoulderBedrock(exposure=exposure, abundance=4.0))
     )
-    ground = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [noise_relief(3, 60.0, 5.0)])
+    ground = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [noise_layer(3, 60.0, 5.0)])
     abundances = [boulders.abundance_at(x, 0.0, ground, 1)[0] for x in np.linspace(-15.0, 15.0, 31)]
     assert min(abundances) < max(abundances) <= 4.0 + 1e-9
 

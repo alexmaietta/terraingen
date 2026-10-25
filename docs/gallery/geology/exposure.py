@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Bedrock and sand"
 
 SIZE_M = 128.0
 
@@ -21,9 +22,7 @@ def figure(quick=False):
     pixel = 0.5 if quick else 0.25
     size = int(SIZE_M / pixel) + 1
     half = 0.5 * SIZE_M
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=60.0, amplitude=5.0, octaves=7))]
-    )
+    relief = terraingen.NoiseLayer(seed=3, wavelength=60.0, amplitude=5.0, octaves=7)
     exposure = terraingen.ExposureParams(reach=8.0)
     ripples = terraingen.BedformLayer(
         terraingen.BedformOptions(

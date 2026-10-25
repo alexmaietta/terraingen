@@ -12,6 +12,7 @@ from matplotlib.patches import Circle, Rectangle
 import terraingen
 
 WIDE = True
+SECTION = "Populations"
 
 PRIMARY_DIAMETER = 2000.0
 HALF_SIZE_M = 11000.0

@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Slopes and datums"
 
 DIAMETER = 80.0
 SIZE_M = 200.0

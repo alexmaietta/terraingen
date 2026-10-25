@@ -14,6 +14,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Placement"
 
 HALF_SIZE_M = 30.0
 MAP_PIXEL = 0.5

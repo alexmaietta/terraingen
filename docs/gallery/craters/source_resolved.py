@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Populations"
 
 DEM_SIZE_M = 600.0
 POST_SPACING = 8.0
@@ -22,9 +23,7 @@ WINDOW_M = 300.0
 def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     posts = int(DEM_SIZE_M / POST_SPACING) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     dem_craters = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
             seed=21, generation=terraingen.CraterGenerationOptions(d_min=30.0, d_max=200.0)

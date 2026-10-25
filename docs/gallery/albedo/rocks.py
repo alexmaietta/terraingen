@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Background"
 
 SIZE_M = 40.0
 PANELS = [

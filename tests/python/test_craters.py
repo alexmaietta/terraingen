@@ -408,9 +408,9 @@ def test_crater_apply_options_keep_nested_settings():
     assert apply.irregularity.roughness.b == 0.05 and apply.blend.shape == terraingen.BlendShape.LINEAR
 
 
-def test_crater_apply_options_give_finite_heights(lunar_models, crater_layer, noise_relief):
+def test_crater_apply_options_give_finite_heights(lunar_models, crater_layer, noise_layer):
     layer = crater_layer(lunar_models(), 10.0, 100.0, apply=full_apply_options())
-    noise = noise_relief(1, 200.0, 5.0)
+    noise = noise_layer(1, 200.0, 5.0)
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(129, 129, 2.0), [noise, layer])
     assert np.isfinite(terraingen.evaluate(terrain).values).all()
 
@@ -434,29 +434,29 @@ def test_validate_crater_apply_options_accepts_the_defaults():
     terraingen.validate_crater_apply_options(terraingen.CraterApplyOptions())
 
 
-def lunar_crater_terrain(lunar_models, crater_layer, noise_relief):
+def lunar_crater_terrain(lunar_models, crater_layer, noise_layer):
     craters = crater_layer(lunar_models(), 6.0, 60.0, seed=3)
     terrain = terraingen.TerrainGenerator(
-        terraingen.FlatSource(129, 129, 2.0), [noise_relief(1, 200.0, 10.0, octaves=5), craters]
+        terraingen.FlatSource(129, 129, 2.0), [noise_layer(1, 200.0, 10.0, octaves=5), craters]
     )
     return craters, terrain
 
 
-def test_crater_layer_generates_craters_in_its_diameter_range(lunar_models, crater_layer, noise_relief):
-    _, terrain = lunar_crater_terrain(lunar_models, crater_layer, noise_relief)
+def test_crater_layer_generates_craters_in_its_diameter_range(lunar_models, crater_layer, noise_layer):
+    _, terrain = lunar_crater_terrain(lunar_models, crater_layer, noise_layer)
     table = terraingen.placed_craters(terrain).table
     assert len(table["x"]) > 10
     assert table["diameter"].min() >= 6.0 and table["diameter"].max() < 60.0
 
 
-def test_crater_layer_evaluates_the_same_on_one_thread(lunar_models, crater_layer, noise_relief):
-    _, terrain = lunar_crater_terrain(lunar_models, crater_layer, noise_relief)
+def test_crater_layer_evaluates_the_same_on_one_thread(lunar_models, crater_layer, noise_layer):
+    _, terrain = lunar_crater_terrain(lunar_models, crater_layer, noise_layer)
     heights = terraingen.evaluate(terrain).values
     assert np.array_equal(terraingen.evaluate(terrain, threads=1).values, heights)
 
 
-def test_terrain_keeps_its_crater_layer(lunar_models, crater_layer, noise_relief):
-    craters, terrain = lunar_crater_terrain(lunar_models, crater_layer, noise_relief)
+def test_terrain_keeps_its_crater_layer(lunar_models, crater_layer, noise_layer):
+    craters, terrain = lunar_crater_terrain(lunar_models, crater_layer, noise_layer)
     assert terrain.layers[1] is craters
 
 

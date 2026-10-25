@@ -56,7 +56,7 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     EXPECT_FALSE(area.extentDeg);
     ASSERT_EQ(partial.layers.size(), 2u);
     const auto& noise = std::get<terraingen::NoiseLayerSpec>(partial.layers[0]);
-    EXPECT_EQ(noise.stack.at(0).layer.fractal.octaves, 3);
+    EXPECT_EQ(noise.stack.at(0).fractal.octaves, 3);
     EXPECT_EQ(noise.stack.at(0).hurst, 0.7f);
     const auto& craters = std::get<CraterLayerSpec>(partial.layers[1]);
     EXPECT_TRUE(std::holds_alternative<terraingen::TraskSpec>(craters.density));

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Bedrock and sand"
 
 
 def figure(quick=False):

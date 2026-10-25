@@ -62,12 +62,12 @@ template <> struct EnumNames<FractalType> {
     }};
 };
 
-template <> struct EnumNames<LayerBlend> {
-    static constexpr std::array<EnumEntry<LayerBlend>, 4> kValues{{
-        {"add", LayerBlend::Add, "Adds the layer to the height so far."},
-        {"max", LayerBlend::Max, "Keeps the higher of the height so far and the layer."},
-        {"min", LayerBlend::Min, "Keeps the lower of the height so far and the layer."},
-        {"mask", LayerBlend::Mask,
+template <> struct EnumNames<FractalBlend> {
+    static constexpr std::array<EnumEntry<FractalBlend>, 4> kValues{{
+        {"add", FractalBlend::Add, "Adds the layer to the height so far."},
+        {"max", FractalBlend::Max, "Keeps the higher of the height so far and the layer."},
+        {"min", FractalBlend::Min, "Keeps the lower of the height so far and the layer."},
+        {"mask", FractalBlend::Mask,
          "Multiplies the height so far by (layer / amplitude + 1) / 2, so the layer modulates "
          "roughness by region."},
     }};

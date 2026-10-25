@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Impacts and landers"
 
 SIZE_M = 3000.0
 DIAMETER = 400.0

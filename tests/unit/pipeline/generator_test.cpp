@@ -33,8 +33,8 @@ TEST(ForEachLayer, VisitsTheLayersOfOneTypeInOrderWithTheirIndices) {
     TerrainGenerator terrain = Rolling();
     terrain.layers.push_back(terrain.layers.front());
     std::vector<std::size_t> noise;
-    terraingen::ForEachLayer<terraingen::NoiseRelief>(
-        terrain, [&](const terraingen::NoiseRelief& layer, std::size_t n) {
+    terraingen::ForEachLayer<terraingen::NoiseLayer>(
+        terrain, [&](const terraingen::NoiseLayer& layer, std::size_t n) {
             EXPECT_EQ(&layer, terrain.layers[n].get());
             noise.push_back(n);
         });
@@ -403,10 +403,10 @@ TEST(HeightAt, EqualsGridsForCratersCutToADatumWithDatumsKeptAcrossCalls) {
 TEST(HeightAt, KeepsDatumsPerGeneratorSoALayerSharedOverOtherGroundRefitsThem) {
     const TerrainGenerator terrain = Datum(terraingen::CraterDatum::Plane);
     TerrainGenerator steeper = terrain;
-    std::vector<terraingen::NoiseLayer> noise{terraingen::NoiseLayer{}};
-    noise[0].fractal.wavelength = 30.0f;
-    noise[0].fractal.amplitude = 9.0f;
-    steeper.layers[0] = std::make_shared<terraingen::NoiseRelief>(noise);
+    std::vector<terraingen::Fractal> noise{terraingen::Fractal{}};
+    noise[0].wavelength = 30.0f;
+    noise[0].amplitude = 9.0f;
+    steeper.layers[0] = std::make_shared<terraingen::NoiseLayer>(noise);
     const auto grid = Evaluate(terrain);
     const auto steeperGrid = Evaluate(steeper);
     std::size_t differing = 0;
@@ -572,8 +572,8 @@ TEST(ValidateGenerator, RejectsLayersOfAnotherSurfaceAndDependenciesOutOfOrder) 
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     terraingen::TerrainGenerator terrain;
     terrain.source = std::make_shared<terraingen::FlatSource>(9, 9, 1.0);
-    terrain.layers = {std::make_shared<terraingen::NoiseRelief>(
-        terraingen::NoiseLayer::Fbm(1, 100.0, 1.0), moon)};
+    terrain.layers = {
+        std::make_shared<terraingen::NoiseLayer>(terraingen::Fractal::Fbm(1, 100.0, 1.0), moon)};
     EXPECT_THROW(terraingen::ValidateGenerator(terrain), std::invalid_argument)
         << "a layer for the Moon on a plane";
     terrain.surface = moon;

@@ -9,6 +9,8 @@ import numpy as np
 
 import terraingen
 
+SECTION = "Degradation"
+
 DIAMETER = 100.0
 LIFETIME_GYR = 1.0
 FRESHNESS = [1.0, 0.75, 0.5, 0.25]

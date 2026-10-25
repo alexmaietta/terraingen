@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Fractal settings"
 
 SIZE_M = 300.0
 OCTAVES = [1, 2, 4, 8]
@@ -21,8 +22,8 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, 4, figsize=(16, 3.6), layout="constrained")
     for ax, octaves in zip(axes, OCTAVES, strict=True):
-        params = terraingen.FractalParams(seed=5, wavelength=200.0, amplitude=20.0, octaves=octaves)
-        relief = terraingen.NoiseRelief([terraingen.NoiseLayer(params)])
+        noise = terraingen.Fractal(seed=5, wavelength=200.0, amplitude=20.0, octaves=octaves)
+        relief = terraingen.NoiseLayer(noise)
         terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
         gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel)
         ax.set_title(f"{octaves} octave{'s' if octaves > 1 else ''}")

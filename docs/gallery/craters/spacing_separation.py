@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Spacing"
 
 SIZE_M = 300.0
 RATIO = 2.0
@@ -19,9 +20,7 @@ SEPARATIONS = [0.0, 0.5, 1.0, 1.25]
 def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     models = terraingen.CraterModels(
         terraingen.PowerLawSfd(3.0 * 10.0**-1.1, 2.0),
         terraingen.FreshAges(),

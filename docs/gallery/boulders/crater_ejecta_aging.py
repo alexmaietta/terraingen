@@ -13,6 +13,8 @@ from matplotlib.patches import Circle
 
 import terraingen
 
+SECTION = "Crater ejecta"
+
 HALF_SIZE_M = 90.0
 DIAMETER = 60.0
 AGES_GYR = [0.0, 0.01, 0.03]

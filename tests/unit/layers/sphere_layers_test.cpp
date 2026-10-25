@@ -68,10 +68,10 @@ class Flat final : public terraingen::Ground {
 }  // namespace
 
 TEST(SphereLayers, NoiseIsSeamlessAcrossTheAntimeridianAndPoles) {
-    terraingen::SyntheticTerrainParams params{{terraingen::NoiseLayer{}}};
-    params.layers[0].fractal.wavelength = 300.0f;
-    params.layers[0].fractal.amplitude = 20.0f;
-    const terraingen::NoiseRelief noise(params.layers, kSphere);
+    std::vector<terraingen::Fractal> params{terraingen::Fractal{}};
+    params[0].wavelength = 300.0f;
+    params[0].amplitude = 20.0f;
+    const terraingen::NoiseLayer noise(params, kSphere);
     const Raster<float> grid = CheckGridAndPoints(noise, Geographic(179.99, 10.0, 20.0, 32), 20.0);
     EXPECT_NE(grid(0, 0), grid(31, 31));
     EXPECT_FLOAT_EQ(noise.ApplyAt(0.0f, 180.0, 10.0, {1.0}),
@@ -80,9 +80,9 @@ TEST(SphereLayers, NoiseIsSeamlessAcrossTheAntimeridianAndPoles) {
                 1e-4);
     for (std::uint32_t b = 0; b < terraingen::kNoiseBasisCount; ++b) {
         SCOPED_TRACE(b);
-        terraingen::SyntheticTerrainParams basis = params;
-        basis.layers[0].fractal.basis = static_cast<terraingen::NoiseBasis>(b);
-        const terraingen::NoiseRelief relief(basis.layers, kSphere);
+        std::vector<terraingen::Fractal> basis = params;
+        basis[0].basis = static_cast<terraingen::NoiseBasis>(b);
+        const terraingen::NoiseLayer relief(basis, kSphere);
         EXPECT_FLOAT_EQ(relief.ApplyAt(0.0f, 180.0, 10.0, {1.0}),
                         relief.ApplyAt(0.0f, -180.0, 10.0, {1.0}));
     }

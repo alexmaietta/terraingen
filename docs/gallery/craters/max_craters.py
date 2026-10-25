@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Populations"
 
 SIZE_M = 1000.0
 CAPS = [None, 200, 50]
@@ -19,9 +20,7 @@ CAPS = [None, 200, 50]
 def figure(quick=False):
     pixel = 4.0 if quick else 1.0
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     surface = terraingen.EquilibriumSurface(
         terraingen.extended_neukum_production_function(),
         terraingen.trask_equilibrium(),

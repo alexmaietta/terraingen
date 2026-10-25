@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Building distributions"
 
 
 def figure(quick=False):

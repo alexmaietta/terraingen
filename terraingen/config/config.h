@@ -35,7 +35,7 @@
 #include "terraingen/layers/sand_shadow.h"
 #include "terraingen/layers/spectral_continuation.h"
 #include "terraingen/layers/strata.h"
-#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/fractals.h"
 #include "terraingen/pipeline/feature_lists.h"
 #include "terraingen/pipeline/materials.h"
 #include "terraingen/random/value_distribution.h"
@@ -79,25 +79,25 @@ inline constexpr std::uint32_t kTileSizeMultiple = 16;
 /// highland median slope (Rosenburg et al. 2011, https://doi.org/10.1029/2010JE003716).
 inline constexpr float kNoiseAmplitudeRatio = 0.1f;
 
-/// One noise layer, its octave gain optionally derived from a Hurst exponent.
-struct NoiseStackLayerSpec {
-    NoiseLayer layer{};
-    /// When set, the octave gain comes from it (`GainFromHurst`) instead of `layer.fractal.gain`.
+/// One fractal of a noise stack, its octave gain optionally derived from a Hurst exponent.
+struct FractalSpec {
+    Fractal fractal{};
+    /// When set, the octave gain comes from it (`GainFromHurst`) instead of `fractal.gain`.
     std::optional<float> hurst;
-    /// When set, the amplitude in place of `layer.fractal.amplitude`; unset gives terrain noise
+    /// When set, the amplitude in place of `fractal.amplitude`; unset gives terrain noise
     /// `kNoiseAmplitudeRatio` times its wavelength (`EffectiveRelief`).
     std::optional<float> amplitude;
 
-    /// `layer` with its gain replaced from `hurst` and its amplitude from `amplitude` when set.
-    NoiseLayer Effective() const;
+    /// `fractal` with its gain replaced from `hurst` and its amplitude from `amplitude` when set.
+    Fractal Effective() const;
     /// `Effective` with an unset amplitude `kNoiseAmplitudeRatio` times the wavelength, as terrain
     /// noise layers take it.
-    NoiseLayer EffectiveRelief() const;
+    Fractal EffectiveRelief() const;
 };
 
-/// One layer of an albedo noise stack: a noise layer whose amplitude is in what the stack varies,
+/// One fractal of an albedo noise stack, its amplitude in what the stack varies,
 /// relative brightness, saturation or degrees of hue, rather than in meters, and required.
-struct AlbedoNoiseLayerSpec : NoiseStackLayerSpec {};
+struct AlbedoFractalSpec : FractalSpec {};
 
 /// How a source's posts become heights between them and at sample spacings finer than them
 /// (`Upsampler`): `type` names a kernel upsampler (`KernelUpsamplerNames`), "diamond_square", or a
@@ -122,19 +122,19 @@ struct RasterSourceSpec {
     UpsamplingSpec upsampling{};
 };
 
-/// The terrain parameters of a stack of noise layers: each layer's Hurst exponent applied and an
+/// The fractals of a stack of noise layers: each layer's Hurst exponent applied and an
 /// unset amplitude `kNoiseAmplitudeRatio` times its wavelength
-/// (`NoiseStackLayerSpec::EffectiveRelief`).
-SyntheticTerrainParams StackParams(const std::vector<NoiseStackLayerSpec>& stack);
+/// (`FractalSpec::EffectiveRelief`).
+std::vector<Fractal> StackFractals(const std::vector<FractalSpec>& stack);
 
-/// The noise layer a synthetic source starts from by default: fBm 400 m in wavelength and 12 m in
-/// amplitude, seed 2, the `FractalParams` defaults otherwise; rolling ground that craters and
+/// The fractal a synthetic source starts from by default: fBm 400 m in wavelength and 12 m in
+/// amplitude, seed 2, the `Fractal` defaults otherwise; rolling ground that craters and
 /// boulders look natural on at a meter per pixel.
-inline NoiseStackLayerSpec DefaultBaseNoise() {
-    NoiseStackLayerSpec base;
-    base.layer.fractal.seed = 2;
-    base.layer.fractal.wavelength = 400.0f;
-    base.layer.fractal.amplitude = 12.0f;
+inline FractalSpec DefaultBaseNoise() {
+    FractalSpec base;
+    base.fractal.seed = 2;
+    base.fractal.wavelength = 400.0f;
+    base.fractal.amplitude = 12.0f;
     base.amplitude = 12.0f;
     return base;
 }
@@ -143,8 +143,8 @@ inline NoiseStackLayerSpec DefaultBaseNoise() {
 /// every point, or with `pixelSize` sampled at posts that `upsampling` refines (cubic unset).
 struct SyntheticSourceSpec {
     double elevation = 0.0;  ///< Meters.
-    /// 0 to `kMaxNoiseLayers` layers, by default `DefaultBaseNoise`; an empty stack is flat.
-    std::vector<NoiseStackLayerSpec> stack{DefaultBaseNoise()};
+    /// 0 to `kMaxFractals` layers, by default `DefaultBaseNoise`; an empty stack is flat.
+    std::vector<FractalSpec> stack{DefaultBaseNoise()};
     std::optional<double> pixelSize{};           ///< Meters between posts; unset for none.
     std::optional<UpsamplingSpec> upsampling{};  ///< Needs `pixelSize`.
 };
@@ -192,26 +192,26 @@ struct ChainSourceSpec {
     ChainSeams seams{};  ///< `width` and `decayLength` in meters.
 };
 
-/// Layer "noise": a stack of 1 to `kMaxNoiseLayers` noise layers added to the terrain
-/// (`NoiseRelief`), measured from the source's reference point.
+/// Layer "noise": a stack of 1 to `kMaxFractals` noise layers added to the terrain
+/// (`NoiseLayer`), measured from the source's reference point.
 struct NoiseLayerSpec {
-    std::vector<NoiseStackLayerSpec> stack{NoiseStackLayerSpec{}};
-    /// Whether unset Hurst exponents and amplitudes come from the source (`EstimatedParams` of
+    std::vector<FractalSpec> stack{FractalSpec{}};
+    /// Whether unset Hurst exponents and amplitudes come from the source (`EstimatedFractals` of
     /// `EstimateSourceRoughness`); needs a source.
     bool estimateFromSource = false;
     /// Source cells across from which the source's measured data holds a noise layer: each layer
     /// whose wavelength, its longest, is at least that many source cells at a point is left out
-    /// there (`NoiseRelief`). Ignored on a synthetic source; unset adds every layer everywhere.
+    /// there (`NoiseLayer`). Ignored on a synthetic source; unset adds every layer everywhere.
     std::optional<double> sourceResolvesPixels{};
 
-    /// The stack as terrain parameters, with each layer's Hurst exponent applied.
-    SyntheticTerrainParams Params() const;
+    /// The stack as fractals, with each layer's Hurst exponent applied.
+    std::vector<Fractal> Fractals() const;
 
-    /// `Params` with each layer's unset Hurst exponent `source.hurst` and unset amplitude the one
+    /// `Fractals` with each layer's unset Hurst exponent `source.hurst` and unset amplitude the one
     /// that continues `source` at the layer's Hurst exponent to a lag of its wavelength
     /// (`MatchedNoiseAmplitude`).
     /// @throws std::invalid_argument as `MatchedNoiseAmplitude`.
-    SyntheticTerrainParams EstimatedParams(const BaseRoughness& source) const;
+    std::vector<Fractal> EstimatedFractals(const BaseRoughness& source) const;
 };
 
 /// Density "power_law": `PowerLawSfd`, N per m^2 with D in meters.
@@ -716,16 +716,16 @@ using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOu
                                 MaterialsOutput, PhotometryOutput, ReportOutput>;
 
 /// Albedo source "synthetic": `SyntheticAlbedo`, a base color with a noise stack per
-/// channel (each 0 to `kMaxNoiseLayers` layers), measured from the source's reference
+/// channel (each 0 to `kMaxFractals` layers), measured from the source's reference
 /// point.
 struct SyntheticAlbedoSpec {
     bool rgb = false;
     double hueDegrees = 0.0;
     double saturation = 0.0;
     double value = kDefaultSyntheticAlbedoValue;
-    std::vector<AlbedoNoiseLayerSpec> hueNoiseDegrees;
-    std::vector<AlbedoNoiseLayerSpec> saturationNoise;
-    std::vector<AlbedoNoiseLayerSpec> valueNoise;
+    std::vector<AlbedoFractalSpec> hueNoiseDegrees;
+    std::vector<AlbedoFractalSpec> saturationNoise;
+    std::vector<AlbedoFractalSpec> valueNoise;
 
     /// The albedo options, with each noise layer's Hurst exponent applied.
     SyntheticAlbedoOptions Options() const;

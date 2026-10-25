@@ -9,8 +9,8 @@
 #include <utility>
 #include <variant>
 
+using terraingen::FractalSpec;
 using terraingen::LayerSpec;
-using terraingen::NoiseStackLayerSpec;
 
 TEST(Boxed, CopiesByValue) {
     terraingen::Boxed<LayerSpec> a = terraingen::ScaleLayerSpec{2.0, 0.0};
@@ -56,22 +56,21 @@ TEST(SpectralContinuationLayerSpec, GivesItsOptionsWithDefaultsForUnsetValues) {
     EXPECT_EQ(options.octaveRms, 0.4);
 }
 
-TEST(NoiseStackLayerSpec, DerivesTheGainFromTheHurstExponent) {
-    NoiseStackLayerSpec config;
-    config.layer.fractal.gain = 0.3f;
-    EXPECT_EQ(config.Effective().fractal.gain, 0.3f);
+TEST(FractalSpec, DerivesTheGainFromTheHurstExponent) {
+    FractalSpec config;
+    config.fractal.gain = 0.3f;
+    EXPECT_EQ(config.Effective().gain, 0.3f);
     config.hurst = 0.6f;
-    EXPECT_EQ(config.Effective().fractal.gain,
-              terraingen::GainFromHurst(0.6f, config.layer.fractal.lacunarity));
+    EXPECT_EQ(config.Effective().gain, terraingen::GainFromHurst(0.6f, config.fractal.lacunarity));
 }
 
 TEST(NoiseLayerSpec, GivesEachLayerOfTheStackWithItsHurstExponent) {
     terraingen::NoiseLayerSpec spec;
-    spec.stack.push_back(NoiseStackLayerSpec{{}, 0.8f, {}});
-    const terraingen::SyntheticTerrainParams params = spec.Params();
-    ASSERT_EQ(params.layers.size(), 2u);
-    EXPECT_EQ(params.layers[0], spec.stack[0].layer);
-    EXPECT_EQ(params.layers[1], spec.stack[1].Effective());
+    spec.stack.push_back(FractalSpec{{}, 0.8f, {}});
+    const std::vector<terraingen::Fractal> params = spec.Fractals();
+    ASSERT_EQ(params.size(), 2u);
+    EXPECT_EQ(params[0], spec.stack[0].fractal);
+    EXPECT_EQ(params[1], spec.stack[1].Effective());
 }
 
 namespace {
@@ -88,25 +87,25 @@ terraingen::BaseRoughness Base() {
 
 TEST(NoiseLayerSpec, EstimatesUnsetHurstExponentsAndAmplitudesFromTheBase) {
     terraingen::NoiseLayerSpec spec;
-    spec.stack[0].layer.fractal.wavelength = 4.0f;
-    spec.stack.push_back(NoiseStackLayerSpec{{}, 0.9f, 1.5f});
-    spec.stack.push_back(NoiseStackLayerSpec{});
-    spec.stack[2].layer.enabled = false;
-    const terraingen::SyntheticTerrainParams params = spec.EstimatedParams(Base());
-    ASSERT_EQ(params.layers.size(), 3u);
-    const terraingen::NoiseLayer& first = params.layers[0];
-    EXPECT_EQ(first.fractal.gain, terraingen::GainFromHurst(0.6f, first.fractal.lacunarity));
-    EXPECT_EQ(first.fractal.amplitude, terraingen::MatchedNoiseAmplitude(first, Base()));
-    EXPECT_EQ(params.layers[1], spec.stack[1].Effective()) << "explicit values override";
-    EXPECT_EQ(params.layers[2].fractal.amplitude, spec.Params().layers[2].fractal.amplitude);
+    spec.stack[0].fractal.wavelength = 4.0f;
+    spec.stack.push_back(FractalSpec{{}, 0.9f, 1.5f});
+    spec.stack.push_back(FractalSpec{});
+    spec.stack[2].fractal.enabled = false;
+    const std::vector<terraingen::Fractal> params = spec.EstimatedFractals(Base());
+    ASSERT_EQ(params.size(), 3u);
+    const terraingen::Fractal& first = params[0];
+    EXPECT_EQ(first.gain, terraingen::GainFromHurst(0.6f, first.lacunarity));
+    EXPECT_EQ(first.amplitude, terraingen::MatchedNoiseAmplitude(first, Base()));
+    EXPECT_EQ(params[1], spec.stack[1].Effective()) << "explicit values override";
+    EXPECT_EQ(params[2].amplitude, spec.Fractals()[2].amplitude);
 
-    NoiseStackLayerSpec amplitudeOnly;
+    FractalSpec amplitudeOnly;
     amplitudeOnly.hurst = 0.9f;
     spec.stack = {amplitudeOnly};
     terraingen::BaseRoughness continued = Base();
     continued.hurst = static_cast<double>(0.9f);
-    const terraingen::NoiseLayer layer = spec.EstimatedParams(Base()).layers[0];
-    EXPECT_EQ(layer.fractal.amplitude, terraingen::MatchedNoiseAmplitude(layer, continued))
+    const terraingen::Fractal layer = spec.EstimatedFractals(Base())[0];
+    EXPECT_EQ(layer.amplitude, terraingen::MatchedNoiseAmplitude(layer, continued))
         << "the base continues at the layer's own Hurst exponent";
 }
 
@@ -137,9 +136,9 @@ TEST(SyntheticAlbedoSpec, GivesTheColorAndEachNoiseStack) {
     spec.hueDegrees = 30.0;
     spec.saturation = 0.2;
     spec.value = 0.4;
-    spec.hueNoiseDegrees = {terraingen::AlbedoNoiseLayerSpec{}};
-    spec.valueNoise = {terraingen::AlbedoNoiseLayerSpec{{{}, 0.5f, {}}},
-                       terraingen::AlbedoNoiseLayerSpec{}};
+    spec.hueNoiseDegrees = {terraingen::AlbedoFractalSpec{}};
+    spec.valueNoise = {terraingen::AlbedoFractalSpec{{{}, 0.5f, {}}},
+                       terraingen::AlbedoFractalSpec{}};
     const terraingen::SyntheticAlbedoOptions params = spec.Options();
     EXPECT_TRUE(params.rgb);
     EXPECT_EQ(params.hueDegrees, 30.0);

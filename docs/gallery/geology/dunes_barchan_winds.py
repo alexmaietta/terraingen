@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Dunes and bedforms"
 
 SIZE_M = 1000.0
 PANELS = [

@@ -18,9 +18,9 @@ void ValidateSyntheticAlbedoOptions(const SyntheticAlbedoOptions& options) {
     if (!(IsInUnitInterval(options.saturation) && IsInUnitInterval(options.value))) {
         throw std::invalid_argument("The albedo saturation and value must be in [0, 1]");
     }
-    ValidateNoiseLayers(options.hueNoiseDegrees);
-    ValidateNoiseLayers(options.saturationNoise);
-    ValidateNoiseLayers(options.valueNoise);
+    ValidateFractals(options.hueNoiseDegrees);
+    ValidateFractals(options.saturationNoise);
+    ValidateFractals(options.valueNoise);
 }
 
 AlbedoSample HsvToRgb(double hue, double saturation, double value) {
@@ -52,8 +52,8 @@ SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoOptions options, TerrainBase bas
     ValidateSyntheticAlbedoOptions(options_);
 }
 
-double SyntheticAlbedo::Noise(const std::vector<NoiseLayer>& layers, double x, double y) const {
-    return static_cast<double>(NoiseLayersAt(layers, origin_, surface_, x, y));
+double SyntheticAlbedo::Noise(const std::vector<Fractal>& fractals, double x, double y) const {
+    return static_cast<double>(FractalStackAt(fractals, origin_, surface_, x, y));
 }
 
 AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const AlbedoContext& /*context*/) const {

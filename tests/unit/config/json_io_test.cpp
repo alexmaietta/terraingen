@@ -55,12 +55,12 @@ TerrainGenConfig Everything() {
     terraingen::DuneOptions flowing = terraingen::MarsTransverseDunes();
     flowing.grainflows = terraingen::MarsDuneGrainflows();
     terraingen::NoiseLayerSpec noise;
-    terraingen::NoiseStackLayerSpec second;
-    second.layer.blend = terraingen::LayerBlend::Mask;
-    second.layer.fractal.basis = terraingen::NoiseBasis::WorleyF2MinusF1;
-    second.layer.fractal.type = terraingen::FractalType::Ridged;
-    second.layer.fractal.seed = 4000000000u;
-    second.layer.warpAmplitude = 12.5f;
+    terraingen::FractalSpec second;
+    second.fractal.blend = terraingen::FractalBlend::Mask;
+    second.fractal.basis = terraingen::NoiseBasis::WorleyF2MinusF1;
+    second.fractal.type = terraingen::FractalType::Ridged;
+    second.fractal.seed = 4000000000u;
+    second.fractal.warpAmplitude = 12.5f;
     second.hurst = 0.8f;
     noise.stack.push_back(second);
     noise.estimateFromSource = true;
@@ -499,7 +499,7 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
     named.type = "my_upsampler";
     terraingen::SyntheticSourceSpec synthetic;
     synthetic.elevation = -100.0;
-    synthetic.stack = {terraingen::NoiseStackLayerSpec{}};
+    synthetic.stack = {terraingen::FractalSpec{}};
     synthetic.pixelSize = 4.0;
     synthetic.upsampling = lanczos;
     for (const terraingen::SourceSpec& source :
@@ -540,8 +540,8 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     synthetic.hueDegrees = 30.0;
     synthetic.saturation = 0.1;
     synthetic.value = 0.2;
-    synthetic.valueNoise = {terraingen::AlbedoNoiseLayerSpec{{{}, 0.8f, {}}}};
-    synthetic.hueNoiseDegrees = {terraingen::AlbedoNoiseLayerSpec{}};
+    synthetic.valueNoise = {terraingen::AlbedoFractalSpec{{{}, 0.8f, {}}}};
+    synthetic.hueNoiseDegrees = {terraingen::AlbedoFractalSpec{}};
     terraingen::CraterAlbedoSpec craters;
     craters.craterLayer = 1;
     craters.options.selection.maxDiameter = 5000.0;

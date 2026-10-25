@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Published distributions"
 
 HALF_SIZE_M = 20.0
 D_MIN = 0.3

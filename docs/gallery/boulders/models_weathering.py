@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Models"
 
 SEED = 5
 WEATHERING = [0.0, 1.0, 2.0, 4.0]

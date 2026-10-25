@@ -12,7 +12,7 @@ terraingen_add_test_suite(
     ground_test.cpp
     lattice_test.cpp
     layer_test.cpp
-    noise_relief_test.cpp
+    noise_layer_test.cpp
     masked_test.cpp
     pavement_test.cpp
     prefetched_ground_test.cpp

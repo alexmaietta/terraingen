@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+SECTION = "Rim shapes"
+
 ELLIPTICITY = [1.0, 1.05, 1.1, 1.15, 1.2, 1.3, 1.4, 1.5, 1.6]
 DIAMETER = 150.0
 SPACING = 240.0
@@ -41,9 +43,7 @@ def figure(quick=False):
         )
         for (x, y), ellipticity in zip(gallery.grid_centers(SPACING), ELLIPTICITY, strict=True)
     ]
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, *layers])
     heights = terraingen.evaluate(terrain).values
 

@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Noise types"
 
 SIZE_M = 300.0
 BASES = [
@@ -29,10 +30,8 @@ def figure(quick=False):
     fig, axes = plt.subplots(2, 4, figsize=(14, 7.4), layout="constrained")
     for column, (name, basis) in enumerate(BASES):
         for row, octaves in enumerate((1, 5)):
-            params = terraingen.FractalParams(
-                seed=5, wavelength=100.0, amplitude=10.0, octaves=octaves, basis=basis
-            )
-            relief = terraingen.NoiseRelief([terraingen.NoiseLayer(params)])
+            noise = terraingen.Fractal(seed=5, wavelength=100.0, amplitude=10.0, octaves=octaves, basis=basis)
+            relief = terraingen.NoiseLayer(noise)
             terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
             ax = axes[row, column]
             heights = terraingen.evaluate(terrain).values

@@ -13,6 +13,7 @@ from matplotlib.colors import LightSource
 import terraingen
 
 WIDE = True
+SECTION = "Pose"
 
 DIAMETER = 2.0
 SIZE_M = 6.0

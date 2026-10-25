@@ -54,7 +54,7 @@ TEST(GenerateFromConfig, MatchesComposingTheLibraryCalls) {
     terraingen::Raster<float> expected =
         terraingen::RasterGrid{65, 49, terraingen::GeoTransform::NorthUp(-65.0, 49.0, 2.0)}
             .MakeRaster();
-    terraingen::SyntheticSource(Noise(config).Params()).Fill(expected);
+    terraingen::SyntheticSource(Noise(config).Fractals()).Fill(expected);
     const auto models = BuildCraterModels(Craters(config));
     CraterList manual;
     manual.Append({4.0, -3.0, 40.0, 0.0, terraingen::ManualCraterId(4.0, -3.0, 40.0), true});
@@ -70,7 +70,7 @@ TEST(GenerateFromConfig, MatchesComposingTheLibraryCalls) {
     };
     const CraterList craters = generate(bounds);
     const double margin = terraingen::DatumMargin(Craters(config).apply, *models.profile, 60.0);
-    const terraingen::NoiseRelief noise(Noise(config).Params().layers);
+    const terraingen::NoiseLayer noise(Noise(config).Fractals());
     const terraingen::HeightSampler ground = [&](double x, double y) {
         return noise.ApplyAt(0.0f, x, y, {2.0});
     };
@@ -97,9 +97,9 @@ TEST(GenerateFromConfig, AppliesTheHurstExponentToTheGain) {
     config.layers.pop_back();
     Noise(config).stack[0].hurst = 0.6f;
     const auto terrain = GenerateFromConfig(config);
-    terraingen::SyntheticTerrainParams params{{terraingen::NoiseLayer{}}};
-    params.layers[0] = Noise(config).stack[0].EffectiveRelief();
-    params.layers[0].fractal.gain = terraingen::GainFromHurst(0.6f, 2.0f);
+    std::vector<terraingen::Fractal> params{terraingen::Fractal{}};
+    params[0] = Noise(config).stack[0].EffectiveRelief();
+    params[0].gain = terraingen::GainFromHurst(0.6f, 2.0f);
     terraingen::Raster<float> expected =
         terraingen::RasterGrid{65, 49, terraingen::GeoTransform::NorthUp(-65.0, 49.0, 2.0)}
             .MakeRaster();
@@ -145,7 +145,7 @@ TEST(GenerateFromConfig, SupportsNoLayersNoCratersAndManualCratersOnly) {
     terraingen::Raster<float> noise =
         terraingen::RasterGrid{65, 49, terraingen::GeoTransform::NorthUp(-65.0, 49.0, 2.0)}
             .MakeRaster();
-    terraingen::SyntheticSource(Noise(config).Params()).Fill(noise);
+    terraingen::SyntheticSource(Noise(config).Fractals()).Fill(noise);
     EXPECT_TRUE(std::equal(HeightsOf(plain).Values().begin(), HeightsOf(plain).Values().end(),
                            noise.Values().begin()));
 
@@ -343,20 +343,20 @@ TEST(GenerateFromConfig, LoadsResamplesAndDetailsARasterSource) {
 
     RasterSpec(config).upsampling = {};
     config.outputs = outputs;
-    terraingen::NoiseStackLayerSpec detail;
-    detail.layer.fractal.wavelength = 20.0f;
+    terraingen::FractalSpec detail;
+    detail.fractal.wavelength = 20.0f;
     detail.amplitude = 1.5f;
     terraingen::NoiseLayerSpec detailLayer;
     detailLayer.stack = {detail};
     config.layers = {detailLayer};
     const auto detailed = GenerateFromConfig(config, folder);
-    const terraingen::NoiseLayer layer = detail.Effective();
+    const terraingen::Fractal layer = detail.Effective();
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
             const auto center = dem.CellCenter(col, row);
             const float noise =
-                terraingen::EvaluateNoiseLayers(static_cast<float>(center.x - 1000.0),
-                                                static_cast<float>(center.y - 2000.0), &layer, 1);
+                terraingen::EvaluateFractals(static_cast<float>(center.x - 1000.0),
+                                             static_cast<float>(center.y - 2000.0), &layer, 1);
             ASSERT_EQ(HeightsOf(detailed)(col, row), dem(col, row) + noise) << col << " " << row;
         }
     }
@@ -537,14 +537,14 @@ TEST(GenerateFromConfig, GeneratesASyntheticSourceOverEachOutputsRegion) {
     TerrainGenConfig config;
     terraingen::SyntheticSourceSpec synthetic;
     synthetic.elevation = 4.0;
-    terraingen::NoiseStackLayerSpec layer;
-    layer.layer.fractal.wavelength = 120.0f;
+    terraingen::FractalSpec layer;
+    layer.fractal.wavelength = 120.0f;
     synthetic.stack = {layer};
     config.source = synthetic;
     const GridRegion region{33, 17, 3.0, 50.0, -20.0};
     config.outputs = {terraingen::testing::Heightmap("synthetic.tif", region)};
     const auto generated = GenerateFromConfig(config);
-    const terraingen::SyntheticSource expected(terraingen::StackParams(synthetic.stack), 4.0f);
+    const terraingen::SyntheticSource expected(terraingen::StackFractals(synthetic.stack), 4.0f);
     terraingen::Raster<float> heights = region.Grid().MakeRaster();
     expected.Fill(heights);
     ExpectSameRaster(HeightsOf(generated), heights);
@@ -848,8 +848,8 @@ TerrainGenConfig EstimatingDem(const GridRegion& region) {
     roughness.roughness.minWavelength = 0.5;
     terraingen::NoiseLayerSpec noise;
     noise.estimateFromSource = true;
-    noise.stack[0].layer.fractal.wavelength = 5.0f;
-    noise.stack[0].layer.fractal.octaves = 3;
+    noise.stack[0].fractal.wavelength = 5.0f;
+    noise.stack[0].fractal.octaves = 3;
     config.layers = {noise, roughness};
     config.outputs = {terraingen::testing::Heightmap("fine.tif", region)};
     return config;
@@ -875,12 +875,12 @@ TEST(GenerateFromConfig, EstimatesRoughnessAndNoiseFromTheBaseAlikeForGridsTiles
                                         shifted.generator.layers[1])
                                         ->Options());
     const auto noise =
-        std::dynamic_pointer_cast<const terraingen::NoiseRelief>(generated.generator.layers[0]);
-    EXPECT_GT(noise->Options().layers[0].fractal.amplitude, 0.0f);
-    EXPECT_EQ(noise->Options().layers,
-              std::dynamic_pointer_cast<const terraingen::NoiseRelief>(shifted.generator.layers[0])
+        std::dynamic_pointer_cast<const terraingen::NoiseLayer>(generated.generator.layers[0]);
+    EXPECT_GT(noise->Options().fractals[0].amplitude, 0.0f);
+    EXPECT_EQ(noise->Options().fractals,
+              std::dynamic_pointer_cast<const terraingen::NoiseLayer>(shifted.generator.layers[0])
                   ->Options()
-                  .layers);
+                  .fractals);
 
     const terraingen::Raster<float>& grid = generated.grids[0].heights;
     const terraingen::RasterGrid lattice = terraingen::RasterGrid::FromRaster(grid);

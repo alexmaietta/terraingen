@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Upsampling"
 
 POST_SPACING = 8.0
 DEM_SIZE_M = 256.0
@@ -29,9 +30,7 @@ METHODS = [
 def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     posts = int(DEM_SIZE_M / POST_SPACING) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=120.0, amplitude=10.0, octaves=6))]
-    )
+    relief = terraingen.NoiseLayer(seed=4, wavelength=120.0, amplitude=10.0, octaves=6)
     dem = terraingen.evaluate(
         terraingen.TerrainGenerator(terraingen.FlatSource(posts, posts, POST_SPACING), [relief])
     )

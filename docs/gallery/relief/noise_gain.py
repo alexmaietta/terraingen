@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Fractal settings"
 
 SIZE_M = 300.0
 GAINS = [0.3, 0.5, 0.7]
@@ -21,8 +22,8 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), layout="constrained")
     for ax, gain in zip(axes, GAINS, strict=True):
-        params = terraingen.FractalParams(seed=5, wavelength=200.0, amplitude=20.0, octaves=8, gain=gain)
-        relief = terraingen.NoiseRelief([terraingen.NoiseLayer(params)])
+        noise = terraingen.Fractal(seed=5, wavelength=200.0, amplitude=20.0, octaves=8, gain=gain)
+        relief = terraingen.NoiseLayer(noise)
         terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
         gallery.show_slopes(ax, terraingen.evaluate(terrain).values, pixel)
         ax.set_title(f"Gain {gain:g}")

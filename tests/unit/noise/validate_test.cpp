@@ -9,14 +9,14 @@
 #include <string>
 #include <vector>
 
+using terraingen::Fractal;
+using terraingen::FractalBlend;
 using terraingen::FractalParams;
 using terraingen::FractalType;
-using terraingen::LayerBlend;
 using terraingen::NoiseBasis;
-using terraingen::NoiseLayer;
+using terraingen::ValidateFractal;
 using terraingen::ValidateFractalParams;
-using terraingen::ValidateNoiseLayer;
-using terraingen::ValidateNoiseLayers;
+using terraingen::ValidateFractals;
 
 namespace {
 
@@ -50,29 +50,29 @@ TEST(ValidateFractalParams, RejectsInvalidFields) {
     rejects([](FractalParams& p) { p.offset = kInf; });
 }
 
-TEST(ValidateNoiseLayer, RejectsInvalidBlendAndWarp) {
+TEST(ValidateFractal, RejectsInvalidBlendAndWarp) {
     const auto rejects = [](auto mutate) {
-        NoiseLayer layer;
+        Fractal layer;
         mutate(layer);
-        EXPECT_THROW(ValidateNoiseLayer(layer), std::invalid_argument);
+        EXPECT_THROW(ValidateFractal(layer), std::invalid_argument);
     };
-    rejects([](NoiseLayer& l) { l.fractal.octaves = 0; });
-    rejects([](NoiseLayer& l) { l.blend = static_cast<LayerBlend>(99); });
-    rejects([](NoiseLayer& l) { l.warpAmplitude = -1.0f; });
-    rejects([](NoiseLayer& l) { l.warpAmplitude = kNaN; });
-    rejects([](NoiseLayer& l) { l.warpWavelength = 0.0f; });
-    EXPECT_NO_THROW(ValidateNoiseLayer(NoiseLayer{}));
+    rejects([](Fractal& l) { l.octaves = 0; });
+    rejects([](Fractal& l) { l.blend = static_cast<FractalBlend>(99); });
+    rejects([](Fractal& l) { l.warpAmplitude = -1.0f; });
+    rejects([](Fractal& l) { l.warpAmplitude = kNaN; });
+    rejects([](Fractal& l) { l.warpWavelength = 0.0f; });
+    EXPECT_NO_THROW(ValidateFractal(Fractal{}));
 }
 
-TEST(ValidateNoiseLayers, ChecksTheCountAndNamesTheBadLayer) {
-    EXPECT_NO_THROW(ValidateNoiseLayers({}));
-    EXPECT_THROW(ValidateNoiseLayers({}, 1), std::invalid_argument);
-    EXPECT_THROW(ValidateNoiseLayers(std::vector<NoiseLayer>(terraingen::kMaxNoiseLayers + 1)),
+TEST(ValidateFractals, ChecksTheCountAndNamesTheBadLayer) {
+    EXPECT_NO_THROW(ValidateFractals({}));
+    EXPECT_THROW(ValidateFractals({}, 1), std::invalid_argument);
+    EXPECT_THROW(ValidateFractals(std::vector<Fractal>(terraingen::kMaxFractals + 1)),
                  std::invalid_argument);
-    std::vector<NoiseLayer> layers(2);
-    layers[1].fractal.gain = 0.0f;
+    std::vector<Fractal> layers(2);
+    layers[1].gain = 0.0f;
     try {
-        ValidateNoiseLayers(layers);
+        ValidateFractals(layers);
         FAIL() << "expected std::invalid_argument";
     } catch (const std::invalid_argument& error) {
         EXPECT_EQ(std::string(error.what()).rfind("Layer 2:", 0), 0u) << error.what();

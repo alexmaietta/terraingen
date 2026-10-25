@@ -135,7 +135,7 @@ TEST(CheckConfigRanges, ReportsTheFirstNumberOutOfRangeByItsPath) {
     terraingen::testing::Craters(config).spacing.diameterRatio = 0.5;
     EXPECT_EQ(RangeErrorPath(config), "layers[1].spacing.diameter_ratio");
     config = terraingen::testing::Small();
-    terraingen::testing::Noise(config).stack[0].layer.fractal.octaves = 0;
+    terraingen::testing::Noise(config).stack[0].fractal.octaves = 0;
     EXPECT_EQ(RangeErrorPath(config), "layers[0].stack[0].octaves");
 }
 

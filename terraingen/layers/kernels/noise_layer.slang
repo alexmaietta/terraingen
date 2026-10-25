@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Adds NoiseReliefKernel to a strip of grid rows. The host side is RunKernel
+// Adds NoiseLayerKernel to a strip of grid rows. The host side is RunKernel
 // (terraingen/gpu/kernel.h).
 #include "terraingen/gpu/kernel.slang"
-#include "terraingen/layers/kernels/noise_relief.h"
+#include "terraingen/layers/kernels/noise_layer.h"
 
-[[vk::binding(3, 0)]] StructuredBuffer<terraingen::NoiseReliefKernel> kernels;
+[[vk::binding(3, 0)]] StructuredBuffer<terraingen::NoiseLayerKernel> kernels;
 
 // After every buffer (terraingen/gpu/kernel.slang).
 [[vk::push_constant]] ConstantBuffer<Params> params;

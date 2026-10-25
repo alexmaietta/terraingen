@@ -57,20 +57,20 @@ void BM_EvaluateNoiseGrid(benchmark::State& state) {
         return;
     }
     const Backend backend = status.backend;
-    SyntheticTerrainParams noise;
-    noise.layers.assign(3, NoiseLayer{});
-    noise.layers[0].fractal.wavelength = 2000.0f;
-    noise.layers[0].fractal.amplitude = 80.0f;
-    noise.layers[0].warpAmplitude = 150.0f;
-    noise.layers[1].fractal.type = FractalType::Ridged;
-    noise.layers[1].fractal.wavelength = 400.0f;
-    noise.layers[1].fractal.amplitude = 20.0f;
-    noise.layers[2].fractal.basis = NoiseBasis::Simplex;
-    noise.layers[2].fractal.wavelength = 60.0f;
-    noise.layers[2].fractal.amplitude = 2.0f;
+    std::vector<Fractal> noise;
+    noise.assign(3, Fractal{});
+    noise[0].wavelength = 2000.0f;
+    noise[0].amplitude = 80.0f;
+    noise[0].warpAmplitude = 150.0f;
+    noise[1].type = FractalType::Ridged;
+    noise[1].wavelength = 400.0f;
+    noise[1].amplitude = 20.0f;
+    noise[2].basis = NoiseBasis::Simplex;
+    noise[2].wavelength = 60.0f;
+    noise[2].amplitude = 2.0f;
     TerrainGenerator terrain;
     terrain.source = std::make_shared<FlatSource>(cells, cells, 1.0);
-    terrain.layers.push_back(std::make_shared<NoiseRelief>(noise.layers));
+    terrain.layers.push_back(std::make_shared<NoiseLayer>(noise));
     const RasterGrid grid = terrain.source->Grid();
     const EvaluationOptions options{0.0, 0, backend};
     for (auto _ : state) {

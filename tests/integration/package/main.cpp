@@ -17,8 +17,8 @@ int main() {
                                      version.minor == TERRAINGEN_VERSION_MINOR &&
                                      version.patch == TERRAINGEN_VERSION_PATCH;
 
-    terraingen::SyntheticTerrainParams params{{terraingen::NoiseLayer{}}};
-    params.layers[0].fractal.amplitude = 10.0f;
+    std::vector<terraingen::Fractal> params{terraingen::Fractal{}};
+    params[0].amplitude = 10.0f;
     terraingen::Raster<float> terrain =
         terraingen::RasterGrid{32, 32, terraingen::GeoTransform::NorthUp(-16.0, 16.0, 1.0)}
             .MakeRaster();

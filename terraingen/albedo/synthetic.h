@@ -5,7 +5,7 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
-#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/fractals.h"
 #include "terraingen/sources/terrain_base.h"
 #include "terraingen/util/geometry.h"
 
@@ -17,7 +17,7 @@ namespace terraingen {
 inline constexpr double kDefaultSyntheticAlbedoValue = 0.110;
 
 /// The color of a `SyntheticAlbedo`: a base color in hue, saturation and value, each
-/// varied by a stack of noise layers (`EvaluateNoiseLayers`, with amplitudes in the channel's
+/// varied by a stack of fractals (`EvaluateFractals`, with amplitudes in the channel's
 /// units).
 struct SyntheticAlbedoOptions {
     /// Three bands (red, green, blue) from the color; otherwise one band, its value.
@@ -26,10 +26,10 @@ struct SyntheticAlbedoOptions {
     double saturation = 0.0;  ///< In [0, 1]; 0 is gray.
     /// In [0, 1]: the brightest band's reflectance (`kDefaultSyntheticAlbedoValue` by default).
     double value = kDefaultSyntheticAlbedoValue;
-    std::vector<NoiseLayer> hueNoiseDegrees;  ///< Added to the hue, in degrees.
-    std::vector<NoiseLayer> saturationNoise;  ///< Added to the saturation.
+    std::vector<Fractal> hueNoiseDegrees;  ///< Added to the hue, in degrees.
+    std::vector<Fractal> saturationNoise;  ///< Added to the saturation.
     /// Relative: the value is multiplied by 1 + the noise, so its contrast scales with it.
-    std::vector<NoiseLayer> valueNoise;
+    std::vector<Fractal> valueNoise;
 
     bool operator==(const SyntheticAlbedoOptions& other) const {
         return rgb == other.rgb && hueDegrees == other.hueDegrees &&
@@ -44,7 +44,7 @@ struct SyntheticAlbedoOptions {
 
 /// Checks synthetic albedo settings.
 /// @throws std::invalid_argument for a hue, saturation or value that is not finite, a saturation
-/// or value outside [0, 1], more than `kMaxNoiseLayers` layers in a stack, or an invalid layer.
+/// or value outside [0, 1], more than `kMaxFractals` fractals in a stack, or an invalid fractal.
 void ValidateSyntheticAlbedoOptions(const SyntheticAlbedoOptions& options);
 
 /// Converts a color from hue, saturation and value to red, green and blue in [0, 1] by the
@@ -56,7 +56,7 @@ AlbedoSample HsvToRgb(double hueDegrees, double saturation, double value);
 
 /// An albedo for terrain without data: a base color with noise in each channel, the
 /// saturation and value clamped to [0, 1] after it. Noise is measured from the base's reference
-/// point; on a sphere it is 3D noise at each point's 3D position (`EvaluateNoiseLayers3`).
+/// point; on a sphere it is 3D noise at each point's 3D position (`EvaluateFractals3`).
 class SyntheticAlbedo final : public AlbedoSource {
   public:
     /// The synthetic albedo with the color and noise of `options`.
@@ -79,7 +79,7 @@ class SyntheticAlbedo final : public AlbedoSource {
     }
 
   private:
-    double Noise(const std::vector<NoiseLayer>& layers, double x, double y) const;
+    double Noise(const std::vector<Fractal>& fractals, double x, double y) const;
 
     SyntheticAlbedoOptions options_;
     Vec2d origin_;

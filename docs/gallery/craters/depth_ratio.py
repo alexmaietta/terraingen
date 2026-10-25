@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Profiles"
 
 SIZE_M = 500.0
 

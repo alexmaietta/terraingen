@@ -162,7 +162,7 @@ inline TerrainGenConfig Small() {
     flat.stack.clear();
     config.source = flat;
     NoiseLayerSpec noise;
-    noise.stack[0].layer.fractal.wavelength = 200.0f;
+    noise.stack[0].fractal.wavelength = 200.0f;
     noise.stack[0].amplitude = 10.0f;
     CraterLayerSpec craters;
     craters.minDiameter = 8.0;
@@ -184,9 +184,9 @@ inline TerrainGenConfig WithAlbedo() {
     SyntheticAlbedoSpec synthetic;
     synthetic.rgb = true;
     synthetic.saturation = 0.05;
-    synthetic.valueNoise = {terraingen::AlbedoNoiseLayerSpec{}};
+    synthetic.valueNoise = {terraingen::AlbedoFractalSpec{}};
     synthetic.valueNoise[0].amplitude = 0.2f;
-    synthetic.valueNoise[0].layer.fractal.wavelength = 40.0f;
+    synthetic.valueNoise[0].fractal.wavelength = 40.0f;
     config.albedo = AlbedoSpec{synthetic, {CraterAlbedoSpec{}}};
     AlbedoOutput output;
     output.path = "albedo.tif";

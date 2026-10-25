@@ -30,14 +30,10 @@ TINTS = np.array(
 
 def layers():
     """The scene's layers in stack order."""
-    hills = terraingen.NoiseRelief(
+    hills = terraingen.NoiseLayer(
         [
-            terraingen.NoiseLayer(
-                terraingen.FractalParams(seed=11, wavelength=500.0, amplitude=90.0, octaves=4)
-            ),
-            terraingen.NoiseLayer(
-                terraingen.FractalParams(seed=12, wavelength=40.0, amplitude=1.2, octaves=6)
-            ),
+            terraingen.Fractal(seed=11, wavelength=500.0, amplitude=90.0, octaves=4),
+            terraingen.Fractal(seed=12, wavelength=40.0, amplitude=1.2, octaves=6),
         ]
     )
     strata = terraingen.StrataLayer(
@@ -115,12 +111,8 @@ def figure(quick=False):
         terraingen.TerrainGenerator(
             source,
             [
-                terraingen.NoiseRelief(
-                    [
-                        terraingen.NoiseLayer(
-                            terraingen.FractalParams(seed=13, wavelength=60.0, amplitude=0.08, octaves=5)
-                        )
-                    ]
+                terraingen.NoiseLayer(
+                    [terraingen.Fractal(seed=13, wavelength=60.0, amplitude=0.08, octaves=5)]
                 )
             ],
         )

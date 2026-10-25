@@ -14,6 +14,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Published distributions"
 
 SIZE_M = 300.0
 D_MIN = 2.5
@@ -24,9 +25,7 @@ AGE_GYR = 1.0
 def figure(quick=False):
     pixel = 4.0 if quick else 0.75
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     densities = [
         (
             "Extended Neukum, 1 Gyr",

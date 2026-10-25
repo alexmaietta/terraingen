@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Models"
 
 SEED = 5
 PIECES = [3, 6, 10]

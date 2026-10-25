@@ -36,9 +36,7 @@ def figure(quick=False):
             seed=2, generation=terraingen.CraterGenerationOptions(d_min=8.0, d_max=60.0)
         )
     )
-    ground = terraingen.SyntheticSource(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=7, wavelength=300.0, amplitude=20.0))]
-    )
+    ground = terraingen.SyntheticSource([terraingen.Fractal(seed=7, wavelength=300.0, amplitude=20.0)])
     dem = terraingen.evaluate(
         terraingen.TerrainGenerator(ground, [craters]),
         grid=terraingen.RasterGrid.centered((0.0, 0.0), (POSTS * PIXEL, POSTS * PIXEL), PIXEL),
@@ -48,9 +46,7 @@ def figure(quick=False):
     holed[:, STRIP[0] : STRIP[1]] = np.nan
     holed[200:, 200:] = np.nan
     source = terraingen.RasterSource(holed, dem.transform)
-    fallback = terraingen.SyntheticSource(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=21, wavelength=300.0, amplitude=20.0))]
-    )
+    fallback = terraingen.SyntheticSource([terraingen.Fractal(seed=21, wavelength=300.0, amplitude=20.0)])
     gaps = np.isnan(holed)
     x = (np.arange(POSTS) - 0.5 * (POSTS - 1)) * PIXEL
     window = slice(STRIP[0] - 40, STRIP[1] + 40)

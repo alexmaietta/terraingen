@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Noise types"
 
 SIZE_M = 300.0
 FRACTALS = [
@@ -26,7 +27,7 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, 4, figsize=(14, 3.8), layout="constrained")
     for ax, (name, fractal) in zip(axes, FRACTALS, strict=True):
-        params = terraingen.FractalParams(
+        noise = terraingen.Fractal(
             seed=5,
             wavelength=100.0,
             amplitude=10.0,
@@ -34,7 +35,7 @@ def figure(quick=False):
             basis=terraingen.NoiseBasis.SIMPLEX,
             type=fractal,
         )
-        relief = terraingen.NoiseRelief([terraingen.NoiseLayer(params)])
+        relief = terraingen.NoiseLayer(noise)
         terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
         gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
         ax.set_title(name)

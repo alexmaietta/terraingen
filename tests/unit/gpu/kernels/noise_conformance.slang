@@ -2,12 +2,12 @@
 
 // Evaluates the shared noise kernels on the GPU for comparison with the C++ build of the same
 // headers: per sample, every 2D basis, Perlin, simplex, value and Worley 3D noise, the Voronoi
-// cell values, each layer of a block and the whole stack, and one Philox block.
-#include "terraingen/noise/noise_layers.h"
+// cell values, each fractal of a block and the whole stack, and one Philox block.
+#include "terraingen/noise/fractals.h"
 #include "terraingen/random/philox.h"
 
 [[vk::binding(0, 0)]] StructuredBuffer<float> points;
-[[vk::binding(1, 0)]] StructuredBuffer<terraingen::NoiseLayers> layers;
+[[vk::binding(1, 0)]] StructuredBuffer<terraingen::FractalStack> stacks;
 [[vk::binding(2, 0)]] RWStructuredBuffer<float> values;
 [[vk::binding(3, 0)]] RWStructuredBuffer<uint> words;
 
@@ -40,12 +40,12 @@ void main(uint3 id : SV_DispatchThreadID) {
     values[base + 5u] = terraingen::PerlinNoise3(x, y, z, seed);
     values[base + 6u] = terraingen::BasisNoise3(terraingen::NoiseBasis::Value,
                                                 terraingen::SplitLattice3(x, y, z), seed);
-    const terraingen::NoiseLayers block = layers[0];
-    for (uint j = 0u; j < terraingen::kMaxNoiseLayers; ++j) {
-        values[base + 7u + j] = terraingen::EvaluateNoiseLayer(100.0f * x, 100.0f * y,
-                                                               block.layers[j]);
+    const terraingen::FractalStack block = stacks[0];
+    for (uint j = 0u; j < terraingen::kMaxFractals; ++j) {
+        values[base + 7u + j] = terraingen::EvaluateFractal(100.0f * x, 100.0f * y,
+                                                            block.fractals[j]);
     }
-    values[base + 15u] = terraingen::EvaluateNoiseLayers(100.0f * x, 100.0f * y, block);
+    values[base + 15u] = terraingen::EvaluateFractals(100.0f * x, 100.0f * y, block);
     values[base + 16u] = terraingen::HashToUnitFloat(terraingen::PcgHash(asuint(x)));
     values[base + 17u] = worley.value;
     const terraingen::WorleyDistances worley3 = terraingen::Worley3(x, y, z, seed);

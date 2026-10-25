@@ -29,7 +29,7 @@
 #include "terraingen/layers/craters/degradation/freshness_degradation.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
-#include "terraingen/layers/noise_relief.h"
+#include "terraingen/layers/noise_layer.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
@@ -332,7 +332,7 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
                     s.upsampling ? BuildUpsampler(*s.upsampling, surface, Child(path, "upsampling"))
                                  : nullptr;
                 return At(path, [&] {
-                    return std::make_shared<SyntheticSource>(StackParams(s.stack),
+                    return std::make_shared<SyntheticSource>(StackFractals(s.stack),
                                                              static_cast<float>(s.elevation),
                                                              pixelSize, upsampler, surface);
                 });
@@ -430,12 +430,12 @@ BaseRoughness SourceRoughness(const LayerInputs& context) {
 
 LayerPtr BuildLayerSpec(const NoiseLayerSpec& s, const std::string& path,
                         const LayerInputs& context) {
-    const SyntheticTerrainParams params = At(path, [&] {
-        return s.estimateFromSource ? s.EstimatedParams(SourceRoughness(context)) : s.Params();
+    const std::vector<Fractal> fractals = At(path, [&] {
+        return s.estimateFromSource ? s.EstimatedFractals(SourceRoughness(context)) : s.Fractals();
     });
     return At(path, [&] {
-        return std::make_shared<NoiseRelief>(
-            NoiseReliefOptions{params.layers, s.sourceResolvesPixels}, context.base);
+        return std::make_shared<NoiseLayer>(NoiseLayerOptions{fractals, s.sourceResolvesPixels},
+                                            context.base);
     });
 }
 

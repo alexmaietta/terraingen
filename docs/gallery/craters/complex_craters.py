@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Profiles"
 
 PANELS = [
     (
@@ -41,12 +42,8 @@ def figure(quick=False):
             terraingen.ComplexCraterProfile(terraingen.MartinParkesDunstanProfile(), shape()),
         )
         crater = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, diameter, age_gyr=0.0)], models)
-        relief = terraingen.NoiseRelief(
-            [
-                terraingen.NoiseLayer(
-                    terraingen.FractalParams(seed=2, wavelength=diameter, amplitude=0.015 * diameter)
-                )
-            ]
+        relief = terraingen.NoiseLayer(
+            [terraingen.Fractal(seed=2, wavelength=diameter, amplitude=0.015 * diameter)]
         )
         terrain = terraingen.TerrainGenerator(
             terraingen.FlatSource(samples + 1, samples + 1, pixel), [relief, crater]

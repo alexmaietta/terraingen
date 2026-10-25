@@ -3,20 +3,27 @@
 """
 Renders the documentation's gallery: each docs/gallery/<category>/<name>.py defines `figure(quick)`,
 saved as docs/_src/images/gallery/<category>/<name>.jpg; its docstring is its caption on the Gallery
-page (docs/scripts/gallery_page.py). Each script makes its terrain with TerrainGen itself, so it reads
-on its own; this module only draws and saves. Needs TerrainGen built with Python in build/ and
-matplotlib (docs/requirements.txt). Scripts that read measured data list it in `ASSETS`, fetched
-into a cache on first use (assets.py); --offline skips them until it is there.
+page (docs/scripts/gallery_page.py). Docs snippets (docs/snippets/<category>/<task>.py) that define
+`figure(quick)` too, drawing what their task makes, are named snippets/<category>/<task> and saved as
+docs/_src/images/snippets/<category>/<task>.jpg, shown under the task by docs/scripts/guides.py.
+Each script makes its terrain with TerrainGen itself, so it reads on its own; this module only draws
+and saves. Needs TerrainGen built with Python in build/ and matplotlib (docs/requirements.txt).
+Scripts that read measured data list it in `ASSETS`, fetched into a cache on first use (assets.py);
+--offline skips them until it is there.
 
-    python docs/gallery/gallery.py [NAME ...] [--quick] [--offline] [--output-dir DIR]
+    python docs/gallery/gallery.py [NAME ...] [--quick] [--offline] [--jobs N] [--output-dir DIR]
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib.util
+import multiprocessing
+import os
 import pathlib
 import sys
+from concurrent.futures import ProcessPoolExecutor
 
 import matplotlib
 
@@ -31,6 +38,8 @@ from matplotlib.colors import LightSource, Normalize  # noqa: E402
 GALLERY = pathlib.Path(__file__).resolve().parent
 ROOT = GALLERY.parents[1]
 IMAGES = ROOT / "docs" / "_src" / "images" / "gallery"
+SNIPPETS = ROOT / "docs" / "snippets"
+SNIPPET_IMAGES = ROOT / "docs" / "_src" / "images" / "snippets"
 
 STYLE = {
     "figure.facecolor": "white",
@@ -173,6 +182,12 @@ def show_boulders(ax, table, region, values, cmap="viridis", label="", vmin=None
     return circles
 
 
+def show_craters(ax, table, region, values, cmap="viridis", label="", vmin=None, vmax=None, colorbar=True):
+    """Draws a crater table's craters as circles of their diameters, as `show_boulders` draws
+    boulders."""
+    return show_boulders(ax, table, region, values, cmap, label, vmin, vmax, colorbar)
+
+
 def grid_centers(spacing):
     """The centers of a 3x3 grid `spacing` meters apart, row by row from the top left."""
     return [((column - 1) * spacing, (1 - row) * spacing) for row in range(3) for column in range(3)]
@@ -280,14 +295,35 @@ def show_mesh(ax, positions, triangles, color=(0.74, 0.70, 0.64), title="", face
         ax.set_title(title)
 
 
+def draws_figure(path):
+    """Whether the script at `path` defines `figure`."""
+    tree = ast.parse(path.read_text())
+    return any(isinstance(node, ast.FunctionDef) and node.name == "figure" for node in tree.body)
+
+
 def figures():
-    """Every figure script as (name, path), its name `<category>/<stem>`."""
-    return [(f"{p.parent.name}/{p.stem}", p) for p in sorted(GALLERY.glob("*/*.py"))]
+    """Every figure script as (name, path): gallery figures named `<category>/<stem>`, then docs
+    snippets that draw one, named `snippets/<category>/<stem>`."""
+    gallery = [(f"{p.parent.name}/{p.stem}", p) for p in sorted(GALLERY.glob("*/*.py"))]
+    snippets = [
+        (f"snippets/{p.parent.name}/{p.stem}", p) for p in sorted(SNIPPETS.glob("*/*.py")) if draws_figure(p)
+    ]
+    return gallery + snippets
+
+
+def image_path(name, output_dir=None):
+    """Where figure `name` is saved: under `output_dir` by its name, or by default in the gallery's
+    images, or the snippets' for a snippet."""
+    if output_dir is not None:
+        return output_dir / f"{name}.jpg"
+    if name.startswith("snippets/"):
+        return SNIPPET_IMAGES / f"{name.removeprefix('snippets/')}.jpg"
+    return IMAGES / f"{name}.jpg"
 
 
 def load(path):
     """The figure script at `path`, imported."""
-    spec = importlib.util.spec_from_file_location(f"gallery_{path.parent.name}_{path.stem}", path)
+    spec = importlib.util.spec_from_file_location(f"figure_{path.parent.name}_{path.stem}", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -311,30 +347,56 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
     parser.add_argument("names", nargs="*", help="figures to render, as <category>/<name>; all by default")
     parser.add_argument("--quick", action="store_true", help="small, fast renders, for tests")
-    parser.add_argument("--output-dir", type=pathlib.Path, default=IMAGES)
+    parser.add_argument(
+        "--output-dir",
+        type=pathlib.Path,
+        help="folder to save every figure in by its name; by default docs/_src/images/gallery, and "
+        "docs/_src/images/snippets for snippets",
+    )
     parser.add_argument(
         "--offline", action="store_true", help="skip figures whose data files are not downloaded yet"
+    )
+    parser.add_argument(
+        "--jobs",
+        "-j",
+        type=int,
+        default=min(8, os.cpu_count() or 1),
+        help="figures to render at once, each in its own process (default: up to 8)",
     )
     args = parser.parse_args(argv)
     known = dict(figures())
     unknown = sorted(set(args.names) - set(known))
     if unknown:
         parser.error(f"no figure named {', '.join(unknown)}; known: {', '.join(known)}")
-    written = []
+    todo = []
     for name, path in known.items():
         if args.names and name not in args.names:
             continue
         if args.offline and downloads_needed(path):
             print("skipped", name, "(its data files are not downloaded; run docs/gallery/assets.py)")
             continue
-        fig = render(path, args.quick)
-        out = args.output_dir / f"{name}.jpg"
-        out.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(out, dpi=50 if args.quick else 72, bbox_inches="tight", pil_kwargs={"quality": 65})
-        plt.close(fig)
-        print("wrote", out)
-        written.append(out)
-    return written
+        todo.append((path, image_path(name, args.output_dir), args.quick))
+    if args.jobs == 1 or len(todo) <= 1:
+        return [save(*job) for job in todo]
+    context = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(args.jobs, context, initializer=use_path, initargs=(list(sys.path),)) as pool:
+        futures = [pool.submit(save, *job) for job in todo]
+        return [future.result() for future in futures]
+
+
+def save(path, out, quick):
+    """Renders the script at `path` to the JPEG `out` and returns `out`."""
+    fig = render(path, quick)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=50 if quick else 72, bbox_inches="tight", pil_kwargs={"quality": 65})
+    plt.close(fig)
+    print("wrote", out, flush=True)
+    return out
+
+
+def use_path(path):
+    """Gives a worker process the module search path of the process that started it."""
+    sys.path[:] = path
 
 
 sys.path.insert(0, str(GALLERY))

@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+SECTION = "Degradation"
+
 AGES_GYR = [0.001, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5]
 DIAMETER = 150.0
 SPACING = 240.0
@@ -33,9 +35,7 @@ def figure(quick=False):
         for (x, y), age in zip(gallery.grid_centers(SPACING), AGES_GYR, strict=True)
     ]
     layer = terraingen.CraterLayer.manual(craters, apply=apply)
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, layer])
     heights = terraingen.evaluate(terrain).values
 

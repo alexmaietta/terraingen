@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Pose"
 
 HALF_SIZE_M = 15.0
 SETTINGS = [0.0, 0.5, 1.0]

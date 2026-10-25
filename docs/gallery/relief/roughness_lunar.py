@@ -17,6 +17,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Fractal settings"
 
 SIZE_M = 512.0
 CASES = [

@@ -13,6 +13,7 @@ from matplotlib.colors import LightSource
 import terraingen
 
 WIDE = True
+SECTION = "Bedrock and sand"
 
 SIZE_M = 12.0
 RATIOS = [None, 0.5, 1.1, 2.0]
@@ -21,9 +22,7 @@ RATIOS = [None, 0.5, 1.1, 2.0]
 def figure(quick=False):
     pixel = 0.05 if quick else 0.015
     size = int(SIZE_M / pixel) + 1
-    ground = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=8.0, amplitude=0.25, octaves=6))]
-    )
+    ground = terraingen.NoiseLayer(seed=4, wavelength=8.0, amplitude=0.25, octaves=6)
     options = terraingen.BoulderLayerOptions(seed=6)
     sizes = options.sizes
     sizes.distribution = terraingen.sp8023_intercrater_blocks(terraingen.SpecificationCurve.MAXIMUM)

@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Pose"
 
 HALF_SIZE_M = 15.0
 SETTINGS = [(0.2, 0.3), (0.4, 0.6), (0.7, 0.9)]

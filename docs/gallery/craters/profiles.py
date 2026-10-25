@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Profiles"
 
 DIAMETER = 100.0
 SIZE_M = 260.0

@@ -17,9 +17,7 @@ SIZE_M = 1500.0
 def figure(quick=False):
     pixel = 12.0 if quick else 3.0
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
 
     def dunes():
         return terraingen.DuneLayer(terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE, seed=3))

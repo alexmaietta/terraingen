@@ -48,12 +48,27 @@ def gallery_page():
     return gallery_page
 
 
-@pytest.mark.parametrize("name", [name for name, _ in gallery.figures()])
+@pytest.mark.parametrize("name", [name for name, _ in gallery.figures() if not name.startswith("snippets/")])
 def test_category_page_shows_figure(gallery_page, name):
     category, stem = name.split("/")
     page = gallery_page.markdown(category, gallery_page.categories()[category])
     assert f"images/gallery/{name}.jpg" in page, f"the {category} page shows {stem}"
     assert f'data-gallery="{category}"' in page, f"{stem} opens in the {category} lightbox"
+    assert f'--8<-- "docs/gallery/{name}.py"' in page, f"{stem} shows its script"
+
+
+def test_snippets_that_draw_a_figure_are_figures():
+    names = dict(gallery.figures())
+    path = names["snippets/boulders/list-boulders-of-a-layer"]
+    assert path == gallery.SNIPPETS / "boulders" / "list-boulders-of-a-layer.py"
+    assert "snippets/configuration/build-a-generator-from-a-config" not in names, "it draws nothing"
+
+
+def test_snippet_figures_save_beside_the_snippet_images(tmp_path):
+    name = "snippets/craters/list-craters-of-a-layer"
+    assert gallery.image_path(name) == gallery.SNIPPET_IMAGES / "craters" / "list-craters-of-a-layer.jpg"
+    assert gallery.image_path("craters/peaks") == gallery.IMAGES / "craters" / "peaks.jpg"
+    assert gallery.image_path(name, tmp_path) == tmp_path / f"{name}.jpg"
 
 
 def test_figures_have_captions(gallery_page):
@@ -75,6 +90,32 @@ def test_title_order_and_width(gallery_page, tmp_path, monkeypatch):
     assert [figure["title"] for figure in figures] == ["Second", "A first"], "TITLE, else the name"
     page = gallery_page.markdown("craters", figures)
     assert page.count('class="tg-gallery__wide"') == 1, "only the WIDE figure spans its row"
+
+
+def test_sections_head_their_figures_single_width_first(gallery_page, tmp_path, monkeypatch):
+    write_figure(tmp_path, "a_peak_wide", 'SECTION = "Central peaks"\nWIDE = True\n')
+    write_figure(tmp_path, "b_peak", 'SECTION = "Central peaks"\n')
+    write_figure(tmp_path, "c_tycho", 'SECTION = "Named craters"\n')
+    write_figure(tmp_path, "d_loose", "")
+    monkeypatch.setattr(gallery_page, "GALLERY", tmp_path)
+    figures = gallery_page.figures()
+    order = [
+        (heading, [f["name"] for f in group]) for heading, group in gallery_page.sections("craters", figures)
+    ]
+    assert order == [
+        ("Named craters", ["c_tycho"]),
+        ("Central peaks", ["b_peak", "a_peak_wide"]),
+        ("", ["d_loose"]),
+    ], "SECTIONS orders the headings, unlisted ones after, single-width figures first"
+    page = gallery_page.markdown("craters", figures)
+    assert page.index("## Named craters") < page.index("## Central peaks"), "each section has a heading"
+    assert page.count('<div class="tg-gallery" markdown>') == 3, "each section has its own grid"
+
+
+def test_every_section_is_listed(gallery_page):
+    for figure in gallery_page.figures():
+        if figure["section"]:
+            assert figure["section"] in gallery_page.SECTIONS[figure["category"]], f"{figure['name']}"
 
 
 def test_categories_join_the_nav_and_home_page(gallery_page, tmp_path, monkeypatch):

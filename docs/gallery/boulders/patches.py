@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Placement"
 
 HALF_SIZE_M = 40.0
 SPREADS = [1.0, 3.0, 10.0]

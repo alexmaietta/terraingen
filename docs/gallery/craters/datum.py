@@ -14,6 +14,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Slopes and datums"
 
 DIAMETER = 80.0
 SIZE_M = 240.0
@@ -30,9 +31,7 @@ def figure(quick=False):
     pixel = 2.0 if quick else 0.4
     size = int(SIZE_M / pixel) + 1
     tilt = terraingen.FunctionLayer(lambda x, y, spacing, height: height + TILT * x)
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=120.0, amplitude=4.0, octaves=5))]
-    )
+    relief = terraingen.NoiseLayer(seed=3, wavelength=120.0, amplitude=4.0, octaves=5)
     x = (np.arange(size) - 0.5 * (size - 1)) * pixel
     plane = TILT * x[np.newaxis, :]
 

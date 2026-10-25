@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Profiles"
 
 DIAMETERS_KM = [10.0, 20.0, 40.0, 80.0]
 WORN_DEPTHS = [1.0, 0.75, 0.5]

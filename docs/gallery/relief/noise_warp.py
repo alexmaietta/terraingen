@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Noise types"
 
 SIZE_M = 300.0
 WARPS_M = [0.0, 20.0, 60.0]
@@ -21,11 +22,16 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.4), layout="constrained")
     for ax, warp in zip(axes, WARPS_M, strict=True):
-        params = terraingen.FractalParams(
-            seed=5, wavelength=100.0, amplitude=10.0, octaves=5, type=terraingen.FractalType.RIDGED
+        layer = terraingen.Fractal(
+            seed=5,
+            wavelength=100.0,
+            amplitude=10.0,
+            octaves=5,
+            type=terraingen.FractalType.RIDGED,
+            warp_amplitude=warp,
+            warp_wavelength=150.0,
         )
-        layer = terraingen.NoiseLayer(params, warp_amplitude=warp, warp_wavelength=150.0)
-        relief = terraingen.NoiseRelief([layer])
+        relief = terraingen.NoiseLayer([layer])
         terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
         gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
         ax.set_title("No warp" if warp == 0.0 else f"Warped up to {warp:g} m")

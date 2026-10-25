@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Background"
 
 SIZE_M = 400.0
 ONSETS = [10.0, 20.0, 30.0]
@@ -18,9 +19,7 @@ ONSETS = [10.0, 20.0, 30.0]
 def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     size = int(SIZE_M / pixel) + 1
-    hills = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=250.0, amplitude=45.0, octaves=6))]
-    )
+    hills = terraingen.NoiseLayer(seed=2, wavelength=250.0, amplitude=45.0, octaves=6)
     crater = terraingen.CraterLayer.manual([terraingen.Crater(-60.0, 40.0, 90.0, age_gyr=0.0)])
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [hills, crater])
     heights = terraingen.evaluate(terrain)

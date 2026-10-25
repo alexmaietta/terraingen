@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Fractal settings"
 
 SIZE_M = 300.0
 LACUNARITIES = [1.5, 2.0, 3.0]
@@ -21,10 +22,8 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), layout="constrained")
     for ax, lacunarity in zip(axes, LACUNARITIES, strict=True):
-        params = terraingen.FractalParams(
-            seed=5, wavelength=200.0, amplitude=20.0, octaves=6, lacunarity=lacunarity
-        )
-        relief = terraingen.NoiseRelief([terraingen.NoiseLayer(params)])
+        noise = terraingen.Fractal(seed=5, wavelength=200.0, amplitude=20.0, octaves=6, lacunarity=lacunarity)
+        relief = terraingen.NoiseLayer(noise)
         terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
         gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel)
         ax.set_title(f"Lacunarity {lacunarity:g}")

@@ -16,52 +16,52 @@ void AppendEffective(const std::vector<Spec>& stack, Layers& layers) {
 
 }  // namespace
 
-NoiseLayer NoiseStackLayerSpec::Effective() const {
-    NoiseLayer effective = layer;
+Fractal FractalSpec::Effective() const {
+    Fractal effective = fractal;
     if (hurst) {
-        effective.fractal.gain = GainFromHurst(*hurst, layer.fractal.lacunarity);
+        effective.gain = GainFromHurst(*hurst, fractal.lacunarity);
     }
     if (amplitude) {
-        effective.fractal.amplitude = *amplitude;
+        effective.amplitude = *amplitude;
     }
     return effective;
 }
 
-NoiseLayer NoiseStackLayerSpec::EffectiveRelief() const {
-    NoiseLayer effective = Effective();
+Fractal FractalSpec::EffectiveRelief() const {
+    Fractal effective = Effective();
     if (!amplitude) {
-        effective.fractal.amplitude = kNoiseAmplitudeRatio * layer.fractal.wavelength;
+        effective.amplitude = kNoiseAmplitudeRatio * fractal.wavelength;
     }
     return effective;
 }
 
-SyntheticTerrainParams StackParams(const std::vector<NoiseStackLayerSpec>& stack) {
-    SyntheticTerrainParams params;
-    for (const NoiseStackLayerSpec& layer : stack) {
-        params.layers.push_back(layer.EffectiveRelief());
+std::vector<Fractal> StackFractals(const std::vector<FractalSpec>& stack) {
+    std::vector<Fractal> fractals;
+    for (const FractalSpec& spec : stack) {
+        fractals.push_back(spec.EffectiveRelief());
     }
-    return params;
+    return fractals;
 }
 
-SyntheticTerrainParams NoiseLayerSpec::Params() const {
-    return StackParams(stack);
+std::vector<Fractal> NoiseLayerSpec::Fractals() const {
+    return StackFractals(stack);
 }
 
-SyntheticTerrainParams NoiseLayerSpec::EstimatedParams(const BaseRoughness& source) const {
-    SyntheticTerrainParams params;
-    for (NoiseStackLayerSpec layer : stack) {
+std::vector<Fractal> NoiseLayerSpec::EstimatedFractals(const BaseRoughness& source) const {
+    std::vector<Fractal> fractals;
+    for (FractalSpec layer : stack) {
         if (!layer.hurst) {
             layer.hurst = static_cast<float>(source.hurst);
         }
-        NoiseLayer effective = layer.EffectiveRelief();
+        Fractal effective = layer.EffectiveRelief();
         if (!layer.amplitude && effective.enabled) {
             BaseRoughness continued = source;
             continued.hurst = static_cast<double>(*layer.hurst);
-            effective.fractal.amplitude = MatchedNoiseAmplitude(effective, continued);
+            effective.amplitude = MatchedNoiseAmplitude(effective, continued);
         }
-        params.layers.push_back(effective);
+        fractals.push_back(effective);
     }
-    return params;
+    return fractals;
 }
 
 RoughnessOptions RoughnessLayerSpec::Options() const {

@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 
 import terraingen
 
+SECTION = "Populations"
+
 SIZE_M = 512.0
 
 
@@ -17,9 +19,7 @@ def figure(quick=False):
     size = int(SIZE_M / pixel) + 1
 
     craters = terraingen.CraterLayer()
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
     heights = terraingen.evaluate(terrain).values
 

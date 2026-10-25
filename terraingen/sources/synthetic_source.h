@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief `SyntheticSource`, heights generated from a stack of noise layers over an unbounded
+/// @brief `SyntheticSource`, heights generated from a stack of fractals over an unbounded
 /// plane or a whole body.
 #pragma once
 
-#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/fractals.h"
 #include "terraingen/noise/surface_noise.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/upsampling.h"
@@ -17,25 +17,8 @@
 
 namespace terraingen {
 
-/// A synthetic terrain: a stack of noise layers evaluated with `NoiseLayersAt`.
-struct SyntheticTerrainParams {
-    std::vector<NoiseLayer> layers;  ///< 0 to `kMaxNoiseLayers`; none is flat.
-
-    /// Memberwise equality.
-    bool operator==(const SyntheticTerrainParams& other) const {
-        return layers == other.layers;
-    }
-    bool operator!=(const SyntheticTerrainParams& other) const {
-        return !(*this == other);
-    }
-};
-
-/// Checks the layer count and every layer (`ValidateNoiseLayers`).
-/// @throws std::invalid_argument naming the first problem.
-void ValidateSyntheticTerrain(const SyntheticTerrainParams& params);
-
-/// Heights generated rather than loaded: `elevation` plus a stack of noise layers
-/// (`NoiseLayersAt`, measured from the origin on a plane, in 3D on a body), with no bounds.
+/// Heights generated rather than loaded: `elevation` plus a stack of fractals
+/// (`FractalStackAt`, measured from the origin on a plane, in 3D on a body), with no bounds.
 ///
 /// Without a `pixelSize` every point gets the noise evaluated there, at any spacing, and the
 /// source resolves everything (`ResolutionAt` is infinite). With one, the noise is sampled only
@@ -45,17 +28,17 @@ class SyntheticSource final : public Source {
   public:
     using Source::Fill;
 
-    /// @param params The noise stack, 0 to `kMaxNoiseLayers` layers (`ValidateNoiseLayer` each).
+    /// @param fractals The noise stack, 0 to `kMaxFractals` fractals (`ValidateFractal` each).
     /// @param elevation Meters added everywhere; finite.
     /// @param pixelSize Spacing of the posts in meters, converted to the surface's units on a body
     /// (`Surface::UnitLength`) as `FlatSource` converts it; positive and finite, or unset to
     /// evaluate the noise at every point.
     /// @param upsampler How the posts are refined; null for cubic interpolation. Needs a
     /// `pixelSize`.
-    /// @throws std::invalid_argument for too many or invalid layers, a non-finite `elevation`, a
+    /// @throws std::invalid_argument for too many or invalid fractals, a non-finite `elevation`, a
     /// `pixelSize` that is not positive and finite, an upsampler without a `pixelSize`, or as
     /// `Upsampler::FitTo`.
-    explicit SyntheticSource(SyntheticTerrainParams params = {}, float elevation = 0.0f,
+    explicit SyntheticSource(std::vector<Fractal> fractals = {}, float elevation = 0.0f,
                              std::optional<double> pixelSize = std::nullopt,
                              std::shared_ptr<const Upsampler> upsampler = nullptr,
                              Surface surface = {});
@@ -77,8 +60,8 @@ class SyntheticSource final : public Source {
     double ResolutionAt(double x, double y) const override;
 
     /// The noise stack.
-    const SyntheticTerrainParams& Params() const {
-        return params_;
+    const std::vector<Fractal>& Fractals() const {
+        return fractals_;
     }
 
     /// The spacing of the posts in the surface's units (degrees on a body), if the noise is
@@ -111,7 +94,7 @@ class SyntheticSource final : public Source {
     /// The elevation plus the noise at (`x`, `y`).
     float NoiseAt(double x, double y) const;
 
-    SyntheticTerrainParams params_;
+    std::vector<Fractal> fractals_;
     float elevation_;
     std::optional<double> pixelSize_;
     Surface surface_;

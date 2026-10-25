@@ -55,9 +55,9 @@ template <typename IO> void Fields(IO& io, DiamondSquareOptions& options) {
     io("seed", options.seed, "Seed of the displacements.");
 }
 
-/// The description of a terrain noise stack of `fewest` to `kMaxNoiseLayers` layers.
+/// The description of a terrain noise stack of `fewest` to `kMaxFractals` layers.
 inline std::string NoiseStackHelp(std::size_t fewest) {
-    return "Noise layers, " + CountText(fewest, kMaxNoiseLayers) +
+    return "Noise layers, " + CountText(fewest, kMaxFractals) +
            ", combined in order: the first enabled layer sets the height and each later one is "
            "combined with it by its blend mode.";
 }

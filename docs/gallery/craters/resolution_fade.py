@@ -11,15 +11,14 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Populations"
 
 SIZE_M = 128.0
 SPACINGS = [0.25, 1.0, 4.0]
 
 
 def figure(quick=False):
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     fig, axes = plt.subplots(2, len(SPACINGS), figsize=(13, 9), layout="constrained")
     for row, (start, end) in enumerate(((2.0, 4.0), (0.0, 0.001))):
         fade = terraingen.ResolutionFade(start_samples=start, end_samples=end)

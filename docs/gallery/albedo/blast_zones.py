@@ -10,6 +10,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Impacts and landers"
 
 SIZE_M = 400.0
 PANELS = [

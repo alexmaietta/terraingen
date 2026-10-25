@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Models"
 
 SEED = 11
 AMPLITUDES = [0.0, 0.06, 0.15, 0.3]

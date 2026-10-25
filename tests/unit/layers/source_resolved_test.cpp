@@ -11,7 +11,7 @@
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/dunes.h"
-#include "terraingen/layers/noise_relief.h"
+#include "terraingen/layers/noise_layer.h"
 #include "terraingen/sources/raster_source.h"
 #include "terraingen/sources/source_chain.h"
 #include "terraingen/sources/synthetic_source.h"
@@ -181,21 +181,20 @@ TEST(BedformLayer, LeavesOutBedformsTheSourceResolves) {
     EXPECT_TRUE(relief);
 }
 
-TEST(NoiseRelief, LeavesOutTheNoiseLayersTheSourceResolves) {
-    terraingen::SyntheticTerrainParams params;
-    params.layers = {terraingen::NoiseLayer{}, terraingen::NoiseLayer{}};
-    params.layers[0].fractal.wavelength = 1000.0f;
-    params.layers[0].fractal.amplitude = 50.0f;
-    params.layers[1].fractal.wavelength = 10.0f;
-    params.layers[1].fractal.amplitude = 1.0f;
-    params.layers[1].fractal.seed = 7;
-    terraingen::SyntheticTerrainParams fine = params;
-    fine.layers[0].enabled = false;
+TEST(NoiseLayer, LeavesOutTheNoiseLayersTheSourceResolves) {
+    std::vector<terraingen::Fractal> params{terraingen::Fractal{}, terraingen::Fractal{}};
+    params[0].wavelength = 1000.0f;
+    params[0].amplitude = 50.0f;
+    params[1].wavelength = 10.0f;
+    params[1].amplitude = 1.0f;
+    params[1].seed = 7;
+    std::vector<terraingen::Fractal> fine = params;
+    fine[0].enabled = false;
     const auto dem = Dem(20, 100.0, 0.0, 2000.0);
-    const terraingen::NoiseRelief held(terraingen::NoiseReliefOptions{params.layers, 4.0}, dem);
-    const terraingen::NoiseRelief small(fine.layers, dem);
-    const terraingen::NoiseRelief all(params.layers, dem);
-    const terraingen::NoiseRelief unset(params.layers, dem);
+    const terraingen::NoiseLayer held(terraingen::NoiseLayerOptions{params, 4.0}, dem);
+    const terraingen::NoiseLayer small(fine, dem);
+    const terraingen::NoiseLayer all(params, dem);
+    const terraingen::NoiseLayer unset(params, dem);
     for (double x = 5.0; x < 1900.0; x += 97.0) {
         EXPECT_EQ(held.ApplyAt(0.0f, x, 300.0, {1.0}), small.ApplyAt(0.0f, x, 300.0, {1.0}))
             << "the 1000 m layer is in the 400 m limit";
@@ -213,7 +212,7 @@ TEST(NoiseRelief, LeavesOutTheNoiseLayersTheSourceResolves) {
         }
     }
     EXPECT_EQ(held.Options().sourceResolvesPixels, 4.0);
-    EXPECT_THROW(terraingen::NoiseRelief(terraingen::NoiseReliefOptions{params.layers, -1.0}, dem),
+    EXPECT_THROW(terraingen::NoiseLayer(terraingen::NoiseLayerOptions{params, -1.0}, dem),
                  std::invalid_argument);
 }
 

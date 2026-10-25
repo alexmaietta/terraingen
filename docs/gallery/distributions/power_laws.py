@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Building distributions"
 
 SIZE_M = 300.0
 EXPONENTS = [1.5, 2.0, 2.5, 3.0]
@@ -23,9 +24,7 @@ D_MAX = 100.0
 def figure(quick=False):
     pixel = 4.0 if quick else 0.75
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     diameters = np.geomspace(1.0, 1000.0, 100)
     colors = plt.get_cmap("viridis")(np.linspace(0.0, 0.85, len(EXPONENTS)))
 

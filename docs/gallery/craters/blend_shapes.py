@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Slopes and datums"
 
 DIAMETER = 80.0
 SPACING = 130.0
@@ -27,9 +28,7 @@ def figure(quick=False):
     pixel = 1.5 if quick else 0.3
     columns = int(len(SHAPES) * SPACING / pixel) + 1
     rows = int(1.2 * SPACING / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=3, wavelength=60.0, amplitude=3.0, octaves=6))]
-    )
+    relief = terraingen.NoiseLayer(seed=3, wavelength=60.0, amplitude=3.0, octaves=6)
     layers = [relief]
     for index, (_, shape) in enumerate(SHAPES):
         apply = terraingen.CraterApplyOptions()

@@ -120,9 +120,9 @@ void BindSynthetic(nb::module_& m) {
         "`rgb` three bands from `hue_degrees` and `saturation` and their noise.")
         .def(
             "__init__",
-            [](SyntheticAlbedo* self, double value, std::vector<NoiseLayer> valueNoise, bool rgb,
-               double hue, double saturation, std::vector<NoiseLayer> hueNoiseDegrees,
-               std::vector<NoiseLayer> saturationNoise, TerrainBase base) {
+            [](SyntheticAlbedo* self, double value, std::vector<Fractal> valueNoise, bool rgb,
+               double hue, double saturation, std::vector<Fractal> hueNoiseDegrees,
+               std::vector<Fractal> saturationNoise, TerrainBase base) {
                 SyntheticAlbedoOptions params;
                 params.value = value;
                 params.valueNoise = std::move(valueNoise);
@@ -133,10 +133,10 @@ void BindSynthetic(nb::module_& m) {
                 params.saturationNoise = std::move(saturationNoise);
                 new (self) SyntheticAlbedo(std::move(params), std::move(base));
             },
-            "value"_a = kDefaultSyntheticAlbedoValue, "value_noise"_a = std::vector<NoiseLayer>{},
+            "value"_a = kDefaultSyntheticAlbedoValue, "value_noise"_a = std::vector<Fractal>{},
             "rgb"_a = false, "hue_degrees"_a = 0.0, "saturation"_a = 0.0,
-            "hue_noise_degrees"_a = std::vector<NoiseLayer>{},
-            "saturation_noise"_a = std::vector<NoiseLayer>{}, "base"_a = TerrainBase{});
+            "hue_noise_degrees"_a = std::vector<Fractal>{},
+            "saturation_noise"_a = std::vector<Fractal>{}, "base"_a = TerrainBase{});
     m.def(
         "hsv_to_rgb",
         [](double hue, double saturation, double value) {

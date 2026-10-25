@@ -10,6 +10,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Building distributions"
 
 D_MIN = 2.5
 D_MAX = 1000.0

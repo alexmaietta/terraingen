@@ -14,6 +14,7 @@ from matplotlib.patches import Circle
 import terraingen
 
 WIDE = True
+SECTION = "Populations"
 
 SIZE_M = 500.0
 COMPLETE_FROM_M = 50.0
@@ -28,9 +29,7 @@ CATALOG = {
 def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     size = int(SIZE_M / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 6.6), layout="constrained")
     for ax, with_catalog in zip(axes, (False, True), strict=True):

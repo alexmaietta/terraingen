@@ -6,14 +6,13 @@
 #include "options.h"
 
 #include "terraingen/noise/fractal.h"
+#include "terraingen/noise/fractals.h"
 #include "terraingen/noise/hash.h"
-#include "terraingen/noise/noise_layers.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/noise/simplex.h"
 #include "terraingen/noise/validate.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/noise/worley.h"
-#include "terraingen/sources/synthetic_source.h"
 
 #include <nanobind/operators.h>
 
@@ -172,8 +171,8 @@ void BindBasisNoise(nb::module_& m) {
 void BindEnums(nb::module_& m) {
     BindEnum<NoiseBasis>(m, "NoiseBasis", "Single-octave noise a fractal is built from.");
     BindEnum<FractalType>(m, "FractalType", "How octaves of the basis noise are combined.");
-    BindEnum<LayerBlend>(m, "LayerBlend",
-                         "How a layer combines with the height of the layers before it.");
+    BindEnum<FractalBlend>(m, "FractalBlend",
+                           "How a fractal combines with the height of the fractals before it.");
 }
 
 void BindFractalParams(nb::module_& m) {
@@ -226,58 +225,75 @@ void BindFractal(nb::module_& m) {
         "x"_a, "y"_a, "params"_a);
 }
 
-void BindNoiseLayer(nb::module_& m) {
-    nb::class_<NoiseLayer>(m, "NoiseLayer",
-                           "One layer of a synthetic terrain: a fractal, an optional domain warp "
-                           "and a blend mode.")
+void BindFractalStack(nb::module_& m) {
+    nb::class_<Fractal>(m, "Fractal",
+                        "One fractal of a stack: the FractalParams fields, an optional domain "
+                        "warp and a blend mode.")
         .def(
             "__init__",
-            [](NoiseLayer* layer, std::optional<FractalParams> fractal, bool enabled,
-               LayerBlend blend, float warpAmplitude, float warpWavelength) {
-                new (layer) NoiseLayer{enabled, fractal.value_or(FractalParams{}), blend,
-                                       warpAmplitude, warpWavelength};
+            [](Fractal* fractal, std::uint32_t seed, float wavelength, float amplitude, int octaves,
+               float lacunarity, float gain, NoiseBasis basis, FractalType type, float offset,
+               FractalBlend blend, float warpAmplitude, float warpWavelength, bool enabled) {
+                new (fractal) Fractal{enabled,    seed,          wavelength,    amplitude, octaves,
+                                      lacunarity, gain,          basis,         type,      offset,
+                                      blend,      warpAmplitude, warpWavelength};
             },
-            "fractal"_a = nb::none(), "enabled"_a = true, "blend"_a = LayerBlend::Add,
-            "warp_amplitude"_a = 0.0f, "warp_wavelength"_a = 500.0f)
-        .def_rw("enabled", &NoiseLayer::enabled)
-        .def_rw("fractal", &NoiseLayer::fractal)
-        .def_rw("blend", &NoiseLayer::blend)
-        .def_rw("warp_amplitude", &NoiseLayer::warpAmplitude, "Domain warp in meters; 0 is off.")
-        .def_rw("warp_wavelength", &NoiseLayer::warpWavelength, "Warp field wavelength in meters.")
+            nb::kw_only(), "seed"_a = 0u, "wavelength"_a = 1000.0f, "amplitude"_a = 100.0f,
+            "octaves"_a = 8, "lacunarity"_a = 2.0f, "gain"_a = 0.5f, "basis"_a = NoiseBasis::Perlin,
+            "type"_a = FractalType::Fbm, "offset"_a = 1.0f, "blend"_a = FractalBlend::Add,
+            "warp_amplitude"_a = 0.0f, "warp_wavelength"_a = 500.0f, "enabled"_a = true)
+        .def_static("fbm", &Fractal::Fbm, "seed"_a, "wavelength"_a, "amplitude"_a,
+                    "An fBm fractal whose broadest octave is `wavelength` meters across and whose "
+                    "height reaches `amplitude` meters.")
+        .def_rw("enabled", &Fractal::enabled)
+        .def_rw("seed", &Fractal::seed)
+        .def_rw("wavelength", &Fractal::wavelength, "First-octave wavelength in meters.")
+        .def_rw("amplitude", &Fractal::amplitude, "Maximum absolute height in meters.")
+        .def_rw("octaves", &Fractal::octaves)
+        .def_rw("lacunarity", &Fractal::lacunarity)
+        .def_rw("gain", &Fractal::gain)
+        .def_rw("basis", &Fractal::basis)
+        .def_rw("type", &Fractal::type)
+        .def_rw("offset", &Fractal::offset, "Ridge offset for ridged and hybrid fractals.")
+        .def_rw("blend", &Fractal::blend)
+        .def_rw("warp_amplitude", &Fractal::warpAmplitude, "Domain warp in meters; 0 is off.")
+        .def_rw("warp_wavelength", &Fractal::warpWavelength, "Warp field wavelength in meters.")
         .def(nb::self == nb::self);
-    m.attr("MAX_NOISE_LAYERS") = kMaxNoiseLayers;
-    m.def("validate_noise_layer", &ValidateNoiseLayer, "layer"_a, kValidateDoc);
-    m.def("validate_noise_layers", &ValidateNoiseLayers, "layers"_a, "min_layers"_a = 0,
-          kValidateDoc);
+    m.def("fractal_params_from", &FractalParamsFrom, "fractal"_a,
+          "The FractalParams part of `fractal`, which fractal2 and fractal3 evaluate.");
+    m.attr("MAX_FRACTALS") = kMaxFractals;
+    m.def("validate_fractal", &ValidateFractal, "fractal"_a, kValidateDoc);
+    m.def("validate_fractals", &ValidateFractals, "fractals"_a, "min_fractals"_a = 0, kValidateDoc);
 }
 
-void BindLayerEvaluation(nb::module_& m) {
+void BindFractalEvaluation(nb::module_& m) {
     m.def(
-        "evaluate_noise_layers",
-        [](const InputArray& x, const InputArray& y, const SyntheticTerrainParams& params) {
-            ValidateSyntheticTerrain(params);
-            return Evaluate(x, y, [&params](float px, float py) {
-                return EvaluateNoiseLayers(px, py, params.layers.data(), params.layers.size());
+        "evaluate_fractals",
+        [](const InputArray& x, const InputArray& y, const std::vector<Fractal>& fractals) {
+            ValidateFractals(fractals);
+            return Evaluate(x, y, [&fractals](float px, float py) {
+                return EvaluateFractals(px, py, fractals.data(), fractals.size());
             });
         },
-        "x"_a, "y"_a, "params"_a, "Height in meters of the layer stack at each world position.");
+        "x"_a, "y"_a, "fractals"_a,
+        "Height in meters of the fractal stack at each world position.");
     m.def(
-        "evaluate_noise_layer",
-        [](float x, float y, const NoiseLayer& layer) {
-            ValidateNoiseLayer(layer);
-            return EvaluateNoiseLayer(x, y, layer);
+        "evaluate_fractal",
+        [](float x, float y, const Fractal& fractal) {
+            ValidateFractal(fractal);
+            return EvaluateFractal(x, y, fractal);
         },
-        "x"_a, "y"_a, "layer"_a,
-        "The normalized value in [-1, 1] of one layer at world position (x, y), before amplitude "
-        "and blending.");
+        "x"_a, "y"_a, "fractal"_a,
+        "The normalized value in [-1, 1] of one fractal at world position (x, y), before "
+        "amplitude and blending.");
     m.def(
         "domain_warp2",
-        [](float x, float y, const NoiseLayer& layer) {
-            const WarpOffset2 offset = DomainWarp2(x, y, layer);
+        [](float x, float y, const Fractal& fractal) {
+            const WarpOffset2 offset = DomainWarp2(x, y, fractal);
             return nb::make_tuple(offset.dx, offset.dy);
         },
-        "x"_a, "y"_a, "layer"_a,
-        "The domain warp offset (dx, dy) in meters a layer applies at world position (x, y).");
+        "x"_a, "y"_a, "fractal"_a,
+        "The domain warp offset (dx, dy) in meters a fractal applies at world position (x, y).");
 }
 
 void BindBasisNoise3(nb::module_& m) {
@@ -346,16 +362,16 @@ void BindFractal3(nb::module_& m) {
         },
         "x"_a, "y"_a, "z"_a, "params"_a);
     m.def(
-        "evaluate_noise_layers3",
+        "evaluate_fractals3",
         [](const InputArray64& x, const InputArray64& y, const InputArray64& z,
-           const SyntheticTerrainParams& params) {
-            ValidateSyntheticTerrain(params);
-            return Evaluate3(x, y, z, [&params](double px, double py, double pz) {
-                return EvaluateNoiseLayers3(px, py, pz, params.layers.data(), params.layers.size());
+           const std::vector<Fractal>& fractals) {
+            ValidateFractals(fractals);
+            return Evaluate3(x, y, z, [&fractals](double px, double py, double pz) {
+                return EvaluateFractals3(px, py, pz, fractals.data(), fractals.size());
             });
         },
-        "x"_a, "y"_a, "z"_a, "params"_a,
-        "Height in meters of the layer stack at each 3D world position (m).");
+        "x"_a, "y"_a, "z"_a, "fractals"_a,
+        "Height in meters of the fractal stack at each 3D world position (m).");
 }
 
 }  // namespace
@@ -365,8 +381,8 @@ void BindNoise(nb::module_& m) {
     BindBasisNoise(m);
     BindEnums(m);
     BindFractal(m);
-    BindNoiseLayer(m);
-    BindLayerEvaluation(m);
+    BindFractalStack(m);
+    BindFractalEvaluation(m);
     BindBasisNoise3(m);
     BindFractal3(m);
 }

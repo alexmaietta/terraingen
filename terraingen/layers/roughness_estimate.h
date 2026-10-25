@@ -5,7 +5,7 @@
 /// continue it below the base's resolution.
 #pragma once
 
-#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/fractals.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/variogram.h"
 #include "terraingen/sources/source.h"
@@ -47,11 +47,11 @@ Raster<float> SampleSourceWindow(const Source& source, double cellSize, const Ve
 /// exponent that is not positive, or a source without bounds or a finite resolution.
 BaseRoughness EstimateSourceRoughness(const Source& source, const Surface& surface = {});
 
-/// The amplitude in meters that gives `layer` the RMS height difference `roughness` has at a lag
-/// of the layer's wavelength: `roughness.Deviation(wavelength)` over the layer's RMS height
+/// The amplitude in meters that gives `fractal` the RMS height difference `roughness` has at a lag
+/// of the fractal's wavelength: `roughness.Deviation(wavelength)` over the fractal's RMS height
 /// difference at that lag with unit amplitude, measured on a fixed lattice of 64 x 64 points
 /// 0.618 wavelengths apart in the plane.
-/// @throws std::invalid_argument for a layer that shows no relief at unit amplitude.
-float MatchedNoiseAmplitude(const NoiseLayer& layer, const BaseRoughness& roughness);
+/// @throws std::invalid_argument for a fractal that shows no relief at unit amplitude.
+float MatchedNoiseAmplitude(const Fractal& fractal, const BaseRoughness& roughness);
 
 }  // namespace terraingen

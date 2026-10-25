@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Upsampling"
 
 WINDOW_M = 64.0
 POST_SPACING = 8.0
@@ -24,9 +25,7 @@ PANELS = [
 
 def figure(quick=False):
     pixel = 1.0 if quick else 0.25
-    stack = [
-        terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=400.0, amplitude=40.0, octaves=8))
-    ]
+    stack = [terraingen.Fractal(seed=4, wavelength=400.0, amplitude=40.0, octaves=8)]
     window = terraingen.RasterGrid.centered((0.0, 0.0), (WINDOW_M, WINDOW_M), pixel)
 
     fig, axes = plt.subplots(1, len(PANELS), figsize=(16, 4.2), layout="constrained")

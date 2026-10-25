@@ -13,6 +13,7 @@ from matplotlib.patches import Rectangle
 import terraingen
 
 WIDE = True
+SECTION = "Dunes and bedforms"
 
 FIELD_M = 2400.0
 WINDOW_M = 100.0

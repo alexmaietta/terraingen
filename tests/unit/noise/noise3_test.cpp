@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/fractals.h"
 
 #include <gtest/gtest.h>
 
@@ -8,15 +8,15 @@
 #include <cstdint>
 
 using terraingen::BasisNoise3;
-using terraingen::EvaluateNoiseLayers3;
+using terraingen::EvaluateFractals3;
+using terraingen::Fractal;
 using terraingen::Fractal3;
+using terraingen::FractalBlend;
 using terraingen::FractalParams;
 using terraingen::FractalType;
 using terraingen::LatticePoint2;
 using terraingen::LatticePoint3;
-using terraingen::LayerBlend;
 using terraingen::NoiseBasis;
-using terraingen::NoiseLayer;
 using terraingen::PerlinNoise3;
 using terraingen::SimplexNoise3;
 using terraingen::SplitLattice2;
@@ -87,8 +87,8 @@ TEST(LatticeKeys, KeepTheirFrozenLayouts) {
 }
 
 TEST(DomainWarp3, UsesThreeSuccessiveWarpFields) {
-    NoiseLayer layer;
-    layer.fractal.seed = 3u;
+    Fractal layer;
+    layer.seed = 3u;
     layer.warpAmplitude = 25.0f;
     layer.warpWavelength = 300.0f;
     FractalParams warp = terraingen::WarpParams(layer);
@@ -102,9 +102,9 @@ TEST(DomainWarp3, UsesThreeSuccessiveWarpFields) {
     EXPECT_EQ(offset.dy, static_cast<double>(Fractal3(10.0, 20.0, 30.0, warp)));
     warp.seed = terraingen::PcgHash(warp.seed);
     EXPECT_EQ(offset.dz, static_cast<double>(Fractal3(10.0, 20.0, 30.0, warp)));
-    FractalParams unit = layer.fractal;
+    FractalParams unit = FractalParamsFrom(layer);
     unit.amplitude = 1.0f;
-    EXPECT_EQ(terraingen::EvaluateNoiseLayer3(10.0, 20.0, 30.0, layer),
+    EXPECT_EQ(terraingen::EvaluateFractal3(10.0, 20.0, 30.0, layer),
               Fractal3(10.0 + offset.dx, 20.0 + offset.dy, 30.0 + offset.dz, unit));
 }
 
@@ -170,43 +170,43 @@ TEST(Fractal3, TurnsEachOctaveOffTheLatticeAxes) {
     EXPECT_NEAR(Fractal3(x, y, z, params), (first + 0.5f * second) / 1.5f, 1e-5f);
 }
 
-TEST(EvaluateNoiseLayers3, BlendsWarpsAndSkipsDisabledLayers) {
-    NoiseLayer base;
-    base.fractal.amplitude = 10.0f;
-    base.fractal.wavelength = 100.0f;
-    NoiseLayer detail = base;
-    detail.fractal.seed = 4;
-    detail.fractal.amplitude = 2.0f;
+TEST(EvaluateFractals3, BlendsWarpsAndSkipsDisabledLayers) {
+    Fractal base;
+    base.amplitude = 10.0f;
+    base.wavelength = 100.0f;
+    Fractal detail = base;
+    detail.seed = 4;
+    detail.amplitude = 2.0f;
     const double x = 1000.0;
     const double y = -2000.0;
     const double z = 1.7e6;
-    FractalParams unit = base.fractal;
+    FractalParams unit = FractalParamsFrom(base);
     unit.amplitude = 1.0f;
     const float first = 10.0f * Fractal3(x, y, z, unit);
-    unit = detail.fractal;
+    unit = FractalParamsFrom(detail);
     unit.amplitude = 1.0f;
     const float second = Fractal3(x, y, z, unit);
-    const NoiseLayer pair[] = {base, detail};
-    EXPECT_FLOAT_EQ(EvaluateNoiseLayers3(x, y, z, pair, 2), first + 2.0f * second);
-    for (const LayerBlend blend : {LayerBlend::Max, LayerBlend::Min, LayerBlend::Mask}) {
-        NoiseLayer blended = detail;
+    const Fractal pair[] = {base, detail};
+    EXPECT_FLOAT_EQ(EvaluateFractals3(x, y, z, pair, 2), first + 2.0f * second);
+    for (const FractalBlend blend : {FractalBlend::Max, FractalBlend::Min, FractalBlend::Mask}) {
+        Fractal blended = detail;
         blended.blend = blend;
-        const NoiseLayer layers[] = {base, blended};
-        const float expected = blend == LayerBlend::Max   ? std::max(first, 2.0f * second)
-                               : blend == LayerBlend::Min ? std::min(first, 2.0f * second)
-                                                          : first * 0.5f * (second + 1.0f);
-        EXPECT_FLOAT_EQ(EvaluateNoiseLayers3(x, y, z, layers, 2), expected);
+        const Fractal layers[] = {base, blended};
+        const float expected = blend == FractalBlend::Max   ? std::max(first, 2.0f * second)
+                               : blend == FractalBlend::Min ? std::min(first, 2.0f * second)
+                                                            : first * 0.5f * (second + 1.0f);
+        EXPECT_FLOAT_EQ(EvaluateFractals3(x, y, z, layers, 2), expected);
     }
-    NoiseLayer off = base;
+    Fractal off = base;
     off.enabled = false;
-    const NoiseLayer skipped[] = {off, detail};
-    EXPECT_FLOAT_EQ(EvaluateNoiseLayers3(x, y, z, skipped, 2), 2.0f * second);
-    EXPECT_EQ(EvaluateNoiseLayers3(x, y, z, &off, 1), 0.0f);
-    NoiseLayer warped = base;
+    const Fractal skipped[] = {off, detail};
+    EXPECT_FLOAT_EQ(EvaluateFractals3(x, y, z, skipped, 2), 2.0f * second);
+    EXPECT_EQ(EvaluateFractals3(x, y, z, &off, 1), 0.0f);
+    Fractal warped = base;
     warped.warpAmplitude = 30.0f;
     warped.warpWavelength = 400.0f;
-    EXPECT_NE(EvaluateNoiseLayers3(x, y, z, &warped, 1), first);
-    EXPECT_LE(std::fabs(EvaluateNoiseLayers3(x, y, z, &warped, 1)), 10.0f + 1e-4f);
+    EXPECT_NE(EvaluateFractals3(x, y, z, &warped, 1), first);
+    EXPECT_LE(std::fabs(EvaluateFractals3(x, y, z, &warped, 1)), 10.0f + 1e-4f);
 }
 
 TEST(BasisNoise3, MapsTheCellularBasesLikeTheir2DForms) {

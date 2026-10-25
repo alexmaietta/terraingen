@@ -21,9 +21,7 @@ STEPS = 400
 
 def figure(quick=False):
     steps = 100 if quick else STEPS
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     craters = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
             seed=4, generation=terraingen.CraterGenerationOptions(d_min=2.5, d_max=12.0)

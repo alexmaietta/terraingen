@@ -68,7 +68,7 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
               "valid");
     EXPECT_EQ(error([](TerrainGenConfig& c) {
                   terraingen::NoiseLayerSpec noise;
-                  noise.stack[0].layer.fractal.octaves = 0;
+                  noise.stack[0].fractal.octaves = 0;
                   c.layers = {noise};
               }).rfind("layers[0].stack[0]", 0),
               0u);
@@ -265,13 +265,12 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
     for (std::uint32_t b = 0; b < terraingen::kNoiseBasisCount; ++b) {
         const auto basis = static_cast<terraingen::NoiseBasis>(b);
         SCOPED_TRACE(b);
-        EXPECT_EQ(
-            error([basis](TerrainGenConfig& c) { Noise(c).stack[0].layer.fractal.basis = basis; }),
-            "valid");
+        EXPECT_EQ(error([basis](TerrainGenConfig& c) { Noise(c).stack[0].fractal.basis = basis; }),
+                  "valid");
         EXPECT_EQ(error([basis](TerrainGenConfig& c) {
                       terraingen::SyntheticAlbedoSpec synthetic;
-                      synthetic.valueNoise = {terraingen::AlbedoNoiseLayerSpec{}};
-                      synthetic.valueNoise[0].layer.fractal.basis = basis;
+                      synthetic.valueNoise = {terraingen::AlbedoFractalSpec{}};
+                      synthetic.valueNoise[0].fractal.basis = basis;
                       synthetic.valueNoise[0].amplitude = 0.02f;
                       c.albedo = terraingen::AlbedoSpec{synthetic, {}};
                   }),
@@ -279,7 +278,7 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
     }
     EXPECT_EQ(error([](TerrainGenConfig& c) {
                   terraingen::SyntheticAlbedoSpec synthetic;
-                  synthetic.valueNoise = {terraingen::AlbedoNoiseLayerSpec{}};
+                  synthetic.valueNoise = {terraingen::AlbedoFractalSpec{}};
                   c.albedo = terraingen::AlbedoSpec{synthetic, {}};
               }),
               "albedo.source.value_noise[0].amplitude");

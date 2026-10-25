@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Textures"
 
 DIAMETER = 80.0
 SPACING = 130.0
@@ -25,9 +26,7 @@ def figure(quick=False):
             seed=6, generation=terraingen.CraterGenerationOptions(d_min=3.0, d_max=25.0)
         )
     )
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     layers = [relief, older]
     for index, level in enumerate(LEVELS):
         apply = terraingen.CraterApplyOptions()

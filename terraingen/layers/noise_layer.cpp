@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/layers/noise_relief.h"
+#include "terraingen/layers/noise_layer.h"
 
 #include "terraingen/layers/kernel.h"
 #include "terraingen/layers/source_resolved.h"
@@ -15,33 +15,33 @@
 
 namespace terraingen {
 
-NoiseRelief::NoiseRelief(NoiseReliefOptions options, TerrainBase base)
+NoiseLayer::NoiseLayer(NoiseLayerOptions options, TerrainBase base)
     : options_(std::move(options)), origin_(base.ReferencePoint()), surface_(base.surface) {
-    ValidateNoiseLayers(options_.layers, 1);
+    ValidateFractals(options_.fractals, 1);
     ValidateSourceResolvesPixels(options_.sourceResolvesPixels);
-    kernel_ = MakeNoiseReliefKernel(options_.layers);
+    kernel_ = MakeNoiseLayerKernel(options_.fractals);
     limit_ = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, surface_);
     if (!limit_) {
         return;
     }
-    for (const NoiseLayer& layer : options_.layers) {
-        wavelengths_.push_back(static_cast<double>(layer.fractal.wavelength));
+    for (const Fractal& fractal : options_.fractals) {
+        wavelengths_.push_back(static_cast<double>(fractal.wavelength));
     }
     std::sort(wavelengths_.begin(), wavelengths_.end());
     wavelengths_.erase(std::unique(wavelengths_.begin(), wavelengths_.end()), wavelengths_.end());
     for (std::size_t kept = 0; kept <= wavelengths_.size(); ++kept) {
-        std::vector<NoiseLayer> stack = options_.layers;
-        for (NoiseLayer& layer : stack) {
+        std::vector<Fractal> stack = options_.fractals;
+        for (Fractal& fractal : stack) {
             if (kept < wavelengths_.size() &&
-                static_cast<double>(layer.fractal.wavelength) >= wavelengths_[kept]) {
-                layer.enabled = false;
+                static_cast<double>(fractal.wavelength) >= wavelengths_[kept]) {
+                fractal.enabled = false;
             }
         }
         stacks_.push_back(std::move(stack));
     }
 }
 
-void NoiseRelief::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
+void NoiseLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     if (limit_) {
         MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
             const double resolved = limit_->ValueAt(p.x, p.y);
@@ -51,7 +51,7 @@ void NoiseRelief::ApplySamples(SampleBlock& samples, const LayerContext& context
                     : static_cast<std::size_t>(
                           std::lower_bound(wavelengths_.begin(), wavelengths_.end(), resolved) -
                           wavelengths_.begin());
-            return height + NoiseLayersAt(stacks_[kept], origin_, surface_, p.x, p.y);
+            return height + FractalStackAt(stacks_[kept], origin_, surface_, p.x, p.y);
         });
         return;
     }
@@ -60,7 +60,7 @@ void NoiseRelief::ApplySamples(SampleBlock& samples, const LayerContext& context
         return;
     }
     MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
-        return height + NoiseLayersAt(options_.layers, origin_, surface_, p.x, p.y);
+        return height + FractalStackAt(options_.fractals, origin_, surface_, p.x, p.y);
     });
 }
 

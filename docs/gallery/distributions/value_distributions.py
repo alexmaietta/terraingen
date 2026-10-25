@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Building distributions"
 
 PANELS = [
     ("Constant 0.5", terraingen.ValueDistribution.constant(0.5)),

@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/noise/noise_layers.h"
+#include "terraingen/noise/fractals.h"
 
 #include <gtest/gtest.h>
 
-using terraingen::EvaluateNoiseLayers;
+using terraingen::EvaluateFractals;
+using terraingen::Fractal;
 using terraingen::Fractal2;
 using terraingen::FractalParams;
 using terraingen::FractalType;
 using terraingen::NoiseBasis;
-using terraingen::NoiseLayer;
 using terraingen::Pcg3dHash;
 using terraingen::PcgHash;
 using terraingen::PerlinNoise2;
@@ -67,13 +67,13 @@ TEST(KernelsGolden, FractalTypes) {
 }
 
 TEST(KernelsGolden, LayersWithWarp) {
-    NoiseLayer layers[2];
-    layers[0].fractal.seed = 1u;
-    layers[1].fractal.seed = 2u;
-    layers[1].fractal.basis = NoiseBasis::WorleyF2MinusF1;
-    layers[1].fractal.amplitude = 10.0f;
+    Fractal layers[2];
+    layers[0].seed = 1u;
+    layers[1].seed = 2u;
+    layers[1].basis = NoiseBasis::WorleyF2MinusF1;
+    layers[1].amplitude = 10.0f;
     layers[1].warpAmplitude = 50.0f;
-    EXPECT_EQ(EvaluateNoiseLayers(0x1.004p+9f, -0x1.001p+10f, layers, 2), -0x1.38f3cp+4f);
+    EXPECT_EQ(EvaluateFractals(0x1.004p+9f, -0x1.001p+10f, layers, 2), -0x1.38f3cp+4f);
 }
 
 TEST(KernelsGolden, VoronoiAndWorley3) {

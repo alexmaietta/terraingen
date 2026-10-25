@@ -14,7 +14,7 @@
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/masked.h"
 #include "terraingen/layers/material.h"
-#include "terraingen/layers/noise_relief.h"
+#include "terraingen/layers/noise_layer.h"
 #include "terraingen/layers/pavement.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/roughness_estimate.h"
@@ -116,25 +116,46 @@ void BindFades(nb::module_& m) {
 }
 
 void BindTransforms(nb::module_& m) {
-    nb::class_<NoiseReliefOptions> options(
-        m, "NoiseReliefOptions",
-        "The noise a NoiseRelief adds: `layers`, 1 to 8 noise layers, and with a source "
-        "`source_resolves_pixels`, the source cells across from which a layer is left out.");
-    options.def_rw("layers", &NoiseReliefOptions::layers)
-        .def_rw("source_resolves_pixels", &NoiseReliefOptions::sourceResolvesPixels,
+    nb::class_<NoiseLayerOptions> options(
+        m, "NoiseLayerOptions",
+        "The noise a NoiseLayer adds: `fractals`, 1 to 8 fractals, and with a source "
+        "`source_resolves_pixels`, the source cells across from which a fractal is left out.");
+    options.def_rw("fractals", &NoiseLayerOptions::fractals)
+        .def_rw("source_resolves_pixels", &NoiseLayerOptions::sourceResolvesPixels,
                 nb::arg("value").none());
-    BindKwargsInit<NoiseReliefOptions>(options);
-    nb::class_<NoiseRelief, Layer>(m, "NoiseRelief",
-                                   "A stack of noise layers added to the terrain, measured on a "
-                                   "plane from the base's reference point.")
-        .def(nb::init<NoiseReliefOptions, TerrainBase>(), "options"_a, "base"_a = TerrainBase{},
+    BindKwargsInit<NoiseLayerOptions>(options);
+    const Fractal defaults{};
+    nb::class_<NoiseLayer, Layer>(m, "NoiseLayer",
+                                  "A stack of fractals added to the terrain, measured on a "
+                                  "plane from the base's reference point.")
+        .def(nb::init<NoiseLayerOptions, TerrainBase>(), "options"_a, "base"_a = TerrainBase{},
              "On a sphere the noise is 3D at each point's position, seamless everywhere. With a "
-             "source and `source_resolves_pixels`, each layer whose wavelength is at least that "
+             "source and `source_resolves_pixels`, each fractal whose wavelength is at least that "
              "many of the source's cells at a point is left out there.")
-        .def(nb::init<std::vector<NoiseLayer>, TerrainBase>(), "layers"_a, "base"_a = TerrainBase{},
-             "Relief of the stack `layers`.")
-        .def_prop_ro("options", &NoiseRelief::Options,
-                     "The noise layers, with any Hurst exponents and amplitudes applied, and the "
+        .def(nb::init<std::vector<Fractal>, TerrainBase>(), "fractals"_a, "base"_a = TerrainBase{},
+             "Noise of the stack `fractals`.")
+        .def(nb::init<Fractal, TerrainBase>(), "fractal"_a, "base"_a = TerrainBase{},
+             "Noise of the one fractal `fractal`.")
+        .def(
+            "__init__",
+            [](NoiseLayer* self, std::uint32_t seed, float wavelength, float amplitude, int octaves,
+               float lacunarity, float gain, NoiseBasis basis, FractalType type, float offset,
+               FractalBlend blend, float warpAmplitude, float warpWavelength, bool enabled,
+               TerrainBase base) {
+                const Fractal fractal{enabled,    seed,          wavelength,    amplitude, octaves,
+                                      lacunarity, gain,          basis,         type,      offset,
+                                      blend,      warpAmplitude, warpWavelength};
+                new (self) NoiseLayer(fractal, std::move(base));
+            },
+            nb::kw_only(), "seed"_a = defaults.seed, "wavelength"_a = defaults.wavelength,
+            "amplitude"_a = defaults.amplitude, "octaves"_a = defaults.octaves,
+            "lacunarity"_a = defaults.lacunarity, "gain"_a = defaults.gain,
+            "basis"_a = defaults.basis, "type"_a = defaults.type, "offset"_a = defaults.offset,
+            "blend"_a = defaults.blend, "warp_amplitude"_a = defaults.warpAmplitude,
+            "warp_wavelength"_a = defaults.warpWavelength, "enabled"_a = defaults.enabled,
+            "base"_a = TerrainBase{}, "Noise of one fractal made from the Fractal keywords.")
+        .def_prop_ro("options", &NoiseLayer::Options,
+                     "The fractals, with any Hurst exponents and amplitudes applied, and the "
                      "source limit.");
     nb::class_<ScaleLayer, Layer>(m, "ScaleLayer", "height * scale + offset.")
         .def(nb::init<double, double>(), "scale"_a, "offset"_a = 0.0);

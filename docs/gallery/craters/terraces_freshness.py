@@ -12,6 +12,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Terraces"
 
 DIAMETER = 60000.0
 SPACING = 1.35 * DIAMETER
@@ -45,12 +46,8 @@ def figure(quick=False):
     pixel = DIAMETER / (100.0 if quick else 400.0)
     columns = 2 * int(1.5 * SPACING / pixel) + 1
     rows = 2 * int(0.5 * SPACING / pixel) + 1
-    relief = terraingen.NoiseRelief(
-        [
-            terraingen.NoiseLayer(
-                terraingen.FractalParams(seed=2, wavelength=0.6 * DIAMETER, amplitude=0.007 * DIAMETER)
-            )
-        ]
+    relief = terraingen.NoiseLayer(
+        [terraingen.Fractal(seed=2, wavelength=0.6 * DIAMETER, amplitude=0.007 * DIAMETER)]
     )
     layers = [relief] + [crater_layer((i - 1) * SPACING, f) for i, f in enumerate(SETTINGS)]
     heights = terraingen.evaluate(

@@ -29,23 +29,23 @@ void ValidateFractalParams(const FractalParams& params) {
     RequirePositive(static_cast<double>(params.offset), "Fractal offset");
 }
 
-void ValidateNoiseLayer(const NoiseLayer& layer) {
-    ValidateFractalParams(layer.fractal);
-    if (static_cast<std::uint32_t>(layer.blend) >= kLayerBlendCount) {
+void ValidateFractal(const Fractal& fractal) {
+    ValidateFractalParams(FractalParamsFrom(fractal));
+    if (static_cast<std::uint32_t>(fractal.blend) >= kFractalBlendCount) {
         throw std::invalid_argument("Unknown layer blend mode");
     }
-    RequireNonNegative(static_cast<double>(layer.warpAmplitude), "Warp amplitude");
-    RequirePositive(static_cast<double>(layer.warpWavelength), "Warp wavelength");
+    RequireNonNegative(static_cast<double>(fractal.warpAmplitude), "Warp amplitude");
+    RequirePositive(static_cast<double>(fractal.warpWavelength), "Warp wavelength");
 }
 
-void ValidateNoiseLayers(const std::vector<NoiseLayer>& layers, std::size_t minLayers) {
-    if (layers.size() < minLayers || layers.size() > kMaxNoiseLayers) {
-        throw std::invalid_argument("A noise stack needs between " + std::to_string(minLayers) +
-                                    " and " + std::to_string(kMaxNoiseLayers) + " layers");
+void ValidateFractals(const std::vector<Fractal>& fractals, std::size_t minFractals) {
+    if (fractals.size() < minFractals || fractals.size() > kMaxFractals) {
+        throw std::invalid_argument("A noise stack needs between " + std::to_string(minFractals) +
+                                    " and " + std::to_string(kMaxFractals) + " layers");
     }
-    for (std::size_t i = 0; i < layers.size(); ++i) {
+    for (std::size_t i = 0; i < fractals.size(); ++i) {
         try {
-            ValidateNoiseLayer(layers[i]);
+            ValidateFractal(fractals[i]);
         } catch (const std::invalid_argument& error) {
             throw std::invalid_argument("Layer " + std::to_string(i + 1) + ": " + error.what());
         }

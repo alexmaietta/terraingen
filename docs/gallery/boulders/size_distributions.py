@@ -9,6 +9,8 @@ import numpy as np
 
 import terraingen
 
+SECTION = "Placement"
+
 
 def figure(quick=False):
     diameters = np.geomspace(0.1, 10.0, 60 if quick else 200)

@@ -14,6 +14,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Populations"
 
 SIZE_M = 300.0
 PRODUCTION_AGES_GYR = [0.001, 0.01, 0.1, 1.0]
@@ -61,9 +62,7 @@ def figure(quick=False):
         terraingen.fassett_2022_hartmann_diffusivity(),
         terraingen.DiffusedProfile(terraingen.MartinParkesDunstanProfile()),
     )
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     options = terraingen.CraterLayerOptions(
         seed=11, generation=terraingen.CraterGenerationOptions(d_min=D_MIN, d_max=D_MAX)
     )

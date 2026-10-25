@@ -14,6 +14,7 @@ from matplotlib.patches import Circle
 import terraingen
 
 WIDE = True
+SECTION = "Crater ejecta"
 
 HALF_SIZE_M = 80.0
 DIAMETER = 60.0

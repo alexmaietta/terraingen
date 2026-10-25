@@ -34,21 +34,19 @@ COLORS = ["#555555", "#d62728", "#1f77b4", "#2ca02c"]
 def octave_stack(moon, source, resolves):
     """fBm octaves from 16 km to 1 km, 250 m high at 8 km, those `resolves` or more of the source's
     posts long left out (None keeps every octave)."""
-    layers = [
-        terraingen.NoiseLayer(
-            terraingen.FractalParams(
-                seed=3 + index,
-                wavelength=wavelength,
-                amplitude=250.0 * (wavelength / 8000.0) ** 0.8,
-                octaves=1,
-            )
+    fractals = [
+        terraingen.Fractal(
+            seed=3 + index,
+            wavelength=wavelength,
+            amplitude=250.0 * (wavelength / 8000.0) ** 0.8,
+            octaves=1,
         )
         for index, wavelength in enumerate(OCTAVES_M)
     ]
-    options = terraingen.NoiseReliefOptions()
-    options.layers = layers
+    options = terraingen.NoiseLayerOptions()
+    options.fractals = fractals
     options.source_resolves_pixels = resolves
-    return terraingen.NoiseRelief(options, terraingen.TerrainBase(moon, source))
+    return terraingen.NoiseLayer(options, terraingen.TerrainBase(moon, source))
 
 
 def figure(quick=False):

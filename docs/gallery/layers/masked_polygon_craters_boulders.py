@@ -31,9 +31,7 @@ def figure(quick=False):
     pixel = 1.0 if quick else 0.25
     size = int(2.0 * HALF_SIZE_M / pixel) + 1
     region = (-HALF_SIZE_M, -HALF_SIZE_M, HALF_SIZE_M, HALF_SIZE_M)
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     craters = terraingen.MaskedLayer(
         terraingen.CraterLayer(
             options=terraingen.CraterLayerOptions(

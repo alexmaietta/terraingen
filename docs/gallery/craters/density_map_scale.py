@@ -13,6 +13,7 @@ import numpy as np
 import terraingen
 
 WIDE = True
+SECTION = "Density maps"
 
 SIZE_M = 400.0
 MAP_PIXEL = 4.0
@@ -23,9 +24,7 @@ def maps():
     cells = int(SIZE_M / MAP_PIXEL)
     x = (np.arange(cells) + 0.5) * MAP_PIXEL - 0.5 * SIZE_M
     east, north = np.meshgrid(x, -x)
-    noise = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=9, wavelength=250.0, amplitude=1.0, octaves=3))]
-    )
+    noise = terraingen.NoiseLayer(seed=9, wavelength=250.0, amplitude=1.0, octaves=3)
     pattern = terraingen.evaluate(
         terraingen.TerrainGenerator(terraingen.FlatSource(cells, cells, MAP_PIXEL), [noise])
     ).values
@@ -41,9 +40,7 @@ def figure(quick=False):
     size = int(SIZE_M / pixel) + 1
     half = 0.5 * SIZE_M
     transform = terraingen.GeoTransform.from_gdal((-half, MAP_PIXEL, 0.0, half, 0.0, -MAP_PIXEL))
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     models = terraingen.CraterModels(
         terraingen.trask_equilibrium(),
         terraingen.FreshAges(),

@@ -107,10 +107,10 @@ BaseRoughness EstimateSourceRoughness(const Source& source, const Surface& surfa
     return EstimateBaseRoughness(heights, cellSize * surface.UnitLength());
 }
 
-float MatchedNoiseAmplitude(const NoiseLayer& layer, const BaseRoughness& roughness) {
-    NoiseLayer unit = layer;
-    unit.fractal.amplitude = 1.0f;
-    const double wavelength = static_cast<double>(layer.fractal.wavelength);
+float MatchedNoiseAmplitude(const Fractal& fractal, const BaseRoughness& roughness) {
+    Fractal unit = fractal;
+    unit.amplitude = 1.0f;
+    const double wavelength = static_cast<double>(fractal.wavelength);
     double sum = 0.0;
     for (int row = 0; row < kNoisePoints; ++row) {
         for (int col = 0; col < kNoisePoints; ++col) {
@@ -118,7 +118,7 @@ float MatchedNoiseAmplitude(const NoiseLayer& layer, const BaseRoughness& roughn
             const double y = kNoiseStep * wavelength * row;
             const auto at = [&](double px, double py) {
                 return static_cast<double>(
-                    EvaluateNoiseLayer(static_cast<float>(px), static_cast<float>(py), unit));
+                    EvaluateFractal(static_cast<float>(px), static_cast<float>(py), unit));
             };
             const double here = at(x, y);
             const double east = at(x + wavelength, y) - here;

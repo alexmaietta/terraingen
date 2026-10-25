@@ -10,6 +10,8 @@ import numpy as np
 
 import terraingen
 
+SECTION = "Published distributions"
+
 AGE_GYR = 3.5
 
 

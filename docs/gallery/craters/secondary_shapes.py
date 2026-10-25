@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Populations"
 
 PRIMARY_DIAMETER = 2000.0
 CENTER = (-1500.0, 4800.0)
@@ -23,9 +24,7 @@ def figure(quick=False):
     primary = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, PRIMARY_DIAMETER, age_gyr=0.0)])
     window = terraingen.RasterGrid.centered(CENTER, (WINDOW_M, WINDOW_M), pixel)
     source = terraingen.FlatSource(8001, 8001, 2.0)
-    relief = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=400.0, amplitude=12.0))]
-    )
+    relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 6.2), layout="constrained")
     for ax, share in zip(axes, (0.0, 0.8), strict=True):

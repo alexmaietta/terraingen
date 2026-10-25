@@ -34,7 +34,7 @@ We also provide:
 - A C++17 library with Python bindings and minimal dependencies.
 - Smart and tested defaults for various surface features.
 - A command-line interface that generates terrain from JSON configuration files.
-- A GUI for editing configurations and viewing the results in 3D, in builds made with Ernie, the renderer.
+- A GUI for editing configurations and viewing the results in 3D, rendered with Ernie.
 - Planned: a standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
 - Planned: example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
 
@@ -56,7 +56,12 @@ terrain = terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, 1.0), [cra
 heights = terraingen.evaluate(terrain)
 ```
 
-The wheels leave out the GUI; `terraingen --gui` needs a build from source with Ernie (see [CONTRIBUTING.md](CONTRIBUTING.md)).
+To edit a configuration and see the terrain in 3D, open the GUI, on its own or with a configuration file:
+
+```sh
+terraingen --gui
+terraingen config.json --gui
+```
 
 ## Requirements
 
@@ -101,9 +106,7 @@ import terraingen
 ground = terraingen.FlatSource(513, 513, 2.0)
 
 # Fractal noise 40 m high with an 800 m wavelength
-fractal = terraingen.FractalParams(seed=1, wavelength=800.0, amplitude=40.0)
-noise = terraingen.NoiseLayer(fractal)
-relief = terraingen.NoiseRelief([noise])
+relief = terraingen.NoiseLayer(seed=1, wavelength=800.0, amplitude=40.0)
 
 terrain = terraingen.TerrainGenerator(ground, [relief])
 heights = terraingen.evaluate(terrain)
@@ -122,18 +125,12 @@ target_link_libraries(app PRIVATE terraingen::terraingen)
 
 int main() {
     // Fractal noise 40 m high with an 800 m wavelength
-    terraingen::NoiseLayer noise;
-    noise.fractal.seed = 1;
-    noise.fractal.wavelength = 800.0f;
-    noise.fractal.amplitude = 40.0f;
-
-    terraingen::SyntheticTerrainParams relief;
-    relief.layers = {noise};
+    const terraingen::Fractal noise = terraingen::Fractal::Fbm(1, 800.0, 40.0);
 
     // A flat 513 x 513 grid with 2 m pixels, plus the noise
     terraingen::TerrainGenerator terrain;
     terrain.source = std::make_shared<terraingen::FlatSource>(513, 513, 2.0);
-    terrain.layers.push_back(std::make_shared<terraingen::NoiseRelief>(relief));
+    terrain.layers.push_back(std::make_shared<terraingen::NoiseLayer>(noise));
 
     terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
     terraingen::WriteGeoTiff("terrain.tif", heights);

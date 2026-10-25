@@ -29,36 +29,50 @@ def plain_heights(source):
     return terraingen.evaluate(terraingen.TerrainGenerator(source)).values
 
 
-def test_noise_relief_matches_the_kernels():
-    layers = [
-        terraingen.NoiseLayer(terraingen.FractalParams(seed=1, wavelength=200.0, amplitude=10.0, octaves=5)),
-        terraingen.NoiseLayer(terraingen.FractalParams(seed=2, wavelength=50.0, amplitude=2.0, octaves=5)),
+def test_noise_layer_matches_the_kernels():
+    fractals = [
+        terraingen.Fractal(seed=1, wavelength=200.0, amplitude=10.0, octaves=5),
+        terraingen.Fractal(seed=2, wavelength=50.0, amplitude=2.0, octaves=5),
     ]
     terrain = terraingen.TerrainGenerator(
-        terraingen.FlatSource(65, 65, 2.0), [terraingen.NoiseRelief(layers)]
+        terraingen.FlatSource(65, 65, 2.0), [terraingen.NoiseLayer(fractals)]
     )
     heights = terraingen.evaluate(terrain, threads=2).values
     assert heights.shape == (65, 65) and np.ptp(heights) > 0
-    expected = terraingen.evaluate_noise_layers(
+    expected = terraingen.evaluate_fractals(
         np.array([0.0], dtype=np.float32),
         np.array([0.0], dtype=np.float32),
-        terraingen.SyntheticTerrainParams(layers),
+        fractals,
     )
     assert heights[32, 32] == pytest.approx(float(expected[0]))
     assert terraingen.height_at(terrain, 0.0, 0.0, 2.0) == heights[32, 32]
 
 
-def test_noise_relief_places_no_craters_or_boulders(noise_relief):
+def test_noise_layer_places_no_craters_or_boulders(noise_layer):
     terrain = terraingen.TerrainGenerator(
-        terraingen.FlatSource(65, 65, 2.0), [noise_relief(1, 200.0, 10.0, octaves=5)]
+        terraingen.FlatSource(65, 65, 2.0), [noise_layer(1, 200.0, 10.0, octaves=5)]
     )
     craters = terraingen.placed_craters(terrain).table
     assert craters["x"].size == 0 and terraingen.placed_boulders(terrain).table["x"].size == 0
 
 
-def test_noise_relief_needs_a_layer():
+def test_noise_layer_needs_a_fractal():
     with pytest.raises(ValueError):
-        terraingen.NoiseRelief([])
+        terraingen.NoiseLayer([])
+
+
+def test_noise_layer_takes_one_fractal_or_its_keywords():
+    fractal = terraingen.Fractal(seed=3, wavelength=80.0, amplitude=4.0, octaves=5, warp_amplitude=6.0)
+    stack = terraingen.NoiseLayer([fractal])
+    one = terraingen.NoiseLayer(fractal)
+    shorthand = terraingen.NoiseLayer(seed=3, wavelength=80.0, amplitude=4.0, octaves=5, warp_amplitude=6.0)
+    assert one.options.fractals == [fractal] and shorthand.options.fractals == [fractal]
+    context = terraingen.LayerContext(spacing=1.0)
+    expected = stack.apply_at(0.0, 12.0, -7.0, context)
+    assert one.apply_at(0.0, 12.0, -7.0, context) == expected
+    assert shorthand.apply_at(0.0, 12.0, -7.0, context) == expected
+    with pytest.raises(ValueError):
+        terraingen.NoiseLayer(seed=1, octaves=0)
 
 
 def test_masked_layer_feathers_its_inner_layer():
@@ -182,42 +196,42 @@ def test_mars_transverse_aeolian_ridges_are_longer_than_large_ripples():
     assert terraingen.mars_transverse_aeolian_ridges().wavelength > ripples.wavelength
 
 
-def bedforms_on_noise(noise_relief):
+def bedforms_on_noise(noise_layer):
     exposure = terraingen.ExposureParams(reach=8.0)
     sand = terraingen.BedformLayer(
         terraingen.BedformOptions(wavelength=2.5, height=0.25, cover=0.8, field_size=30.0, exposure=exposure)
     )
-    ground = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [noise_relief(3, 60.0, 5.0)])
+    ground = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [noise_layer(3, 60.0, 5.0)])
     return sand, ground
 
 
-def test_bedform_cover_with_exposure_needs_the_ground(noise_relief):
-    sand, _ = bedforms_on_noise(noise_relief)
+def test_bedform_cover_with_exposure_needs_the_ground(noise_layer):
+    sand, _ = bedforms_on_noise(noise_layer)
     with pytest.raises(ValueError):
         sand.cover_at(0.0, 0.0)
 
 
-def test_bedform_cover_on_the_ground_is_a_fraction(noise_relief):
-    sand, ground = bedforms_on_noise(noise_relief)
+def test_bedform_cover_on_the_ground_is_a_fraction(noise_layer):
+    sand, ground = bedforms_on_noise(noise_layer)
     covers = [sand.cover_at(x, 0.0, ground, 1) for x in np.linspace(-15.0, 15.0, 31)]
     assert all(0.0 <= c <= 1.0 for c in covers)
 
 
-def exposure_terrain(noise_relief):
-    return terraingen.TerrainGenerator(terraingen.FlatSource(256, 256, 0.25), [noise_relief(1, 30.0, 3.0)])
+def exposure_terrain(noise_layer):
+    return terraingen.TerrainGenerator(terraingen.FlatSource(256, 256, 0.25), [noise_layer(1, 30.0, 3.0)])
 
 
-def test_exposure_is_a_fraction_that_varies_over_relief(noise_relief):
+def test_exposure_is_a_fraction_that_varies_over_relief(noise_layer):
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
     grid = terraingen.RasterGrid.centered((0, 0), (256 * 0.25, 256 * 0.25), 0.25)
-    exposure = field.fill(exposure_terrain(noise_relief), 1, grid, 0.25).values
+    exposure = field.fill(exposure_terrain(noise_layer), 1, grid, 0.25).values
     assert exposure.shape == (256, 256) and 0.0 <= exposure.min() and exposure.max() <= 1.0
     assert np.ptp(exposure) > 0.1
 
 
-def test_exposure_at_a_point_matches_the_filled_raster(noise_relief):
+def test_exposure_at_a_point_matches_the_filled_raster(noise_layer):
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
-    terrain = exposure_terrain(noise_relief)
+    terrain = exposure_terrain(noise_layer)
     exposure = field.fill(
         terrain, 1, terraingen.RasterGrid.centered((0, 0), (256 * 0.25, 256 * 0.25), 0.25), 0.25
     ).values
@@ -377,9 +391,7 @@ def test_dune_ripples_ride_on_crest_fields():
 
 
 def test_sand_fill_pools_sand_and_lays_it_on_the_material_map():
-    pit = terraingen.NoiseRelief(
-        [terraingen.NoiseLayer(terraingen.FractalParams(seed=4, wavelength=20.0, amplitude=1.0, octaves=3))]
-    )
+    pit = terraingen.NoiseLayer(seed=4, wavelength=20.0, amplitude=1.0, octaves=3)
     fill = terraingen.SandFillLayer(terraingen.SandFillOptions(reach=6.0, fill=0.7, max_thickness=0.4))
     assert fill.material == terraingen.MaterialClass.SAND
     terrain = terraingen.TerrainGenerator(None, [pit, fill])
@@ -711,9 +723,9 @@ def test_base_roughness_recovers_the_hurst_exponent_and_continues_it():
         )
         terraingen.estimate_source_roughness(terraingen.RasterSource(flat))
 
-    layer = terraingen.NoiseLayer()
-    layer.fractal.wavelength = 1.0
-    layer.fractal.octaves = 3
+    layer = terraingen.Fractal()
+    layer.wavelength = 1.0
+    layer.octaves = 3
     amplitude = terraingen.matched_noise_amplitude(layer, roughness)
     assert amplitude > 0.0
     doubled = terraingen.BaseRoughness()
@@ -744,9 +756,9 @@ def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path)
     base = terraingen.estimate_source_roughness(terrain.source)
     roughness = terrain.layers[1].options
     assert roughness.hurst == pytest.approx(base.hurst) and roughness.rms_slope == 0.3
-    noise = terrain.layers[0].options.layers[0]
-    assert noise.fractal.gain == pytest.approx(terraingen.gain_from_hurst(base.hurst, 2.0), rel=1e-6)
-    assert noise.fractal.amplitude > 0.0
+    noise = terrain.layers[0].options.fractals[0]
+    assert noise.gain == pytest.approx(terraingen.gain_from_hurst(base.hurst, 2.0), rel=1e-6)
+    assert noise.amplitude > 0.0
     without_base = terraingen.TerrainGenConfig.from_dict(
         {"schema_version": 1, "layers": [{"type": "roughness", "estimate_from_base": True}]}
     )
@@ -776,14 +788,14 @@ def test_layers_leave_out_what_the_source_resolves():
     assert terraingen.BoulderLayerOptions().source_resolves_pixels is None
     assert terraingen.SecondaryCraterOptions().source_resolves_pixels == 4.0
     assert terraingen.CraterLayerOptions().source_resolves_pixels == 4.0
-    big = terraingen.NoiseLayer()
-    big.fractal.wavelength = 1000.0
-    noise = terraingen.NoiseRelief(
-        terraingen.NoiseReliefOptions(layers=[big], source_resolves_pixels=4.0), dem
+    big = terraingen.Fractal()
+    big.wavelength = 1000.0
+    noise = terraingen.NoiseLayer(
+        terraingen.NoiseLayerOptions(fractals=[big], source_resolves_pixels=4.0), dem
     )
     assert noise.options.source_resolves_pixels == 4.0
     assert noise.apply_at(0.0, 300.0, 300.0, context) == 0.0
-    assert terraingen.NoiseRelief([big], base=dem).apply_at(0.0, 300.0, 300.0, context) != 0.0
+    assert terraingen.NoiseLayer([big], base=dem).apply_at(0.0, 300.0, 300.0, context) != 0.0
     apply = terraingen.CraterApplyOptions(fade=terraingen.ResolutionFade(start_samples=1.0, end_samples=3.0))
     assert apply.fade.end_samples == 3.0 and not hasattr(apply, "fade_px")
     dunes = terraingen.DuneOptions()

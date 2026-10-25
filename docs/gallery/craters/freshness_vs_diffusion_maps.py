@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import terraingen
 
 WIDE = True
+SECTION = "Degradation"
 
 DIAMETER = 100.0
 SIZE_M = 260.0
