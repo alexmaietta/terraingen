@@ -227,6 +227,10 @@ struct CraterPeaks {
     /// at most 2.
     double spreadRadii = 0.8;
     double elongation = 2.0;  ///< Most aspect ratio of a massif's footprint, at least 1.
+    /// Spread (degrees) of the lesser massifs' bearings about a chain through the center, in
+    /// [0, 360]: about 70 strings them across the floor as the peaks of Copernicus are, and wide
+    /// spreads scatter them around it into stars and crosses such as Theophilus's.
+    double chainSpreadDegrees = 70.0;
     /// How sharp the massifs' crests are, in [0, 1]: 0 domes them, 1 makes spires.
     double sharpness = 0.6;
     /// How far each massif's summit sits off its center toward one flank, in [0, 1].
@@ -249,11 +253,12 @@ struct CraterPeaks {
     bool operator==(const CraterPeaks& other) const {
         return enabled == other.enabled && minMassifs == other.minMassifs &&
                maxMassifs == other.maxMassifs && spreadRadii == other.spreadRadii &&
-               elongation == other.elongation && sharpness == other.sharpness &&
-               lopsidedness == other.lopsidedness && heightVariation == other.heightVariation &&
-               roughness == other.roughness && roughnessWavelength == other.roughnessWavelength &&
-               warp == other.warp && heightScale == other.heightScale &&
-               widthScale == other.widthScale && seed == other.seed;
+               elongation == other.elongation && chainSpreadDegrees == other.chainSpreadDegrees &&
+               sharpness == other.sharpness && lopsidedness == other.lopsidedness &&
+               heightVariation == other.heightVariation && roughness == other.roughness &&
+               roughnessWavelength == other.roughnessWavelength && warp == other.warp &&
+               heightScale == other.heightScale && widthScale == other.widthScale &&
+               seed == other.seed;
     }
     bool operator!=(const CraterPeaks& other) const {
         return !(*this == other);
@@ -262,9 +267,9 @@ struct CraterPeaks {
 
 /// Checks crater central peaks.
 /// @throws std::invalid_argument for massifs outside 1 <= min <= max <= 8, a spread outside
-/// [0, 2], an elongation under 1 or over 4, a sharpness, lopsidedness, height variation or
-/// roughness outside [0, 1], a non-positive roughness wavelength, a warp outside [0, 0.3], a height
-/// scale outside (0, 4] or a width scale outside (0, 3].
+/// [0, 2], an elongation under 1 or over 4, a chain spread outside [0, 360] degrees, a sharpness,
+/// lopsidedness, height variation or roughness outside [0, 1], a non-positive roughness wavelength,
+/// a warp outside [0, 0.3], a height scale outside (0, 4] or a width scale outside (0, 3].
 void ValidateCraterPeaks(const CraterPeaks& peaks);
 
 /// How `ApplyCraters` shapes craters into the terrain.

@@ -1013,6 +1013,7 @@ TEST(CraterPeaks, RejectInvalidSettings) {
     rejects([](auto& p) { p.minMassifs = 5; });
     rejects([](auto& p) { p.spreadRadii = 2.1; });
     rejects([](auto& p) { p.elongation = 0.9; });
+    rejects([](auto& p) { p.chainSpreadDegrees = 361.0; });
     rejects([](auto& p) { p.sharpness = 1.1; });
     rejects([](auto& p) { p.lopsidedness = -0.1; });
     rejects([](auto& p) { p.heightVariation = 1.5; });

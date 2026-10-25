@@ -84,10 +84,6 @@ constexpr double kPeakRoom = 2.3;
 constexpr double kMainMassifRadius = 1.0;
 constexpr double kLesserMassifRadius = 0.6;
 
-/// Spread (radians) of the lesser massifs' bearings about the peak's chain, which lines them up
-/// roughly across the center as the peaks of Copernicus are.
-constexpr double kPeakChainSpread = 1.2;
-
 /// Furthest a massif's summit sits off its center, in units of its footprint, at full
 /// lopsidedness.
 constexpr double kMaxSummitPull = 0.45;
@@ -545,8 +541,9 @@ void AppendKernelPeaks(const PreparedCrater& p, const CraterPeaks& peaks,
     for (int n = 0; n < massifs; ++n) {
         const bool main = n == 0;
         const double side = n % 2 == 0 ? kPi : 0.0;
-        const double bearing = main ? 2.0 * kPi * random.NextDouble()
-                                    : chain + side + kPeakChainSpread * (random.NextDouble() - 0.5);
+        const double bearing =
+            main ? 2.0 * kPi * random.NextDouble()
+                 : chain + side + peaks.chainSpreadDegrees * kDegree * (random.NextDouble() - 0.5);
         const double reach = peaks.spreadRadii * (main ? 0.25 * random.NextDouble()
                                                        : 0.35 + 0.65 * random.NextDouble());
         const double aspect = 1.0 + (peaks.elongation - 1.0) * random.NextDouble();

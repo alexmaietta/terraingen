@@ -303,6 +303,11 @@ template <typename IO> void Fields(IO& io, CraterPeaks& peaks) {
     io("elongation", peaks.elongation,
        "Most aspect ratio of a massif's footprint; 1 keeps them round, larger makes ridges.", "",
        Between(1.0, 4.0));
+    DegreeField(io, "chain_spread_deg", peaks.chainSpreadDegrees,
+                "Spread of the lesser massifs' bearings about a chain through the center, in "
+                "degrees: about 70 strings them across the floor, wide spreads scatter them "
+                "around it into stars and crosses.",
+                Between(0.0, 360.0));
     io("sharpness", peaks.sharpness,
        "How sharp the massifs' crests are, from 0 (domes) to 1 (spires).", "", Between(0.0, 1.0));
     io("lopsidedness", peaks.lopsidedness,

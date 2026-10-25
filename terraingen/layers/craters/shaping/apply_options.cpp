@@ -67,6 +67,9 @@ void ValidateCraterPeaks(const CraterPeaks& peaks) {
     if (!(peaks.elongation >= 1.0 && peaks.elongation <= 4.0)) {
         throw std::invalid_argument("Crater peak elongation must be in [1, 4]");
     }
+    if (!(peaks.chainSpreadDegrees >= 0.0 && peaks.chainSpreadDegrees <= 360.0)) {
+        throw std::invalid_argument("Crater peak chain spread must be in [0, 360] degrees");
+    }
     RequireUnitInterval(peaks.sharpness, "Crater peak sharpness");
     RequireUnitInterval(peaks.lopsidedness, "Crater peak lopsidedness");
     RequireUnitInterval(peaks.heightVariation, "Crater peak height variation");
