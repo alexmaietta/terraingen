@@ -29,10 +29,11 @@ enum class DuneShape {
 };
 
 /// Ripples superposed on dunes, their crests bent by the dune's slope: each rises along a straight
-/// stoss to a sharp crest and falls along a straight lee.
+/// stoss to a sharp crest and falls along a straight lee. By default the large ripples 2.1 m apart
+/// and 0.2 m high on Mars's Bagnold dunes (`MarsDuneRipples`), symmetric and without defects.
 struct DuneRipples {
-    double wavelength = 0.0;  ///< Crest to crest on flat sand (m); 0 for no ripples.
-    double height = 0.0;      ///< Trough to crest on flat sand (m).
+    double wavelength = 2.1;  ///< Crest to crest on flat sand (m).
+    double height = 0.2;      ///< Trough to crest on flat sand (m).
     /// Share of a wavelength the lee face takes, in (0, 1): 0.5 is symmetric, less is steeper.
     double leeFraction = 0.5;
     double sinuosity = 0.3;  ///< How far a crest wanders along its length, in wavelengths.
@@ -64,7 +65,7 @@ struct DuneRipples {
 /// uniform between the bounds, and shown only where the ground faces downwind near the slip face
 /// angle. Lengths are in meters, along the slope; widths across it.
 struct DuneGrainflows {
-    double cover = 0.0;  ///< Chance, in [0, 1], that each lattice cell holds one; 0 for none.
+    double cover = 1.0;  ///< Chance, in [0, 1], that each lattice cell holds one.
     double minScarpWidth = 0.5;
     double maxScarpWidth = 0.5;
     double minScarpLength = 1.0;
@@ -129,8 +130,8 @@ struct DuneOptions {
     Vec2d anchor{};
     ResolutionFade
         fade{};  ///< How dunes too fine for the spacing fade out, by samples across them.
-    DuneRipples ripples{};
-    DuneGrainflows grainflows{};  ///< Avalanches on the slip faces; none by default.
+    std::optional<DuneRipples> ripples{};        ///< Ripples on the dunes; unset for none.
+    std::optional<DuneGrainflows> grainflows{};  ///< Avalanches on the slip faces; unset for none.
     /// Source cells across from which the source's measured data already holds a dune: with a
     /// source given to the layer, the dunes are left out where their size (`width` of barchans
     /// and domes, `wavelength` of crests) is at least that many of its cells, as are ripples by

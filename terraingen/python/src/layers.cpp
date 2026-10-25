@@ -374,11 +374,13 @@ void BindDuneParts(nb::module_& m) {
     BindOptions<DuneRipples>(
         m, "DuneRipples",
         "Ripples on dunes: `wavelength` and `height` (m) on flat sand, turned and tightened by the "
-        "dune's slope by `slope_coupling`; a wavelength of 0 gives none.");
+        "dune's slope by `slope_coupling`; DuneOptions.ripples None gives none.");
     BindOptions<DuneGrainflows>(
         m, "DuneGrainflows",
         "Grainflows on slip faces: scarps and lobes with sizes (m) uniform between their bounds, "
-        "`thickness` meters deep and high, in `cover` of the lattice cells; 0 cover gives none.");
+        "`thickness` meters deep and high, in `cover` of the lattice cells; DuneOptions.grainflows "
+        "None "
+        "gives none.");
     m.def("mars_dune_grainflows", &MarsDuneGrainflows,
           "The grainflows of Namib Dune's lee slope (Ewing et al. 2017).");
 }

@@ -72,8 +72,13 @@ bool IsIsolated(DuneShape shape) {
 }
 
 /// Whether `ripples` add any relief.
-bool HasRipples(const DuneRipples& ripples) {
-    return ripples.wavelength > 0.0 && ripples.height > 0.0;
+bool HasRipples(const std::optional<DuneRipples>& ripples) {
+    return ripples && ripples->height > 0.0;
+}
+
+/// Whether `flows` add any relief.
+bool HasGrainflows(const std::optional<DuneGrainflows>& flows) {
+    return flows && flows->cover > 0.0 && flows->thickness > 0.0;
 }
 
 /// 2D Perlin noise at `p` / `scale`, as a double.
@@ -191,7 +196,7 @@ void ValidateDuneSizes(const DuneOptions& options) {
 /// Checks the ripples on dunes.
 /// @throws std::invalid_argument as `ValidateDuneOptions`.
 void ValidateDuneRipples(const DuneRipples& ripples) {
-    RequireNonNegative(ripples.wavelength, "Dune ripple wavelength");
+    RequirePositive(ripples.wavelength, "Dune ripple wavelength");
     RequireNonNegative(ripples.height, "Dune ripple height");
     if (!(ripples.leeFraction > 0.0 && ripples.leeFraction < 1.0)) {
         throw std::invalid_argument("Dune ripple leeFraction must be in (0, 1)");
@@ -246,9 +251,13 @@ double Between(double low, double high, double t) {
 void ValidateDuneOptions(const DuneOptions& options) {
     ValidateDuneSlopes(options);
     ValidateDuneSizes(options);
-    ValidateDuneRipples(options.ripples);
+    if (options.ripples) {
+        ValidateDuneRipples(*options.ripples);
+    }
     ValidateResolutionFade(options.fade);
-    ValidateDuneGrainflows(options.grainflows);
+    if (options.grainflows) {
+        ValidateDuneGrainflows(*options.grainflows);
+    }
     ValidateSourceResolvesPixels(options.sourceResolvesPixels);
 }
 
@@ -462,7 +471,7 @@ double DuneLayer::SlipFaceWeight(const Vec2d& g) const {
 }
 
 double DuneLayer::Grainflows(const Vec2d& q, double face) const {
-    const DuneGrainflows& flows = options_.grainflows;
+    const DuneGrainflows& flows = *options_.grainflows;
     if (face <= 0.0) {
         return 0.0;
     }
@@ -485,7 +494,7 @@ double DuneLayer::Grainflows(const Vec2d& q, double face) const {
 }
 
 void DuneLayer::AddGrainflow(double& relief, RandomStream& random, double s, double n) const {
-    const DuneGrainflows& flows = options_.grainflows;
+    const DuneGrainflows& flows = *options_.grainflows;
     const double scarpWidth =
         Between(flows.minScarpWidth, flows.maxScarpWidth, random.NextDouble());
     const double scarpLength =
@@ -512,7 +521,7 @@ void DuneLayer::AddGrainflow(double& relief, RandomStream& random, double s, dou
 }
 
 double DuneLayer::Ripples(const Vec2d& q, double dune) const {
-    const DuneRipples& ripples = options_.ripples;
+    const DuneRipples& ripples = *options_.ripples;
     const double lambda = ripples.wavelength;
     const Vec2d g = Gradient(q, 0.25 * lambda);
     const double gx = g.x;
@@ -601,11 +610,11 @@ double DuneLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
         return 0.0;
     }
     const double sand = SandDepth(Height(*q));
-    const DuneRipples& ripples = options_.ripples;
-    if (!HasRipples(ripples)) {
+    if (!HasRipples(options_.ripples)) {
         return sand;
     }
-    return ripples.interduneCover + (1.0 - ripples.interduneCover) * sand;
+    const double kept = options_.ripples->interduneCover;
+    return kept + (1.0 - kept) * sand;
 }
 
 double DuneLayer::DuneHeightAt(double x, double y) const {
@@ -626,12 +635,11 @@ float DuneLayer::HeightAt(float height, double x, double y, double spacing,
         return feature >= resolved ? 0.0 : ResolutionWeight(feature, spacing, fade);
     };
     const double duneWeight = weight(size, options_.fade);
-    const DuneRipples& ripples = options_.ripples;
+    const std::optional<DuneRipples>& ripples = options_.ripples;
     const double rippleWeight =
-        HasRipples(ripples) ? weight(ripples.wavelength, ripples.fade) : 0.0;
-    const DuneGrainflows& flows = options_.grainflows;
-    const double flowWeight =
-        flows.cover > 0.0 && flows.thickness > 0.0 ? weight(flows.minLobeWidth, flows.fade) : 0.0;
+        HasRipples(ripples) ? weight(ripples->wavelength, ripples->fade) : 0.0;
+    const std::optional<DuneGrainflows>& flows = options_.grainflows;
+    const double flowWeight = HasGrainflows(flows) ? weight(flows->minLobeWidth, flows->fade) : 0.0;
     if (duneWeight <= 0.0 && rippleWeight <= 0.0 && flowWeight <= 0.0) {
         return height;
     }
@@ -641,7 +649,7 @@ float DuneLayer::HeightAt(float height, double x, double y, double spacing,
         relief += rippleWeight * Ripples(*q, dune);
     }
     if (flowWeight > 0.0) {
-        const Vec2d g = Gradient(*q, 0.25 * flows.minScarpLength);
+        const Vec2d g = Gradient(*q, 0.25 * flows->minScarpLength);
         relief += flowWeight * Grainflows(*q, SlipFaceWeight(g));
     }
     return static_cast<float>(static_cast<double>(height) + relief);

@@ -198,10 +198,28 @@ TEST(DuneLayer, LinearCrestsRunAlongTheWind) {
         << "crests vary along their length";
 }
 
+TEST(DuneLayer, RipplesAndGrainflowsAreOffUntilSetAndTheirDefaultsShowWhenSet) {
+    DuneOptions options = OneBarchan();
+    EXPECT_FALSE(options.ripples);
+    EXPECT_FALSE(options.grainflows);
+    const DuneLayer bare(options);
+    options.ripples = terraingen::DuneRipples{};
+    const DuneLayer rippled(options);
+    const Vec2d peak = Peak(bare, options.latticeSpacing, 50.0);
+    double most = 0.0;
+    for (double d = 0.0; d < 10.0; d += 0.05) {
+        const double x = peak.x - 40.0 + d;
+        most = std::max(most, std::fabs(At(rippled, x, peak.y) - At(bare, x, peak.y)));
+    }
+    EXPECT_GT(most, 0.05) << "default ripples are decimeters high on the stoss";
+    options.grainflows = terraingen::DuneGrainflows{};
+    EXPECT_NO_THROW(DuneLayer{options});
+}
+
 TEST(DuneLayer, RipplesLieOnDuneSandAndForkWithoutSeams) {
     DuneOptions options = OneBarchan();
     options.ripples = terraingen::MarsDuneRipples();
-    options.ripples.defectDensity = 0.2;
+    options.ripples->defectDensity = 0.2;
     const auto layer = std::make_shared<DuneLayer>(options);
     const Vec2d peak = Peak(*layer, options.latticeSpacing, 50.0);
     const Vec2d stoss{peak.x - 60.0, peak.y};
@@ -218,21 +236,21 @@ TEST(DuneLayer, RipplesLieOnDuneSandAndForkWithoutSeams) {
         jump = std::max(jump, std::fabs(ripple - before));
         before = ripple;
     }
-    EXPECT_GT(high - low, 0.5 * options.ripples.height);
-    EXPECT_LE(high, options.ripples.height * 1.0001);
+    EXPECT_GT(high - low, 0.5 * options.ripples->height);
+    EXPECT_LE(high, options.ripples->height * 1.0001);
     EXPECT_GE(low, -1e-5);
     EXPECT_LT(jump, 0.02) << "fork cuts jump a whole period, which the profile hides";
 
     const Vec2d bare{peak.x, peak.y + 0.6 * options.width};
     EXPECT_EQ(layer->DuneHeightAt(bare.x, bare.y), 0.0);
     EXPECT_EQ(At(*layer, bare.x, bare.y), 0.0) << "no interdune sand";
-    options.ripples.interduneCover = 1.0;
+    options.ripples->interduneCover = 1.0;
     const DuneLayer covered(options);
     double ripples = 0.0;
     for (double d = 0.0; d < 5.0; d += 0.1) {
         ripples = std::max(ripples, At(covered, bare.x + d, bare.y));
     }
-    EXPECT_GT(ripples, 0.5 * options.ripples.height);
+    EXPECT_GT(ripples, 0.5 * options.ripples->height);
 }
 
 TEST(DuneLayer, GridsAndPointsAgreeAndCoarseSpacingsFadeTheDunesOut) {
@@ -288,10 +306,11 @@ TEST(DuneLayer, RejectsBadOptions) {
     rejects([](DuneOptions& o) { o.defects = -0.1; });
     rejects([](DuneOptions& o) { o.sinuosity = -1.0; });
     rejects([](DuneOptions& o) { o.anchor.x = kNaN; });
-    rejects([](DuneOptions& o) { o.ripples.leeFraction = 1.0; });
-    rejects([](DuneOptions& o) { o.ripples.defectDensity = -0.1; });
+    rejects([](DuneOptions& o) { o.ripples.emplace().leeFraction = 1.0; });
+    rejects([](DuneOptions& o) { o.ripples.emplace().defectDensity = -0.1; });
     rejects([](DuneOptions& o) { o.defectDensity = kNaN; });
-    rejects([](DuneOptions& o) { o.ripples.interduneCover = -0.5; });
+    rejects([](DuneOptions& o) { o.ripples.emplace().interduneCover = -0.5; });
+    rejects([](DuneOptions& o) { o.ripples.emplace().wavelength = 0.0; });
     rejects([](DuneOptions& o) { o.fade.endSamples = 0.0; });
     EXPECT_NO_THROW(DuneLayer{DuneOptions{}});
 }
@@ -356,12 +375,12 @@ TEST(DuneLayer, GrainflowsCutScarpsAndLayLobesOnlyOnSlipFaces) {
         }
     }
     EXPECT_EQ(onStoss, 0) << "nothing off the slip faces";
-    EXPECT_LT(deepest, -0.5 * flowing.grainflows.thickness) << "scarps";
-    EXPECT_GT(highest, 0.5 * flowing.grainflows.thickness) << "lobes";
-    EXPECT_GT(deepest, -4.0 * flowing.grainflows.thickness);
-    EXPECT_LT(highest, 4.0 * flowing.grainflows.thickness);
+    EXPECT_LT(deepest, -0.5 * flowing.grainflows->thickness) << "scarps";
+    EXPECT_GT(highest, 0.5 * flowing.grainflows->thickness) << "lobes";
+    EXPECT_GT(deepest, -4.0 * flowing.grainflows->thickness);
+    EXPECT_LT(highest, 4.0 * flowing.grainflows->thickness);
     DuneOptions sparse = flowing;
-    sparse.grainflows.cover = 0.3;
+    sparse.grainflows->cover = 0.3;
     const DuneLayer few(sparse);
     int full = 0;
     int partial = 0;
@@ -391,16 +410,16 @@ TEST(DuneLayer, GrainflowsCutScarpsAndLayLobesOnlyOnSlipFaces) {
 TEST(DuneLayer, RippleCrestsStraightenOffTheStossOnly) {
     DuneOptions sinuous = StraightCrests();
     sinuous.ripples = terraingen::MarsDuneRipples();
-    sinuous.ripples.flankStraightening = 0.0;
-    sinuous.ripples.defectDensity = 0.0;
+    sinuous.ripples->flankStraightening = 0.0;
+    sinuous.ripples->defectDensity = 0.0;
     DuneOptions straightened = sinuous;
-    straightened.ripples.flankStraightening = 1.0;
+    straightened.ripples->flankStraightening = 1.0;
     const DuneLayer a(sinuous);
     const DuneLayer b(straightened);
     const double slip = std::tan(sinuous.slipFaceAngleDegrees * terraingen::kDegree);
     int leeDiffers = 0;
     for (double x = 0.0; x < 250.0; x += 0.21) {
-        const double step = 0.25 * sinuous.ripples.wavelength;
+        const double step = 0.25 * sinuous.ripples->wavelength;
         const double gx =
             (a.DuneHeightAt(x + step, 7.0) - a.DuneHeightAt(x - step, 7.0)) / (2.0 * step);
         if (gx >= 0.0) {
@@ -427,12 +446,12 @@ TEST(DuneLayer, GrainflowPresetAndBadGrainflows) {
         change(options);
         EXPECT_THROW(DuneLayer{options}, std::invalid_argument);
     };
-    rejects([](DuneOptions& o) { o.grainflows.cover = 1.5; });
-    rejects([](DuneOptions& o) { o.grainflows.minScarpWidth = 0.0; });
-    rejects([](DuneOptions& o) { o.grainflows.maxLobeLength = 1.0; });
-    rejects([](DuneOptions& o) { o.grainflows.thickness = -0.01; });
-    rejects([](DuneOptions& o) { o.grainflows.fade.endSamples = 0.0; });
-    rejects([](DuneOptions& o) { o.ripples.flankStraightening = 1.5; });
+    rejects([](DuneOptions& o) { o.grainflows->cover = 1.5; });
+    rejects([](DuneOptions& o) { o.grainflows->minScarpWidth = 0.0; });
+    rejects([](DuneOptions& o) { o.grainflows->maxLobeLength = 1.0; });
+    rejects([](DuneOptions& o) { o.grainflows->thickness = -0.01; });
+    rejects([](DuneOptions& o) { o.grainflows->fade.endSamples = 0.0; });
+    rejects([](DuneOptions& o) { o.ripples.emplace().flankStraightening = 1.5; });
 }
 
 TEST(DuneLayer, CrestLineDunesBreakAtTheirDefectDensity) {

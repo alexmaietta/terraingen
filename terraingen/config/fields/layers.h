@@ -133,8 +133,7 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
 
 template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
     io("wavelength", ripples.wavelength,
-       "Crest-to-crest spacing of the ripples on flat sand, in meters; 0 gives no ripples.", "m",
-       AtLeast(0.0));
+       "Crest-to-crest spacing of the ripples on flat sand, in meters.", "m", Above(0.0));
     io("height", ripples.height, "Trough-to-crest height of the ripples on flat sand, in meters.",
        "m", AtLeast(0.0));
     io("lee_fraction", ripples.leeFraction,
@@ -165,9 +164,8 @@ template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
 
 template <typename IO> void Fields(IO& io, DuneGrainflows& flows) {
     io("cover", flows.cover,
-       "Chance, from 0 to 1, that each lattice cell of the slip faces holds a grainflow; 0 for "
-       "none.",
-       "", UnitInterval());
+       "Chance, from 0 to 1, that each lattice cell of the slip faces holds a grainflow.", "",
+       UnitInterval());
     io("min_scarp_width", flows.minScarpWidth, "Narrowest scarp, in meters.", "m", Above(0.0));
     io("max_scarp_width", flows.maxScarpWidth, "Widest scarp, in meters.", "m", Above(0.0));
     io("min_scarp_length", flows.minScarpLength, "Shortest scarp downslope, in meters.", "m",
@@ -274,10 +272,10 @@ template <typename IO> void Fields(IO& io, DuneOptions& dunes) {
     io("fade", dunes.fade,
        "How dunes too fine for the sample spacing fade out, by samples across their width or "
        "wavelength.");
-    io("ripples", dunes.ripples, "Ripples superposed on the dunes.");
+    io("ripples", dunes.ripples, "Ripples superposed on the dunes; unset for none.");
     io("grainflows", dunes.grainflows,
-       "Grainflows on the slip faces: scarps below the brink and lobes below them; off unless "
-       "cover is set.");
+       "Grainflows on the slip faces: scarps below the brink and lobes below them; unset for "
+       "none.");
     SourceResolvesField(io, dunes.sourceResolvesPixels, "dunes, their ripples and grainflows",
                         "width or crest wavelength, ripple wavelength and narrowest lobe");
 }

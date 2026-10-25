@@ -240,8 +240,8 @@ TEST(ConfigJson, ReadsDuneLayersByShapeAndRipples) {
     EXPECT_EQ(dunes.wavelength, 300.0);
     EXPECT_EQ(dunes.anchor.x, 137.4);
     EXPECT_EQ(dunes.anchor.y, -4.6);
-    EXPECT_EQ(dunes.ripples.wavelength, 2.1);
-    EXPECT_EQ(dunes.ripples.defectDensity, 0.25);
+    EXPECT_EQ(dunes.ripples->wavelength, 2.1);
+    EXPECT_EQ(dunes.ripples->defectDensity, 0.25);
     EXPECT_EQ(dunes.defectDensity, 0.003);
     EXPECT_EQ(dunes.slipFaceAngleDegrees, terraingen::DuneOptions{}.slipFaceAngleDegrees)
         << "defaults kept";

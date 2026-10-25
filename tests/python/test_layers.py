@@ -293,6 +293,21 @@ def test_dune_presets_build_barchans_with_slip_faces_and_ripples():
         terraingen.validate_dune_options(terraingen.DuneOptions(stoss_slope_degrees=60.0))
 
 
+def test_dune_ripples_and_grainflows_are_none_until_set():
+    options = terraingen.DuneOptions()
+    assert options.ripples is None and options.grainflows is None
+    options.ripples = terraingen.DuneRipples()
+    options.grainflows = terraingen.DuneGrainflows()
+    assert options.ripples.wavelength == pytest.approx(2.1) and options.grainflows.cover == 1.0
+    terraingen.validate_dune_options(options)
+    options.ripples = None
+    assert options.ripples is None
+    with pytest.raises(ValueError):
+        terraingen.validate_dune_options(
+            terraingen.DuneOptions(ripples=terraingen.DuneRipples(wavelength=0.0))
+        )
+
+
 def test_dune_ripples_ride_on_crest_fields():
     options = terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE, wavelength=200.0, height=15.0)
     options.ripples = terraingen.mars_dune_ripples()

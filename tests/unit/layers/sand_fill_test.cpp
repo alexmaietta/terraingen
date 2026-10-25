@@ -104,7 +104,7 @@ TEST(MaterialSource, DunesAndBedformsLaySand) {
     EXPECT_EQ(on, 1.0);
     EXPECT_EQ(off, 0.0);
     options.ripples = terraingen::MarsDuneRipples();
-    options.ripples.interduneCover = 0.3;
+    options.ripples->interduneCover = 0.3;
     const terraingen::DuneLayer rippled(options);
     double interdune = 1.0;
     for (double x = 0.0; x < options.wavelength; x += 1.0) {
