@@ -62,6 +62,8 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+  - pymdownx.arithmatex:
+      generic: true
   - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
@@ -84,6 +86,13 @@ extra:
 
 extra_css:
   - css/extra.css
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css
+
+# KaTeX renders the equations arithmatex marks; js/katex.js runs it on every page, instant loads too.
+extra_javascript:
+  - js/katex.js
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js
+  - https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js
 
 nav:
   - Home: index.md
@@ -98,11 +107,57 @@ nav:
   - Concepts:
       - concepts/index.md
       - Surfaces and bodies: concepts/surfaces.md
-      - Craters and boulders: concepts/craters-and-boulders.md
-      - Albedo: concepts/albedo.md
-      - Geologic features: concepts/geology.md
-      - Outputs: concepts/outputs.md
-      - GPU and determinism: concepts/gpu-and-determinism.md
+      - Sources: concepts/sources.md
+      - Layers: concepts/layers.md
+      - Evaluation: concepts/evaluation.md
+      - GPU acceleration: concepts/gpu.md
+      - Configuration: concepts/configuration.md
+      - Extending: concepts/extending.md
+  - Features:
+      - features/index.md
+      - Relief:
+          - features/relief/index.md
+          - Fractal noise: features/relief/noise.md
+          - Roughness: features/relief/roughness.md
+          - Spectral continuation: features/relief/spectral-continuation.md
+          - Upsampling: features/relief/upsampling.md
+      - Distributions:
+          - features/distributions/index.md
+          - Size-frequency distributions: features/distributions/size-frequency.md
+          - Production functions: features/distributions/production.md
+          - Equilibrium densities: features/distributions/equilibrium.md
+          - Chronologies: features/distributions/chronology.md
+          - Combining distributions: features/distributions/combining.md
+          - Sampling and placement: features/distributions/sampling.md
+          - Value distributions: features/distributions/value-distributions.md
+      - Craters:
+          - features/craters/index.md
+          - Populations: features/craters/populations.md
+          - Ages: features/craters/ages.md
+          - Profiles: features/craters/profiles.md
+          - Degradation: features/craters/degradation.md
+          - Irregular outlines: features/craters/irregularity.md
+          - Secondaries and rays: features/craters/secondaries-and-rays.md
+          - Texture and slopes: features/craters/texture-and-slopes.md
+          - Placement and blending: features/craters/placement-and-blending.md
+          - Crater lists: features/craters/crater-lists.md
+      - Boulders:
+          - features/boulders/index.md
+          - Size distributions: features/boulders/size-distributions.md
+          - Placement: features/boulders/placement.md
+          - Shapes and 3D models: features/boulders/shapes.md
+          - Burial and exposure: features/boulders/burial-and-exposure.md
+          - Fragmentation: features/boulders/fragmentation.md
+          - Lists and meshes: features/boulders/lists-and-meshes.md
+      - Albedo: features/albedo.md
+      - Aeolian and geologic features:
+          - features/geology/index.md
+          - Dunes: features/geology/dunes.md
+          - Ripples and bedforms: features/geology/bedforms.md
+          - Sand fill and sand shadows: features/geology/sand.md
+          - Strata: features/geology/strata.md
+          - Pavement: features/geology/pavement.md
+      - Outputs: features/outputs.md
   - Guides: guides/index.md
   - Validation: validation/index.md
   - API:
