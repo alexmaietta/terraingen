@@ -69,3 +69,22 @@ def test_poisson_mean_and_variance(mean):
     counts = counts.astype(np.float64)
     assert counts.mean() == pytest.approx(mean, abs=5 * math.sqrt(mean / 40000))
     assert counts.var(ddof=1) / mean == pytest.approx(1.0, abs=0.05)
+
+
+def test_value_distributions_sample_and_draw_as_in_cpp():
+    uniform = terraingen.ValueDistribution.uniform(2.0, 4.0)
+    assert uniform.sample(0.25, 0.9) == pytest.approx(2.5)
+    assert terraingen.ValueDistribution.constant(3.0).sample(0.1, 0.2) == 3.0
+    clamped = terraingen.ValueDistribution.normal(1.0, 0.5).clamped(0.0, 2.0)
+    assert (clamped.lowest(), clamped.highest()) == (0.0, 2.0)
+    one = terraingen.RandomStream(1, 2)
+    many = terraingen.RandomStream(1, 2)
+    first = clamped.draw(one)
+    values = clamped.draw(many, 1000)
+    assert isinstance(first, float) and values.shape == (1000,) and values[0] == first
+    assert values.min() >= 0.0 and values.max() <= 2.0 and abs(values.mean() - 1.0) < 0.05
+    again = terraingen.RandomStream(1, 2)
+    assert clamped.sample(again.next_double(), again.next_double()) == first
+    piecewise = terraingen.ValueDistribution.piecewise([0.0, 1.0, 2.0], [3.0, 1.0])
+    drawn = piecewise.draw(terraingen.RandomStream(3, 4), 4000)
+    assert 0.7 < np.count_nonzero(drawn < 1.0) / drawn.size < 0.8

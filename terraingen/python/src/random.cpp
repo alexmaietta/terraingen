@@ -100,7 +100,24 @@ void BindValueDistribution(nb::module_& m) {
         .def_static("piecewise", &ValueDistribution::Piecewise, "edges"_a, "weights"_a,
                     "Uniform within each bin of `edges`, with bin shares from `weights`.")
         .def("clamped", &ValueDistribution::Clamped, "low"_a, "high"_a,
-             "This distribution clamped to [low, high].");
+             "This distribution clamped to [low, high].")
+        .def("sample", &ValueDistribution::Sample, "u1"_a, "u2"_a,
+             "A value from two independent uniforms in [0, 1) (Box-Muller for the normal kinds, "
+             "inversion of `u1` for piecewise), clamped to [min, max].")
+        .def(
+            "draw",
+            [](const ValueDistribution& d, RandomStream& stream,
+               std::optional<std::size_t> count) -> nb::object {
+                if (!count) {
+                    return nb::cast(d.Draw(stream));
+                }
+                return nb::cast(DrawArray<double>(*count, [&] { return d.Draw(stream); }));
+            },
+            "stream"_a, "count"_a.none() = nb::none(),
+            "`sample` of the next two uniforms of `stream`; with `count`, that many as a NumPy "
+            "array, drawn in order.")
+        .def("lowest", &ValueDistribution::Lowest, "The smallest value `sample` can return.")
+        .def("highest", &ValueDistribution::Highest, "The largest value `sample` can return.");
 }
 
 }  // namespace
