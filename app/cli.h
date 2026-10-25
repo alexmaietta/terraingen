@@ -32,18 +32,6 @@ unsigned ParseThreads(const std::string& text);
 /// @throws std::invalid_argument for any other name.
 Backend ParseBackend(const std::string& text);
 
-/// The options of `terraingen [PATH] --gui`.
-struct GuiArgs {
-    std::string open;      ///< Configuration (.json) or heights (.tif) to open; empty for none.
-    unsigned threads = 0;  ///< Generation threads; 0 for every hardware thread.
-    std::optional<Backend> backend = std::nullopt;  ///< Empty for `DefaultBackend()`.
-};
-
-/// Parses the arguments of `--gui`, without it: an optional PATH, `--threads N` and
-/// `--backend NAME`.
-/// @throws std::invalid_argument for anything else.
-GuiArgs ParseGuiArgs(const std::vector<std::string>& args);
-
 /// Runs `terraingen`.
 ///
 /// Commands:
@@ -55,8 +43,6 @@ GuiArgs ParseGuiArgs(const std::vector<std::string>& args);
 /// - `validate CONFIG` checks CONFIG without generating and reports its grid and expected craters;
 /// - `schema` prints the structure of a configuration for editors (`ConfigSchema`);
 /// - `backends` prints each backend with its device or why it is unavailable, then the default;
-/// - `[PATH] --gui [--threads N] [--backend NAME]`, `--gui` anywhere, opens the GUI (`RunGui`) on
-///   PATH or the starter terrain, generating on NAME as above;
 /// - `-V` or `--version`, and `-h` or `--help`.
 /// @param args The arguments, without the program name.
 /// @return `kExitSuccess`, `kExitFailure` for a `ConfigError` or another error, or `kExitUsage`

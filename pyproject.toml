@@ -71,7 +71,6 @@ TERRAINGEN_BUILD_PYTHON = "ON"
 TERRAINGEN_BUILD_TESTS = "OFF"
 TERRAINGEN_BUILD_BENCHMARKS = "OFF"
 TERRAINGEN_BUILD_APP = "ON"
-TERRAINGEN_BUILD_GUI = "OFF"
 TERRAINGEN_INSTALL = "OFF"
 
 # The wheels CI builds, one job per platform and Python (the job sets CIBW_BUILD to one of these): a

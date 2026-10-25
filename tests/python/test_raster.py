@@ -7,7 +7,6 @@ import math
 
 import numpy as np
 import pytest
-
 import terraingen
 
 
@@ -25,16 +24,6 @@ def test_constructs_filled_with_shape_height_by_width():
     assert raster.values.dtype == np.float32
     assert np.all(raster.values == 2.5)
     assert repr(raster) == "Raster(width=4, height=3)"
-
-
-def test_render_bounds_span_cell_centers_and_valid_heights():
-    from terraingen import render
-
-    raster = terraingen.Raster(4, 3, 2.0)
-    raster.transform = terraingen.GeoTransform.north_up(100.0, 50.0, 2.0)
-    raster.values[0, 0] = math.nan
-    raster.values[1, 1] = -1.0
-    assert render.terrain_bounds(raster, exaggeration=3.0) == ((101.0, 45.0, -3.0), (107.0, 49.0, 6.0))
 
 
 def test_values_is_a_writeable_zero_copy_view():

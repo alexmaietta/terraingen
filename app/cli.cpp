@@ -2,7 +2,6 @@
 
 #include "app/cli.h"
 
-#include "app/gui/run.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
@@ -255,24 +254,6 @@ Backend ParseBackend(const std::string& text) {
     throw std::invalid_argument("--backend needs " + BackendNameList() + ", not '" + text + "'");
 }
 
-GuiArgs ParseGuiArgs(const std::vector<std::string>& args) {
-    GuiArgs parsed;
-    std::optional<std::string> open;
-    ArgCursor cursor(args);
-    while (!cursor.Done()) {
-        const std::string& arg = cursor.Next();
-        if (ReadRunOption(arg, cursor, parsed.threads, parsed.backend)) {
-            continue;
-        }
-        if (IsOption(arg)) {
-            throw std::invalid_argument("Unknown option " + arg + " with --gui");
-        }
-        ReadPath(arg, open);
-    }
-    parsed.open = open.value_or("");
-    return parsed;
-}
-
 std::string Usage() {
     std::string backends;
     for (const std::string_view name : kBackendNames) {
@@ -293,12 +274,6 @@ std::string Usage() {
            "  terraingen schema      Print the configuration schema, for editors\n"
            "  terraingen backends    Show where terrains can be evaluated here, and the\n"
            "                         default\n"
-           "  terraingen [PATH] --gui [--threads N]\n"
-           "                    [--backend " +
-           backends +
-           "]\n"
-           "                         Open the GUI on a configuration, GeoTIFF heights or the\n"
-           "                         starter terrain\n"
            "  terraingen -V, --version\n"
            "                         Show version and build information\n"
            "  terraingen -h, --help  Show this message\n"
@@ -324,12 +299,6 @@ int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& e
     try {
         if (args.empty()) {
             throw std::invalid_argument("Missing a command or configuration file");
-        }
-        const auto gui = std::find(args.begin(), args.end(), "--gui");
-        if (gui != args.end()) {
-            std::vector<std::string> rest(args.begin(), gui);
-            rest.insert(rest.end(), gui + 1, args.end());
-            return RunGui(rest, out, err);
         }
         const std::string& first = args.front();
         if (first == "--help" || first == "-h") {

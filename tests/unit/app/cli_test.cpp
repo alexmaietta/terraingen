@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "app/cli.h"
-#include "app/gui/run.h"
 #include "support/temp_path.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 
@@ -191,41 +190,10 @@ TEST(Cli, GeneratesOnTheChosenBackend) {
     }
 }
 
-TEST(Cli, ParsesTheGuiArguments) {
-    const terraingen::cli::GuiArgs none = terraingen::cli::ParseGuiArgs({});
-    EXPECT_TRUE(none.open.empty());
-    EXPECT_EQ(none.threads, 0u);
-    EXPECT_FALSE(none.backend.has_value());
-    const terraingen::cli::GuiArgs all =
-        terraingen::cli::ParseGuiArgs({"--backend", "vulkan", "site.json", "--threads", "3"});
-    EXPECT_EQ(all.open, "site.json");
-    EXPECT_EQ(all.threads, 3u);
-    EXPECT_EQ(all.backend, terraingen::Backend::Vulkan);
-    EXPECT_THROW(terraingen::cli::ParseGuiArgs({"a.json", "b.json"}), std::invalid_argument);
-    EXPECT_THROW(terraingen::cli::ParseGuiArgs({"--threads"}), std::invalid_argument);
-    EXPECT_NE(Cli({"--help"})
-                  .out.find("--gui [--threads N]\n                    [--backend "
-                            "auto|cpu|gpu|vulkan|cuda|metal]"),
-              std::string::npos);
-}
-
-TEST(Cli, GuiRejectsBadArgumentsOrExplainsHowToAddTheGui) {
-    EXPECT_NE(Cli({"--help"}).out.find("terraingen [PATH] --gui"), std::string::npos);
-    for (const std::vector<std::string>& args :
-         std::vector<std::vector<std::string>>{{"--gui", "--bogus"},
-                                               {"a.json", "b.json", "--gui"},
-                                               {"--gui", "--threads"},
-                                               {"a.json", "--gui", "--output-dir", "out"},
-                                               {"a.json", "--threads", "lots", "--gui"},
-                                               {"a.json", "--gui", "--backend", "opencl"},
-                                               {"--gui", "--backend"}}) {
-        EXPECT_EQ(Cli(args).code, kExitUsage) << ::testing::PrintToString(args);
-    }
-    if (!terraingen::cli::GuiAvailable()) {
-        const Result result = Cli({"a.json", "--gui"});
-        EXPECT_EQ(result.code, kExitUsage);
-        EXPECT_NE(result.err.find("-DTERRAINGEN_ERNIE_DIR="), std::string::npos);
-    }
+TEST(Cli, HasNoGui) {
+    EXPECT_EQ(Cli({"--help"}).out.find("--gui"), std::string::npos);
+    EXPECT_EQ(Cli({"--gui"}).code, kExitUsage);
+    EXPECT_EQ(Cli({"a.json", "--gui"}).code, kExitUsage);
 }
 
 TEST(Cli, ValidatesAConfigAndReportsItsGridAndCraters) {

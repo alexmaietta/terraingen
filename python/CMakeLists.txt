@@ -37,7 +37,6 @@ endforeach()
 set_target_properties(_terraingen PROPERTIES LIBRARY_OUTPUT_DIRECTORY "$<1:${package_dir}>")
 
 configure_file(terraingen/__init__.py "${package_dir}/__init__.py" COPYONLY)
-configure_file(terraingen/render.py "${package_dir}/render.py" COPYONLY)
 
 # Type stubs of the extension (signatures and docstrings for editors and type checkers), and the
 # py.typed marker that says the package has them, made from the built module after each build.
