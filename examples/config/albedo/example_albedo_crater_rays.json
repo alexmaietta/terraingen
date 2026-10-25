@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 3000,
-                    "amplitude": 60,
+                    "wavelength_m": 3000,
+                    "amplitude_m": 60,
                     "octaves": 8
                 }
             ]
@@ -42,7 +42,7 @@
                 {
                     "x": 0,
                     "y": 0,
-                    "diameter": 250,
+                    "diameter_m": 250,
                     "age_gyr": 0.002
                 }
             ]
@@ -55,7 +55,7 @@
             "value_noise": [
                 {
                     "seed": 4,
-                    "wavelength": 1500,
+                    "wavelength_m": 1500,
                     "amplitude": 0.02,
                     "octaves": 4
                 }

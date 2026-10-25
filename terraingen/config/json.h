@@ -33,7 +33,7 @@ class ConfigError : public std::runtime_error {
 /// Reads a configuration from JSON text.
 ///
 ///     {"schema_version": 1,
-///      "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 50}]},
+///      "layers": [{"type": "noise", "stack": [{"wavelength_m": 500, "amplitude_m": 50}]},
 ///                 {"type": "craters",
 ///                  "density": {"type": "production_surface", "age_gyr": 3.5},
 ///                  "apply": {"rim_smoothing": {"sigma_radii": 0.05}}}],

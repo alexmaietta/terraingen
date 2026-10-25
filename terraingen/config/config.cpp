@@ -7,9 +7,9 @@ namespace terraingen {
 namespace {
 
 /// Each layer of `stack` with its Hurst exponent applied, appended to `layers`.
-template <typename Layers>
-void AppendEffective(const std::vector<NoiseStackLayerSpec>& stack, Layers& layers) {
-    for (const NoiseStackLayerSpec& layer : stack) {
+template <typename Spec, typename Layers>
+void AppendEffective(const std::vector<Spec>& stack, Layers& layers) {
+    for (const Spec& layer : stack) {
         layers.push_back(layer.Effective());
     }
 }

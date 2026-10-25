@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 800,
-                    "amplitude": 4,
+                    "wavelength_m": 800,
+                    "amplitude_m": 4,
                     "octaves": 8
                 }
             ]
@@ -49,7 +49,7 @@
                 {
                     "x": 0,
                     "y": 0,
-                    "diameter": 18.8,
+                    "diameter_m": 18.8,
                     "age_gyr": 0
                 }
             ]
@@ -94,7 +94,7 @@
             "value_noise": [
                 {
                     "seed": 4,
-                    "wavelength": 400,
+                    "wavelength_m": 400,
                     "amplitude": 0.01,
                     "octaves": 5
                 }
@@ -104,7 +104,7 @@
             {
                 "type": "craters",
                 "seed": 1,
-                "max_diameter": 50,
+                "max_diameter_m": 50,
                 "interior_excess": 0,
                 "ejecta_excess": 0,
                 "rays": {
@@ -134,7 +134,7 @@
                         {
                             "x": 0,
                             "y": 0,
-                            "diameter": 18.8,
+                            "diameter_m": 18.8,
                             "age_gyr": 0
                         }
                     ]

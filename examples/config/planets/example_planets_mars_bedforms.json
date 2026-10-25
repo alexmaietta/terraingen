@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 2,
-                    "wavelength": 150,
-                    "amplitude": 2,
+                    "wavelength_m": 150,
+                    "amplitude_m": 2,
                     "octaves": 6
                 }
             ]
@@ -31,11 +31,11 @@
         },
         {
             "type": "bedforms",
-            "wavelength": 6,
-            "height": 0.4,
+            "wavelength_m": 6,
+            "height_m": 0.4,
             "wind_azimuth_deg": 60,
             "cover": 0.6,
-            "field_size": 80,
+            "field_size_m": 80,
             "seed": 2
         }
     ],

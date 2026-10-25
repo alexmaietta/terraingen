@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 800,
-                    "amplitude": 40,
+                    "wavelength_m": 800,
+                    "amplitude_m": 40,
                     "octaves": 8
                 }
             ]
@@ -19,12 +19,12 @@
                 "type": "piecewise_power_law",
                 "segments": [
                     {
-                        "start": 0.0,
+                        "start_m": 0.0,
                         "coefficient": 0.05,
                         "exponent": 2.0
                     },
                     {
-                        "start": 40.0,
+                        "start_m": 40.0,
                         "coefficient": 2.0,
                         "exponent": 3.0
                     }

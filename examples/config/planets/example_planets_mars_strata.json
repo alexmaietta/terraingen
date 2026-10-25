@@ -6,15 +6,15 @@
             "stack": [
                 {
                     "seed": 11,
-                    "wavelength": 120,
-                    "amplitude": 25,
+                    "wavelength_m": 120,
+                    "amplitude_m": 25,
                     "octaves": 5
                 }
             ]
         },
         {
             "type": "strata",
-            "bed_thickness": 4,
+            "bed_thickness_m": 4,
             "thickness_variation": 0.5,
             "dip_deg": 1.5,
             "dip_azimuth_deg": 45.0,
@@ -23,9 +23,9 @@
         },
         {
             "type": "sand_fill",
-            "reach": 8,
+            "reach_m": 8,
             "fill": 0.6,
-            "max_thickness": 0.5
+            "max_thickness_m": 0.5
         }
     ],
     "materials": {

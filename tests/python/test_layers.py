@@ -82,7 +82,7 @@ def test_masked_layer_keeps_its_inner_layer():
             "layers": [
                 {
                     "type": "masked",
-                    "shape": {"type": "circle", "radius": 5},
+                    "shape": {"type": "circle", "radius_m": 5},
                     "layer": {"type": "scale", "scale": 2},
                 }
             ],
@@ -324,7 +324,9 @@ def test_dune_ripples_ride_on_crest_fields():
     config = terraingen.TerrainGenConfig.from_dict(
         {
             "schema_version": 1,
-            "layers": [{"type": "dunes", "shape": "linear", "ripples": {"wavelength": 2.0, "height": 0.2}}],
+            "layers": [
+                {"type": "dunes", "shape": "linear", "ripples": {"wavelength_m": 2.0, "height_m": 0.2}}
+            ],
         }
     )
     assert config.to_dict()["layers"][0]["shape"] == "linear"
@@ -399,7 +401,7 @@ def test_pavement_plates_crack_in_octaves_and_lay_bedrock():
     config = terraingen.TerrainGenConfig.from_dict(
         {
             "schema_version": 1,
-            "layers": [{"type": "pavement", "plate_size": 0.5, "octaves": 3, "raised": True}],
+            "layers": [{"type": "pavement", "plate_size_m": 0.5, "octaves": 3, "raised": True}],
         }
     )
     assert config.to_dict()["layers"][0]["octaves"] == 3
@@ -419,10 +421,10 @@ def test_strata_terrace_hills_into_benches_and_cliffs():
     config = terraingen.TerrainGenConfig.from_dict(
         {
             "schema_version": 1,
-            "layers": [{"type": "strata", "bed_thickness": 3.0, "dip_deg": 3.0}],
+            "layers": [{"type": "strata", "bed_thickness_m": 3.0, "dip_deg": 3.0}],
         }
     )
-    assert config.to_dict()["layers"][0]["bed_thickness"] == 3.0
+    assert config.to_dict()["layers"][0]["bed_thickness_m"] == 3.0
     config.validate()
 
 
@@ -557,10 +559,10 @@ def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum
             "layers": [
                 {
                     "type": "spectral_continuation",
-                    "pixel_size": 1.0,
+                    "pixel_size_m": 1.0,
                     "slope": 2.6,
-                    "octave_rms": 0.1,
-                    "min_wavelength": 0.2,
+                    "octave_rms_m": 0.1,
+                    "min_wavelength_m": 0.2,
                 }
             ],
         }
@@ -617,8 +619,8 @@ def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path)
             "schema_version": 1,
             "source": {"type": "raster", "path": "dem.tif"},
             "layers": [
-                {"type": "noise", "estimate_from_base": True, "stack": [{"wavelength": 1.0, "octaves": 2}]},
-                {"type": "roughness", "estimate_from_base": True, "max_wavelength": 1.0, "rms_slope": 0.3},
+                {"type": "noise", "estimate_from_base": True, "stack": [{"wavelength_m": 1.0, "octaves": 2}]},
+                {"type": "roughness", "estimate_from_base": True, "max_wavelength_m": 1.0, "rms_slope": 0.3},
             ],
         }
     )

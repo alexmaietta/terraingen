@@ -93,6 +93,10 @@ struct NoiseStackLayerSpec {
     NoiseLayer EffectiveRelief() const;
 };
 
+/// One layer of an albedo noise stack: a noise layer whose amplitude is in what the stack varies,
+/// relative brightness, saturation or degrees of hue, rather than in meters, and required.
+struct AlbedoNoiseLayerSpec : NoiseStackLayerSpec {};
+
 /// How a source's posts become heights between them and at sample spacings finer than them
 /// (`Upsampler`): `type` names a kernel upsampler (`KernelUpsamplerNames`), "diamond_square", or a
 /// type registered with `RegisterUpsampler`. In JSON a name alone, or an object with the "type"
@@ -698,9 +702,9 @@ struct SyntheticAlbedoSpec {
     double hueDegrees = 0.0;
     double saturation = 0.0;
     double value = kDefaultSyntheticAlbedoValue;
-    std::vector<NoiseStackLayerSpec> hueNoiseDegrees;
-    std::vector<NoiseStackLayerSpec> saturationNoise;
-    std::vector<NoiseStackLayerSpec> valueNoise;
+    std::vector<AlbedoNoiseLayerSpec> hueNoiseDegrees;
+    std::vector<AlbedoNoiseLayerSpec> saturationNoise;
+    std::vector<AlbedoNoiseLayerSpec> valueNoise;
 
     /// The albedo options, with each noise layer's Hurst exponent applied.
     SyntheticAlbedoOptions Options() const;

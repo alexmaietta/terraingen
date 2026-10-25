@@ -49,7 +49,7 @@ std::filesystem::path Write(const std::filesystem::path& path, const std::string
 const char* const kConfig = R"({
   "schema_version": 1,
   "layers": [
-    {"type": "noise", "stack": [{"wavelength": 60, "amplitude": 3, "octaves": 3}]},
+    {"type": "noise", "stack": [{"wavelength_m": 60, "amplitude_m": 3, "octaves": 3}]},
     {"type": "craters", "min_diameter_m": 6, "max_diameter_m": 40,
      "density": {"type": "minimum", "distributions": [
          {"type": "production_surface", "production": "extended_neukum", "chronology": "neukum",

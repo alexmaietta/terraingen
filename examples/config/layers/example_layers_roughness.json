@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 40,
-                    "amplitude": 0.5,
+                    "wavelength_m": 40,
+                    "amplitude_m": 0.5,
                     "octaves": 6
                 }
             ]
@@ -15,7 +15,7 @@
         {
             "type": "roughness",
             "rms_slope": 0.15,
-            "baseline": 0.25,
+            "baseline_m": 0.25,
             "hurst": 0.8,
             "seed": 2
         }

@@ -76,7 +76,7 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
                   CraterLayerSpec craters;
                   craters.minDiameter = 0.0;
                   c.layers = {craters};
-              }).rfind("layers[0].min_diameter", 0),
+              }).rfind("layers[0].min_diameter_m", 0),
               0u);
     terraingen::Raster<float> rotated(8, 8, 1.0f);
     rotated.SetTransform(terraingen::GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
@@ -206,7 +206,7 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
     };
     EXPECT_EQ(error([](TerrainGenConfig&) {}), "valid");
     EXPECT_EQ(error([](TerrainGenConfig& c) { c.body = terraingen::SphereSurfaceSpec{}; }),
-              "body.radius");
+              "body.radius_m");
     EXPECT_EQ(error([](TerrainGenConfig& c) { Region(c).extentDeg->center = {30.0, 89.999}; }),
               "outputs[0].extent_deg");
     EXPECT_EQ(error([](TerrainGenConfig& c) {
@@ -241,7 +241,7 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
             "valid");
         EXPECT_EQ(error([basis](TerrainGenConfig& c) {
                       terraingen::SyntheticAlbedoSpec synthetic;
-                      synthetic.valueNoise = {terraingen::NoiseStackLayerSpec{}};
+                      synthetic.valueNoise = {terraingen::AlbedoNoiseLayerSpec{}};
                       synthetic.valueNoise[0].layer.fractal.basis = basis;
                       synthetic.valueNoise[0].amplitude = 0.02f;
                       c.albedo = terraingen::AlbedoSpec{synthetic, {}};
@@ -250,7 +250,7 @@ TEST(ValidateConfig, ReportsBodyProblemsByPath) {
     }
     EXPECT_EQ(error([](TerrainGenConfig& c) {
                   terraingen::SyntheticAlbedoSpec synthetic;
-                  synthetic.valueNoise = {terraingen::NoiseStackLayerSpec{}};
+                  synthetic.valueNoise = {terraingen::AlbedoNoiseLayerSpec{}};
                   c.albedo = terraingen::AlbedoSpec{synthetic, {}};
               }),
               "albedo.source.value_noise[0].amplitude");
@@ -273,7 +273,7 @@ TEST(ValidateConfig, ReportsMeshProblemsByPath) {
     EXPECT_EQ(error([](auto& c, auto&) { c.body = terraingen::PlaneSurfaceSpec{}; }), "outputs[0]");
     EXPECT_EQ(error([](auto&, auto& o) { o.path = "m.fbx"; }), "outputs[0].path");
     EXPECT_EQ(error([](auto&, auto& o) { o.cellsPerFace = 0; }), "outputs[0].cells_per_face");
-    EXPECT_EQ(error([](auto&, auto& o) { o.spacing = -1.0; }), "outputs[0].spacing");
+    EXPECT_EQ(error([](auto&, auto& o) { o.spacing = -1.0; }), "outputs[0].spacing_m");
     EXPECT_EQ(error([](auto&, auto& o) { o.path.clear(); }), "valid") << "returned, not written";
 
     TerrainGenConfig twice;
@@ -322,7 +322,7 @@ TEST(BuildSurface, ASphereRadiusThatIsNotPositiveIsAnErrorAtTheRadius) {
             terraingen::BuildSurface(terraingen::SphereSurfaceSpec{radius});
             ADD_FAILURE() << "expected a ConfigError for " << radius;
         } catch (const ConfigError& error) {
-            EXPECT_EQ(error.Path(), "body.radius") << radius;
+            EXPECT_EQ(error.Path(), "body.radius_m") << radius;
         }
     }
 }
@@ -330,9 +330,9 @@ TEST(BuildSurface, ASphereRadiusThatIsNotPositiveIsAnErrorAtTheRadius) {
 TEST(ValidateConfig, ReportsASphereWithoutARadiusAtTheRadius) {
     TerrainGenConfig config;
     config.body = terraingen::SphereSurfaceSpec{};
-    EXPECT_EQ(ValidationErrorPath(config), "body.radius");
+    EXPECT_EQ(ValidationErrorPath(config), "body.radius_m");
     config.body = terraingen::SphereSurfaceSpec{-1737400.0};
-    EXPECT_EQ(ValidationErrorPath(config), "body.radius");
+    EXPECT_EQ(ValidationErrorPath(config), "body.radius_m");
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
     EXPECT_EQ(ValidationErrorPath(config), "valid");
 }
@@ -353,18 +353,18 @@ TEST(BuildSurface, EllipsoidRadiiOfTheWrongCountOrSignAreErrorsAtThem) {
         }
         return std::string("valid");
     };
-    EXPECT_EQ(path({}), "body.radii");
-    EXPECT_EQ(path({1.0, 2.0}), "body.radii");
-    EXPECT_EQ(path({1.0, 2.0, 3.0, 4.0}), "body.radii");
-    EXPECT_EQ(path({1.0, -2.0, 3.0}), "body.radii[1]");
-    EXPECT_EQ(path({1.0, 2.0, std::numeric_limits<double>::quiet_NaN()}), "body.radii[2]");
+    EXPECT_EQ(path({}), "body.radii_m");
+    EXPECT_EQ(path({1.0, 2.0}), "body.radii_m");
+    EXPECT_EQ(path({1.0, 2.0, 3.0, 4.0}), "body.radii_m");
+    EXPECT_EQ(path({1.0, -2.0, 3.0}), "body.radii_m[1]");
+    EXPECT_EQ(path({1.0, 2.0, std::numeric_limits<double>::quiet_NaN()}), "body.radii_m[2]");
     EXPECT_EQ(path({1.0, 2.0, 3.0}), "valid");
 }
 
 TEST(ValidateConfig, ReportsEllipsoidRadiiByPath) {
     TerrainGenConfig config;
     config.body = terraingen::EllipsoidSurfaceSpec{{270.0, 0.0, 104.0}};
-    EXPECT_EQ(ValidationErrorPath(config), "body.radii[1]");
+    EXPECT_EQ(ValidationErrorPath(config), "body.radii_m[1]");
     config.body = terraingen::EllipsoidSurfaceSpec{{270000.0, 147000.0, 104000.0}};
     EXPECT_EQ(ValidationErrorPath(config), "valid");
 }

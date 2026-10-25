@@ -38,7 +38,7 @@ SMALL_AREA = {"pixel_size_m": 0.5, "extent_m": {"center": [0, 0], "size": [40.5,
 SMALL_CONFIG = {
     "schema_version": 1,
     "layers": [
-        {"type": "noise", "stack": [{"wavelength": 20, "amplitude": 0.5, "octaves": 3}]},
+        {"type": "noise", "stack": [{"wavelength_m": 20, "amplitude_m": 0.5, "octaves": 3}]},
         {
             "type": "craters",
             "min_diameter_m": 3,

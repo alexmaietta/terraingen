@@ -2,7 +2,7 @@
     "schema_version": 1,
     "body": {
         "type": "sphere",
-        "radius": 1737400
+        "radius_m": 1737400
     },
     "layers": [
         {
@@ -10,14 +10,14 @@
             "stack": [
                 {
                     "seed": 8,
-                    "wavelength": 400000,
-                    "amplitude": 3000,
+                    "wavelength_m": 400000,
+                    "amplitude_m": 3000,
                     "octaves": 6
                 },
                 {
                     "seed": 9,
-                    "wavelength": 20000,
-                    "amplitude": 300,
+                    "wavelength_m": 20000,
+                    "amplitude_m": 300,
                     "octaves": 6
                 }
             ]
@@ -29,19 +29,19 @@
                 {
                     "x": 0,
                     "y": 0,
-                    "diameter": 300000,
+                    "diameter_m": 300000,
                     "age_gyr": 3.9
                 },
                 {
                     "x": -60,
                     "y": 30,
-                    "diameter": 200000,
+                    "diameter_m": 200000,
                     "age_gyr": 3.5
                 },
                 {
                     "x": 120,
                     "y": -40,
-                    "diameter": 150000,
+                    "diameter_m": 150000,
                     "age_gyr": 1.0
                 }
             ]

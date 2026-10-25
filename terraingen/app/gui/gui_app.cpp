@@ -54,8 +54,8 @@ constexpr const char* kStarterConfig = R"({
                 {
                     "seed": 1,
                     "fractal": "fbm",
-                    "wavelength": 400,
-                    "amplitude": 25,
+                    "wavelength_m": 400,
+                    "amplitude_m": 25,
                     "octaves": 6
                 }
             ]

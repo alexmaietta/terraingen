@@ -158,21 +158,21 @@ template <typename IO> void Fields(IO& io, CraterRays& rays) {
 }
 
 template <typename IO> void Fields(IO& io, RayRetention& retention) {
-    io("small_diameter", retention.smallDiameter,
+    io("small_diameter_m", retention.smallDiameter,
        "Diameter in meters at or below which craters keep their bright material for the small "
        "time.",
        "m", Above(0.0));
     io("small_myr", retention.smallMyr,
        "Time in Myr craters up to the small diameter keep their bright material.", "Myr",
        Above(0.0));
-    io("mid_diameter", retention.midDiameter,
+    io("mid_diameter_m", retention.midDiameter,
        "Diameter in meters from which craters keep their bright material for the mid time; "
        "between the small and mid diameters the time follows a power law of diameter.",
        "m", Above(0.0));
     io("mid_myr", retention.midMyr,
        "Time in Myr craters from the mid to the large diameter keep their bright material.", "Myr",
        Above(0.0));
-    io("large_diameter", retention.largeDiameter,
+    io("large_diameter_m", retention.largeDiameter,
        "Diameter in meters above which craters keep their bright material for the large time.", "m",
        Above(0.0));
     io("large_myr", retention.largeMyr,
@@ -215,7 +215,7 @@ template <typename IO> void Fields(IO& io, ReflectanceZone& zone) {
     io("change", zone.change,
        "Reflectance change relative to the pre-impact surface, drawn per crater; above -1, "
        "negative values darken.");
-    io("coefficient", zone.coefficient,
+    io("coefficient_m", zone.coefficient,
        "Coefficient of the zone's reach from the crater's center, coefficient D^exponent meters "
        "for diameter D in meters; positive.",
        "m", Above(0.0));
@@ -247,7 +247,7 @@ template <typename IO> void Fields(IO& io, ZoneShadows& shadows) {
        "Steepest angle in degrees, between 0 and 90 excluded, at which the jet forming the distal "
        "zones can drop behind a rise; lower values give longer shadows. Illustrative.",
        "deg", Inside(0.0, 90.0));
-    io("depth", shadows.depth,
+    io("depth_m", shadows.depth,
        "Depth in meters of the ground below the jet at which the shadow is full; positive. "
        "Illustrative.",
        "m", Above(0.0));
@@ -261,10 +261,10 @@ template <typename IO> void Fields(IO& io, ZoneShadows& shadows) {
 template <typename IO> void Fields(IO& io, CraterReflectanceZones& zones) {
     io("enabled", zones.enabled,
        "Gives new small craters the reflectance zones of LROC temporal pairs; off by default.");
-    io("max_diameter", zones.maxDiameter,
+    io("max_diameter_m", zones.maxDiameter,
        "Largest crater diameter, in meters, with zones; the published fits stop near 43 m.", "m",
        Above(0.0));
-    io("mature_depth", zones.matureDepth,
+    io("mature_depth_m", zones.matureDepth,
        "Depth in meters of mature regolith; only craters excavating deeper get the proximal "
        "high reflectance zone.",
        "m", AtLeast(0.0));
@@ -360,12 +360,12 @@ template <typename IO> void Fields(IO& io, SplotchSwarms& swarms) {
        "Cumulative size slope of the new craters; the Neukum production function has 2.97 to "
        "3.15.",
        "", Above(0.0));
-    io("min_crater_diameter", swarms.minCraterDiameter,
+    io("min_crater_diameter_m", swarms.minCraterDiameter,
        "Smallest crater with a swarm, in meters; smaller craters throw few splotches.", "m",
        Above(0.0));
-    io("max_crater_diameter", swarms.maxCraterDiameter, "Largest crater with a swarm, in meters.",
+    io("max_crater_diameter_m", swarms.maxCraterDiameter, "Largest crater with a swarm, in meters.",
        "m", Above(0.0));
-    io("reference_diameter", swarms.referenceDiameter,
+    io("reference_diameter_m", swarms.referenceDiameter,
        "Diameter in meters of the crater whose swarm was counted: 18.8 m, Robinson et al.", "m",
        Above(0.0));
     io("reference_count", swarms.referenceCount,
@@ -374,10 +374,10 @@ template <typename IO> void Fields(IO& io, SplotchSwarms& swarms) {
        "Velocity exponent of the target, between 0 and 1; 0.41 for sand (Housen and Holsapple "
        "2011). Counts grow as D^(3 + 1.5 mu) and landing distances fall as r^(-1.5 mu).",
        "", Inside(0.0, 1.0));
-    io("min_range", swarms.minRange,
+    io("min_range_m", swarms.minRange,
        "Nearest landing distance in meters, setting Robinson et al.'s median of 8.7 km.", "m",
        Above(0.0));
-    io("max_range", swarms.maxRange, "Farthest landing distance in meters.", "m", Above(0.0));
+    io("max_range_m", swarms.maxRange, "Farthest landing distance in meters.", "m", Above(0.0));
     io("splotch_diameter", swarms.splotchDiameter,
        "Diameter of a swarm splotch in meters, drawn per splotch: 2 to 22 m, median 6 m.");
     io("dark_share", swarms.darkShare, "Share of swarm splotches darker than the ground.", "",
@@ -415,10 +415,10 @@ template <typename IO> void Fields(IO& io, SplotchAlbedoOptions& options) {
        "How long a splotch lasts in Myr, fading linearly; positive, the default is the time "
        "splotches take to churn the top centimeters.",
        "Myr", Above(0.0));
-    io("min_diameter", options.minDiameter,
+    io("min_diameter_m", options.minDiameter,
        "Smallest splotch diameter in meters; the published fit is extrapolated below 10 m.", "m",
        Above(0.0));
-    io("max_diameter", options.maxDiameter,
+    io("max_diameter_m", options.maxDiameter,
        "Largest splotch diameter in meters, above the smallest.", "m", Above(0.0));
     io("dark_share", options.darkShare, "Share of splotches, from 0 to 1, darker than the ground.",
        "", UnitInterval());
@@ -478,7 +478,7 @@ template <typename IO> void Fields(IO& io, BlastZone& zone) {
     io("halo_reach", zone.haloReach,
        "How far the halo reaches over the zone's own reach, at least 1; 1 for no halo.", "",
        AtLeast(1.0));
-    io("core_radius", zone.coreRadius,
+    io("core_radius_m", zone.coreRadius,
        "Radius in meters of the darker core beneath the engine and around the crew's tracks; 0 "
        "for none, a few meters at the Apollo sites.",
        "m", AtLeast(0.0));
@@ -544,7 +544,7 @@ template <typename IO> void Fields(IO& io, SlopeAlbedoOptions& options) {
        Above(0.0));
     io("max_maturity", options.maxMaturity, "Cap on OMAT, at least the background's.", "",
        Above(0.0));
-    io("baseline", options.baseline,
+    io("baseline_m", options.baseline,
        "Meters slopes are measured over, the spacing of the lattice they are read on; 10, the "
        "DTM Ikeda et al. (2022) measured slopes on.",
        "m", Above(0.0));

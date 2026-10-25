@@ -32,7 +32,7 @@ template <typename IO> void Fields(IO& io, DiamondSquareOptions& options) {
        "Fractal dimension, from 2 (smooth) to 3 (rough): each square or diamond step scales the "
        "displacement by 2^-((3 - F) / 2). Unset estimates it from the posts' variogram.",
        "", Between(2.0, 3.0));
-    io("scale", options.scale,
+    io("scale_m", options.scale,
        "Standard deviation in meters of the displacement at the posts' own last diamond step. "
        "Unset estimates it from the posts as the RMS of each post minus the mean of its four "
        "neighbors.",
@@ -75,7 +75,7 @@ template <> struct SpecName<SphereSurfaceSpec> {
         "features generated over the whole body.";
 };
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
-    io("radius", spec.radius, "Radius of the body's datum sphere, in meters; required.", "m",
+    io("radius_m", spec.radius, "Radius of the body's datum sphere, in meters; required.", "m",
        Above(0.0));
 }
 
@@ -87,7 +87,7 @@ template <> struct SpecName<EllipsoidSurfaceSpec> {
         "center, and features generated over the whole body.";
 };
 template <typename IO> void Fields(IO& io, EllipsoidSurfaceSpec& spec) {
-    io("radii", spec.radii,
+    io("radii_m", spec.radii,
        "Semi-axes a, b and c of the datum ellipsoid in meters, along x (longitude 0), y "
        "(longitude 90) and z (the north pole); exactly three, each positive.",
        "m", Above(0.0));
@@ -113,7 +113,7 @@ template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
     io("meters_per_unit", spec.metersPerUnit,
        "Meters per unit of the file's coordinates; unset is 1000 for an ICQ model, whose "
        "coordinates are kilometers, and 1 for a mesh.",
-       "m", Above(0.0));
+       "m/unit", Above(0.0));
 }
 
 template <> struct SpecName<RasterSourceSpec> {
@@ -129,7 +129,7 @@ template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
     io("scale", read.scale,
        "Factor each sample is multiplied by, replacing the band's scale from the file's GDAL "
        "metadata. Unset keeps the file's.");
-    io("offset", read.offset,
+    io("offset_m", read.offset,
        "Added to each scaled sample, replacing the band's offset from the file's GDAL metadata. "
        "Unset keeps the file's.",
        "m");

@@ -214,8 +214,9 @@ TEST(ConfigSchema, DescribesEveryFieldTypeAndChoice) {
 
 TEST(ConfigSchema, GivesUnitsOnlyToNumbersAndFromAFixedSet) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const std::set<std::string> units = {"",    "m",   "m^2",   "km",     "deg", "rad",    "Gyr",
-                                         "Myr", "1/m", "1/m^2", "1/km^2", "px",  "m^2/Myr"};
+    const std::set<std::string> units = {"",       "m",   "m^2",     "km",    "deg",
+                                         "rad",    "Gyr", "Myr",     "1/m",   "1/m^2",
+                                         "1/km^2", "px",  "m^2/Myr", "m/unit"};
     int withUnits = 0;
     const auto numeric = [&](const SchemaJson& node) {
         const SchemaJson* resolved = &node;
@@ -250,7 +251,7 @@ TEST(ConfigSchema, GivesUnitsOnlyToNumbersAndFromAFixedSet) {
 
 TEST(ConfigSchema, BoundsOnlyNumbersAndTheirDefaultsFitTheBounds) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
-    const std::set<std::string> placeholders = {"radius", "diameter"};
+    const std::set<std::string> placeholders = {"radius_m", "diameter_m"};
     int bounded = 0;
     const auto check = [&](const SchemaJson& fields, const std::string& where) {
         for (const SchemaJson& field : fields) {
@@ -515,7 +516,7 @@ TEST(ConfigSchema, GivesASphereOnlyARadiusInMeters) {
     const SchemaJson surfaces = Resolve(schema, FieldOf(schema["root"], "body")["schema"]);
     const SchemaJson sphere = AlternativeOf(surfaces, "sphere");
     ASSERT_EQ(sphere["fields"].size(), 1u);
-    EXPECT_EQ(sphere["fields"][0]["name"], "radius");
+    EXPECT_EQ(sphere["fields"][0]["name"], "radius_m");
     EXPECT_EQ(sphere["fields"][0]["unit"], "m");
 }
 
@@ -552,7 +553,7 @@ TEST(ConfigSchema, GivesGeoTiffReadsACropAndLayersASourceResolvedLimit) {
     for (const SchemaJson& field : diamondSquare["fields"]) {
         fractal.push_back(field["name"]);
     }
-    EXPECT_EQ(fractal, (std::vector<std::string>{"fractal_dimension", "scale", "interp",
+    EXPECT_EQ(fractal, (std::vector<std::string>{"fractal_dimension", "scale_m", "interp",
                                                  "min_pixel_size_m", "seed"}));
     const SchemaJson synthetic = AlternativeOf(Resolve(schema, base["of"]), "synthetic");
     EXPECT_EQ(FieldOf(synthetic, "upsampling")["schema"]["of"],

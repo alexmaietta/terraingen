@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 9,
-                    "wavelength": 1200,
-                    "amplitude": 25,
+                    "wavelength_m": 1200,
+                    "amplitude_m": 25,
                     "octaves": 6
                 }
             ]
@@ -18,13 +18,13 @@
                 "type": "circle",
                 "x": 0,
                 "y": 0,
-                "radius": 600
+                "radius_m": 600
             },
-            "feather": 150,
+            "feather_m": 150,
             "layer": {
                 "type": "scale",
                 "scale": 0.2,
-                "offset": -15
+                "offset_m": -15
             }
         },
         {
@@ -36,7 +36,7 @@
                 "max_x": 0,
                 "max_y": 1026
             },
-            "feather": 200,
+            "feather_m": 200,
             "layer": {
                 "type": "craters",
                 "seed": 9,
@@ -74,7 +74,7 @@
                 "max_x": 1026,
                 "max_y": 1026
             },
-            "feather": 200,
+            "feather_m": 200,
             "layer": {
                 "type": "craters",
                 "seed": 10,

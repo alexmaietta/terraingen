@@ -7,8 +7,8 @@
                 {
                     "seed": 1,
                     "fractal": "billow",
-                    "wavelength": 800,
-                    "amplitude": 40,
+                    "wavelength_m": 800,
+                    "amplitude_m": 40,
                     "octaves": 8
                 }
             ]

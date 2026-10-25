@@ -7,15 +7,15 @@
                 {
                     "seed": 1,
                     "basis": "voronoi",
-                    "wavelength": 250,
-                    "amplitude": 20,
+                    "wavelength_m": 250,
+                    "amplitude_m": 20,
                     "octaves": 1
                 },
                 {
                     "seed": 2,
                     "basis": "perlin",
-                    "wavelength": 120,
-                    "amplitude": 2,
+                    "wavelength_m": 120,
+                    "amplitude_m": 2,
                     "octaves": 5
                 }
             ]

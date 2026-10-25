@@ -1019,9 +1019,9 @@ Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& direc
             },
             [](const EllipsoidSurfaceSpec& s) -> Surface {
                 if (s.radii.size() != 3) {
-                    throw ConfigError("body.radii", "must hold exactly three semi-axes a, b, c");
+                    throw ConfigError("body.radii_m", "must hold exactly three semi-axes a, b, c");
                 }
-                return At("body.radii",
+                return At("body.radii_m",
                           [&] { return Surface::Ellipsoid(s.radii[0], s.radii[1], s.radii[2]); });
             },
             [&](const ShapeModelSurfaceSpec& s) -> Surface {

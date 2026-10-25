@@ -11,7 +11,7 @@
                 {
                     "x": 0,
                     "y": 0,
-                    "diameter": 10,
+                    "diameter_m": 10,
                     "age_gyr": 0.01
                 }
             ]

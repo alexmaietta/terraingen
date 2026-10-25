@@ -6,11 +6,11 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 800,
-                    "amplitude": 40,
+                    "wavelength_m": 800,
+                    "amplitude_m": 40,
                     "octaves": 8,
-                    "warp_amplitude": 150,
-                    "warp_wavelength": 600
+                    "warp_amplitude_m": 150,
+                    "warp_wavelength_m": 600
                 }
             ]
         }

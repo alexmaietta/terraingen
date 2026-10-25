@@ -72,8 +72,8 @@ void CheckExpectedCount(double expected, std::string_view items, std::string_vie
 
 /// @throws ConfigError for a stack of more than `kMaxNoiseLayers` layers, or none unless
 /// `allowEmpty`, or an invalid layer.
-void CheckNoiseStack(const std::vector<NoiseStackLayerSpec>& layers, const std::string& path,
-                     bool allowEmpty) {
+template <typename Spec>
+void CheckNoiseStack(const std::vector<Spec>& layers, const std::string& path, bool allowEmpty) {
     const std::size_t fewest = allowEmpty ? 0 : 1;
     if (layers.size() < fewest || layers.size() > kMaxNoiseLayers) {
         throw ConfigError(path, "needs " + config::CountText(fewest, kMaxNoiseLayers) + " layers");
@@ -109,7 +109,7 @@ void CheckLayer(const LayerSpec& spec, const std::string& path, LayerChecks& con
 void CheckManualCraters(const std::vector<Crater>& manual, const std::string& path) {
     for (std::size_t n = 0; n < manual.size(); ++n) {
         if (!manual[n].depth && manual[n].rimHeight) {
-            throw ConfigError(Child(Element(path, n), "rim_height"), "needs a depth");
+            throw ConfigError(Child(Element(path, n), "rim_height_m"), "needs a depth");
         }
     }
 }
@@ -430,7 +430,7 @@ void CheckLayerSpec(const SpectralContinuationLayerSpec& layer, const std::strin
                     LayerChecks& context) {
     if (!context.posts && !(layer.pixelSize && layer.slope && layer.octaveRms)) {
         throw ConfigError(path, "without a source with posts to fit its spectrum to needs "
-                                "pixel_size, slope and octave_rms");
+                                "pixel_size_m, slope and octave_rms_m");
     }
     At(path, [&] {
         ValidateSpectrumFitBand(layer.fit);
@@ -718,7 +718,7 @@ void CheckGeoTiffOutput(const GeoTiffOutput& output, const std::string& path) {
                           "packbits is read-only; use none, lzw or deflate");
     }
     if (output.tileSize % kTileSizeMultiple != 0) {
-        throw ConfigError(Child(path, "tile_size"),
+        throw ConfigError(Child(path, "tile_size_px"),
                           "must be a multiple of " + std::to_string(kTileSizeMultiple));
     }
 }
@@ -904,7 +904,7 @@ void CheckBody(const SurfaceSpec& body, const std::string& path) {
 }
 
 /// Checks an albedo noise stack, whose layers must give their amplitude: it has no default.
-void CheckAlbedoNoiseStack(const std::vector<NoiseStackLayerSpec>& layers,
+void CheckAlbedoNoiseStack(const std::vector<AlbedoNoiseLayerSpec>& layers,
                            const std::string& path) {
     CheckNoiseStack(layers, path, true);
     for (std::size_t i = 0; i < layers.size(); ++i) {

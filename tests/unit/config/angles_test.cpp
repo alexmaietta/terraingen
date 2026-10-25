@@ -148,9 +148,9 @@ TEST(ConfigAngles, AreDescribedInDegreesInTheSchema) {
 
 TEST(ConfigAngles, ReadManualBoulderAnglesInDegreesAndLeaveOmittedOnesUnset) {
     const TerrainGenConfig config = ParseConfig(OneLayer(
-        R"({"type": "boulders", "manual": [{"x": 1, "y": 2, "diameter": 1.5, "yaw_deg": 30,
+        R"({"type": "boulders", "manual": [{"x": 1, "y": 2, "diameter_m": 1.5, "yaw_deg": 30,
             "lean_deg": 10, "tilt_deg": 20, "tilt_azimuth_deg": -90, "burial": 0.3,
-            "rest": "side", "shape_seed": 9}, {"x": 0, "y": 0, "diameter": 1, "yaw_deg": null}]})"));
+            "rest": "side", "shape_seed": 9}, {"x": 0, "y": 0, "diameter_m": 1, "yaw_deg": null}]})"));
     const auto& manual = std::get<terraingen::BoulderLayerSpec>(config.layers.at(0)).manual;
     ASSERT_EQ(manual.size(), 2u);
     EXPECT_EQ(manual[0].yawDegrees, 30.0);
@@ -166,7 +166,7 @@ TEST(ConfigAngles, ReadManualBoulderAnglesInDegreesAndLeaveOmittedOnesUnset) {
     const Json written = Json::parse(ConfigToJson(config))["layers"][0]["manual"][0];
     EXPECT_EQ(written["yaw_deg"], 30.0);
     EXPECT_EQ(written["tilt_azimuth_deg"], -90.0);
-    EXPECT_TRUE(written["height"].is_null());
+    EXPECT_TRUE(written["height_m"].is_null());
     EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     EXPECT_EQ(terraingen::testing::ParseErrorPath(
                   OneLayer(R"({"type": "boulders", "manual": [{"yaw": 1}]})")),

@@ -37,7 +37,7 @@ def test_config_on_a_sphere_describes_its_grids():
     config = terraingen.TerrainGenConfig.from_dict(
         {
             "schema_version": 1,
-            "body": {"type": "sphere", "radius": 1737400},
+            "body": {"type": "sphere", "radius_m": 1737400},
             "outputs": [
                 {
                     "type": "heightmap",
@@ -111,7 +111,7 @@ def test_missing_source_files_fail_validation():
 
 
 def test_a_synthetic_source_has_no_grid_and_upsamples_only_posts():
-    synthetic = {"type": "synthetic", "elevation_m": 3, "stack": [{"wavelength": 40}]}
+    synthetic = {"type": "synthetic", "elevation_m": 3, "stack": [{"wavelength_m": 40}]}
     config = terraingen.TerrainGenConfig.from_dict({"schema_version": 1, "source": synthetic})
     config.validate()
     synthetic["upsampling"] = "bilinear"
@@ -307,11 +307,11 @@ def test_an_empty_minimum_fails_validation_at_the_density():
 @pytest.mark.parametrize("radius", [0, -1737400])
 def test_a_sphere_needs_a_positive_radius(radius):
     config = terraingen.TerrainGenConfig.from_dict(
-        {"schema_version": 1, "body": {"type": "sphere", "radius": radius}}
+        {"schema_version": 1, "body": {"type": "sphere", "radius_m": radius}}
     )
     with pytest.raises(terraingen.ConfigError) as sphere:
         config.validate()
-    assert sphere.value.path == "body.radius"
+    assert sphere.value.path == "body.radius_m"
 
 
 def test_build_generator_builds_on_a_given_source():
@@ -319,7 +319,7 @@ def test_build_generator_builds_on_a_given_source():
         np.full((200, 200), 100.0, dtype=np.float32), terraingen.GeoTransform.north_up(-2000.0, 2000.0, 20.0)
     )
     dem = terraingen.RasterSource(heights)
-    crater = {"x": 0, "y": 0, "diameter": 50, "depth": 10}
+    crater = {"x": 0, "y": 0, "diameter_m": 50, "depth_m": 10}
     config = terraingen.TerrainGenConfig.from_dict(
         {"schema_version": 1, "layers": [{"type": "craters", "generate_random": False, "manual": [crater]}]}
     )

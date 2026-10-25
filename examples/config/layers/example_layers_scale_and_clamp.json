@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 800,
-                    "amplitude": 40,
+                    "wavelength_m": 800,
+                    "amplitude_m": 40,
                     "octaves": 8
                 }
             ]
@@ -15,12 +15,12 @@
         {
             "type": "scale",
             "scale": 1.5,
-            "offset": -10
+            "offset_m": -10
         },
         {
             "type": "clamp",
-            "min": -15,
-            "max": 30
+            "min_m": -15,
+            "max_m": 30
         }
     ],
     "outputs": [

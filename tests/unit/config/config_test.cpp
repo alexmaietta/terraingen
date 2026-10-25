@@ -137,8 +137,9 @@ TEST(SyntheticAlbedoSpec, GivesTheColorAndEachNoiseStack) {
     spec.hueDegrees = 30.0;
     spec.saturation = 0.2;
     spec.value = 0.4;
-    spec.hueNoiseDegrees = {NoiseStackLayerSpec{}};
-    spec.valueNoise = {NoiseStackLayerSpec{{}, 0.5f, {}}, NoiseStackLayerSpec{}};
+    spec.hueNoiseDegrees = {terraingen::AlbedoNoiseLayerSpec{}};
+    spec.valueNoise = {terraingen::AlbedoNoiseLayerSpec{{{}, 0.5f, {}}},
+                       terraingen::AlbedoNoiseLayerSpec{}};
     const terraingen::SyntheticAlbedoOptions params = spec.Options();
     EXPECT_TRUE(params.rgb);
     EXPECT_EQ(params.hueDegrees, 30.0);

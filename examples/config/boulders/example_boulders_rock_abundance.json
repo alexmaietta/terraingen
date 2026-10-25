@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 40,
-                    "amplitude": 0.5,
+                    "wavelength_m": 40,
+                    "amplitude_m": 0.5,
                     "octaves": 6
                 }
             ]
@@ -32,12 +32,12 @@
                 {
                     "x": 5,
                     "y": -3,
-                    "diameter": 4.5
+                    "diameter_m": 4.5
                 },
                 {
                     "x": -8,
                     "y": 10,
-                    "diameter": 3.2
+                    "diameter_m": 3.2
                 }
             ],
             "completeness": {

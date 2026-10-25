@@ -6,22 +6,22 @@
             "stack": [
                 {
                     "seed": 3,
-                    "wavelength": 60,
-                    "amplitude": 5,
+                    "wavelength_m": 60,
+                    "amplitude_m": 5,
                     "octaves": 7
                 }
             ]
         },
         {
             "type": "bedforms",
-            "wavelength": 2.5,
-            "height": 0.25,
+            "wavelength_m": 2.5,
+            "height_m": 0.25,
             "wind_azimuth_deg": 60,
             "cover": 0.8,
-            "field_size": 30,
+            "field_size_m": 30,
             "seed": 3,
             "exposure": {
-                "reach": 8.0
+                "reach_m": 8.0
             }
         },
         {
@@ -34,7 +34,7 @@
             "min_diameter_m": 0.3,
             "max_diameter_m": 3,
             "exposure": {
-                "reach": 8.0
+                "reach_m": 8.0
             },
             "bedrock_abundance": 4.0
         }

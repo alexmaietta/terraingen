@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 600,
-                    "amplitude": 3,
+                    "wavelength_m": 600,
+                    "amplitude_m": 3,
                     "octaves": 8
                 }
             ]
@@ -62,7 +62,7 @@
                 {
                     "x": 0,
                     "y": 0,
-                    "diameter": 200,
+                    "diameter_m": 200,
                     "age_gyr": 0.001
                 }
             ]
@@ -70,9 +70,9 @@
         {
             "type": "roughness",
             "rms_slope": 0.08,
-            "baseline": 1.0,
-            "max_wavelength": 20.0,
-            "min_wavelength": 1.0
+            "baseline_m": 1.0,
+            "max_wavelength_m": 20.0,
+            "min_wavelength_m": 1.0
         }
     ],
     "outputs": [
@@ -114,7 +114,7 @@
             "value_noise": [
                 {
                     "seed": 4,
-                    "wavelength": 300,
+                    "wavelength_m": 300,
                     "amplitude": 0.04,
                     "octaves": 5
                 }

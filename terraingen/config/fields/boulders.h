@@ -147,7 +147,7 @@ template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
 }
 
 template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
-    io("reach", exposure.reach,
+    io("reach_m", exposure.reach,
        "Distance in meters around a point at which its surroundings are read, to tell rises from "
        "lows.",
        "m", Above(0.0));
@@ -165,7 +165,7 @@ template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
        "Share of level ground that is bedrock too, in noise patches, as on a swept lava floor; "
        "from 0 to below 1, and 0 for none.",
        "", FromBelow(0.0, 1.0));
-    io("floor_patch", exposure.floorPatch,
+    io("floor_patch_m", exposure.floorPatch,
        "Width of the bedrock patches on level ground, in meters.", "m", Above(0.0));
     io("seed", exposure.seed, "Seed of the bedrock patches on level ground.");
 }
@@ -502,12 +502,12 @@ template <typename IO> void Fields(IO& io, ManualBoulder& boulder) {
        "Center along x in the surface's coordinates; the longitude in degrees on a sphere.");
     io("y", boulder.y,
        "Center along y in the surface's coordinates; the latitude in degrees on a sphere.");
-    io("diameter", boulder.diameter, "Length of the long axis, in meters.", "m", Above(0.0));
+    io("diameter_m", boulder.diameter, "Length of the long axis, in meters.", "m", Above(0.0));
     io("id", boulder.id,
        "Stable ID that seeds what is drawn for the boulder; unset derives one from its position "
        "and "
        "diameter.");
-    io("height", boulder.height,
+    io("height_m", boulder.height,
        "Vertical extent in meters, buried part included; unset draws it from the height ratios.",
        "m", Above(0.0));
     io("burial", boulder.burial, "Buried share of the height, from 0 to below 1; unset draws it.",

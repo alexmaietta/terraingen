@@ -1096,7 +1096,7 @@ TEST(BuildGenerator, BuildsOnAGivenSourceAsMeasuredData) {
         "schema_version": 1,
         "layers": [
             {"type": "craters", "generate_random": false,
-             "manual": [{"x": 0, "y": 0, "diameter": 50, "depth": 10}]}
+             "manual": [{"x": 0, "y": 0, "diameter_m": 50, "depth_m": 10}]}
         ]
     })");
     const auto dem = FlatDem();

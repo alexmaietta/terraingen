@@ -2,7 +2,7 @@
     "schema_version": 1,
     "body": {
         "type": "sphere",
-        "radius": 2439700
+        "radius_m": 2439700
     },
     "layers": [
         {
@@ -10,14 +10,14 @@
             "stack": [
                 {
                     "seed": 4,
-                    "wavelength": 300000,
-                    "amplitude": 2500,
+                    "wavelength_m": 300000,
+                    "amplitude_m": 2500,
                     "octaves": 6
                 },
                 {
                     "seed": 5,
-                    "wavelength": 15000,
-                    "amplitude": 250,
+                    "wavelength_m": 15000,
+                    "amplitude_m": 250,
                     "octaves": 6
                 }
             ]

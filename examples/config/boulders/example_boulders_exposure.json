@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 60,
-                    "amplitude": 6,
+                    "wavelength_m": 60,
+                    "amplitude_m": 6,
                     "octaves": 7
                 }
             ]
@@ -22,7 +22,7 @@
             "min_diameter_m": 0.3,
             "max_diameter_m": 4,
             "exposure": {
-                "reach": 6.0
+                "reach_m": 6.0
             },
             "bedrock_abundance": 4.0,
             "ground_spacing_m": 1.0

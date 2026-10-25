@@ -27,7 +27,7 @@ const char* const kConfig = R"({
     "schema_version": 1,
     "outputs": [{"type": "heightmap", "path": "terrain.tif",
                  "pixel_size_m": 2, "extent_m": {"center": [0, 0], "size": [130, 66]}}],
-    "layers": [{"type": "noise", "stack": [{"wavelength": 40, "amplitude": 3, "octaves": 3}]}]
+    "layers": [{"type": "noise", "stack": [{"wavelength_m": 40, "amplitude_m": 3, "octaves": 3}]}]
 })";
 
 std::filesystem::path Directory(const std::string& name) {

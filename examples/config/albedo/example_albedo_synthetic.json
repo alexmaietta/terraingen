@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 800,
-                    "amplitude": 40,
+                    "wavelength_m": 800,
+                    "amplitude_m": 40,
                     "octaves": 8
                 }
             ]
@@ -20,7 +20,7 @@
             "value_noise": [
                 {
                     "seed": 4,
-                    "wavelength": 600,
+                    "wavelength_m": 600,
                     "amplitude": 0.03,
                     "octaves": 6
                 }

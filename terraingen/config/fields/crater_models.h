@@ -27,7 +27,7 @@ template <typename IO> void Fields(IO& io, PowerLawSpec& spec) {
 }
 
 template <typename IO> void Fields(IO& io, PowerLawSegment& segment) {
-    io("start", segment.start,
+    io("start_m", segment.start,
        "Diameter in meters where this segment begins; it runs up to the next segment's start.", "m",
        AtLeast(0.0));
     io("coefficient", segment.coefficient,
@@ -65,14 +65,14 @@ template <typename IO> void Fields(IO& io, TabulatedSpec& spec) {
        "Cumulative count N(>=D) at each diameter, per area unit; positive and not increasing.", "",
        Above(0.0));
     io("diameter_unit", spec.diameterUnit,
-       "Meters per table diameter unit: 1 for meters, 1000 for km.", "m", Above(0.0));
+       "Meters per table diameter unit: 1 for meters, 1000 for km.", "m/unit", Above(0.0));
     io("area_unit", spec.areaUnit, "Square meters per table area unit: 1 for m^2, 1e6 for km^2.",
        "m^2", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, UniformBand& band) {
-    io("min", band.min, "Smallest diameter of the band in meters.", "m", Above(0.0));
-    io("max", band.max, "Largest diameter of the band in meters, above min.", "m", Above(0.0));
+    io("min_m", band.min, "Smallest diameter of the band in meters.", "m", Above(0.0));
+    io("max_m", band.max, "Largest diameter of the band in meters, above min_m.", "m", Above(0.0));
     io("density", band.density,
        "Count per m^2 with diameters in the band, spread uniformly across it; a relative weight "
        "when total is set.",
@@ -244,7 +244,7 @@ template <typename IO> void Fields(IO& io, PowerLawDiffusivity& law) {
     io("exponent", law.exponent,
        "Exponent of the diameter in coefficient (D / 1 km)^exponent; 0 gives the same "
        "diffusivity for every crater size.");
-    io("min_diameter", law.minDiameter,
+    io("min_diameter_m", law.minDiameter,
        "Diameter in meters below which the diffusivity is held at its value at this diameter; "
        "not negative.",
        "m", AtLeast(0.0));

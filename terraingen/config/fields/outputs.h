@@ -45,7 +45,7 @@ template <typename IO> void GeoTiffOutputFields(IO& io, GeoTiffOutput& output) {
     AreaFields(io, output.area, "Cell size in meters of the file");
     io("compression", output.compression,
        "Compression of the file; compressed files use the floating-point predictor.");
-    io("tile_size", output.tileSize,
+    io("tile_size_px", output.tileSize,
        "Width and height of the file's tiles in pixels; a positive multiple of " +
            std::to_string(kTileSizeMultiple) + ".",
        "px", AtLeast(kTileSizeMultiple));
@@ -157,7 +157,7 @@ template <typename IO> void Fields(IO& io, MeshOutput& output) {
        "Quads along each edge of the six cube faces, " + CountText(1, kMaxCubeFaceCells) +
            "; more give a finer mesh, with two triangles per quad.",
        "", CubeFaceCellsRange());
-    io("spacing", output.spacing,
+    io("spacing_m", output.spacing,
        "Sample spacing in meters the heights are evaluated at, which sets the finest features "
        "kept; unset uses a quad's side at a face's center.",
        "m", Above(0.0));

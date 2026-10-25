@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 200,
-                    "amplitude": 2.0,
+                    "wavelength_m": 200,
+                    "amplitude_m": 2.0,
                     "octaves": 6
                 }
             ]
@@ -80,7 +80,7 @@
         "layers": [
             {
                 "type": "slopes",
-                "baseline": 2
+                "baseline_m": 2
             },
             {
                 "type": "rocks",

@@ -6,32 +6,32 @@
             "stack": [
                 {
                     "seed": 4,
-                    "wavelength": 25,
-                    "amplitude": 1.2,
+                    "wavelength_m": 25,
+                    "amplitude_m": 1.2,
                     "octaves": 6
                 }
             ]
         },
         {
             "type": "sand_fill",
-            "reach": 6,
+            "reach_m": 6,
             "fill": 0.7,
-            "max_thickness": 0.4
+            "max_thickness_m": 0.4
         },
         {
             "type": "bedforms",
-            "wavelength": 2.1,
-            "height": 0.15,
+            "wavelength_m": 2.1,
+            "height_m": 0.15,
             "lee_fraction": 0.12,
             "cover": 0.3,
-            "field_size": 20,
+            "field_size_m": 20,
             "seed": 4
         }
     ],
     "materials": {
         "exposure": null,
         "dust_cover": 0.15,
-        "dust_patch": 12,
+        "dust_patch_m": 12,
         "photometry": {
             "reference": "mars_pancam"
         }

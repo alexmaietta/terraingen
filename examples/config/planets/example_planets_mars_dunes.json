@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 3,
-                    "wavelength": 40,
-                    "amplitude": 0.4,
+                    "wavelength_m": 40,
+                    "amplitude_m": 0.4,
                     "octaves": 6
                 }
             ]
@@ -20,13 +20,13 @@
             "stoss_slope_deg": 8,
             "lattice_spacing_m": 1000,
             "density": 1,
-            "width": 400,
+            "width_m": 400,
             "width_spread": 0.15,
-            "min_width": 200,
+            "min_width_m": 200,
             "dome_length": 2,
             "ripples": {
-                "wavelength": 2.1,
-                "height": 0.2,
+                "wavelength_m": 2.1,
+                "height_m": 0.2,
                 "lee_fraction": 0.165,
                 "sinuosity": 0.8,
                 "defect_density": 0.099,
@@ -34,15 +34,15 @@
             },
             "grainflows": {
                 "cover": 1,
-                "min_scarp_width": 0.54,
-                "max_scarp_width": 0.67,
-                "min_scarp_length": 1.0,
-                "max_scarp_length": 1.6,
-                "min_lobe_width": 0.57,
-                "max_lobe_width": 0.66,
-                "min_lobe_length": 2.9,
-                "max_lobe_length": 6.0,
-                "thickness": 0.015
+                "min_scarp_width_m": 0.54,
+                "max_scarp_width_m": 0.67,
+                "min_scarp_length_m": 1.0,
+                "max_scarp_length_m": 1.6,
+                "min_lobe_width_m": 0.57,
+                "max_lobe_width_m": 0.66,
+                "min_lobe_length_m": 2.9,
+                "max_lobe_length_m": 6.0,
+                "thickness_m": 0.015
             }
         }
     ],

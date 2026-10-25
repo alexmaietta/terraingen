@@ -152,7 +152,7 @@ const PathCase kPathCases[] = {
          c.outputs = {terraingen::HeightmapOutput{"a.tif", terraingen::TiffCompression::Lzw, 20,
                                                   terraingen::testing::SmallRegion()}};
      },
-     "outputs[0].tile_size"},
+     "outputs[0].tile_size_px"},
     {"LunarSurfaceTooOld",
      [](TerrainGenConfig& c) { Craters(c).density = terraingen::testing::LunarDensitySpec(9.0); },
      "layers[1].density.distributions[0].age_gyr"},
@@ -216,7 +216,7 @@ const PathCase kPathCases[] = {
      "layers[1].min_diameter_m"},
     {"NegativeManualDiameter",
      [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, -1.0, 0.0}}; },
-     "layers[1].manual[0].diameter"},
+     "layers[1].manual[0].diameter_m"},
     {"NegativeManualAge", [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, 5.0, -1.0}}; },
      "layers[1].manual[0].age_gyr"},
     {"InfiniteManualPosition",
@@ -227,15 +227,15 @@ const PathCase kPathCases[] = {
      "valid"},
     {"ZeroManualDepth",
      [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.0}}; },
-     "layers[1].manual[0].depth"},
+     "layers[1].manual[0].depth_m"},
     {"NegativeManualRimHeight",
      [](TerrainGenConfig& c) { Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, 0.9, -0.1}}; },
-     "layers[1].manual[0].rim_height"},
+     "layers[1].manual[0].rim_height_m"},
     {"ManualRimHeightWithoutDepth",
      [](TerrainGenConfig& c) {
          Craters(c).manual = {{0.0, 0.0, 6.0, 0.0, 0u, false, std::nullopt, 0.2}};
      },
-     "layers[1].manual[0].rim_height"},
+     "layers[1].manual[0].rim_height_m"},
     {"ManualRimHeightTheProfileFixes",
      [](TerrainGenConfig& c) {
          Craters(c).profile = terraingen::FassettThomsonSpec{};
@@ -415,10 +415,10 @@ const PathCase kPathCases[] = {
          layer.minWavelength = 0.0;
          c.layers.push_back(layer);
      },
-     "layers[2].min_wavelength"},
+     "layers[2].min_wavelength_m"},
     {"SandFillWithoutReach",
      [](TerrainGenConfig& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
-     "layers[2].reach"},
+     "layers[2].reach_m"},
     {"MaterialsOutputWithoutMaterials",
      [](TerrainGenConfig& c) {
          c.outputs.push_back(terraingen::MaterialsOutput{
@@ -686,7 +686,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
                   boulders.manual = {{1.0, 2.0, -1.5}};
                   c.layers.push_back(boulders);
               }),
-              "layers[2].manual[0].diameter")
+              "layers[2].manual[0].diameter_m")
         << "but still checks its manual boulders";
     EXPECT_EQ(
         withBoulders([](terraingen::BoulderLayerOptions& r) { r.ejecta.minCraterDiameter = 10.0; }),
@@ -730,9 +730,10 @@ TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
               }),
               "valid");
     EXPECT_EQ(withManual([](Manual& m) { m[1].burial = 1.0; }), "layers[2].manual[1].burial");
-    EXPECT_EQ(withManual([](Manual& m) { m[0].height = 0.0; }), "layers[2].manual[0].height");
+    EXPECT_EQ(withManual([](Manual& m) { m[0].height = 0.0; }), "layers[2].manual[0].height_m");
     EXPECT_EQ(withManual([](Manual& m) { m[0].wear = 1.5; }), "layers[2].manual[0].wear");
-    EXPECT_EQ(withManual([](Manual& m) { m[0].diameter = -1.0; }), "layers[2].manual[0].diameter");
+    EXPECT_EQ(withManual([](Manual& m) { m[0].diameter = -1.0; }),
+              "layers[2].manual[0].diameter_m");
     EXPECT_EQ(withManual([](Manual& m) { m[1].yawDegrees = kInfinity; }),
               "layers[2].manual[1].yaw_deg");
     EXPECT_EQ(withManual([](Manual& m) { m[1] = m[0]; }), "layers[2].manual[1]")
@@ -872,7 +873,7 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
     EXPECT_EQ(with(terraingen::ScaleLayerSpec{2.0, 1.0}), "valid");
     EXPECT_EQ(with(ClampLayerSpec{2.0, 1.0}), "layers[2]");
     EXPECT_EQ(with(MaskedLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, -1.0}}),
-              "layers[2].shape.radius");
+              "layers[2].shape.radius_m");
     EXPECT_EQ(with(MaskedLayerSpec{terraingen::RectangleRegionSpec{1.0, 0.0, 0.0, 1.0}}),
               "layers[2].shape");
     EXPECT_EQ(with(MaskedLayerSpec{}), "layers[2].shape") << "the default shape has no area";
@@ -880,7 +881,7 @@ TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
               "layers[2].shape");
     EXPECT_EQ(with(MaskedLayerSpec{terraingen::RectangleRegionSpec{0.0, 0.0, 4.0, 4.0}}), "valid");
     EXPECT_EQ(with(MaskedLayerSpec{terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, -1.0}),
-              "layers[2].feather");
+              "layers[2].feather_m");
     EXPECT_EQ(with(MaskedLayerSpec{
                   terraingen::CircleRegionSpec{0.0, 0.0, 10.0}, 1.0, {}, ClampLayerSpec{2.0, 1.0}}),
               "layers[2].layer");
@@ -971,7 +972,7 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
               }),
               "albedo.source.hue_noise_deg");
     EXPECT_EQ(error([&](TerrainGenConfig& c) {
-                  synthetic(c).saturationNoise = {terraingen::NoiseStackLayerSpec{}};
+                  synthetic(c).saturationNoise = {terraingen::AlbedoNoiseLayerSpec{}};
                   synthetic(c).saturationNoise[0].layer.fractal.octaves = 0;
               }),
               "albedo.source.saturation_noise[0].octaves");
@@ -1019,7 +1020,7 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
                   slopes.options.baseline = 0.0;
                   c.albedo->layers.push_back(slopes);
               }),
-              "albedo.layers[1].baseline");
+              "albedo.layers[1].baseline_m");
     EXPECT_EQ(error([](TerrainGenConfig& c) { c.layers.pop_back(); }), "albedo.layers[0]");
     EXPECT_EQ(error([](TerrainGenConfig& c) { c.albedo->source = terraingen::RasterAlbedoSpec{}; }),
               "albedo.source.path");
@@ -1051,7 +1052,7 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
                   c.outputs = {
                       terraingen::AlbedoOutput{"a.tif", terraingen::TiffCompression::Lzw, 10}};
               }),
-              "outputs[0].tile_size");
+              "outputs[0].tile_size_px");
 }
 
 TEST(ValidateConfig, ReportsGeoTiffCropProblemsByPath) {
@@ -1086,7 +1087,7 @@ TEST(ValidateConfig, ReportsUpsamplingProblemsByPath) {
         EXPECT_EQ(ValidationErrorPath(config, folder), "valid") << type;
     }
     RasterSpec(config).upsampling.diamondSquare.scale = -1.0;
-    EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling.scale");
+    EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling.scale_m");
     RasterSpec(config).upsampling.diamondSquare.scale.reset();
     RasterSpec(config).upsampling.diamondSquare.minPixelSize = -1.0;
     EXPECT_EQ(ValidationErrorPath(config, folder), "source.upsampling.min_pixel_size_m");

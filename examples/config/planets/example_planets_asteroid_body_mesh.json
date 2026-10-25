@@ -2,7 +2,7 @@
     "schema_version": 1,
     "body": {
         "type": "ellipsoid",
-        "radii": [
+        "radii_m": [
             267.5,
             147,
             104.5
@@ -15,8 +15,8 @@
                 {
                     "seed": 3,
                     "basis": "simplex",
-                    "wavelength": 150,
-                    "amplitude": 8,
+                    "wavelength_m": 150,
+                    "amplitude_m": 8,
                     "octaves": 5
                 }
             ]

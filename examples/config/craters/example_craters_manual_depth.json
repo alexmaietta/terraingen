@@ -14,27 +14,27 @@
                 {
                     "x": -22,
                     "y": 20,
-                    "diameter": 20,
-                    "depth": 3.0,
-                    "rim_height": 0.8
+                    "diameter_m": 20,
+                    "depth_m": 3.0,
+                    "rim_height_m": 0.8
                 },
                 {
                     "x": 22,
                     "y": 22,
-                    "diameter": 16,
-                    "depth": 1.2
+                    "diameter_m": 16,
+                    "depth_m": 1.2
                 },
                 {
                     "x": -20,
                     "y": -22,
-                    "diameter": 24,
-                    "depth": 2.0,
-                    "rim_height": 0.3
+                    "diameter_m": 24,
+                    "depth_m": 2.0,
+                    "rim_height_m": 0.3
                 },
                 {
                     "x": 22,
                     "y": -20,
-                    "diameter": 18
+                    "diameter_m": 18
                 }
             ]
         }

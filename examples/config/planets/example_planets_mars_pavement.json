@@ -6,33 +6,33 @@
             "stack": [
                 {
                     "seed": 6,
-                    "wavelength": 30,
-                    "amplitude": 1.5,
+                    "wavelength_m": 30,
+                    "amplitude_m": 1.5,
                     "octaves": 5
                 }
             ]
         },
         {
             "type": "pavement",
-            "plate_size": 1.2,
-            "crack_width": 0.04,
-            "crack_depth": 0.08,
-            "edge_rounding": 0.02,
+            "plate_size_m": 1.2,
+            "crack_width_m": 0.04,
+            "crack_depth_m": 0.08,
+            "edge_rounding_m": 0.02,
             "max_tilt_deg": 3.5,
-            "max_step": 0.04,
+            "max_step_m": 0.04,
             "octaves": 3,
             "gain": 0.55,
             "exposure": {
-                "reach": 6,
+                "reach_m": 6,
                 "floor_cover": 0.5,
-                "floor_patch": 15
+                "floor_patch_m": 15
             }
         },
         {
             "type": "sand_fill",
-            "reach": 0.6,
+            "reach_m": 0.6,
             "fill": 0.9,
-            "max_thickness": 0.06
+            "max_thickness_m": 0.06
         }
     ],
     "materials": {

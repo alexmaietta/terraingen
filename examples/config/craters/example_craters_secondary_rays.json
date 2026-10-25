@@ -8,7 +8,7 @@
                 {
                     "x": 0,
                     "y": 0,
-                    "diameter": 5000,
+                    "diameter_m": 5000,
                     "age_gyr": 0.02
                 }
             ]

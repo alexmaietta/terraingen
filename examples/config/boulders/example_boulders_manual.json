@@ -17,9 +17,9 @@
                 {
                     "x": -6,
                     "y": 4,
-                    "diameter": 1.6,
+                    "diameter_m": 1.6,
                     "id": 101,
-                    "height": 0.9,
+                    "height_m": 0.9,
                     "burial": 0.3,
                     "yaw_deg": 30,
                     "lean_deg": 5,
@@ -32,14 +32,14 @@
                 {
                     "x": 5,
                     "y": 3,
-                    "diameter": 1.2,
+                    "diameter_m": 1.2,
                     "yaw_deg": 90,
                     "burial": 0.5
                 },
                 {
                     "x": 0,
                     "y": -6,
-                    "diameter": 1.0
+                    "diameter_m": 1.0
                 }
             ]
         }

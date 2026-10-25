@@ -11,7 +11,7 @@ import terraingen
 
 SPHERE_CONFIG = {
     "schema_version": 1,
-    "body": {"type": "sphere", "radius": 1737400},
+    "body": {"type": "sphere", "radius_m": 1737400},
     "outputs": [
         {
             "type": "heightmap",
@@ -20,7 +20,7 @@ SPHERE_CONFIG = {
             "extent_deg": {"center": [0, 0], "size": [0.05, 0.05]},
         }
     ],
-    "layers": [{"type": "noise", "stack": [{"wavelength": 2000, "amplitude": 10}]}],
+    "layers": [{"type": "noise", "stack": [{"wavelength_m": 2000, "amplitude_m": 10}]}],
     "albedo": {"source": {"type": "synthetic", "value": 0.12}},
 }
 
@@ -191,7 +191,7 @@ def test_build_albedo_rejects_a_generator_changed_after_building():
                 {
                     "type": "craters",
                     "generate_random": False,
-                    "manual": [{"x": 0.0, "y": 0.0, "diameter": 500.0}],
+                    "manual": [{"x": 0.0, "y": 0.0, "diameter_m": 500.0}],
                 }
             ],
             "albedo": {"source": {"type": "synthetic", "value": 0.12}, "layers": [{"type": "craters"}]},

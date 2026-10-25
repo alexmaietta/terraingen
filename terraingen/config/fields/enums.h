@@ -323,7 +323,7 @@ template <> struct EnumNames<BoulderRelief> {
 template <> struct EnumNames<DuneShape> {
     static constexpr std::array<EnumEntry<DuneShape>, 5> kValues{{
         {"barchan", DuneShape::Barchan,
-         "Isolated crescents with a slip face and horns downwind; domes below min_width."},
+         "Isolated crescents with a slip face and horns downwind; domes below min_width_m."},
         {"dome", DuneShape::Dome, "Isolated rounded heaps without a slip face."},
         {"transverse", DuneShape::Transverse,
          "Continuous crests across the wind, each with a slip face."},

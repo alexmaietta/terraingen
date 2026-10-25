@@ -18,18 +18,18 @@ template <typename IO> void Fields(IO& io, Crater& crater) {
        "Center along x in the surface's coordinates; the longitude in degrees on a sphere.");
     io("y", crater.y,
        "Center along y in the surface's coordinates; the latitude in degrees on a sphere.");
-    io("diameter", crater.diameter, "Rim-to-rim diameter, in meters.", "m", Above(0.0));
+    io("diameter_m", crater.diameter, "Rim-to-rim diameter, in meters.", "m", Above(0.0));
     io("age_gyr", crater.ageGyr,
        "Age in Gyr; older craters are more degraded under a degradation model and are applied "
        "earlier in oldest-first order.",
        "Gyr", AtLeast(0.0));
     io("id", crater.id,
        "Stable ID that seeds the crater's outline; 0 derives one from its position and diameter.");
-    io("depth", crater.depth,
+    io("depth_m", crater.depth,
        "Rim-to-floor depth in meters, in place of the one the degradation model and age "
        "give; unset keeps the model's.",
        "m", Above(0.0));
-    io("rim_height", crater.rimHeight,
+    io("rim_height_m", crater.rimHeight,
        "Height of the rim crest above the surface the crater formed on, in meters; needs a "
        "depth. Unset lowers the fresh rim in proportion to the depth.",
        "m", AtLeast(0.0));

@@ -27,7 +27,7 @@ namespace terraingen {
 /// The `Surface` a spec describes: a plane, a sphere, an ellipsoid or a shape model, whose file is
 /// found relative to `directory` and loaded once per file, modification time, Q and unit. As it
 /// is also used on its own, it checks the body's field ranges (`CheckRanges`) first.
-/// @throws ConfigError at the field of "body" out of its range, at "body.radii" for not three
+/// @throws ConfigError at the field of "body" out of its range, at "body.radii_m" for not three
 /// radii, and at "body.path" for a shape model that cannot be loaded.
 Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& directory = {});
 

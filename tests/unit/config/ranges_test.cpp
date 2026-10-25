@@ -148,13 +148,13 @@ TEST(CheckConfigRanges, RejectsNumbersThatAreNotFiniteInFieldsWithoutARange) {
     scale.offset = kInfinity;
     config.layers.push_back(scale);
     EXPECT_EQ(Message([&] { config::CheckConfigRanges(config); }),
-              "layers[2].offset: must be finite");
+              "layers[2].offset_m: must be finite");
 }
 
 TEST(CheckConfigRanges, ChecksInsideRegionsAndTheBody) {
     TerrainGenConfig config;
     config.body = terraingen::EllipsoidSurfaceSpec{{3.0, 0.0, 1.0}};
-    EXPECT_EQ(RangeErrorPath(config), "body.radii[1]");
+    EXPECT_EQ(RangeErrorPath(config), "body.radii_m[1]");
     config.body = terraingen::ShapeModelSurfaceSpec{"a.icq", terraingen::kMaxCubeFaceCells + 1};
     EXPECT_EQ(RangeErrorPath(config), "body.q");
     config = TerrainGenConfig{};
@@ -163,7 +163,7 @@ TEST(CheckConfigRanges, ChecksInsideRegionsAndTheBody) {
     roughness.roughness.baseline = 0.0;
     region.layer = roughness;
     config.layers = {region};
-    EXPECT_EQ(RangeErrorPath(config), "layers[0].layer.baseline");
+    EXPECT_EQ(RangeErrorPath(config), "layers[0].layer.baseline_m");
 }
 
 TEST(CheckConfigRanges, AcceptsEveryDefault) {

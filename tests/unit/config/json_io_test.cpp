@@ -336,7 +336,7 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
 TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheBase) {
     const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1,
         "layers": [{"type": "roughness", "estimate_from_base": true, "hurst": 0.7},
-                   {"type": "noise", "estimate_from_base": true, "stack": [{"wavelength": 4}]}]})");
+                   {"type": "noise", "estimate_from_base": true, "stack": [{"wavelength_m": 4}]}]})");
     const auto& roughness = std::get<terraingen::RoughnessLayerSpec>(config.layers[0]);
     EXPECT_TRUE(roughness.estimateFromSource);
     EXPECT_EQ(roughness.hurst, 0.7);
@@ -384,9 +384,9 @@ TEST(ConfigJson, ReadsGeoTiffCropsAndSourceResolvedLimits) {
 TEST(ConfigJson, ReadsAndWritesManualCraterDepthsAndRimHeights) {
     const TerrainGenConfig config =
         ParseConfig(R"({"schema_version": 1, "layers": [{"type": "craters",
-        "manual": [{"x": 1, "y": 2, "diameter": 6, "depth": 0.9},
-                   {"x": 3, "y": 4, "diameter": 6, "depth": 0.9, "rim_height": 0.2},
-                   {"x": 5, "y": 6, "diameter": 6}]}]})");
+        "manual": [{"x": 1, "y": 2, "diameter_m": 6, "depth_m": 0.9},
+                   {"x": 3, "y": 4, "diameter_m": 6, "depth_m": 0.9, "rim_height_m": 0.2},
+                   {"x": 5, "y": 6, "diameter_m": 6}]}]})");
     const auto& manual = std::get<CraterLayerSpec>(config.layers[0]).manual;
     ASSERT_EQ(manual.size(), 3u);
     EXPECT_EQ(manual[0].depth, 0.9);
@@ -397,9 +397,9 @@ TEST(ConfigJson, ReadsAndWritesManualCraterDepthsAndRimHeights) {
     const std::size_t last = json.find("\"x\": 5.0,");
     ASSERT_NE(last, std::string::npos) << json;
     const std::string unset = json.substr(last, json.find('}', last) - last);
-    EXPECT_NE(unset.find("\"depth\": null"), std::string::npos) << unset;
-    EXPECT_NE(unset.find("\"rim_height\": null"), std::string::npos) << unset;
-    EXPECT_NE(json.find("\"depth\": 0.9,\n          \"rim_height\": 0.2"), std::string::npos)
+    EXPECT_NE(unset.find("\"depth_m\": null"), std::string::npos) << unset;
+    EXPECT_NE(unset.find("\"rim_height_m\": null"), std::string::npos) << unset;
+    EXPECT_NE(json.find("\"depth_m\": 0.9,\n          \"rim_height_m\": 0.2"), std::string::npos)
         << json;
     EXPECT_EQ(ParseConfig(json), config);
 }
@@ -521,8 +521,8 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     synthetic.hueDegrees = 30.0;
     synthetic.saturation = 0.1;
     synthetic.value = 0.2;
-    synthetic.valueNoise = {terraingen::NoiseStackLayerSpec{{}, 0.8f, {}}};
-    synthetic.hueNoiseDegrees = {terraingen::NoiseStackLayerSpec{}};
+    synthetic.valueNoise = {terraingen::AlbedoNoiseLayerSpec{{{}, 0.8f, {}}}};
+    synthetic.hueNoiseDegrees = {terraingen::AlbedoNoiseLayerSpec{}};
     terraingen::CraterAlbedoSpec craters;
     craters.craterLayer = 1;
     craters.options.selection.maxDiameter = 5000.0;
@@ -569,7 +569,7 @@ TEST(ConfigJson, RoundTripsAlbedos) {
 
     const TerrainGenConfig parsed = ParseConfig(
         R"({"schema_version": 1, "albedo": {"source": {"type": "synthetic"},
-            "layers": [{"type": "craters", "min_diameter": 100, "rays": {"enabled": false}}]}})");
+            "layers": [{"type": "craters", "min_diameter_m": 100, "rays": {"enabled": false}}]}})");
     ASSERT_TRUE(parsed.albedo);
     const auto& layer = std::get<terraingen::CraterAlbedoSpec>(parsed.albedo->layers.at(0));
     EXPECT_EQ(layer.options.selection.minDiameter, 100.0);
@@ -586,11 +586,11 @@ TEST(ConfigJson, RoundTripsAlbedos) {
 
 TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
     const TerrainGenConfig parsed =
-        ParseConfig(R"({"schema_version": 1, "body": {"type": "sphere", "radius": 3389500}})");
+        ParseConfig(R"({"schema_version": 1, "body": {"type": "sphere", "radius_m": 3389500}})");
     EXPECT_EQ(std::get<terraingen::SphereSurfaceSpec>(parsed.body).radius, 3389500.0);
     EXPECT_EQ(ParseConfig(ConfigToJson(parsed)), parsed);
     const TerrainGenConfig ellipsoid = ParseConfig(
-        R"({"schema_version": 1, "body": {"type": "ellipsoid", "radii": [270, 147, 104]}})");
+        R"({"schema_version": 1, "body": {"type": "ellipsoid", "radii_m": [270, 147, 104]}})");
     EXPECT_EQ(std::get<terraingen::EllipsoidSurfaceSpec>(ellipsoid.body).radii,
               (std::vector<double>{270.0, 147.0, 104.0}));
     EXPECT_EQ(ParseConfig(ConfigToJson(ellipsoid)), ellipsoid);
@@ -802,11 +802,11 @@ TEST(ConfigJson, ReadsUpsamplingAsANameOrAnObjectAndWritesItBack) {
             {"type": "raster", "path": "a.tif", "upsampling": "catmull_rom"},
             {"type": "raster", "path": "b.tif", "upsampling": {"type": "nearest"}},
             {"type": "raster", "path": "c.tif",
-             "upsampling": {"type": "diamond_square", "fractal_dimension": 2.3, "scale": 0.5,
+             "upsampling": {"type": "diamond_square", "fractal_dimension": 2.3, "scale_m": 0.5,
                             "interp": "catmull_rom", "min_pixel_size_m": 0.5, "seed": 1}},
             {"type": "raster", "path": "d.tif", "upsampling": {"type": "mine", "taps": 3}},
             {"type": "synthetic", "elevation_m": 5, "pixel_size_m": 2,
-             "stack": [{"wavelength": 50}], "upsampling": "diamond_square"}]}})");
+             "stack": [{"wavelength_m": 50}], "upsampling": "diamond_square"}]}})");
     const auto& sources = std::get<terraingen::ChainSourceSpec>(*config.source).sources;
     const auto upsampling = [&](std::size_t n) {
         return std::get<terraingen::RasterSourceSpec>(sources.at(n)).upsampling;
@@ -886,7 +886,7 @@ TEST(TypedJson, PutsTheTypeBeforeTheFields) {
 
 TEST(ParseConfig, ReadsTheDocumentedExample) {
     const TerrainGenConfig config = ParseConfig(R"({"schema_version": 1,
-        "layers": [{"type": "noise", "stack": [{"wavelength": 500, "amplitude": 50}]},
+        "layers": [{"type": "noise", "stack": [{"wavelength_m": 500, "amplitude_m": 50}]},
                    {"type": "craters",
                     "density": {"type": "production_surface", "age_gyr": 3.5},
                     "apply": {"rim_smoothing": {"sigma_radii": 0.05}}}],

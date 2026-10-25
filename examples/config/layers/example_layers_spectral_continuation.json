@@ -6,18 +6,18 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 40,
-                    "amplitude": 1,
+                    "wavelength_m": 40,
+                    "amplitude_m": 1,
                     "octaves": 4
                 }
             ]
         },
         {
             "type": "spectral_continuation",
-            "pixel_size": 1,
+            "pixel_size_m": 1,
             "slope": 3,
-            "octave_rms": 0.05,
-            "min_wavelength": 0.2,
+            "octave_rms_m": 0.05,
+            "min_wavelength_m": 0.2,
             "seed": 2
         }
     ],

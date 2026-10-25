@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 2,
-                    "wavelength": 20,
-                    "amplitude": 0.2,
+                    "wavelength_m": 20,
+                    "amplitude_m": 0.2,
                     "octaves": 5
                 }
             ]

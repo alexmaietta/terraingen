@@ -218,8 +218,8 @@ void SourceResolvesField(IO& io, std::optional<double>& pixels, std::string_view
 
 /// The keys of a crater selection's fields.
 struct SelectionKeys {
-    std::string_view minDiameter = "min_diameter";
-    std::string_view maxDiameter = "max_diameter";
+    std::string_view minDiameter = "min_diameter_m";
+    std::string_view maxDiameter = "max_diameter_m";
     std::string_view minAge = "min_age_gyr";
     std::string_view maxAge = "max_age_gyr";
     std::string_view manual = "manual";
@@ -283,12 +283,12 @@ void AnchorFields(IO& io, Anchor& anchor, std::string_view what,
 /// The fields of an exposure field a layer reads on the ground beneath it, and the spacing in
 /// meters it reads the ground at.
 /// @param exposureHelp The description of the exposure field.
-/// @param prefix The exposure's key, to which "_spacing" is added for the spacing's.
+/// @param prefix The exposure's key, to which "_spacing_m" is added for the spacing's.
 template <typename IO, typename Exposure>
 void ExposureFields(IO& io, Exposure& exposure, double& spacing, std::string_view exposureHelp,
                     std::string_view prefix = "exposure") {
     io(std::string(prefix), exposure, exposureHelp);
-    io(std::string(prefix) + "_spacing", spacing,
+    io(std::string(prefix) + "_spacing_m", spacing,
        "Spacing in meters the ground is read at for the exposure field.", "m", Above(0.0));
 }
 

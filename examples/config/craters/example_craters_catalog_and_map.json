@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 800,
-                    "amplitude": 20,
+                    "wavelength_m": 800,
+                    "amplitude_m": 20,
                     "octaves": 6
                 }
             ]
@@ -24,13 +24,13 @@
                 {
                     "x": -150,
                     "y": 120,
-                    "diameter": 180,
+                    "diameter_m": 180,
                     "age_gyr": 0.8
                 },
                 {
                     "x": 220,
                     "y": -160,
-                    "diameter": 110,
+                    "diameter_m": 110,
                     "age_gyr": 2.0
                 }
             ],

@@ -6,8 +6,8 @@
             "stack": [
                 {
                     "seed": 1,
-                    "wavelength": 300,
-                    "amplitude": 1.5,
+                    "wavelength_m": 300,
+                    "amplitude_m": 1.5,
                     "octaves": 7
                 }
             ]
@@ -86,7 +86,7 @@
             "value_noise": [
                 {
                     "seed": 4,
-                    "wavelength": 120,
+                    "wavelength_m": 120,
                     "amplitude": 0.006,
                     "octaves": 5
                 }
@@ -103,7 +103,7 @@
                         "elongation": 1.14,
                         "heading_deg": 100,
                         "change": 0.151,
-                        "core_radius": 6,
+                        "core_radius_m": 6,
                         "seed": 11
                     }
                 ]
