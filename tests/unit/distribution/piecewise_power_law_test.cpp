@@ -68,26 +68,31 @@ TEST(PiecewisePowerLawSfd, SamplesAnUnboundedLastSegment) {
 }
 
 TEST(PiecewisePowerLawSfd, RejectsMalformedSegments) {
-    const auto rejects = [](std::vector<PowerLawSegment> segments,
-                            DiameterRange range = DiameterRange{}) {
-        EXPECT_THROW(PiecewisePowerLawSfd(segments, SfdKind::Density, range),
+    const auto rejects = [](std::vector<PowerLawSegment> segments, double maxDiameter = kInf) {
+        EXPECT_THROW(PiecewisePowerLawSfd(segments, SfdKind::Density, maxDiameter),
                      std::invalid_argument);
     };
     rejects({});
-    rejects({{1.0, 0.1, 2.0}});
     rejects({{0.0, 0.0, 2.0}});
     rejects({{0.0, 0.1, -2.0}});
     rejects({{0.0, 0.1, 2.0}, {0.0, 0.1, 2.0}});
     rejects({{0.0, 0.1, 2.0}, {kInf, 0.1, 2.0}});
-    rejects({{0.0, 0.1, 2.0}, {50.0, 0.1, 2.0}}, DiameterRange{0.0, 40.0});
+    rejects({{0.0, 0.1, 2.0}, {50.0, 0.1, 2.0}}, 40.0);
     rejects({{0.0, 0.1, 2.0}, {100.0, 100.0, 3.0}});
     rejects({{0.0, 0.1, 2.0}, {100.0, 1.0, 3.0}});
 }
 
 TEST(PiecewisePowerLawSfd, AllowsDownwardDiscontinuitiesOnlyByOptIn) {
     const std::vector<PowerLawSegment> segments{{0.0, 0.1, 2.0}, {100.0, 1.0, 3.0}};
-    EXPECT_NO_THROW(PiecewisePowerLawSfd(segments, SfdKind::Density, DiameterRange{}, true));
+    EXPECT_NO_THROW(
+        PiecewisePowerLawSfd(segments, SfdKind::Density, kInf, terraingen::SfdJoins{true}));
     const std::vector<PowerLawSegment> rising{{0.0, 0.1, 2.0}, {100.0, 100.0, 3.0}};
-    EXPECT_THROW(PiecewisePowerLawSfd(rising, SfdKind::Density, DiameterRange{}, true),
+    EXPECT_THROW(PiecewisePowerLawSfd(rising, SfdKind::Density, kInf, terraingen::SfdJoins{true}),
                  std::invalid_argument);
+}
+
+TEST(PiecewisePowerLawSfd, IsValidFromItsFirstStart) {
+    const PiecewisePowerLawSfd law({{1.0, 0.1, 2.0}, {100.0, 10.0, 3.0}}, SfdKind::Density, 500.0);
+    EXPECT_EQ(law.ValidRange().min, 1.0);
+    EXPECT_EQ(law.ValidRange().max, 500.0);
 }

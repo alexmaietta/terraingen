@@ -71,6 +71,13 @@ DiameterRange IntersectRanges(const std::vector<Part>& parts, const Range& range
 /// @throws std::invalid_argument for no starts or starts that break those rules.
 void CheckStarts(Span<const double> starts, const DiameterRange& range, const std::string& what);
 
+/// The valid range of a distribution made of `pieces`: from the first one's `start` (0 without
+/// pieces) to `maxDiameter`.
+template <typename Piece>
+DiameterRange PieceRange(const std::vector<Piece>& pieces, double maxDiameter) {
+    return {pieces.empty() ? 0.0 : pieces.front().start, maxDiameter};
+}
+
 /// The `start` of each of `pieces`.
 template <typename Piece> std::vector<double> Starts(const std::vector<Piece>& pieces) {
     std::vector<double> starts;

@@ -33,7 +33,7 @@ constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 }  // namespace
 
 TEST(LogPolynomialSfd, ConvertsUnitsAndMatchesTheEquivalentPowerLaw) {
-    const LogPolynomialSfd poly({std::log10(2.0), -2.0}, DiameterRange{1.0, 1e5}, SfdKind::Density,
+    const LogPolynomialSfd poly({std::log10(2.0), -2.0}, SfdKind::Density, DiameterRange{1.0, 1e5},
                                 1000.0, 1e6);
     const PowerLawSfd law(2.0, 2.0);
     for (const double d : {1.0, 37.0, 1000.0, 1e5}) {
@@ -52,17 +52,20 @@ TEST(LogPolynomialSfd, ConvertsUnitsAndMatchesTheEquivalentPowerLaw) {
 
 TEST(LogPolynomialSfd, RejectsMalformedArgumentsAndIncreasingCurves) {
     const DiameterRange range{1.0, 100.0};
-    EXPECT_THROW(LogPolynomialSfd({}, range), std::invalid_argument);
-    EXPECT_THROW(LogPolynomialSfd({0.0, kNaN}, range), std::invalid_argument);
-    EXPECT_THROW(LogPolynomialSfd({0.0, -1.0}, range, SfdKind::Density, 0.0),
+    EXPECT_THROW(LogPolynomialSfd({}, SfdKind::Density, range), std::invalid_argument);
+    EXPECT_THROW(LogPolynomialSfd({0.0, kNaN}, SfdKind::Density, range), std::invalid_argument);
+    EXPECT_THROW(LogPolynomialSfd({0.0, -1.0}, SfdKind::Density, range, 0.0),
                  std::invalid_argument);
-    EXPECT_THROW(LogPolynomialSfd({0.0, -1.0}, range, SfdKind::Density, 1.0, kInf),
+    EXPECT_THROW(LogPolynomialSfd({0.0, -1.0}, SfdKind::Density, range, 1.0, kInf),
                  std::invalid_argument);
-    EXPECT_THROW(LogPolynomialSfd({0.0, -1.0}, DiameterRange{0.0, 100.0}), std::invalid_argument);
-    EXPECT_THROW(LogPolynomialSfd({0.0, -1.0}, DiameterRange{1.0, kInf}), std::invalid_argument);
-    EXPECT_THROW(LogPolynomialSfd({0.0, 1.0}, range), std::invalid_argument);
-    EXPECT_THROW(LogPolynomialSfd({0.0, 0.0, -1.0}, DiameterRange{0.1, 10.0}),
+    EXPECT_THROW(LogPolynomialSfd({0.0, -1.0}, SfdKind::Density, DiameterRange{0.0, 100.0}),
                  std::invalid_argument);
-    EXPECT_NO_THROW(LogPolynomialSfd({0.0, 0.0, -1.0}, DiameterRange{1.0, 10.0}));
-    EXPECT_DOUBLE_EQ(LogPolynomialSfd({0.5}, range).Cumulative(10.0), std::pow(10.0, 0.5));
+    EXPECT_THROW(LogPolynomialSfd({0.0, -1.0}, SfdKind::Density, DiameterRange{1.0, kInf}),
+                 std::invalid_argument);
+    EXPECT_THROW(LogPolynomialSfd({0.0, 1.0}, SfdKind::Density, range), std::invalid_argument);
+    EXPECT_THROW(LogPolynomialSfd({0.0, 0.0, -1.0}, SfdKind::Density, DiameterRange{0.1, 10.0}),
+                 std::invalid_argument);
+    EXPECT_NO_THROW(LogPolynomialSfd({0.0, 0.0, -1.0}, SfdKind::Density, DiameterRange{1.0, 10.0}));
+    EXPECT_DOUBLE_EQ(LogPolynomialSfd({0.5}, SfdKind::Density, range).Cumulative(10.0),
+                     std::pow(10.0, 0.5));
 }

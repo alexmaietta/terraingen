@@ -25,7 +25,7 @@ LogPolynomialSfd IvanovMarsProductionFunction() {
     return LogPolynomialSfd({-3.383677, -3.197453, 1.256814, 7.915374e-1, -4.860814e-1,
                              -3.630098e-1, 1.015683e-1, 6.755923e-2, -1.180639e-2, -4.753462e-3,
                              6.232845e-4, 5.805492e-5},
-                            DiameterRange{15.0, 362000.0}, SfdKind::ProductionRate, 1000.0, 1e6);
+                            SfdKind::ProductionRate, DiameterRange{15.0, 362000.0}, 1000.0, 1e6);
 }
 
 }  // namespace terraingen

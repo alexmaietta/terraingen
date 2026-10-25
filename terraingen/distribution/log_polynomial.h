@@ -23,9 +23,8 @@ class LogPolynomialSfd final : public SizeFrequencyDistribution {
     /// @throws std::invalid_argument for no or non-finite coefficients, a unit that is not positive
     /// and finite, a range without a positive minimum and finite maximum, or if N(>=D) increases
     /// anywhere in the range.
-    LogPolynomialSfd(std::vector<double> coefficients, DiameterRange range,
-                     SfdKind kind = SfdKind::Density, double diameterUnit = 1.0,
-                     double areaUnit = 1.0);
+    LogPolynomialSfd(std::vector<double> coefficients, SfdKind kind, DiameterRange range,
+                     double diameterUnit = 1.0, double areaUnit = 1.0);
 
     /// The coefficients a_0, a_1, ... in increasing degree.
     const std::vector<double>& Coefficients() const {

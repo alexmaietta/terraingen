@@ -36,7 +36,7 @@ def test_power_law_samples_diameters_in_the_requested_range(power):
 
 
 def test_piecewise_power_law_uses_the_segment_at_the_diameter():
-    piecewise = terraingen.PiecewisePowerLawSfd([(1.0, 0.1, 2.0), (10.0, 0.1, 2.0)], min_diameter=1.0)
+    piecewise = terraingen.PiecewisePowerLawSfd([(1.0, 0.1, 2.0), (10.0, 0.1, 2.0)])
     assert piecewise.cumulative(20.0) == pytest.approx(0.1 / 400)
 
 
@@ -78,20 +78,25 @@ def test_summed_sfd_exposes_its_terms():
 
 
 def test_spliced_sfd_uses_the_piece_covering_the_diameter(power):
-    spliced = terraingen.SplicedSfd([(1.0, power), (10.0, terraingen.PowerLawSfd(0.05, 2.0))], 1.0, 100.0)
+    spliced = terraingen.SplicedSfd([(1.0, power), (10.0, terraingen.PowerLawSfd(0.05, 2.0))], 100.0)
     assert spliced.cumulative(50.0) == pytest.approx(power.cumulative(50.0))
 
 
 def test_spliced_sfd_exposes_its_pieces():
-    assert len(terraingen.SplicedSfd([(1.0, terraingen.PowerLawSfd(0.05, 2.0))], 1.0, 100.0).pieces) == 1
+    assert len(terraingen.SplicedSfd([(1.0, terraingen.PowerLawSfd(0.05, 2.0))], 100.0).pieces) == 1
 
 
 def test_log_polynomial_sfd_evaluates_its_polynomial():
-    assert terraingen.LogPolynomialSfd([-2.0, -2.0], 1.0, 100.0).cumulative(10.0) == pytest.approx(1e-4)
+    assert terraingen.LogPolynomialSfd([-2.0, -2.0], terraingen.SfdKind.DENSITY, 1.0, 100.0).cumulative(
+        10.0
+    ) == pytest.approx(1e-4)
 
 
 def test_log_polynomial_sfd_exposes_its_coefficients():
-    assert terraingen.LogPolynomialSfd([-2.0, -2.0], 1.0, 100.0).coefficients == [-2.0, -2.0]
+    assert terraingen.LogPolynomialSfd([-2.0, -2.0], terraingen.SfdKind.DENSITY, 1.0, 100.0).coefficients == [
+        -2.0,
+        -2.0,
+    ]
 
 
 def test_minimum_sfd_takes_the_smaller_cumulative():

@@ -7,6 +7,7 @@
 #include "terraingen/distribution/size_frequency.h"
 
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -26,14 +27,17 @@ struct SfdPiece {
 /// within a relative tolerance.
 class SplicedSfd final : public SizeFrequencyDistribution {
   public:
-    /// The distribution spliced from `pieces`.
-    /// @param pieces At least one piece, with strictly increasing `start`, the first `start` equal
-    /// to `range.min`, and each distribution valid (or extrapolating) over its interval.
-    /// @param range The valid range, in meters.
+    /// The distribution spliced from `pieces`, valid from the first one's `start` to
+    /// `maxDiameter`.
+    /// @param pieces At least one piece, with strictly increasing `start`, and each distribution
+    /// valid (or extrapolating) over its interval.
+    /// @param maxDiameter The largest valid diameter, in meters.
     /// @param tolerance Relative mismatch allowed at a join.
     /// @throws std::invalid_argument for malformed pieces, mixed kinds, a piece not valid over its
     /// interval, or a join that rises or is discontinuous by more than `tolerance`.
-    SplicedSfd(std::vector<SfdPiece> pieces, DiameterRange range, double tolerance = 1e-3);
+    explicit SplicedSfd(std::vector<SfdPiece> pieces,
+                        double maxDiameter = std::numeric_limits<double>::infinity(),
+                        double tolerance = 1e-3);
 
     /// The pieces in increasing `start` order.
     const std::vector<SfdPiece>& Pieces() const {

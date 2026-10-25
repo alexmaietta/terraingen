@@ -11,8 +11,8 @@
 
 namespace terraingen {
 
-LogPolynomialSfd::LogPolynomialSfd(std::vector<double> coefficients, DiameterRange range,
-                                   SfdKind kind, double diameterUnit, double areaUnit)
+LogPolynomialSfd::LogPolynomialSfd(std::vector<double> coefficients, SfdKind kind,
+                                   DiameterRange range, double diameterUnit, double areaUnit)
     : SizeFrequencyDistribution(kind, range), coefficients_(std::move(coefficients)),
       diameterUnit_(diameterUnit), areaUnit_(areaUnit) {
     if (coefficients_.empty() || !std::all_of(coefficients_.begin(), coefficients_.end(),

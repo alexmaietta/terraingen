@@ -12,9 +12,10 @@
 namespace terraingen {
 
 PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments, SfdKind kind,
-                                           DiameterRange range, bool allowDiscontinuities,
-                                           double tolerance)
-    : SizeFrequencyDistribution(kind, range), segments_(std::move(segments)) {
+                                           double maxDiameter, SfdJoins joins)
+    : SizeFrequencyDistribution(kind, detail::PieceRange(segments, maxDiameter)),
+      segments_(std::move(segments)) {
+    const DiameterRange& range = ValidRange();
     if (segments_.empty()) {
         throw std::invalid_argument("A piecewise power law needs at least one segment");
     }
@@ -29,7 +30,7 @@ PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments
         [](const PowerLawSegment& segment, double diameter) {
             return segment.Cumulative(diameter);
         },
-        tolerance, allowDiscontinuities);
+        joins.tolerance, joins.allowDiscontinuities);
 }
 
 const PowerLawSegment& PiecewisePowerLawSfd::SegmentAt(double diameter) const {

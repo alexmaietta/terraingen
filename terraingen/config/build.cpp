@@ -109,9 +109,7 @@ SfdPtr BuildDensity(const DensitySpec& spec) {
                 return std::make_shared<PowerLawSfd>(s.coefficient, s.exponent);
             },
             [](const PiecewisePowerLawSpec& s) -> SfdPtr {
-                const double start = s.segments.empty() ? 0.0 : s.segments.front().start;
-                return std::make_shared<PiecewisePowerLawSfd>(s.segments, SfdKind::Density,
-                                                              DiameterRange{start});
+                return std::make_shared<PiecewisePowerLawSfd>(s.segments, SfdKind::Density);
             },
             [](const TabulatedSpec& s) -> SfdPtr {
                 return std::make_shared<TabulatedSfd>(s.diameters, s.cumulative, SfdKind::Density,

@@ -20,10 +20,12 @@ bool Covers(const SizeFrequencyDistribution& distribution, double low, double hi
 
 }  // namespace
 
-SplicedSfd::SplicedSfd(std::vector<SfdPiece> pieces, DiameterRange range, double tolerance)
+SplicedSfd::SplicedSfd(std::vector<SfdPiece> pieces, double maxDiameter, double tolerance)
     : SizeFrequencyDistribution(
-          detail::CommonKind(detail::Distributions(pieces), "A spliced distribution"), range),
+          detail::CommonKind(detail::Distributions(pieces), "A spliced distribution"),
+          detail::PieceRange(pieces, maxDiameter)),
       pieces_(std::move(pieces)) {
+    const DiameterRange& range = ValidRange();
     detail::CheckStarts(detail::Starts(pieces_), range, "Piece");
     for (std::size_t i = 0; i < pieces_.size(); ++i) {
         const double end = i + 1 < pieces_.size() ? pieces_[i + 1].start : range.max;

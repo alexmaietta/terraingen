@@ -143,24 +143,35 @@ void BindPowerLaws(nb::module_& m) {
           "coefficient"_a, "exponent"_a,
           "The coefficient per square meter, D in meters, of a power law given per square "
           "kilometer with D in kilometers.");
+    nb::class_<SfdJoins>(m, "SfdJoins",
+                         "How the pieces of a distribution must meet at their joins.")
+        .def(nb::init<>())
+        .def(
+            "__init__",
+            [](SfdJoins* self, bool allowDiscontinuities, double tolerance) {
+                new (self) SfdJoins{allowDiscontinuities, tolerance};
+            },
+            "allow_discontinuities"_a = false, "tolerance"_a = 1e-3)
+        .def_rw("allow_discontinuities", &SfdJoins::allowDiscontinuities)
+        .def_rw("tolerance", &SfdJoins::tolerance);
     nb::class_<PiecewisePowerLawSfd, Sfd>(
         m, "PiecewisePowerLawSfd",
         "Power laws over consecutive diameter ranges: `segments` are (start diameter, "
-        "coefficient, exponent), each holding from its start to the next.")
+        "coefficient, exponent), each holding from its start to the next, valid from the first "
+        "start to `max_diameter`.")
         .def(
             "__init__",
             [](PiecewisePowerLawSfd* self,
                const std::vector<std::tuple<double, double, double>>& segments, SfdKind kind,
-               double minDiameter, double maxDiameter, bool allowDiscontinuities) {
+               double maxDiameter, SfdJoins joins) {
                 std::vector<PowerLawSegment> pieces;
                 for (const auto& [start, coefficient, exponent] : segments) {
                     pieces.push_back({start, coefficient, exponent});
                 }
-                new (self) PiecewisePowerLawSfd(std::move(pieces), kind, {minDiameter, maxDiameter},
-                                                allowDiscontinuities);
+                new (self) PiecewisePowerLawSfd(std::move(pieces), kind, maxDiameter, joins);
             },
-            "segments"_a, "kind"_a = SfdKind::Density, "min_diameter"_a = 0.0,
-            "max_diameter"_a = kInfinity, "allow_discontinuities"_a = false)
+            "segments"_a, "kind"_a = SfdKind::Density, "max_diameter"_a = kInfinity,
+            "joins"_a = SfdJoins{})
         .def_prop_ro("segments", &PiecewisePowerLawSfd::Segments);
 }
 
@@ -206,13 +217,13 @@ void BindTables(nb::module_& m) {
         "up, as for the Neukum production function.")
         .def(
             "__init__",
-            [](LogPolynomialSfd* self, std::vector<double> coefficients, double minDiameter,
-               double maxDiameter, SfdKind kind, double diameterUnit, double areaUnit) {
-                new (self) LogPolynomialSfd(std::move(coefficients), {minDiameter, maxDiameter},
-                                            kind, diameterUnit, areaUnit);
+            [](LogPolynomialSfd* self, std::vector<double> coefficients, SfdKind kind,
+               double minDiameter, double maxDiameter, double diameterUnit, double areaUnit) {
+                new (self) LogPolynomialSfd(std::move(coefficients), kind,
+                                            {minDiameter, maxDiameter}, diameterUnit, areaUnit);
             },
-            "coefficients"_a, "min_diameter"_a, "max_diameter"_a, "kind"_a = SfdKind::Density,
-            "diameter_unit"_a = 1.0, "area_unit"_a = 1.0)
+            "coefficients"_a, "kind"_a, "min_diameter"_a, "max_diameter"_a, "diameter_unit"_a = 1.0,
+            "area_unit"_a = 1.0)
         .def_prop_ro("coefficients", &LogPolynomialSfd::Coefficients);
 }
 
@@ -256,15 +267,16 @@ void BindSpliced(nb::module_& m) {
         "holding from its start to the next.")
         .def(
             "__init__",
-            [](SplicedSfd* self, const std::vector<StartAndSfd>& pieces, double minDiameter,
-               double maxDiameter) {
+            [](SplicedSfd* self, const std::vector<StartAndSfd>& pieces, double maxDiameter,
+               double tolerance) {
                 std::vector<SfdPiece> spliced;
                 for (const auto& [start, distribution] : pieces) {
                     spliced.push_back({start, distribution});
                 }
-                new (self) SplicedSfd(std::move(spliced), {minDiameter, maxDiameter});
+                new (self) SplicedSfd(std::move(spliced), maxDiameter, tolerance);
             },
-            "pieces"_a, "min_diameter"_a, "max_diameter"_a)
+            "pieces"_a, "max_diameter"_a = kInfinity, "tolerance"_a = 1e-3,
+            "Valid from the first piece's start to `max_diameter`.")
         .def_prop_ro("pieces", [](const SplicedSfd& sfd) { return Pairs(sfd.Pieces()); });
 }
 
