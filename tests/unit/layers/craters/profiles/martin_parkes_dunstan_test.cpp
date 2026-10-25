@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <stdexcept>
@@ -70,4 +71,26 @@ TEST(MartinParkesDunstanProfile, RejectsInconsistentStates) {
                  std::invalid_argument);
     const std::unique_ptr<CraterProfile> base = std::make_unique<MartinParkesDunstanProfile>();
     EXPECT_EQ(base->ReachRadii(), 2.0);
+}
+
+TEST(MartinParkesDunstanProfile, JoinsTheGroundWithoutSlopeBreaksAtEveryFreshness) {
+    const MartinParkesDunstanProfile profile;
+    const double d = 150.0;
+    const double radius = 0.5 * d;
+    const double step = 0.01;
+    for (const double freshness : {1.0, 0.85, 0.7, 0.4, 0.15}) {
+        const CraterState state{{0.2, 0.036}, {0.2 * (0.3 + 0.7 * freshness), 0.036 * freshness}};
+        double previous = (profile.Height(radius + 2.0 * step, d, state) -
+                           profile.Height(radius + step, d, state)) /
+                          step;
+        double largest = 0.0;
+        for (double r = radius + 2.0 * step; r + step < 2.0 * radius; r += step) {
+            const double slope =
+                (profile.Height(r + step, d, state) - profile.Height(r, d, state)) / step;
+            largest = std::max(largest, std::fabs(slope - previous));
+            previous = slope;
+        }
+        EXPECT_LT(largest, 2e-3) << "a slope break outside the rim at freshness " << freshness;
+        EXPECT_LT(std::fabs(previous), 2e-3) << "the exterior still slopes at its reach";
+    }
 }

@@ -313,6 +313,29 @@ inline float FassettThomsonShape(float x, uint32_t rim, float freshRim, float cu
     return max(h, freshRim - currentDepth);
 }
 
+/// A profile's height (m) and its slope over the radius at a point.
+struct KernelProfilePoint {
+    float height;
+    float slope;
+};
+
+/// Martin, Parkes and Dunstan's ejecta outside the rim, `x` radii beyond it in [0, 1]: the power
+/// law of McGetchin et al. with a linear term that meets `rim` (m) at the crest and 0 at twice the
+/// radius, tapered by 1 - x^2 so its slope also falls to 0 there and the crater joins the ground
+/// smoothly; the taper leaves the height and slope at the crest unchanged.
+inline KernelProfilePoint MartinParkesDunstanExterior(float x, float rim, float ejectaScale) {
+    const float offset = rim - ejectaScale;
+    const float gradient = -ejectaScale / 8.0f - offset;
+    const float r = 1.0f / (x + 1.0f);
+    const float law = ejectaScale * r * r * r + offset + gradient * x;
+    const float lawSlope = -3.0f * ejectaScale * r * r * r * r + gradient;
+    const float taper = 1.0f - x * x;
+    KernelProfilePoint point;
+    point.height = law * taper;
+    point.slope = lawSlope * taper - 2.0f * x * law;
+    return point;
+}
+
 /// `MartinParkesDunstanProfile::Height` (m); the host checks the state.
 inline float MartinParkesDunstanHeight(float distance, float diameter, KERNEL_IN(CraterRecord) c) {
     const float depth = c.currentDepth * diameter;
@@ -332,16 +355,16 @@ inline float MartinParkesDunstanHeight(float distance, float diameter, KERNEL_IN
         return k * (alpha + 1.0f) / alpha * x * x + rim;
     }
     const float ejectaScale = KernelEjectaScale(radius);
-    const float offset = rim - ejectaScale;
-    const float gradient = -ejectaScale / 8.0f - offset;
     const float beta = min(1.0f, 1.5f * (freshRim - rim) / k);
-    const float atBeta =
-        ejectaScale / ((beta + 1.0f) * (beta + 1.0f) * (beta + 1.0f)) + offset + gradient * beta;
     if (x <= beta) {
-        const float a = (rim - atBeta) / (2.0f * beta * beta * beta);
-        return (a * x - 3.0f * a * beta) * x * x + rim;
+        const KernelProfilePoint join = MartinParkesDunstanExterior(beta, rim, ejectaScale);
+        const float drop = rim - join.height;
+        const float slope = drop > 0.0f ? max(join.slope, -3.0f * drop / beta) : join.slope;
+        const float t = x / beta;
+        return rim + (join.height - rim) * t * t * (3.0f - 2.0f * t) +
+               beta * slope * t * t * (t - 1.0f);
     }
-    return ejectaScale / ((x + 1.0f) * (x + 1.0f) * (x + 1.0f)) + offset + gradient * x;
+    return MartinParkesDunstanExterior(x, rim, ejectaScale).height;
 }
 
 /// The simple profile's height (m) in crater `c`'s current state.
