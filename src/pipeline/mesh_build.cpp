@@ -143,9 +143,7 @@ class SiteFrame {
             return {point.x, point.y, height};
         }
         const LocalFrame at = surface_.Frame(point);
-        const Vec3d p = surface_.Position(point) + at.up * height;
-        const Vec3d d = p - origin_;
-        return {Dot(frame_.east, d), Dot(frame_.north, d), Dot(frame_.up, d)};
+        return frame_.Components(surface_.Position(point) + at.up * height - origin_);
     }
 
   private:

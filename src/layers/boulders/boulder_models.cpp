@@ -235,12 +235,9 @@ BoulderPlacement PlacementAtSite(const BoulderPlacement& placement, const Vec2d&
             local[static_cast<std::size_t>(3 * r + c)] = Dot(Axis(to, r), Axis(from, c));
         }
     }
-    const Vec3d pr = surface.Position(boulder);
-    const Vec3d ps = surface.Position(site);
-    const Vec3d d{pr.x - ps.x, pr.y - ps.y, pr.z - ps.z};
     RigidTransform toSite;
     toSite.rotation = local;
-    toSite.translation = {Dot(to.east, d), Dot(to.north, d), Dot(to.up, d)};
+    toSite.translation = to.Components(surface.Position(boulder) - surface.Position(site));
     BoulderPlacement moved = placement;
     moved.pose = toSite.After(placement.pose);
     return moved;

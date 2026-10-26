@@ -17,6 +17,11 @@ struct LocalFrame {
     Vec3d east;   ///< Unit vector east.
     Vec3d north;  ///< Unit vector north.
     Vec3d up;     ///< Unit vector up: the surface normal, away from the center of a body.
+
+    /// The east, north and up components of `v`.
+    Vec3d Components(const Vec3d& v) const {
+        return {Dot(east, v), Dot(north, v), Dot(up, v)};
+    }
 };
 
 /// The integer coordinates of a cube of a 3D grid.

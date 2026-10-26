@@ -723,3 +723,12 @@ TEST(CubeSphereCells, ShapeModelCellsTileItsAreaAndBoundTheirWeight) {
     }
     EXPECT_NEAR(total / expected, 1.0, 1e-3);
 }
+
+TEST(LocalFrame, ComponentsAreTheEastNorthAndUpProjections) {
+    const terraingen::LocalFrame frame = Surface::Sphere(1000.0).Frame({90.0, 0.0});
+    const terraingen::Vec3d v = frame.east * 2.0 + frame.north * -3.0 + frame.up * 5.0;
+    const terraingen::Vec3d c = frame.Components(v);
+    EXPECT_NEAR(c.x, 2.0, 1e-12);
+    EXPECT_NEAR(c.y, -3.0, 1e-12);
+    EXPECT_NEAR(c.z, 5.0, 1e-12);
+}
