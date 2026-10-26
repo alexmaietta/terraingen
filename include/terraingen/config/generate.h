@@ -81,7 +81,7 @@ struct GeneratedOutputs {
 /// @param backend Where the heights are evaluated; empty for `DefaultBackend()`.
 /// @throws ConfigError if the configuration is invalid.
 /// @throws GeoTiffError if a raster cannot be read.
-/// @throws std::runtime_error when `backend` is `Vulkan` and Vulkan is unavailable.
+/// @throws std::runtime_error when a GPU backend is requested but unavailable (`ResolveBackend`).
 GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& config,
                                     const std::filesystem::path& directory = {},
                                     unsigned threads = 0,

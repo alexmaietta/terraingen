@@ -2,6 +2,7 @@
 
 #include "app/cli.h"
 
+#include "config/spec.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
@@ -225,7 +226,7 @@ int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostre
             out << ", about " << static_cast<long long>(*summary.expectedCraters)
                 << " craters expected";
         }
-        out << ", " << config.layers.size() << " layers and " << config.outputs.size()
+        out << ", " << config.Spec().layers.size() << " layers and " << config.Spec().outputs.size()
             << " outputs\n";
     });
 }

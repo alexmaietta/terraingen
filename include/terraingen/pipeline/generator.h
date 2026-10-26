@@ -127,7 +127,7 @@ Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid
 
 /// The heights of `generator` over `grid`, evaluated on several threads to the same bits as one.
 /// @throws std::invalid_argument as `Evaluate` with a spacing.
-/// @throws std::runtime_error when the backend is `Vulkan` and Vulkan is unavailable.
+/// @throws std::runtime_error when a GPU backend is requested but unavailable (`ResolveBackend`).
 Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid,
                        const EvaluationOptions& options);
 
@@ -156,21 +156,20 @@ GeoKeys TerrainGeoKeys(const TerrainGenerator& generator);
 void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,
                   const TerrainGenerator& generator);
 
+/// The grid of `generator`'s source; none without a source or for one without bounds.
+std::optional<RasterGrid> SourceGrid(const TerrainGenerator& generator);
+
 /// The heights of `generator` over its source's grid.
 /// @throws std::invalid_argument as `Evaluate` over a grid, or for a generator without a source or
 /// with a source without bounds (`BoundedGrid`).
 Raster<float> Evaluate(const TerrainGenerator& generator);
 
-/// The heights of a generator at scattered points, such as wheel contacts or mesh vertices: the
-/// starting heights there, then each layer applied to all of them at once. Each equals the cell
-/// centered at its point of `Evaluate` over a grid of `spacing` meters, to the same bits, whatever
-/// the batch and thread count.
+/// The heights of a generator at scattered points, such as wheel contacts or mesh vertices, each
+/// equal to the bits of the cell centered there of `Evaluate` at `spacing` meters.
 /// @param points Positions in surface coordinates.
-/// @param spacing The sample spacing, in meters.
 /// @param threads Threads to split the points over; 0 for every hardware thread.
-/// @param cache Values kept between calls, such as fitted crater datums; null shares a cache kept
-/// for this generator, dropped once one of its parts is freed or it goes unqueried longest. A
-/// cache passed in belongs to one generator: start a new one after changing its source or layers.
+/// @param cache Values kept between calls, such as fitted crater datums, for this generator only;
+/// null shares one kept per recently queried generator.
 /// @throws std::invalid_argument as `ValidateGenerator`, or for a `spacing` that is not positive
 /// and finite.
 std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d> points,

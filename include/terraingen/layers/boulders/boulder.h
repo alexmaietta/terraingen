@@ -144,9 +144,11 @@ class BoulderList {
         return !(*this == other);
     }
 
+    /// Every east coordinate, in surface coordinates.
     const std::vector<double>& X() const {
         return x_;
     }
+    /// Every north coordinate, in surface coordinates.
     const std::vector<double>& Y() const {
         return y_;
     }
@@ -158,6 +160,7 @@ class BoulderList {
     const std::vector<double>& Heights() const {
         return height_;
     }
+    /// Every buried share of the vertical extent, in [0, 1).
     const std::vector<double>& Burials() const {
         return burial_;
     }
@@ -169,6 +172,7 @@ class BoulderList {
     const std::vector<double>& Leans() const {
         return lean_;
     }
+    /// Every stable ID.
     const std::vector<std::uint64_t>& Ids() const {
         return id_;
     }
@@ -192,6 +196,7 @@ class BoulderList {
     const std::vector<std::uint8_t>& Models() const {
         return model_;
     }
+    /// Every wear, from 0 (fresh) to 1.
     const std::vector<double>& Wears() const {
         return wear_;
     }
@@ -199,6 +204,7 @@ class BoulderList {
     const std::vector<std::uint64_t>& Parents() const {
         return parent_;
     }
+    /// Every piece index among its parent's pieces.
     const std::vector<std::uint32_t>& Pieces() const {
         return piece_;
     }
@@ -206,6 +212,7 @@ class BoulderList {
     const std::vector<std::array<BoulderFacet, 2>>& Facets() const {
         return facets_;
     }
+    /// Every boulder's number of facets in use.
     const std::vector<std::uint8_t>& FacetCounts() const {
         return facetCount_;
     }

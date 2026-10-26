@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 namespace terraingen {
 
@@ -15,6 +15,19 @@ void AppendEffective(const std::vector<Spec>& stack, Layers& layers) {
 }
 
 }  // namespace
+
+TerrainGenConfig::TerrainGenConfig() : TerrainGenConfig(ConfigSpec{}) {}
+
+TerrainGenConfig::TerrainGenConfig(ConfigSpec spec)
+    : spec_(std::make_shared<const ConfigSpec>(std::move(spec))) {}
+
+const std::filesystem::path& TerrainGenConfig::Directory() const {
+    return spec_->directory;
+}
+
+const ConfigSpec& TerrainGenConfig::Spec() const {
+    return *spec_;
+}
 
 Fractal FractalSpec::Effective() const {
     Fractal effective = fractal;

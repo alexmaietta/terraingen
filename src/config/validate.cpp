@@ -2,6 +2,7 @@
 
 #include "terraingen/config/validate.h"
 
+#include "config/build_steps.h"
 #include "config/fields/checks.h"
 #include "config/fields/common.h"
 #include "config/fields/materials.h"
@@ -12,6 +13,7 @@
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/layers/craters/generation/spacing.h"
+#include "terraingen/layers/material.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
@@ -40,7 +42,6 @@ namespace {
 
 using config::At;
 using config::AtFile;
-using config::BuildBoulderOptions;
 using config::BuildRegionShape;
 using config::CheckNonEmpty;
 using config::Child;
@@ -150,34 +151,6 @@ void AddExpectedCraters(const CraterLayerSpec& craters, const CraterModels& mode
     }
 }
 
-/// A length as messages give it, such as 2.5.
-std::string Meters(double value) {
-    return FormatNumber(value, 6);
-}
-
-/// @throws ConfigError at `path` when the density or the ages of a generating layer are not
-/// defined at its smallest diameter, as steady-state ages are not below their production
-/// function's range.
-void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
-                     const std::string& path) {
-    try {
-        models.density->Cumulative(craters.minDiameter);
-        models.ages->LifetimeGyr(craters.minDiameter);
-    } catch (const std::domain_error&) {
-        const DiameterRange& density = models.density->ValidRange();
-        std::string message =
-            "the density or ages are not defined at " + Meters(craters.minDiameter) + " m";
-        const AgesSpec ages = config::LayerAges(craters);
-        if (const auto* steady = std::get_if<SteadyStateAgesSpec>(&ages)) {
-            message += "; steady-state ages need the production function's diameters, from " +
-                       Meters(config::BuildProduction(steady->production)->ValidRange().min) + " m";
-        } else if (density.min > 0.0) {
-            message += "; the density starts at " + Meters(density.min) + " m";
-        }
-        throw ConfigError(path, message);
-    }
-}
-
 /// @throws ConfigError at "ages" when steady-state ages name another production function,
 /// chronology, surface age or equilibrium than a density of a production surface capped by an
 /// equilibrium, so the ages would not follow the craters drawn.
@@ -200,60 +173,23 @@ void CheckLayerSpec(const CraterLayerSpec& craters, const std::string& path, Lay
     CheckManualCraters(craters.manual, Child(path, "manual"));
     At(Child(path, "spacing"), [&] { ValidateCraterSpacing(craters.spacing); });
     At(Child(path, "apply"), [&] { ValidateCraterApplyOptions(craters.apply); });
-    if (craters.densityMap) {
-        const std::string at = Child(path, "density_map");
-        const DensityMap map = config::BuildDensityMap(*craters.densityMap, at, context.directory);
-        At(at, [&] { ValidateDensityMap(map); });
-    }
     CheckDiffusivity(craters.degradation, Child(path, "degradation"));
-    const CraterModels models = BuildCraterModels(craters, path);
     CheckMatchingAges(craters, path);
-    CheckExplicitShapes(craters.manual, models, Child(path, "manual"));
     context.craters = true;
-    if (!craters.generateRandom) {
-        return;
-    }
-    if (!(craters.maxDiameter > craters.minDiameter)) {
+    if (craters.generateRandom && !(craters.maxDiameter > craters.minDiameter)) {
         throw ConfigError(Child(path, "max_diameter_m"), "must exceed min_diameter_m");
     }
-    CheckModelRange(craters, models, Child(path, "min_diameter_m"));
-    AddExpectedCraters(craters, models, path, context);
 }
 
-/// @throws ConfigError at a boulder layer's "density_map" or "slope_map" for an invalid map; the
-/// layer's own check repeats this, but reports it at the layer.
-void CheckBoulderMaps(const BoulderLayerOptions& boulders, const std::string& path) {
-    if (boulders.densityMap) {
-        At(Child(path, "density_map"), [&] { ValidateDensityMap(*boulders.densityMap); });
+/// Checks a built crater layer's models: its manual shapes and, when it generates craters, the
+/// count expected.
+void CheckBuiltCraters(const CraterLayerSpec& craters, const CraterLayer& built,
+                       const std::string& path, LayerChecks& context) {
+    const CraterModels& models = built.Models();
+    CheckExplicitShapes(craters.manual, models, Child(path, "manual"));
+    if (craters.generateRandom) {
+        AddExpectedCraters(craters, models, path, context);
     }
-    if (boulders.slopeMap) {
-        At(Child(path, "slope_map"), [&] { ValidateSizeSlopeMap(*boulders.slopeMap); });
-    }
-}
-
-bool IsGolombekRapp(const BoulderSizesSpec& sizes) {
-    return std::holds_alternative<GolombekRappBouldersSpec>(sizes);
-}
-
-/// @throws ConfigError at a Golombek-Rapp term that is set, such as "coverage", when no size
-/// model of the layer is Golombek-Rapp and so none would use it.
-void CheckGolombekRappTerms(const BoulderLayerSpec& spec, const std::string& path) {
-    const BoulderSizes& sizes = spec.boulders.sizes;
-    const bool layer = IsGolombekRapp(spec.sizes);
-    const bool ejecta = IsGolombekRapp(spec.ejectaSizes.value_or(spec.sizes));
-    const auto check = [](bool used, const std::optional<double>& value, const std::string& at,
-                          const char* fix) {
-        if (!used && value) {
-            throw ConfigError(at, std::string("is only used by Golombek-Rapp sizes; set ") + fix +
-                                      " or leave it out");
-        }
-    };
-    const char* const layerFix = R"("sizes": {"type": "golombek_rapp"})";
-    check(layer, sizes.coverage, Child(path, "coverage"), layerFix);
-    check(layer || ejecta, sizes.qConstant, Child(path, "qa"), layerFix);
-    check(layer || ejecta, sizes.qCoverageCoefficient, Child(path, "qb"), layerFix);
-    check(ejecta, spec.boulders.ejecta.coverage, Child(Child(path, "ejecta"), "coverage"),
-          R"("ejecta_sizes": {"type": "golombek_rapp"})");
 }
 
 /// @throws ConfigError at a manual boulder that is invalid or shares an earlier one's ID.
@@ -271,23 +207,16 @@ void CheckManualBoulders(const std::vector<ManualBoulder>& manual, const std::st
 
 void CheckLayerSpec(const BoulderLayerSpec& spec, const std::string& path, LayerChecks& context) {
     CheckManualBoulders(spec.manual, Child(path, "manual"));
-    const BoulderLayerOptions boulders = BuildBoulderOptions(spec, path, context.directory);
-    CheckBoulderMaps(boulders, path);
     context.boulders = true;
+}
+
+/// Checks the candidates a built boulder layer that generates boulders is expected to draw over
+/// each extent.
+void CheckBuiltBoulders(const BoulderLayer& built, const std::string& path,
+                        const LayerChecks& context) {
+    const BoulderLayerOptions& boulders = built.Options();
     if (!boulders.generateRandom) {
-        At(path, [&] { ValidateBoulderLayerOptions(boulders); });
         return;
-    }
-    CheckGolombekRappTerms(spec, path);
-    if (IsGolombekRapp(spec.sizes) && !(boulders.sizes.Coverage() > 0.0)) {
-        throw ConfigError(Child(path, "coverage"),
-                          "must be above 0 to generate random boulders; set generate_random to "
-                          "false to place only the manual ones");
-    }
-    At(path, [&] { ValidateBoulderLayerOptions(boulders); });
-    if (boulders.ejecta.ThrowingDiameter() && !context.craters) {
-        throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter_m"),
-                          "ejecta need a crater layer before this one");
     }
     const BoulderSizes& sizes = boulders.sizes;
     for (const Extent& extent : context.extents) {
@@ -462,6 +391,21 @@ void CheckLayer(const LayerSpec& spec, const std::string& path, LayerChecks& con
     std::visit([&](const auto& layer) { CheckLayerSpec(layer, path, context); }, spec);
 }
 
+/// Checks what a layer needs built to check, `built` being the layer `spec` built, inside a masked
+/// layer too.
+void CheckBuiltLayer(const LayerSpec& spec, const Layer& built, const std::string& path,
+                     LayerChecks& context) {
+    if (const auto* craters = std::get_if<CraterLayerSpec>(&spec)) {
+        CheckBuiltCraters(*craters, dynamic_cast<const CraterLayer&>(built), path, context);
+    } else if (std::holds_alternative<BoulderLayerSpec>(spec)) {
+        CheckBuiltBoulders(dynamic_cast<const BoulderLayer&>(built), path, context);
+    } else if (const auto* masked = std::get_if<MaskedLayerSpec>(&spec)) {
+        LayerChecks inner = context;
+        CheckBuiltLayer(*masked->layer, dynamic_cast<const MaskedLayer&>(built).Inner(),
+                        Child(path, "layer"), inner);
+    }
+}
+
 /// The grid a source at `path` covers, reading only the header of a raster's file; a chain's is
 /// its first source's, and synthetic noise has none. Also checks the sources' upsampling and
 /// synthetic stacks.
@@ -478,9 +422,7 @@ std::optional<RasterGrid> DescribeChain(const ChainSourceSpec& chain,
     if (chain.sources.empty()) {
         throw ConfigError(sources, "must not be empty");
     }
-    ChainSeams seams = chain.seams;
-    seams.width /= surface.UnitLength();
-    seams.decayLength /= surface.UnitLength();
+    const ChainSeams seams = config::SurfaceSeams(chain.seams, surface);
     const bool feather = chain.seams.mode == ChainSeamMode::Feather;
     const std::string reachPath =
         Child(Child(path, "seams"), feather ? "width_m" : "decay_length_m");
@@ -807,7 +749,7 @@ void CheckOutput(const ReportOutput& /*output*/, const std::string& /*path*/, co
 /// Checks that outputs sharing one result agree on it: body meshes of one kind (mesh or ICQ) on
 /// their cells and spacing, and terrain meshes over one grid on their cutouts, skirt and site.
 /// @throws ConfigError at the first output that disagrees with an earlier one.
-void CheckSharedResults(const TerrainGenConfig& config, const ConfigSummary& summary) {
+void CheckSharedResults(const ConfigSpec& config, const ConfigSummary& summary) {
     for (std::size_t i = 0; i < config.outputs.size(); ++i) {
         const std::string path = Element("outputs", i);
         for (std::size_t j = 0; j < i; ++j) {
@@ -836,7 +778,7 @@ void CheckSharedResults(const TerrainGenConfig& config, const ConfigSummary& sum
 /// Checks each output and its grid, records the grids in `summary` and returns where each output
 /// with a grid evaluates the layers.
 /// @throws ConfigError under "outputs" for an invalid output.
-std::vector<Extent> CheckOutputs(const TerrainGenConfig& config, const Surface& surface,
+std::vector<Extent> CheckOutputs(const ConfigSpec& config, const Surface& surface,
                                  ConfigSummary& summary) {
     const OutputChecks checks{surface.IsBody(), config.albedo.has_value(),
                               config.materials.has_value()};
@@ -860,17 +802,20 @@ std::vector<Extent> CheckOutputs(const TerrainGenConfig& config, const Surface& 
     return extents;
 }
 
-/// Checks each layer in order over the output extents, and records in `summary` the most craters
-/// the top-level crater layers are expected to generate.
+/// Checks and builds each layer in order over the output extents, and records in `summary` the
+/// most craters the top-level crater layers are expected to generate.
 /// @throws ConfigError under "layers" for an invalid layer.
-void CheckLayers(const TerrainGenConfig& config, const std::vector<Extent>& extents,
+void CheckLayers(const ConfigSpec& config, const std::vector<Extent>& extents,
                  const std::filesystem::path& directory, const Surface& surface,
-                 ConfigSummary& summary) {
+                 config::GeneratorBuilder& builder, ConfigSummary& summary) {
     LayerChecks layers{extents, directory, surface};
     const std::optional<SourceSpec> source = EffectiveSource(config);
     layers.posts = source && HasPosts(*source);
     for (std::size_t i = 0; i < config.layers.size(); ++i) {
         CheckLayer(config.layers[i], Element("layers", i), layers);
+    }
+    for (std::size_t i = 0; i < config.layers.size(); ++i) {
+        CheckBuiltLayer(config.layers[i], builder.AddLayer(i), Element("layers", i), layers);
     }
     if (!layers.expectedCraters.empty()) {
         summary.expectedCraters =
@@ -878,30 +823,26 @@ void CheckLayers(const TerrainGenConfig& config, const std::vector<Extent>& exte
     }
 }
 
-/// The material classes a configuration's surface can have.
-std::vector<MaterialClass> PresentMaterials(const TerrainGenConfig& config) {
-    const MaterialsSpec& materials = *config.materials;
+/// The material classes a terrain's surface can have: soil, bedrock where exposed, dust patches,
+/// and what its layers lay.
+std::vector<MaterialClass> PresentMaterials(const MaterialOptions& options,
+                                            const TerrainGenerator& generator) {
     std::vector<MaterialClass> present{MaterialClass::Soil};
-    if (materials.options.exposure ||
-        config::HasLayer<PavementLayerSpec, StrataLayerSpec>(config.layers)) {
+    if (options.exposure) {
         present.push_back(MaterialClass::Bedrock);
     }
-    if (materials.options.dustCover > 0.0) {
+    if (options.dustCover > 0.0) {
         present.push_back(MaterialClass::Dust);
     }
-    if (config::HasLayer<DuneLayerSpec, BedformLayerSpec, SandFillLayerSpec, SandShadowLayerSpec>(
-            config.layers)) {
-        present.push_back(MaterialClass::Sand);
-    }
-    if (config::HasLayer<BoulderLayerSpec>(config.layers)) {
-        present.push_back(MaterialClass::Rock);
-    }
+    ForEachLayer<MaterialSource>(generator, [&](const MaterialSource& source, std::size_t) {
+        present.push_back(source.Material());
+    });
     return present;
 }
 
 /// @throws ConfigError under "materials" for invalid options or photometry, or a photometry output
 /// without parameters for a class the surface can have.
-void CheckMaterials(const TerrainGenConfig& config) {
+void CheckMaterials(const ConfigSpec& config, const TerrainGenerator& generator) {
     const MaterialsSpec& materials = *config.materials;
     At("materials", [&] { ValidateMaterialOptions(materials.options); });
     const MaterialPhotometry photometry = config::BuildPhotometry(materials.photometry);
@@ -909,7 +850,7 @@ void CheckMaterials(const TerrainGenConfig& config) {
     if (!config::HasOutput<PhotometryOutput>(config.outputs)) {
         return;
     }
-    for (const MaterialClass material : PresentMaterials(config)) {
+    for (const MaterialClass material : PresentMaterials(materials.options, generator)) {
         const auto index = static_cast<std::size_t>(material);
         if (!photometry[index]) {
             throw ConfigError(Child("materials.photometry", config::kMaterialClassKeys[index]),
@@ -1012,7 +953,7 @@ void CheckAlbedoLayer(const SlopeAlbedoSpec& slopes, const std::string& path, co
 
 namespace config {
 
-void ValidateAlbedo(const TerrainGenConfig& config, const std::filesystem::path& directory) {
+void ValidateAlbedo(const ConfigSpec& config, const std::filesystem::path& directory) {
     const AlbedoSpec& albedo = *config.albedo;
     std::visit([&](const auto& source) { CheckAlbedoSource(source, directory, "albedo.source"); },
                albedo.source);
@@ -1027,24 +968,37 @@ void ValidateAlbedo(const TerrainGenConfig& config, const std::filesystem::path&
 
 }  // namespace config
 
-ConfigSummary ValidateConfig(const TerrainGenConfig& config, const std::filesystem::path& given) {
-    const std::filesystem::path directory = ConfigDirectory(config, given);
-    config::CheckConfigRanges(config);
+namespace config {
+
+CheckedGenerator BuildCheckedGenerator(const ConfigSpec& config,
+                                       const std::filesystem::path& directory,
+                                       const std::shared_ptr<const Source>& external) {
+    CheckConfigRanges(config);
     CheckBody(config.body, "body");
-    ConfigSummary summary;
+    CheckedGenerator checked;
+    ConfigSummary& summary = checked.summary;
     const Surface surface = BuildSurface(config.body, directory);
     if (config.source) {
         summary.source = DescribeSource(*config.source, directory, "source", surface);
     }
     const std::vector<Extent> extents = CheckOutputs(config, surface, summary);
-    CheckLayers(config, extents, directory, surface, summary);
+    GeneratorBuilder builder(config, directory, surface, external);
+    CheckLayers(config, extents, directory, surface, builder, summary);
+    checked.generator = builder.Take();
     if (config.albedo) {
-        config::ValidateAlbedo(config, directory);
+        ValidateAlbedo(config, directory);
     }
     if (config.materials) {
-        CheckMaterials(config);
+        CheckMaterials(config, checked.generator);
     }
-    return summary;
+    return checked;
+}
+
+}  // namespace config
+
+ConfigSummary ValidateConfig(const TerrainGenConfig& value, const std::filesystem::path& given) {
+    const ConfigSpec& config = value.Spec();
+    return config::BuildCheckedGenerator(config, ConfigDirectory(config, given)).summary;
 }
 
 }  // namespace terraingen

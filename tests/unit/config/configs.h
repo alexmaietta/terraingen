@@ -4,6 +4,7 @@
 /// @brief Small configurations and raster fixtures shared by the pipeline tests.
 #pragma once
 
+#include "config/build_steps.h"
 #include "config/fields/json_io.h"
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
@@ -114,21 +115,21 @@ inline HeightmapOutput Heightmap(const std::string& path,
 /// @brief The area of a configuration's first output, a heightmap.
 /// @param config A configuration such as `Small`.
 /// @return Its area spec.
-inline OutputAreaSpec& Region(TerrainGenConfig& config) {
+inline OutputAreaSpec& Region(ConfigSpec& config) {
     return std::get<HeightmapOutput>(config.outputs.at(0)).area;
 }
 
 /// @brief The noise layer of a `Small` configuration.
 /// @param config A `Small` configuration.
 /// @return Its first layer.
-inline NoiseLayerSpec& Noise(TerrainGenConfig& config) {
+inline NoiseLayerSpec& Noise(ConfigSpec& config) {
     return std::get<NoiseLayerSpec>(config.layers.at(0));
 }
 
 /// @brief The crater layer of a `Small` configuration.
 /// @param config A `Small` configuration.
 /// @return Its second layer.
-inline CraterLayerSpec& Craters(TerrainGenConfig& config) {
+inline CraterLayerSpec& Craters(ConfigSpec& config) {
     return std::get<CraterLayerSpec>(config.layers.at(1));
 }
 
@@ -155,8 +156,8 @@ inline SteadyStateAgesSpec LunarAgesSpec(double ageGyr = 3.5) {
 /// layer of 8 to 60 m craters on a 3.5 Gyr lunar surface, and a heightmap over 65 x 49 cells of 2 m
 /// (`SmallRegion`).
 /// @return The configuration.
-inline TerrainGenConfig Small() {
-    TerrainGenConfig config;
+inline ConfigSpec Small() {
+    ConfigSpec config;
     config.outputs = {Heightmap("terrain.tif")};
     terraingen::SyntheticSourceSpec flat;
     flat.stack.clear();
@@ -178,8 +179,8 @@ inline TerrainGenConfig Small() {
 /// @brief `Small` with a synthetic albedo and bright crater material from its crater layer, and an
 /// albedo output over its heightmap's region.
 /// @return The configuration.
-inline TerrainGenConfig WithAlbedo() {
-    TerrainGenConfig config = Small();
+inline ConfigSpec WithAlbedo() {
+    ConfigSpec config = Small();
     Craters(config).manual = {{10.0, -8.0, 30.0, 0.0, 77u, true}};
     SyntheticAlbedoSpec synthetic;
     synthetic.rgb = true;
@@ -197,8 +198,8 @@ inline TerrainGenConfig WithAlbedo() {
 
 /// @brief `Small` on a lunar-sized sphere: its heightmap of 4 m cells at (30, -45).
 /// @return The configuration.
-inline TerrainGenConfig OnASphere() {
-    TerrainGenConfig config = Small();
+inline ConfigSpec OnASphere() {
+    ConfigSpec config = Small();
     config.body = SphereSurfaceSpec{1737400.0};
     Region(config) = GridRegion{65, 49, 4.0, 30.0, -45.0}.Area(Surface::Sphere(1737400.0));
     return config;
@@ -208,7 +209,7 @@ inline TerrainGenConfig OnASphere() {
 /// @param config The configuration.
 /// @param directory Folder relative paths resolve against.
 /// @return The path, or "valid".
-inline std::string ValidationErrorPath(const TerrainGenConfig& config,
+inline std::string ValidationErrorPath(const ConfigSpec& config,
                                        const std::filesystem::path& directory = {}) {
     try {
         ValidateConfig(config, directory);
@@ -222,7 +223,7 @@ inline std::string ValidationErrorPath(const TerrainGenConfig& config,
 /// @param mutate Changes the configuration.
 /// @return The path, or "valid".
 template <typename Mutate> std::string ErrorPath(Mutate mutate) {
-    TerrainGenConfig config = Small();
+    ConfigSpec config = Small();
     mutate(config);
     return ValidationErrorPath(config);
 }
@@ -293,8 +294,8 @@ inline Raster<float> WriteDem(const std::filesystem::path& folder, const std::st
 /// @brief A configuration with a raster source and a heightmap over its grid.
 /// @param path The raster's path.
 /// @return The configuration.
-inline TerrainGenConfig RasterConfig(const std::string& path) {
-    TerrainGenConfig config;
+inline ConfigSpec RasterConfig(const std::string& path) {
+    ConfigSpec config;
     config.source = RasterSourceSpec{path};
     config.outputs = {Heightmap("terrain.tif", std::nullopt)};
     return config;
@@ -303,7 +304,7 @@ inline TerrainGenConfig RasterConfig(const std::string& path) {
 /// @brief The raster source of a `RasterConfig`.
 /// @param config A configuration with a raster source.
 /// @return Its source spec.
-inline RasterSourceSpec& RasterSpec(TerrainGenConfig& config) {
+inline RasterSourceSpec& RasterSpec(ConfigSpec& config) {
     return std::get<RasterSourceSpec>(*config.source);
 }
 

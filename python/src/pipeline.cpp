@@ -6,6 +6,7 @@
 #include "objects.h"
 #include "tables.h"
 
+#include "config/spec.h"
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
@@ -59,8 +60,7 @@ RasterGrid GridOr(const TerrainGenerator& generator, const std::optional<RasterG
     if (grid) {
         return *grid;
     }
-    const std::optional<RasterGrid> bounded =
-        generator.source ? BoundedGrid(*generator.source) : std::nullopt;
+    const std::optional<RasterGrid> bounded = SourceGrid(generator);
     if (!bounded) {
         throw std::invalid_argument(
             "A terrain without a source, or with a source without bounds, needs a grid");
@@ -380,7 +380,7 @@ void BindConfigQueries(nb::class_<TerrainGenConfig>& config) {
         .def(
             "body",
             [](const TerrainGenConfig& c, const OptionalPath& directory) {
-                return BuildSurface(c.body, Directory(directory));
+                return BuildSurface(c, Directory(directory));
             },
             "directory"_a = nb::none(),
             "The Surface the configuration's terrain lies on; a shape model's path resolves "
@@ -394,8 +394,8 @@ void BindConfigQueries(nb::class_<TerrainGenConfig>& config) {
             "The grid each output covers, in order (None for a mesh), after validating the "
             "configuration.")
         .def("__repr__", [](const TerrainGenConfig& c) {
-            return "TerrainGenConfig(" + std::to_string(c.layers.size()) + " layers, " +
-                   std::to_string(c.outputs.size()) + " outputs)";
+            return "TerrainGenConfig(" + std::to_string(c.Spec().layers.size()) + " layers, " +
+                   std::to_string(c.Spec().outputs.size()) + " outputs)";
         });
 }
 

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "config/fields/common.h"
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 #include <limits>
 #include <string>

@@ -30,7 +30,8 @@ struct IsSpanContainer<
 
 }  // namespace detail
 
-/// A view of `size()` contiguous `T`s owned elsewhere; `T` may be const.
+/// A view of `size()` contiguous `T`s owned elsewhere; `T` may be const. Its members mirror the
+/// C++20 `std::span` members of the same names.
 template <typename T> class Span {
   public:
     using element_type = T;

@@ -13,12 +13,12 @@
 #include "config/fields/materials.h"
 #include "config/fields/outputs.h"
 #include "config/fields/sources.h"
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 namespace terraingen::config {
 
 /// The fields of the root configuration.
-template <typename IO> void Fields(IO& io, TerrainGenConfig& config) {
+template <typename IO> void Fields(IO& io, ConfigSpec& config) {
     io("schema_version", config.schemaVersion,
        "Version of the configuration format, which this library reads; required.");
     io("body", config.body,

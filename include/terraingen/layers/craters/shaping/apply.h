@@ -63,14 +63,9 @@ CraterSampling SamplingFrom(const LayerContext& context, double spacing, const v
 /// when `options.texture` draws beyond the rim and they reach further.
 double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& options);
 
-/// Applies craters to a raster, in turn, in the order `options` gives.
-///
-/// Each crater adds its profile, noise and texture weighted by `ResolutionWeight`; with a datum,
-/// fitted to `sampling.ground` plus the relief of the craters before it, it also moves the terrain
-/// toward the datum by `interiorReplacement` times the blend weight, or by the texture's mantling
-/// outside the rim where that is more. A crater with `Crater::replace` is cut into its own datum
-/// (`FitReplacementDatum`) whatever the others' and moves the terrain to it as
-/// `options.replacement` blends it out. No-data cells are left unchanged and excluded from the fit.
+/// Applies craters to a raster in the order `options` gives: each adds its profile, noise and
+/// texture weighted by `ResolutionWeight` and, with a datum (`FitReplacementDatum` for replacing
+/// craters), moves the terrain toward it. No-data cells are left unchanged.
 /// @param raster Its transform maps pixels to the craters' surface coordinates.
 /// @param craters With a datum, those within `DatumMargin` of the raster, and with replacing
 /// craters those within `ReplacementMargin` of it.

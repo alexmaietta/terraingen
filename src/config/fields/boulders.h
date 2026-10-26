@@ -6,7 +6,7 @@
 
 #include "config/fields/common.h"
 #include "config/fields/maps.h"
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 #include <string_view>
 

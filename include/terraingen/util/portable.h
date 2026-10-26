@@ -1,22 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief Prelude that compiles kernel headers both as C++ (CPU) and as Slang (GPU).
-///
-/// Each kernel has one source (see "GPU strategy" in ARCHITECTURE.md). Kernel headers are plain C++
-/// in the subset both languages accept:
-///
-/// - `uint32_t`, `int32_t`, `int`, `float` and `bool`, with `abs`, `atan2`, `clamp`, `cos`, `exp`,
-///   `floor`, `log`, `min`, `max`, `pow`, `sin` and `sqrt` unqualified;
-/// - functional casts (`float(x)`, `uint32_t(x)`) rather than `static_cast`;
-/// - plain structs of 4-byte members with default values, built as named values
-///   (`UVec3 v = {x, y, z};`), never as temporaries (`UVec3{x, y, z}`);
-/// - structs returned by value, and passed by value or as `KERNEL_IN(T)`, a reference in C++ only,
-///   since Slang has no references or pointers;
-/// - fixed-size arrays sized by `static const` integers, and `enum class` with a 32-bit base;
-/// - `constexpr` and `inline` functions, which Slang compiles as ordinary functions;
-/// - no templates, lambdas or standard library. C++-only extras, such as comparison operators and
-///   double-precision entry points, go under `#ifndef __SLANG__`.
+/// @brief Prelude that compiles kernel headers, written in the subset of C++ that Slang accepts,
+/// both as C++ (CPU) and as Slang (GPU); `KERNEL_IN(T)` passes a struct by reference in C++ only.
 #pragma once
 
 #ifdef __SLANG__

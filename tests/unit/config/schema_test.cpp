@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "config/build_steps.h"
+#include "config/spec.h"
 #include "terraingen/config/json.h"
 
 #include <gtest/gtest.h>

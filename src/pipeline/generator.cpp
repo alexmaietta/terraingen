@@ -73,6 +73,7 @@ struct GeneratorKey {
 
 /// The cache point queries of `generator` share when the caller gives none: one per recently
 /// queried generator, dropped once one of its parts is freed or it is the least recently used.
+/// A generator is validated (`ValidateGenerator`) when its cache is made.
 std::shared_ptr<EvaluationCache> DefaultCache(const TerrainGenerator& generator) {
     static std::mutex mutex;
     static std::list<std::pair<GeneratorKey, std::shared_ptr<EvaluationCache>>> caches;
@@ -84,6 +85,7 @@ std::shared_ptr<EvaluationCache> DefaultCache(const TerrainGenerator& generator)
             return caches.front().second;
         }
     }
+    ValidateGenerator(generator);
     caches.emplace_front(GeneratorKey(generator),
                          std::make_shared<EvaluationCache>(kDefaultCacheValues));
     if (caches.size() > kCachedGenerators) {
@@ -296,22 +298,37 @@ void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster
     WriteGeoTiff(path, raster, TerrainGeoKeys(generator));
 }
 
+namespace {
+
+/// `HeightsAt` into `heights`, validating the generator once per default cache.
+void FillHeightsAt(const TerrainGenerator& generator, Span<const Vec2d> points, Span<float> heights,
+                   double spacing, unsigned threads, EvaluationCache* cache) {
+    RequirePositive(spacing, "Sample spacing");
+    std::shared_ptr<EvaluationCache> kept;
+    if (cache == nullptr) {
+        kept = DefaultCache(generator);
+        cache = kept.get();
+    } else {
+        ValidateGenerator(generator);
+    }
+    EvaluateBatched(generator, generator.layers.size(), points, heights, spacing, threads, cache);
+}
+
+}  // namespace
+
 std::vector<float> HeightsAt(const TerrainGenerator& generator, Span<const Vec2d> points,
                              double spacing, unsigned threads, EvaluationCache* cache) {
-    ValidateGenerator(generator);
-    RequirePositive(spacing, "Sample spacing");
     std::vector<float> heights(points.size());
-    const std::shared_ptr<EvaluationCache> kept =
-        cache == nullptr ? DefaultCache(generator) : nullptr;
-    EvaluateBatched(generator, generator.layers.size(), points, heights, spacing, threads,
-                    cache != nullptr ? cache : kept.get());
+    FillHeightsAt(generator, points, heights, spacing, threads, cache);
     return heights;
 }
 
 float HeightAt(const TerrainGenerator& generator, double x, double y, double spacing,
                EvaluationCache* cache) {
     const Vec2d point{x, y};
-    return HeightsAt(generator, {&point, 1}, spacing, 0, cache)[0];
+    float height = 0.0f;
+    FillHeightsAt(generator, {&point, 1}, {&height, 1}, spacing, 0, cache);
+    return height;
 }
 
 TerrainGround::TerrainGround(const TerrainGenerator& generator, std::size_t layers,
@@ -337,10 +354,13 @@ std::shared_ptr<const Ground> SharedGround(const TerrainGenerator& generator, st
     return std::make_shared<OwnedGround>(generator, layers);
 }
 
+std::optional<RasterGrid> SourceGrid(const TerrainGenerator& generator) {
+    return generator.source ? BoundedGrid(*generator.source) : std::nullopt;
+}
+
 Raster<float> Evaluate(const TerrainGenerator& generator) {
     ValidateGenerator(generator);
-    const std::optional<RasterGrid> grid =
-        generator.source ? BoundedGrid(*generator.source) : std::nullopt;
+    const std::optional<RasterGrid> grid = SourceGrid(generator);
     if (!grid) {
         throw std::invalid_argument(
             "A terrain without a source, or with a source without bounds such as synthetic "
@@ -351,7 +371,12 @@ Raster<float> Evaluate(const TerrainGenerator& generator) {
 
 CraterFeatures PlacedCraters(const TerrainGenerator& generator, const RasterGrid& grid,
                              double spacing) {
-    return PlacedCraters(generator.layers, grid, ListedSpacing(grid, spacing, generator.surface));
+    const double resolved = ListedSpacing(grid, spacing, generator.surface);
+    CraterFeatures placed;
+    ForEachLayer<CraterPlacer>(generator, [&](const CraterPlacer& placer, std::size_t) {
+        placed.Append(placer.CratersOver(grid, resolved));
+    });
+    return placed;
 }
 
 BoulderFeatures PlacedBoulders(const TerrainGenerator& generator, const RasterGrid& grid,

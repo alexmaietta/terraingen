@@ -2,6 +2,7 @@
 
 #include "terraingen/config/build.h"
 
+#include "config/build_steps.h"
 #include "config/fields/checks.h"
 #include "config/fields/fields.h"
 #include "config/fields/ranges.h"
@@ -21,6 +22,7 @@
 #include "terraingen/distribution/production_surface.h"
 #include "terraingen/distribution/spliced.h"
 #include "terraingen/distribution/tabulated.h"
+#include "terraingen/layers/boulders/boulder_options.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/ages/freshness_ages.h"
 #include "terraingen/layers/craters/ages/steady_state.h"
@@ -29,6 +31,7 @@
 #include "terraingen/layers/craters/degradation/freshness_degradation.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
+#include "terraingen/layers/density_map.h"
 #include "terraingen/layers/noise_layer.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
@@ -42,6 +45,7 @@
 #include "terraingen/sources/synthetic_source.h"
 #include "terraingen/sources/upsampling.h"
 #include "util/overloaded.h"
+#include "util/text.h"
 
 #include <algorithm>
 #include <array>
@@ -71,6 +75,7 @@ using config::BuildRegionShape;
 using config::Child;
 using config::Element;
 using config::Resolve;
+using config::SurfaceSeams;
 using SfdPtr = std::shared_ptr<const SizeFrequencyDistribution>;
 using LayerPtr = std::shared_ptr<const Layer>;
 
@@ -322,9 +327,7 @@ std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
                     sources.push_back(BuildSource(s.sources[n], directory, surface,
                                                   Element(Child(path, "sources"), n)));
                 }
-                ChainSeams seams = s.seams;
-                seams.width /= unit;
-                seams.decayLength /= unit;
+                const ChainSeams seams = SurfaceSeams(s.seams, surface);
                 return At(path,
                           [&] { return std::make_shared<SourceChain>(std::move(sources), seams); });
             },
@@ -443,6 +446,34 @@ LayerPtr BuildLayerSpec(const NoiseLayerSpec& s, const std::string& path,
     });
 }
 
+/// A length as messages give it, such as 2.5.
+std::string Meters(double value) {
+    return FormatNumber(value, 6);
+}
+
+/// @throws ConfigError at `path` when the density or the ages of a generating layer are not
+/// defined at its smallest diameter, as steady-state ages are not below their production
+/// function's range.
+void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
+                     const std::string& path) {
+    try {
+        models.density->Cumulative(craters.minDiameter);
+        models.ages->LifetimeGyr(craters.minDiameter);
+    } catch (const std::domain_error&) {
+        const DiameterRange& density = models.density->ValidRange();
+        std::string message =
+            "the density or ages are not defined at " + Meters(craters.minDiameter) + " m";
+        const AgesSpec ages = config::LayerAges(craters);
+        if (const auto* steady = std::get_if<SteadyStateAgesSpec>(&ages)) {
+            message += "; steady-state ages need the production function's diameters, from " +
+                       Meters(config::BuildProduction(steady->production)->ValidRange().min) + " m";
+        } else if (density.min > 0.0) {
+            message += "; the density starts at " + Meters(density.min) + " m";
+        }
+        throw ConfigError(path, message);
+    }
+}
+
 LayerPtr BuildLayerSpec(const CraterLayerSpec& craters, const std::string& path,
                         const LayerInputs& context) {
     CraterLayerOptions options;
@@ -459,8 +490,9 @@ LayerPtr BuildLayerSpec(const CraterLayerSpec& craters, const std::string& path,
     }
     options.apply = craters.apply;
     if (craters.densityMap) {
-        options.densityMap = config::BuildDensityMap(*craters.densityMap,
-                                                     Child(path, "density_map"), context.directory);
+        const std::string at = Child(path, "density_map");
+        options.densityMap = config::BuildDensityMap(*craters.densityMap, at, context.directory);
+        At(at, [&] { ValidateDensityMap(*options.densityMap); });
     }
     if (craters.completeness) {
         options.generation.completeness = config::BuildField(
@@ -472,14 +504,68 @@ LayerPtr BuildLayerSpec(const CraterLayerSpec& craters, const std::string& path,
             *inherited, Child(path, "replace_inherited_craters"), context.directory);
     }
     CraterModels models = BuildCraterModels(craters, path);
+    if (craters.generateRandom) {
+        CheckModelRange(craters, models, Child(path, "min_diameter_m"));
+    }
     return At(path, [&] {
         return std::make_shared<CraterLayer>(std::move(models), std::move(options), context.base);
     });
 }
 
+bool IsGolombekRapp(const BoulderSizesSpec& sizes) {
+    return std::holds_alternative<GolombekRappBouldersSpec>(sizes);
+}
+
+/// @throws ConfigError at a Golombek-Rapp term that is set, such as "coverage", when no size
+/// model of the layer is Golombek-Rapp and so none would use it.
+void CheckGolombekRappTerms(const BoulderLayerSpec& spec, const std::string& path) {
+    const BoulderSizes& sizes = spec.boulders.sizes;
+    const bool layer = IsGolombekRapp(spec.sizes);
+    const bool ejecta = IsGolombekRapp(spec.ejectaSizes.value_or(spec.sizes));
+    const auto check = [](bool used, const std::optional<double>& value, const std::string& at,
+                          const char* fix) {
+        if (!used && value) {
+            throw ConfigError(at, std::string("is only used by Golombek-Rapp sizes; set ") + fix +
+                                      " or leave it out");
+        }
+    };
+    const char* const layerFix = R"("sizes": {"type": "golombek_rapp"})";
+    check(layer, sizes.coverage, Child(path, "coverage"), layerFix);
+    check(layer || ejecta, sizes.qConstant, Child(path, "qa"), layerFix);
+    check(layer || ejecta, sizes.qCoverageCoefficient, Child(path, "qb"), layerFix);
+    check(ejecta, spec.boulders.ejecta.coverage, Child(Child(path, "ejecta"), "coverage"),
+          R"("ejecta_sizes": {"type": "golombek_rapp"})");
+}
+
+/// @throws ConfigError at the field of an invalid boulder map, the Golombek-Rapp terms, or the
+/// layer for options its constructor would reject.
+void CheckBoulderOptions(const BoulderLayerSpec& spec, const BoulderLayerOptions& options,
+                         const std::string& path, bool cratersBefore) {
+    if (options.densityMap) {
+        At(Child(path, "density_map"), [&] { ValidateDensityMap(*options.densityMap); });
+    }
+    if (options.slopeMap) {
+        At(Child(path, "slope_map"), [&] { ValidateSizeSlopeMap(*options.slopeMap); });
+    }
+    if (options.generateRandom) {
+        CheckGolombekRappTerms(spec, path);
+        if (IsGolombekRapp(spec.sizes) && !(options.sizes.Coverage() > 0.0)) {
+            throw ConfigError(Child(path, "coverage"),
+                              "must be above 0 to generate random boulders; set generate_random "
+                              "to false to place only the manual ones");
+        }
+    }
+    At(path, [&] { ValidateBoulderLayerOptions(options); });
+    if (options.generateRandom && options.ejecta.ThrowingDiameter() && !cratersBefore) {
+        throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter_m"),
+                          "ejecta need a crater layer before this one");
+    }
+}
+
 LayerPtr BuildLayerSpec(const BoulderLayerSpec& s, const std::string& path,
                         const LayerInputs& context) {
     BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
+    CheckBoulderOptions(s, options, path, !context.craters.empty());
     const bool throws = options.generateRandom && options.ejecta.ThrowingDiameter().has_value();
     return std::make_shared<BoulderLayer>(
         std::move(options),
@@ -589,41 +675,6 @@ std::vector<SecondaryCraterOptions> ThrownSecondaries(const std::vector<LayerSpe
     return thrown;
 }
 
-/// The generator of a checked configuration, built on `external` in place of its own source when
-/// one is given: the layers then read `external` as their measured data.
-TerrainGenerator BuildValidGenerator(const TerrainGenConfig& config,
-                                     const std::filesystem::path& directory,
-                                     const std::shared_ptr<const Source>& external = nullptr) {
-    TerrainGenerator generator;
-    generator.surface = BuildSurface(config.body, directory);
-    const std::optional<SourceSpec> source = EffectiveSource(config);
-    if (external) {
-        generator.source = external;
-    } else {
-        generator.source = BuildSource(source.value_or(SourceSpec{SyntheticSourceSpec{}}),
-                                       directory, generator.surface, "source");
-    }
-    const std::shared_ptr<const Source> given =
-        external ? external : (source ? generator.source : nullptr);
-    const std::shared_ptr<const Source> measured =
-        external ? external : (source ? MeasuredSource(*source, generator.source) : nullptr);
-    std::vector<std::shared_ptr<const CraterLayer>> craters;
-    std::shared_ptr<const BoulderLayer> boulders;
-    for (std::size_t i = 0; i < config.layers.size(); ++i) {
-        const LayerInputs context{
-            TerrainBase{generator.surface, measured}, directory, craters, boulders, given,
-            ThrownSecondaries(config.layers, i)};
-        generator.layers.push_back(BuildLayer(config.layers[i], Element("layers", i), context));
-        if (std::holds_alternative<CraterLayerSpec>(config.layers[i])) {
-            craters.push_back(std::static_pointer_cast<const CraterLayer>(generator.layers.back()));
-        }
-        if (std::holds_alternative<BoulderLayerSpec>(config.layers[i])) {
-            boulders = std::static_pointer_cast<const BoulderLayer>(generator.layers.back());
-        }
-    }
-    return generator;
-}
-
 /// The bands of a raster albedo map, scaled as its metadata or the spec says.
 std::vector<Raster<float>> LoadAlbedoBands(const RasterAlbedoSpec& spec,
                                            const std::filesystem::path& directory) {
@@ -666,7 +717,7 @@ std::shared_ptr<const AlbedoSource> BuildAlbedoSource(const AlbedoSourceSpec& sp
 
 /// What albedo layers are built from: the generator, and the configuration it was built from.
 struct AlbedoInputs {
-    const TerrainGenConfig& config;
+    const ConfigSpec& config;
     const TerrainGenerator& generator;
 };
 
@@ -725,7 +776,7 @@ void AddAlbedoLayer(const SlopeAlbedoSpec& slopes, const AlbedoInputs& inputs, A
 }
 
 /// The radial shape a shape model spec describes, loaded once per file, modification time, Q and
-/// unit, as validating and building a terrain both need it.
+/// unit, so surfaces built from one spec share it and compare equal.
 /// @throws ConfigError at "body.path" for a file that cannot be read or resampled.
 std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& spec,
                                                   const std::filesystem::path& directory) {
@@ -760,6 +811,40 @@ std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& s
 }  // namespace
 
 namespace config {
+
+GeneratorBuilder::GeneratorBuilder(const ConfigSpec& config, const std::filesystem::path& directory,
+                                   Surface surface, std::shared_ptr<const Source> external)
+    : config_(config), directory_(directory) {
+    generator_.surface = std::move(surface);
+    const std::optional<SourceSpec> source = EffectiveSource(config);
+    if (external) {
+        generator_.source = external;
+        given_ = external;
+        measured_ = std::move(external);
+        return;
+    }
+    generator_.source = BuildSource(source.value_or(SourceSpec{SyntheticSourceSpec{}}), directory,
+                                    generator_.surface, "source");
+    if (source) {
+        given_ = generator_.source;
+        measured_ = MeasuredSource(*source, generator_.source);
+    }
+}
+
+const Layer& GeneratorBuilder::AddLayer(std::size_t i) {
+    const LayerSpec& spec = config_.layers.at(i);
+    const LayerInputs context{
+        TerrainBase{generator_.surface, measured_}, directory_, craters_, boulders_, given_,
+        ThrownSecondaries(config_.layers, i)};
+    generator_.layers.push_back(BuildLayer(spec, Element("layers", i), context));
+    if (std::holds_alternative<CraterLayerSpec>(spec)) {
+        craters_.push_back(std::static_pointer_cast<const CraterLayer>(generator_.layers.back()));
+    }
+    if (std::holds_alternative<BoulderLayerSpec>(spec)) {
+        boulders_ = std::static_pointer_cast<const BoulderLayer>(generator_.layers.back());
+    }
+    return *generator_.layers.back();
+}
 
 std::optional<SteadyStateAgesSpec> MatchingAges(const DensitySpec& density) {
     const auto* minimum = std::get_if<MinimumSpec>(&density);
@@ -978,7 +1063,7 @@ SfdPtr BuildProduction(ProductionFunction production) {
     return std::make_shared<SplicedSfd>(ExtendedNeukumProductionFunction());
 }
 
-Albedo BuildValidAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
+Albedo BuildValidAlbedo(const ConfigSpec& config, const TerrainGenerator& generator,
                         const std::filesystem::path& directory) {
     Albedo albedo;
     albedo.surface = generator.surface;
@@ -1069,16 +1154,19 @@ Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& direc
         spec);
 }
 
-TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
-                                const std::filesystem::path& given) {
-    const std::filesystem::path directory = ConfigDirectory(config, given);
-    ValidateConfig(config, directory);
-    return BuildValidGenerator(config, directory);
+Surface BuildSurface(const TerrainGenConfig& value, const std::filesystem::path& given) {
+    const ConfigSpec& config = value.Spec();
+    return BuildSurface(config.body, ConfigDirectory(config, given));
 }
 
-TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
-                                std::shared_ptr<const Source> source,
+TerrainGenerator BuildGenerator(const TerrainGenConfig& value, const std::filesystem::path& given) {
+    const ConfigSpec& config = value.Spec();
+    return config::BuildCheckedGenerator(config, ConfigDirectory(config, given)).generator;
+}
+
+TerrainGenerator BuildGenerator(const TerrainGenConfig& value, std::shared_ptr<const Source> source,
                                 const std::filesystem::path& given) {
+    const ConfigSpec& config = value.Spec();
     const std::filesystem::path directory = ConfigDirectory(config, given);
     if (!source) {
         throw std::invalid_argument("BuildGenerator needs a source");
@@ -1086,12 +1174,12 @@ TerrainGenerator BuildGenerator(const TerrainGenConfig& config,
     if (config.source) {
         throw ConfigError("source", "must be left out when the caller gives the source");
     }
-    ValidateConfig(config, directory);
-    return BuildValidGenerator(config, directory, source);
+    return config::BuildCheckedGenerator(config, directory, source).generator;
 }
 
-Albedo BuildAlbedo(const TerrainGenConfig& config, const TerrainGenerator& generator,
+Albedo BuildAlbedo(const TerrainGenConfig& value, const TerrainGenerator& generator,
                    const std::filesystem::path& given) {
+    const ConfigSpec& config = value.Spec();
     const std::filesystem::path directory = ConfigDirectory(config, given);
     if (!config.albedo) {
         throw ConfigError("albedo", "the configuration has no albedo");

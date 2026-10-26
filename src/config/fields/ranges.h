@@ -7,7 +7,7 @@
 #include "config/fields/checks.h"
 #include "config/fields/common.h"
 #include "config/fields/sources.h"
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 #include <array>
 #include <cstddef>

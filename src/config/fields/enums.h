@@ -4,7 +4,7 @@
 /// @brief The JSON name and description of every enum value a configuration holds.
 #pragma once
 
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 #include <array>
 #include <string_view>

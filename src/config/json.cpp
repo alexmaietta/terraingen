@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "config/build_steps.h"
 #include "config/fields/json_io.h"
 
 #include "terraingen/sources/upsampling.h"
@@ -211,7 +212,7 @@ TerrainGenConfig ParseConfig(std::string_view json) {
         throw ConfigError("", std::string("invalid JSON: ") + error.what());
     }
     config::CheckSchemaVersion(document);
-    TerrainGenConfig parsed;
+    ConfigSpec parsed;
     config::Read(document, "", parsed);
     return parsed;
 }
@@ -223,17 +224,17 @@ TerrainGenConfig LoadConfig(const std::filesystem::path& path) {
     }
     std::ostringstream text;
     text << file.rdbuf();
-    TerrainGenConfig config = ParseConfig(text.str());
+    ConfigSpec config = ParseConfig(text.str());
     config.directory = path.parent_path();
     return config;
 }
 
 std::string ConfigToJson(const TerrainGenConfig& terrainConfig, int indent) {
-    return config::FieldsJson(terrainConfig, true, true).dump(indent) + "\n";
+    return config::FieldsJson(terrainConfig.Spec(), true, true).dump(indent) + "\n";
 }
 
 bool operator==(const TerrainGenConfig& a, const TerrainGenConfig& b) {
-    return config::FieldsJson(a) == config::FieldsJson(b);
+    return config::FieldsJson(a.Spec()) == config::FieldsJson(b.Spec());
 }
 
 bool operator!=(const TerrainGenConfig& a, const TerrainGenConfig& b) {

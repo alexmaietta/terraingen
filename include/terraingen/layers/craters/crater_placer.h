@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief `CraterPlacer`, a layer that lists the craters it applies, and `PlacedCraters`.
+/// @brief `CraterPlacer`, a layer that lists the craters it applies.
 #pragma once
 
 #include "terraingen/layers/craters/crater.h"
@@ -40,11 +40,5 @@ class CraterPlacer {
     /// that spacing applies them, finer than the grid's or not (`ListedSpacing`); 0 for the grid's.
     virtual CraterFeatures CratersOver(const RasterGrid& grid, double spacing) const = 0;
 };
-
-/// The craters `layers` apply over `grid`, layer by layer in order: those of every
-/// `CraterPlacer` among them.
-/// @param spacing The sample spacing in meters.
-CraterFeatures PlacedCraters(Span<const std::shared_ptr<const Layer>> layers,
-                             const RasterGrid& grid, double spacing);
 
 }  // namespace terraingen

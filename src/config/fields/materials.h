@@ -6,7 +6,7 @@
 
 #include "config/fields/boulders.h"
 #include "config/fields/common.h"
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 #include <array>
 #include <cstddef>

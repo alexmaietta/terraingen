@@ -27,7 +27,6 @@ using terraingen::GridReport;
 using terraingen::kDegree;
 using terraingen::kPi;
 using terraingen::kRadian;
-using terraingen::LayerTimer;
 using terraingen::LayerTiming;
 using terraingen::PowerLawSfd;
 using terraingen::Raster;
@@ -256,20 +255,6 @@ TEST(ReportGrid, CountsBouldersModelsAndCover) {
     EXPECT_EQ(report.boulderCount, 3u);
     EXPECT_EQ(report.boulderModelCount, 1u);
     EXPECT_DOUBLE_EQ(report.boulderCover, 0.25 * kPi * 9.0 / 200.0);
-}
-
-TEST(LayerTimer, SumsEachLayersTimeInSeconds) {
-    LayerTimer timer{{"noise", "craters"}};
-    timer.Add(1, 1500.0);
-    timer.Add(1, 500.0);
-    timer.Add(0, 250.0);
-    const std::vector<LayerTiming>& timings = timer.Timings();
-    ASSERT_EQ(timings.size(), 2u);
-    EXPECT_EQ(timings[0].type, "noise");
-    EXPECT_DOUBLE_EQ(timings[0].seconds, 0.25);
-    EXPECT_EQ(timings[1].type, "craters");
-    EXPECT_DOUBLE_EQ(timings[1].seconds, 2.0);
-    EXPECT_THROW(timer.Add(2, 1.0), std::out_of_range);
 }
 
 TEST(ReportToJson, RoundTripsEveryField) {

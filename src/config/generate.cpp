@@ -2,6 +2,7 @@
 
 #include "terraingen/config/generate.h"
 
+#include "config/build_steps.h"
 #include "config/fields/fields.h"
 #include "terraingen/config/build.h"
 #include "terraingen/config/json.h"
@@ -32,16 +33,6 @@
 namespace terraingen {
 
 namespace {
-
-/// The projection of a terrain's raster source, or geographic keys on a body without one.
-GeoKeys OutputGeoKeys(const TerrainGenerator& generator) {
-    return TerrainGeoKeys(generator);
-}
-
-/// The grid of the terrain's source, or none without one or for one without bounds.
-std::optional<RasterGrid> SourceGrid(const TerrainGenerator& generator) {
-    return generator.source ? BoundedGrid(*generator.source) : std::nullopt;
-}
 
 /// Whether an output needs the heights over its grid: a raster or a terrain mesh.
 bool NeedsHeights(const OutputSpec& output) {
@@ -97,8 +88,7 @@ void LogStepTimes(const std::vector<StepTime>& steps, std::size_t grids, double 
 }
 
 /// The distinct grids the outputs cover, in order.
-std::vector<RasterGrid> CoveredGrids(const TerrainGenConfig& config,
-                                     const TerrainGenerator& generator) {
+std::vector<RasterGrid> CoveredGrids(const ConfigSpec& config, const TerrainGenerator& generator) {
     const std::optional<RasterGrid> source = SourceGrid(generator);
     std::vector<RasterGrid> grids;
     for (const OutputSpec& output : config.outputs) {
@@ -114,11 +104,11 @@ std::vector<RasterGrid> CoveredGrids(const TerrainGenConfig& config,
 /// Generates what each output asks for over its grid, once per grid and result, timing each step.
 class OutputGenerator {
   public:
-    OutputGenerator(const TerrainGenConfig& config, GeneratedOutputs& generated,
+    OutputGenerator(const ConfigSpec& config, GeneratedOutputs& generated,
                     const std::filesystem::path& directory, unsigned threads)
         : config_(config), generated_(generated), directory_(directory), threads_(threads),
           source_(SourceGrid(generated.generator)),
-          grids_(CoveredGrids(config, generated.generator)), layerTimer_(LayerTypes(config)) {
+          grids_(CoveredGrids(config, generated.generator)) {
         for (std::size_t n = 0; n < config.layers.size(); ++n) {
             steps_.push_back(
                 {"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
@@ -161,19 +151,15 @@ class OutputGenerator {
     }
 
     /// Each layer's type and its time summed over every evaluation, in order.
-    const std::vector<LayerTiming>& LayerTimings() const {
-        return layerTimer_.Timings();
+    std::vector<LayerTiming> LayerTimings() const {
+        std::vector<LayerTiming> timings;
+        for (std::size_t n = 0; n < config_.layers.size(); ++n) {
+            timings.push_back({LayerType(config_.layers[n]), steps_[n].milliseconds / 1000.0});
+        }
+        return timings;
     }
 
   private:
-    static std::vector<std::string> LayerTypes(const TerrainGenConfig& config) {
-        std::vector<std::string> types;
-        for (const LayerSpec& layer : config.layers) {
-            types.push_back(LayerType(layer));
-        }
-        return types;
-    }
-
     void Timed(std::size_t step, double milliseconds) {
         steps_[step].milliseconds += milliseconds;
         LogInfo("pipeline", "  ", steps_[step].name, " in ", FormatDuration(milliseconds));
@@ -203,7 +189,6 @@ class OutputGenerator {
         EvaluationOptions options{0.0, threads_, generated_.backend};
         options.onLayer = [this](std::size_t step, double milliseconds) {
             Timed(step, milliseconds);
-            layerTimer_.Add(step, milliseconds);
         };
         target.heights = Evaluate(generator, target.grid, options);
     }
@@ -284,7 +269,7 @@ class OutputGenerator {
         }
     }
 
-    const TerrainGenConfig& config_;
+    const ConfigSpec& config_;
     GeneratedOutputs& generated_;
     const std::filesystem::path& directory_;
     unsigned threads_;
@@ -292,7 +277,6 @@ class OutputGenerator {
     std::vector<RasterGrid> grids_;
     std::vector<StepTime> steps_;
     std::optional<Albedo> albedo_;
-    LayerTimer layerTimer_;
 };
 
 /// A field-list `IO` that finds a layer's top-level "seed", or its inner layer's in a masked
@@ -320,7 +304,7 @@ class SeedFinder {
 };
 
 /// The top-level "seed" of each layer that has one, in order, a masked layer's from inside.
-std::vector<std::uint32_t> LayerSeeds(const TerrainGenConfig& config) {
+std::vector<std::uint32_t> LayerSeeds(const ConfigSpec& config) {
     std::vector<std::uint32_t> seeds;
     for (const LayerSpec& layer : config.layers) {
         SeedFinder finder;
@@ -332,20 +316,22 @@ std::vector<std::uint32_t> LayerSeeds(const TerrainGenConfig& config) {
     return seeds;
 }
 
-/// The density of the first top-level crater layer, or null without one.
-std::shared_ptr<const SizeFrequencyDistribution> CraterTarget(const TerrainGenConfig& config) {
-    const std::vector<std::size_t> craters = config::LayerIndices<CraterLayerSpec>(config.layers);
-    if (craters.empty()) {
-        return nullptr;
+/// The density of the generator's first top-level crater layer, or null without one.
+std::shared_ptr<const SizeFrequencyDistribution> CraterTarget(const TerrainGenerator& generator) {
+    for (const auto& layer : generator.layers) {
+        if (const auto* craters = dynamic_cast<const CraterLayer*>(layer.get())) {
+            return craters->Models().density;
+        }
     }
-    return BuildCraterModels(std::get<CraterLayerSpec>(config.layers[craters.front()])).density;
+    return nullptr;
 }
 
 /// The report of what was generated from `config`, with each layer's summed `timings`.
-TerrainReport BuildReport(const TerrainGenConfig& config, const GeneratedOutputs& generated,
+TerrainReport BuildReport(const ConfigSpec& config, const GeneratedOutputs& generated,
                           std::vector<LayerTiming> timings, unsigned threads) {
     TerrainReport report;
-    const std::shared_ptr<const SizeFrequencyDistribution> target = CraterTarget(config);
+    const std::shared_ptr<const SizeFrequencyDistribution> target =
+        CraterTarget(generated.generator);
     for (const GeneratedGrid& grid : generated.grids) {
         if (grid.heights.Empty()) {
             continue;
@@ -513,18 +499,19 @@ GeneratedGrid* GeneratedOutputs::Find(const RasterGrid& grid) {
     return const_cast<GeneratedGrid*>(std::as_const(*this).Find(grid));
 }
 
-GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& config,
+GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& value,
                                     const std::filesystem::path& given, unsigned threads,
                                     std::optional<Backend> backend) {
+    const ConfigSpec& config = value.Spec();
     const std::filesystem::path directory = ConfigDirectory(config, given);
-    GeneratedOutputs generated{BuildGenerator(config, directory)};
+    GeneratedOutputs generated{BuildGenerator(value, directory)};
     generated.backend = ResolveBackend(backend.value_or(DefaultBackend()));
     const Stopwatch stopwatch;
     OutputGenerator outputGenerator(config, generated, directory, threads);
     for (const OutputSpec& output : config.outputs) {
         outputGenerator.Generate(output);
     }
-    generated.geoKeys = OutputGeoKeys(generated.generator);
+    generated.geoKeys = TerrainGeoKeys(generated.generator);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
     outputGenerator.LogTimes(stopwatch.Milliseconds());
     if (config::HasOutput<ReportOutput>(config.outputs)) {
@@ -557,9 +544,10 @@ std::string Summary(const GeneratedOutputs& generated) {
     return text.str();
 }
 
-std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& config,
+std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& value,
                                                 const GeneratedOutputs& generated,
                                                 const std::filesystem::path& directory) {
+    const ConfigSpec& config = value.Spec();
     const std::optional<RasterGrid> source = SourceGrid(generated.generator);
     std::vector<std::filesystem::path> written;
     for (const OutputSpec& spec : config.outputs) {

@@ -7,7 +7,7 @@
 #include "config/fields/common.h"
 #include "config/fields/layers.h"
 #include "config/fields/sources.h"
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 #include <string>
 #include <string_view>

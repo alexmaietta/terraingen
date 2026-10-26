@@ -27,27 +27,13 @@ struct ConfigSummary {
     std::optional<double> expectedCraters;
 };
 
-/// Checks every field range (`config::CheckConfigRanges`) and everything that parsing cannot, such
-/// as grid limits, the raster file, model parameters, outputs and their grids, and the expected
-/// crater counts over each, and returns the grids and the largest count.
+/// Checks every field range and everything parsing cannot, such as grid limits, files, model
+/// parameters, outputs and their grids and the expected crater counts, building the terrain to
+/// check it, and returns the grids and the largest count.
 /// @param directory Folder relative input paths resolve against; empty for the folder the
 /// configuration was read from (`TerrainGenConfig::directory`).
 /// @throws ConfigError naming the first invalid value by its JSON path.
 ConfigSummary ValidateConfig(const TerrainGenConfig& config,
                              const std::filesystem::path& directory = {});
-
-namespace config {
-
-/// Checks every number of a configuration against the range its field declares (`FieldRange`), in
-/// the units the configuration stores it in, and that every number is finite.
-/// @throws ConfigError naming the first number out of its range by its JSON path.
-void CheckConfigRanges(const TerrainGenConfig& config);
-
-/// Checks a configuration's albedo against its crater layers and files.
-/// @param config A configuration with an albedo.
-/// @throws ConfigError naming the first invalid value under "albedo".
-void ValidateAlbedo(const TerrainGenConfig& config, const std::filesystem::path& directory);
-
-}  // namespace config
 
 }  // namespace terraingen

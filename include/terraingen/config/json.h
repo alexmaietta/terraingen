@@ -5,6 +5,7 @@
 #pragma once
 
 #include "terraingen/config/config.h"
+#include "terraingen/pipeline/feature_lists.h"
 
 #include <filesystem>
 #include <stdexcept>
@@ -55,36 +56,17 @@ TerrainGenConfig LoadConfig(const std::filesystem::path& path);
 /// gives back an equal configuration.
 std::string ConfigToJson(const TerrainGenConfig& config, int indent = 2);
 
-/// A reference of every configuration type with its defaults, as JSON.
-///
-/// The lists "body", "source", "layers" and "outputs" hold each type of their kind,
-/// "albedo" the albedo, and "models" one noise layer and every density, ages, degradation,
-/// profile, boulder size, region shape, albedo source and albedo layer type. Each entry parses
-/// where its kind belongs in a configuration.
+/// Every configuration type with its defaults, as JSON: lists "body", "source", "layers",
+/// "outputs" and "models" whose entries each parse where their kind belongs, and the "albedo".
 std::string ConfigCatalog(int indent = 2);
 
-/// The structure of a configuration as JSON, for editors: what each field holds and its
-/// default, from the same field lists the parser reads.
-///
-/// The document has "schema_version", "root" (the configuration object) and "definitions", each
-/// struct and choice described once by id ("d0", "d1", ...) and referred to as
-/// {"kind": "ref", "ref": id}. A schema has a "kind":
-/// - "number", "integer" ("minimum" 0 for counts, "fixed" for the schema version), "boolean",
-///   "string";
-/// - "enum" with its "choices" and their "descriptions";
-/// - "optional" and "array" with the schema "of" what they hold and that thing's "default";
-/// - "object" with its "fields", each {"name", "description", "unit", "schema", "default"}, and for
-///   a bounded number (or each number of a list) "minimum" and "exclusive_minimum", "maximum"
-///   and "exclusive_maximum";
-/// - "choice" with its "alternatives", each {"type", "description", "fields", "default"}, and
-///   "named" true where the "type" alone, as a string, stands for an alternative (an upsampling);
-///   such a choice also takes the names of types registered in code.
+/// The structure of a configuration as JSON, for editors, from the field lists the parser reads:
+/// "root" and "definitions" of schemas, each with a "kind" (number, integer, boolean, string, enum,
+/// optional, array, object, choice or ref) and, for fields, their description, unit, default and
+/// bounds.
 std::string ConfigSchema(int indent = 2);
 
 /// The format a list file's path implies: JSON for a .json path, else CSV.
 ListFormat InferListFormat(std::string_view path);
-
-/// A layer's JSON "type", with the inner layer's type for a masked one: "masked (boulders)".
-std::string LayerType(const LayerSpec& layer);
 
 }  // namespace terraingen

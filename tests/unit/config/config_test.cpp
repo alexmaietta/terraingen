@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 
 #include "terraingen/config/json.h"
 
@@ -25,10 +25,10 @@ TEST(Boxed, CopiesByValue) {
     EXPECT_EQ(c->index(), a->index());
 }
 
-TEST(TerrainGenConfig, ComparesAsItsJson) {
-    terraingen::TerrainGenConfig a;
+TEST(ConfigSpec, ComparesAsItsJson) {
+    terraingen::ConfigSpec a;
     a.layers = {terraingen::ScaleLayerSpec{2.0, 0.0}};
-    terraingen::TerrainGenConfig b = a;
+    terraingen::ConfigSpec b = a;
     EXPECT_TRUE(a == b);
     EXPECT_FALSE(a != b);
     std::get<terraingen::ScaleLayerSpec>(b.layers[0]).offset = 1.0;

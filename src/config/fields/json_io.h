@@ -7,7 +7,7 @@
 #include "config/fields/checks.h"
 #include "config/fields/enums.h"
 #include "config/fields/fields.h"
-#include "terraingen/config/config.h"
+#include "config/spec.h"
 #include "terraingen/config/json.h"
 
 #include <nlohmann/json.hpp>

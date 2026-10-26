@@ -2,6 +2,8 @@
 
 #include "sources/seam_field.h"
 
+#include "terraingen/raster/resample.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -46,14 +48,6 @@ constexpr int kMaxIterations = 200;
 /// Weights of the coarse posts a fine post's correction is interpolated from: its parent, the
 /// parent's neighbor across the fine post's column, across its row, and diagonally.
 constexpr std::array<double, 4> kTransfer{9.0 / 16.0, 3.0 / 16.0, 3.0 / 16.0, 1.0 / 16.0};
-
-/// Catmull-Rom weights of the four posts around a point a fraction `t` past the second.
-std::array<double, 4> CatmullRomWeights(double t) {
-    const double t2 = t * t;
-    const double t3 = t2 * t;
-    return {0.5 * (-t + 2.0 * t2 - t3), 0.5 * (2.0 - 5.0 * t2 + 3.0 * t3),
-            0.5 * (t + 4.0 * t2 - 3.0 * t3), 0.5 * (t3 - t2)};
-}
 
 /// A lattice's posts and the distances between them.
 struct Posts {
@@ -448,17 +442,12 @@ void VCycle(std::vector<SolveLevel>& levels, std::size_t depth, int order) {
     }
 }
 
-/// Solves the operator of `order` = 0 for the posts `unknowns` (sorted, one connected region)
-/// with the posts around them fixed at their values in `field`, by conjugate gradients
-/// preconditioned with multigrid V-cycles, and sets them in `field`.
-void SolveRegion(SeamField& field, const std::vector<Key>& unknowns, int order, double dx,
-                 double dy, double screening) {
+/// The multigrid levels of `unknowns` (sorted), each coarser level halving the posts, linked.
+std::vector<SolveLevel> BuildHierarchy(std::vector<Key> keys, int order, double dx, double dy,
+                                       double screening) {
     std::vector<SolveLevel> levels;
-    std::vector<Key> keys = unknowns;
-    double levelDx = dx;
-    double levelDy = dy;
     for (;;) {
-        levels.push_back(MakeLevel(keys, order, levelDx, levelDy, screening));
+        levels.push_back(MakeLevel(keys, order, dx, dy, screening));
         if (keys.size() <= kCoarsestPosts || levels.size() == kMaxLevels) {
             break;
         }
@@ -470,48 +459,42 @@ void SolveRegion(SeamField& field, const std::vector<Key>& unknowns, int order, 
         std::sort(coarse.begin(), coarse.end());
         coarse.erase(std::unique(coarse.begin(), coarse.end()), coarse.end());
         keys = std::move(coarse);
-        levelDx *= 2.0;
-        levelDy *= 2.0;
+        dx *= 2.0;
+        dy *= 2.0;
     }
     for (std::size_t depth = 0; depth + 1 < levels.size(); ++depth) {
         Link(levels[depth], levels[depth + 1]);
     }
+    return levels;
+}
 
+/// The solution of the finest level's operator for `residual`, by conjugate gradients
+/// preconditioned with multigrid V-cycles over `levels`.
+std::vector<double> PreconditionedCg(std::vector<SolveLevel>& levels, int order,
+                                     std::vector<double> residual) {
     SolveLevel& fine = levels.front();
     const std::uint32_t slot = fine.Slot();
-    const std::size_t size = static_cast<std::size_t>(slot) + 1;
-    std::vector<double> fixed(size, 0.0);
-    for (std::uint32_t k = 0; k < slot; ++k) {
-        if (fine.unknown[k] == 0) {
-            fixed[k] =
-                static_cast<double>(field.Post(static_cast<std::ptrdiff_t>(KeyCol(fine.keys[k])),
-                                               static_cast<std::ptrdiff_t>(KeyRow(fine.keys[k]))));
-        }
-    }
-    const auto dot = [&](const std::vector<double>& a, const std::vector<double>& b) {
-        double sum = 0.0;
+    const auto forUnknowns = [&](const auto& visit) {
         for (std::uint32_t k = 0; k < slot; ++k) {
             if (fine.unknown[k] != 0) {
-                sum += a[k] * b[k];
+                visit(k);
             }
         }
+    };
+    const auto dot = [&](const std::vector<double>& a, const std::vector<double>& b) {
+        double sum = 0.0;
+        forUnknowns([&](std::uint32_t k) { sum += a[k] * b[k]; });
         return sum;
     };
-    std::vector<double> residual(size, 0.0);
-    for (std::uint32_t k = 0; k < slot; ++k) {
-        if (fine.unknown[k] != 0) {
-            residual[k] = -Apply(fine, order, fixed, k);
-        }
-    }
     const auto precondition = [&] {
         fine.rhs = residual;
         VCycle(levels, 0, order);
         return fine.solution;
     };
-    std::vector<double> solution(size, 0.0);
+    std::vector<double> solution(residual.size(), 0.0);
+    std::vector<double> applied(residual.size(), 0.0);
     const double target = kTolerance * std::sqrt(dot(residual, residual));
     std::vector<double> direction = precondition();
-    std::vector<double> applied(size, 0.0);
     double fit = dot(residual, direction);
     for (int iteration = 0; iteration < kMaxIterations && fit > 0.0; ++iteration) {
         for (std::uint32_t k = 0; k < slot; ++k) {
@@ -522,12 +505,10 @@ void SolveRegion(SeamField& field, const std::vector<Key>& unknowns, int order, 
             break;
         }
         const double step = fit / curvature;
-        for (std::uint32_t k = 0; k < slot; ++k) {
-            if (fine.unknown[k] != 0) {
-                solution[k] += step * direction[k];
-                residual[k] -= step * applied[k];
-            }
-        }
+        forUnknowns([&](std::uint32_t k) {
+            solution[k] += step * direction[k];
+            residual[k] -= step * applied[k];
+        });
         if (std::sqrt(dot(residual, residual)) <= target) {
             break;
         }
@@ -535,16 +516,39 @@ void SolveRegion(SeamField& field, const std::vector<Key>& unknowns, int order, 
         const double next = dot(residual, preconditioned);
         const double ratio = next / fit;
         fit = next;
-        for (std::uint32_t k = 0; k < slot; ++k) {
-            if (fine.unknown[k] != 0) {
-                direction[k] = preconditioned[k] + ratio * direction[k];
-            }
+        forUnknowns(
+            [&](std::uint32_t k) { direction[k] = preconditioned[k] + ratio * direction[k]; });
+    }
+    return solution;
+}
+
+/// Solves the operator of `order` = 0 for the posts `unknowns` (sorted, one connected region)
+/// with the posts around them fixed at their values in `field`, and sets them in `field`.
+void SolveRegion(SeamField& field, const std::vector<Key>& unknowns, int order, double dx,
+                 double dy, double screening) {
+    std::vector<SolveLevel> levels = BuildHierarchy(unknowns, order, dx, dy, screening);
+    const SolveLevel& fine = levels.front();
+    const std::uint32_t slot = fine.Slot();
+    const auto post = [&](std::uint32_t k) {
+        return std::make_pair(KeyCol(fine.keys[k]), KeyRow(fine.keys[k]));
+    };
+    std::vector<double> fixed(static_cast<std::size_t>(slot) + 1, 0.0);
+    for (std::uint32_t k = 0; k < slot; ++k) {
+        if (fine.unknown[k] == 0) {
+            const auto [col, row] = post(k);
+            fixed[k] = static_cast<double>(
+                field.Post(static_cast<std::ptrdiff_t>(col), static_cast<std::ptrdiff_t>(row)));
         }
     }
+    std::vector<double> residual(fixed.size(), 0.0);
+    for (std::uint32_t k = 0; k < slot; ++k) {
+        residual[k] = fine.unknown[k] != 0 ? -Apply(fine, order, fixed, k) : 0.0;
+    }
+    const std::vector<double> solution = PreconditionedCg(levels, order, std::move(residual));
     for (std::uint32_t k = 0; k < slot; ++k) {
         if (fine.unknown[k] != 0) {
-            field.Set(static_cast<std::size_t>(KeyCol(fine.keys[k])),
-                      static_cast<std::size_t>(KeyRow(fine.keys[k])),
+            const auto [col, row] = post(k);
+            field.Set(static_cast<std::size_t>(col), static_cast<std::size_t>(row),
                       static_cast<float>(solution[k]));
         }
     }
@@ -626,20 +630,11 @@ double SeamField::At(double x, double y) const {
           top <= static_cast<double>(lattice_.height))) {
         return 0.0;
     }
-    const auto col = static_cast<std::ptrdiff_t>(left);
-    const auto row = static_cast<std::ptrdiff_t>(top);
-    const std::array<double, 4> wx = CatmullRomWeights(fx - left);
-    const std::array<double, 4> wy = CatmullRomWeights(fy - top);
-    double sum = 0.0;
-    for (std::size_t j = 0; j < 4; ++j) {
-        double across = 0.0;
-        for (std::size_t i = 0; i < 4; ++i) {
-            across += wx[i] * static_cast<double>(Post(col - 1 + static_cast<std::ptrdiff_t>(i),
-                                                       row - 1 + static_cast<std::ptrdiff_t>(j)));
-        }
-        sum += wy[j] * across;
-    }
-    return sum;
+    const auto post = [this](double col, double row) {
+        return Post(static_cast<std::ptrdiff_t>(col), static_cast<std::ptrdiff_t>(row));
+    };
+    return *InterpolateLattice(fx, fy, ResampleMethod::CatmullRom, post,
+                               [](float) { return false; });
 }
 
 SeamField BuildSeamField(const Source& earlier, const Source& later, const RasterGrid& grid,

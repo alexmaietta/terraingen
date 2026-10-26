@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "config/build_steps.h"
 #include "config/fields/fields.h"
 #include "config/fields/ranges.h"
 #include "configs.h"
@@ -21,7 +22,7 @@ using config::FieldRange;
 using config::FromBelow;
 using config::Inside;
 using terraingen::ConfigError;
-using terraingen::TerrainGenConfig;
+using terraingen::ConfigSpec;
 
 namespace {
 
@@ -39,7 +40,7 @@ template <typename Check> std::string Message(Check check) {
 }
 
 /// The path of the ConfigError `CheckConfigRanges` throws for `config`, or "valid".
-std::string RangeErrorPath(const TerrainGenConfig& config) {
+std::string RangeErrorPath(const ConfigSpec& config) {
     try {
         terraingen::config::CheckConfigRanges(config);
     } catch (const ConfigError& error) {
@@ -127,7 +128,7 @@ TEST(CheckRanges, WalksOptionalsListsAndStructs) {
 }
 
 TEST(CheckConfigRanges, ReportsTheFirstNumberOutOfRangeByItsPath) {
-    TerrainGenConfig config = terraingen::testing::Small();
+    ConfigSpec config = terraingen::testing::Small();
     EXPECT_EQ(RangeErrorPath(config), "valid");
     terraingen::testing::Region(config).pixelSize = 0.0;
     EXPECT_EQ(RangeErrorPath(config), "outputs[0].pixel_size_m");
@@ -140,7 +141,7 @@ TEST(CheckConfigRanges, ReportsTheFirstNumberOutOfRangeByItsPath) {
 }
 
 TEST(CheckConfigRanges, RejectsNumbersThatAreNotFiniteInFieldsWithoutARange) {
-    TerrainGenConfig config = terraingen::testing::Small();
+    ConfigSpec config = terraingen::testing::Small();
     terraingen::testing::Noise(config).stack[0].hurst = static_cast<float>(kNaN);
     EXPECT_EQ(RangeErrorPath(config), "layers[0].stack[0].hurst");
     config = terraingen::testing::Small();
@@ -152,12 +153,12 @@ TEST(CheckConfigRanges, RejectsNumbersThatAreNotFiniteInFieldsWithoutARange) {
 }
 
 TEST(CheckConfigRanges, ChecksInsideRegionsAndTheBody) {
-    TerrainGenConfig config;
+    ConfigSpec config;
     config.body = terraingen::EllipsoidSurfaceSpec{{3.0, 0.0, 1.0}};
     EXPECT_EQ(RangeErrorPath(config), "body.radii_m[1]");
     config.body = terraingen::ShapeModelSurfaceSpec{"a.icq", terraingen::kMaxCubeFaceCells + 1};
     EXPECT_EQ(RangeErrorPath(config), "body.q");
-    config = TerrainGenConfig{};
+    config = ConfigSpec{};
     terraingen::MaskedLayerSpec region;
     terraingen::RoughnessLayerSpec roughness;
     roughness.roughness.baseline = 0.0;
@@ -167,7 +168,7 @@ TEST(CheckConfigRanges, ChecksInsideRegionsAndTheBody) {
 }
 
 TEST(CheckConfigRanges, AcceptsEveryDefault) {
-    EXPECT_EQ(RangeErrorPath(TerrainGenConfig{}), "valid");
+    EXPECT_EQ(RangeErrorPath(ConfigSpec{}), "valid");
     CheckDefaults<terraingen::LayerSpec>();
     CheckDefaults<terraingen::OutputSpec>();
     CheckDefaults<terraingen::SourceSpec>();

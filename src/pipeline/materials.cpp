@@ -2,6 +2,7 @@
 
 #include "terraingen/pipeline/materials.h"
 
+#include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"
@@ -36,16 +37,21 @@ const TerrainGenerator& Checked(const TerrainGenerator& generator, const Materia
 }
 
 /// The shares of a terrain before any material layer: soil, bedrock where the bare ground is
-/// exposed and dust patches.
+/// exposed and dust patches; the grounds it reads share one cache.
 class GroundCover {
   public:
     /// @throws std::invalid_argument as `ValidateMaterialOptions` and `ValidateGenerator`.
     GroundCover(const TerrainGenerator& generator, const MaterialOptions& options)
         : generator_(Checked(generator, options)), options_(options),
-          bare_(generator, BareLayers(generator)) {
+          bare_(generator, BareLayers(generator), &cache_) {
         if (options.exposure) {
             field_.emplace(*options.exposure, generator.surface);
         }
+    }
+
+    /// The ground beneath layer `n`, sharing the cover's cache.
+    TerrainGround Beneath(std::size_t n) const {
+        return TerrainGround(generator_, n, &cache_);
     }
 
     /// The shares at surface point (`x`, `y`), reading the ground at `spacing` meters.
@@ -66,6 +72,7 @@ class GroundCover {
   private:
     const TerrainGenerator& generator_;
     const MaterialOptions& options_;
+    mutable EvaluationCache cache_;
     TerrainGround bare_;
     std::optional<ExposureField> field_;
 };
@@ -88,7 +95,7 @@ MaterialShares MaterialsAt(const TerrainGenerator& generator, const MaterialOpti
     RequirePositive(spacing, "Material spacing");
     MaterialShares shares = ground.At(x, y, spacing);
     ForEachLayer<MaterialSource>(generator, [&](const MaterialSource& source, std::size_t n) {
-        const TerrainGround beneath(generator, n);
+        const TerrainGround beneath = ground.Beneath(n);
         CoverWith(shares, source.Material(), source.MaterialCoverAt(x, y, spacing, &beneath));
     });
     return shares;
@@ -102,7 +109,7 @@ std::vector<Raster<float>> EvaluateMaterials(const TerrainGenerator& generator,
     const double spacing = ResolvedSpacing(grid, evaluation.spacing, generator.surface);
     std::vector<std::pair<MaterialClass, Raster<double>>> covers;
     ForEachLayer<MaterialSource>(generator, [&](const MaterialSource& source, std::size_t n) {
-        const TerrainGround beneath(generator, n);
+        const TerrainGround beneath = ground.Beneath(n);
         covers.emplace_back(source.Material(),
                             source.MaterialCoverOver(grid, spacing, &beneath, evaluation.threads));
     });

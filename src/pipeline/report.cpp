@@ -217,16 +217,6 @@ Json GridJson(const GridReport& report) {
 
 }  // namespace
 
-LayerTimer::LayerTimer(std::vector<std::string> types) {
-    for (std::string& type : types) {
-        timings_.push_back({std::move(type), 0.0});
-    }
-}
-
-void LayerTimer::Add(std::size_t layer, double milliseconds) {
-    timings_.at(layer).seconds += milliseconds / 1000.0;
-}
-
 GridReport ReportGrid(const Raster<float>& heights, const Surface& surface,
                       const CraterFeatures* craters, const BoulderFeatures* boulders,
                       const SizeFrequencyDistribution* craterTarget, unsigned threads) {

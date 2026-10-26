@@ -130,7 +130,7 @@ TEST(WriteBoulderList, WritesAnglesInDegrees) {
 }
 
 TEST(WriteBoulderModels, RejectsOtherFilesAnglesAndNoBoulders) {
-    terraingen::TerrainGenConfig config = terraingen::testing::Small();
+    terraingen::ConfigSpec config = terraingen::testing::Small();
     terraingen::testing::Region(config) = terraingen::testing::GridRegion{200, 200, 0.5};
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::GolombekRappBouldersSpec{};

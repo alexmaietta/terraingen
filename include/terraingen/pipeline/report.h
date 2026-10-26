@@ -72,25 +72,6 @@ struct TerrainReport {
     std::string version = TERRAINGEN_FULL_VERSION_STRING;  ///< The library version.
 };
 
-/// Collects per-layer times from `EvaluationOptions::onLayer`, summed over every evaluation.
-class LayerTimer {
-  public:
-    /// A timer for layers of the given types, in order.
-    explicit LayerTimer(std::vector<std::string> types);
-
-    /// Adds `milliseconds` to layer `layer`'s time, as `EvaluationOptions::onLayer` reports it.
-    /// @throws std::out_of_range for a layer the timer has no type for.
-    void Add(std::size_t layer, double milliseconds);
-
-    /// Each layer's type and summed time, in order.
-    const std::vector<LayerTiming>& Timings() const {
-        return timings_;
-    }
-
-  private:
-    std::vector<LayerTiming> timings_;
-};
-
 /// Statistics of `heights`, evaluated over a grid on `surface`, and of the features over it.
 ///
 /// Slopes come from central differences (one-sided at edges and beside no-data cells) of the

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "config/fields/ranges.h"
+#include "config/build_steps.h"
 
 #include "config/fields/fields.h"
 #include "terraingen/config/validate.h"
@@ -76,8 +77,8 @@ void CheckRange(double value, const FieldRange& range, std::string_view unit,
     throw ConfigError(path, "must " + allowed + ", got " + Bound(value));
 }
 
-void CheckConfigRanges(const TerrainGenConfig& config) {
-    TerrainGenConfig copy = config;
+void CheckConfigRanges(const ConfigSpec& config) {
+    ConfigSpec copy = config;
     RangeChecker checker("");
     Fields(checker, copy);
 }
