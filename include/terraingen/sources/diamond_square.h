@@ -191,8 +191,6 @@ class DiamondSquareUpsampler final : public Upsampler {
     /// and a fit window, or for a rotated lattice.
     float HeightAt(const PostLattice& posts, double x, double y, double spacing) const override;
 
-    using Upsampler::Fill;
-
     /// Refines the nodes once per tile of cells, tiles split over threads.
     /// @throws std::invalid_argument as `HeightAt`.
     void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,

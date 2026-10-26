@@ -33,11 +33,6 @@ class SeamField {
     /// Sets the value at post (`col`, `row`) of the lattice.
     void Set(std::size_t col, std::size_t row, float value);
 
-    /// The lattice the posts are on.
-    const RasterGrid& Lattice() const {
-        return lattice_;
-    }
-
   private:
     RasterGrid lattice_{};
     std::size_t tileColumns_ = 0;

@@ -103,7 +103,7 @@ RasterGrid NodeGrid(double step, std::int64_t col0, std::int64_t rowTop, std::si
 Raster<float> Fill(const DiamondSquareUpsampler& upsampler, const terraingen::PostLattice& posts,
                    const RasterGrid& grid) {
     Raster<float> heights = grid.MakeRaster();
-    upsampler.Fill(posts, heights, grid.PixelSize());
+    upsampler.Fill(posts, heights, grid.PixelSize(), 0);
     return heights;
 }
 
@@ -546,14 +546,13 @@ TEST(DiamondSquareUpsampler, FitsEachWindowToItsOwnPostsSoABowlRoughensOnlyItsNe
 }
 
 TEST(DiamondSquareUpsampler, MatchesTheMidpointDisplacementLayerItReplaces) {
-    const auto dem = std::make_shared<const Raster<float>>(GoldenDem());
     DiamondSquareOptions options;
     options.fractalDimension = 2.3;
     options.scale = 0.5;
     options.seed = 7;
     terraingen::RasterSourceOptions sampling;
     sampling.upsampler = std::make_shared<DiamondSquareUpsampler>(options);
-    const terraingen::RasterSource source(dem, sampling);
+    const terraingen::RasterSource source(GoldenDem(), sampling);
 
     Raster<float> first = RasterGrid{24, 20, GeoTransform::NorthUp(130.0, 470.0, 1.0)}.MakeRaster();
     source.Fill(first, 1.0);

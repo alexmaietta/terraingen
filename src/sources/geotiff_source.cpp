@@ -201,8 +201,9 @@ const detail::RasterHeights& GeoTiffSource::Heights() const {
     std::call_once(loaded_, [this] {
         const RasterSourceOptions sampling = SamplingOptions(options_);
         const bool wraps = detail::WrapsLongitude(info_.geoKeys, lattice_);
-        PixelWindow window =
-            detail::NativeWindow(lattice_, detail::OptionUpsampler(sampling)->Reach(), cells_);
+        PixelWindow window = detail::NativeWindow(
+            lattice_, (sampling.upsampler ? sampling.upsampler : DefaultUpsampler())->Reach(),
+            cells_);
         if (wraps) {
             window.colBegin = 0;
             window.colEnd = lattice_.width;

@@ -49,10 +49,7 @@ SyntheticSource::SyntheticSource(std::vector<Fractal> fractals, float elevation,
     }
     RequirePositive(*pixelSize_, "Pixel size");
     posts_.emplace(*this, *pixelSize_);
-    upsampler_ = upsampler ? std::move(upsampler) : DefaultUpsampler();
-    if (std::shared_ptr<const Upsampler> fitted = upsampler_->FitTo(*posts_)) {
-        upsampler_ = std::move(fitted);
-    }
+    upsampler_ = FittedUpsampler(std::move(upsampler), *posts_);
 }
 
 float SyntheticSource::NoiseAt(double x, double y) const {

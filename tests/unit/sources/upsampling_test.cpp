@@ -149,7 +149,7 @@ TEST(KernelUpsampler, GivesSampleRastersBitsForEveryKernel) {
         }
         const RasterGrid grid{40, 30, GeoTransform::NorthUp(-5.3, 29.1, 0.77)};
         Raster<float> filled = grid.MakeRaster();
-        upsampler.Fill(posts, filled, 0.77);
+        upsampler.Fill(posts, filled, 0.77, 0);
         for (std::size_t row = 0; row < filled.Height(); ++row) {
             for (std::size_t col = 0; col < filled.Width(); ++col) {
                 const terraingen::Vec2d center = filled.CellCenter(col, row);
@@ -165,7 +165,7 @@ TEST(KernelUpsampler, ReadsCellByCellWhenTheGridIsMuchCoarserThanThePosts) {
     const KernelUpsampler cubic;
     const RasterGrid coarse{6, 5, GeoTransform::NorthUp(-1000.0, 1000.0, 400.0)};
     Raster<float> filled = coarse.MakeRaster();
-    cubic.Fill(posts, filled, 400.0);
+    cubic.Fill(posts, filled, 400.0, 0);
     for (std::size_t row = 0; row < filled.Height(); ++row) {
         for (std::size_t col = 0; col < filled.Width(); ++col) {
             const terraingen::Vec2d center = filled.CellCenter(col, row);
@@ -206,7 +206,10 @@ TEST(UpsampledHeight, GivesThePostsOwnHeightAtTheirSpacingOrCoarser) {
             }
         }
     }
-    EXPECT_DOUBLE_EQ(terraingen::PostSpacing(GeoTransform{0.0, 2.0, 0.0, 0.0, 0.0, -5.0}), 5.0);
+    const GeoTransform oblong{0.0, 2.0, 0.0, 0.0, 0.0, -8.0};
+    EXPECT_DOUBLE_EQ(terraingen::PostSpacing(oblong), 8.0);
+    EXPECT_TRUE(terraingen::AtPostSpacing(oblong, RasterGrid{3, 3, oblong}.PixelSize()))
+        << "a raster filled on its own grid copies its posts";
 }
 
 namespace {
@@ -284,7 +287,7 @@ TEST(Upsampler, FillsCellByCellByDefaultAndFitsNothing) {
     EXPECT_EQ(mean.Reach(), 2);
     EXPECT_EQ(mean.FitTo(posts), nullptr);
     Raster<float> filled = RasterGrid{3, 3, GeoTransform::NorthUp(1.0, -1.0, 1.0)}.MakeRaster();
-    mean.Fill(posts, filled, 1.0);
+    mean.Fill(posts, filled, 1.0, 0);
     EXPECT_EQ(filled(1, 1), mean.HeightAt(posts, 2.5, -2.5, 1.0));
 }
 

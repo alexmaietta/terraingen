@@ -35,21 +35,19 @@ std::size_t ClampTo(double value, std::size_t limit) {
 }
 
 /// The heights over the whole of a raster.
-detail::RasterHeights WholeHeights(std::shared_ptr<const Raster<float>> heights,
-                                   const RasterSourceOptions& options, const GeoKeys& keys) {
-    if (!heights) {
-        throw std::invalid_argument("A raster source cannot hold a null raster");
-    }
-    if (heights->Empty()) {
+detail::RasterHeights WholeHeights(Raster<float> heights, const RasterSourceOptions& options,
+                                   const GeoKeys& keys) {
+    if (heights.Empty()) {
         throw std::invalid_argument("A raster source needs a raster with cells");
     }
     detail::ValidateRasterSourceOptions(options);
-    const RasterPlacement placement = RasterPlacement::Whole(*heights);
+    const RasterPlacement placement = RasterPlacement::Whole(heights);
     const bool wraps = detail::WrapsLongitude(keys, placement.whole);
-    const std::optional<float> noData = heights->NoData();
+    const std::optional<float> noData = heights.NoData();
     return detail::RasterHeights(
-        std::make_shared<RasterPosts>(std::move(heights), placement, wraps), placement.whole,
-        noData, options, WholeWindow(placement.whole), "the raster", wraps);
+        std::make_shared<RasterPosts>(std::make_shared<const Raster<float>>(std::move(heights)),
+                                      placement, wraps),
+        placement.whole, noData, options, WholeWindow(placement.whole), "the raster", wraps);
 }
 
 }  // namespace
@@ -69,10 +67,6 @@ void ValidateRasterSourceOptions(const RasterSourceOptions& options) {
     }
 }
 
-std::shared_ptr<const Upsampler> OptionUpsampler(const RasterSourceOptions& options) {
-    return options.upsampler ? options.upsampler : DefaultUpsampler();
-}
-
 PixelWindow NativeWindow(const RasterGrid& native, int reach, const PixelWindow& cells) {
     const double margin = static_cast<double>(std::max(reach, 0)) + 1.0;
     return {ClampTo(static_cast<double>(cells.colBegin) - margin, native.width),
@@ -85,10 +79,8 @@ RasterHeights::RasterHeights(std::shared_ptr<const PostLattice> posts, const Ras
                              std::optional<float> noData, const RasterSourceOptions& options,
                              const PixelWindow& cells, std::string name, bool wrapLongitude)
     : posts_(std::move(posts)), lattice_(lattice), noData_(noData), cells_(cells),
-      upsampler_(OptionUpsampler(options)), name_(std::move(name)), wrapLongitude_(wrapLongitude) {
-    if (std::shared_ptr<const Upsampler> fitted = upsampler_->FitTo(*posts_)) {
-        upsampler_ = std::move(fitted);
-    }
+      upsampler_(FittedUpsampler(options.upsampler, *posts_)), name_(std::move(name)),
+      wrapLongitude_(wrapLongitude) {
     cellSpacing_ = PostSpacing(lattice_.transform);
     resolution_ = options.effectivePixelSize.value_or(cellSpacing_);
 }
@@ -237,13 +229,7 @@ double RasterHeights::ResolutionAt(double x, double y) const {
 
 }  // namespace detail
 
-RasterSource::RasterSource(Raster<float> heights, RasterSourceOptions options, GeoKeys keys)
-    : RasterSource(std::make_shared<const Raster<float>>(std::move(heights)), std::move(options),
-                   std::move(keys)) {}
-
-RasterSource::RasterSource(std::shared_ptr<const Raster<float>> heights,
-                           RasterSourceOptions options, GeoKeys keys)
-    : options_(std::move(options)), keys_(std::move(keys)),
-      heights_(WholeHeights(std::move(heights), options_, keys_)) {}
+RasterSource::RasterSource(Raster<float> heights, const RasterSourceOptions& options, GeoKeys keys)
+    : keys_(std::move(keys)), heights_(WholeHeights(std::move(heights), options, keys_)) {}
 
 }  // namespace terraingen

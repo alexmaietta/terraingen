@@ -41,9 +41,6 @@ namespace detail {
 /// @throws std::invalid_argument for an `effectivePixelSize` that is not positive and finite.
 void ValidateRasterSourceOptions(const RasterSourceOptions& options);
 
-/// The upsampler of `options`: its own, or cubic interpolation without one.
-std::shared_ptr<const Upsampler> OptionUpsampler(const RasterSourceOptions& options);
-
 /// The cells of the whole grid `native` that give the heights of its cells `cells` to the same
 /// bits as the whole: those under `cells` with a margin of `reach` cells and one more for
 /// rounding, clamped to `native`.
@@ -153,13 +150,8 @@ class RasterSource final : public Source {
     /// @param keys The projection outputs are written with.
     /// @throws std::invalid_argument for an empty raster, invalid options, or as
     /// `Upsampler::FitTo`.
-    explicit RasterSource(Raster<float> heights, RasterSourceOptions options = {},
+    explicit RasterSource(Raster<float> heights, const RasterSourceOptions& options = {},
                           GeoKeys keys = {});
-
-    /// The source of heights held elsewhere, shared rather than copied.
-    /// @throws std::invalid_argument as for a raster, or for a null one.
-    explicit RasterSource(std::shared_ptr<const Raster<float>> heights,
-                          RasterSourceOptions options = {}, GeoKeys keys = {});
 
     /// The raster's grid.
     RasterGrid Grid() const override {
@@ -194,18 +186,12 @@ class RasterSource final : public Source {
         return heights_.ResolutionAt(x, y);
     }
 
-    /// How the raster is read.
-    const RasterSourceOptions& Options() const {
-        return options_;
-    }
-
     /// The upsampler in use, fitted to the raster (`Upsampler::FitTo`).
     const std::shared_ptr<const Upsampler>& UpsamplerInUse() const {
         return heights_.UpsamplerInUse();
     }
 
   private:
-    RasterSourceOptions options_;
     GeoKeys keys_;
     detail::RasterHeights heights_;
 };

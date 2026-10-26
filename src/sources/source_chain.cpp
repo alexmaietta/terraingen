@@ -84,19 +84,18 @@ SourceChain::SourceChain(std::vector<std::shared_ptr<const Source>> sources, Cha
         }
     }
     ValidateChainSeams(seams_);
-    if (seams_.mode == ChainSeamMode::None || sources_.size() < 2) {
+    if (sources_.size() < 2) {
         return;
     }
-    if (const std::optional<RasterGrid> grid = BoundedGrid(*sources_[sources_.size() - 2])) {
+    const std::optional<RasterGrid> grid = BoundedGrid(*sources_[sources_.size() - 2]);
+    if (grid && seams_.mode != ChainSeamMode::None) {
         static_cast<void>(SeamLattice(*grid, seams_));
     }
-    if (sources_.size() == 2) {
-        prefix_ = sources_.front();
-    } else {
-        prefix_ = std::make_shared<SourceChain>(
-            std::vector<std::shared_ptr<const Source>>(sources_.begin(), sources_.end() - 1),
-            seams_);
-    }
+    prefix_ = sources_.size() == 2
+                  ? sources_.front()
+                  : std::make_shared<SourceChain>(std::vector<std::shared_ptr<const Source>>(
+                                                      sources_.begin(), sources_.end() - 1),
+                                                  seams_);
 }
 
 SourceChain::~SourceChain() = default;
@@ -112,71 +111,46 @@ const detail::SeamField& SourceChain::Seam() const {
 }
 
 void SourceChain::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
-    const auto anyMissing = [&] {
-        const auto values = heights.Values();
-        return std::any_of(values.begin(), values.end(),
-                           [&](float value) { return heights.IsMissing(value); });
-    };
-    if (prefix_) {
-        prefix_->Fill(heights, spacing, threads);
-        if (!anyMissing()) {
-            return;
-        }
-        Raster<float> next(heights.Width(), heights.Height());
-        next.SetTransform(heights.Transform());
-        sources_.back()->Fill(next, spacing, threads);
-        ParallelFor(heights.Height(), threads, [&](std::size_t row) {
-            const detail::SeamField* seam = nullptr;
-            for (std::size_t col = 0; col < heights.Width(); ++col) {
-                float& cell = heights(col, row);
-                const float value = next(col, row);
-                if (!heights.IsMissing(cell) || next.IsMissing(value)) {
-                    continue;
-                }
-                if (!seam) {
-                    seam = &Seam();
-                }
-                const Vec2d center = heights.CellCenter(col, row);
-                cell = Seamed(value, seam->At(center.x, center.y));
-            }
-        });
+    if (!prefix_) {
+        sources_.front()->Fill(heights, spacing, threads);
         return;
     }
-    sources_.front()->Fill(heights, spacing, threads);
-    for (std::size_t n = 1; n < sources_.size(); ++n) {
-        if (!anyMissing()) {
-            return;
-        }
-        Raster<float> next(heights.Width(), heights.Height());
-        next.SetTransform(heights.Transform());
-        sources_[n]->Fill(next, spacing, threads);
-        for (std::size_t i = 0; i < heights.Size(); ++i) {
-            float& cell = heights.Values()[i];
-            const float value = next.Values()[i];
-            if (heights.IsMissing(cell) && !next.IsMissing(value)) {
-                cell = value;
-            }
-        }
+    prefix_->Fill(heights, spacing, threads);
+    const auto values = heights.Values();
+    if (std::none_of(values.begin(), values.end(),
+                     [&](float value) { return heights.IsMissing(value); })) {
+        return;
     }
+    Raster<float> next(heights.Width(), heights.Height());
+    next.SetTransform(heights.Transform());
+    sources_.back()->Fill(next, spacing, threads);
+    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
+        const detail::SeamField* seam = nullptr;
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            float& cell = heights(col, row);
+            const float value = next(col, row);
+            if (!heights.IsMissing(cell) || next.IsMissing(value)) {
+                continue;
+            }
+            if (!seam) {
+                seam = &Seam();
+            }
+            const Vec2d center = heights.CellCenter(col, row);
+            cell = Seamed(value, seam->At(center.x, center.y));
+        }
+    });
 }
 
 float SourceChain::HeightAt(double x, double y, double spacing) const {
-    if (prefix_) {
-        const float height = prefix_->HeightAt(x, y, spacing);
-        if (!std::isnan(height)) {
-            return height;
-        }
-        const float later = sources_.back()->HeightAt(x, y, spacing);
-        return std::isnan(later) ? std::numeric_limits<float>::quiet_NaN()
-                                 : Seamed(later, Seam().At(x, y));
+    if (!prefix_) {
+        return sources_.front()->HeightAt(x, y, spacing);
     }
-    for (const auto& source : sources_) {
-        const float height = source->HeightAt(x, y, spacing);
-        if (!std::isnan(height)) {
-            return height;
-        }
+    const float height = prefix_->HeightAt(x, y, spacing);
+    if (!std::isnan(height)) {
+        return height;
     }
-    return std::numeric_limits<float>::quiet_NaN();
+    const float later = sources_.back()->HeightAt(x, y, spacing);
+    return std::isnan(later) ? later : Seamed(later, Seam().At(x, y));
 }
 
 double SourceChain::ResolutionAt(double x, double y) const {

@@ -80,13 +80,9 @@ ShapeModelSource::ShapeModelSource(Surface body, std::shared_ptr<const Upsampler
     }
     reference_ = 0.5 * (shape->MinRadius() + shape->MaxRadius());
     labelDegrees_ = 90.0 / static_cast<double>(shape->Q());
-    if (!upsampler) {
-        upsampler = DefaultUpsampler();
-    }
     for (std::size_t face = 0; face < posts_.size(); ++face) {
         posts_[face] = std::make_unique<FacePosts>(*this, face);
-        std::shared_ptr<const Upsampler> fitted = upsampler->FitTo(*posts_[face]);
-        upsamplers_[face] = fitted ? std::move(fitted) : upsampler;
+        upsamplers_[face] = FittedUpsampler(upsampler, *posts_[face]);
     }
 }
 

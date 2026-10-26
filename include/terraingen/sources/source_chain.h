@@ -134,8 +134,8 @@ class SourceChain final : public Source {
 
     std::vector<std::shared_ptr<const Source>> sources_;
     ChainSeams seams_;
-    /// The chain of every source but the last, which the last is matched to; null without seams
-    /// or with one source.
+    /// The chain of every source but the last, which the last fills and is matched to; null with
+    /// one source.
     std::shared_ptr<const Source> prefix_;
     mutable std::once_flag seamed_;
     mutable std::shared_ptr<const detail::SeamField> seam_;

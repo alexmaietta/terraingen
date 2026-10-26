@@ -159,11 +159,6 @@ class Upsampler {
     virtual void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
                       unsigned threads) const;
 
-    /// `Fill` on every hardware thread.
-    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing) const {
-        Fill(posts, heights, spacing, 0);
-    }
-
     /// Posts either side of a point that `HeightAt` reads, so that a source reading a window of
     /// its posts reads enough around it: 2 by default.
     virtual int Reach() const {
@@ -177,8 +172,8 @@ class Upsampler {
     }
 };
 
-/// Whether `spacing` is no finer than the posts of a lattice placed by `transform`
-/// (`PostSpacing`), to within rounding.
+/// Whether `spacing` is no finer than the posts of a lattice placed by `transform`, to within
+/// rounding, measuring a post's cell as grids measure theirs (`RasterGrid::PixelSize`).
 bool AtPostSpacing(const GeoTransform& transform, double spacing);
 
 /// The height a source with `posts` gives at (`x`, `y`) at a sample spacing of `spacing`: the
@@ -207,8 +202,6 @@ class KernelUpsampler final : public Upsampler {
     /// @throws std::invalid_argument for a rotated lattice.
     float HeightAt(const PostLattice& posts, double x, double y, double spacing) const override;
 
-    using Upsampler::Fill;
-
     /// Reads the posts once per block of cells, blocks split over threads.
     /// @throws std::invalid_argument for a rotated lattice.
     void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
@@ -225,6 +218,11 @@ class KernelUpsampler final : public Upsampler {
 
 /// The upsampler sources use unless given one: cubic interpolation, shared.
 std::shared_ptr<const Upsampler> DefaultUpsampler();
+
+/// `upsampler`, or `DefaultUpsampler()` when null, fitted to `posts` (`Upsampler::FitTo`).
+/// @throws std::invalid_argument as `Upsampler::FitTo`.
+std::shared_ptr<const Upsampler> FittedUpsampler(std::shared_ptr<const Upsampler> upsampler,
+                                                 const PostLattice& posts);
 
 /// The built-in kernel upsamplers' names, as configurations give them: nearest, bilinear, cubic,
 /// catmull_rom, lanczos3 and cubic_bspline.

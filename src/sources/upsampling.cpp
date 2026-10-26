@@ -209,7 +209,9 @@ double PostSpacing(const GeoTransform& transform) {
 }
 
 bool AtPostSpacing(const GeoTransform& transform, double spacing) {
-    return spacing >= PostSpacing(transform) * (1.0 - kSpacingTolerance);
+    const double cellSize = std::sqrt(std::fabs(transform.pixelWidth * transform.pixelHeight -
+                                                transform.rowRotation * transform.colRotation));
+    return spacing >= cellSize * (1.0 - kSpacingTolerance);
 }
 
 float UpsampledHeight(const Upsampler& upsampler, const PostLattice& posts, double x, double y,
@@ -312,6 +314,15 @@ void KernelUpsampler::Fill(const PostLattice& posts, Raster<float>& heights, dou
 std::shared_ptr<const Upsampler> DefaultUpsampler() {
     static const std::shared_ptr<const Upsampler> cubic = std::make_shared<KernelUpsampler>();
     return cubic;
+}
+
+std::shared_ptr<const Upsampler> FittedUpsampler(std::shared_ptr<const Upsampler> upsampler,
+                                                 const PostLattice& posts) {
+    if (!upsampler) {
+        upsampler = DefaultUpsampler();
+    }
+    std::shared_ptr<const Upsampler> fitted = upsampler->FitTo(posts);
+    return fitted ? fitted : upsampler;
 }
 
 const std::vector<std::string>& KernelUpsamplerNames() {

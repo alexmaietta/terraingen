@@ -103,7 +103,6 @@ TEST(RasterSource, BehavesAsAGeoTiffSourceOfTheSameRaster) {
         read.upsampler = options.upsampler;
         const GeoTiffSource file(path, read);
         const RasterSource memory(dem, options, Keys());
-        EXPECT_EQ(memory.Options(), options);
         EXPECT_EQ(memory.Grid(), file.Grid());
         EXPECT_EQ(memory.ReferencePoint().x, file.ReferencePoint().x);
         EXPECT_EQ(memory.ReferencePoint().y, file.ReferencePoint().y);
@@ -179,13 +178,11 @@ TEST(RasterSource, CopiesItsCellsOnItsLatticeAtItsSpacingOrCoarser) {
         << "cubic interpolation passes through the cells";
 }
 
-TEST(RasterSource, SharesTheRasterItIsGivenAndHonoursNoData) {
+TEST(RasterSource, HonoursNoData) {
     Raster<float> dem = Dem();
     dem.SetNoData(-9999.0f);
     dem(3, 4) = -9999.0f;
-    const auto shared = std::make_shared<const Raster<float>>(dem);
-    const RasterSource source(shared);
-    EXPECT_GT(shared.use_count(), 1) << "the raster is not copied";
+    const RasterSource source(dem);
     EXPECT_EQ(source.Grid(), RasterGrid::FromRaster(dem));
     const auto hole = dem.CellCenter(3, 4);
     EXPECT_TRUE(std::isnan(source.HeightAt(hole.x, hole.y, 4.0)));
@@ -205,7 +202,6 @@ TEST(RasterSource, SharesTheRasterItIsGivenAndHonoursNoData) {
 
 TEST(RasterSource, RejectsUnusableRastersAndOptions) {
     EXPECT_THROW(RasterSource{Raster<float>{}}, std::invalid_argument);
-    EXPECT_THROW(RasterSource{std::shared_ptr<const Raster<float>>{}}, std::invalid_argument);
     for (const double size : {0.0, -1.0, kInf, std::nan("")}) {
         RasterSourceOptions options;
         options.effectivePixelSize = size;
