@@ -39,7 +39,15 @@ We also provide:
 - Example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
 - A broad and comprehensive [gallery](https://alexmaietta.github.io/terraingen/gallery) showcasing the various features and capabilities of TerrainGen.
 
-For more information on the concepts behind TerrainGen and the API, see our latest [documentation](https://alexmaietta.github.io/terraingen/).
+For more features, examples, guides, and snippets to building terrains and using TerrainGen, see our latest [documentation](https://alexmaietta.github.io/terraingen) and notably our [guides](https://alexmaietta.github.io/terraingen/guides).
+
+Looking for a theoretical background behind TerrainGen, see our [concepts](https://alexmaietta.github.io/terraingen/concepts) and [features](https://alexmaietta.github.io/terraingen/features) documentation pages.
+
+## Requirements
+
+- Linux (Ubuntu 22.04 or newer), macOS 14 or newer, or Windows 10 or newer, on x86_64 or arm64.
+- Python 3.10 or newer for the Python package.
+- Optional: a Vulkan, CUDA or Metal driver for GPU acceleration. Run `terraingen backends` to see what is available.
 
 ## Quick Start
 
@@ -84,23 +92,11 @@ terraingen validate config.json # optionally validate the config
 terraingen config.json # will output terrain.tif
 ```
 
-For more examples, guides, and snippets to building terrains and using TerrainGen, see our latest [guides](https://alexmaietta.github.io/terraingen/guides).
-
-Looking for a theoretical background behind TerrainGen, see our [concepts](https://alexmaietta.github.io/terraingen/concepts) and [features](https://alexmaietta.github.io/terraingen/features) documentation pages.
-
-## Requirements
-
-- Linux (Ubuntu 22.04 or newer), macOS 14 or newer, or Windows 10 or newer, on x86_64 or arm64.
-- Python 3.10 or newer for the Python package.
-- Optional: a Vulkan, CUDA or Metal driver for GPU acceleration. Run `terraingen backends` to see what is available.
-
-## Installation
-
-### Releases
+## Releases
 
 Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI, library, headers and CMake package for each platform, and `.deb` packages for Ubuntu and Debian. The [dev](https://github.com/alexmaietta/terraingen/releases/tag/dev) pre-release is built from `main` on every push.
 
-### Building from Source
+## Building from Source
 
 You need CMake 3.22 or newer and a C++17 compiler (tested with GCC 11, Clang 14, Apple Clang 15 and MSVC 2022). CMake fetches everything else.
 
@@ -112,7 +108,7 @@ cmake --install build --prefix /usr/local
 
 To build the Python package from source, run `pip install .` instead.
 
-### Docker
+## Docker
 
 ```sh
 docker run --rm ghcr.io/alexmaietta/terraingen:latest terraingen --help
