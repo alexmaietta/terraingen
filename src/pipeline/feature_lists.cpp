@@ -13,9 +13,9 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
-#include <fstream>
 #include <map>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <variant>
@@ -128,22 +128,6 @@ void AddJsonCells(Json& entry, const std::array<Column<Row>, N>& columns, const 
     }
 }
 
-/// @throws std::runtime_error if `path` cannot be opened.
-std::ofstream OpenOutput(const std::filesystem::path& path) {
-    std::ofstream file(path, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Cannot write " + path.string());
-    }
-    return file;
-}
-
-/// @throws std::runtime_error if writing to `file` failed.
-void CheckWritten(const std::ofstream& file, const std::filesystem::path& path) {
-    if (!file) {
-        throw std::runtime_error("Cannot write " + path.string());
-    }
-}
-
 void WriteCraterCsv(std::ostream& file, const CraterList& craters,
                     const std::vector<CraterAttributes>& attributes) {
     WriteCsvHeader(file, kCraterColumns, "");
@@ -190,46 +174,6 @@ Json BoulderJson(const BoulderList& boulders) {
         list.push_back(std::move(entry));
     }
     return Json{{"boulders", std::move(list)}};
-}
-
-BoulderPlacement SitePlacement(const BoulderModel& boulder, const Surface& surface,
-                               const Vec2d& site) {
-    return PlacementAtSite(boulder.placement, {boulder.boulder.x, boulder.boulder.y}, site,
-                           surface);
-}
-
-/// Writes each shared shape once, with crease normals, and a node per boulder; or, not
-/// `instanced`, each boulder's placed shape as its own mesh.
-void WriteBoulderScene(const std::vector<BoulderModel>& boulders, const std::filesystem::path& path,
-                       double creaseAngle, const Surface& surface, const Vec2d& site,
-                       bool instanced) {
-    const double radians = creaseAngle * kDegree;
-    std::vector<SceneMesh> meshes;
-    std::map<const BoulderShape*, std::size_t> indices;
-    std::vector<SceneNode> nodes;
-    for (const BoulderModel& boulder : boulders) {
-        if (!instanced) {
-            const BoulderPlacement placement = SitePlacement(boulder, surface, site);
-            TriangleMesh placed = boulder.shape->mesh;
-            for (Vec3d& p : placed.positions) {
-                p = placement.Apply(p);
-            }
-            ShadedMesh shaded = WithCreases(placed, radians);
-            nodes.push_back({meshes.size(), {1.0, 1.0, 1.0}, {}});
-            meshes.push_back(
-                {std::move(shaded.mesh), std::move(shaded.normals), boulder.shape->material});
-            continue;
-        }
-        auto [found, added] = indices.emplace(boulder.shape.get(), meshes.size());
-        if (added) {
-            ShadedMesh shaded = WithCreases(boulder.shape->mesh, radians);
-            meshes.push_back(
-                {std::move(shaded.mesh), std::move(shaded.normals), boulder.shape->material});
-        }
-        const BoulderPlacement placement = SitePlacement(boulder, surface, site);
-        nodes.push_back({found->second, placement.scale, placement.pose});
-    }
-    WriteScene(path, meshes, nodes);
 }
 
 /// The cells of one CSV line, split at commas, with spaces and enclosing double quotes trimmed.
@@ -384,16 +328,8 @@ template <typename Row> Crater ParseCrater(const Row& row, std::size_t index) {
     return crater;
 }
 
-/// @throws std::runtime_error if `path` cannot be opened.
-std::ifstream OpenInput(const std::filesystem::path& path) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Cannot read " + path.string());
-    }
-    return file;
-}
-
-CraterList ReadCraterCsv(std::istream& file) {
+CraterList ReadCraterCsv(const std::string& text) {
+    std::istringstream file(text);
     std::string line;
     std::map<std::string, std::size_t> columns;
     if (std::getline(file, line)) {
@@ -415,8 +351,8 @@ CraterList ReadCraterCsv(std::istream& file) {
     return craters;
 }
 
-CraterList ReadCraterJson(std::istream& file) {
-    const Json json = Json::parse(file, nullptr, false);
+CraterList ReadCraterJson(const std::string& text) {
+    const Json json = Json::parse(text, nullptr, false);
     if (json.is_discarded()) {
         throw std::invalid_argument("Crater list is not valid JSON");
     }
@@ -442,9 +378,9 @@ CraterList ReadCraterJson(std::istream& file) {
 }  // namespace
 
 CraterList ReadCraterList(const std::filesystem::path& path) {
-    std::ifstream file = OpenInput(path);
+    const std::string text = ReadFile(path);
     try {
-        return HasExtension(path, {".json"}) ? ReadCraterJson(file) : ReadCraterCsv(file);
+        return HasExtension(path, {".json"}) ? ReadCraterJson(text) : ReadCraterCsv(text);
     } catch (const std::invalid_argument& error) {
         throw std::invalid_argument(path.string() + ": " + error.what());
     }
@@ -455,30 +391,30 @@ void WriteCraterList(const CraterList& craters, const std::filesystem::path& pat
     if (!attributes.empty() && attributes.size() != craters.Size()) {
         throw std::invalid_argument("Crater attributes must be empty or one per crater");
     }
-    std::ofstream file = OpenOutput(path);
+    std::ostringstream text;
     switch (format) {
     case ListFormat::Csv:
-        WriteCraterCsv(file, craters, attributes);
+        WriteCraterCsv(text, craters, attributes);
         break;
     case ListFormat::Json:
-        file << CraterJson(craters, attributes).dump(2) << '\n';
+        text << CraterJson(craters, attributes).dump(2) << '\n';
         break;
     }
-    CheckWritten(file, path);
+    WriteFile(path, text.str());
 }
 
 void WriteBoulderList(const BoulderList& boulders, const std::filesystem::path& path,
                       ListFormat format) {
-    std::ofstream file = OpenOutput(path);
+    std::ostringstream text;
     switch (format) {
     case ListFormat::Csv:
-        WriteBoulderCsv(file, boulders);
+        WriteBoulderCsv(text, boulders);
         break;
     case ListFormat::Json:
-        file << BoulderJson(boulders).dump(2) << '\n';
+        text << BoulderJson(boulders).dump(2) << '\n';
         break;
     }
-    CheckWritten(file, path);
+    WriteFile(path, text.str());
 }
 
 void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
@@ -490,7 +426,33 @@ void WriteBoulderModels(const std::vector<BoulderModel>& boulders,
     if (boulders.empty()) {
         throw std::invalid_argument("There are no boulder models to write");
     }
-    WriteBoulderScene(boulders, path, creaseAngle, surface, site, instanced);
+    const double radians = creaseAngle * kDegree;
+    std::vector<SceneMesh> meshes;
+    std::map<const BoulderShape*, std::size_t> indices;
+    std::vector<SceneNode> nodes;
+    for (const BoulderModel& boulder : boulders) {
+        const BoulderPlacement placement = PlacementAtSite(
+            boulder.placement, {boulder.boulder.x, boulder.boulder.y}, site, surface);
+        if (!instanced) {
+            TriangleMesh placed = boulder.shape->mesh;
+            for (Vec3d& p : placed.positions) {
+                p = placement.Apply(p);
+            }
+            ShadedMesh shaded = WithCreases(placed, radians);
+            nodes.push_back({meshes.size(), {1.0, 1.0, 1.0}, {}});
+            meshes.push_back(
+                {std::move(shaded.mesh), std::move(shaded.normals), boulder.shape->material});
+            continue;
+        }
+        auto [found, added] = indices.emplace(boulder.shape.get(), meshes.size());
+        if (added) {
+            ShadedMesh shaded = WithCreases(boulder.shape->mesh, radians);
+            meshes.push_back(
+                {std::move(shaded.mesh), std::move(shaded.normals), boulder.shape->material});
+        }
+        nodes.push_back({found->second, placement.scale, placement.pose});
+    }
+    WriteScene(path, meshes, nodes);
 }
 
 }  // namespace terraingen

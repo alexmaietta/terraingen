@@ -33,11 +33,9 @@ inline float CellGapSquared(int32_t d, float f) {
 
 }  // namespace detail
 
-/// Worley cellular distances at a lattice cell plus fraction, one feature point per cell,
-/// searching the 5 x 5 cells around it: F1 and the cell value are exact, F2 exact but for rare
-/// configurations.
-/// @param fx Fraction in x, in [0, 1).
-/// @param fy Fraction in y, in [0, 1).
+/// Worley cellular distances at a lattice cell plus fraction, searching the 5 x 5 cells around it;
+/// F2 is exact but for rare configurations.
+/// @param fx,fy Fractions in [0, 1).
 /// @return F1 in [0, sqrt(2)] and F2 >= F1.
 inline WorleyDistances Worley2(int32_t ix, int32_t iy, float fx, float fy, uint32_t seed) {
     float d1 = 1e30f;

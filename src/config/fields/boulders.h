@@ -55,8 +55,8 @@ template <typename IO> void Fields(IO& io, SynthterrainBouldersSpec& spec) {
 
 template <typename IO> void Fields(IO& io, BoulderPatches& patches) {
     io("spread", patches.spread,
-       "Boulder abundance varies from 1 / spread to spread times its mean, at least 1; 1 is the "
-       "same everywhere.",
+       "Boulder abundance varies from 1 / spread to spread times its mean; 1 is the same "
+       "everywhere.",
        "", AtLeast(1.0));
     io("size_m", patches.size,
        "Typical width of a patch of richer or poorer boulder cover, in meters.", "m", Above(0.0));
@@ -64,8 +64,8 @@ template <typename IO> void Fields(IO& io, BoulderPatches& patches) {
 
 template <typename IO> void Fields(IO& io, BoulderFillet& fillet) {
     io("height_share", fillet.heightShare,
-       "Height of the regolith piled against a boulder, as a share of its exposed height, from 0 "
-       "to 1; 0 draws no fillets.",
+       "Height of the regolith piled against a boulder, as a share of its exposed height; 0 draws "
+       "no fillets.",
        "", UnitInterval());
     io("width_ratio", fillet.widthRatio,
        "How far the fillet reaches beyond the boulder's edge, over its diameter; it falls to "
@@ -75,24 +75,24 @@ template <typename IO> void Fields(IO& io, BoulderFillet& fillet) {
 
 template <typename IO> void Fields(IO& io, BoulderVentifacts& ventifacts) {
     io("share", ventifacts.share,
-       "Share of boulders with a windward facet planed by sand-laden wind, from 0 to 1; 0 for "
-       "none. Gale crater: 0.39 (Bridges et al. 2014).",
+       "Share of boulders with a windward facet planed by sand-laden wind; 0 for none. Gale "
+       "crater: 0.39 (Bridges et al. 2014).",
        "", UnitInterval());
-    DegreeField(io, "wind_azimuth_deg", ventifacts.windAzimuthDegrees,
-                WindAzimuthHelp("abrading wind", "facets face the other way"));
-    DegreeField(io, "min_angle_deg", ventifacts.minAngleDegrees,
-                "Gentlest facet slope from horizontal, in degrees; 50 to 60 on basalt (Laity and "
-                "Bridges 2009).",
-                Inside(0.0, 90.0));
-    DegreeField(io, "max_angle_deg", ventifacts.maxAngleDegrees,
-                "Steepest facet slope from horizontal, in degrees.", Inside(0.0, 90.0));
-    DegreeField(io, "second_wind_azimuth_deg", ventifacts.secondWindAzimuthDegrees,
-                "A second abrading wind, where it blows toward, in degrees like the first; some "
-                "faceted boulders get a second facet facing it and a keel between. Unset for "
-                "none.");
+    io("wind_azimuth_deg", ventifacts.windAzimuthDegrees,
+       WindAzimuthHelp("abrading wind", "facets face the other way"), "deg");
+    io("min_angle_deg", ventifacts.minAngleDegrees,
+       "Gentlest facet slope from horizontal, in degrees; 50 to 60 on basalt (Laity and Bridges "
+       "2009).",
+       "deg", Inside(0.0, 90.0));
+    io("max_angle_deg", ventifacts.maxAngleDegrees,
+       "Steepest facet slope from horizontal, in degrees.", "deg", Inside(0.0, 90.0));
+    io("second_wind_azimuth_deg", ventifacts.secondWindAzimuthDegrees,
+       "A second abrading wind, where it blows toward, in degrees like the first; some faceted "
+       "boulders get a second facet facing it and a keel between. Unset for none.",
+       "deg");
     io("keel_share", ventifacts.keelShare,
-       "Share of faceted boulders with the second facet, from 0 to 1. Gale crater: 12 of 39 "
-       "(Bridges et al. 2014).",
+       "Share of faceted boulders with the second facet. Gale crater: 12 of 39 (Bridges et al. "
+       "2014).",
        "", UnitInterval());
 }
 
@@ -106,32 +106,31 @@ template <typename IO> void Fields(IO& io, BoulderEjecta& ejecta) {
        "no boulder and throw no blocks. Unset ignores the regolith.",
        "m", Above(0.0));
     io("excavation_depth_ratio", ejecta.excavationDepthRatio,
-       "Depth of excavation over crater diameter, in (0, 1]; with the regolith thickness it sets "
+       "Depth of excavation over crater diameter; with the regolith thickness it sets "
        "the smallest crater that throws blocks.",
        "", AboveUpTo(0.0, 1.0));
     io("coverage", ejecta.coverage,
-       "Golombek-Rapp k, the fraction of ground covered by blocks at the rim of a fresh crater, "
-       "between 0 and 1; unset is 0.1. Only golombek_rapp ejecta sizes use it, so set it only "
+       "Golombek-Rapp k, the fraction of ground covered by blocks at the rim of a fresh crater; "
+       "unset is 0.1. Only golombek_rapp ejecta sizes use it, so set it only "
        "with them.",
        "", Inside(0.0, 1.0));
     io("profile", ejecta.profile,
        "How the share of a crater's blocks falls off with distance from its center.");
     io("reach", ejecta.reach,
-       "Distance from the crater's center, in crater radii, beyond which it adds no blocks; over "
-       "1.",
-       "", Above(1.0));
+       "Distance from the crater's center, in crater radii, beyond which it adds no blocks.", "",
+       Above(1.0));
     io("decay_radii", ejecta.decayRadii,
        "With the exponential profile, the e-folding distance of the blocks outside the rim, in "
        "crater radii.",
        "", Above(0.0));
     io("floor_share", ejecta.floorShare,
-       "With the exponential profile, the crater floor's share of the rim's blocks, from 0 to 1.",
-       "", UnitInterval());
+       "With the exponential profile, the crater floor's share of the rim's blocks.", "",
+       UnitInterval());
     io("aging", ejecta.aging,
        "How a crater's blocks wear away with time, so that few are left around old craters.");
     io("min_freshness", ejecta.minFreshness,
        "With freshness aging, the freshness (current over fresh depth) at or below which a crater "
-       "keeps no blocks; from 0 to below 1.",
+       "keeps no blocks.",
        "", FromBelow(0.0, 1.0));
     io("lifetime_gyr", ejecta.lifetimeGyr,
        "With age aging, the crater age in Gyr at which a crater keeps no blocks.", "Gyr",
@@ -162,8 +161,8 @@ template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
        "Slope, as rise over run, at or over which no soil holds and the ground is bedrock; above "
        "the soil threshold.");
     io("floor_cover", exposure.floorCover,
-       "Share of level ground that is bedrock too, in noise patches, as on a swept lava floor; "
-       "from 0 to below 1, and 0 for none.",
+       "Share of level ground that is bedrock too, in noise patches, as on a swept lava floor; 0 "
+       "for none.",
        "", FromBelow(0.0, 1.0));
     io("floor_patch_m", exposure.floorPatch,
        "Width of the bedrock patches on level ground, in meters.", "m", Above(0.0));
@@ -203,9 +202,8 @@ template <typename IO> void Fields(IO& io, BoulderReliefRange& range) {
 
 template <typename IO> void Fields(IO& io, BoulderClusters& clusters) {
     io("share", clusters.share,
-       "Share of the boulders between craters gathered in clusters, from 0 to 1; 0 leaves them "
-       "scattered.",
-       "", UnitInterval());
+       "Share of the boulders between craters gathered in clusters; 0 leaves them scattered.", "",
+       UnitInterval());
     io("center_spacing_m", clusters.centerSpacing,
        "Typical distance between cluster centers, in meters; with thomas, one center per spacing "
        "squared on average.",
@@ -227,9 +225,9 @@ template <typename IO> void Fields(IO& io, BoulderFragmentation& fragmentation) 
     io("rubble_wear", fragmentation.rubbleWear,
        "Wear from which the pieces scatter as rubble, turn and sink; at least split_wear.", "",
        UnitInterval());
-    io("min_pieces", fragmentation.minPieces, "Fewest pieces a boulder breaks into, at least 2.",
-       "", Between(2.0, 12.0));
-    io("max_pieces", fragmentation.maxPieces, "Most pieces a boulder breaks into, at most 12.", "",
+    io("min_pieces", fragmentation.minPieces, "Fewest pieces a boulder breaks into.", "",
+       Between(2.0, 12.0));
+    io("max_pieces", fragmentation.maxPieces, "Most pieces a boulder breaks into.", "",
        Between(2.0, 12.0));
     io("gap_ratio", fragmentation.gapRatio,
        "Widest crack between split pieces, as a share of the boulder's diameter.", "",
@@ -251,9 +249,8 @@ template <typename IO> void Fields(IO& io, ValueRange& range) {
 template <typename IO> void Fields(IO& io, BoulderStyle& style) {
     io("name", style.name, "Label of the style, for reference; it does not change the shapes.");
     io("weight", style.weight,
-       "Relative share of boulders given this style, not negative; the styles' weights must not "
-       "all be 0.",
-       "", AtLeast(0.0));
+       "Relative share of boulders given this style; the styles' weights must not all be 0.", "",
+       AtLeast(0.0));
     io("solid", style.solid,
        "Solid the shape starts from, before it is stretched, rounded, roughened and fractured.");
     io("intermediate", style.intermediate,
@@ -266,46 +263,43 @@ template <typename IO> void Fields(IO& io, BoulderStyle& style) {
        "Range of the share, from 0 to 1, by which the shape is rounded toward the ellipsoid of "
        "its axes: 0 keeps the solid's edges and corners, 1 is the ellipsoid.");
     io("min_fractures", style.minFractures,
-       "Fewest flat fracture planes cutting a boulder, from 0; each boulder's count is drawn "
-       "between the two.",
+       "Fewest flat fracture planes cutting a boulder; each boulder's count is drawn between the "
+       "two.",
        "", Between(0.0, 64.0));
     io("max_fractures", style.maxFractures,
-       "Most flat fracture planes cutting a boulder, at most 64 and at least the fewest.", "",
-       Between(0.0, 64.0));
+       "Most flat fracture planes cutting a boulder; at least the fewest.", "", Between(0.0, 64.0));
     io("fracture_depth", style.fractureDepth,
        "Range of where each fracture plane lies, as a share of the shape's reach along its "
        "normal, within (0, 1]; lower values cut more away.");
     io("max_fracture_tilt", style.maxFractureTilt,
-       "Largest vertical component of a fracture plane's unit normal, from 0 to 1: 0 keeps "
-       "normals horizontal, cutting a slab about its rim only.",
+       "Largest vertical component of a fracture plane's unit normal: 0 keeps normals horizontal, "
+       "cutting a slab about its rim only.",
        "", UnitInterval());
     io("noise_amplitude", style.noiseAmplitude,
-       "Largest relative change of the radius by the roughening noise, in [0, 1); 0 leaves the "
-       "surface unroughened.",
+       "Largest relative change of the radius by the roughening noise; 0 leaves the surface "
+       "unroughened.",
        "", FromBelow(0.0, 1.0));
     io("noise_wavelength", style.noiseWavelength,
-       "Wavelength of the roughening noise's first octave, in long-axis lengths; positive, "
-       "with smaller values giving finer bumps.",
+       "Wavelength of the roughening noise's first octave, in long-axis lengths; smaller values "
+       "give finer bumps.",
        "", Above(0.0));
     io("noise_octaves", style.noiseOctaves,
-       "Octaves of the roughening noise, 1 to 12, each halving in wavelength; more add finer "
-       "detail.",
-       "", Between(1.0, 12.0));
+       "Octaves of the roughening noise, each halving in wavelength; more add finer detail.", "",
+       Between(1.0, 12.0));
     io("edge_softness", style.edgeSoftness,
        "Range of how far edges and corners are worn back where faces meet, as weathering rounds "
        "them, in long-axis lengths from 0 to 0.5; 0 keeps them sharp.");
     io("face_roughness", style.faceRoughness,
-       "How far fracture faces undulate, as a share of each plane's offset from 0 to 0.5; 0 keeps "
-       "them flat.",
-       "", Between(0.0, 0.5));
+       "How far fracture faces undulate, as a share of each plane's offset; 0 keeps them flat.", "",
+       Between(0.0, 0.5));
 }
 
 template <typename IO> void Fields(IO& io, BoulderShapeOptions& shapes) {
-    io("styles", shapes.styles,
-       "Kinds of boulder each shape is drawn from, picked by weight; at least one.");
+    io("styles", shapes.styles, "Kinds of boulder each shape is drawn from, picked by weight.", "",
+       MinLength(1));
     io("subdivisions", shapes.subdivisions,
-       "Times the solid's triangles are split in four, 0 to 6; more give finer, smoother shapes "
-       "with more triangles.",
+       "Times the solid's triangles are split in four; more give finer, smoother shapes with more "
+       "triangles.",
        "", Between(0.0, 6.0));
     io("weathering", shapes.weathering,
        "Scales every style's edge softness: 0 gives sharp edges, 1 the styles' own, more is more "
@@ -335,8 +329,8 @@ template <typename IO> void BoulderSizeRangeFields(IO& io, BoulderLayerOptions& 
         }
     }
     io("coverage", sizes.coverage,
-       "Golombek-Rapp k, the fraction of the ground covered by boulders, from 0 to below 1 and "
-       "above 0 when generating random boulders; higher values give more boulders. Unset is "
+       "Golombek-Rapp k, the fraction of the ground covered by boulders, above 0 when generating "
+       "random boulders; higher values give more boulders. Unset is "
        "0.02. Only golombek_rapp sizes use it, so set it only with them.",
        "", FromBelow(0.0, 1.0));
     io("qa", sizes.qConstant,
@@ -427,11 +421,11 @@ template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
        "two shares.",
        "", FromBelow(0.0, 1.0));
     io("max_burial", pose.maxBurial,
-       "Largest buried share of a boulder's height, below 1; more burial leaves less of the "
-       "boulder exposed.",
+       "Largest buried share of a boulder's height; more burial leaves less of the boulder "
+       "exposed.",
        "", FromBelow(0.0, 1.0));
-    DegreeField(io, "max_lean_deg", pose.maxLeanDegrees,
-                "Largest tilt of a boulder from the vertical, in degrees.", AtLeast(0.0));
+    io("max_lean_deg", pose.maxLeanDegrees,
+       "Largest tilt of a boulder from the vertical, in degrees.", "deg", AtLeast(0.0));
     io("side_share", pose.sideShare,
        "Share of boulders resting on a side, their intermediate axis up, rather than on their "
        "broadest face.",
@@ -439,27 +433,26 @@ template <typename IO> void BoulderPoseFields(IO& io, BoulderPose& pose) {
     io("end_share", pose.endShare,
        "Share of boulders standing on an end, their long axis up; with side_share, at most 1.", "",
        UnitInterval());
-    DegreeField(io, "max_tilt_deg", pose.maxTiltDegrees,
-                "Largest tilt of a boulder's up axis from the vertical in a random direction, "
-                "after its lean, in degrees; tilts are spread evenly over that cap of directions.",
-                Between(0.0, 180.0));
+    io("max_tilt_deg", pose.maxTiltDegrees,
+       "Largest tilt of a boulder's up axis from the vertical in a random direction, after its "
+       "lean, in degrees; tilts are spread evenly over that cap of directions.",
+       "deg", Between(0.0, 180.0));
     io("follow_slope", pose.followSlope,
        "Settles each boulder on the slope of the ground beneath it before its tilt.");
     io("settle", pose.settle,
        "Tips each boulder model over until it rests stably on a face, its center of mass over "
        "what it stands on, rather than balanced on an edge or corner.");
-    DegreeField(io, "max_slope_deg", pose.maxSlopeDegrees,
-                "Steepest ground, across a boulder's diameter, that boulders stay on, in degrees; "
-                "steeper ground has none, models and drawn boulders alike. Unset keeps boulders "
-                "on any slope.",
-                Inside(0.0, 90.0));
+    io("max_slope_deg", pose.maxSlopeDegrees,
+       "Steepest ground, across a boulder's diameter, that boulders stay on, in degrees; steeper "
+       "ground has none, models and drawn boulders alike. Unset keeps boulders on any slope.",
+       "deg", Inside(0.0, 90.0));
     io("roll_distance_m", pose.rollDistance,
        "With max_slope_deg, boulders on steeper ground roll down it and rest where it is gentle "
        "enough, gathering at the foot of slopes; those that would roll farther than this many "
        "meters are left out. Unset leaves out every boulder on steeper ground.",
        "m", Above(0.0));
     io("burial_by_wear", pose.burialByWear,
-       "How far wear sets burial, from 0 to 1: blocks of fresh craters sit near the smallest "
+       "How far wear sets burial: blocks of fresh craters sit near the smallest "
        "burial and those of worn ones sink toward the largest, while boulders between craters "
        "span every stage; 0 draws burial uniformly.",
        "", UnitInterval());
@@ -510,8 +503,8 @@ template <typename IO> void Fields(IO& io, ManualBoulder& boulder) {
     io("height_m", boulder.height,
        "Vertical extent in meters, buried part included; unset draws it from the height ratios.",
        "m", Above(0.0));
-    io("burial", boulder.burial, "Buried share of the height, from 0 to below 1; unset draws it.",
-       "", FromBelow(0.0, 1.0));
+    io("burial", boulder.burial, "Buried share of the height; unset draws it.", "",
+       FromBelow(0.0, 1.0));
     io("yaw_deg", boulder.yawDegrees,
        "Rotation about the vertical, degrees counter-clockwise from east; unset draws it.", "deg");
     io("lean_deg", boulder.leanDegrees,
@@ -524,7 +517,7 @@ template <typename IO> void Fields(IO& io, ManualBoulder& boulder) {
        "Direction the up axis tips toward, degrees counter-clockwise from east; unset draws it.",
        "deg");
     io("wear", boulder.wear,
-       "How worn it is, from 0 (fresh) to 1; unset draws it. With burial_by_wear it sets a drawn "
+       "How worn it is, 0 fresh; unset draws it. With burial_by_wear it sets a drawn "
        "burial.",
        "", UnitInterval());
     io("model", boulder.model,

@@ -10,9 +10,10 @@
 using terraingen::GeoTransform;
 using terraingen::Raster;
 
-TEST(Raster, IsMissingForNaNAndTheNoDataValue) {
+TEST(Raster, IsMissingForNonFiniteValuesAndTheNoDataValue) {
     Raster<float> raster(1, 1);
     EXPECT_TRUE(raster.IsMissing(std::numeric_limits<float>::quiet_NaN()));
+    EXPECT_TRUE(raster.IsMissing(-std::numeric_limits<float>::infinity()));
     EXPECT_FALSE(raster.IsMissing(-9999.0f));
     raster.SetNoData(-9999.0f);
     EXPECT_TRUE(raster.IsMissing(-9999.0f));

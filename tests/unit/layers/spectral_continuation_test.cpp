@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/spectral_continuation.h"
 
+#include "raster/radial_spectrum.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
@@ -21,7 +22,7 @@ using terraingen::Raster;
 using terraingen::RasterGrid;
 using terraingen::SpectralContinuationLayer;
 using terraingen::SpectralContinuationOptions;
-using terraingen::detail::SpectrumBin;
+using terraingen::SpectrumBin;
 
 namespace {
 
@@ -146,7 +147,7 @@ TEST(SpectralContinuationLayer, MatchesTheTargetSpectrumAndAddsNoResolvedPower) 
             options.seed = 11 + static_cast<std::uint32_t>(s);
             const Raster<float> detail =
                 Detail(SpectralContinuationLayer(options), Grid(512, kStep), 0.0, 0);
-            const std::vector<SpectrumBin> bins = terraingen::detail::RadialPowerSpectrum(detail);
+            const std::vector<SpectrumBin> bins = terraingen::RadialPowerSpectrum(detail);
             if (mean.empty()) {
                 mean = bins;
                 for (SpectrumBin& bin : mean) {

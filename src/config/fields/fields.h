@@ -20,7 +20,7 @@ namespace terraingen::config {
 /// The fields of the root configuration.
 template <typename IO> void Fields(IO& io, ConfigSpec& config) {
     io("schema_version", config.schemaVersion,
-       "Version of the configuration format, which this library reads; required.");
+       "Version of the configuration format, which this library reads.", "", Required());
     io("body", config.body,
        "What the terrain lies on: a plane in meters, or a whole body (a sphere, ellipsoid or "
        "shape model) in longitude and latitude degrees.");

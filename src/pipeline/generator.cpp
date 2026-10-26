@@ -3,7 +3,7 @@
 #include "terraingen/pipeline/generator.h"
 
 #include "terraingen/layers/evaluation_cache.h"
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"
@@ -100,10 +100,10 @@ std::shared_ptr<EvaluationCache> DefaultCache(const TerrainGenerator& generator)
 void EvaluateStack(const TerrainGenerator& generator, std::size_t layers, Span<const Vec2d> points,
                    Span<float> heights, double spacing, EvaluationCache* cache, unsigned threads) {
     const double sourceSpacing = spacing / generator.surface.UnitLength();
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        heights[i] = generator.source
-                         ? generator.source->HeightAt(points[i].x, points[i].y, sourceSpacing)
-                         : 0.0f;
+    if (generator.source) {
+        generator.source->HeightsAt(points, heights, sourceSpacing);
+    } else {
+        std::fill(heights.begin(), heights.end(), 0.0f);
     }
     for (std::size_t n = 0; n < layers; ++n) {
         const TerrainGround ground(generator, n, cache, threads);
@@ -214,17 +214,14 @@ Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid
     return Evaluate(generator, grid, EvaluationOptions{spacing});
 }
 
-Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid,
-                       const EvaluationOptions& options) {
-    ValidateGenerator(generator);
-    RequireNonNegative(options.spacing, "Sample spacing");
-    const double resolved = ResolvedSpacing(grid, options.spacing, generator.surface);
+namespace {
+
+/// Applies the layers of a validated `generator` from index `first` onward to `heights` at the
+/// resolved sample spacing `resolved` meters.
+void ApplyLayersAt(const TerrainGenerator& generator, std::size_t first, Raster<float>& heights,
+                   double resolved, const EvaluationOptions& options) {
     const Backend backend = ResolveBackend(options.backend.value_or(DefaultBackend()));
-    Raster<float> heights = grid.MakeRaster();
-    if (generator.source) {
-        generator.source->Fill(heights, resolved / generator.surface.UnitLength(), options.threads);
-    }
-    for (std::size_t n = 0; n < generator.layers.size(); ++n) {
+    for (std::size_t n = first; n < generator.layers.size(); ++n) {
         const Stopwatch stopwatch;
         EvaluationCache cache;
         const TerrainGround ground(generator, n, &cache, options.threads);
@@ -234,7 +231,35 @@ Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid
             options.onLayer(n, stopwatch.Milliseconds());
         }
     }
+}
+
+}  // namespace
+
+Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid,
+                       const EvaluationOptions& options) {
+    ValidateGenerator(generator);
+    RequireNonNegative(options.spacing, "Sample spacing");
+    const double resolved = ResolvedSpacing(grid, options.spacing, generator.surface);
+    Raster<float> heights = grid.MakeRaster();
+    if (generator.source) {
+        generator.source->Fill(heights, resolved / generator.surface.UnitLength(), options.threads);
+    }
+    ApplyLayersAt(generator, 0, heights, resolved, options);
     return heights;
+}
+
+void ApplyLayers(const TerrainGenerator& generator, std::size_t first, Raster<float>& heights,
+                 const EvaluationOptions& options) {
+    ValidateGenerator(generator);
+    RequireNonNegative(options.spacing, "Sample spacing");
+    if (first > generator.layers.size()) {
+        throw std::invalid_argument("The terrain has " + std::to_string(generator.layers.size()) +
+                                    " layers, so it cannot apply them from layer " +
+                                    std::to_string(first));
+    }
+    const double resolved =
+        ResolvedSpacing(RasterGrid::FromRaster(heights), options.spacing, generator.surface);
+    ApplyLayersAt(generator, first, heights, resolved, options);
 }
 
 void FillHeights(const TerrainGenerator& generator, const RasterGrid& grid, Span<float> heights,

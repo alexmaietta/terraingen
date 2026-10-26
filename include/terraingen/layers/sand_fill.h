@@ -32,12 +32,8 @@ struct SandFillOptions {
 /// finite, or a fill outside [0, 1].
 void ValidateSandFillOptions(const SandFillOptions& options);
 
-/// Sand pooled in the lows of the ground beneath it: cracks, troughs and hollows between rises.
-///
-/// A point's surroundings are the mean ground height on two rings, at half the reach and at the
-/// reach; where the point lies below them, sand fills `fill` of the depth, thickening smoothly to
-/// at most `maxThickness`. Reads the ground beneath it at points, so grids, tiles and points
-/// agree; it lays sand over the material map.
+/// Sand pooled in the lows of the ground beneath it, filling `fill` of the depth below the mean
+/// height on two rings, up to `maxThickness`; it lays sand over the material map.
 class SandFillLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, the rings lie in each point's local frame.

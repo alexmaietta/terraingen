@@ -6,8 +6,8 @@
 #include "options.h"
 #include "trampolines.h"
 
+#include "terraingen/layers/field.h"
 #include "terraingen/sources/diamond_square.h"
-#include "terraingen/sources/field.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/geotiff_source.h"
 #include "terraingen/sources/raster_source.h"
@@ -24,6 +24,8 @@
 #include <algorithm>
 #include <limits>
 #include <optional>
+#include <stdexcept>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -66,6 +68,11 @@ class PySource : public Source {
 
     double ResolutionAt(double x, double y) const override {
         return CallOverride<double>(nb_trampoline, "resolution_at", x, y)
+            .value_or(std::numeric_limits<double>::infinity());
+    }
+
+    double PostSpacingAt(double x, double y) const override {
+        return CallOverride<double>(nb_trampoline, "post_spacing_at", x, y)
             .value_or(std::numeric_limits<double>::infinity());
     }
 };
@@ -126,27 +133,74 @@ void FillAt(const Source& source, Raster<float>& heights, std::optional<double> 
     source.Fill(heights, spacing ? *spacing : RasterGrid::FromRaster(heights).PixelSize(), threads);
 }
 
+/// `fill` of `grid` into an array of shape (height, width), at a spacing or the grid's own.
+/// @throws std::invalid_argument for an array of another shape.
+void FillArray(const Source& source, const RasterGrid& grid, CpuOutMatrix<float> heights,
+               std::optional<double> spacing, unsigned threads) {
+    if (heights.shape(0) != grid.height || heights.shape(1) != grid.width) {
+        throw std::invalid_argument("Expected a float32 array of shape (" +
+                                    std::to_string(grid.height) + ", " +
+                                    std::to_string(grid.width) + ")");
+    }
+    const nb::gil_scoped_release release;
+    source.Fill(grid, Span<float>(heights.data(), heights.size()),
+                spacing ? *spacing : grid.PixelSize(), threads);
+}
+
+/// The rows of `points`, an array of shape (n, 2), as points.
+std::vector<Vec2d> Positions(const CpuMatrix<double>& points) {
+    std::vector<Vec2d> positions;
+    for (const auto& row : Rows<2>(points)) {
+        positions.push_back({row[0], row[1]});
+    }
+    return positions;
+}
+
+/// `heights_at` the rows of `points`, an array of shape (n, 2), as a float32 array.
+nb::object HeightsAtArray(const Source& source, const CpuMatrix<double>& points, double spacing) {
+    const std::vector<Vec2d> positions = Positions(points);
+    std::vector<float> heights(positions.size());
+    {
+        const nb::gil_scoped_release release;
+        source.HeightsAt(Span<const Vec2d>(positions), Span<float>(heights), spacing);
+    }
+    return Column(std::move(heights));
+}
+
 void BindSourceBase(nb::module_& m) {
     nb::class_<Source, PySource>(
         m, "Source",
         "Where a terrain's heights come from, over its grid. Subclass it and implement `grid()` "
         "(a RasterGrid) and `height_at(x, y, spacing)`, and optionally `fill(heights, spacing, "
-        "threads)`, `reference_point()` and `resolution_at(x, y)`, for a source of your own. "
-        "Spacings are sample spacings in the source's units.")
+        "threads)`, `reference_point()`, `resolution_at(x, y)` and `post_spacing_at(x, y)`, for "
+        "a source of your own. Spacings are sample spacings in the source's units.")
         .def(nb::init<>())
         .def("grid", &Source::Grid,
              "The grid the source covers; one without cells for a source without bounds.")
         .def("height_at", &Source::HeightAt, "x"_a, "y"_a, "spacing"_a,
              "The height at (x, y) at a sample spacing, NaN where the source has no data.")
+        .def("heights_at", &HeightsAtArray, "points"_a, "spacing"_a,
+             "The heights at `points`, an array of shape (n, 2), at a sample spacing, as a float32 "
+             "array; each equals `height_at` there. Batches of points are much faster than one "
+             "call per point.")
         .def("resolution_at", &Source::ResolutionAt, "x"_a, "y"_a,
-             "The cell size in CRS units of the data giving the height at (x, y), before any "
-             "upsampling, or its effective pixel size: the scale below which the source resolves "
-             "nothing. Infinity where no measured data gives it, as for synthetic noise.")
+             "The cell size in CRS units of the measured data giving the height at (x, y), or its "
+             "effective pixel size: the scale below which the source resolves nothing. Infinity "
+             "where no measured data gives it, as for synthetic noise, and where the source has "
+             "no height.")
+        .def("post_spacing_at", &Source::PostSpacingAt, "x"_a, "y"_a,
+             "The spacing in CRS units of the posts giving the height at (x, y) before any "
+             "upsampling, measured or generated. Infinity where no posts give it, as for noise "
+             "evaluated at every point, and where the source has no height.")
         .def("reference_point", &Source::ReferencePoint)
         .def("fill", &FillAt, "heights"_a, "spacing"_a = nb::none(), "threads"_a = 0u,
              nb::call_guard<nb::gil_scoped_release>(),
              "Sets every cell of `heights` at a sample spacing, by default its cell size, on "
              "`threads` threads (0 for every hardware thread).")
+        .def("fill", &FillArray, "grid"_a, "heights"_a, "spacing"_a = nb::none(), "threads"_a = 0u,
+             "Sets `heights`, a float32 array of shape (grid.height, grid.width), to the cells of "
+             "`grid` at a sample spacing, by default its cell size, NaN where the source has no "
+             "data.")
         .def_prop_ro(
             "bounded", [](const Source& source) { return BoundedGrid(source).has_value(); },
             "Whether the source has bounds: a grid with cells.")
@@ -224,6 +278,21 @@ void BindKernelUpsampler(nb::module_& m) {
         .def(nb::init<>())
         .def("height_at", &Upsampler::HeightAt, "posts"_a, "x"_a, "y"_a, "spacing"_a)
         .def(
+            "heights_at",
+            [](const Upsampler& upsampler, const PostLattice& posts,
+               const CpuMatrix<double>& points, double spacing) {
+                const std::vector<Vec2d> positions = Positions(points);
+                std::vector<float> heights(positions.size());
+                {
+                    const nb::gil_scoped_release release;
+                    upsampler.HeightsAt(posts, Span<const Vec2d>(positions), Span<float>(heights),
+                                        spacing);
+                }
+                return Column(std::move(heights));
+            },
+            "posts"_a, "points"_a, "spacing"_a,
+            "`height_at` each row of `points`, an array of shape (n, 2), as a float32 array.")
+        .def(
             "fill",
             [](const Upsampler& upsampler, const PostLattice& posts, Raster<float>& heights,
                double spacing,
@@ -283,7 +352,9 @@ void BindDiamondSquare(nb::module_& m) {
         "Random midpoint displacement (diamond-square) of the posts: each level halves the node "
         "spacing down to the sample spacing, adding fractal detail without changing the posts.")
         .def(nb::init<DiamondSquareOptions>(), "options"_a = DiamondSquareOptions{})
-        .def_prop_ro("options", &DiamondSquareUpsampler::Options);
+        .def_prop_ro("options", &DiamondSquareUpsampler::Options)
+        .def("levels", &DiamondSquareUpsampler::Levels, "post_spacing"_a, "spacing"_a,
+             "The levels refined at a sample spacing over posts `post_spacing` apart.");
 }
 
 void BindUpsamplerRegistry(nb::module_& m) {

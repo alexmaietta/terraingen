@@ -123,11 +123,8 @@ struct SecondaryCraterOptions {
 };
 
 /// Checks secondary crater options.
-/// @throws std::invalid_argument without a positive `onsetCount`, for a non-positive count
-/// fraction or size slope, an empty or negative diameter range, a non-positive outer range, an
-/// invalid selection, a non-positive cell size factor or limit, rays with an invalid layout, a
-/// share or clustering outside [0, 1], a floor angle outside (0, 90) or a non-positive spacing, or
-/// shapes with a share outside [0, 1] or an ellipticity that can be below 1 or unbounded.
+/// @throws std::invalid_argument without a positive `onsetCount`, or for any field, selection,
+/// ray layout or shape outside the range its comment gives.
 void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options);
 
 /// The outer range from its center, in meters, of the secondaries of a primary of `diameter`
@@ -142,14 +139,14 @@ double LargestSecondary(double diameter, const SecondaryCraterOptions& options);
 /// Where a primary's secondaries gather: its rays and the clumps along them, as a density over
 /// the even spread's.
 struct SecondaryRayField {
-    std::vector<RayDirection> rays;
-    double diameter = 0.0;    ///< The primary's, in meters.
-    double onset = 0.0;       ///< `SecondaryOnsetRange`, in meters.
-    double share = 0.0;       ///< `SecondaryRays::share`.
-    double sinFloor = 0.0;    ///< Sine of `SecondaryRays::minHalfAngleDegrees`.
-    double clustering = 0.0;  ///< `SecondaryRays::clustering`.
-    double spacing = 1.0;     ///< `SecondaryRays::clusterSpacing`.
-    double meanClump = 1.0;   ///< The mean clump bump, which the clumping is divided by.
+    std::vector<RayDirection> rays;  ///< The primary's rays.
+    double diameter = 0.0;           ///< The primary's, in meters.
+    double onset = 0.0;              ///< `SecondaryOnsetRange`, in meters.
+    double share = 0.0;              ///< `SecondaryRays::share`.
+    double sinFloor = 0.0;           ///< Sine of `SecondaryRays::minHalfAngleDegrees`.
+    double clustering = 0.0;         ///< `SecondaryRays::clustering`.
+    double spacing = 1.0;            ///< `SecondaryRays::clusterSpacing`.
+    double meanClump = 1.0;          ///< The mean clump bump, which the clumping is divided by.
 
     /// The rays of `primary`'s secondaries under `rays`; none when they are off or the primary
     /// has no rays.

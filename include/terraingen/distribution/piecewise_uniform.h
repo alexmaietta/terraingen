@@ -26,14 +26,9 @@ struct UniformBand {
     }
 };
 
-/// A distribution made of diameter bands, each holding a number of features per m^2 with
-/// diameters uniform across it, for scenes that set counts by size class instead of following a
-/// power law.
-///
-/// N(>=D) falls linearly across each band and is flat between bands; overlapping bands add. No
-/// features are smaller than the smallest band or larger than the largest, so the valid range is
-/// every diameter up to the largest band's `max`, and extrapolation beyond it, where N(>=D) is 0,
-/// is allowed from the start.
+/// A distribution of diameter bands, each holding features per m^2 with diameters uniform across
+/// it; overlapping bands add.
+/// N(>=D) is 0 above the largest band, so extrapolation is allowed from the start.
 class PiecewiseUniformSfd final : public SizeFrequencyDistribution {
   public:
     /// The distribution of `bands`.

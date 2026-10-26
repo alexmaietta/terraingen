@@ -35,16 +35,10 @@ struct BaseRoughness {
 /// @param cellSize Cell side in the source's units, positive.
 Raster<float> SampleSourceWindow(const Source& source, double cellSize, const Vec2d& origin);
 
-/// The roughness of `source` at its native resolution by the variogram method (`FitDeviogram`) of
-/// `SampleSourceWindow` on its native cells: H the fitted slope, clamped to at most 1, and the
-/// deviation the fitted RMS height difference at one cell; cells with no data are skipped.
-///
-/// The cells are the source's `ResolutionAt` its grid's center, or its grid's cell size where that
-/// is infinite (a flat source), with a node half a cell in from the grid's top-left corner. A
-/// source without bounds is sampled around its reference point on its posts. Cell sizes in
-/// degrees convert to meters along a meridian (`Surface::UnitLength`).
-/// @throws std::invalid_argument for heights with relief at fewer than two lags, a fitted Hurst
-/// exponent that is not positive, or a source without bounds or a finite resolution.
+/// The roughness of `source` at its native resolution, fitted by `FitDeviogram` over
+/// `SampleSourceWindow`; H is clamped to at most 1 and no-data cells are skipped.
+/// @throws std::invalid_argument for too little relief, a non-positive fitted H, or a source
+/// without bounds or a finite resolution.
 BaseRoughness EstimateSourceRoughness(const Source& source, const Surface& surface = {});
 
 /// The amplitude in meters that gives `fractal` the RMS height difference `roughness` has at a lag

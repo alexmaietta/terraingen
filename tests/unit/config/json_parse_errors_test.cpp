@@ -171,3 +171,18 @@ TEST(ConfigJson, ErrorMessagesNameThePathAndTheAlternatives) {
               0u);
     EXPECT_EQ(ParseErrorMessage("[]"), "expected an object, not array");
 }
+
+TEST(ConfigJson, ReportsAMissingRequiredKeyAfterAnyUnknownKey) {
+    EXPECT_EQ(ParseErrorMessage(R"({"schema_version": 1, "body": {"type": "sphere"}})"),
+              "body.radius_m: required");
+    EXPECT_EQ(ParseErrorMessage(R"({"schema_version": 1, "body": {"type": "ellipsoid"}})"),
+              "body.radii_m: required");
+    EXPECT_EQ(ParseErrorMessage(R"({"schema_version": 1, "source": {"type": "raster"}})"),
+              "source.path: required");
+    EXPECT_EQ(ParseErrorMessage(R"({"schema_version": 1, "layers": [{"type": "secondaries"}]})"),
+              "layers[0].onset_count: required");
+    EXPECT_EQ(ParseErrorMessage(R"({"schema_version": 1, "body": {"type": "sphere", "radius": 3}})")
+                  .rfind("body.radius: unknown key", 0),
+              0u)
+        << "a misspelled key is reported before the key it stands for";
+}

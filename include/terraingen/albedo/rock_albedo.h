@@ -36,7 +36,7 @@ void ValidateRockAlbedoOptions(const RockAlbedoOptions& options);
 
 /// A boulder layer whose rock brightens the albedo, and the ground beneath it.
 struct RockSource {
-    std::shared_ptr<const BoulderLayer> layer;
+    std::shared_ptr<const BoulderLayer> layer;  ///< The boulders; must not be null.
     /// The ground the layer was applied to, read under its boulders; must not be null.
     std::shared_ptr<const Ground> ground;
 };

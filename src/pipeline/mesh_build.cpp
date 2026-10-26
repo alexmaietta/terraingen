@@ -163,6 +163,109 @@ template <typename T> void RequireTriples(Span<T> buffer, std::size_t count, con
     }
 }
 
+/// The vertex of each cell with data, in row-major order, and how many there are.
+struct SurfaceVertices {
+    std::vector<std::int32_t> index;  ///< Per cell; `kNoVertex` for cells without data.
+    std::int32_t count = 0;           ///< Vertices written.
+};
+
+/// Index triples written in order into a caller buffer.
+struct TriangleWriter {
+    Span<std::int32_t> triangles;
+    std::size_t written = 0;
+
+    void Add(std::int32_t a, std::int32_t b, std::int32_t c) {
+        triangles[written] = a;
+        triangles[written + 1] = b;
+        triangles[written + 2] = c;
+        written += 3;
+    }
+};
+
+/// Writes a vertex at the center of every cell with data, placed in `frame`, into `positions`.
+SurfaceVertices WriteVertices(const Raster<float>& heights, const SiteFrame& frame,
+                              Span<double> positions) {
+    SurfaceVertices vertices;
+    vertices.index.assign(heights.Size(), kNoVertex);
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            const float h = heights(col, row);
+            if (heights.IsNoData(h)) {
+                continue;
+            }
+            const Vec3d p = frame.Place(heights.CellCenter(col, row), static_cast<double>(h));
+            const std::size_t at = 3 * static_cast<std::size_t>(vertices.count);
+            positions[at] = p.x;
+            positions[at + 1] = p.y;
+            positions[at + 2] = p.z;
+            vertices.index[row * heights.Width() + col] = vertices.count++;
+        }
+    }
+    return vertices;
+}
+
+/// Writes two triangles facing up for every meshed square of `layout`.
+void WriteSurfaceTriangles(const MeshLayout& layout, const SurfaceVertices& vertices,
+                           TriangleWriter& out) {
+    const std::size_t width = layout.width;
+    for (std::size_t row = 0; row + 1 < layout.height; ++row) {
+        for (std::size_t col = 0; col + 1 < width; ++col) {
+            if (!layout.Meshed(static_cast<std::ptrdiff_t>(col),
+                               static_cast<std::ptrdiff_t>(row))) {
+                continue;
+            }
+            const std::int32_t nw = vertices.index[row * width + col];
+            const std::int32_t ne = vertices.index[row * width + col + 1];
+            const std::int32_t sw = vertices.index[(row + 1) * width + col];
+            const std::int32_t se = vertices.index[(row + 1) * width + col + 1];
+            out.Add(nw, sw, se);
+            out.Add(nw, se, ne);
+        }
+    }
+}
+
+/// Writes a vertex `skirt` meters below each boundary vertex, after the surface vertices, and two
+/// triangles facing out below each boundary edge.
+void WriteSkirt(const MeshLayout& layout, const SurfaceVertices& vertices, double skirt,
+                Span<double> positions, TriangleWriter& out) {
+    std::vector<std::int32_t> lowered(vertices.index.size(), kNoVertex);
+    std::int32_t next = vertices.count;
+    const auto below = [&](std::size_t cell) {
+        if (lowered[cell] == kNoVertex) {
+            const auto from = 3 * static_cast<std::size_t>(vertices.index[cell]);
+            const std::size_t to = 3 * static_cast<std::size_t>(next);
+            positions[to] = positions[from];
+            positions[to + 1] = positions[from + 1];
+            positions[to + 2] = positions[from + 2] - skirt;
+            lowered[cell] = next++;
+        }
+        return lowered[cell];
+    };
+    ForEachBoundaryEdge(layout, [&](std::size_t a, std::size_t b) {
+        const std::int32_t lowA = below(a);
+        const std::int32_t lowB = below(b);
+        out.Add(vertices.index[b], vertices.index[a], lowA);
+        out.Add(vertices.index[b], lowA, lowB);
+    });
+}
+
+/// Writes the mesh `layout` describes into buffers of its size.
+/// @throws std::invalid_argument for a mesh of more than INT32_MAX vertices.
+void FillFromLayout(const MeshLayout& layout, const Raster<float>& heights, Span<double> positions,
+                    Span<std::int32_t> triangles, const Surface& surface, const Vec2d& site,
+                    double skirt) {
+    if (layout.size.vertices > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) {
+        throw std::invalid_argument("A height mesh of " + std::to_string(layout.size.vertices) +
+                                    " vertices has more than int32 indices can address");
+    }
+    const SurfaceVertices vertices = WriteVertices(heights, SiteFrame(surface, site), positions);
+    TriangleWriter out{triangles};
+    WriteSurfaceTriangles(layout, vertices, out);
+    if (skirt > 0.0) {
+        WriteSkirt(layout, vertices, skirt, positions, out);
+    }
+}
+
 }  // namespace
 
 MeshSize GetMeshSize(const Raster<float>& heights, const BuildMeshOptions& options) {
@@ -174,82 +277,21 @@ void FillMesh(const Raster<float>& heights, Span<double> positions, Span<std::in
     const MeshLayout layout = Layout(heights, options);
     RequireTriples(positions, layout.size.vertices, "position coordinates");
     RequireTriples(triangles, layout.size.triangles, "triangle indices");
-    if (layout.size.vertices > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) {
-        throw std::invalid_argument("A height mesh of " + std::to_string(layout.size.vertices) +
-                                    " vertices has more than int32 indices can address");
-    }
-    const SiteFrame frame(surface, site);
-    const std::size_t width = layout.width;
-    std::vector<std::int32_t> vertex(heights.Size(), kNoVertex);
-    std::int32_t next = 0;
-    for (std::size_t row = 0; row < layout.height; ++row) {
-        for (std::size_t col = 0; col < width; ++col) {
-            const float h = heights(col, row);
-            if (heights.IsNoData(h)) {
-                continue;
-            }
-            const Vec3d p = frame.Place(heights.CellCenter(col, row), static_cast<double>(h));
-            const std::size_t at = 3 * static_cast<std::size_t>(next);
-            positions[at] = p.x;
-            positions[at + 1] = p.y;
-            positions[at + 2] = p.z;
-            vertex[row * width + col] = next++;
-        }
-    }
-    std::size_t written = 0;
-    const auto emit = [&](std::int32_t a, std::int32_t b, std::int32_t c) {
-        triangles[written] = a;
-        triangles[written + 1] = b;
-        triangles[written + 2] = c;
-        written += 3;
-    };
-    for (std::size_t row = 0; row + 1 < layout.height; ++row) {
-        for (std::size_t col = 0; col + 1 < width; ++col) {
-            if (!layout.Meshed(static_cast<std::ptrdiff_t>(col),
-                               static_cast<std::ptrdiff_t>(row))) {
-                continue;
-            }
-            const std::int32_t nw = vertex[row * width + col];
-            const std::int32_t ne = vertex[row * width + col + 1];
-            const std::int32_t sw = vertex[(row + 1) * width + col];
-            const std::int32_t se = vertex[(row + 1) * width + col + 1];
-            emit(nw, sw, se);
-            emit(nw, se, ne);
-        }
-    }
-    if (options.skirt > 0.0) {
-        std::vector<std::int32_t> lowered(heights.Size(), kNoVertex);
-        const auto below = [&](std::size_t cell) {
-            if (lowered[cell] == kNoVertex) {
-                const auto from = 3 * static_cast<std::size_t>(vertex[cell]);
-                const std::size_t to = 3 * static_cast<std::size_t>(next);
-                positions[to] = positions[from];
-                positions[to + 1] = positions[from + 1];
-                positions[to + 2] = positions[from + 2] - options.skirt;
-                lowered[cell] = next++;
-            }
-            return lowered[cell];
-        };
-        ForEachBoundaryEdge(layout, [&](std::size_t a, std::size_t b) {
-            const std::int32_t lowA = below(a);
-            const std::int32_t lowB = below(b);
-            emit(vertex[b], vertex[a], lowA);
-            emit(vertex[b], lowA, lowB);
-        });
-    }
+    FillFromLayout(layout, heights, positions, triangles, surface, site, options.skirt);
 }
 
 TriangleMesh BuildMesh(const Raster<float>& heights, const Surface& surface, const Vec2d& site,
                        const BuildMeshOptions& options) {
-    const MeshSize size = GetMeshSize(heights, options);
+    const MeshLayout layout = Layout(heights, options);
     TriangleMesh mesh;
-    mesh.positions.resize(size.vertices);
-    mesh.triangles.resize(size.triangles);
-    FillMesh(heights,
-             Span<double>(reinterpret_cast<double*>(mesh.positions.data()), 3 * size.vertices),
-             Span<std::int32_t>(reinterpret_cast<std::int32_t*>(mesh.triangles.data()),
-                                3 * size.triangles),
-             surface, site, options);
+    mesh.positions.resize(layout.size.vertices);
+    mesh.triangles.resize(layout.size.triangles);
+    FillFromLayout(
+        layout, heights,
+        Span<double>(reinterpret_cast<double*>(mesh.positions.data()), 3 * layout.size.vertices),
+        Span<std::int32_t>(reinterpret_cast<std::int32_t*>(mesh.triangles.data()),
+                           3 * layout.size.triangles),
+        surface, site, options.skirt);
     return mesh;
 }
 

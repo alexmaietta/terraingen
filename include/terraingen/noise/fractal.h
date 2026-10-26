@@ -41,6 +41,9 @@ enum class FractalType : uint32_t {
 /// Number of `FractalType` values.
 static const uint32_t kFractalTypeCount = 4;
 
+/// Most octaves a fractal may have (`FractalParams::octaves`).
+static const int kMaxFractalOctaves = 32;
+
 /// Parameters of a fractal built from octaves of a basis noise.
 ///
 /// Octave i has wavelength `wavelength / lacunarity^i` and weight `gain^i`;
@@ -50,7 +53,7 @@ struct FractalParams {
     uint32_t seed = 0;           ///< Seed; each octave derives its own seed and lattice offset.
     float wavelength = 1000.0f;  ///< Wavelength of the first octave, in world units (meters).
     float amplitude = 100.0f;    ///< Maximum absolute height, in world units (meters).
-    int octaves = 8;             ///< Number of octaves; at least 1.
+    int octaves = 8;             ///< Number of octaves; 1 to `kMaxFractalOctaves`.
     float lacunarity = 2.0f;     ///< Frequency ratio between successive octaves; greater than 1.
     float gain = 0.5f;           ///< Weight ratio between successive octaves; greater than 0.
     NoiseBasis basis = NoiseBasis::Perlin;  ///< Single-octave noise.

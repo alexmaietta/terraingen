@@ -222,11 +222,8 @@ struct BoulderEjecta {
     }
 };
 
-/// The greatest throw (m) of blocks from a crater's center over a regolith blanket: Bart and
-/// Melosh's (2010, eq. 9) (138.5 / g) (D / H)^0.7086.
-/// @param craterDiameter D, in meters.
-/// @param regolithThickness H, in meters.
-/// @param gravity g, in m/s^2.
+/// The greatest throw (m) of blocks from a crater's center over a regolith blanket, Bart and
+/// Melosh's (2010, eq. 9) (138.5 / g) (D / H)^0.7086, with D and H in meters and g in m/s^2.
 /// @throws std::invalid_argument unless every argument is positive and finite.
 double BoulderThrowDistance(double craterDiameter, double regolithThickness, double gravity);
 
@@ -507,12 +504,9 @@ void ValidateManualBoulder(const ManualBoulder& boulder);
 /// when it has none (or 0).
 std::uint64_t ManualBoulderId(const ManualBoulder& boulder);
 
-/// Checks boulder layer options; without `generateRandom`, the sizes, ejecta and the coverage they
-/// give are not checked.
-/// @throws std::invalid_argument for any invalid part, a non-positive ground spacing,
-/// Golombek-Rapp coverage times the patch spread and bedrock abundance of 1 or more, a
-/// Golombek-Rapp term set beside the size distribution that leaves it unused, or manual boulders
-/// sharing an ID.
+/// Checks boulder layer options; sizes and ejecta only with `generateRandom`.
+/// @throws std::invalid_argument for any invalid part, a non-positive ground spacing, a coverage
+/// that patches and bedrock raise to 1 or more, an unused Golombek-Rapp term, or shared IDs.
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options);
 
 }  // namespace terraingen

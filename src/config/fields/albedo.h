@@ -5,6 +5,7 @@
 #pragma once
 
 #include "config/fields/common.h"
+#include "config/fields/sources.h"
 #include "config/spec.h"
 
 #include <limits>
@@ -26,20 +27,22 @@ template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
     io("hue_deg", spec.hueDegrees,
        "Hue of the base color in degrees, wrapping around; used with rgb only.", "deg");
     io("saturation", spec.saturation,
-       "Saturation of the base color, from 0 for gray to 1; used with rgb only.", "",
-       UnitInterval());
+       "Saturation of the base color, 0 for gray; used with rgb only.", "", UnitInterval());
     io("value", spec.value,
-       "Reflectance of the brightest band, from 0 to 1; the one band's value without rgb. "
-       "Higher values give a brighter surface.",
+       "Reflectance of the brightest band; the one band's value without rgb. Higher values give a "
+       "brighter surface.",
        "", UnitInterval());
-    const std::string layers = "Noise layers, " + CountText(0, kMaxFractals);
     io("hue_noise_deg", spec.hueNoiseDegrees,
-       layers + ", whose sum in degrees is added to the hue; used with rgb only.");
+       "Noise layers whose sum in degrees is added to the hue; used with rgb only.", "",
+       NoiseStackLength(0));
     io("saturation_noise", spec.saturationNoise,
-       layers + ", added to the saturation, which is then clamped to [0, 1]; used with rgb only.");
+       "Noise layers added to the saturation, which is then clamped to [0, 1]; used with rgb "
+       "only.",
+       "", NoiseStackLength(0));
     io("value_noise", spec.valueNoise,
-       layers + ": the value is multiplied by 1 plus their sum and clamped to [0, 1], so their "
-                "amplitude sets the relative contrast.");
+       "Noise layers: the value is multiplied by 1 plus their sum and clamped to [0, 1], so their "
+       "amplitude sets the relative contrast.",
+       "", NoiseStackLength(0));
 }
 
 template <typename IO> void Fields(IO& io, AlbedoDetail& detail) {
@@ -49,15 +52,15 @@ template <typename IO> void Fields(IO& io, AlbedoDetail& detail) {
     io("seed", detail.seed,
        "Seed of the detail noise; changing it gives a different pattern of the same roughness.");
     io("octaves", detail.octaves,
-       "Octaves of detail, 1 to 16, from half the map's cell size down, each half the wavelength "
-       "of the one before.",
+       "Octaves of detail, from half the map's cell size down, each half the wavelength of the "
+       "one before.",
        "", Between(1.0, 16.0));
     io("scale", detail.scale,
-       "Factor on the RMS of every octave, not negative; 0 adds no detail, higher values give a "
-       "more mottled albedo.",
+       "Factor on the RMS of every octave; 0 adds no detail, higher values give a more mottled "
+       "albedo.",
        "", AtLeast(0.0));
     io("hurst", detail.hurst,
-       "Hurst exponent, in [0, 1], used instead of the one measured from the map; lower values "
+       "Hurst exponent used instead of the one measured from the map; lower values "
        "keep more contrast at fine scales. Unset uses the measured one.",
        "", UnitInterval());
     FadePixelFields(io, detail.fade,
@@ -72,10 +75,11 @@ template <> struct SpecName<RasterAlbedoSpec> {
 };
 template <typename IO> void Fields(IO& io, RasterAlbedoSpec& spec) {
     io("path", spec.path,
-       InputPathHelp("GeoTIFF albedo map in the terrain's projected coordinates"));
+       InputPathHelp("GeoTIFF albedo map in the terrain's projected coordinates"), "", Required());
     io("bands", spec.bands,
        "Bands of the file to read, counting from 0: one for a single albedo band, or three for "
-       "red, green and blue.");
+       "red, green and blue.",
+       "", LengthEither(1, kMaxAlbedoBands));
     io("scale", spec.scale,
        "Factor each sample is multiplied by, replacing the band's scale from the file's GDAL "
        "metadata, as for maps stored as integers. Unset keeps the file's.");
@@ -93,9 +97,10 @@ template <typename IO> void Fields(IO& io, ObliqueImpacts& oblique) {
     io("enabled", oblique.enabled,
        "Draws an impact angle and direction per crater that shape its rays; off treats every "
        "impact as vertical.");
-    DegreeField(io, "heading_deg", oblique.headingDegrees,
-                "Downrange direction of every impact, in degrees counter-clockwise from +x "
-                "(local east on a body); unset draws a random heading per crater.");
+    io("heading_deg", oblique.headingDegrees,
+       "Downrange direction of every impact, in degrees counter-clockwise from +x (local east on "
+       "a body); unset draws a random heading per crater.",
+       "deg");
     io("asymmetric_deg", oblique.asymmetricDegrees,
        "Impact angle from the horizontal, in degrees, below which ejecta leave faster downrange, "
        "lengthening rays there and shortening them uprange.",
@@ -112,7 +117,7 @@ template <typename IO> void Fields(IO& io, ObliqueImpacts& oblique) {
        "Downrange over uprange ejection speed below the asymmetric angle, drawn per crater; at "
        "least 1, higher values stretch downrange rays more.");
     io("zone_half_width_deg", oblique.zoneHalfWidthDegrees,
-       "Half width in degrees, 0 to 180, of the ray-free zones uprange and downrange; "
+       "Half width in degrees of the ray-free zones uprange and downrange; "
        "illustrative, as the sources do not measure it.",
        "deg", Between(0.0, 180.0));
 }
@@ -128,8 +133,8 @@ template <typename IO> void Fields(IO& io, CraterRays& rays) {
        "km; higher values give longer rays.",
        "", Above(0.0));
     io("length_exponent", rays.lengthExponent,
-       "Exponent of the crater radius in the median ray length, positive; higher values make "
-       "large craters' rays relatively longer.",
+       "Exponent of the crater radius in the median ray length; higher values make large "
+       "craters' rays relatively longer.",
        "", Above(0.0));
     io("length_spread", rays.lengthSpread,
        "Natural logarithm of a ray's length over the median, drawn per ray; a wider "
@@ -139,15 +144,15 @@ template <typename IO> void Fields(IO& io, CraterRays& rays) {
        "beyond 2 radii a ray keeps the width it has there.");
     io("excess", rays.excess,
        "Optical maturity above the background along a ray at the rim, falling linearly to 0 at "
-       "its end; not negative, higher values give brighter rays.",
+       "its end; higher values give brighter rays.",
        "", AtLeast(0.0));
     io("patchiness", rays.patchiness,
-       "Share of a ray's strength, from 0 to 1, that noise along it can take away, breaking it "
-       "into patches; 0 gives unbroken rays.",
+       "Share of a ray's strength that noise along it can take away, breaking it into patches; 0 "
+       "gives unbroken rays.",
        "", UnitInterval());
     io("patch_radii", rays.patchRadii,
-       "Wavelength of the noise along a ray, in crater radii; positive, smaller values give "
-       "shorter patches.",
+       "Wavelength of the noise along a ray, in crater radii; smaller values give shorter "
+       "patches.",
        "", Above(0.0));
     io("oblique", rays.oblique,
        "How oblique impacts lengthen rays downrange and clear them uprange.");
@@ -179,15 +184,15 @@ template <typename IO> void Fields(IO& io, RayRetention& retention) {
        "Time in Myr craters above the large diameter keep their bright material.", "Myr",
        Above(0.0));
     io("scale", retention.scale,
-       "Factor every retention time is multiplied by, positive; higher values keep craters "
-       "bright for longer.",
+       "Factor every retention time is multiplied by; higher values keep craters bright for "
+       "longer.",
        "", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, CraterAlbedoTexture& texture) {
     io("streaks", texture.streaks,
-       "Share of the excess radial streaks take away between filaments, from 0 to 1, breaking "
-       "ejecta, rays and interiors into fine streaks; 0 leaves them smooth.",
+       "Share of the excess radial streaks take away between filaments, breaking ejecta, rays and "
+       "interiors into fine streaks; 0 leaves them smooth.",
        "", UnitInterval());
     io("streak_width_deg", texture.streakWidthDegrees,
        "Typical width of a filament around the crater, in degrees.", "deg", Above(0.0));
@@ -198,41 +203,39 @@ template <typename IO> void Fields(IO& io, CraterAlbedoTexture& texture) {
        "crater radii; 0 streaks them from the rim.",
        "", AtLeast(0.0));
     io("lobes", texture.lobes,
-       "How far the ejecta's edge wanders in and out, as a share of its reach from 0 to 0.9; 0 "
-       "keeps it circular.",
+       "How far the ejecta's edge wanders in and out, as a share of its reach; 0 keeps it "
+       "circular.",
        "", Between(0.0, 0.9));
-    io("lobe_count", texture.lobeCount, "Typical number of lobes around a crater, 1 to 64.", "",
+    io("lobe_count", texture.lobeCount, "Typical number of lobes around a crater.", "",
        Between(1.0, 64.0));
     io("floor_share", texture.floorShare,
-       "Interior excess on the floor over that at the rim, from 0 to 1; 1 keeps the interior "
+       "Interior excess on the floor over that at the rim; 1 keeps the interior "
        "even, lower values brighten the walls over the floor.",
        "", UnitInterval());
     io("seed", texture.seed, "Varies every crater's texture.");
 }
 
 template <typename IO> void Fields(IO& io, ReflectanceZone& zone) {
-    io("share", zone.share, "Share of craters, from 0 to 1, with the zone.", "", UnitInterval());
+    io("share", zone.share, "Share of craters with the zone.", "", UnitInterval());
     io("change", zone.change,
        "Reflectance change relative to the pre-impact surface, drawn per crater; above -1, "
        "negative values darken.");
     io("coefficient_m", zone.coefficient,
        "Coefficient of the zone's reach from the crater's center, coefficient D^exponent meters "
-       "for diameter D in meters; positive.",
+       "for diameter D in meters.",
        "m", Above(0.0));
-    io("exponent", zone.exponent, "Exponent of the diameter in the zone's reach; positive.", "",
-       Above(0.0));
+    io("exponent", zone.exponent, "Exponent of the diameter in the zone's reach.", "", Above(0.0));
     io("scale", zone.scale,
        "Factor on the reach, drawn per crater; positive and bounded, a wider distribution gives "
        "more varied zones.");
     io("raggedness", zone.raggedness,
-       "Share of the reach, from 0 up to 1, that fingers of the edge pull in by; 0 keeps the "
-       "zone round, higher values make it ray-like.",
+       "Share of the reach that fingers of the edge pull in by; 0 keeps the zone round, higher "
+       "values make it ray-like.",
        "", FromBelow(0.0, 1.0));
     io("finger_width_deg", zone.fingerWidthDegrees,
        "Typical width of the edge's fingers around the crater, in degrees.", "deg", Above(0.0));
-    io("feather", zone.feather,
-       "Share of the reach, from 0 to 1 excluding 0, over which the zone fades out at its edge.",
-       "", AboveUpTo(0.0, 1.0));
+    io("feather", zone.feather, "Share of the reach over which the zone fades out at its edge.", "",
+       AboveUpTo(0.0, 1.0));
     io("retention_myr", zone.retentionMyr,
        "How long the zone lasts, in Myr, fading like the bright material; unset lasts as long as "
        "the bright material.",
@@ -244,18 +247,16 @@ template <typename IO> void Fields(IO& io, ZoneShadows& shadows) {
        "Gives the distal zones shadows behind rises such as crater rims, read from the terrain's "
        "heights; off by default.");
     io("jet_angle_deg", shadows.jetAngleDegrees,
-       "Steepest angle in degrees, between 0 and 90 excluded, at which the jet forming the distal "
-       "zones can drop behind a rise; lower values give longer shadows. Illustrative.",
+       "Steepest angle in degrees at which the jet forming the distal zones can drop behind a "
+       "rise; lower values give longer shadows. Illustrative.",
        "deg", Inside(0.0, 90.0));
     io("depth_m", shadows.depth,
-       "Depth in meters of the ground below the jet at which the shadow is full; positive. "
-       "Illustrative.",
+       "Depth in meters of the ground below the jet at which the shadow is full. Illustrative.",
        "m", Above(0.0));
-    io("azimuths", shadows.azimuths, "Rays around a crater the ground is sampled on, 8 to 8192.",
-       "", Between(8.0, 8192.0));
-    io("radial_samples", shadows.radialSamples,
-       "Samples along each ray out to the distal zones' reach, 8 to 8192.", "",
+    io("azimuths", shadows.azimuths, "Rays around a crater the ground is sampled on.", "",
        Between(8.0, 8192.0));
+    io("radial_samples", shadows.radialSamples,
+       "Samples along each ray out to the distal zones' reach.", "", Between(8.0, 8192.0));
 }
 
 template <typename IO> void Fields(IO& io, CraterReflectanceZones& zones) {
@@ -268,8 +269,8 @@ template <typename IO> void Fields(IO& io, CraterReflectanceZones& zones) {
        "Depth in meters of mature regolith; only craters excavating deeper get the proximal "
        "high reflectance zone.",
        "m", AtLeast(0.0));
-    io("excavation_ratio", zones.excavationRatio,
-       "Excavation depth over crater diameter; positive.", "", Above(0.0));
+    io("excavation_ratio", zones.excavationRatio, "Excavation depth over crater diameter.", "",
+       Above(0.0));
     io("proximal_high", zones.proximalHigh,
        "Proximal high reflectance zone: immature ejecta, +12% to a median 1.5 D.");
     io("proximal_low", zones.proximalLow,
@@ -291,18 +292,18 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
         io, options.selection, "craters given bright material",
         "Gives manual craters bright material too; otherwise only generated and replacing "
         "craters have it.");
-    io("share", options.share, "Share of eligible craters, from 0 to 1, given bright material.", "",
+    io("share", options.share, "Share of eligible craters given bright material.", "",
        UnitInterval());
     io("background_maturity", options.backgroundMaturity,
-       "Optical maturity (OMAT) of the ground around the craters, positive; the excesses are "
-       "added to it and the albedo is brightened from it.",
+       "Optical maturity (OMAT) of the ground around the craters; the excesses are added to it "
+       "and the albedo is brightened from it.",
        "", Above(0.0));
     io("max_maturity", options.maxMaturity,
        "Cap on the optical maturity where craters' excesses add up, at least the background; it "
        "limits how bright overlapping craters get.");
     io("interior_excess", options.interiorExcess,
-       "Optical maturity above the background inside a fresh crater's rim, not negative; higher "
-       "values give brighter interiors.",
+       "Optical maturity above the background inside a fresh crater's rim; higher values give "
+       "brighter interiors.",
        "", AtLeast(0.0));
     io("texture", options.texture,
        "Filaments, lobed ejecta edges and walls brighter than floors; off unless streaks, lobes "
@@ -312,22 +313,21 @@ template <typename IO> void Fields(IO& io, CraterAlbedoOptions& options) {
        "(2015) and Speyerer et al. (2016); off by default.");
     io("ejecta_excess", options.ejectaExcess,
        "Optical maturity above the background on a fresh crater's continuous ejecta at the rim, "
-       "not negative, falling with distance.",
+       "falling with distance.",
        "", AtLeast(0.0));
     io("ejecta_exponent", options.ejectaExponent,
        "Exponent of the ejecta's fall with distance r, as (r / R)^-exponent for crater radius R; "
-       "positive, higher values keep the bright ejecta nearer the rim.",
+       "higher values keep the bright ejecta nearer the rim.",
        "", Above(0.0));
     io("ejecta_reach_radii", options.ejectaReachRadii,
-       "Distance from the center, in crater radii and over 1, at which the ejecta's excess "
-       "reaches 0.",
-       "", Above(1.0));
+       "Distance from the center, in crater radii, at which the ejecta's excess reaches 0.", "",
+       Above(1.0));
     io("rays", options.rays, "Rays of bright material running out from the craters.");
     io("retention", options.retention,
        "How long craters of each diameter keep their bright material.");
     io("fade_exponent", options.fadeExponent,
-       "Exponent of the fade with age t, max(0, 1 - t / T)^exponent for retention time T; "
-       "positive, 1 is a straight fade and higher values fade sooner.",
+       "Exponent of the fade with age t, max(0, 1 - t / T)^exponent for retention time T; 1 is "
+       "a straight fade and higher values fade sooner.",
        "", Above(0.0));
     io("origin_reflectance", options.originReflectance,
        "Reflectance of the optical maturity origin, the hypermature end-member, from which "
@@ -372,7 +372,7 @@ template <typename IO> void Fields(IO& io, SplotchSwarms& swarms) {
     io("reference_count", swarms.referenceCount,
        "Splotches of the reference crater: 248 within 30 km, Robinson et al.", "", Above(0.0));
     io("mu", swarms.mu,
-       "Velocity exponent of the target, between 0 and 1; 0.41 for sand (Housen and Holsapple "
+       "Velocity exponent of the target; 0.41 for sand (Housen and Holsapple "
        "2011). Counts grow as D^(3 + 1.5 mu) and landing distances fall as r^(-1.5 mu).",
        "", Inside(0.0, 1.0));
     io("min_range_m", swarms.minRange,
@@ -390,8 +390,8 @@ template <typename IO> void Fields(IO& io, SplotchSwarms& swarms) {
     io("wedge_share", swarms.wedgeShare,
        "Share of swarm splotches shaped as wedges pointing back to their crater. Illustrative.", "",
        UnitInterval());
-    io("wedge_elongation", swarms.wedgeElongation,
-       "Long over short axis of a wedge, at least 1. Illustrative.", "", AtLeast(1.0));
+    io("wedge_elongation", swarms.wedgeElongation, "Long over short axis of a wedge. Illustrative.",
+       "", AtLeast(1.0));
     io("craters", swarms.craters,
        "New craters given by hand, such as an observed impact, each throwing a swarm.");
 }
@@ -406,25 +406,25 @@ template <typename IO> void Fields(IO& io, SplotchAlbedoOptions& options) {
     io("seed", options.seed, "Seed of where splotches fall and what they are.");
     io("rate_coefficient", options.rateCoefficient,
        "Coefficient a of the cumulative formation rate a d^-b per km^2 per year, d the diameter "
-       "in km; positive, higher values give more splotches.",
+       "in km; higher values give more splotches.",
        "", Above(0.0));
     io("rate_exponent", options.rateExponent,
-       "Slope b of the cumulative formation rate; positive, higher values give relatively more "
-       "small splotches.",
+       "Slope b of the cumulative formation rate; higher values give relatively more small "
+       "splotches.",
        "", Above(0.0));
     io("lifetime_myr", options.lifetimeMyr,
-       "How long a splotch lasts in Myr, fading linearly; positive, the default is the time "
-       "splotches take to churn the top centimeters.",
+       "How long a splotch lasts in Myr, fading linearly; the default is the time splotches take "
+       "to churn the top centimeters.",
        "Myr", Above(0.0));
     io("min_diameter_m", options.minDiameter,
        "Smallest splotch diameter in meters; the published fit is extrapolated below 10 m.", "m",
        Above(0.0));
     io("max_diameter_m", options.maxDiameter,
        "Largest splotch diameter in meters, above the smallest.", "m", Above(0.0));
-    io("dark_share", options.darkShare, "Share of splotches, from 0 to 1, darker than the ground.",
-       "", UnitInterval());
+    io("dark_share", options.darkShare, "Share of splotches darker than the ground.", "",
+       UnitInterval());
     io("bright_share", options.brightShare,
-       "Share of splotches, from 0 to 1, brighter than the ground; the rest are mixed, dark on "
+       "Share of splotches brighter than the ground; the rest are mixed, dark on "
        "one side and bright on the other.",
        "", UnitInterval());
     io("dark_change", options.darkChange,
@@ -433,20 +433,17 @@ template <typename IO> void Fields(IO& io, SplotchAlbedoOptions& options) {
     io("bright_change", options.brightChange,
        "Reflectance change of a bright splotch, drawn per splotch; above -1.");
     io("steep_bright_share", options.steepBrightShare,
-       "Share of splotches on slopes steeper than the steep slope that are bright, from 0 to 1, "
-       "read from the terrain's heights; unset keeps the bright share. Bright splotches are "
-       "found mostly on such slopes, but the source gives no share.",
+       "Share of splotches on slopes steeper than the steep slope that are bright, read from the "
+       "terrain's heights; unset keeps the bright share. Bright splotches are found mostly on "
+       "such slopes, but the source gives no share.",
        "", UnitInterval());
-    io("steep_slope_deg", options.steepSlopeDegrees,
-       "Slope in degrees, between 0 and 90 excluded, from which ground is steep.", "deg",
-       Inside(0.0, 90.0));
-    io("softness", options.softness,
-       "Share of a splotch's radius, from 0 to 1 excluding 0, over which its edge fades.", "",
+    io("steep_slope_deg", options.steepSlopeDegrees, "Slope in degrees from which ground is steep.",
+       "deg", Inside(0.0, 90.0));
+    io("softness", options.softness, "Share of a splotch's radius over which its edge fades.", "",
        AboveUpTo(0.0, 1.0));
     io("raggedness", options.raggedness,
-       "Share of a splotch's radius, from 0 up to 1, that lobes of its edge pull in by; 0 keeps "
-       "it round.",
-       "", FromBelow(0.0, 1.0));
+       "Share of a splotch's radius that lobes of its edge pull in by; 0 keeps it round.", "",
+       FromBelow(0.0, 1.0));
     FadePixelFields(io, options.fade,
                     "How splotches too small to resolve at the sample spacing fade out.");
     io("swarms", options.swarms, "Swarms of splotches around new craters; off by default.");
@@ -463,32 +460,29 @@ template <typename IO> void Fields(IO& io, BlastZone& zone) {
        "to 3355 (mean 2100), Surveyor 131 to 279 (mean 215), Chang'e-3 2530.",
        "m^2", Above(0.0));
     io("elongation", zone.elongation,
-       "Long over short axis of the zone, at least 1; Apollo about 1.14, Chang'e-3 about 1.74.", "",
+       "Long over short axis of the zone; Apollo about 1.14, Chang'e-3 about 1.74.", "",
        AtLeast(1.0));
     io("heading_deg", zone.headingDegrees,
        "Direction of the long axis, degrees counter-clockwise from east, such as along the "
        "final approach.",
        "deg");
     io("change", zone.change,
-       "Mean reflectance change over the zone relative to undisturbed ground at 30 degrees phase, "
-       "above -1; measured +3.4% to +13.2%, Apollo mean +10.9%.",
+       "Mean reflectance change over the zone relative to undisturbed ground at 30 degrees phase; "
+       "measured +3.4% to +13.2%, Apollo mean +10.9%.",
        "", Above(-1.0));
     io("halo_change", zone.haloChange,
-       "Reflectance change of the fainter halo beyond the zone, above -1; +4% at Chang'e-3.", "",
+       "Reflectance change of the fainter halo beyond the zone; +4% at Chang'e-3.", "",
        Above(-1.0));
     io("halo_reach", zone.haloReach,
-       "How far the halo reaches over the zone's own reach, at least 1; 1 for no halo.", "",
-       AtLeast(1.0));
+       "How far the halo reaches over the zone's own reach; 1 for no halo.", "", AtLeast(1.0));
     io("core_radius_m", zone.coreRadius,
        "Radius in meters of the darker core beneath the engine and around the crew's tracks; 0 "
        "for none, a few meters at the Apollo sites.",
        "m", AtLeast(0.0));
     io("core_change", zone.coreChange,
-       "Reflectance change of the dark core, above -1; -15% to -30% at the Apollo sites.", "",
-       Above(-1.0));
+       "Reflectance change of the dark core; -15% to -30% at the Apollo sites.", "", Above(-1.0));
     io("raggedness", zone.raggedness,
-       "Share of the zone's radius, from 0 up to 1, that lobes of its edge pull in by.", "",
-       FromBelow(0.0, 1.0));
+       "Share of the zone's radius that lobes of its edge pull in by.", "", FromBelow(0.0, 1.0));
     io("seed", zone.seed, "Varies the edge's lobes.");
 }
 
@@ -543,7 +537,7 @@ template <typename IO> void Fields(IO& io, SlopeAlbedoOptions& options) {
     io("background_maturity", options.backgroundMaturity,
        "OMAT of gentler ground; about 0.10 at 20 degrees in Laue (Ikeda et al. 2022).", "",
        Above(0.0));
-    io("max_maturity", options.maxMaturity, "Cap on OMAT, at least the background's.", "",
+    io("max_maturity", options.maxMaturity, "Cap on OMAT; at least the background's.", "",
        Above(0.0));
     io("baseline_m", options.baseline,
        "Meters slopes are measured over, the spacing of the lattice they are read on; 10, the "

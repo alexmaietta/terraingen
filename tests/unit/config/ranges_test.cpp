@@ -10,6 +10,7 @@
 
 #include <limits>
 #include <optional>
+#include <set>
 #include <string>
 #include <variant>
 #include <vector>
@@ -49,19 +50,26 @@ std::string RangeErrorPath(const ConfigSpec& config) {
     return "valid";
 }
 
-/// Checks every alternative of a variant, default-constructed, against its fields' ranges.
-template <typename... Ts> void CheckDefaults(const std::variant<Ts...>* /*tag*/) {
+/// Checks every alternative of a variant, default-constructed, against its fields' ranges: valid
+/// unless named in `needData`, whose defaults leave a required value or list empty.
+template <typename... Ts>
+void CheckDefaults(const std::variant<Ts...>* /*tag*/, const std::set<std::string>& needData) {
     (
-        [] {
+        [&] {
             std::variant<Ts...> value = Ts{};
-            EXPECT_EQ(Message([&] { config::CheckRanges(value, "x", {}, {}); }), "valid")
-                << config::SpecName<Ts>::kName;
+            const std::string name(config::SpecName<Ts>::kName);
+            const std::string message = Message([&] { config::CheckRanges(value, "x", {}, {}); });
+            if (needData.count(name) != 0) {
+                EXPECT_NE(message, "valid") << name;
+            } else {
+                EXPECT_EQ(message, "valid") << name;
+            }
         }(),
         ...);
 }
 
-template <typename Variant> void CheckDefaults() {
-    CheckDefaults(static_cast<const Variant*>(nullptr));
+template <typename Variant> void CheckDefaults(const std::set<std::string>& needData = {}) {
+    CheckDefaults(static_cast<const Variant*>(nullptr), needData);
 }
 
 }  // namespace
@@ -167,19 +175,66 @@ TEST(CheckConfigRanges, ChecksInsideRegionsAndTheBody) {
     EXPECT_EQ(RangeErrorPath(config), "layers[0].layer.baseline_m");
 }
 
-TEST(CheckConfigRanges, AcceptsEveryDefault) {
+TEST(CheckConfigRanges, AcceptsEveryDefaultThatNeedsNoData) {
     EXPECT_EQ(RangeErrorPath(ConfigSpec{}), "valid");
-    CheckDefaults<terraingen::LayerSpec>();
+    CheckDefaults<terraingen::LayerSpec>({"secondaries"});
     CheckDefaults<terraingen::OutputSpec>();
-    CheckDefaults<terraingen::SourceSpec>();
-    CheckDefaults<terraingen::DensitySpec>();
+    CheckDefaults<terraingen::SourceSpec>({"chain"});
+    CheckDefaults<terraingen::DensitySpec>({"tabulated"});
     CheckDefaults<terraingen::AgesSpec>();
     CheckDefaults<terraingen::DegradationSpec>();
     CheckDefaults<terraingen::ProfileSpec>();
-    CheckDefaults<terraingen::BoulderSizesSpec>();
-    CheckDefaults<terraingen::RegionShapeSpec>();
+    CheckDefaults<terraingen::BoulderSizesSpec>({"tabulated"});
+    CheckDefaults<terraingen::RegionShapeSpec>({"polygon"});
     CheckDefaults<terraingen::AlbedoSourceSpec>();
     CheckDefaults<terraingen::AlbedoLayerSpec>();
     terraingen::MaterialsSpec materials;
     EXPECT_EQ(Message([&] { config::CheckRanges(materials, "materials", {}, {}); }), "valid");
+}
+
+TEST(DescribeLength, SaysHowManyItemsAListHolds) {
+    EXPECT_EQ(config::DescribeLength({}), "");
+    EXPECT_EQ(config::DescribeLength(config::Length(3)), "exactly 3 items");
+    EXPECT_EQ(config::DescribeLength(config::Length(1, 8)), "1 to 8 items");
+    EXPECT_EQ(config::DescribeLength(config::MinLength(1)), "at least 1 item");
+    EXPECT_EQ(config::DescribeLength(config::LengthEither(1, 3)), "1 or 3 items");
+}
+
+TEST(CheckLength, ReportsListsOfAnotherLengthAtTheirPath) {
+    EXPECT_NO_THROW(config::CheckLength(5, {}, "a"));
+    EXPECT_NO_THROW(config::CheckLength(3, config::Length(3), "a"));
+    EXPECT_NO_THROW(config::CheckLength(0, config::LengthEither(0, 2), "a"));
+    EXPECT_EQ(Message([] { config::CheckLength(2, config::Length(3), "a"); }),
+              "a: must hold exactly 3 items, got 2");
+    EXPECT_EQ(Message([] { config::CheckLength(9, config::Length(1, 8), "b"); }),
+              "b: must hold 1 to 8 items, got 9");
+    EXPECT_EQ(Message([] { config::CheckLength(0, config::MinLength(1), "c"); }),
+              "c: must hold at least 1 item, got 0");
+    EXPECT_EQ(Message([] { config::CheckLength(2, config::LengthEither(1, 3), "d"); }),
+              "d: must hold 1 or 3 items, got 2");
+}
+
+TEST(CheckRanges, ChecksListLengthsAndRequiredOptionals) {
+    std::vector<double> radii{1.0, 2.0};
+    EXPECT_EQ(
+        Message([&] { config::CheckRanges(radii, "radii", "m", config::Above(0.0).Length(3)); }),
+        "radii: must hold exactly 3 items, got 2");
+    std::optional<double> unset;
+    EXPECT_EQ(Message([&] { config::CheckRanges(unset, "a", {}, config::Required()); }),
+              "a: required");
+    ConfigSpec config;
+    config.body = terraingen::EllipsoidSurfaceSpec{{3.0, 2.0}};
+    EXPECT_EQ(RangeErrorPath(config), "body.radii_m");
+}
+
+TEST(FieldHelp, AppendsWhatTheRangeSaysToTheDescription) {
+    EXPECT_EQ(config::FieldHelp("Width.", "m", {}, false), "Width.");
+    EXPECT_EQ(config::FieldHelp("Width.", "m", config::Above(0.0), false),
+              "Width. Must be positive.");
+    EXPECT_EQ(config::FieldHelp("Share.", "", config::UnitInterval(), false),
+              "Share. Must be from 0 to 1.");
+    EXPECT_EQ(config::FieldHelp("Depth.", "m", AtLeast(0.0), false),
+              "Depth. Must not be negative.");
+    EXPECT_EQ(config::FieldHelp("Semi-axes.", "m", config::Above(0.0).Length(3).Required(), true),
+              "Semi-axes. Holds exactly 3 items. Each must be positive. Required.");
 }

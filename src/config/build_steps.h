@@ -180,8 +180,9 @@ template <typename... Kinds> bool HasOutput(const std::vector<OutputSpec>& outpu
 }
 
 /// Checks every number of a configuration against the range its field declares (`FieldRange`), in
-/// the units the configuration stores it in, and that every number is finite.
-/// @throws ConfigError naming the first number out of its range by its JSON path.
+/// the units the configuration stores it in, that every number is finite, that every list has a
+/// length its field allows and that every required optional is set.
+/// @throws ConfigError naming the first value that does not fit by its JSON path.
 void CheckConfigRanges(const ConfigSpec& config);
 
 /// Checks a configuration's albedo against its crater layers and files.
@@ -192,11 +193,12 @@ void ValidateAlbedo(const ConfigSpec& config, const std::filesystem::path& direc
 /// Builds a configuration's generator a part at a time, in the order one pass checks it.
 class GeneratorBuilder {
   public:
-    /// Starts a generator on `surface` with the configuration's source, or `external` in its
-    /// place, which the layers then read as their measured data.
-    /// @throws ConfigError under "source" for what the sources reject.
+    /// Starts a generator on `surface` and `source`: the configuration's source as one pass built
+    /// it, the default synthetic noise without one, or the caller's in its place.
+    /// @param external Whether `source` is the caller's, which the layers then read as their
+    /// measured data.
     GeneratorBuilder(const ConfigSpec& config, const std::filesystem::path& directory,
-                     Surface surface, std::shared_ptr<const Source> external = nullptr);
+                     Surface surface, std::shared_ptr<const Source> source, bool external);
 
     /// Builds layer `i`, the one after those built so far, and returns it.
     /// @throws ConfigError under the layer's path for what its parts reject.

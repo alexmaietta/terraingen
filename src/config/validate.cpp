@@ -14,19 +14,23 @@
 #include "terraingen/config/generate.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/material.h"
-#include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/noise/fractals.h"
 #include "terraingen/noise/validate.h"
-#include "terraingen/raster/cell_loops.h"
+#include "terraingen/raster/geotiff/geotiff.h"
+#include "terraingen/sources/diamond_square.h"
+#include "terraingen/sources/geotiff_source.h"
+#include "terraingen/sources/shape_model_source.h"
 #include "terraingen/sources/source_chain.h"
+#include "terraingen/sources/synthetic_source.h"
 #include "terraingen/sources/upsampling.h"
 #include "util/overloaded.h"
 #include "util/text.h"
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -72,14 +76,9 @@ void CheckExpectedCount(double expected, std::string_view items, std::string_vie
     }
 }
 
-/// @throws ConfigError for a stack of more than `kMaxFractals` layers, or none unless
-/// `allowEmpty`, or an invalid layer.
+/// @throws ConfigError for an invalid layer of a stack; its length is checked by its field.
 template <typename Spec>
-void CheckNoiseStack(const std::vector<Spec>& layers, const std::string& path, bool allowEmpty) {
-    const std::size_t fewest = allowEmpty ? 0 : 1;
-    if (layers.size() < fewest || layers.size() > kMaxFractals) {
-        throw ConfigError(path, "needs " + config::CountText(fewest, kMaxFractals) + " layers");
-    }
+void CheckNoiseStack(const std::vector<Spec>& layers, const std::string& path) {
     for (std::size_t i = 0; i < layers.size(); ++i) {
         At(Element(path, i), [&] { ValidateFractal(layers[i].Effective()); });
     }
@@ -239,34 +238,28 @@ void CheckLayerSpec(const SecondaryLayerSpec& layer, const std::string& path,
     if (!context.craters) {
         throw ConfigError(path, "secondaries need a crater layer before this one");
     }
-    if (!layer.secondaries.onsetCount) {
-        throw ConfigError(Child(path, "onset_count"),
-                          "required: the sources give secondary sizes, not their number");
-    }
     At(path, [&] { ValidateSecondaryCraterOptions(layer.secondaries); });
 }
 
 /// Requires a source with posts for a layer at `path` that estimates its settings from it.
-/// @throws ConfigError at the layer's "estimate_from_base" without one.
+/// @throws ConfigError at the layer's "estimate_from_source" without one.
 void CheckEstimateSource(bool estimate, const std::string& path, const LayerChecks& context) {
     if (estimate && !context.posts) {
-        throw ConfigError(Child(path, "estimate_from_base"),
+        throw ConfigError(Child(path, "estimate_from_source"),
                           "needs a source with posts to estimate from, a raster or synthetic noise "
                           "with a pixel size; without one give the values instead");
     }
 }
 
 void CheckLayerSpec(const NoiseLayerSpec& noise, const std::string& path, LayerChecks& context) {
-    CheckNoiseStack(noise.stack, Child(path, "stack"), false);
+    CheckNoiseStack(noise.stack, Child(path, "stack"));
     CheckEstimateSource(noise.estimateFromSource, path, context);
 }
 
-void CheckLayerSpec(const SandShadowLayerSpec& layer, const std::string& path,
-                    LayerChecks& context) {
+void CheckLayerSpec(const SandShadowLayerSpec&, const std::string& path, LayerChecks& context) {
     if (!context.boulders) {
         throw ConfigError(path, "sand shadows need a boulder layer before this one");
     }
-    At(path, [&] { ValidateSandShadowOptions(layer.shadows); });
 }
 
 void CheckLayerSpec(const RoughnessLayerSpec& layer, const std::string& path,
@@ -275,33 +268,8 @@ void CheckLayerSpec(const RoughnessLayerSpec& layer, const std::string& path,
     CheckEstimateSource(layer.estimateFromSource, path, context);
 }
 
-void CheckLayerSpec(const DuneLayerSpec& layer, const std::string& path, LayerChecks&) {
-    At(path, [&] { ValidateDuneOptions(layer.dunes); });
-}
-
-void CheckLayerSpec(const PavementLayerSpec& layer, const std::string& path, LayerChecks&) {
-    At(path, [&] { ValidatePavementOptions(layer.pavement); });
-}
-
-void CheckLayerSpec(const StrataLayerSpec& layer, const std::string& path, LayerChecks&) {
-    At(path, [&] { ValidateStrataOptions(layer.strata); });
-}
-
-void CheckLayerSpec(const SandFillLayerSpec& layer, const std::string& path, LayerChecks&) {
-    At(path, [&] { ValidateSandFillOptions(layer.sandFill); });
-}
-
-void CheckLayerSpec(const BedformLayerSpec& layer, const std::string& path, LayerChecks&) {
-    At(path, [&] { ValidateBedformOptions(layer.bedforms); });
-}
-
-void CheckLayerSpec(const ScaleLayerSpec& layer, const std::string& path, LayerChecks&) {
-    At(path, [&] { ScaleLayer(layer.scale, layer.offset); });
-}
-
-void CheckLayerSpec(const ClampLayerSpec& layer, const std::string& path, LayerChecks&) {
-    At(path, [&] { ClampLayer(layer.min, layer.max); });
-}
+/// A layer whose constructor checks all its options, reported at the layer's path as it is built.
+template <typename Spec> void CheckLayerSpec(const Spec&, const std::string&, LayerChecks&) {}
 
 /// @throws ConfigError at `path` for a band the GeoTIFF `info` describes does not have.
 void CheckBand(std::size_t band, const GeoTiffInfo& info, const std::string& path) {
@@ -309,51 +277,6 @@ void CheckBand(std::size_t band, const GeoTiffInfo& info, const std::string& pat
         throw ConfigError(path, "the file has " + std::to_string(info.bands) +
                                     (info.bands == 1 ? " band" : " bands"));
     }
-}
-
-/// Checks a GeoTIFF a source at `path` reads: a path to a readable file with the band, in
-/// coordinates that suit the surface, and returns its header.
-/// @throws ConfigError at the spec's "path" or "band" otherwise.
-GeoTiffInfo CheckGeoTiffRead(const std::string& file, std::size_t band, const std::string& path,
-                             const std::filesystem::path& directory, const Surface& surface) {
-    const std::string filePath = Child(path, "path");
-    CheckNonEmpty(file, filePath);
-    const GeoTiffInfo info =
-        AtFile(filePath, [&] { return ReadGeoTiffInfo(Resolve(file, directory)); });
-    CheckBand(band, info, Child(path, "band"));
-    if (info.geoKeys.IsGeographic() && !surface.IsBody()) {
-        throw ConfigError(filePath,
-                          "the raster's CRS is geographic (degrees); craters are sized in "
-                          "meters, so reproject it first, for example with gdalwarp -t_srs, "
-                          "or set the body to a sphere");
-    }
-    if (surface.IsBody() && !info.geoKeys.Empty() && !info.geoKeys.IsGeographic()) {
-        throw ConfigError(
-            filePath, "on a body the raster must be in longitude and latitude (a geographic CRS)");
-    }
-    return info;
-}
-
-/// The cells of `lattice`, the grid a GeoTIFF read at `path` gives over the whole file, that the
-/// read's `crop` meets; the whole lattice without a crop.
-/// @throws ConfigError under the read's "crop" for a crop that is empty or misses the file.
-RasterGrid CheckGeoTiffCrop(const std::optional<Bounds2d>& crop, const RasterGrid& lattice,
-                            const std::string& path) {
-    if (!crop) {
-        return lattice;
-    }
-    const std::string at = Child(path, "crop");
-    if (!(crop->maxX > crop->minX)) {
-        throw ConfigError(Child(at, "max_x"), "must exceed min_x");
-    }
-    if (!(crop->maxY > crop->minY)) {
-        throw ConfigError(Child(at, "max_y"), "must exceed min_y");
-    }
-    const PixelWindow cells = PixelWindowIn(lattice, *crop);
-    if (cells.Empty()) {
-        throw ConfigError(at, "misses the file");
-    }
-    return Subgrid(lattice, cells);
 }
 
 void CheckLayerSpec(const SpectralContinuationLayerSpec& layer, const std::string& path,
@@ -406,52 +329,27 @@ void CheckBuiltLayer(const LayerSpec& spec, const Layer& built, const std::strin
     }
 }
 
-/// The grid a source at `path` covers, reading only the header of a raster's file; a chain's is
-/// its first source's, and synthetic noise has none. Also checks the sources' upsampling and
-/// synthetic stacks.
-/// @throws ConfigError under `path` for an unreadable raster, invalid grid parameters, an unknown
-/// upsampling type or invalid settings.
-std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
-                                         const std::filesystem::path& directory,
-                                         const std::string& path, const Surface& surface);
-
-std::optional<RasterGrid> DescribeChain(const ChainSourceSpec& chain,
-                                        const std::filesystem::path& directory,
-                                        const std::string& path, const Surface& surface) {
-    const std::string sources = Child(path, "sources");
-    if (chain.sources.empty()) {
-        throw ConfigError(sources, "must not be empty");
+/// The upsampler a spec names, its lengths in the surface's units: a kernel, diamond-square or a
+/// type registered with `RegisterUpsampler`.
+/// @param path The spec's JSON path, which errors are reported under.
+/// @throws ConfigError at `path` for an unknown type or settings its type rejects.
+std::shared_ptr<const Upsampler> BuildUpsampler(const UpsamplingSpec& spec, const Surface& surface,
+                                                const std::string& path) {
+    if (const std::optional<ResampleMethod> method = KernelUpsamplerMethod(spec.type)) {
+        return std::make_shared<KernelUpsampler>(*method);
     }
-    const ChainSeams seams = config::SurfaceSeams(chain.seams, surface);
-    const bool feather = chain.seams.mode == ChainSeamMode::Feather;
-    const std::string reachPath =
-        Child(Child(path, "seams"), feather ? "width_m" : "decay_length_m");
-    std::optional<RasterGrid> grid;
-    for (std::size_t n = 0; n < chain.sources.size(); ++n) {
-        const std::optional<RasterGrid> described =
-            DescribeSource(chain.sources[n], directory, Element(sources, n), surface);
-        if (n == 0) {
-            grid = described;
-        }
-        if (described && chain.seams.mode != ChainSeamMode::None && n + 1 < chain.sources.size()) {
-            const RasterGrid lattice =
-                At(reachPath, [&] { return SeamLattice(*described, seams); });
-            CheckGridSize(lattice.width, lattice.height, reachPath);
-        }
+    if (spec.type == "diamond_square") {
+        DiamondSquareOptions options = spec.diamondSquare;
+        options.minPixelSize /= surface.UnitLength();
+        return At(path, [&] {
+            ValidateDiamondSquareOptions(options);
+            return std::make_shared<DiamondSquareUpsampler>(options);
+        });
     }
-    return grid;
-}
-
-/// Checks an upsampling at `path`: a kernel, diamond-square with valid settings, or a type
-/// registered with `RegisterUpsampler`.
-/// @throws ConfigError at `path` for an unknown type, or below it for invalid settings.
-void CheckUpsampling(const UpsamplingSpec& upsampling, const std::string& path) {
-    if (KernelUpsamplerMethod(upsampling.type) || IsUpsamplerRegistered(upsampling.type)) {
-        return;
-    }
-    if (upsampling.type == "diamond_square") {
-        At(path, [&] { ValidateDiamondSquareOptions(upsampling.diamondSquare); });
-        return;
+    if (IsUpsamplerRegistered(spec.type)) {
+        return At(path, [&] {
+            return MakeRegisteredUpsampler(spec.type, spec.settings.empty() ? "{}" : spec.settings);
+        });
     }
     std::string expected;
     for (const std::string& name : KernelUpsamplerNames()) {
@@ -461,64 +359,114 @@ void CheckUpsampling(const UpsamplingSpec& upsampling, const std::string& path) 
     for (const std::string& name : RegisteredUpsamplerNames()) {
         expected += ", " + name;
     }
-    throw ConfigError(path, "unknown upsampling type \"" + upsampling.type +
+    throw ConfigError(path, "unknown upsampling type \"" + spec.type +
                                 "\"; expected one of: " + expected);
 }
 
-/// Checks a synthetic source at `path`: its stack, and upsampling only with a pixel size.
-/// @throws ConfigError below `path` for an invalid stack or upsampling.
-void CheckSyntheticSource(const SyntheticSourceSpec& synthetic, const std::string& path) {
-    CheckNoiseStack(synthetic.stack, Child(path, "stack"), true);
+/// The source a spec describes, its lengths in the surface's units, each part checked before it
+/// is built: a raster's file and grid, a chain's sources and seams, a synthetic stack and every
+/// upsampling. Its grid is `BoundedGrid` of it: a raster's, a chain's first source's, none for
+/// synthetic noise or a shape model.
+/// @param path The spec's JSON path, which errors are reported under.
+/// @throws ConfigError at `path`, or below it, for what the checks or the sources reject.
+std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
+                                          const std::filesystem::path& directory,
+                                          const std::string& path, const Surface& surface);
+
+/// A raster source: a path to a readable GeoTIFF with the band, in coordinates that suit the
+/// surface, over a grid of a size a configuration may request.
+std::shared_ptr<const Source> BuildRaster(const RasterSourceSpec& raster,
+                                          const std::filesystem::path& directory,
+                                          const std::string& path, const Surface& surface) {
+    GeoTiffSourceOptions read = raster.read;
+    if (read.upsampler) {
+        throw ConfigError(Child(path, "upsampling"),
+                          "gives the raster's upsampler; leave read.upsampler unset");
+    }
+    const std::string filePath = Child(path, "path");
+    CheckNonEmpty(raster.path, filePath);
+    const std::filesystem::path file = Resolve(raster.path, directory);
+    const GeoTiffInfo info = AtFile(filePath, [&] { return ReadGeoTiffInfo(file); });
+    CheckBand(read.band, info, Child(path, "band"));
+    if (info.geoKeys.IsGeographic() && !surface.IsBody()) {
+        throw ConfigError(filePath,
+                          "the raster's CRS is geographic (degrees); craters are sized in "
+                          "meters, so reproject it first, for example with gdalwarp -t_srs, "
+                          "or set the body to a sphere");
+    }
+    if (surface.IsBody() && !info.geoKeys.Empty() && !info.geoKeys.IsGeographic()) {
+        throw ConfigError(
+            filePath, "on a body the raster must be in longitude and latitude (a geographic CRS)");
+    }
+    if (read.effectivePixelSize) {
+        *read.effectivePixelSize /= surface.UnitLength();
+    }
+    read.upsampler = BuildUpsampler(raster.upsampling, surface, Child(path, "upsampling"));
+    const std::string gridPath = read.crop ? Child(path, "crop") : filePath;
+    std::shared_ptr<const Source> source =
+        At(gridPath, [&] { return std::make_shared<GeoTiffSource>(file, read); });
+    const RasterGrid grid = source->Grid();
+    CheckGridSize(grid.width, grid.height, gridPath);
+    return source;
+}
+
+/// A chain of sources, each checked and built in turn, with a seam lattice of a size a
+/// configuration may request after each source with bounds but the last.
+std::shared_ptr<const Source> BuildChain(const ChainSourceSpec& chain,
+                                         const std::filesystem::path& directory,
+                                         const std::string& path, const Surface& surface) {
+    const std::string sources = Child(path, "sources");
+    const ChainSeams seams = config::SurfaceSeams(chain.seams, surface);
+    const std::string reachPath = Child(
+        Child(path, "seams"), seams.mode == ChainSeamMode::Feather ? "width_m" : "decay_length_m");
+    std::vector<std::shared_ptr<const Source>> members;
+    for (std::size_t n = 0; n < chain.sources.size(); ++n) {
+        members.push_back(BuildSource(chain.sources[n], directory, Element(sources, n), surface));
+        const std::optional<RasterGrid> grid = BoundedGrid(*members.back());
+        if (grid && seams.mode != ChainSeamMode::None && n + 1 < chain.sources.size()) {
+            const RasterGrid lattice = At(reachPath, [&] { return SeamLattice(*grid, seams); });
+            CheckGridSize(lattice.width, lattice.height, reachPath);
+        }
+    }
+    return At(path, [&] { return std::make_shared<SourceChain>(std::move(members), seams); });
+}
+
+/// Synthetic noise: its stack, and upsampling only with a pixel size.
+std::shared_ptr<const Source> BuildSynthetic(const SyntheticSourceSpec& synthetic,
+                                             const std::string& path, const Surface& surface) {
+    CheckNoiseStack(synthetic.stack, Child(path, "stack"));
+    std::shared_ptr<const Upsampler> upsampler;
     if (synthetic.upsampling) {
         const std::string at = Child(path, "upsampling");
         if (!synthetic.pixelSize) {
             throw ConfigError(at, "needs pixel_size_m: only noise sampled at posts is upsampled");
         }
-        CheckUpsampling(*synthetic.upsampling, at);
+        upsampler = BuildUpsampler(*synthetic.upsampling, surface, at);
     }
+    return At(path, [&] {
+        return std::make_shared<SyntheticSource>(StackFractals(synthetic.stack),
+                                                 static_cast<float>(synthetic.elevation),
+                                                 synthetic.pixelSize, upsampler, surface);
+    });
 }
 
-RasterGrid DescribeRaster(const RasterSourceSpec& raster, const std::filesystem::path& directory,
-                          const std::string& path, const Surface& surface) {
-    const GeoTiffInfo info =
-        CheckGeoTiffRead(raster.path, raster.read.band, path, directory, surface);
-    RasterGrid grid{info.width, info.height, info.transform};
-    std::string sizePath = Child(path, "path");
-    if (raster.read.crop) {
-        grid = CheckGeoTiffCrop(raster.read.crop, grid, path);
-        sizePath = Child(path, "crop");
-    }
-    CheckGridSize(grid.width, grid.height, sizePath);
-    CheckUpsampling(raster.upsampling, Child(path, "upsampling"));
-    return grid;
-}
-
-std::optional<RasterGrid> DescribeSource(const SourceSpec& source,
-                                         const std::filesystem::path& directory,
-                                         const std::string& path, const Surface& surface) {
+std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
+                                          const std::filesystem::path& directory,
+                                          const std::string& path, const Surface& surface) {
+    using Result = std::shared_ptr<const Source>;
     return std::visit(
         Overloaded{
-            [&](const RasterSourceSpec& s) -> std::optional<RasterGrid> {
-                if (s.read.upsampler) {
-                    throw ConfigError(Child(path, "upsampling"),
-                                      "gives the raster's upsampler; leave read.upsampler unset");
-                }
-                return DescribeRaster(s, directory, path, surface);
-            },
-            [&](const ChainSourceSpec& s) { return DescribeChain(s, directory, path, surface); },
-            [&](const SyntheticSourceSpec& s) -> std::optional<RasterGrid> {
-                CheckSyntheticSource(s, path);
-                return std::nullopt;
-            },
-            [&](const ShapeModelSourceSpec& s) -> std::optional<RasterGrid> {
-                if (!surface.Shape()) {
-                    throw ConfigError(path, "needs a shape_model body, whose labels it refines");
-                }
-                CheckUpsampling(s.upsampling, Child(path, "upsampling"));
-                return std::nullopt;
+            [&](const RasterSourceSpec& s) { return BuildRaster(s, directory, path, surface); },
+            [&](const ChainSourceSpec& s) { return BuildChain(s, directory, path, surface); },
+            [&](const SyntheticSourceSpec& s) { return BuildSynthetic(s, path, surface); },
+            [&](const ShapeModelSourceSpec& s) -> Result {
+                const std::shared_ptr<const Upsampler> upsampler =
+                    BuildUpsampler(s.upsampling, surface, Child(path, "upsampling"));
+                return At(path,
+                          [&] { return std::make_shared<ShapeModelSource>(surface, upsampler); });
             },
         },
-        source);
+        spec);
 }
 
 /// Whether a source has posts that layers can estimate settings from: a raster, a chain whose
@@ -538,21 +486,9 @@ bool HasPosts(const SourceSpec& source) {
 /// Rows of a whole-body list's grid above which its spacing is too fine.
 constexpr double kMaxWholeBodyRows = 1e9;
 
-/// Checks an [x, y] pair at `path`: empty for unset, or two numbers.
-/// @throws ConfigError at `path` otherwise.
-void CheckPair(const std::vector<double>& pair, const std::string& path) {
-    if (!pair.empty() && pair.size() != 2) {
-        throw ConfigError(path, "needs two numbers, [x, y]");
-    }
-}
-
-/// Checks an extent at `path` and returns its box (`ExtentBox`).
+/// Checks an extent at `path`, whose pairs its fields check, and returns its box (`ExtentBox`).
 /// @throws ConfigError at `path` or below it for an incomplete, mixed or empty box.
 Bounds2d CheckExtent(const ExtentSpec& extent, const std::string& path) {
-    CheckPair(extent.center, Child(path, "center"));
-    CheckPair(extent.size, Child(path, "size"));
-    CheckPair(extent.min, Child(path, "min"));
-    CheckPair(extent.max, Child(path, "max"));
     const bool corners = !extent.min.empty() || !extent.max.empty();
     const bool centered = !extent.center.empty() || !extent.size.empty();
     if (corners && centered) {
@@ -648,20 +584,6 @@ void CheckOutputArea(const OutputAreaSpec& area, const std::string& path, bool l
     }
 }
 
-/// The grid the output at `path` covers (`OutputGrid`), its area checked; none for an output
-/// without an area, a body mesh or a report.
-/// @throws ConfigError as `CheckOutputArea`.
-std::optional<RasterGrid> CheckOutputGrid(const OutputSpec& output, const std::string& path,
-                                          const std::optional<RasterGrid>& source,
-                                          const Surface& surface) {
-    const OutputAreaSpec* area = config::OutputArea(output);
-    if (!area) {
-        return std::nullopt;
-    }
-    CheckOutputArea(*area, path, config::ListsFeatures(output), source, surface);
-    return config::OutputGrid(output, source, surface);
-}
-
 /// What outputs are checked against.
 struct OutputChecks {
     bool body = false;       ///< Whether the surface is a body.
@@ -736,10 +658,9 @@ void CheckOutput(const TerrainMeshOutput& output, const std::string& path,
     for (std::size_t c = 0; c < output.cutouts.size(); ++c) {
         CheckExtent(output.cutouts[c], Element(Child(path, "cutouts"), c));
     }
-    const std::string site = Child(path, "site_deg");
-    CheckPair(output.siteDeg, site);
     if (!output.siteDeg.empty() && !context.body) {
-        throw ConfigError(site, "only on a body, where the mesh's frame is centered on the site");
+        throw ConfigError(Child(path, "site_deg"),
+                          "only on a body, where the mesh's frame is centered on the site");
     }
 }
 
@@ -787,8 +708,11 @@ std::vector<Extent> CheckOutputs(const ConfigSpec& config, const Surface& surfac
         const OutputSpec& output = config.outputs[i];
         const std::string path = Element("outputs", i);
         std::visit([&](const auto& o) { CheckOutput(o, path, checks); }, output);
-        const std::optional<RasterGrid> grid =
-            CheckOutputGrid(output, path, summary.source, surface);
+        std::optional<RasterGrid> grid;
+        if (const OutputAreaSpec* area = config::OutputArea(output)) {
+            CheckOutputArea(*area, path, config::ListsFeatures(output), summary.source, surface);
+            grid = config::OutputGrid(output, summary.source, surface);
+        }
         summary.outputGrids.push_back(grid);
         if (grid) {
             const bool listed = config::ListsFeatures(output);
@@ -866,21 +790,11 @@ void CheckBody(const SurfaceSpec& body, const std::string& path) {
     }
 }
 
-/// Checks an albedo noise stack, whose layers must give their amplitude: it has no default.
-void CheckAlbedoNoiseStack(const std::vector<AlbedoFractalSpec>& layers, const std::string& path) {
-    CheckNoiseStack(layers, path, true);
-    for (std::size_t i = 0; i < layers.size(); ++i) {
-        if (!layers[i].amplitude) {
-            throw ConfigError(Child(Element(path, i), "amplitude"), "is required for albedo noise");
-        }
-    }
-}
-
 void CheckAlbedoSource(const SyntheticAlbedoSpec& spec, const std::filesystem::path& /*directory*/,
                        const std::string& path) {
-    CheckAlbedoNoiseStack(spec.hueNoiseDegrees, Child(path, "hue_noise_deg"));
-    CheckAlbedoNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"));
-    CheckAlbedoNoiseStack(spec.valueNoise, Child(path, "value_noise"));
+    CheckNoiseStack(spec.hueNoiseDegrees, Child(path, "hue_noise_deg"));
+    CheckNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"));
+    CheckNoiseStack(spec.valueNoise, Child(path, "value_noise"));
     At(path, [&] { ValidateSyntheticAlbedoOptions(spec.Options()); });
 }
 
@@ -889,9 +803,6 @@ void CheckAlbedoSource(const RasterAlbedoSpec& spec, const std::filesystem::path
     const std::string file = Child(path, "path");
     const std::string bands = Child(path, "bands");
     CheckNonEmpty(spec.path, file);
-    if (spec.bands.size() != 1 && spec.bands.size() != kMaxAlbedoBands) {
-        throw ConfigError(bands, "needs 1 or " + std::to_string(kMaxAlbedoBands) + " bands");
-    }
     const GeoTiffInfo info =
         AtFile(file, [&] { return ReadGeoTiffInfo(Resolve(spec.path, directory)); });
     for (const std::size_t band : spec.bands) {
@@ -966,10 +877,6 @@ void ValidateAlbedo(const ConfigSpec& config, const std::filesystem::path& direc
     }
 }
 
-}  // namespace config
-
-namespace config {
-
 CheckedGenerator BuildCheckedGenerator(const ConfigSpec& config,
                                        const std::filesystem::path& directory,
                                        const std::shared_ptr<const Source>& external) {
@@ -978,11 +885,14 @@ CheckedGenerator BuildCheckedGenerator(const ConfigSpec& config,
     CheckedGenerator checked;
     ConfigSummary& summary = checked.summary;
     const Surface surface = BuildSurface(config.body, directory);
-    if (config.source) {
-        summary.source = DescribeSource(*config.source, directory, "source", surface);
+    std::shared_ptr<const Source> source = external;
+    if (!external) {
+        source = BuildSource(EffectiveSource(config).value_or(SourceSpec{SyntheticSourceSpec{}}),
+                             directory, "source", surface);
+        summary.source = BoundedGrid(*source);
     }
     const std::vector<Extent> extents = CheckOutputs(config, surface, summary);
-    GeneratorBuilder builder(config, directory, surface, external);
+    GeneratorBuilder builder(config, directory, surface, std::move(source), external != nullptr);
     CheckLayers(config, extents, directory, surface, builder, summary);
     checked.generator = builder.Take();
     if (config.albedo) {

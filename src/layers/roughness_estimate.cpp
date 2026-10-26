@@ -87,7 +87,7 @@ BaseRoughness EstimateSourceRoughness(const Source& source, const Surface& surfa
     const RasterGrid grid = source.Grid();
     if (!BoundedGrid(source)) {
         const Vec2d center = source.ReferencePoint();
-        const double native = source.ResolutionAt(center.x, center.y);
+        const double native = source.PostSpacingAt(center.x, center.y);
         if (!std::isfinite(native)) {
             throw std::invalid_argument(
                 "Estimating roughness needs a source with posts, such as a DEM or synthetic noise "
@@ -98,8 +98,10 @@ BaseRoughness EstimateSourceRoughness(const Source& source, const Surface& surfa
         return EstimateBaseRoughness(heights, native * surface.UnitLength());
     }
     const Bounds2d bounds = grid.Bounds();
+    const Vec2d center{0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY)};
+    const double resolved = source.ResolutionAt(center.x, center.y);
     const double native =
-        source.ResolutionAt(0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY));
+        std::isfinite(resolved) ? resolved : source.PostSpacingAt(center.x, center.y);
     const double cellSize = std::isfinite(native) ? native : grid.PixelSize();
     const Vec2d corner = grid.transform.PixelToWorld(0.0, 0.0);
     const Vec2d origin{corner.x + 0.5 * cellSize, corner.y - 0.5 * cellSize};

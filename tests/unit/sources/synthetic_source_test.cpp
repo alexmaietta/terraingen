@@ -47,6 +47,7 @@ TEST(SyntheticSource, AnEmptyStackIsFlatAtItsElevation) {
     EXPECT_FALSE(heights.NoData().has_value());
     EXPECT_FALSE(terraingen::BoundedGrid(raised).has_value());
     EXPECT_EQ(raised.ResolutionAt(0.0, 0.0), std::numeric_limits<double>::infinity());
+    EXPECT_EQ(raised.PostSpacingAt(0.0, 0.0), std::numeric_limits<double>::infinity());
     EXPECT_EQ(raised.ReferencePoint().x, 0.0);
     EXPECT_TRUE(raised.Keys().Empty());
     EXPECT_EQ(raised.UpsamplerInUse(), nullptr);
@@ -77,7 +78,9 @@ TEST(SyntheticSource, EvaluatesTheNoiseAtEveryPointWithoutAPixelSize) {
 
 TEST(SyntheticSource, UpsamplesNoiseSampledAtPostsWithAPixelSize) {
     const SyntheticSource source(Hills(), 0.0f, 8.0);
-    EXPECT_EQ(source.ResolutionAt(1.0, 2.0), 8.0);
+    EXPECT_EQ(source.PostSpacingAt(1.0, 2.0), 8.0);
+    EXPECT_EQ(source.ResolutionAt(1.0, 2.0), std::numeric_limits<double>::infinity())
+        << "generated posts hold no measured features";
     EXPECT_EQ(source.PixelSize(), 8.0);
     EXPECT_EQ(source.Grid().transform, GeoTransform::NorthUp(-4.0, 4.0, 8.0));
     EXPECT_FALSE(terraingen::BoundedGrid(source).has_value());

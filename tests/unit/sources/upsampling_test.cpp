@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <initializer_list>
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -137,7 +138,7 @@ TEST(KernelUpsampler, GivesSampleRastersBitsForEveryKernel) {
     const RasterPosts posts = Posts(raster);
     for (const ResampleMethod method :
          {ResampleMethod::Nearest, ResampleMethod::Bilinear, ResampleMethod::Cubic,
-          ResampleMethod::CatmullRom, ResampleMethod::Lanczos3, ResampleMethod::CubicBSpline}) {
+          ResampleMethod::Lanczos3, ResampleMethod::CubicBSpline}) {
         const KernelUpsampler upsampler(method);
         EXPECT_EQ(upsampler.Reach(), terraingen::KernelRadius(method));
         for (double x = -3.0; x < 28.0; x += 1.37) {
@@ -362,4 +363,73 @@ TEST(MarkMissing, FillsNaNCellsWithTheNoDataValue) {
     Raster<float> full(1, 1, 2.0f);
     terraingen::MarkMissing(full, std::nullopt);
     EXPECT_FALSE(full.NoData().has_value());
+}
+
+TEST(PostIndex, WrapsThenClampsToThePostsHeld) {
+    EXPECT_EQ(terraingen::detail::PostIndex(5, false, 10, 2, 8), 5u);
+    EXPECT_EQ(terraingen::detail::PostIndex(-3, false, 10, 2, 8), 2u);
+    EXPECT_EQ(terraingen::detail::PostIndex(12, false, 10, 2, 8), 7u);
+    EXPECT_EQ(terraingen::detail::PostIndex(-3, true, 10, 0, 10), 7u);
+    EXPECT_EQ(terraingen::detail::PostIndex(23, true, 10, 0, 10), 3u);
+}
+
+TEST(OffsetOnLattice, FindsGridsOnTheLatticesCells) {
+    const GeoTransform lattice = GeoTransform::NorthUp(-6.0, 30.0, 3.0);
+    const auto on =
+        terraingen::detail::OffsetOnLattice(lattice, GeoTransform::NorthUp(3.0, 24.0, 3.0));
+    ASSERT_TRUE(on.has_value());
+    EXPECT_EQ(on->col, 3);
+    EXPECT_EQ(on->row, 2);
+    EXPECT_FALSE(
+        terraingen::detail::OffsetOnLattice(lattice, GeoTransform::NorthUp(4.0, 24.0, 3.0)));
+    EXPECT_FALSE(
+        terraingen::detail::OffsetOnLattice(lattice, GeoTransform::NorthUp(3.0, 24.0, 1.5)));
+}
+
+TEST(Upsampler, HeightsAtGiveEachPointsHeightToTheBit) {
+    const Raster<float> raster = Heights();
+    const RasterPosts posts = Posts(raster);
+    std::vector<terraingen::Vec2d> close;
+    for (double x = -3.0; x < 28.0; x += 1.37) {
+        close.push_back({x, 17.3});
+        close.push_back({x, 9.1});
+    }
+    const std::vector<terraingen::Vec2d> far{{-3.0, 4.0}, {1000.0, -500.0}, {12.5, 18.5}};
+    const MeanUpsampler mean;
+    for (const auto& points : {close, far}) {
+        for (const ResampleMethod method :
+             {ResampleMethod::Nearest, ResampleMethod::Cubic, ResampleMethod::Lanczos3}) {
+            const KernelUpsampler kernel(method);
+            std::vector<float> heights(points.size());
+            kernel.HeightsAt(posts, terraingen::Span<const terraingen::Vec2d>(points),
+                             terraingen::Span<float>(heights), 0.5);
+            for (std::size_t i = 0; i < points.size(); ++i) {
+                ASSERT_TRUE(
+                    SameBits(heights[i], kernel.HeightAt(posts, points[i].x, points[i].y, 0.5)))
+                    << i;
+            }
+        }
+        std::vector<float> upsampled(points.size());
+        terraingen::UpsampledHeights(mean, posts, terraingen::Span<const terraingen::Vec2d>(points),
+                                     terraingen::Span<float>(upsampled), 3.0);
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            EXPECT_TRUE(SameBits(upsampled[i], terraingen::UpsampledHeight(mean, posts, points[i].x,
+                                                                           points[i].y, 3.0)))
+                << i;
+        }
+    }
+}
+
+TEST(FillUpsampled, CopiesTheLatticesPostsWithoutUpsampling) {
+    const Raster<float> raster = Heights();
+    const RasterPosts posts = Posts(raster);
+    const ThreadNotingUpsampler noting;
+    Raster<float> filled = RasterGrid{6, 4, GeoTransform::NorthUp(0.0, 27.0, 3.0)}.MakeRaster();
+    terraingen::FillUpsampled(noting, posts, filled, 3.0, 0);
+    EXPECT_TRUE(noting.Threads().empty()) << "no cell is upsampled";
+    for (std::size_t row = 0; row < filled.Height(); ++row) {
+        for (std::size_t col = 0; col < filled.Width(); ++col) {
+            EXPECT_EQ(filled(col, row), raster(col + 2, row + 1));
+        }
+    }
 }

@@ -20,12 +20,9 @@ using Chronology = std::function<double(double ageGyr)>;
 /// This is the population with no erosion; small craters exceed equilibrium on old surfaces.
 class ProductionSurface final : public SizeFrequencyDistribution {
   public:
-    /// The surface `ageGyr` Gyr old.
-    /// @param production A `ProductionRate` distribution defined at 1 km. The surface takes its
-    /// valid range and extrapolation setting.
-    /// @param chronology N(>=1 km) per m^2 for the age, which may reject ages out of its range.
-    /// @throws std::invalid_argument if `production` is null or not a production rate, or
-    /// `chronology` is empty.
+    /// The surface `ageGyr` Gyr old, with the valid range and extrapolation of `production`.
+    /// @param production A `ProductionRate` distribution defined at 1 km.
+    /// @throws std::invalid_argument for a null or wrong-kind `production` or empty `chronology`.
     /// @throws std::domain_error if the age is out of range or `production` is not defined at 1 km.
     ProductionSurface(std::shared_ptr<const SizeFrequencyDistribution> production, double ageGyr,
                       const Chronology& chronology);

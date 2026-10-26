@@ -26,8 +26,8 @@ namespace {
 /// Levels the posts are refined to at most.
 constexpr int kMaxLevels = 30;
 
-/// Grid cells per side of the tiles a grid is refined in.
-constexpr std::size_t kTileCells = 128;
+/// Most node reads per point at which the points of a batch are refined over one box of nodes.
+constexpr double kNodesPerPoint = 64.0;
 
 /// How close to a node, in node spacings, a sample takes the node's height.
 constexpr double kOnNode = 1e-7;
@@ -81,8 +81,8 @@ detail::IndexBox Box(std::int64_t col0, std::int64_t row0, std::int64_t col1, st
 
 /// The square-step mean of the coarser nodes around the square whose lower-left parent is
 /// (`left`, `bottom`): its four corners, or Catmull-Rom over the 4 x 4 around it.
-double SquareMean(const detail::MidpointNodes& parents, std::int64_t left, std::int64_t bottom,
-                  bool spline) {
+double SquareMean(const detail::LatticeWindow<double>& parents, std::int64_t left,
+                  std::int64_t bottom, bool spline) {
     if (!spline) {
         return 0.25 * (parents.At(left, bottom) + parents.At(left + 1, bottom) +
                        parents.At(left, bottom + 1) + parents.At(left + 1, bottom + 1));
@@ -101,7 +101,7 @@ double SquareMean(const detail::MidpointNodes& parents, std::int64_t left, std::
 
 /// The diamond-step mean around node (`col`, `row`): its four neighbors, or the mean of the
 /// Catmull-Rom splines along the two axes.
-double DiamondMean(const detail::MidpointNodes& squares, std::int64_t col, std::int64_t row,
+double DiamondMean(const detail::LatticeWindow<double>& squares, std::int64_t col, std::int64_t row,
                    bool spline) {
     if (!spline) {
         return 0.25 * (squares.At(col - 1, row) + squares.At(col + 1, row) +
@@ -121,11 +121,13 @@ double DiamondMean(const detail::MidpointNodes& squares, std::int64_t col, std::
 /// the cells where all five hold data.
 std::vector<double> AbsoluteResiduals(const Raster<float>& heights) {
     std::vector<double> residuals;
+    const auto missing = [&](std::size_t col, std::size_t row) {
+        return heights.IsMissing(heights(col, row));
+    };
     for (std::size_t row = 1; row + 1 < heights.Height(); ++row) {
         for (std::size_t col = 1; col + 1 < heights.Width(); ++col) {
-            if (!HasData(heights, col, row) || !HasData(heights, col - 1, row) ||
-                !HasData(heights, col + 1, row) || !HasData(heights, col, row - 1) ||
-                !HasData(heights, col, row + 1)) {
+            if (missing(col, row) || missing(col - 1, row) || missing(col + 1, row) ||
+                missing(col, row - 1) || missing(col, row + 1)) {
                 continue;
             }
             const double mean = 0.25 * (static_cast<double>(heights(col - 1, row)) +
@@ -161,25 +163,17 @@ std::optional<double> MedianHurst(const Raster<float>& heights) {
     return fit.lags >= 2 ? std::optional<double>(fit.slope) : std::nullopt;
 }
 
-/// The posts [`col0`, `col0` + `width`) x [`row0`, `row0` + `height`) as a raster, NaN without
-/// data.
-Raster<float> ReadPostRaster(const PostLattice& posts, std::int64_t col0, std::int64_t row0,
-                             std::size_t width, std::size_t height) {
+/// Posts [`col0`, `col0` + `width`) x [`row0`, `row0` + `height`) of `posts` as a raster.
+Raster<float> PostRaster(const detail::LatticeWindow<float>& posts, std::int64_t col0,
+                         std::int64_t row0, std::size_t width, std::size_t height) {
     Raster<float> raster(width, height);
-    posts.Read(col0, row0, width, height, Span<float>(raster.Values()));
-    return raster;
-}
-
-/// Cells [`col0`, `col0` + `side`) x [`row0`, `row0` + `side`) of `heights`.
-Raster<float> SquareWindow(const Raster<float>& heights, std::size_t col0, std::size_t row0,
-                           std::size_t side) {
-    Raster<float> window(side, side);
-    for (std::size_t row = 0; row < side; ++row) {
-        for (std::size_t col = 0; col < side; ++col) {
-            window(col, row) = heights(col0 + col, row0 + row);
+    for (std::size_t row = 0; row < height; ++row) {
+        for (std::size_t col = 0; col < width; ++col) {
+            raster(col, row) = posts.At(col0 + static_cast<std::int64_t>(col),
+                                        row0 + static_cast<std::int64_t>(row));
         }
     }
-    return window;
+    return raster;
 }
 
 }  // namespace
@@ -221,13 +215,17 @@ MidpointRoughness EstimateMidpointRoughness(const Raster<float>& heights) {
     return roughness;
 }
 
-namespace detail {
-
-MidpointRefiner::MidpointRefiner(const DiamondSquareOptions& options)
+DiamondSquareUpsampler::DiamondSquareUpsampler(DiamondSquareOptions options)
     : options_(options),
-      stepFactor_(std::pow(2.0, -(3.0 - options.fractalDimension.value_or(2.5)) / 2.0)) {}
+      stepFactor_(std::pow(2.0, -(3.0 - options.fractalDimension.value_or(2.5)) / 2.0)) {
+    ValidateDiamondSquareOptions(options_);
+}
 
-int MidpointRefiner::Levels(double postSpacing, double spacing) const {
+bool DiamondSquareUpsampler::Fitted() const {
+    return options_.fractalDimension && (options_.scale || options_.fitWindow > 0);
+}
+
+int DiamondSquareUpsampler::Levels(double postSpacing, double spacing) const {
     const double ratio = postSpacing / spacing;
     if (!(ratio > 1.0)) {
         return 0;
@@ -240,7 +238,7 @@ int MidpointRefiner::Levels(double postSpacing, double spacing) const {
     return static_cast<int>(std::min(std::ceil(std::log2(ratio) - 1e-9), most));
 }
 
-MidpointRefiner::NodeFrame MidpointRefiner::Frame(const PostLattice& posts) {
+DiamondSquareUpsampler::NodeFrame DiamondSquareUpsampler::Frame(const PostLattice& posts) {
     const GeoTransform transform = posts.Transform();
     if (transform.IsRotated()) {
         throw std::invalid_argument("Diamond-square cannot refine a rotated lattice of posts");
@@ -249,10 +247,11 @@ MidpointRefiner::NodeFrame MidpointRefiner::Frame(const PostLattice& posts) {
     return {first.x, first.y, transform.pixelWidth, -transform.pixelHeight};
 }
 
-MidpointNodes MidpointRefiner::BaseNodes(const PostLattice& posts, const IndexBox& box) {
-    const LatticeWindow<float> read =
-        ReadPosts(posts, Box(box.col0, -box.row1, box.col1, -box.row0));
-    MidpointNodes nodes(box);
+DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::BaseNodes(const PostLattice& posts,
+                                                                const detail::IndexBox& box) {
+    const detail::LatticeWindow<float> read =
+        detail::ReadPosts(posts, Box(box.col0, -box.row1, box.col1, -box.row0));
+    Nodes nodes(box);
     for (std::int64_t row = box.row0; row <= box.row1; ++row) {
         for (std::int64_t col = box.col0; col <= box.col1; ++col) {
             nodes.At(col, row) = static_cast<double>(read.At(col, -row));
@@ -261,8 +260,9 @@ MidpointNodes MidpointRefiner::BaseNodes(const PostLattice& posts, const IndexBo
     return nodes;
 }
 
-MidpointRefiner::ScaleField MidpointRefiner::Scales(const PostLattice& posts, int level,
-                                                    const IndexBox& box) const {
+DiamondSquareUpsampler::ScaleField
+DiamondSquareUpsampler::Scales(const PostLattice& posts, int level,
+                               const detail::IndexBox& box) const {
     ScaleField scales;
     if (options_.scale || options_.fitWindow == 0) {
         scales.uniform = options_.scale.value_or(0.0);
@@ -273,35 +273,34 @@ MidpointRefiner::ScaleField MidpointRefiner::Scales(const PostLattice& posts, in
     const auto center = [&](double post) {
         return static_cast<std::int64_t>(std::floor(post / step));
     };
-    IndexBox centers;
+    detail::IndexBox centers;
     centers.Include(center(std::ldexp(static_cast<double>(box.col0), -level) - kScaleMargin),
                     center(std::ldexp(static_cast<double>(box.col1), -level) + kScaleMargin) + 1,
                     center(std::ldexp(-static_cast<double>(box.row1), -level) - kScaleMargin),
                     center(std::ldexp(-static_cast<double>(box.row0), -level) + kScaleMargin) + 1);
     const std::size_t side = options_.fitWindow;
-    const auto stride = static_cast<std::size_t>(scales.step);
     const auto half = static_cast<std::int64_t>(side / 2);
-    const Raster<float> read = ReadPostRaster(
-        posts, centers.col0 * scales.step - half, centers.row0 * scales.step - half,
-        (centers.Columns() - 1) * stride + side, (centers.Rows() - 1) * stride + side);
-    LatticeWindow<double> windows(centers);
+    const detail::LatticeWindow<float> read = detail::ReadPosts(
+        posts, Box(centers.col0 * scales.step - half, centers.row0 * scales.step - half,
+                   centers.col1 * scales.step - half + static_cast<std::int64_t>(side) - 1,
+                   centers.row1 * scales.step - half + static_cast<std::int64_t>(side) - 1));
+    detail::LatticeWindow<double> windows(centers);
     for (std::int64_t j = centers.row0; j <= centers.row1; ++j) {
         for (std::int64_t i = centers.col0; i <= centers.col1; ++i) {
             windows.At(i, j) = EstimateMidpointScale(
-                SquareWindow(read, static_cast<std::size_t>(i - centers.col0) * stride,
-                             static_cast<std::size_t>(j - centers.row0) * stride, side));
+                PostRaster(read, i * scales.step - half, j * scales.step - half, side, side));
         }
     }
     scales.windows = std::move(windows);
     return scales;
 }
 
-double MidpointRefiner::ScaleAt(const ScaleField& scales, std::int64_t col, std::int64_t row,
-                                int level) {
+double DiamondSquareUpsampler::ScaleAt(const ScaleField& scales, std::int64_t col, std::int64_t row,
+                                       int level) {
     if (!scales.windows) {
         return scales.uniform;
     }
-    const LatticeWindow<double>& windows = *scales.windows;
+    const detail::LatticeWindow<double>& windows = *scales.windows;
     const double step = static_cast<double>(scales.step);
     const double u = std::ldexp(static_cast<double>(col), -level) / step;
     const double v = std::ldexp(-static_cast<double>(row), -level) / step;
@@ -321,15 +320,8 @@ double MidpointRefiner::ScaleAt(const ScaleField& scales, std::int64_t col, std:
     return first * (1.0 - t) + second * t;
 }
 
-double MidpointRefiner::NodeScale(const PostLattice& posts, std::int64_t col, std::int64_t row,
-                                  int level) const {
-    IndexBox box;
-    box.Include(col, col, row, row);
-    return ScaleAt(Scales(posts, level, box), col, row, level);
-}
-
-double MidpointRefiner::Displacement(std::int64_t col, std::int64_t row, int level, bool diamond,
-                                     double scale) const {
+double DiamondSquareUpsampler::Displacement(std::int64_t col, std::int64_t row, int level,
+                                            bool diamond, double scale) const {
     RandomStream random(options_.seed, kMidpointDisplacementStream, static_cast<std::uint32_t>(col),
                         static_cast<std::uint32_t>(row),
                         static_cast<std::uint32_t>(level) |
@@ -338,10 +330,11 @@ double MidpointRefiner::Displacement(std::int64_t col, std::int64_t row, int lev
     return step * StandardNormal(random);
 }
 
-MidpointNodes MidpointRefiner::SquareStep(const MidpointNodes& parents, int level,
-                                          const IndexBox& box, const ScaleField& scales) const {
+DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::SquareStep(const Nodes& parents, int level,
+                                                                 const detail::IndexBox& box,
+                                                                 const ScaleField& scales) const {
     const bool spline = options_.interp == DiamondSquareInterp::CatmullRom;
-    MidpointNodes squares(box);
+    Nodes squares(box);
     for (std::int64_t row = box.row0; row <= box.row1; ++row) {
         for (std::int64_t col = box.col0; col <= box.col1; ++col) {
             if (!IsOdd(col) && !IsOdd(row)) {
@@ -356,10 +349,11 @@ MidpointNodes MidpointRefiner::SquareStep(const MidpointNodes& parents, int leve
     return squares;
 }
 
-MidpointNodes MidpointRefiner::DiamondStep(const MidpointNodes& squares, int level,
-                                           const IndexBox& box, const ScaleField& scales) const {
+DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::DiamondStep(const Nodes& squares, int level,
+                                                                  const detail::IndexBox& box,
+                                                                  const ScaleField& scales) const {
     const bool spline = options_.interp == DiamondSquareInterp::CatmullRom;
-    MidpointNodes nodes(box);
+    Nodes nodes(box);
     for (std::int64_t row = box.row0; row <= box.row1; ++row) {
         for (std::int64_t col = box.col0; col <= box.col1; ++col) {
             nodes.At(col, row) =
@@ -372,45 +366,33 @@ MidpointNodes MidpointRefiner::DiamondStep(const MidpointNodes& squares, int lev
     return nodes;
 }
 
-MidpointNodes MidpointRefiner::Refine(const PostLattice& posts, int level, const IndexBox& box,
-                                      const ScaleField& scales) const {
+DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::Refine(const PostLattice& posts, int level,
+                                                             const detail::IndexBox& box,
+                                                             const ScaleField& scales) const {
     if (level <= 0) {
         return BaseNodes(posts, box);
     }
     const bool spline = options_.interp == DiamondSquareInterp::CatmullRom;
     const std::int64_t reach = spline ? 3 : 1;
     const std::int64_t margin = spline ? reach : 0;
-    const MidpointNodes parents =
+    const Nodes parents =
         Refine(posts, level - 1,
                Box(FloorHalf(box.col0 - margin) - 1, FloorHalf(box.row0 - margin) - 1,
                    CeilHalf(box.col1 + margin) + 1, CeilHalf(box.row1 + margin) + 1),
                scales);
-    const MidpointNodes squares = SquareStep(
+    const Nodes squares = SquareStep(
         parents, level, Box(box.col0 - reach, box.row0 - reach, box.col1 + reach, box.row1 + reach),
         scales);
     return DiamondStep(squares, level, box, scales);
 }
 
-MidpointNodes MidpointRefiner::Nodes(const PostLattice& posts, int level,
-                                     const IndexBox& box) const {
-    if (!options_.fractalDimension || (!options_.scale && options_.fitWindow == 0)) {
-        throw std::invalid_argument("Diamond-square needs a fractal dimension, and a scale or a "
-                                    "fit window, given or estimated from the posts");
-    }
-    Frame(posts);
-    if (level <= 0) {
-        return BaseNodes(posts, box);
-    }
-    return Refine(posts, level, box, Scales(posts, level, box));
-}
-
-IndexBox MidpointRefiner::ReadBox(const NodeFrame& frame, int level,
-                                  const std::vector<Vec2d>& positions) const {
+detail::IndexBox DiamondSquareUpsampler::ReadBox(const NodeFrame& frame, int level,
+                                                 Span<const Vec2d> positions) const {
     const double stepX = std::ldexp(frame.stepX, -level);
     const double stepY = std::ldexp(frame.stepY, -level);
     const std::int64_t before = options_.interp == DiamondSquareInterp::CatmullRom ? 1 : 0;
     const std::int64_t after = options_.interp == DiamondSquareInterp::CatmullRom ? 2 : 1;
-    IndexBox box;
+    detail::IndexBox box;
     for (const Vec2d& p : positions) {
         const auto [col, u] = NodeAndShare((p.x - frame.originX) / stepX);
         const auto [row, v] = NodeAndShare((p.y - frame.originY) / stepY);
@@ -420,13 +402,13 @@ IndexBox MidpointRefiner::ReadBox(const NodeFrame& frame, int level,
     return box;
 }
 
-double MidpointRefiner::Interpolate(const NodeFrame& frame, const MidpointNodes& nodes, int level,
-                                    double x, double y) const {
+double DiamondSquareUpsampler::Interpolate(const NodeFrame& frame, const Nodes& nodes, int level,
+                                           double x, double y) const {
     const auto [col, u] = NodeAndShare((x - frame.originX) / std::ldexp(frame.stepX, -level));
     const auto [row, v] = NodeAndShare((y - frame.originY) / std::ldexp(frame.stepY, -level));
     if (options_.interp == DiamondSquareInterp::CatmullRom) {
-        const std::array<double, 6> wx = KernelWeights(ResampleMethod::CatmullRom, u);
-        const std::array<double, 6> wy = KernelWeights(ResampleMethod::CatmullRom, v);
+        const std::array<double, 6> wx = KernelWeights(ResampleMethod::Cubic, u);
+        const std::array<double, 6> wy = KernelWeights(ResampleMethod::Cubic, v);
         double sum = 0.0;
         for (std::int64_t j = -1; j <= 2; ++j) {
             const double weightY = wy[static_cast<std::size_t>(j + 1)];
@@ -456,92 +438,62 @@ double MidpointRefiner::Interpolate(const NodeFrame& frame, const MidpointNodes&
     return value;
 }
 
-std::vector<float> MidpointRefiner::Expand(const PostLattice& posts,
-                                           const std::vector<Vec2d>& positions,
-                                           double spacing) const {
-    std::vector<float> heights(positions.size());
-    if (positions.empty()) {
-        return heights;
+void DiamondSquareUpsampler::HeightsAt(const PostLattice& posts, Span<const Vec2d> points,
+                                       Span<float> heights, double spacing) const {
+    if (points.empty()) {
+        return;
+    }
+    if (!Fitted()) {
+        throw std::invalid_argument("Diamond-square needs a fractal dimension, and a scale or a "
+                                    "fit window, given or estimated from the posts");
     }
     const NodeFrame frame = Frame(posts);
     const int level = Levels(PostSpacing(posts.Transform()), spacing);
-    const MidpointNodes nodes = Nodes(posts, level, ReadBox(frame, level, positions));
-    for (std::size_t i = 0; i < positions.size(); ++i) {
-        heights[i] =
-            static_cast<float>(Interpolate(frame, nodes, level, positions[i].x, positions[i].y));
-    }
-    return heights;
+    detail::ExpandPoints(
+        points, heights, kNodesPerPoint,
+        [&](Span<const Vec2d> at) { return ReadBox(frame, level, at); },
+        [&](const detail::IndexBox& box, Span<const Vec2d> at, Span<float> values) {
+            const Nodes nodes =
+                Refine(posts, level, box, level > 0 ? Scales(posts, level, box) : ScaleField{});
+            for (std::size_t i = 0; i < at.size(); ++i) {
+                values[i] = static_cast<float>(Interpolate(frame, nodes, level, at[i].x, at[i].y));
+            }
+        });
 }
 
-void MidpointRefiner::Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
-                           unsigned threads) const {
-    const NodeFrame frame = Frame(posts);
-    const int level = Levels(PostSpacing(posts.Transform()), spacing);
-    ForEachTile(heights.Width(), heights.Height(), kTileCells, threads,
-                [&](const PixelWindow& tile) {
-                    std::vector<Vec2d> positions;
-                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
-                        for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
-                            positions.push_back(heights.CellCenter(col, row));
-                        }
-                    }
-                    std::vector<float> values;
-                    if (ReadBox(frame, level, positions).Area() <=
-                        64.0 * static_cast<double>(positions.size())) {
-                        values = Expand(posts, positions, spacing);
-                    } else {
-                        for (const Vec2d& p : positions) {
-                            values.push_back(Expand(posts, {p}, spacing).front());
-                        }
-                    }
-                    std::size_t n = 0;
-                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
-                        for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
-                            heights(col, row) = values[n++];
-                        }
-                    }
-                });
-}
-
-}  // namespace detail
-
-DiamondSquareUpsampler::DiamondSquareUpsampler(DiamondSquareOptions options)
-    : options_(options), refiner_(options) {
-    ValidateDiamondSquareOptions(options_);
+float DiamondSquareUpsampler::HeightAt(const PostLattice& posts, double x, double y,
+                                       double spacing) const {
+    float height = 0.0f;
+    const Vec2d point{x, y};
+    HeightsAt(posts, Span<const Vec2d>(&point, 1), Span<float>(&height, 1), spacing);
+    return height;
 }
 
 int DiamondSquareUpsampler::Reach() const {
     return options_.interp == DiamondSquareInterp::CatmullRom ? 8 : 4;
 }
 
-float DiamondSquareUpsampler::HeightAt(const PostLattice& posts, double x, double y,
-                                       double spacing) const {
-    return refiner_.Expand(posts, {Vec2d{x, y}}, spacing).front();
-}
-
-void DiamondSquareUpsampler::Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
-                                  unsigned threads) const {
-    refiner_.Fill(posts, heights, spacing, threads);
-}
-
 std::shared_ptr<const Upsampler> DiamondSquareUpsampler::FitTo(const PostLattice& posts) const {
-    if (options_.fractalDimension && (options_.scale || options_.fitWindow > 0)) {
+    if (Fitted()) {
         return nullptr;
     }
-    Raster<float> sample;
+    detail::IndexBox box;
     if (const std::optional<PixelWindow> extent = posts.Extent()) {
         const std::size_t width = std::min(extent->colEnd - extent->colBegin, kEstimateSide);
         const std::size_t height = std::min(extent->rowEnd - extent->rowBegin, kEstimateSide);
-        const std::size_t colBegin =
-            extent->colBegin + (extent->colEnd - extent->colBegin - width) / 2;
-        const std::size_t rowBegin =
-            extent->rowBegin + (extent->rowEnd - extent->rowBegin - height) / 2;
-        sample = ReadPostRaster(posts, static_cast<std::int64_t>(colBegin),
-                                static_cast<std::int64_t>(rowBegin), width, height);
+        const auto colBegin = static_cast<std::int64_t>(
+            extent->colBegin + (extent->colEnd - extent->colBegin - width) / 2);
+        const auto rowBegin = static_cast<std::int64_t>(
+            extent->rowBegin + (extent->rowEnd - extent->rowBegin - height) / 2);
+        box = Box(colBegin, rowBegin, colBegin + static_cast<std::int64_t>(width) - 1,
+                  rowBegin + static_cast<std::int64_t>(height) - 1);
     } else {
-        sample = ReadPostRaster(posts, 0, 0, kUnboundedEstimateSide, kUnboundedEstimateSide);
+        const auto side = static_cast<std::int64_t>(kUnboundedEstimateSide);
+        box = Box(0, 0, side - 1, side - 1);
     }
-    const MidpointRoughness roughness = EstimateMidpointRoughness(sample);
+    const detail::LatticeWindow<float> read = detail::ReadPosts(posts, box);
+    const MidpointRoughness roughness =
+        EstimateMidpointRoughness(PostRaster(read, box.col0, box.row0, box.Columns(), box.Rows()));
     DiamondSquareOptions fitted = options_;
     fitted.fractalDimension = options_.fractalDimension.value_or(roughness.fractalDimension);
     if (options_.fitWindow == 0) {

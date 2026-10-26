@@ -5,7 +5,7 @@
 #pragma once
 
 #include "terraingen/layers/ground.h"
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/parallel.h"
 #include "terraingen/util/span.h"

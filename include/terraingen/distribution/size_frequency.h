@@ -68,13 +68,11 @@ class SizeFrequencyDistribution {
     /// @throws std::domain_error under the same conditions as `Cumulative`.
     double Incremental(double diameter) const;
 
-    /// Expected number of features with diameter in [`dMin`, `dMax`), area * (N(dMin) - N(dMax)).
+    /// Expected number of features with diameter in [`dMin`, `dMax`) meters over `area`.
     /// @param area Area in m^2 (or m^2 Gyr for a production rate), finite and >= 0.
-    /// @param dMin Smallest diameter in meters.
     /// @param dMax Largest diameter in meters; may be infinite.
     /// @throws std::invalid_argument unless 0 < `dMin` < `dMax` and `area` >= 0 is finite.
-    /// @throws std::domain_error if a diameter is outside the valid range without extrapolation,
-    /// or `dMax` is infinite and the valid range is bounded.
+    /// @throws std::domain_error for a diameter outside the valid range without extrapolation.
     double ExpectedCount(double area, double dMin, double dMax) const;
 
     /// Draws a diameter in meters in [`dMin`, `dMax`) by inverting N(>=D); `dMax` may be infinite.

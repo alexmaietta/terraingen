@@ -16,14 +16,13 @@
 namespace terraingen::config {
 
 template <typename IO> void Fields(IO& io, HapkeParameters& hapke) {
-    io("albedo", hapke.albedo, "Single-scattering albedo w, from 0 to 1.", "", UnitInterval());
-    io("b", hapke.b, "Asymmetry b of the two-term Henyey-Greenstein phase function, from 0 to 1.",
-       "", UnitInterval());
-    io("c", hapke.c,
-       "Backscatter fraction c of the two-term Henyey-Greenstein phase function, from 0 to 1.", "",
+    io("albedo", hapke.albedo, "Single-scattering albedo w.", "", UnitInterval());
+    io("b", hapke.b, "Asymmetry b of the two-term Henyey-Greenstein phase function.", "",
        UnitInterval());
-    io("roughness_deg", hapke.roughness, "Macroscopic roughness theta-bar, in degrees below 90.",
-       "deg", FromBelow(0.0, 90.0));
+    io("c", hapke.c, "Backscatter fraction c of the two-term Henyey-Greenstein phase function.", "",
+       UnitInterval());
+    io("roughness_deg", hapke.roughness, "Macroscopic roughness theta-bar, in degrees.", "deg",
+       FromBelow(0.0, 90.0));
 }
 
 /// The JSON key of each material class, in `MaterialClass` order.
@@ -45,9 +44,8 @@ template <typename IO> void Fields(IO& io, MaterialOptions& options) {
     io("exposure", options.exposure,
        "Thresholds marking bare ground as bedrock, read on the ground beneath the first layer that "
        "lays a material; unset for no bedrock.");
-    io("dust_cover", options.dustCover,
-       "About the share of the surface under bright dust patches, from 0 up to 1.", "",
-       FromBelow(0.0, 1.0));
+    io("dust_cover", options.dustCover, "About the share of the surface under bright dust patches.",
+       "", FromBelow(0.0, 1.0));
     io("dust_patch_m", options.dustPatch, "Typical width of a dust patch, in meters.", "m",
        Above(0.0));
     io("seed", options.seed, "Seed of the dust patches.");

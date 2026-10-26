@@ -19,20 +19,14 @@ struct SfdJoins {
     double tolerance = 1e-3;  ///< Relative mismatch allowed at a join.
 };
 
-/// A cumulative distribution made of power-law segments in increasing diameter order, each
-/// applying from its `start` up to the next segment's start, valid from the first start.
-///
-/// Segments must meet at their joins within a relative tolerance unless
-/// `SfdJoins::allowDiscontinuities` is set. A downward jump at a join gives a finite fraction of
-/// the population exactly the join diameter, which `SampleDiameter` returns for that fraction.
+/// A cumulative distribution of power-law segments, each applying from its `start` to the next.
+/// Segments meet within a tolerance unless `SfdJoins::allowDiscontinuities`; a downward jump puts
+/// that share of the population exactly at the join diameter.
 class PiecewisePowerLawSfd final : public SizeFrequencyDistribution {
   public:
-    /// The distribution made of `segments`, valid from the first one's `start` to `maxDiameter`.
+    /// The distribution of `segments`, valid from the first `start` to `maxDiameter` meters.
     /// @param segments At least one segment, with strictly increasing `start`.
-    /// @param maxDiameter The largest valid diameter, in meters.
-    /// @throws std::invalid_argument for no segments, a coefficient or exponent that is not
-    /// positive and finite, starts that do not increase below `maxDiameter`, a join that rises,
-    /// or a discontinuity larger than the tolerance that `joins` does not allow.
+    /// @throws std::invalid_argument for bad segments, a rising join, or a break `joins` forbids.
     PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments, SfdKind kind = SfdKind::Density,
                          double maxDiameter = std::numeric_limits<double>::infinity(),
                          SfdJoins joins = {});

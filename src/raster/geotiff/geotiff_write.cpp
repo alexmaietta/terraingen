@@ -5,7 +5,7 @@
 #include "raster/geotiff/tiff_codecs.h"
 #include "raster/geotiff/tiff_format.h"
 
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/log.h"
 #include "util/text.h"
 

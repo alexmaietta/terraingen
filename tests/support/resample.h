@@ -7,7 +7,7 @@
 
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/resample.h"
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 
 #include <cmath>
 #include <stdexcept>

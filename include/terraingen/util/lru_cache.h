@@ -43,26 +43,15 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
 
     /// The value held for a key, marked most recently used; null when it is not held.
     std::shared_ptr<const Value> Find(const Key& key) {
-        Shard& shard = shards_[Hash{}(key) % kShards];
-        const std::lock_guard lock(shard.mutex);
-        const auto found = shard.entries.find(key);
-        if (found == shard.entries.end()) {
-            return nullptr;
-        }
-        shard.recency.splice(shard.recency.begin(), shard.recency, found->second.recent);
-        return found->second.value;
+        return Lookup(ShardHolding(key), key);
     }
 
     /// The value for a key, computed by `compute` outside the lock when it is not held.
     /// @throws Whatever `compute` throws; nothing is stored then.
     std::shared_ptr<const Value> Get(const Key& key, const std::function<Value()>& compute) {
-        Shard& shard = shards_[Hash{}(key) % kShards];
-        {
-            const std::lock_guard lock(shard.mutex);
-            if (const auto found = shard.entries.find(key); found != shard.entries.end()) {
-                shard.recency.splice(shard.recency.begin(), shard.recency, found->second.recent);
-                return found->second.value;
-            }
+        Shard& shard = ShardHolding(key);
+        if (auto held = Lookup(shard, key)) {
+            return held;
         }
         auto value = std::make_shared<const Value>(compute());
         const std::size_t cost = cost_(*value);
@@ -83,7 +72,6 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
                 shard.recency.pop_back();
                 ++evicted;
             }
-            shard.evictions += evicted;
         }
         if (evicted > 0 && onEvict_) {
             onEvict_(evicted);
@@ -93,12 +81,12 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
 
     /// The total cost of every value held, in `Cost` units.
     std::size_t Size() const {
-        return Sum([](const Shard& shard) { return shard.cost; });
-    }
-
-    /// The number of values evicted since construction.
-    std::size_t Evictions() const {
-        return Sum([](const Shard& shard) { return shard.evictions; });
+        std::size_t total = 0;
+        for (const Shard& shard : shards_) {
+            const std::lock_guard lock(shard.mutex);
+            total += shard.cost;
+        }
+        return total;
     }
 
   private:
@@ -112,17 +100,22 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         std::list<Key> recency;
         std::unordered_map<Key, Entry, Hash> entries;
         std::size_t cost = 0;
-        std::size_t evictions = 0;
     };
     static constexpr std::size_t kShards = 16;
 
-    template <typename Field> std::size_t Sum(Field field) const {
-        std::size_t total = 0;
-        for (const Shard& shard : shards_) {
-            const std::lock_guard lock(shard.mutex);
-            total += field(shard);
+    Shard& ShardHolding(const Key& key) {
+        return shards_[Hash{}(key) % kShards];
+    }
+
+    /// The value `shard` holds for a key, marked most recently used; null when it is not held.
+    static std::shared_ptr<const Value> Lookup(Shard& shard, const Key& key) {
+        const std::lock_guard lock(shard.mutex);
+        const auto found = shard.entries.find(key);
+        if (found == shard.entries.end()) {
+            return nullptr;
         }
-        return total;
+        shard.recency.splice(shard.recency.begin(), shard.recency, found->second.recent);
+        return found->second.value;
     }
 
     std::size_t capacity_;

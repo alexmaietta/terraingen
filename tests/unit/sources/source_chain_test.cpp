@@ -5,6 +5,7 @@
 #include "terraingen/sources/diamond_square.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/raster_source.h"
+#include "terraingen/sources/synthetic_source.h"
 
 #include <gtest/gtest.h>
 
@@ -231,6 +232,37 @@ TEST(SourceChain, ResolvesWhatTheMemberGivingTheHeightResolves) {
     EXPECT_EQ(chain.ResolutionAt(-20.0, 30.0), 8.0);
     EXPECT_EQ(chain.ResolutionAt(100.0, 100.0), inf) << "only the flat datum";
     EXPECT_EQ(SourceChain({site, region}).ResolutionAt(100.0, 100.0), inf);
+    EXPECT_EQ(chain.PostSpacingAt(5.5, 14.5), 8.0);
+    EXPECT_EQ(chain.PostSpacingAt(100.0, 100.0), inf);
+    const auto noise = std::make_shared<terraingen::SyntheticSource>(
+        std::vector<terraingen::Fractal>{}, 0.0f, 2.0);
+    const SourceChain generated({noise, site});
+    EXPECT_EQ(generated.ResolutionAt(10.3, 10.6), inf) << "generated heights cover the site";
+    EXPECT_EQ(generated.PostSpacingAt(10.3, 10.6), 2.0);
+}
+
+TEST(SourceChain, GivesBatchesOfPointsTheBitsOfEachPoint) {
+    Raster<float> fine(20, 20, 1.0f);
+    fine.SetTransform(GeoTransform::NorthUp(0.0, 20.0, 1.0));
+    fine.SetNoData(-1.0f);
+    fine(5, 5) = -1.0f;
+    Raster<float> coarse(10, 10, 2.0f);
+    coarse.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 8.0));
+    const SourceChain chain({std::make_shared<terraingen::RasterSource>(fine),
+                             std::make_shared<terraingen::RasterSource>(coarse)});
+    const std::vector<terraingen::Vec2d> points{
+        {10.3, 10.6}, {5.5, 14.5}, {-20.0, 30.0}, {100.0, 100.0}, {0.5, 19.5}};
+    std::vector<float> heights(points.size());
+    chain.HeightsAt(terraingen::Span<const terraingen::Vec2d>(points),
+                    terraingen::Span<float>(heights), 0.5);
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        const float point = chain.HeightAt(points[i].x, points[i].y, 0.5);
+        EXPECT_TRUE(point == heights[i] || (std::isnan(point) && std::isnan(heights[i]))) << i;
+    }
+    EXPECT_TRUE(std::isnan(heights[3]));
+    EXPECT_THROW(chain.HeightsAt(terraingen::Span<const terraingen::Vec2d>(points),
+                                 terraingen::Span<float>(heights).subspan(1), 0.5),
+                 std::invalid_argument);
 }
 
 TEST(SourceChain, UpsamplesEachMemberAsItSays) {

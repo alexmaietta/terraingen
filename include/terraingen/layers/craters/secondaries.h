@@ -36,14 +36,11 @@ double SecondaryStretch(const SecondaryShapes& shapes);
 /// the same secondaries as any larger grid; bands too small for the spacing are skipped.
 class SecondaryCraterLayer final : public Layer, public CraterPlacer {
   public:
-    /// @param primaries The layer whose craters throw secondaries.
+    /// The secondaries of the craters of `primaries`.
     /// @param apply How secondaries are applied; without a datum.
-    /// @param base What the terrain lies on, the primaries' surface, and the source, which with
-    /// `options.sourceResolvesPixels` holds the secondaries it resolves.
-    /// @throws std::invalid_argument for a null layer or degradation, a base on another surface
-    /// than the primaries', a profile `MatchedProfile`
-    /// rejects, invalid options, apply options with a datum, or options missing from the
-    /// primaries' `CraterLayerOptions::secondaries` when the primaries follow a density map.
+    /// @param base The surface, which must be the primaries', and the source.
+    /// @throws std::invalid_argument for a null layer or degradation, a mismatched surface, a
+    /// rejected profile, invalid options, a datum, or options a density-mapped primary lacks.
     SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries, CraterShapeModels models,
                          SecondaryCraterOptions options, CraterApplyOptions apply = {},
                          TerrainBase base = {});

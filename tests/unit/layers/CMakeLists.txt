@@ -9,6 +9,7 @@ terraingen_add_test_suite(
     dunes_test.cpp
     exposure_test.cpp
     fade_test.cpp
+    field_test.cpp
     ground_test.cpp
     lattice_test.cpp
     layer_test.cpp

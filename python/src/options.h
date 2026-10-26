@@ -11,6 +11,7 @@
 
 #include <nanobind/stl/array.h>
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cmath>
@@ -32,9 +33,12 @@ struct VisitFields {
     }
 };
 
-/// The docstring of a field: its description, then its unit when it has one.
-inline std::string FieldDoc(std::string_view description, std::string_view unit) {
-    std::string doc(description);
+/// The docstring of a field of type `F`: its description and what its range says
+/// (`config::FieldHelp`), then its unit when it has one.
+template <typename F>
+std::string FieldDoc(std::string_view description, std::string_view unit,
+                     const config::FieldRange& range) {
+    std::string doc = config::FieldHelp<F>(description, unit, range);
     if (!unit.empty()) {
         doc += " Unit: " + std::string(unit) + ".";
     }
@@ -66,7 +70,7 @@ template <typename T> class OptionsBinder {
     /// Binds `member` as the property `key`.
     template <typename F>
     void operator()(std::string_view key, F& member, std::string_view description = {},
-                    std::string_view unit = {}, const config::FieldRange& /*range*/ = {}) {
+                    std::string_view unit = {}, const config::FieldRange& range = {}) {
         using Q = std::conditional_t<nb::detail::is_base_caster_v<nb::detail::make_caster<F>>,
                                      const F&, F&&>;
         const std::size_t offset = Offset(key, member);
@@ -75,13 +79,13 @@ template <typename T> class OptionsBinder {
             names_->back().c_str(),
             [offset](const T& self) -> const F& { return At<F>(self, offset); },
             [offset](T& self, Q value) { At<F>(self, offset) = static_cast<Q>(value); },
-            FieldDoc(description, unit).c_str());
+            FieldDoc<F>(description, unit, range).c_str());
     }
 
     /// Binds `bound` as the property `key`: None when it is not finite, and `unset` when set to
     /// None.
     void Bound(std::string_view key, double& bound, std::string_view description,
-               std::string_view unit, double unset, const config::FieldRange& /*range*/) {
+               std::string_view unit, double unset, const config::FieldRange& range) {
         const std::size_t offset = Offset(key, bound);
         Add(PythonName(key, unit));
         cls_.def_prop_rw(
@@ -93,7 +97,7 @@ template <typename T> class OptionsBinder {
             [offset, unset](T& self, std::optional<double> value) {
                 At<double>(self, offset) = value.value_or(unset);
             },
-            FieldDoc(description, unit).c_str());
+            FieldDoc<double>(description, unit, range).c_str());
     }
 
     /// Binds `group` as the property `name`, or returns false to have its fields bound one by one
@@ -258,13 +262,18 @@ inline std::string UpperName(std::string_view name) {
 }
 
 /// Binds the enum `E` as `name` with the members of its configuration names (`EnumNames`), each
-/// in upper case and documented by its description.
+/// in upper case and documented by its description; a name for a value already bound is skipped.
 template <typename E> nb::enum_<E> BindEnum(nb::handle scope, const char* name, const char* doc) {
     nb::enum_<E> binding(scope, name, doc);
-    for (const auto& entry : config::EnumNames<E>::kValues) {
-        const std::string member = UpperName(entry.name);
-        const std::string description(entry.description);
-        binding.value(member.c_str(), entry.value, description.c_str());
+    const auto& entries = config::EnumNames<E>::kValues;
+    for (auto entry = entries.begin(); entry != entries.end(); ++entry) {
+        if (std::any_of(entries.begin(), entry,
+                        [&](const auto& earlier) { return earlier.value == entry->value; })) {
+            continue;
+        }
+        const std::string member = UpperName(entry->name);
+        const std::string description(entry->description);
+        binding.value(member.c_str(), entry->value, description.c_str());
     }
     return binding;
 }

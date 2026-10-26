@@ -231,6 +231,8 @@ TEST(RasterSource, ResolvesItsCellsOrItsEffectivePixelSize) {
     const RasterSource coarse(dem, upsampled);
     EXPECT_EQ(coarse.ResolutionAt(center.x, center.y), 20.0);
     EXPECT_EQ(coarse.ResolutionAt(hole.x, hole.y), kInf);
+    EXPECT_EQ(coarse.PostSpacingAt(center.x, center.y), 4.0) << "the posts stay the cells";
+    EXPECT_EQ(coarse.PostSpacingAt(hole.x, hole.y), kInf);
     Raster<float> oblong(8, 8, 1.0f);
     oblong.SetTransform(GeoTransform{0.0, 2.0, 0.0, 0.0, 0.0, -5.0});
     EXPECT_EQ(RasterSource(oblong).ResolutionAt(3.0, -7.0), 5.0);

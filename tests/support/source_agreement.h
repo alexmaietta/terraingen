@@ -13,12 +13,14 @@
 
 #include <cmath>
 #include <cstddef>
+#include <vector>
 
 namespace terraingen::testing {
 
 /// Checks that points, three tiles and the whole of `grid` (at least 8 by 6 cells) agree to the
 /// bit at the grid's own spacing, and the whole on one thread with it on every; points outside the
-/// data are NaN where the cells hold no-data.
+/// data are NaN where the cells hold no-data. `HeightsAt` the cell centers and `Fill` into a buffer
+/// give the points to the bit.
 inline void ExpectPointsTilesAndGridAgree(const Source& source, const RasterGrid& grid) {
     const double spacing = grid.PixelSize();
     Raster<float> whole = grid.MakeRaster();
@@ -40,14 +42,25 @@ inline void ExpectPointsTilesAndGridAgree(const Source& source, const RasterGrid
             }
         }
     }
+    std::vector<Vec2d> centers;
     for (std::size_t row = 0; row < whole.Height(); ++row) {
         for (std::size_t col = 0; col < whole.Width(); ++col) {
-            const Vec2d center = whole.CellCenter(col, row);
-            const float point = source.HeightAt(center.x, center.y, spacing);
-            const float cell = whole(col, row);
-            ASSERT_TRUE(SameBits(point, cell) || (std::isnan(point) && whole.IsNoData(cell)))
-                << col << "," << row;
+            centers.push_back(whole.CellCenter(col, row));
         }
+    }
+    std::vector<float> batch(centers.size());
+    source.HeightsAt(Span<const Vec2d>(centers), Span<float>(batch), spacing);
+    std::vector<float> buffer(centers.size());
+    source.Fill(grid, Span<float>(buffer), spacing, 0);
+    for (std::size_t i = 0; i < centers.size(); ++i) {
+        const float point = source.HeightAt(centers[i].x, centers[i].y, spacing);
+        const float cell = whole.Values()[i];
+        ASSERT_TRUE(SameBits(point, cell) || (std::isnan(point) && whole.IsNoData(cell)))
+            << "cell " << i;
+        ASSERT_TRUE(SameBits(batch[i], point) || (std::isnan(batch[i]) && std::isnan(point)))
+            << "batch, cell " << i;
+        ASSERT_TRUE(SameBits(buffer[i], point) || (std::isnan(buffer[i]) && std::isnan(point)))
+            << "buffer, cell " << i;
     }
 }
 

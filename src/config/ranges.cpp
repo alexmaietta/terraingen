@@ -7,6 +7,7 @@
 #include "terraingen/config/validate.h"
 #include "util/text.h"
 
+#include <cctype>
 #include <cmath>
 
 namespace terraingen::config {
@@ -36,6 +37,19 @@ std::string DescribeInterval(const FieldRange& range) {
     return "above " + low + (range.exclusiveMaximum ? " and below " : " and at most ") + high;
 }
 
+/// `count` items, in words: "1 item", "3 items".
+std::string Items(std::size_t count) {
+    return std::to_string(count) + (count == 1 ? " item" : " items");
+}
+
+/// `text` as a sentence: its first letter capitalized and a period after it.
+std::string Sentence(std::string text) {
+    if (!text.empty()) {
+        text[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(text[0])));
+    }
+    return text + ".";
+}
+
 }  // namespace
 
 std::string DescribeRange(const FieldRange& range, std::string_view unit) {
@@ -55,9 +69,50 @@ std::string DescribeRange(const FieldRange& range, std::string_view unit) {
     return unit.empty() ? text : text + " " + std::string(unit);
 }
 
+std::string RangeRule(const FieldRange& range, std::string_view unit) {
+    if (!range.Bounded()) {
+        return {};
+    }
+    const std::string allowed = DescribeRange(range, unit);
+    return allowed == "not negative" ? "must not be negative" : "must be " + allowed;
+}
+
+std::string DescribeLength(const FieldRange& range) {
+    if (!range.Counted()) {
+        return {};
+    }
+    if (!range.maxLength) {
+        return "at least " + Items(*range.minLength);
+    }
+    const std::size_t fewest = range.minLength.value_or(0);
+    if (fewest == *range.maxLength) {
+        return "exactly " + Items(fewest);
+    }
+    return std::to_string(fewest) + (range.lengthAtBounds ? " or " : " to ") +
+           Items(*range.maxLength);
+}
+
+std::string FieldHelp(std::string_view description, std::string_view unit, const FieldRange& range,
+                      bool list) {
+    std::string help(description);
+    const auto add = [&](const std::string& sentence) {
+        help += (help.empty() ? "" : " ") + sentence;
+    };
+    if (range.Counted()) {
+        add("Holds " + DescribeLength(range) + ".");
+    }
+    if (range.Bounded()) {
+        add(Sentence((list ? "each " : "") + RangeRule(range, unit)));
+    }
+    if (range.required) {
+        add("Required.");
+    }
+    return help;
+}
+
 void CheckRange(double value, const FieldRange& range, std::string_view unit,
                 const std::string& path) {
-    if (!range.minimum && !range.maximum) {
+    if (!range.Bounded()) {
         CheckFinite(value, path);
         return;
     }
@@ -68,13 +123,18 @@ void CheckRange(double value, const FieldRange& range, std::string_view unit,
     if (std::isfinite(value) && aboveMinimum && belowMaximum) {
         return;
     }
-    std::string allowed = DescribeRange(range, unit);
-    if (allowed == "not negative") {
-        allowed = "not be negative";
-    } else {
-        allowed = "be " + allowed;
+    throw ConfigError(path, RangeRule(range, unit) + ", got " + Bound(value));
+}
+
+void CheckLength(std::size_t count, const FieldRange& range, const std::string& path) {
+    const std::size_t fewest = range.minLength.value_or(0);
+    const bool fits = range.lengthAtBounds
+                          ? count == fewest || count == range.maxLength
+                          : count >= fewest && (!range.maxLength || count <= *range.maxLength);
+    if (!fits) {
+        throw ConfigError(path,
+                          "must hold " + DescribeLength(range) + ", got " + std::to_string(count));
     }
-    throw ConfigError(path, "must " + allowed + ", got " + Bound(value));
 }
 
 void CheckConfigRanges(const ConfigSpec& config) {

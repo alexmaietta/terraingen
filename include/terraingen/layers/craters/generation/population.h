@@ -8,7 +8,7 @@
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/generation/spacing.h"
-#include "terraingen/sources/field.h"
+#include "terraingen/layers/field.h"
 #include "terraingen/util/cells.h"
 #include "terraingen/util/surface.h"
 
@@ -54,7 +54,7 @@ CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band
 /// The craters of one cell in the order drawn, with their indices ordered by y so the craters of a
 /// row range are found by binary search.
 struct CellCraters {
-    CraterList craters;
+    CraterList craters;              ///< The craters in the order drawn.
     std::vector<std::uint32_t> byY;  ///< Indices into `craters` by increasing y, then index.
     double maxDiameter = 0.0;        ///< The largest diameter, in meters; 0 without craters.
 
@@ -142,24 +142,17 @@ void ValidateCraterGenerationOptions(const CraterGenerationOptions& options);
 double ResolveDMax(double dMax, const SizeFrequencyDistribution& density);
 
 /// The smallest diameter in [`dMin`, `dMax`) meters from which `density` expects about `count`
-/// craters over `area` m^2, found by bisection in log diameter; `dMin` if even that expects fewer.
-///
-/// Raising `dMin` to it bounds the count while keeping the distribution's shape and tile joins.
-/// @throws std::invalid_argument unless `count` and `area` are positive and finite and
-/// 0 < `dMin` < `dMax`.
+/// craters over `area` m^2; `dMin` if even that expects fewer.
+/// @throws std::invalid_argument unless `count` and `area` are positive and 0 < `dMin` < `dMax`.
 /// @throws std::domain_error if the interval leaves the density's valid range.
 double CountLimitDiameter(const SizeFrequencyDistribution& density, double area, double count,
                           double dMin, double dMax);
 
-/// Generates the craters of a density whose centers lie in `region` (surface coordinates) or
-/// within `marginRadii` radii of it.
-///
-/// Craters are drawn per cell of each size band from substreams keyed by (`seed`, band, cell), so
-/// tiles join exactly, `dMin` and `dMax` do not move craters in whole bands, and the age model
-/// never moves a crater. Order: band, cell, index.
+/// Generates the craters of a density centered in `region` (surface coordinates) or within
+/// `marginRadii` radii of it, in band, cell and index order; tiles join exactly.
 /// @param density A `Density` distribution valid over [`dMin`, `dMax`), or extrapolating.
-/// @throws std::invalid_argument for invalid options, an empty or non-finite region, a density that
-/// is not a `Density`, or an expected count above `maxExpectedCraters`.
+/// @throws std::invalid_argument for invalid options, a bad region or density kind, or more
+/// expected craters than `maxExpectedCraters`.
 /// @throws std::domain_error if the diameter interval leaves the density's valid range.
 CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
                            const SizeFrequencyDistribution& density, const CraterAgeModel& ages,

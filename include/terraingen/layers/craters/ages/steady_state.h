@@ -18,12 +18,10 @@ namespace terraingen {
 /// formation rate of `chronology` over [0, lifetime].
 class SteadyStateAges final : public CraterAgeModel {
   public:
-    /// @param productionRate A `ProductionRate` distribution, such as
-    /// `ExtendedNeukumProductionFunction`.
+    /// The ages on a surface `ageGyr` Gyr old.
+    /// @param productionRate A `ProductionRate` distribution.
     /// @param equilibrium A `Density` distribution, such as `TraskEquilibrium`.
-    /// @param ageGyr Surface age in Gyr.
-    /// @param chronology N(>=1 km) per m^2 by age, such as `NeukumLunarChronology`; ages are drawn
-    /// in proportion to its rate.
+    /// @param chronology N(>=1 km) per m^2 by age; ages are drawn in proportion to its rate.
     /// @throws std::invalid_argument for null or mismatched kinds, or an empty `chronology`.
     /// @throws std::domain_error if `chronology` rejects `ageGyr`.
     SteadyStateAges(std::shared_ptr<const SizeFrequencyDistribution> productionRate,

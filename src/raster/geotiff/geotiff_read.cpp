@@ -5,7 +5,7 @@
 #include "raster/geotiff/tiff_codecs.h"
 #include "raster/geotiff/tiff_format.h"
 
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/log.h"
 
 #include <algorithm>
@@ -683,6 +683,25 @@ Raster<float> WindowRaster(const GeoTiffInfo& info, const PixelWindow& cells) {
     return raster;
 }
 
+/// Reads and decodes the chunk at column `cx` and row `cy` of chunks holding band `band`, and
+/// copies its cells of `window` into `raster`, which holds the window; `file`, if given, is held
+/// while the stored bytes are read.
+void ReadChunkInto(TiffReader& reader, const Layout& layout, std::size_t band, std::size_t cx,
+                   std::size_t cy, const PixelWindow& window, Raster<float>& raster,
+                   std::mutex* file) {
+    const std::size_t chunk = ChunkIndex(layout, band, cx, cy);
+    std::vector<std::uint8_t> raw;
+    if (file != nullptr) {
+        const std::lock_guard<std::mutex> lock(*file);
+        raw = StoredBytes(reader, layout, chunk);
+    } else {
+        raw = StoredBytes(reader, layout, chunk);
+    }
+    const std::size_t rows = ChunkRows(layout, cy);
+    CopyChunk(DecodeChunk(reader, layout, chunk, std::move(raw), rows), layout, cx, cy, rows,
+              SampleIndex(layout, band), window, raster);
+}
+
 }  // namespace
 
 std::size_t detail::DecodedChunkCount() {
@@ -726,19 +745,11 @@ Raster<float> GeoTiffBlockReader::ReadBlock(std::size_t col, std::size_t row) co
                                     ") is beyond the " + std::to_string(layout.across) + " x " +
                                     std::to_string(layout.down) + " blocks of the image");
     }
-    const std::size_t chunk = ChunkIndex(layout, state.band, col, row);
-    std::vector<std::uint8_t> raw;
-    {
-        const std::lock_guard<std::mutex> lock(state.file);
-        raw = StoredBytes(state.reader, layout, chunk);
-    }
     const PixelWindow cells{
         col * layout.chunkWidth, std::min((col + 1) * layout.chunkWidth, info.width),
         row * layout.chunkHeight, std::min((row + 1) * layout.chunkHeight, info.height)};
     Raster<float> block = WindowRaster(info, cells);
-    const std::size_t rows = ChunkRows(layout, row);
-    CopyChunk(DecodeChunk(state.reader, layout, chunk, std::move(raw), rows), layout, col, row,
-              rows, SampleIndex(layout, state.band), cells, block);
+    ReadChunkInto(state.reader, layout, state.band, col, row, cells, block, &state.file);
     return block;
 }
 
@@ -768,12 +779,9 @@ GeoTiff ReadGeoTiffWindow(const std::filesystem::path& path, std::size_t band,
     GeoTiff result{WindowRaster(info, cells), info.geoKeys};
     for (std::size_t cy = cells.rowBegin / layout.chunkHeight;
          cy <= (cells.rowEnd - 1) / layout.chunkHeight; ++cy) {
-        const std::size_t rows = ChunkRows(layout, cy);
         for (std::size_t cx = cells.colBegin / layout.chunkWidth;
              cx <= (cells.colEnd - 1) / layout.chunkWidth; ++cx) {
-            const std::size_t chunk = ChunkIndex(layout, band, cx, cy);
-            CopyChunk(DecodeChunk(reader, layout, chunk, StoredBytes(reader, layout, chunk), rows),
-                      layout, cx, cy, rows, SampleIndex(layout, band), cells, result.raster);
+            ReadChunkInto(reader, layout, band, cx, cy, cells, result.raster, nullptr);
         }
     }
     LogInfo("raster", "Read ", result.raster.Width(), "x", result.raster.Height(), " GeoTIFF ",

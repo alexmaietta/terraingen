@@ -4,7 +4,7 @@
 
 #include "layers/craters/shaping/resolved_state.h"
 #include "terraingen/layers/craters/shaping/apply.h"
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
 
 #include <algorithm>

@@ -47,11 +47,7 @@ struct PowerLawDiffusivity {
 void ValidatePowerLawDiffusivity(const PowerLawDiffusivity& law);
 
 /// A fresh crater profile worn by topographic diffusion, tabulated in the diffusion age
-/// tau = kappa t / D^2 (`CraterState::diffusion`) from 1e-5 to 0.5.
-///
-/// Heights are interpolated linearly in distance and log tau; craters older than the table keep
-/// its last shape. Simple craters share one table per fresh morphometry, complex ones get one per
-/// diameter, cached.
+/// tau = kappa t / D^2 from 1e-5 to 0.5; older craters keep the last shape.
 class DiffusedProfile final : public CraterProfile {
   public:
     /// @param reachRadii Radius of the solution domain, in crater radii; at least `fresh`'s reach.

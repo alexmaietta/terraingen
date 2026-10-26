@@ -60,33 +60,58 @@ struct Posts {
     std::size_t Size() const {
         return width * height;
     }
-
-    Vec2d Center(std::size_t col, std::size_t row) const {
-        return transform.PixelToWorld(static_cast<double>(col) + 0.5,
-                                      static_cast<double>(row) + 0.5);
-    }
 };
 
-/// 1 at each post where `source` has data at `spacing`, 0 elsewhere, filled a strip of rows at a
-/// time.
-std::vector<std::uint8_t> DataMask(const Source& source, const Posts& posts, double spacing) {
-    std::vector<std::uint8_t> data(posts.Size(), 0);
+/// Where the earlier source has data on the posts, and how far the later source is below it.
+struct Sampled {
+    std::vector<std::uint8_t> data;  ///< 1 at each post where the earlier source has data.
+    /// The earlier source's height less the later one's at each post where both have data, NaN
+    /// elsewhere.
+    std::vector<float> difference;
+};
+
+/// `earlier` and `later` filled at `spacing` on the posts a strip of rows at a time, `later` only
+/// in the strips where `earlier` has data.
+Sampled SampleSources(const Source& earlier, const Source& later, const Posts& posts,
+                      double spacing) {
+    Sampled sampled{std::vector<std::uint8_t>(posts.Size(), 0),
+                    std::vector<float>(posts.Size(), std::numeric_limits<float>::quiet_NaN())};
     for (std::size_t top = 0; top < posts.height; top += kStripRows) {
         const std::size_t rows = std::min(kStripRows, posts.height - top);
-        Raster<float> strip(posts.width, rows);
+        Raster<float> above(posts.width, rows);
         GeoTransform transform = posts.transform;
         const Vec2d origin = posts.transform.PixelToWorld(0.0, static_cast<double>(top));
         transform.originX = origin.x;
         transform.originY = origin.y;
-        strip.SetTransform(transform);
-        source.Fill(strip, spacing);
+        above.SetTransform(transform);
+        earlier.Fill(above, spacing);
+        bool any = false;
         for (std::size_t row = 0; row < rows; ++row) {
             for (std::size_t col = 0; col < posts.width; ++col) {
-                data[(top + row) * posts.width + col] = strip.IsMissing(strip(col, row)) ? 0 : 1;
+                const bool has = !above.IsMissing(above(col, row));
+                sampled.data[(top + row) * posts.width + col] = has ? 1 : 0;
+                any = any || has;
+            }
+        }
+        if (!any) {
+            continue;
+        }
+        Raster<float> below(posts.width, rows);
+        below.SetTransform(transform);
+        later.Fill(below, spacing);
+        for (std::size_t row = 0; row < rows; ++row) {
+            for (std::size_t col = 0; col < posts.width; ++col) {
+                const float a = above(col, row);
+                const float b = below(col, row);
+                if (!above.IsMissing(a) && !below.IsMissing(b) && std::isfinite(a) &&
+                    std::isfinite(b)) {
+                    sampled.difference[(top + row) * posts.width + col] =
+                        static_cast<float>(static_cast<double>(a) - static_cast<double>(b));
+                }
             }
         }
     }
-    return data;
+    return sampled;
 }
 
 /// 1 at each post within `radius` posts along both axes of a post without data.
@@ -633,8 +658,7 @@ double SeamField::At(double x, double y) const {
     const auto post = [this](double col, double row) {
         return Post(static_cast<std::ptrdiff_t>(col), static_cast<std::ptrdiff_t>(row));
     };
-    return *InterpolateLattice(fx, fy, ResampleMethod::CatmullRom, post,
-                               [](float) { return false; });
+    return *InterpolateLattice(fx, fy, ResampleMethod::Cubic, post, [](float) { return false; });
 }
 
 SeamField BuildSeamField(const Source& earlier, const Source& later, const RasterGrid& grid,
@@ -648,7 +672,8 @@ SeamField BuildSeamField(const Source& earlier, const Source& later, const Raste
                       std::hypot(transform.pixelWidth, transform.colRotation),
                       std::hypot(transform.rowRotation, transform.pixelHeight), transform};
     const double spacing = grid.PixelSize();
-    const std::vector<std::uint8_t> data = DataMask(earlier, posts, spacing);
+    const Sampled sampled = SampleSources(earlier, later, posts, spacing);
+    const std::vector<std::uint8_t>& data = sampled.data;
     const auto has = [](std::uint8_t value) { return value != 0; };
     if (std::all_of(data.begin(), data.end(), has) || std::none_of(data.begin(), data.end(), has)) {
         return {};
@@ -658,16 +683,8 @@ SeamField BuildSeamField(const Source& earlier, const Source& later, const Raste
     for (std::size_t row = 0; row < posts.height; ++row) {
         for (std::size_t col = 0; col < posts.width; ++col) {
             const std::size_t k = row * posts.width + col;
-            if (data[k] == 0 || band[k] == 0) {
-                continue;
-            }
-            const Vec2d center = posts.Center(col, row);
-            const float above = earlier.HeightAt(center.x, center.y, spacing);
-            const float below = later.HeightAt(center.x, center.y, spacing);
-            if (std::isfinite(above) && std::isfinite(below)) {
-                field.Set(
-                    col, row,
-                    static_cast<float>(static_cast<double>(above) - static_cast<double>(below)));
+            if (data[k] != 0 && band[k] != 0 && !std::isnan(sampled.difference[k])) {
+                field.Set(col, row, sampled.difference[k]);
             }
         }
     }

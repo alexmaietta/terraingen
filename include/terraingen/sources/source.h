@@ -8,6 +8,7 @@
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/geometry.h"
+#include "terraingen/util/span.h"
 
 #include <limits>
 #include <optional>
@@ -61,18 +62,46 @@ class Source {
         Fill(heights, RasterGrid::FromRaster(heights).PixelSize(), 0);
     }
 
+    /// `Fill` of the cells of `grid` into `heights`, row-major from row 0, NaN where the source
+    /// has no data. It fills a raster of `grid` and copies it into `heights`.
+    /// @param spacing Sample spacing in the source's units.
+    /// @param threads Threads to fill over; 0 for every hardware thread.
+    /// @throws std::invalid_argument for `heights` not of `grid`'s size.
+    void Fill(const RasterGrid& grid, Span<float> heights, double spacing, unsigned threads) const;
+
     /// The height in meters at world point (`x`, `y`) at a sample spacing of `spacing` in the
     /// source's units, or NaN where the source has no data: what `Fill` gives a cell centered
     /// there at that spacing, to the same bits.
     virtual float HeightAt(double x, double y, double spacing) const = 0;
 
-    /// The cell size in CRS units (degrees in longitude and latitude) of the data giving the
-    /// height at world point (`x`, `y`) before any upsampling, below which the source resolves
-    /// no features; infinity where no measured data gives it, the default.
+    /// Sets each of `heights` to `HeightAt` the point of `points` at its index, to the same bits;
+    /// the default calls `HeightAt` point by point.
+    /// @throws std::invalid_argument for spans of different sizes.
+    virtual void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const;
+
+    /// The cell size in CRS units (degrees in longitude and latitude) of the measured data giving
+    /// the height at world point (`x`, `y`), or its effective pixel size, below which the source
+    /// resolves no features; infinity where no measured data gives it, as for synthetic heights,
+    /// the default, and where the source has no height.
     virtual double ResolutionAt(double /*x*/, double /*y*/) const {
         return std::numeric_limits<double>::infinity();
     }
+
+    /// The spacing in CRS units of the posts giving the height at world point (`x`, `y`) before
+    /// any upsampling, measured or generated; infinity where no posts give it, as where heights
+    /// are evaluated at every point, the default, and where the source has no height.
+    virtual double PostSpacingAt(double /*x*/, double /*y*/) const {
+        return std::numeric_limits<double>::infinity();
+    }
 };
+
+namespace detail {
+
+/// Checks that `heights` holds one height per point of `points`, as `Source::HeightsAt` needs.
+/// @throws std::invalid_argument for spans of different sizes.
+void RequireHeightPerPoint(Span<const Vec2d> points, Span<float> heights);
+
+}  // namespace detail
 
 /// The grid `source` covers, or none for a source without bounds (a grid without cells).
 inline std::optional<RasterGrid> BoundedGrid(const Source& source) {

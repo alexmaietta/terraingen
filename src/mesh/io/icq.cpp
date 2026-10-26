@@ -3,7 +3,6 @@
 #include "terraingen/mesh/io/icq.h"
 
 #include "terraingen/mesh/shape_model.h"
-#include "util/files.h"
 #include "util/text.h"
 
 #include <array>

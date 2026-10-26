@@ -53,7 +53,7 @@ def test_generate_from_config_fills_finite_varied_heights(generated):
 
 
 def test_generate_from_config_returns_the_crater_table(generated):
-    craters = generated.placed_craters().table
+    craters = terraingen.placed_craters(generated.generator, generated.grids[0].grid).table
     assert set(craters) == CRATER_COLUMNS
     assert (craters["depth_ratio"] > 0).all() and (craters["freshness"] <= 1).all()
     assert len(craters["x"]) > 0
@@ -62,7 +62,7 @@ def test_generate_from_config_returns_the_crater_table(generated):
 
 
 def test_generate_from_config_returns_the_boulder_table(generated):
-    placed = generated.placed_boulders()
+    placed = terraingen.placed_boulders(generated.generator, generated.grids[0].grid)
     assert len(placed.table["x"]) > 0 and placed.table["diameter"].min() >= 0.5
     assert len(placed.models) == 0 and generated.grids[0].albedo == []
 
@@ -149,8 +149,10 @@ def test_generate_from_config_returns_each_output_once_per_grid(tmp_path, small_
     heights = grid.heights.values
     heights[0, 0] = 1234.0
     assert outputs.grid().heights.values[0, 0] == 1234.0, "a view of the result, not a copy"
-    assert np.array_equal(grid.craters.table["id"], outputs.placed_craters().table["id"])
-    assert len(grid.boulders.boulders) == len(outputs.placed_boulders().boulders)
+    craters = terraingen.placed_craters(outputs.generator, grid.grid)
+    boulders = terraingen.placed_boulders(outputs.generator, grid.grid)
+    assert np.array_equal(grid.craters.table["id"], craters.table["id"])
+    assert len(grid.boulders.boulders) == len(boulders.boulders)
     assert grid.mesh.positions.shape == (65 * 81, 3)
     assert grid.albedo == [] and grid.materials == [] and grid.photometry == []
     assert terraingen.write_outputs(config, outputs, tmp_path) == []
@@ -377,10 +379,24 @@ def test_generated_grids_know_their_grid_and_list_features_over_any(generated):
     (grid,) = [g.grid for g in generated.grids]
     assert (grid.width, grid.height) == (81, 65)
     half = terraingen.FlatSource(40, 32, 0.5).grid()
-    assert len(generated.placed_craters(half).craters) <= len(generated.placed_craters().craters)
-    assert len(generated.placed_craters(grid, spacing=4.0).craters) <= len(
-        generated.placed_craters(grid).craters
-    )
+    terrain = generated.generator
+    everywhere = len(terraingen.placed_craters(terrain, grid).craters)
+    assert len(terraingen.placed_craters(terrain, half).craters) <= everywhere
+    assert len(terraingen.placed_craters(terrain, grid, spacing=4.0).craters) <= everywhere
+
+
+def test_apply_layers_finishes_a_prefix_to_the_bits_of_evaluate(generated):
+    terrain = generated.generator
+    grid = generated.grids[0].grid
+    assert len(terrain.layers) >= 2
+    expected = terraingen.evaluate(terrain, threads=2, grid=grid)
+    for first in range(len(terrain.layers) + 1):
+        prefix = terraingen.TerrainGenerator(terrain.source, terrain.layers[:first], terrain.surface)
+        heights = terraingen.evaluate(prefix, threads=2, grid=grid)
+        assert terraingen.apply_layers(terrain, first, heights, threads=2) is None
+        assert np.asarray(heights).tobytes() == np.asarray(expected).tobytes()
+    with pytest.raises(ValueError):
+        terraingen.apply_layers(terrain, len(terrain.layers) + 1, expected)
 
 
 def test_build_mesh_cuts_out_boxes_and_hangs_skirts():

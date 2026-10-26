@@ -9,6 +9,7 @@ terraingen_add_library(
     dunes.cpp
     exposure.cpp
     fade.cpp
+    field.cpp
     ground.cpp
     layer.cpp
     material.cpp

@@ -2,7 +2,7 @@
 
 #include "terraingen/util/radial_shape.h"
 
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "util/checks.h"
 #include "util/cube_faces.h"
 

@@ -17,15 +17,9 @@ namespace terraingen {
 class TabulatedSfd final : public SizeFrequencyDistribution {
   public:
     /// The distribution through the table's points.
-    /// @param diameters At least two strictly increasing positive diameters, in `diameterUnit`
-    /// meters.
-    /// @param cumulative N(>=D) at each diameter, positive, finite and not increasing, per
-    /// `areaUnit` m^2.
-    /// @param diameterUnit Meters per table diameter unit.
-    /// @param areaUnit m^2 per table area unit.
-    /// @throws std::invalid_argument for fewer than two points, mismatched lengths, units or values
-    /// that are not positive and finite, diameters that do not strictly increase, or values that
-    /// increase.
+    /// @param diameters At least two strictly increasing positive diameters, in `diameterUnit` m.
+    /// @param cumulative N(>=D) per `areaUnit` m^2 at each diameter; positive and not increasing.
+    /// @throws std::invalid_argument for too few or mismatched points, or values out of range.
     TabulatedSfd(std::vector<double> diameters, std::vector<double> cumulative,
                  SfdKind kind = SfdKind::Density, double diameterUnit = 1.0, double areaUnit = 1.0);
 

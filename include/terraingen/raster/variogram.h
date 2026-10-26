@@ -11,15 +11,12 @@
 
 namespace terraingen {
 
-/// Whether cell (`col`, `row`) of `heights` holds a finite value that is not no-data.
-bool HasData(const Raster<float>& heights, std::size_t col, std::size_t row);
-
 /// Calls `visit(a, b)` with the heights of every pair of cells `lag` apart along rows and columns
 /// where both hold data.
 template <typename Visit>
 void ForEachLagPair(const Raster<float>& heights, std::size_t lag, const Visit& visit) {
     const auto pair = [&](std::size_t col, std::size_t row, std::size_t col2, std::size_t row2) {
-        if (HasData(heights, col, row) && HasData(heights, col2, row2)) {
+        if (!heights.IsMissing(heights(col, row)) && !heights.IsMissing(heights(col2, row2))) {
             visit(static_cast<double>(heights(col, row)), static_cast<double>(heights(col2, row2)));
         }
     };

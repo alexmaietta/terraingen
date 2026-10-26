@@ -131,6 +131,15 @@ Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid
 Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid,
                        const EvaluationOptions& options);
 
+/// Applies the layers of `generator` from index `first` onward to `heights`, a grid the caller
+/// kept, such as `Evaluate` of a generator holding only the first `first` layers; a caller that
+/// replaced layer `first` re-runs only it and the layers after, to the bits of `Evaluate`.
+/// @param first In [0, generator.layers.size()]; the size applies none.
+/// @throws std::invalid_argument as `Evaluate`, or for a `first` past the last layer.
+/// @throws std::runtime_error as `Evaluate`.
+void ApplyLayers(const TerrainGenerator& generator, std::size_t first, Raster<float>& heights,
+                 const EvaluationOptions& options = {});
+
 /// Evaluates `generator` over `grid` into a caller buffer, to the same bits as `Evaluate`.
 /// @param heights grid.width * grid.height heights in meters, row-major with row 0 first (north
 /// up), as `Raster` stores them.

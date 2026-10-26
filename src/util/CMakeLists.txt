@@ -7,7 +7,6 @@ terraingen_add_library(
     checks.cpp
     cube_sphere_cells.cpp
     fft.cpp
-    files.cpp
     surface.cpp
     log.cpp
     parallel.cpp

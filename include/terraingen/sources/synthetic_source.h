@@ -21,7 +21,7 @@ namespace terraingen {
 /// (`FractalStackAt`, measured from the origin on a plane, in 3D on a body), with no bounds.
 ///
 /// Without a `pixelSize` every point gets the noise evaluated there, at any spacing, and the
-/// source resolves everything (`ResolutionAt` is infinite). With one, the noise is sampled only
+/// source has no posts (`PostSpacingAt` is infinite). With one, the noise is sampled only
 /// at posts `pixelSize` apart, one at the origin, and the upsampler refines them, as for a DEM.
 /// An empty stack is flat at `elevation`.
 class SyntheticSource final : public Source {
@@ -56,8 +56,13 @@ class SyntheticSource final : public Source {
     /// The elevation plus the noise at (`x`, `y`), or the posts upsampled at `spacing`.
     float HeightAt(double x, double y, double spacing) const override;
 
-    /// The pixel size, or infinity without one.
-    double ResolutionAt(double x, double y) const override;
+    /// `HeightAt` each of `points`, the noise evaluated over them all at once, or the points off
+    /// the posts upsampled at once.
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
+
+    /// The pixel size, or infinity without one. `ResolutionAt` stays infinite: generated heights
+    /// hold no measured features.
+    double PostSpacingAt(double x, double y) const override;
 
     /// The noise stack.
     const std::vector<Fractal>& Fractals() const {

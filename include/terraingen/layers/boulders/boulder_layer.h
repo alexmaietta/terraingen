@@ -59,12 +59,8 @@ struct UnresolvedCover {
     }
 };
 
-/// Boulders scattered over the ground: between craters, in patches and richer on bedrock,
-/// plus blocks around fresh craters (which need `craters`).
-///
-/// Candidates are drawn per cell in size bands and thinned by a uniform keyed by each ID, so
-/// boulders depend only on position and agree on every grid, tile and point. Without
-/// `generateRandom` only the manual boulders are placed and no candidates are drawn.
+/// Boulders scattered over the ground, in patches and richer on bedrock, plus blocks around fresh
+/// craters; they depend only on position, so every grid, tile and point agrees.
 class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSource {
   public:
     /// A layer of only `boulders`, with `generateRandom` off: no random boulders or crater blocks.
@@ -75,15 +71,11 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
                                                 BoulderLayerOptions options = {},
                                                 TerrainBase base = {});
 
-    /// On a sphere, candidates are drawn in `CubeSphereCells`, distances are great-circle, and
-    /// relief and model placements are in each boulder's local east, north and up frame, its
-    /// origin on the datum below the boulder.
-    /// @param craters The crater layer whose craters throw blocks; may be null without ejecta or
-    /// without `generateRandom`.
-    /// @param base What the boulders lie on, the crater layer's surface, and the source, which with
-    /// `options.sourceResolvesPixels` holds the boulders it resolves.
-    /// @throws std::invalid_argument for invalid options, ejecta of random boulders without
-    /// `craters`, or a crater layer on another surface.
+    /// Builds the layer; on a sphere each boulder lies in its local east, north and up frame.
+    /// @param craters The layer whose craters throw blocks; may be null without ejecta.
+    /// @param base The surface, which must be the crater layer's, and the source.
+    /// @throws std::invalid_argument for invalid options, ejecta without `craters`, or a crater
+    /// layer on another surface.
     BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const CraterLayer> craters = nullptr,
                  TerrainBase base = {});
 
@@ -93,12 +85,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     BoulderLayer(BoulderLayerOptions options,
                  std::vector<std::shared_ptr<const CraterLayer>> craters, TerrainBase base);
 
-    /// The boulders centered in `region` (surface coordinates) or reaching it with their radius or
-    /// fillet, in a fixed order.
-    /// @param spacing Sample spacing in meters; boulders narrower than `fade.startSamples` samples
-    /// at it, which the heights leave out, are left out and models are marked at it; 0 keeps
-    /// every boulder.
-    /// @param ground Read under each boulder; needed with the exposure field.
+    /// The boulders centered in or reaching `region` (surface coordinates), in a fixed order.
+    /// @param spacing Sample spacing in meters; boulders too narrow to resolve at it are left out,
+    /// and 0 keeps every boulder.
+    /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     BoulderList Boulders(const Bounds2d& region, double spacing = 0.0,
                          const Ground* ground = nullptr) const;
@@ -108,10 +98,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     BoulderAbundance AbundanceAt(double x, double y, const Ground* ground = nullptr) const;
 
-    /// The share of a sample `spacing` meters across at surface (x, y) covered by boulders too
-    /// small to resolve (weighted by one minus `ResolutionWeight`) and its Poisson variance over
-    /// the sample, in visible plan area; none without `generateRandom`.
-    /// @param spacing Positive.
+    /// The plan-area share of a sample `spacing` meters across at surface (x, y) covered by
+    /// boulders too small to resolve, with its Poisson variance.
     /// @param ground Needed with the exposure field.
     /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
     UnresolvedCover UnresolvedCoverAt(double x, double y, double spacing,

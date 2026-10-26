@@ -87,6 +87,51 @@ TEST(FillHeights, WritesWhatEvaluateGivesToTheBitAndRejectsWrongSizes) {
     EXPECT_THROW(terraingen::FillHeights(terrain, grid, tooLong), std::invalid_argument);
 }
 
+TEST(ApplyLayers, FinishesTheEvaluationOfAnyPrefixToTheBitsOfEvaluate) {
+    const TerrainGenerator terrain = Datum();
+    const RasterGrid grid = terrain.source->Grid();
+    terraingen::EvaluationOptions options;
+    options.spacing = 3.0;
+    options.threads = 2;
+    const auto expected = Evaluate(terrain, grid, options);
+    for (std::size_t first = 0; first <= terrain.layers.size(); ++first) {
+        TerrainGenerator prefix = terrain;
+        prefix.layers.resize(first);
+        auto heights = Evaluate(prefix, grid, options);
+        terraingen::ApplyLayers(terrain, first, heights, options);
+        ExpectSameRaster(heights, expected);
+    }
+}
+
+TEST(ApplyLayers, RerunsOnlyAReplacedLayerAndThoseAfterIt) {
+    TerrainGenerator terrain = Rolling();
+    const RasterGrid grid = terrain.source->Grid();
+    TerrainGenerator prefix = terrain;
+    prefix.layers.resize(1);
+    const auto kept = Evaluate(prefix, grid);
+    terrain.layers[1] = Smoothed().layers[1];
+    std::vector<std::size_t> applied;
+    terraingen::EvaluationOptions options;
+    options.onLayer = [&](std::size_t layer, double) { applied.push_back(layer); };
+    auto heights = kept;
+    terraingen::ApplyLayers(terrain, 1, heights, options);
+    EXPECT_EQ(applied, (std::vector<std::size_t>{1}));
+    ExpectSameRaster(heights, Evaluate(Smoothed(), grid));
+}
+
+TEST(ApplyLayers, RejectsAFirstLayerPastTheLastAndBadSpacings) {
+    const TerrainGenerator terrain = Rolling();
+    auto heights = Evaluate(terrain);
+    const auto before = heights;
+    terraingen::ApplyLayers(terrain, terrain.layers.size(), heights);
+    ExpectSameRaster(heights, before);
+    EXPECT_THROW(terraingen::ApplyLayers(terrain, terrain.layers.size() + 1, heights),
+                 std::invalid_argument);
+    EXPECT_THROW(
+        terraingen::ApplyLayers(terrain, 0, heights, terraingen::EvaluationOptions{}.Spacing(-1.0)),
+        std::invalid_argument);
+}
+
 TEST(Evaluate, TilesEqualTheWholeTerrain) {
     const TerrainGenerator terrain = Rolling();
     const auto whole = Evaluate(terrain);

@@ -101,11 +101,9 @@ constexpr UVec3 PerlinLatticeKey3(uint32_t x, uint32_t y, uint32_t z, uint32_t s
     return key;
 }
 
-/// The `pcg3d` key of a corner of 3D value noise: `seedKey`, the hashed seed
-/// (`PcgHash(seed)`), is XORed into z. Frozen for reproducibility.
-/// @param x Lattice x, wrapped to 32 bits.
-/// @param y Lattice y, wrapped to 32 bits.
-/// @param z Lattice z, wrapped to 32 bits.
+/// The `pcg3d` key of a corner of 3D value noise, `seedKey` XORed into z; frozen for
+/// reproducibility.
+/// @param x,y,z Lattice coordinates, wrapped to 32 bits.
 /// @param seedKey `PcgHash` of the noise seed.
 constexpr UVec3 ValueLatticeKey3(uint32_t x, uint32_t y, uint32_t z, uint32_t seedKey) {
     const UVec3 key = {x, y, z ^ seedKey};

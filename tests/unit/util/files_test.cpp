@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "util/files.h"
+#include "util/text.h"
 
 #include <gtest/gtest.h>
 

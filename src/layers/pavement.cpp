@@ -15,6 +15,7 @@
 #include <limits>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace terraingen {
@@ -28,8 +29,6 @@ constexpr double kFineWarpScale = 0.75;
 constexpr double kFineWarp = 0.35;
 /// Cells searched each way for the nearest plate sites; enough for any jitter in [0, 1].
 constexpr std::int64_t kRings = 2;
-/// The most crack octaves.
-constexpr int kMaxOctaves = 8;
 
 /// One plate: its site and the plane it lies in.
 struct Site {
@@ -118,10 +117,11 @@ void ValidatePavementOptions(const PavementOptions& options) {
         throw std::invalid_argument("Pavement maxTiltDegrees must be in [0, 90) deg");
     }
     RequireUnitInterval(options.jitter, "Pavement jitter");
-    if (!(options.octaves >= 1 && options.octaves <= kMaxOctaves && options.lacunarity > 1.0 &&
-          std::isfinite(options.lacunarity) && options.gain > 0.0 && options.gain <= 1.0)) {
-        throw std::invalid_argument(
-            "Pavement needs 1 to 8 octaves, a lacunarity above 1 and a gain in (0, 1]");
+    if (!(options.octaves >= 1 && options.octaves <= kMaxPavementOctaves &&
+          options.lacunarity > 1.0 && std::isfinite(options.lacunarity) && options.gain > 0.0 &&
+          options.gain <= 1.0)) {
+        throw std::invalid_argument("Pavement needs 1 to " + std::to_string(kMaxPavementOctaves) +
+                                    " octaves, a lacunarity above 1 and a gain in (0, 1]");
     }
     RequireFinite(options.anchor.x, "Pavement anchor x");
     RequireFinite(options.anchor.y, "Pavement anchor y");

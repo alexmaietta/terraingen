@@ -151,8 +151,8 @@ TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
     EXPECT_EQ(craters.apply.fade.startSamples, 1.5);
     EXPECT_EQ(craters.apply.fade.endSamples, 6.0);
     EXPECT_EQ(craters.apply.fade.shape, terraingen::BlendShape::Linear);
-    EXPECT_EQ(craters.densityMap->minDiameter, 2.0);
-    EXPECT_EQ(craters.densityMap->maxDiameter, 50.0);
+    EXPECT_EQ(craters.densityMap->map.minDiameter, 2.0);
+    EXPECT_EQ(craters.densityMap->map.maxDiameter, 50.0);
     EXPECT_FALSE(craters.sourceResolvesPixels) << "null holds none";
     const auto& secondaries = std::get<terraingen::SecondaryLayerSpec>(config.layers[1]);
     EXPECT_EQ(secondaries.secondaries.minDiameter, 0.5);
@@ -182,7 +182,7 @@ TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
     EXPECT_EQ(boulders.rendering.modelThreshold.maxPixels, 40.0);
     EXPECT_EQ(boulders.rendering.reliefRange.minDiameter, 0.1);
     EXPECT_EQ(boulders.rendering.reliefRange.maxDiameter, 2.0);
-    EXPECT_EQ(spec.slopeMap->referenceDiameter, 2.0);
+    EXPECT_EQ(spec.slopeMap->map.referenceDiameter, 2.0);
     EXPECT_EQ(boulders.sourceResolvesPixels, 5.0);
     EXPECT_EQ(std::get<terraingen::NoiseLayerSpec>(config.layers[3]).sourceResolvesPixels, 8.0);
     EXPECT_FALSE(std::get<terraingen::DuneLayerSpec>(config.layers[4]).dunes.sourceResolvesPixels);

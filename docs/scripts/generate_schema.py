@@ -96,21 +96,6 @@ def cell(text):
     return text.replace("|", "\\|").replace("\n", " ")
 
 
-def number(value):
-    return f"{value:g}"
-
-
-def range_text(field):
-    """A field's range in interval notation, or empty."""
-    low = field.get("minimum")
-    high = field.get("maximum")
-    if low is None and high is None:
-        return ""
-    left = "(" if low is None or field.get("exclusive_minimum") else "["
-    right = ")" if high is None or field.get("exclusive_maximum") else "]"
-    return f"{left}{'-inf' if low is None else number(low)}, {'inf' if high is None else number(high)}{right}"
-
-
 class Reference:
     """The pages of the configuration reference, built from one schema."""
 
@@ -220,8 +205,6 @@ class Reference:
         groups = [f for f in fields if self.nested(f["schema"])[0] is not None]
         for f in plain:
             facts = [self.type_text(f["schema"], here), f"default {compact(f['default'])}"]
-            if range_text(f):
-                facts.append(f"range {range_text(f)}")
             if f["unit"]:
                 facts.append(f"unit {f['unit']}")
             lines += [
@@ -292,8 +275,8 @@ class Reference:
             "the parser reads, so it always matches the library; the [raw schema](schema.md) is",
             "the same information as JSON, for editors and tools.",
             "",
-            "Ranges are the values each field accepts on its own; validation also checks the rules",
-            "that tie fields together.",
+            "Each description ends with what the field accepts on its own, its range, length and",
+            "whether it is required; validation also checks the rules that tie fields together.",
             "",
             "## Top level",
             "",

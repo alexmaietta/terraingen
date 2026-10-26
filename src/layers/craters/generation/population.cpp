@@ -7,8 +7,8 @@
 #include "terraingen/random/samplers.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
-#include "util/bisection.h"
 #include "util/checks.h"
+#include "util/numerics.h"
 
 #include <algorithm>
 #include <cmath>

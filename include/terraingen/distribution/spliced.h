@@ -27,14 +27,10 @@ struct SfdPiece {
 /// within a relative tolerance.
 class SplicedSfd final : public SizeFrequencyDistribution {
   public:
-    /// The distribution spliced from `pieces`, valid from the first one's `start` to
-    /// `maxDiameter`.
-    /// @param pieces At least one piece, with strictly increasing `start`, and each distribution
-    /// valid (or extrapolating) over its interval.
-    /// @param maxDiameter The largest valid diameter, in meters.
+    /// The distribution of `pieces`, valid from the first `start` to `maxDiameter` meters.
+    /// @param pieces At least one piece, with strictly increasing `start`.
     /// @param tolerance Relative mismatch allowed at a join.
-    /// @throws std::invalid_argument for malformed pieces, mixed kinds, a piece not valid over its
-    /// interval, or a join that rises or is discontinuous by more than `tolerance`.
+    /// @throws std::invalid_argument for malformed or mixed pieces, or a join that rises or breaks.
     explicit SplicedSfd(std::vector<SfdPiece> pieces,
                         double maxDiameter = std::numeric_limits<double>::infinity(),
                         double tolerance = 1e-3);

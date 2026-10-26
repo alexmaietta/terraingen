@@ -22,6 +22,7 @@
 #include "terraingen/distribution/viper.h"
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/boulders/boulder_layer.h"
+#include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
@@ -148,23 +149,18 @@ struct FieldSpec {
     bool periodicLongitude = false;    ///< The GeoTIFF's x is longitude repeating every 360 deg.
 };
 
-/// A density map (`DensityMap`) of a crater or boulder population.
+/// A density map (`DensityMap`) of a crater or boulder population: `map` with its field read from
+/// `field`.
 struct DensityMapSpec {
     FieldSpec field{};
-    DensityMeasure measure = DensityMeasure::Scale;
-    double minDiameter = 0.0;             ///< Meters.
-    std::optional<double> maxDiameter{};  ///< Meters; unset for no upper limit.
-    double areaUnit = 1.0;                ///< Square meters per map area unit.
-    bool total = true;
+    DensityMap map{};  ///< Its `field` is left null; `field` gives it.
 };
 
-/// A size slope map (`SizeSlopeMap`) of a boulder population.
+/// A size slope map (`SizeSlopeMap`) of a boulder population: `map` with its field read from
+/// `field`.
 struct SizeSlopeMapSpec {
     FieldSpec field{};
-    SizeSlopeMeasure measure = SizeSlopeMeasure::Exponent;
-    double referenceDiameter = 1.0;  ///< Meters.
-    double minExponent = 1.0;
-    double maxExponent = 6.0;
+    SizeSlopeMap map{};  ///< Its `field` is left null; `field` gives it.
 };
 
 /// Source "shape_model": a "shape_model" body's own labels refined by `upsampling`
@@ -348,12 +344,12 @@ enum class CraterMorphometryFit {
     Mars,   ///< "mars": `MarsFreshCraterMorphometry` and `MarsComplexCraterShape`.
 };
 
-/// Gives `CraterLayerOptions::inherited`: the craters of a coarser level read from a crater list.
+/// Gives `CraterLayerOptions::inherited`: `inherited` with the craters of a coarser level read
+/// from the crater list `path`.
 struct InheritedCratersSpec {
     /// A crater list (`ReadCraterList`), relative to the configuration's folder.
     std::string path{};
-    std::optional<double> minSourcePixels{};  ///< Unset follows the layer's source_resolves_px.
-    std::optional<double> maxSourcePixels{};  ///< Unset stamps every one from the minimum.
+    InheritedCraters inherited{};  ///< Its `craters` are left empty; `path` gives them.
 };
 
 /// Layer "craters": craters generated over the grid and applied to it (`CraterLayer`).

@@ -32,18 +32,15 @@
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/density_map.h"
+#include "terraingen/layers/field.h"
 #include "terraingen/layers/noise_layer.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/shape_model.h"
 #include "terraingen/pipeline/feature_lists.h"
-#include "terraingen/sources/field.h"
-#include "terraingen/sources/geotiff_source.h"
-#include "terraingen/sources/shape_model_source.h"
+#include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/sources/source_chain.h"
-#include "terraingen/sources/synthetic_source.h"
-#include "terraingen/sources/upsampling.h"
 #include "util/overloaded.h"
 #include "util/text.h"
 
@@ -75,7 +72,6 @@ using config::BuildRegionShape;
 using config::Child;
 using config::Element;
 using config::Resolve;
-using config::SurfaceSeams;
 using SfdPtr = std::shared_ptr<const SizeFrequencyDistribution>;
 using LayerPtr = std::shared_ptr<const Layer>;
 
@@ -279,133 +275,21 @@ std::shared_ptr<SizeFrequencyDistribution> BuildBoulderSizes(const BoulderSizesS
         spec);
 }
 
-/// The upsampler a spec names, its lengths in the surface's units.
-/// @param path The spec's JSON path, which errors are reported under.
-/// @throws ConfigError at `path` for settings a registered type rejects.
-std::shared_ptr<const Upsampler> BuildUpsampler(const UpsamplingSpec& spec, const Surface& surface,
-                                                const std::string& path) {
-    if (const std::optional<ResampleMethod> method = KernelUpsamplerMethod(spec.type)) {
-        return std::make_shared<KernelUpsampler>(*method);
-    }
-    if (spec.type == "diamond_square") {
-        DiamondSquareOptions options = spec.diamondSquare;
-        options.minPixelSize /= surface.UnitLength();
-        return At(path, [&] { return std::make_shared<DiamondSquareUpsampler>(options); });
-    }
-    return At(path, [&] {
-        return MakeRegisteredUpsampler(spec.type, spec.settings.empty() ? "{}" : spec.settings);
-    });
-}
-
-/// The source a spec describes, its lengths in the surface's units.
-/// @param path The spec's JSON path, which errors are reported under.
-/// @throws ConfigError at `path`, or below it, for what the sources reject.
-std::shared_ptr<const Source> BuildSource(const SourceSpec& spec,
-                                          const std::filesystem::path& directory,
-                                          const Surface& surface, const std::string& path) {
-    using Result = std::shared_ptr<const Source>;
-    const double unit = surface.UnitLength();
-    return std::visit(
-        Overloaded{
-            [&](const RasterSourceSpec& s) -> Result {
-                GeoTiffSourceOptions read = s.read;
-                if (read.upsampler) {
-                    throw ConfigError(Child(path, "upsampling"),
-                                      "gives the raster's upsampler; leave read.upsampler unset");
-                }
-                if (read.effectivePixelSize) {
-                    *read.effectivePixelSize /= unit;
-                }
-                read.upsampler = BuildUpsampler(s.upsampling, surface, Child(path, "upsampling"));
-                return At(path, [&] {
-                    return std::make_shared<GeoTiffSource>(Resolve(s.path, directory), read);
-                });
-            },
-            [&](const ChainSourceSpec& s) -> Result {
-                std::vector<Result> sources;
-                for (std::size_t n = 0; n < s.sources.size(); ++n) {
-                    sources.push_back(BuildSource(s.sources[n], directory, surface,
-                                                  Element(Child(path, "sources"), n)));
-                }
-                const ChainSeams seams = SurfaceSeams(s.seams, surface);
-                return At(path,
-                          [&] { return std::make_shared<SourceChain>(std::move(sources), seams); });
-            },
-            [&](const SyntheticSourceSpec& s) -> Result {
-                const std::optional<double> pixelSize = s.pixelSize;
-                const std::shared_ptr<const Upsampler> upsampler =
-                    s.upsampling ? BuildUpsampler(*s.upsampling, surface, Child(path, "upsampling"))
-                                 : nullptr;
-                return At(path, [&] {
-                    return std::make_shared<SyntheticSource>(StackFractals(s.stack),
-                                                             static_cast<float>(s.elevation),
-                                                             pixelSize, upsampler, surface);
-                });
-            },
-            [&](const ShapeModelSourceSpec& s) -> Result {
-                const std::shared_ptr<const Upsampler> upsampler =
-                    BuildUpsampler(s.upsampling, surface, Child(path, "upsampling"));
-                return At(path,
-                          [&] { return std::make_shared<ShapeModelSource>(surface, upsampler); });
-            },
-        },
-        spec);
-}
-
-/// A source in place of another, the same but for its resolution, which is infinite everywhere:
-/// synthetic heights hold no measured features.
-class UnmeasuredSource final : public Source {
-  public:
-    using Source::Fill;
-
-    explicit UnmeasuredSource(std::shared_ptr<const Source> source) : source_(std::move(source)) {}
-
-    RasterGrid Grid() const override {
-        return source_->Grid();
-    }
-    Vec2d ReferencePoint() const override {
-        return source_->ReferencePoint();
-    }
-    GeoKeys Keys() const override {
-        return source_->Keys();
-    }
-    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override {
-        source_->Fill(heights, spacing, threads);
-    }
-    float HeightAt(double x, double y, double spacing) const override {
-        return source_->HeightAt(x, y, spacing);
-    }
-
-  private:
-    std::shared_ptr<const Source> source_;
-};
-
-/// The source whose resolution layers read for what it already holds (`sourceResolvesPixels`):
-/// `built` itself for a raster or a shape model, null for a synthetic source, and for a chain the
-/// chain with its synthetic sources resolving nothing, or null when all of them are synthetic.
-/// @param built The source `BuildSource` built from `spec`.
-std::shared_ptr<const Source> MeasuredSource(const SourceSpec& spec,
-                                             const std::shared_ptr<const Source>& built) {
-    using Result = std::shared_ptr<const Source>;
-    return std::visit(
-        Overloaded{
-            [&](const RasterSourceSpec&) -> Result { return built; },
-            [](const SyntheticSourceSpec&) -> Result { return nullptr; },
-            [&](const ShapeModelSourceSpec&) -> Result { return built; },
-            [&](const ChainSourceSpec& s) -> Result {
-                const auto& members = static_cast<const SourceChain&>(*built).Sources();
-                std::vector<Result> sources;
-                bool measured = false;
-                for (std::size_t n = 0; n < s.sources.size(); ++n) {
-                    Result member = MeasuredSource(s.sources[n], members[n]);
-                    measured = measured || member != nullptr;
-                    sources.push_back(member ? std::move(member)
-                                             : std::make_shared<UnmeasuredSource>(members[n]));
-                }
-                return measured ? std::make_shared<SourceChain>(std::move(sources)) : nullptr;
-            },
-        },
-        spec);
+/// Whether `spec` holds measured data whose resolution layers read for what it already holds
+/// (`sourceResolvesPixels`): a raster or a shape model, or a chain holding one. Synthetic sources
+/// resolve nothing (`Source::ResolutionAt` is infinite), so a source without measured data is
+/// left out of the layers' base.
+bool HasMeasuredData(const SourceSpec& spec) {
+    return std::visit(Overloaded{
+                          [](const RasterSourceSpec&) { return true; },
+                          [](const SyntheticSourceSpec&) { return false; },
+                          [](const ShapeModelSourceSpec&) { return true; },
+                          [](const ChainSourceSpec& s) {
+                              return std::any_of(s.sources.begin(), s.sources.end(),
+                                                 HasMeasuredData);
+                          },
+                      },
+                      spec);
 }
 
 /// What a layer is built on: the source's reference point, the top-level crater layers so far (all
@@ -413,7 +297,7 @@ std::shared_ptr<const Source> MeasuredSource(const SourceSpec& spec,
 /// surface.
 struct LayerInputs {
     /// The surface, and the source's measured data that layers leave out what it resolves of
-    /// (`MeasuredSource`; null for none), whose reference point noise is measured from.
+    /// (`HasMeasuredData`; null for none), whose reference point noise is measured from.
     TerrainBase base;
     const std::filesystem::path& directory;
     const std::vector<std::shared_ptr<const CraterLayer>>& craters;
@@ -538,7 +422,7 @@ void CheckGolombekRappTerms(const BoulderLayerSpec& spec, const std::string& pat
 }
 
 /// @throws ConfigError at the field of an invalid boulder map, the Golombek-Rapp terms, or the
-/// layer for options its constructor would reject.
+/// ejecta without a crater layer before; the constructor checks the rest at the layer.
 void CheckBoulderOptions(const BoulderLayerSpec& spec, const BoulderLayerOptions& options,
                          const std::string& path, bool cratersBefore) {
     if (options.densityMap) {
@@ -555,7 +439,6 @@ void CheckBoulderOptions(const BoulderLayerSpec& spec, const BoulderLayerOptions
                               "to false to place only the manual ones");
         }
     }
-    At(path, [&] { ValidateBoulderLayerOptions(options); });
     if (options.generateRandom && options.ejecta.ThrowingDiameter() && !cratersBefore) {
         throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter_m"),
                           "ejecta need a crater layer before this one");
@@ -567,9 +450,12 @@ LayerPtr BuildLayerSpec(const BoulderLayerSpec& s, const std::string& path,
     BoulderLayerOptions options = BuildBoulderOptions(s, path, context.directory);
     CheckBoulderOptions(s, options, path, !context.craters.empty());
     const bool throws = options.generateRandom && options.ejecta.ThrowingDiameter().has_value();
-    return std::make_shared<BoulderLayer>(
-        std::move(options),
-        throws ? context.craters : std::vector<std::shared_ptr<const CraterLayer>>{}, context.base);
+    return At(path, [&] {
+        return std::make_shared<BoulderLayer>(
+            std::move(options),
+            throws ? context.craters : std::vector<std::shared_ptr<const CraterLayer>>{},
+            context.base);
+    });
 }
 
 LayerPtr BuildLayerSpec(const RoughnessLayerSpec& s, const std::string& path,
@@ -618,39 +504,44 @@ LayerPtr BuildLayerSpec(const MaskedLayerSpec& s, const std::string& path,
                                          context.base);
 }
 
-LayerPtr BuildLayerSpec(const DuneLayerSpec& s, const std::string&, const LayerInputs& context) {
-    return std::make_shared<DuneLayer>(s.dunes, context.base);
-}
-
-LayerPtr BuildLayerSpec(const BedformLayerSpec& s, const std::string&, const LayerInputs& context) {
-    return std::make_shared<BedformLayer>(s.bedforms, context.base);
-}
-
-LayerPtr BuildLayerSpec(const PavementLayerSpec& s, const std::string&,
+LayerPtr BuildLayerSpec(const DuneLayerSpec& s, const std::string& path,
                         const LayerInputs& context) {
-    return std::make_shared<PavementLayer>(s.pavement, context.base);
+    return At(path, [&] { return std::make_shared<DuneLayer>(s.dunes, context.base); });
 }
 
-LayerPtr BuildLayerSpec(const StrataLayerSpec& s, const std::string&, const LayerInputs& context) {
-    return std::make_shared<StrataLayer>(s.strata, context.base);
-}
-
-LayerPtr BuildLayerSpec(const SandShadowLayerSpec& s, const std::string&,
+LayerPtr BuildLayerSpec(const BedformLayerSpec& s, const std::string& path,
                         const LayerInputs& context) {
-    return std::make_shared<SandShadowLayer>(context.boulders, s.shadows, context.base);
+    return At(path, [&] { return std::make_shared<BedformLayer>(s.bedforms, context.base); });
 }
 
-LayerPtr BuildLayerSpec(const SandFillLayerSpec& s, const std::string&,
+LayerPtr BuildLayerSpec(const PavementLayerSpec& s, const std::string& path,
                         const LayerInputs& context) {
-    return std::make_shared<SandFillLayer>(s.sandFill, context.base);
+    return At(path, [&] { return std::make_shared<PavementLayer>(s.pavement, context.base); });
 }
 
-LayerPtr BuildLayerSpec(const ScaleLayerSpec& s, const std::string&, const LayerInputs&) {
-    return std::make_shared<ScaleLayer>(s.scale, s.offset);
+LayerPtr BuildLayerSpec(const StrataLayerSpec& s, const std::string& path,
+                        const LayerInputs& context) {
+    return At(path, [&] { return std::make_shared<StrataLayer>(s.strata, context.base); });
 }
 
-LayerPtr BuildLayerSpec(const ClampLayerSpec& s, const std::string&, const LayerInputs&) {
-    return std::make_shared<ClampLayer>(s.min, s.max);
+LayerPtr BuildLayerSpec(const SandShadowLayerSpec& s, const std::string& path,
+                        const LayerInputs& context) {
+    return At(path, [&] {
+        return std::make_shared<SandShadowLayer>(context.boulders, s.shadows, context.base);
+    });
+}
+
+LayerPtr BuildLayerSpec(const SandFillLayerSpec& s, const std::string& path,
+                        const LayerInputs& context) {
+    return At(path, [&] { return std::make_shared<SandFillLayer>(s.sandFill, context.base); });
+}
+
+LayerPtr BuildLayerSpec(const ScaleLayerSpec& s, const std::string& path, const LayerInputs&) {
+    return At(path, [&] { return std::make_shared<ScaleLayer>(s.scale, s.offset); });
+}
+
+LayerPtr BuildLayerSpec(const ClampLayerSpec& s, const std::string& path, const LayerInputs&) {
+    return At(path, [&] { return std::make_shared<ClampLayer>(s.min, s.max); });
 }
 
 LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerInputs& context) {
@@ -813,21 +704,17 @@ std::shared_ptr<const RadialShape> LoadShapeModel(const ShapeModelSurfaceSpec& s
 namespace config {
 
 GeneratorBuilder::GeneratorBuilder(const ConfigSpec& config, const std::filesystem::path& directory,
-                                   Surface surface, std::shared_ptr<const Source> external)
+                                   Surface surface, std::shared_ptr<const Source> source,
+                                   bool external)
     : config_(config), directory_(directory) {
     generator_.surface = std::move(surface);
-    const std::optional<SourceSpec> source = EffectiveSource(config);
+    generator_.source = std::move(source);
     if (external) {
-        generator_.source = external;
-        given_ = external;
-        measured_ = std::move(external);
-        return;
-    }
-    generator_.source = BuildSource(source.value_or(SourceSpec{SyntheticSourceSpec{}}), directory,
-                                    generator_.surface, "source");
-    if (source) {
         given_ = generator_.source;
-        measured_ = MeasuredSource(*source, generator_.source);
+        measured_ = generator_.source;
+    } else if (const std::optional<SourceSpec> spec = EffectiveSource(config)) {
+        given_ = generator_.source;
+        measured_ = HasMeasuredData(*spec) ? generator_.source : nullptr;
     }
 }
 
@@ -912,10 +799,9 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
             BuildDensityMap(*spec.densityMap, Child(path, "density_map"), directory);
     }
     if (spec.slopeMap) {
-        const SizeSlopeMapSpec& s = *spec.slopeMap;
-        options.slopeMap =
-            SizeSlopeMap{BuildField(s.field, Child(Child(path, "slope_map"), "field"), directory),
-                         s.measure, s.referenceDiameter, s.minExponent, s.maxExponent};
+        options.slopeMap = spec.slopeMap->map;
+        options.slopeMap->field =
+            BuildField(spec.slopeMap->field, Child(Child(path, "slope_map"), "field"), directory);
     }
     options.manual = spec.manual;
     if (spec.completeness) {
@@ -941,23 +827,16 @@ std::shared_ptr<const SurfaceField> BuildField(const FieldSpec& spec, const std:
 
 DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
                            const std::filesystem::path& directory) {
-    DensityMap map;
+    DensityMap map = spec.map;
     map.field = BuildField(spec.field, Child(path, "field"), directory);
-    map.measure = spec.measure;
-    map.minDiameter = spec.minDiameter;
-    map.maxDiameter = spec.maxDiameter.value_or(std::numeric_limits<double>::infinity());
-    map.areaUnit = spec.areaUnit;
-    map.total = spec.total;
     return map;
 }
 
 InheritedCraters BuildInheritedCraters(const InheritedCratersSpec& spec, const std::string& path,
                                        const std::filesystem::path& directory) {
-    InheritedCraters inherited;
+    InheritedCraters inherited = spec.inherited;
     inherited.craters =
         AtFile(Child(path, "path"), [&] { return ReadCraterList(Resolve(spec.path, directory)); });
-    inherited.minSourcePixels = spec.minSourcePixels;
-    inherited.maxSourcePixels = spec.maxSourcePixels;
     return inherited;
 }
 
@@ -1134,24 +1013,21 @@ CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string
 Surface BuildSurface(const SurfaceSpec& spec, const std::filesystem::path& directory) {
     SurfaceSpec ranged = spec;
     config::CheckRanges(ranged, "body", {}, {});
-    return std::visit(
-        Overloaded{
-            [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
-            [](const SphereSurfaceSpec& s) -> Surface {
-                return At("body.radius", [&] { return Surface::Sphere(s.radius); });
-            },
-            [](const EllipsoidSurfaceSpec& s) -> Surface {
-                if (s.radii.size() != 3) {
-                    throw ConfigError("body.radii_m", "must hold exactly three semi-axes a, b, c");
-                }
-                return At("body.radii_m",
-                          [&] { return Surface::Ellipsoid(s.radii[0], s.radii[1], s.radii[2]); });
-            },
-            [&](const ShapeModelSurfaceSpec& s) -> Surface {
-                return Surface::ShapeModel(LoadShapeModel(s, directory));
-            },
-        },
-        spec);
+    return std::visit(Overloaded{
+                          [](const PlaneSurfaceSpec&) -> Surface { return Surface::Plane(); },
+                          [](const SphereSurfaceSpec& s) -> Surface {
+                              return At("body.radius_m", [&] { return Surface::Sphere(s.radius); });
+                          },
+                          [](const EllipsoidSurfaceSpec& s) -> Surface {
+                              return At("body.radii_m", [&] {
+                                  return Surface::Ellipsoid(s.radii[0], s.radii[1], s.radii[2]);
+                              });
+                          },
+                          [&](const ShapeModelSurfaceSpec& s) -> Surface {
+                              return Surface::ShapeModel(LoadShapeModel(s, directory));
+                          },
+                      },
+                      spec);
 }
 
 Surface BuildSurface(const TerrainGenConfig& value, const std::filesystem::path& given) {
@@ -1184,6 +1060,8 @@ Albedo BuildAlbedo(const TerrainGenConfig& value, const TerrainGenerator& genera
     if (!config.albedo) {
         throw ConfigError("albedo", "the configuration has no albedo");
     }
+    AlbedoSpec ranged = *config.albedo;
+    config::CheckRanges(ranged, "albedo", {}, {});
     config::ValidateAlbedo(config, directory);
     return config::BuildValidAlbedo(config, generator, directory);
 }

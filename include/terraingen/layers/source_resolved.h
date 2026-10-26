@@ -4,7 +4,7 @@
 /// @brief The feature size from which a source's measured data already holds a layer's features.
 #pragma once
 
-#include "terraingen/sources/field.h"
+#include "terraingen/layers/field.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/util/surface.h"
 
@@ -13,14 +13,10 @@
 
 namespace terraingen {
 
-/// The size in meters from which `source` resolves features at each point: `pixelsAcross` times
-/// `Source::ResolutionAt` there in meters (`Surface::UnitLength`); infinity where it resolves
-/// nothing, such as synthetic noise without posts or no-data holes.
-/// @param pixelsAcross The source cells across from which its data holds a feature; positive and
-/// finite.
-/// @param surface What the source's coordinates lie on: on a body they are degrees.
-/// @throws std::invalid_argument for a null source or a `pixelsAcross` that is not positive and
-/// finite.
+/// The size in meters from which `source` resolves features at each point, `pixelsAcross` times
+/// its resolution there; infinity where it resolves nothing.
+/// @param pixelsAcross Source cells across a resolved feature; positive and finite.
+/// @throws std::invalid_argument for a null source or a bad `pixelsAcross`.
 std::shared_ptr<const SurfaceField> SourceResolvedLimit(std::shared_ptr<const Source> source,
                                                         double pixelsAcross,
                                                         const Surface& surface = {});

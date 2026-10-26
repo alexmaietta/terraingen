@@ -23,10 +23,8 @@ enum class BaseSolid {
 /// @throws std::invalid_argument for a value outside the enum.
 TriangleMesh BaseSolidMesh(BaseSolid solid);
 
-/// A mesh with each triangle split into four at its edges' midpoints, repeatedly.
-///
-/// A closed mesh stays closed, and a coarser level's vertices are a prefix of every finer level's.
-/// @param levels Times to split, >= 0.
+/// A mesh with each triangle split into four at its edges' midpoints, `levels` times; a coarser
+/// level's vertices are a prefix of every finer level's.
 /// @param onUnitSphere Whether each new vertex is pushed out to the unit sphere.
 /// @throws std::invalid_argument for a negative `levels` or one that would exceed 2^32 vertices.
 TriangleMesh Subdivide(const TriangleMesh& mesh, int levels, bool onUnitSphere = false);

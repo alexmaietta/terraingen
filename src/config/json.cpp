@@ -57,6 +57,9 @@ void Reader::Finish() const {
             Fail(Child(path_, key), "unknown key; expected one of: " + expected);
         }
     }
+    if (!missing_.empty()) {
+        Fail(Child(path_, missing_.front()), "required");
+    }
 }
 
 void Read(const Json& json, const std::string& path, double& value) {

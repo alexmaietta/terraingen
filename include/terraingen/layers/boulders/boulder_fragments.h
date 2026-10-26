@@ -29,11 +29,7 @@ struct BoulderFragment {
 };
 
 /// `parent` split into `pieces` pieces by near-vertical cracks running as `cracks` says, a pure
-/// function of the seed.
-///
-/// Seed points are drawn around the parent's middle, or along a line through it for slabs; each
-/// piece is the parent cut by the planes halfway to the other seed points, its vertices moving
-/// along their rays from its own seed point, so neighboring pieces meet on the same plane.
+/// function of the seed; neighboring pieces meet on the same plane.
 /// @throws std::invalid_argument for fewer than 2 pieces or more than 12.
 std::vector<BoulderFragment> FragmentBoulderShape(const BoulderShape& parent, int pieces,
                                                   std::uint64_t seed,

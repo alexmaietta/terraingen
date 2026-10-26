@@ -743,14 +743,23 @@ def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path)
             "schema_version": 1,
             "source": {"type": "raster", "path": "dem.tif"},
             "layers": [
-                {"type": "noise", "estimate_from_base": True, "stack": [{"wavelength_m": 1.0, "octaves": 2}]},
-                {"type": "roughness", "estimate_from_base": True, "max_wavelength_m": 1.0, "rms_slope": 0.3},
+                {
+                    "type": "noise",
+                    "estimate_from_source": True,
+                    "stack": [{"wavelength_m": 1.0, "octaves": 2}],
+                },
+                {
+                    "type": "roughness",
+                    "estimate_from_source": True,
+                    "max_wavelength_m": 1.0,
+                    "rms_slope": 0.3,
+                },
             ],
         }
     )
     config.validate(str(tmp_path))
     layers = config.to_dict()["layers"]
-    assert layers[1]["estimate_from_base"] and layers[1]["hurst"] is None and layers[1]["rms_slope"] == 0.3
+    assert layers[1]["estimate_from_source"] and layers[1]["hurst"] is None and layers[1]["rms_slope"] == 0.3
     assert terraingen.TerrainGenConfig.from_dict(config.to_dict()) == config
     terrain = terraingen.build_generator(config, str(tmp_path))
     base = terraingen.estimate_source_roughness(terrain.source)
@@ -760,11 +769,11 @@ def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path)
     assert noise.gain == pytest.approx(terraingen.gain_from_hurst(base.hurst, 2.0), rel=1e-6)
     assert noise.amplitude > 0.0
     without_base = terraingen.TerrainGenConfig.from_dict(
-        {"schema_version": 1, "layers": [{"type": "roughness", "estimate_from_base": True}]}
+        {"schema_version": 1, "layers": [{"type": "roughness", "estimate_from_source": True}]}
     )
     with pytest.raises(terraingen.ConfigError) as error:
         without_base.validate()
-    assert error.value.path == "layers[0].estimate_from_base"
+    assert error.value.path == "layers[0].estimate_from_source"
 
 
 def test_layers_leave_out_what_the_source_resolves():

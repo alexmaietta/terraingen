@@ -568,6 +568,10 @@ TEST(GenerateFromConfig, EvaluatesEachDistinctOutputGridOnce) {
     EXPECT_EQ(generated.Find({3, 3, {}}), nullptr);
     EXPECT_THROW(generated.Grid(), std::runtime_error) << "two grids";
     ExpectSameRaster(generated.grids[1].heights, terraingen::Evaluate(generated.generator, wide));
+    EXPECT_EQ(generated.outputGrids, terraingen::ValidateConfig(config).outputGrids);
+    ASSERT_EQ(generated.outputGrids.size(), 4u);
+    EXPECT_EQ(generated.outputGrids[1], fine) << "one grid per output, shared or not";
+    EXPECT_EQ(generated.outputGrids[3], wide);
     EXPECT_FALSE(generated.grids[0].craters) << "no list covers the fine grid";
     ASSERT_TRUE(generated.grids[1].craters);
     EXPECT_EQ(generated.grids[1].craters->craters.Ids(),

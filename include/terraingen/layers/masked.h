@@ -61,12 +61,9 @@ struct RegionShape {
         return shape;
     }
 
-    /// The signed distance in meters from surface (x, y) to the shape's edge: positive outside,
-    /// negative inside, 0 on the edge. A polygon's holes are outside it.
-    ///
-    /// On a sphere a rectangle's or polygon's distance is measured in the point's local frame,
-    /// east shortened by the cosine of latitude, an approximation for feathers small against the
-    /// body.
+    /// The signed distance in meters from surface (x, y) to the shape's edge, positive outside;
+    /// a polygon's holes are outside it.
+    /// On a sphere it is measured in the point's local frame, which holds for small feathers.
     double DistanceOutside(double x, double y, const Surface& surface = {}) const;
 
     /// The smallest box holding the shape, in `surface`'s coordinates.

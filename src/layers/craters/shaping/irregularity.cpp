@@ -5,8 +5,8 @@
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/fft.h"
 #include "util/checks.h"
+#include "util/fft.h"
 
 #include <algorithm>
 #include <cmath>

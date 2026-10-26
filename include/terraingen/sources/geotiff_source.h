@@ -90,10 +90,19 @@ class GeoTiffSource final : public Source {
     /// @throws GeoTiffError if the file cannot be read.
     float HeightAt(double x, double y, double spacing) const override;
 
+    /// `HeightAt` each of `points`, those off the cells upsampled at once.
+    /// @throws GeoTiffError if the file cannot be read.
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
+
     /// `effectivePixelSize`, or else the file's cell size in CRS units (degrees when geographic),
     /// the larger side of a cell; infinity where `HeightAt` is NaN.
     /// @throws GeoTiffError if the file cannot be read.
     double ResolutionAt(double x, double y) const override;
+
+    /// The file's cell size in CRS units, the larger side of a cell; infinity where `HeightAt` is
+    /// NaN.
+    /// @throws GeoTiffError if the file cannot be read.
+    double PostSpacingAt(double x, double y) const override;
 
     /// The file's projection.
     GeoKeys Keys() const override {

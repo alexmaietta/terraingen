@@ -63,12 +63,9 @@ CraterSampling SamplingFrom(const LayerContext& context, double spacing, const v
 /// when `options.texture` draws beyond the rim and they reach further.
 double CraterReachRadii(const CraterProfile& profile, const CraterApplyOptions& options);
 
-/// Applies craters to a raster in the order `options` gives: each adds its profile, noise and
-/// texture weighted by `ResolutionWeight` and, with a datum (`FitReplacementDatum` for replacing
-/// craters), moves the terrain toward it. No-data cells are left unchanged.
-/// @param raster Its transform maps pixels to the craters' surface coordinates.
-/// @param craters With a datum, those within `DatumMargin` of the raster, and with replacing
-/// craters those within `ReplacementMargin` of it.
+/// Applies craters to a raster in the order `options` gives, each weighted by `ResolutionWeight`;
+/// no-data cells are left unchanged.
+/// @param craters With a datum, every crater within `DatumMargin` (or `ReplacementMargin`).
 /// @param models Neither may be null.
 /// @throws std::invalid_argument for invalid `options` or a negative or non-finite spacing.
 /// @throws std::domain_error if the raster's transform is not invertible.

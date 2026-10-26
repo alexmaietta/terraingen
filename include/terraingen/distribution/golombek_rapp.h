@@ -17,9 +17,7 @@ class GolombekRappSfd final : public SizeFrequencyDistribution {
     /// @param coverage k, the fractional area covered by boulders, in (0, 1).
     /// @param qa The constant part of q, per meter; finite and not negative.
     /// @param qb The part of q that scales with 1 / k, per meter; finite and not negative.
-    /// @param range Diameters in meters where it is valid.
-    /// @throws std::invalid_argument for a coverage outside (0, 1), a negative or non-finite `qa`
-    /// or `qb`, a q that is not positive, or an invalid range.
+    /// @throws std::invalid_argument for a parameter outside its range, a zero q or a bad range.
     explicit GolombekRappSfd(double coverage, double qa = 1.79, double qb = 0.152,
                              DiameterRange range = {});
 

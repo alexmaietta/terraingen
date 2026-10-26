@@ -21,15 +21,15 @@
 
 namespace terraingen::config {
 
-/// What a range allows, as an error message says it: "positive", "from 1 to 4096 deg".
-/// @param unit The unit symbol given after the bounds, or empty.
-std::string DescribeRange(const FieldRange& range, std::string_view unit = {});
-
 /// Checks that a number is finite and within its field's range.
 /// @param unit The field's unit symbol, for the message, or empty.
 /// @throws ConfigError at `path`, such as "must be positive, got -2", otherwise.
 void CheckRange(double value, const FieldRange& range, std::string_view unit,
                 const std::string& path);
+
+/// Checks that a list of `count` items has a length its field's range allows.
+/// @throws ConfigError at `path`, such as "must hold exactly 3 items, got 2", otherwise.
+void CheckLength(std::size_t count, const FieldRange& range, const std::string& path);
 
 class RangeChecker;
 
@@ -45,8 +45,10 @@ template <typename T> inline constexpr bool HasRangedFields = HasRangedFieldsTra
 
 /// @name CheckRanges
 /// Checks every number in a configuration value of the overload's type, at `path` or below it,
-/// against `range` for numbers and their fields' own ranges for structs.
-/// @throws ConfigError at the first number out of its range.
+/// against `range` for numbers and their fields' own ranges for structs; and a list's length and a
+/// required optional's value against `range`.
+/// @throws ConfigError at the first number out of its range, list of another length or required
+/// optional left unset.
 /// @{
 template <typename T>
 void CheckRanges(T& value, const std::string& path, std::string_view unit, const FieldRange& range);
@@ -102,6 +104,8 @@ void CheckRanges(std::optional<T>& value, const std::string& path, std::string_v
                  const FieldRange& range) {
     if (value) {
         CheckRanges(*value, path, unit, range);
+    } else if (range.required) {
+        throw ConfigError(path, "required");
     }
 }
 
@@ -114,8 +118,10 @@ void CheckRanges(Boxed<T>& value, const std::string& path, std::string_view unit
 template <typename T>
 void CheckRanges(std::vector<T>& value, const std::string& path, std::string_view unit,
                  const FieldRange& range) {
+    CheckLength(value.size(), range, path);
+    const FieldRange items = range.Items();
     for (std::size_t i = 0; i < value.size(); ++i) {
-        CheckRanges(value[i], Element(path, i), unit, range);
+        CheckRanges(value[i], Element(path, i), unit, items);
     }
 }
 

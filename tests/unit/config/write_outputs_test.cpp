@@ -338,7 +338,10 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
 
     ConfigSpec other = Small();
     EXPECT_THROW(WriteOutputs(other, generated, directory), std::runtime_error)
-        << "the heightmap's grid was not generated";
+        << "no heights were generated";
+    other.outputs.push_back(terraingen::ReportOutput{});
+    EXPECT_THROW(WriteOutputs(other, generated, directory), std::runtime_error)
+        << "another number of outputs";
     other.outputs = {terraingen::MeshOutput{"m.glb"}};
     other.body = config.body;
     EXPECT_THROW(WriteOutputs(other, generated, directory), std::runtime_error)

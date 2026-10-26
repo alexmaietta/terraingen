@@ -7,7 +7,7 @@
 
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/util/bits.h"
-#include "util/files.h"
+#include "util/text.h"
 
 #include <array>
 #include <filesystem>

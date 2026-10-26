@@ -41,12 +41,8 @@ struct RoughnessOptions {
 /// than 40 octaves, or an invalid `fade`.
 void ValidateRoughnessOptions(const RoughnessOptions& options);
 
-/// Fine roughness: octaves of Perlin noise halving in wavelength from `maxWavelength` to
-/// `minWavelength`, amplitudes growing as wavelength^H.
-///
-/// Amplitudes are scaled so the RMS slope over `baseline` is `rmsSlope` with every octave
-/// resolved. Octaves are rotated and offset so their lattices do not line up, and fade out at
-/// spacings too coarse to resolve them.
+/// Fine roughness: octaves of Perlin noise from `maxWavelength` to `minWavelength`, amplitudes
+/// growing as wavelength^H and scaled to `rmsSlope` over `baseline`; unresolved octaves fade.
 class RoughnessLayer final : public FormulaLayer {
   public:
     /// On a sphere each octave is 3D Perlin noise at the 3D point, its lattice turned by a uniform

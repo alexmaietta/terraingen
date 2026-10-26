@@ -390,10 +390,10 @@ TEST(BuildField, BuildsConstantsAndReadsGeoTiffs) {
 
 TEST(BuildDensityMap, BuildsTheFieldAndLeavesTheMapUnchecked) {
     terraingen::DensityMapSpec spec = ConstantDensityMap(5.0);
-    spec.measure = terraingen::DensityMeasure::Count;
-    spec.minDiameter = 4.5;
-    spec.areaUnit = 1e6;
-    spec.total = false;
+    spec.map.measure = terraingen::DensityMeasure::Count;
+    spec.map.minDiameter = 4.5;
+    spec.map.areaUnit = 1e6;
+    spec.map.total = false;
     const terraingen::DensityMap map = terraingen::config::BuildDensityMap(spec, "m");
     EXPECT_EQ(map.field->ValueAt(0.0, 0.0), 5.0);
     EXPECT_EQ(map.minDiameter, 4.5);
@@ -401,7 +401,7 @@ TEST(BuildDensityMap, BuildsTheFieldAndLeavesTheMapUnchecked) {
     EXPECT_EQ(map.areaUnit, 1e6);
     EXPECT_FALSE(map.total);
     terraingen::DensityMapSpec counts;
-    counts.measure = terraingen::DensityMeasure::Count;
+    counts.map.measure = terraingen::DensityMeasure::Count;
     EXPECT_NO_THROW(terraingen::config::BuildDensityMap(counts, "layers[0].density_map"));
     try {
         terraingen::DensityMapSpec missing;
@@ -416,14 +416,14 @@ TEST(BuildDensityMap, BuildsTheFieldAndLeavesTheMapUnchecked) {
 TEST(ValidateConfig, ReportsDensityAndSlopeMapProblemsAtTheMap) {
     ConfigSpec config = terraingen::testing::Small();
     terraingen::DensityMapSpec counts;
-    counts.measure = terraingen::DensityMeasure::Count;
+    counts.map.measure = terraingen::DensityMeasure::Count;
     terraingen::testing::Craters(config).densityMap = counts;
     EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "layers[1].density_map");
     config = terraingen::testing::Small();
     terraingen::BoulderLayerSpec boulders;
     boulders.sizes = terraingen::PowerLawSpec{0.01, 3.0};
     boulders.slopeMap = ConstantSlopeMap(2.5);
-    boulders.slopeMap->maxExponent = boulders.slopeMap->minExponent;
+    boulders.slopeMap->map.maxExponent = boulders.slopeMap->map.minExponent;
     config.layers.push_back(boulders);
     EXPECT_EQ(terraingen::testing::ValidationErrorPath(config), "layers[2].slope_map");
 }

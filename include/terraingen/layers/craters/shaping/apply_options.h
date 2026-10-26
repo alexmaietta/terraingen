@@ -182,14 +182,11 @@ struct CraterTexture {
 /// mantling outside [0, 1], a reach of 1 radius or less, or a freshness outside [0, 1).
 void ValidateCraterTexture(const CraterTexture& texture);
 
-/// Slump terraces on the walls of large craters: benches and scarps stepping the wall between the
-/// floor and the rim crest, as the rim and upper wall slump inward after the cavity forms. Each
-/// terraced crater draws its number of benches, the arcs of its wall they cover and how their
-/// radii wander around the rim from its ID; terraces soften and vanish as the crater wears. The
-/// floor edge is the complex profile's floor diameter, else Pike's (1980, USGS PP 1046-C, eq. 15)
-/// 0.187 D^1.249 km.
+/// Slump terraces on the walls of large craters, benches and scarps drawn per crater ID that
+/// soften as it wears; the floor edge is the profile's, else Pike's (1980, USGS PP 1046-C,
+/// eq. 15) 0.187 D^1.249 km.
 struct CraterTerraces {
-    bool enabled = false;
+    bool enabled = false;  ///< Whether large craters get terraces.
     /// Smallest terraced crater (m); by default 20 km, where half of fresh lunar mare craters are
     /// terraced (Smith and Hartnell 1978); about 8 km on Mars (Pike 1980, LPSC 11, Table 3).
     double onsetDiameter = 20000.0;
@@ -244,17 +241,12 @@ struct CraterTerraces {
 /// minimum freshness outside [0, 1).
 void ValidateCraterTerraces(const CraterTerraces& terraces);
 
-/// Central peaks of complex craters built from massifs in place of the profile's round dome:
-/// one to several mountains clustered about the center, each elongated, sharp-crested or domed
-/// and lopsided as drawn per crater ID, their outlines warped and slopes roughened by ridged
-/// noise. The peak's height and base are the complex profile's; the massifs keep its highest
-/// summit at about that height and lower with it as the crater wears. They shape craters whose
-/// profile is a closed-form `ComplexCraterProfile`; tabulated and diffused profiles keep their
-/// dome.
+/// Central peaks of complex craters built from massifs drawn per crater ID in place of the round
+/// dome, at the profile's peak height and base; only closed-form `ComplexCraterProfile`s use them.
 struct CraterPeaks {
-    bool enabled = false;
-    int minMassifs = 1;  ///< Fewest massifs of a peak.
-    int maxMassifs = 4;  ///< Most massifs of a peak, at most 8.
+    bool enabled = false;  ///< Whether complex craters get massif peaks.
+    int minMassifs = 1;    ///< Fewest massifs of a peak.
+    int maxMassifs = 4;    ///< Most massifs of a peak, at most 8.
     /// How far the lesser massifs' centers scatter from the crater's center, in peak base radii,
     /// at most 2.
     double spreadRadii = 0.8;

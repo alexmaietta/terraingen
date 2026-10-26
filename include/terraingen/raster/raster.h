@@ -123,10 +123,10 @@ template <typename T> class Raster {
         return value == *noData_;
     }
 
-    /// Whether `value` holds no data: NaN, or the no-data value.
+    /// Whether `value` holds no data: not finite, or the no-data value.
     bool IsMissing(const T& value) const {
         if constexpr (std::is_floating_point_v<T>) {
-            if (std::isnan(value)) {
+            if (!std::isfinite(value)) {
                 return true;
             }
         }

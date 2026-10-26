@@ -114,9 +114,17 @@ class SourceChain final : public Source {
     /// NaN if no source has one.
     float HeightAt(double x, double y, double spacing) const override;
 
+    /// `HeightAt` each of `points`: the sources before the last over them all, then the last over
+    /// the points still without data.
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
+
     /// The resolution of the first source with a height at (`x`, `y`) at its coarsest, an
     /// infinite spacing; infinity if no source has one.
     double ResolutionAt(double x, double y) const override;
+
+    /// The post spacing of the first source with a height at (`x`, `y`) at its coarsest, an
+    /// infinite spacing; infinity if no source has one.
+    double PostSpacingAt(double x, double y) const override;
 
     /// The sources in the order they are tried.
     const std::vector<std::shared_ptr<const Source>>& Sources() const {

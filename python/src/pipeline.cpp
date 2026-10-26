@@ -235,6 +235,19 @@ void BindEvaluation(nb::module_& m) {
         "Evaluates `generator` over `grid` into `heights`, a writable C-contiguous float32 array "
         "of "
         "shape (height, width), to the same bits as `evaluate` with the same options.");
+    m.def(
+        "apply_layers",
+        [](const PyTerrainGenerator& generator, std::size_t first, Raster<float>& heights,
+           double spacing, unsigned threads, std::optional<Backend> backend) {
+            const TerrainGenerator built = generator.Get();
+            nb::gil_scoped_release release;
+            ApplyLayers(built, first, heights, EvaluationOptions{spacing, threads, backend});
+        },
+        "generator"_a, "first"_a, "heights"_a, "spacing"_a = 0.0, "threads"_a = 0,
+        "backend"_a = nb::none(),
+        "Applies the generator's layers from index `first` onward to `heights`, a Raster changed "
+        "in place, such as `evaluate` of a generator with only the first `first` layers; "
+        "re-runs a replaced layer and those after it to the bits of `evaluate`.");
 }
 
 /// Mesh options from the Python arguments.
@@ -438,19 +451,6 @@ void BindConfig(nb::module_& m) {
         "and their 'descriptions'), optional, array, object and choice (with 'alternatives').");
 }
 
-/// @brief `grid`, or else the first grid in `generated`.
-/// @throws std::invalid_argument when there is neither.
-RasterGrid GeneratedGridOr(const GeneratedOutputs& generated,
-                           const std::optional<RasterGrid>& grid) {
-    if (grid) {
-        return *grid;
-    }
-    if (generated.grids.empty()) {
-        throw std::invalid_argument("The terrain generated no grid; give one");
-    }
-    return generated.grids.front().grid;
-}
-
 /// @brief Each of `items`, a member of the object `owner`, as a list of views kept alive by it.
 template <typename T> nb::list Views(nb::handle owner, std::vector<T>& items) {
     nb::list views;
@@ -547,22 +547,6 @@ void BindGeneratedOutputs(nb::module_& m) {
             "generator", [](const GeneratedOutputs& g) { return FromGenerator(g.generator); },
             "A copy of the TerrainGenerator built from the configuration.");
     generated
-        .def(
-            "placed_craters",
-            [](const GeneratedOutputs& g, std::optional<RasterGrid> grid, double spacing) {
-                return PlacedCraters(g.generator, GeneratedGridOr(g, grid), spacing);
-            },
-            "grid"_a = nb::none(), "spacing"_a = 0.0,
-            "The craters the terrain's layers apply over `grid` (by default its first generated "
-            "grid) at `spacing` meters (0 for the grid's).")
-        .def(
-            "placed_boulders",
-            [](const GeneratedOutputs& g, std::optional<RasterGrid> grid, double spacing) {
-                return PlacedBoulders(g.generator, GeneratedGridOr(g, grid), spacing);
-            },
-            "grid"_a = nb::none(), "spacing"_a = 0.0,
-            "The boulders the terrain's layers place over `grid` (by default its first generated "
-            "grid) at `spacing` meters (0 for the grid's), and the models among them.")
         .def_ro("seconds", &GeneratedOutputs::seconds,
                 "Wall-clock time the heights and albedo took to evaluate, in seconds.")
         .def_ro("backend", &GeneratedOutputs::backend,

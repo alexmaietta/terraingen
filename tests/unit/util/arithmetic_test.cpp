@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
 

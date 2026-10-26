@@ -379,7 +379,7 @@ const PathCase kPathCases[] = {
          roughness.estimateFromSource = true;
          c.layers.push_back(roughness);
      },
-     "layers[2].estimate_from_base"},
+     "layers[2].estimate_from_source"},
     {"SpectralContinuationWithoutBase",
      [](ConfigSpec& c) { c.layers.push_back(terraingen::SpectralContinuationLayerSpec{}); },
      "layers[2]"},
@@ -516,14 +516,14 @@ const PathCase kPathCases[] = {
          roughness.estimateFromSource = true;
          c.layers.push_back(roughness);
      },
-     "layers[2].estimate_from_base"},
+     "layers[2].estimate_from_source"},
     {"NoiseEstimateWithoutABase",
      [](ConfigSpec& c) {
          terraingen::NoiseLayerSpec noise;
          noise.estimateFromSource = true;
          c.layers.push_back(noise);
      },
-     "layers[2].estimate_from_base"},
+     "layers[2].estimate_from_source"},
     {"SourceResolvedLimitWithoutABase",
      [](ConfigSpec& c) { Craters(c).sourceResolvesPixels = 4.0; }, "valid"},
     {"ZeroSourceResolvedLimit", [](ConfigSpec& c) { Craters(c).sourceResolvesPixels = 0.0; },
@@ -750,12 +750,12 @@ TEST(ValidateConfig, ReportsBoulderSizeProblemsByPath) {
     EXPECT_EQ(ValidationErrorPath(config), "valid");
     std::get<terraingen::BoulderLayerSpec>(config.layers.back()).sizes =
         terraingen::TabulatedSpec{{1.0}, {0.01}};
-    EXPECT_EQ(ValidationErrorPath(config), "layers[2].sizes");
+    EXPECT_EQ(ValidationErrorPath(config), "layers[2].sizes.diameters");
     std::get<terraingen::BoulderLayerSpec>(config.layers.back()).sizes =
         terraingen::GolombekRappBouldersSpec{};
     std::get<terraingen::BoulderLayerSpec>(config.layers.back()).ejectaSizes =
         terraingen::TabulatedSpec{{1.0}, {0.01}};
-    EXPECT_EQ(ValidationErrorPath(config), "layers[2].ejecta_sizes");
+    EXPECT_EQ(ValidationErrorPath(config), "layers[2].ejecta_sizes.diameters");
 }
 
 TEST(ValidateConfig, EjectaSizesFollowTheSizesWhenUnset) {
@@ -917,14 +917,14 @@ TEST(ValidateConfig, SaysWhyAPolygonRegionIsRejected) {
     EXPECT_EQ(message({square, {{{2, 2}, {4, 2}, {2, 4}}}}), "valid");
     for (const auto& [polygon, part] :
          std::initializer_list<std::pair<PolygonRegionSpec, const char*>>{
-             {{}, "needs at least 3 points, not 0"},
-             {{{{0, 0}, {1, 0}}, {}}, "needs at least 3 points, not 2"},
+             {{}, "must hold at least 3 items, got 0"},
+             {{{{0, 0}, {1, 0}}, {}}, "must hold at least 3 items, got 2"},
              {{{{0, 0}, {1, 0}, {1, 0}, {0, 1}}, {}}, "zero-length edge"},
              {{{{0, 0}, {1, 0}, {0, 1}, {0, 0}}, {}}, "do not repeat the first point"},
              {{{{0, 0}, {1, 1}, {3, 3}}, {}}, "no area"},
              {{square, {{{2, 2}, {4, 2}}}}, "hole 0 needs at least 3 points"}}) {
         const std::string why = message(polygon);
-        EXPECT_EQ(why.rfind("layers[2].shape: ", 0), 0u) << why;
+        EXPECT_EQ(why.rfind("layers[2].shape", 0), 0u) << why;
         EXPECT_NE(why.find(part), std::string::npos) << why;
     }
 }
@@ -991,6 +991,7 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
               "albedo.source.hue_noise_deg");
     EXPECT_EQ(error([&](ConfigSpec& c) {
                   synthetic(c).saturationNoise = {terraingen::AlbedoFractalSpec{}};
+                  synthetic(c).saturationNoise[0].amplitude = 0.1;
                   synthetic(c).saturationNoise[0].fractal.octaves = 0;
               }),
               "albedo.source.saturation_noise[0].octaves");
@@ -1087,8 +1088,8 @@ TEST(ValidateConfig, ReportsGeoTiffCropProblemsByPath) {
     EXPECT_EQ(crop(Bounds2d{1050.0, 1900.0, 1100.0, 1950.0}), "valid");
     EXPECT_EQ(crop(Bounds2d{nan, 1900.0, 1100.0, 1950.0}), "source.crop.min_x");
     EXPECT_EQ(crop(Bounds2d{1050.0, 1900.0, 1100.0, kInfinity}), "source.crop.max_y");
-    EXPECT_EQ(crop(Bounds2d{1100.0, 1900.0, 1050.0, 1950.0}), "source.crop.max_x");
-    EXPECT_EQ(crop(Bounds2d{1050.0, 1950.0, 1100.0, 1950.0}), "source.crop.max_y");
+    EXPECT_EQ(crop(Bounds2d{1100.0, 1900.0, 1050.0, 1950.0}), "source.crop");
+    EXPECT_EQ(crop(Bounds2d{1050.0, 1950.0, 1100.0, 1950.0}), "source.crop");
     EXPECT_EQ(crop(Bounds2d{5000.0, 5000.0, 6000.0, 6000.0}), "source.crop");
 }
 

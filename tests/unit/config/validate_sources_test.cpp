@@ -82,6 +82,25 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
                              terraingen::testing::Keys());
     EXPECT_EQ(error([](ConfigSpec& c) { RasterSpec(c).path = "tiny.tif"; }).rfind("source.path", 0),
               0u);
+    EXPECT_EQ(error([](ConfigSpec& c) {
+                  RasterSpec(c).read.crop = terraingen::Bounds2d{1000.0, 1900.0, 1100.0, 1950.0};
+              }),
+              "valid");
+    EXPECT_EQ(error([](ConfigSpec& c) {
+                  RasterSpec(c).read.crop = terraingen::Bounds2d{0.0, 0.0, 10.0, 10.0};
+              }).rfind("source.crop", 0),
+              0u)
+        << "a crop that misses the file";
+    EXPECT_EQ(error([](ConfigSpec& c) {
+                  RasterSpec(c).read.crop = terraingen::Bounds2d{1100.0, 1900.0, 1050.0, 1950.0};
+              }).rfind("source.crop", 0),
+              0u)
+        << "an empty crop";
+    EXPECT_EQ(error([](ConfigSpec& c) {
+                  c.source = terraingen::ShapeModelSourceSpec{};
+              }).rfind("source: ", 0),
+              0u)
+        << "a shape model source needs a shape model body";
 }
 
 TEST(ValidateConfig, ReportsChainProblemsByPath) {

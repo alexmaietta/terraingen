@@ -2,11 +2,12 @@
 
 #include "terraingen/raster/spectrum.h"
 
+#include "raster/radial_spectrum.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/fft.h"
+#include "util/fft.h"
 
 #include <gtest/gtest.h>
 
@@ -21,7 +22,7 @@
 using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::RasterGrid;
-using terraingen::detail::SpectrumBin;
+using terraingen::SpectrumBin;
 
 namespace {
 
@@ -73,7 +74,7 @@ TEST(RadialPowerSpectrum, PeaksAtAWaveAndIntegratesToTheVariance) {
                 0.1 * static_cast<double>(col));
         }
     }
-    const std::vector<SpectrumBin> bins = terraingen::detail::RadialPowerSpectrum(heights);
+    const std::vector<SpectrumBin> bins = terraingen::RadialPowerSpectrum(heights);
     ASSERT_FALSE(bins.empty());
     std::size_t peak = 0;
     for (std::size_t i = 0; i < bins.size(); ++i) {
@@ -86,15 +87,14 @@ TEST(RadialPowerSpectrum, PeaksAtAWaveAndIntegratesToTheVariance) {
 }
 
 TEST(RadialPowerSpectrum, RejectsSmallRotatedOrEmptyRasters) {
-    EXPECT_THROW(terraingen::detail::RadialPowerSpectrum(Grid(7, 1.0).MakeRaster()),
-                 std::invalid_argument);
+    EXPECT_THROW(terraingen::RadialPowerSpectrum(Grid(7, 1.0).MakeRaster()), std::invalid_argument);
     Raster<float> rotated = Grid(16, 1.0).MakeRaster();
     GeoTransform transform = rotated.Transform();
     transform.rowRotation = 0.1;
     rotated.SetTransform(transform);
-    EXPECT_THROW(terraingen::detail::RadialPowerSpectrum(rotated), std::invalid_argument);
+    EXPECT_THROW(terraingen::RadialPowerSpectrum(rotated), std::invalid_argument);
     Raster<float> empty = Grid(16, 1.0).MakeRaster(std::numeric_limits<float>::quiet_NaN());
-    EXPECT_THROW(terraingen::detail::RadialPowerSpectrum(empty), std::invalid_argument);
+    EXPECT_THROW(terraingen::RadialPowerSpectrum(empty), std::invalid_argument);
 }
 
 TEST(EstimatePowerLawSpectrum, RecoversTheSlopeAndOctaveRmsOfPowerLawSurfaces) {

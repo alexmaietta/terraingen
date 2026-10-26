@@ -195,7 +195,9 @@ def test_synthetic_sources_evaluate_noise_or_upsample_it_from_posts():
     heights = terraingen.evaluate(terraingen.TerrainGenerator(noise), grid=grid).values
     assert heights[0, 0] == noise.height_at(-7.5, 3.5, 1.0)
     posts = terraingen.SyntheticSource(fractals, pixel_size=4.0)
-    assert posts.resolution_at(0.0, 0.0) == 4.0
+    assert posts.post_spacing_at(0.0, 0.0) == 4.0
+    assert posts.resolution_at(0.0, 0.0) == float("inf")
+    assert noise.post_spacing_at(0.0, 0.0) == float("inf")
     assert isinstance(posts.upsampler, terraingen.KernelUpsampler)
     assert posts.height_at(8.0, -4.0, 0.5) == posts.height_at(8.0, -4.0, 4.0)
     flat = terraingen.SyntheticSource()
@@ -402,9 +404,53 @@ def test_python_sources_resolve_nothing_unless_they_say():
         def resolution_at(self, x, y):
             return 3.0
 
+    class Posted(Level):
+        def post_spacing_at(self, x, y):
+            return 2.0
+
     assert Level().resolution_at(0.0, 0.0) == float("inf")
+    assert Level().post_spacing_at(0.0, 0.0) == float("inf")
     assert Measured().resolution_at(0.0, 0.0) == 3.0
+    assert Posted().post_spacing_at(0.0, 0.0) == 2.0
     assert terraingen.source_resolved_limit(Measured(), 2.0).value_at(0.0, 0.0) == 6.0
+
+
+def test_sources_give_heights_at_points_and_fill_arrays_in_place():
+    fractals = synthetic_fractals()
+    for source in (
+        terraingen.SyntheticSource(fractals, elevation=2.0),
+        terraingen.SyntheticSource(fractals, pixel_size=2.0),
+        terraingen.SyntheticSource(
+            fractals,
+            pixel_size=2.0,
+            upsampler=terraingen.DiamondSquareUpsampler(
+                terraingen.DiamondSquareOptions(fractal_dimension=2.4, scale=0.5)
+            ),
+        ),
+    ):
+        points = np.array([[7.25, -3.5], [1.0, 1.0], [-40.3, 12.9], [7.0, -3.0]])
+        heights = source.heights_at(points, 0.5)
+        assert heights.dtype == np.float32 and heights.shape == (4,)
+        for (x, y), height in zip(points, heights, strict=True):
+            assert height == source.height_at(x, y, 0.5)
+        grid = terraingen.RasterGrid(16, 8, terraingen.GeoTransform.north_up(-8.0, 4.0, 1.0))
+        filled = np.full((8, 16), -1.0, dtype=np.float32)
+        source.fill(grid, filled, threads=2)
+        raster = grid.make_raster()
+        source.fill(raster)
+        np.testing.assert_array_equal(filled, raster.values)
+        assert filled[0, 0] == source.height_at(-7.5, 3.5, 1.0)
+        with pytest.raises(ValueError):
+            source.fill(grid, np.zeros((16, 8), dtype=np.float32))
+    raster = terraingen.RasterGrid(12, 9, terraingen.GeoTransform.north_up(-6.0, 30.0, 3.0)).make_raster(1.5)
+    posts = terraingen.RasterPosts(raster)
+    upsampler = terraingen.DiamondSquareUpsampler(
+        terraingen.DiamondSquareOptions(fractal_dimension=2.4, scale=0.5)
+    )
+    assert upsampler.levels(4.0, 1.0) == 2
+    points = np.array([[1.3, 20.2], [7.7, 11.1]])
+    batch = upsampler.heights_at(posts, points, 0.5)
+    assert list(batch) == [upsampler.height_at(posts, x, y, 0.5) for x, y in points]
 
 
 def test_shape_model_sources_refine_a_body_between_its_labels():

@@ -92,12 +92,8 @@ struct BoulderShapeOptions {
 };
 
 /// Checks boulder shape options.
-/// @throws std::invalid_argument for no styles, a style with a negative weight, all weights zero,
-/// an empty or inverted range, axis ratios outside (0, 1], rounding or depths outside [0, 1],
-/// fracture counts not in 0 <= min <= max <= 64, a tilt outside [0, 1], noise amplitude outside
-/// [0, 1), a non-positive wavelength, octaves outside 1 to 12, an edge softness outside [0, 0.5],
-/// a face roughness outside [0, 0.5], a negative weathering, or subdivisions outside 0 to 6,
-/// or a library mesh that is null, invalid or flat along an axis.
+/// @throws std::invalid_argument for no styles, zero total weight, any field outside the range
+/// its comment gives, or a library mesh that is null, invalid or flat along an axis.
 void ValidateBoulderShapeOptions(const BoulderShapeOptions& options);
 
 /// A boulder's shape in unit form, with the origin inside it.

@@ -20,8 +20,7 @@ WINDOW_M = 96.0
 METHODS = [
     ("Nearest", terraingen.ResampleMethod.NEAREST),
     ("Bilinear", terraingen.ResampleMethod.BILINEAR),
-    ("Cubic", terraingen.ResampleMethod.CUBIC),
-    ("Catmull-Rom", terraingen.ResampleMethod.CATMULL_ROM),
+    ("Cubic (Catmull-Rom)", terraingen.ResampleMethod.CUBIC),
     ("Lanczos 3", terraingen.ResampleMethod.LANCZOS3),
     ("Cubic B-spline", terraingen.ResampleMethod.CUBIC_BSPLINE),
 ]

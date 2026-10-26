@@ -17,12 +17,8 @@ enum class FassettThomsonRim {
     Plateau,
 };
 
-/// Fresh simple-crater profile of Fassett and Thomson (2014, eq. 4): cubic interior and
-/// exterior fits in x = r / R, reaching 1.5 radii.
-///
-/// The interior is flattened at a floor `state.current.depthRatio` below
-/// `state.fresh.rimHeightRatio`; the rim height is fixed by the fit, so degraded rims are not
-/// represented.
+/// Fresh simple-crater profile of Fassett and Thomson (2014, eq. 4), cubic fits in r / R reaching
+/// 1.5 radii; the floor follows the current depth but the rim keeps its fitted height.
 class FassettThomsonProfile final : public CraterProfile {
   public:
     /// @param rim How the interior and exterior fits are joined at the rim.

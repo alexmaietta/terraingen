@@ -16,12 +16,8 @@
 
 namespace terraingen {
 
-/// Values that depend only on the terrain beneath a layer, such as crater datums, computed once
-/// and shared by the batches of point queries that pass it; thread-safe.
-///
-/// Keys name the layer that owns the value (`owner`), a feature ID and the sample spacing, so a
-/// cache belongs to one generator: keep it across repeated queries of that generator and start a
-/// new one after changing its source or layers.
+/// Thread-safe values that depend only on the terrain beneath a layer, such as crater datums,
+/// shared by point queries; use one cache per generator and renew it after changing its layers.
 class EvaluationCache {
   public:
     /// An empty cache holding at most `capacity` values.

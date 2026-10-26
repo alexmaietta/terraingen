@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/sources/field.h"
+#include "terraingen/layers/field.h"
 
 #include "terraingen/raster/geotiff/geotiff.h"
-#include "terraingen/raster/variogram.h"
 #include "util/checks.h"
 
 #include <algorithm>
@@ -73,8 +72,8 @@ double RasterField::Sample(double x, double y) const {
 double RasterField::SampleNearest(const Vec2d& pixel) const {
     const auto col = static_cast<std::size_t>(pixel.x);
     const auto row = static_cast<std::size_t>(pixel.y);
-    return HasData(raster_, col, row) ? static_cast<double>(raster_(col, row))
-                                      : std::numeric_limits<double>::quiet_NaN();
+    return raster_.IsMissing(raster_(col, row)) ? std::numeric_limits<double>::quiet_NaN()
+                                                : static_cast<double>(raster_(col, row));
 }
 
 double RasterField::SampleBilinear(const Vec2d& pixel) const {
@@ -93,7 +92,7 @@ double RasterField::SampleBilinear(const Vec2d& pixel) const {
     for (const auto& [c, r, w] :
          {std::tuple{col, row, (1.0 - tx) * (1.0 - ty)}, std::tuple{right, row, tx * (1.0 - ty)},
           std::tuple{col, below, (1.0 - tx) * ty}, std::tuple{right, below, tx * ty}}) {
-        if (w > 0.0 && HasData(raster_, c, r)) {
+        if (w > 0.0 && !raster_.IsMissing(raster_(c, r))) {
             sum += w * static_cast<double>(raster_(c, r));
             weights += w;
         }

@@ -14,12 +14,9 @@
 
 namespace terraingen {
 
-/// Two-octave patch noise in [-1, 1]: clamp(2.5 (0.7 n(p / size) + 0.3 n(4 p / size)), -1, 1).
-///
-/// n is 2D Perlin noise on a plane and 3D at the 3D point on a sphere; the finer octave is seeded
-/// `seed` + 1. About half the ground lies near either end.
+/// Two-octave Perlin patch noise in [-1, 1], about half the ground near either end.
 /// @param size Typical width of a patch, in meters; positive.
-/// @param seed Seed of the coarser octave.
+/// @param seed Seed of the coarser octave; the finer uses `seed` + 1.
 double PatchNoise(const Surface& surface, double x, double y, double size, std::uint32_t seed);
 
 /// The thresholds an `ExposureField` tells soil from bedrock by; a rule of thumb, not a

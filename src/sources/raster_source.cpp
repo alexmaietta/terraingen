@@ -2,7 +2,7 @@
 
 #include "terraingen/sources/raster_source.h"
 
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"
 
@@ -19,15 +19,6 @@ namespace {
 
 /// A turn of longitude, in degrees.
 constexpr double kTurnDegrees = 360.0;
-
-/// `value` as an integer when it is one to within rounding, as offsets between lattices are.
-std::optional<long long> Whole(double value) {
-    const double rounded = std::round(value);
-    if (std::fabs(value - rounded) > 1e-6) {
-        return std::nullopt;
-    }
-    return static_cast<long long>(rounded);
-}
 
 /// `value` clamped to [0, `limit`] as an index.
 std::size_t ClampTo(double value, std::size_t limit) {
@@ -85,74 +76,16 @@ RasterHeights::RasterHeights(std::shared_ptr<const PostLattice> posts, const Ras
     resolution_ = options.effectivePixelSize.value_or(cellSpacing_);
 }
 
-std::optional<RasterHeights::LatticeOffset>
-RasterHeights::OffsetOnLattice(const GeoTransform& target) const {
-    const GeoTransform& source = lattice_.transform;
-    const auto same = [](double a, double b) { return std::fabs(a - b) <= 1e-12 * std::fabs(b); };
-    const std::optional<long long> col =
-        Whole((target.originX - source.originX) / source.pixelWidth);
-    const std::optional<long long> row =
-        Whole((target.originY - source.originY) / source.pixelHeight);
-    if (!same(target.pixelWidth, source.pixelWidth) ||
-        !same(target.pixelHeight, source.pixelHeight) || target.rowRotation != source.rowRotation ||
-        target.colRotation != source.colRotation || !col || !row) {
-        return std::nullopt;
-    }
-    return LatticeOffset{*col, *row};
-}
-
 bool RasterHeights::Covers(double col, double row) const {
     return col >= static_cast<double>(cells_.colBegin) &&
            row >= static_cast<double>(cells_.rowBegin) &&
            col < static_cast<double>(cells_.colEnd) && row < static_cast<double>(cells_.rowEnd);
 }
 
-void RasterHeights::CopyFromLattice(Raster<float>& heights, LatticeOffset offset,
-                                    unsigned threads) const {
-    const float fill = noData_.value_or(std::numeric_limits<float>::quiet_NaN());
-    const auto clamp = [](long long at, std::size_t begin, std::size_t end) {
-        return std::clamp(at, static_cast<long long>(begin), static_cast<long long>(end));
-    };
-    const auto width = static_cast<long long>(heights.Width());
-    const auto height = static_cast<long long>(heights.Height());
-    const long long colBegin = clamp(offset.col, cells_.colBegin, cells_.colEnd);
-    const long long colEnd = clamp(offset.col + width, cells_.colBegin, cells_.colEnd);
-    const long long rowBegin = clamp(offset.row, cells_.rowBegin, cells_.rowEnd);
-    const long long rowEnd = clamp(offset.row + height, cells_.rowBegin, cells_.rowEnd);
-    const auto inWidth = static_cast<std::size_t>(colEnd - colBegin);
-    const auto inHeight = static_cast<std::size_t>(rowEnd - rowBegin);
-    for (float& value : heights.Values()) {
-        value = fill;
-    }
-    if (inWidth > 0 && inHeight > 0) {
-        constexpr std::size_t kStripRows = 64;
-        ParallelFor(CeilDiv(inHeight, kStripRows), threads, [&](std::size_t strip) {
-            const std::size_t first = strip * kStripRows;
-            const std::size_t rows = std::min(kStripRows, inHeight - first);
-            std::vector<float> posts(inWidth * rows);
-            posts_->Read(colBegin, rowBegin + static_cast<long long>(first), inWidth, rows,
-                         Span<float>(posts));
-            for (std::size_t row = 0; row < rows; ++row) {
-                for (std::size_t col = 0; col < inWidth; ++col) {
-                    const float value = posts[row * inWidth + col];
-                    heights(static_cast<std::size_t>(colBegin - offset.col) + col,
-                            static_cast<std::size_t>(rowBegin - offset.row) + first + row) =
-                        std::isnan(value) ? fill : value;
-                }
-            }
-        });
-    }
-    heights.SetNoData(FilledNoData(noData_, inWidth * inHeight < heights.Size()));
-}
-
 void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing, unsigned threads) const {
-    if (AtPostSpacing(lattice_.transform, spacing)) {
-        if (const auto offset = OffsetOnLattice(heights.Transform())) {
-            CopyFromLattice(heights, *offset, threads);
-            return;
-        }
-    }
-    if (heights.Transform().IsRotated()) {
+    const GeoTransform& target = heights.Transform();
+    if (target.IsRotated() && !(AtPostSpacing(lattice_.transform, spacing) &&
+                                detail::OffsetOnLattice(lattice_.transform, target))) {
         throw std::invalid_argument("A rotated grid off the lattice of " + name_ +
                                     " cannot be filled");
     }
@@ -213,18 +146,43 @@ void RasterHeights::Fill(Raster<float>& heights, double spacing, unsigned thread
 }
 
 float RasterHeights::HeightAt(double x, double y, double spacing) const {
-    constexpr float kMissing = std::numeric_limits<float>::quiet_NaN();
-    const double wrappedX = x - Turns(x) * kTurnDegrees;
-    const Vec2d pixel = lattice_.transform.WorldToPixel(wrappedX, y);
-    if (!Covers(pixel.x, pixel.y)) {
-        return kMissing;
+    float height = 0.0f;
+    const Vec2d point{x, y};
+    HeightsAt(Span<const Vec2d>(&point, 1), Span<float>(&height, 1), spacing);
+    return height;
+}
+
+void RasterHeights::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
+    RequireHeightPerPoint(points, heights);
+    std::vector<Vec2d> covered;
+    std::vector<std::size_t> at;
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        const double x = points[i].x - Turns(points[i].x) * kTurnDegrees;
+        const Vec2d pixel = lattice_.transform.WorldToPixel(x, points[i].y);
+        heights[i] = std::numeric_limits<float>::quiet_NaN();
+        if (Covers(pixel.x, pixel.y)) {
+            covered.push_back({x, points[i].y});
+            at.push_back(i);
+        }
     }
-    return UpsampledHeight(*upsampler_, *posts_, wrappedX, y, spacing);
+    std::vector<float> values(covered.size());
+    UpsampledHeights(*upsampler_, *posts_, Span<const Vec2d>(covered), Span<float>(values),
+                     spacing);
+    for (std::size_t k = 0; k < at.size(); ++k) {
+        heights[at[k]] = values[k];
+    }
+}
+
+bool RasterHeights::HasHeight(double x, double y) const {
+    return !std::isnan(HeightAt(x, y, cellSpacing_));
 }
 
 double RasterHeights::ResolutionAt(double x, double y) const {
-    return std::isnan(HeightAt(x, y, cellSpacing_)) ? std::numeric_limits<double>::infinity()
-                                                    : resolution_;
+    return HasHeight(x, y) ? resolution_ : std::numeric_limits<double>::infinity();
+}
+
+double RasterHeights::PostSpacingAt(double x, double y) const {
+    return HasHeight(x, y) ? cellSpacing_ : std::numeric_limits<double>::infinity();
 }
 
 }  // namespace detail

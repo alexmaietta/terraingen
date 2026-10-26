@@ -3,7 +3,7 @@
 #include "gpu/kernel.h"
 
 #include "gpu/device.h"
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 
 #include <algorithm>
 #include <cmath>

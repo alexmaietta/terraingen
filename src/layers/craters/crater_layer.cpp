@@ -18,7 +18,7 @@
 #include "terraingen/layers/source_resolved.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/cells.h"
-#include "util/bisection.h"
+#include "util/numerics.h"
 
 #include <algorithm>
 #include <cmath>

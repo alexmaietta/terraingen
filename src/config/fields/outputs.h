@@ -14,12 +14,18 @@
 
 namespace terraingen::config {
 
+/// An [x, y] pair given as a list: empty for unset, or two numbers.
+inline FieldRange PairLength() {
+    return LengthEither(0, 2);
+}
+
 template <typename IO> void Fields(IO& io, ExtentSpec& extent) {
-    io("center", extent.center, "[x, y] of the box's center; give it with size.");
-    io("size", extent.size, "[width, height] of the box, each positive; give it with center.", "",
-       Above(0.0));
-    io("min", extent.min, "[x, y] of the box's lower corner; give it with max.");
-    io("max", extent.max, "[x, y] of the box's upper corner, above min; give it with min.");
+    io("center", extent.center, "[x, y] of the box's center; give it with size.", "", PairLength());
+    io("size", extent.size, "[width, height] of the box; give it with center.", "",
+       Above(0.0).LengthEither(0, 2));
+    io("min", extent.min, "[x, y] of the box's lower corner; give it with max.", "", PairLength());
+    io("max", extent.max, "[x, y] of the box's upper corner, above min; give it with min.", "",
+       PairLength());
 }
 
 /// The fields of the area an output covers: its pixel size and its extent.
@@ -46,7 +52,7 @@ template <typename IO> void GeoTiffOutputFields(IO& io, GeoTiffOutput& output) {
     io("compression", output.compression,
        "Compression of the file; compressed files use the floating-point predictor.");
     io("tile_size_px", output.tileSize,
-       "Width and height of the file's tiles in pixels; a positive multiple of " +
+       "Width and height of the file's tiles in pixels; a multiple of " +
            std::to_string(kTileSizeMultiple) + ".",
        "px", AtLeast(kTileSizeMultiple));
 }
@@ -105,8 +111,8 @@ template <> struct SpecName<BoulderModelsOutput> {
 template <typename IO> void Fields(IO& io, BoulderModelsOutput& output) {
     io("path", output.path, OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
     io("crease_angle_deg", output.creaseAngle,
-       "Angle in degrees, from " + CountText(0, static_cast<std::size_t>(kMaxCreaseAngle)) +
-           ": vertices are split where faces meet at more than it, giving sharp edges.",
+       "Angle in degrees: vertices are split where faces meet at more than it, giving sharp "
+       "edges.",
        "deg", Between(0.0, kMaxCreaseAngle));
     io("instanced", output.instanced,
        "Writes each shared shape once and draws it per boulder (glTF instances, OBJ objects); "
@@ -154,8 +160,8 @@ template <typename IO> void Fields(IO& io, MeshOutput& output) {
     io("path", output.path,
        OutputPathHelp("File to write, ending in .glb, .gltf, .obj, .stl or .icq"));
     io("cells_per_face", output.cellsPerFace,
-       "Quads along each edge of the six cube faces, " + CountText(1, kMaxCubeFaceCells) +
-           "; more give a finer mesh, with two triangles per quad.",
+       "Quads along each edge of the six cube faces; more give a finer mesh, with two triangles "
+       "per quad.",
        "", CubeFaceCellsRange());
     io("spacing_m", output.spacing,
        "Sample spacing in meters the heights are evaluated at, which sets the finest features "
@@ -183,7 +189,8 @@ template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
        "m", AtLeast(0.0));
     io("site_deg", output.siteDeg,
        "[longitude, latitude] in degrees of the site on a body the mesh's frame is centered on; "
-       "unset for the grid's center. Only on a body.");
+       "unset for the grid's center. Only on a body.",
+       "deg", PairLength());
 }
 
 template <> struct SpecName<ReportOutput> {

@@ -523,6 +523,30 @@ TEST(ConfigSchema, GivesASphereOnlyARadiusInMeters) {
     EXPECT_EQ(sphere["fields"][0]["unit"], "m");
 }
 
+TEST(ConfigSchema, MarksRequiredKeysAndListLengthsAndDescribesThem) {
+    const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
+    const SchemaJson surfaces = Resolve(schema, FieldOf(schema["root"], "body")["schema"]);
+    const SchemaJson radii = FieldOf(AlternativeOf(surfaces, "ellipsoid"), "radii_m");
+    EXPECT_EQ(radii["required"], true);
+    EXPECT_EQ(radii["min_length"], 3);
+    EXPECT_EQ(radii["max_length"], 3);
+    EXPECT_EQ(radii["description"],
+              "Semi-axes a, b and c of the datum ellipsoid in meters, along x (longitude 0), y "
+              "(longitude 90) and z (the north pole). Holds exactly 3 items. Each must be "
+              "positive. Required.");
+    const SchemaJson radius = FieldOf(AlternativeOf(surfaces, "sphere"), "radius_m");
+    EXPECT_EQ(radius["required"], true);
+    EXPECT_EQ(radius["description"],
+              "Radius of the body's datum sphere, in meters. Must be positive. Required.");
+    EXPECT_FALSE(FieldOf(AlternativeOf(surfaces, "shape_model"), "q").contains("required"));
+    const SchemaJson sources = Resolve(schema, FieldOf(schema["root"], "source")["schema"]["of"]);
+    EXPECT_EQ(FieldOf(AlternativeOf(sources, "chain"), "sources")["min_length"], 1);
+    const SchemaJson albedo = Resolve(schema, FieldOf(schema["root"], "albedo")["schema"]["of"]);
+    const SchemaJson albedoSources = Resolve(schema, FieldOf(albedo, "source")["schema"]);
+    EXPECT_EQ(FieldOf(AlternativeOf(albedoSources, "raster"), "bands")["lengths"],
+              (SchemaJson{1, 3}));
+}
+
 TEST(ConfigSchema, GivesGeoTiffReadsACropAndLayersASourceResolvedLimit) {
     const SchemaJson schema = SchemaJson::parse(terraingen::ConfigSchema());
     const SchemaJson base = FieldOf(schema["root"], "source")["schema"];

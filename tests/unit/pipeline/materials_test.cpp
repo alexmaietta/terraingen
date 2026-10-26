@@ -100,7 +100,7 @@ TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
     options.dustCover = 0.3;
     options.dustPatch = 15.0;
     const terraingen::RasterGrid grid{24, 18, terraingen::GeoTransform::NorthUp(-30.0, 20.0, 2.0)};
-    const auto bands = terraingen::EvaluateMaterials(terrain, options, grid, {0.0, 3});
+    const auto bands = terraingen::EvaluateMaterials(terrain, options, grid, 0.0, 3);
     ASSERT_EQ(bands.size(), terraingen::kMaterialClasses);
     double sand = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
@@ -134,7 +134,7 @@ TEST(EvaluateMaterials, FindsBouldersOnceAndAgreesWithPoints) {
     tails.lengthRatio = 2.0;
     terrain.layers.push_back(std::make_shared<terraingen::SandShadowLayer>(boulders, tails));
     const terraingen::RasterGrid grid{64, 48, terraingen::GeoTransform::NorthUp(-1.6, 1.2, 0.05)};
-    const auto bands = terraingen::EvaluateMaterials(terrain, MaterialOptions{}, grid, {0.0, 3});
+    const auto bands = terraingen::EvaluateMaterials(terrain, MaterialOptions{}, grid, 0.0, 3);
     double rock = 0.0;
     double sand = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {

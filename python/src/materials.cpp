@@ -55,8 +55,7 @@ void BindMaterialMaps(nb::module_& m) {
         "evaluate_materials",
         [](const PyTerrainGenerator& generator, const MaterialOptions& material,
            const RasterGrid& grid, double spacing, unsigned threads) {
-            return EvaluateMaterials(generator.Get(), material, grid,
-                                     EvaluationOptions{spacing, threads});
+            return EvaluateMaterials(generator.Get(), material, grid, spacing, threads);
         },
         "generator"_a, "options"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0,
         nb::call_guard<nb::gil_scoped_release>(),

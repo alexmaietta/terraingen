@@ -6,10 +6,10 @@
 
 #include "terraingen/layers/anchored_plane.h"
 #include "terraingen/layers/fade.h"
+#include "terraingen/layers/field.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/random/stream.h"
-#include "terraingen/sources/field.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/util/geometry.h"
 
@@ -65,17 +65,17 @@ struct DuneRipples {
 /// uniform between the bounds, and shown only where the ground faces downwind near the slip face
 /// angle. Lengths are in meters, along the slope; widths across it.
 struct DuneGrainflows {
-    double cover = 1.0;  ///< Chance, in [0, 1], that each lattice cell holds one.
-    double minScarpWidth = 0.5;
-    double maxScarpWidth = 0.5;
-    double minScarpLength = 1.0;
-    double maxScarpLength = 1.0;
-    double minLobeWidth = 0.5;
-    double maxLobeWidth = 0.5;
-    double minLobeLength = 3.0;
-    double maxLobeLength = 3.0;
-    double thickness = 0.015;  ///< Depth of a scarp and height of a lobe (m).
-    ResolutionFade fade{};     ///< How grainflows too narrow for the spacing fade out.
+    double cover = 1.0;           ///< Chance, in [0, 1], that each lattice cell holds one.
+    double minScarpWidth = 0.5;   ///< Narrowest scarp.
+    double maxScarpWidth = 0.5;   ///< Widest scarp; at least `minScarpWidth`.
+    double minScarpLength = 1.0;  ///< Shortest scarp.
+    double maxScarpLength = 1.0;  ///< Longest scarp; at least `minScarpLength`.
+    double minLobeWidth = 0.5;    ///< Narrowest lobe.
+    double maxLobeWidth = 0.5;    ///< Widest lobe; at least `minLobeWidth`.
+    double minLobeLength = 3.0;   ///< Shortest lobe.
+    double maxLobeLength = 3.0;   ///< Longest lobe; at least `minLobeLength`.
+    double thickness = 0.015;     ///< Depth of a scarp and height of a lobe (m).
+    ResolutionFade fade{};        ///< How grainflows too narrow for the spacing fade out.
 
     bool operator==(const DuneGrainflows& other) const {
         return cover == other.cover && minScarpWidth == other.minScarpWidth &&
@@ -90,7 +90,7 @@ struct DuneGrainflows {
 /// The dunes a `DuneLayer` builds, their sizes and slopes. Lengths are in meters, angles in
 /// degrees.
 struct DuneOptions {
-    DuneShape shape = DuneShape::Barchan;
+    DuneShape shape = DuneShape::Barchan;  ///< The kind of dune.
     /// Where the wind blows toward, degrees counter-clockwise from +x; slip faces face it.
     double windAzimuthDegrees = 0.0;
     double azimuthSpreadDegrees = 0.0;   ///< Each barchan or dome's wind differs by up to this.
@@ -187,20 +187,11 @@ DuneOptions MarsBarchans();
 /// crests, 0.0027 pairs of ends per meter (Ewing et al. 2010).
 DuneOptions MarsTransverseDunes();
 
-/// Wind-blown dunes added to the terrain.
-///
-/// Barchans are crescents: cross-wind slices of height H(1 - (y/Y)^2), a cos^alpha windward
-/// profile up to a brink bent downwind toward the horns, and a slip face falling away from the
-/// brink at `slipFaceAngle`; overlapping dunes join as their upper envelope. Crest-line dunes
-/// follow a warped crest phase whose lee width keeps the slope at the slip face angle, to within a
-/// few degrees where crests bend. A function
-/// of position only, so grids, tiles and points agree.
+/// Wind-blown dunes added to the terrain, barchan crescents or crest-line dunes with slip faces
+/// at `slipFaceAngle`; overlapping dunes join as their upper envelope.
 class DuneLayer final : public FormulaLayer, public MaterialSource {
   public:
-    /// On a body, dunes are laid out in the tangent frame of `options.anchor`, with the azimuth
-    /// counter-clockwise from local east.
-    /// @param base The surface and the source, which with `options.sourceResolvesPixels` holds
-    /// the dunes it resolves.
+    /// Builds the layer; on a body dunes lie in the tangent frame of `options.anchor`.
     /// @throws std::invalid_argument as `ValidateDuneOptions`.
     explicit DuneLayer(DuneOptions options, TerrainBase base = {});
 

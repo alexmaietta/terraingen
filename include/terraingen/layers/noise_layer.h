@@ -4,10 +4,10 @@
 /// @brief `NoiseLayer`, a stack of fractals added to the terrain.
 #pragma once
 
+#include "terraingen/layers/field.h"
 #include "terraingen/layers/kernels/noise_layer.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/noise/fractals.h"
-#include "terraingen/sources/field.h"
 #include "terraingen/sources/terrain_base.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/surface.h"
@@ -29,12 +29,9 @@ struct NoiseLayerOptions {
     std::optional<double> sourceResolvesPixels{};
 };
 
-/// A stack of fractals added to the terrain: rolling relief on a flat source, or detail on a
-/// DEM. Each sample gets `FractalStackAt`, seamless on a sphere, measured on a plane from the
-/// base's reference point.
-///
-/// On a plane the layer is a kernel, so grids follow the context's backend; on a sphere, or
-/// with a source that resolves some of the fractals, it is evaluated on the CPU.
+/// A stack of fractals added to the terrain, rolling relief on a flat source or detail on a DEM.
+/// Grids on a plane follow the context's backend; on a sphere or over a resolving source it runs
+/// on the CPU.
 class NoiseLayer final : public Layer {
   public:
     /// @throws std::invalid_argument for a stack without fractals or otherwise invalid, or for a

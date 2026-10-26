@@ -92,13 +92,8 @@ struct CraterIrregularity {
 };
 
 /// Checks irregularity settings.
-/// @throws std::invalid_argument for invalid distributions or selection, shares outside [0, 1],
-/// harmonics outside 1 <= min <= max <= 64, a roughness that could fold the rim (its highest value
-/// times sqrt(2 n), n harmonics, at least 0.5), an ellipticity below 1, a non-finite heading or a
-/// negative or non-finite spread, a `maxDeviation` outside (0, 0.5], fewer than 3 or more than
-/// 1024 mark knots, a mark window that is not 0 <= inner - fade, inner <= outer and outer + fade
-/// <= 1 with a positive fade, or a mark amplitude that is negative or large enough to fold the
-/// wall (at least fade / 3.75).
+/// @throws std::invalid_argument for any field outside the range its comment gives, or a
+/// roughness or mark amplitude large enough to fold the rim or wall.
 void ValidateCraterIrregularity(const CraterIrregularity& irregularity);
 
 /// One crater's outline: the factor its rim radius and profile are stretched by in each

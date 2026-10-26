@@ -15,7 +15,7 @@
 #include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"
-#include "util/quadrature.h"
+#include "util/numerics.h"
 
 #include <algorithm>
 #include <cmath>

@@ -6,9 +6,6 @@
 
 #include "terraingen/raster/raster.h"
 
-#include <cstddef>
-#include <vector>
-
 namespace terraingen {
 
 /// The wavelengths, in pixels of the base, over which its spectrum is fitted. The defaults leave
@@ -46,32 +43,12 @@ struct PowerLawSpectrum {
     double Coefficient(double nyquist) const;
 };
 
-/// The power law fitted to the radially averaged spectrum of `heights` over `band`, by least
-/// squares of log power on log frequency, each bin weighted by its samples. The slope is clamped
-/// to [2, 4], setting `clipped`: steeper fits mostly come from windows a few large features
-/// dominate, or from DEMs smoothed by gridding, rather than from self-affine relief. A raster
-/// without relief gives a slope of 3 and an RMS of 0.
+/// The power law fitted by least squares to the radially averaged spectrum of `heights` over
+/// `band`, its slope clamped to [2, 4] (setting `clipped`); a raster without relief gives a slope
+/// of 3 and an RMS of 0.
 /// @throws std::invalid_argument for a rotated raster, a window under 8 cells a side, one with no
 /// data, an invalid `band`, or a band holding fewer than 3 bins.
 PowerLawSpectrum EstimatePowerLawSpectrum(const Raster<float>& heights,
                                           const SpectrumFitBand& band = {});
-
-namespace detail {
-
-/// One annulus of a radially averaged power spectrum.
-struct SpectrumBin {
-    double frequency = 0.0;  ///< Mean radial frequency of the bin, in cycles per raster unit.
-    double power = 0.0;      ///< Mean power spectral density, in height^2 raster units^2.
-    std::size_t count = 0;   ///< Frequency samples averaged.
-};
-
-/// The radially averaged power spectral density of `heights` on its own cells, in quarter-octave
-/// bins from the window's fundamental to the Nyquist frequency, finest last; the centered
-/// power-of-2 window is detrended by its least-squares plane and Hann-tapered.
-/// @throws std::invalid_argument for a rotated raster, a window under 8 cells a side, or one with
-/// no data.
-std::vector<SpectrumBin> RadialPowerSpectrum(const Raster<float>& heights);
-
-}  // namespace detail
 
 }  // namespace terraingen

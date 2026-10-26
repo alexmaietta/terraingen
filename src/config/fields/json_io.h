@@ -43,7 +43,8 @@ class Reader {
     /// @throws ConfigError at `path` if `json` is not an object.
     Reader(const Json& json, std::string path);
 
-    /// Reads a key into a field when present; `description` and `unit` are for `ConfigSchema`.
+    /// Reads a key into a field when present, else remembers it for `Finish` when `range`
+    /// requires it; `description` and `unit` are for `ConfigSchema`.
     /// @throws ConfigError at the key's path for a value that does not fit.
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view description = {},
@@ -54,14 +55,16 @@ class Reader {
         known_.emplace(key);
     }
 
-    /// Checks that the object has no key that no field asked for.
-    /// @throws ConfigError at the first unknown key.
+    /// Checks that the object has no key that no field asked for, then that it has every key a
+    /// field requires.
+    /// @throws ConfigError at the first unknown key, else "required" at the first missing one.
     void Finish() const;
 
   private:
     const Json& json_;
     std::string path_;
     std::set<std::string, std::less<>> known_;
+    std::vector<std::string> missing_;
 };
 
 /// Writes fields as the keys of a JSON object, in order.
@@ -242,11 +245,13 @@ void Read(const Json& json, const std::string& path, std::variant<Ts...>& value)
 
 template <typename T>
 void Reader::operator()(std::string_view key, T& value, std::string_view /*description*/,
-                        std::string_view /*unit*/, const FieldRange& /*range*/) {
+                        std::string_view /*unit*/, const FieldRange& range) {
     known_.emplace(key);
     const auto found = json_.find(key);
     if (found != json_.end()) {
         Read(*found, Child(path_, key), value);
+    } else if (range.required) {
+        missing_.emplace_back(key);
     }
 }
 

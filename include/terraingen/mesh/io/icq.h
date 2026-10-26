@@ -67,10 +67,8 @@ void WriteIcq(const std::filesystem::path& path, const IcqModel& model,
 /// @throws std::invalid_argument as `WriteIcq`.
 TriangleMesh IcqToMesh(const IcqModel& model);
 
-/// The model as a radial shape of the same Q: each vertex's distance from the origin when every
-/// vertex lies along its label's `IcqDirection`, as in the ICQ files TerrainGen writes; otherwise,
-/// as in Gaskell's models, whose vertices are relaxed off those directions, the model resampled
-/// along rays from the origin (`ShapeModelFromMesh` of `IcqToMesh`).
+/// The model as a radial shape of the same Q, resampled along rays (`ShapeModelFromMesh`) when
+/// its vertices lie off their `IcqDirection`, as in Gaskell's models.
 /// @throws std::invalid_argument as `WriteIcq`.
 /// @throws std::runtime_error as `ShapeModelFromMesh`.
 RadialShape ToRadialShape(const IcqModel& model);

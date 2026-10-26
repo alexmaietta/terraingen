@@ -13,8 +13,9 @@ namespace terraingen {
 void ValidateFractalParams(const FractalParams& params) {
     RequirePositive(static_cast<double>(params.wavelength), "Fractal wavelength");
     RequireFinite(static_cast<double>(params.amplitude), "Fractal amplitude");
-    if (params.octaves < 1 || params.octaves > 32) {
-        throw std::invalid_argument("Fractal octaves must be between 1 and 32");
+    if (params.octaves < 1 || params.octaves > kMaxFractalOctaves) {
+        throw std::invalid_argument("Fractal octaves must be between 1 and " +
+                                    std::to_string(kMaxFractalOctaves));
     }
     if (!(std::isfinite(params.lacunarity) && params.lacunarity > 1.0f)) {
         throw std::invalid_argument("Fractal lacunarity must be greater than 1 and finite");

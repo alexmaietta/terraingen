@@ -193,12 +193,8 @@ struct GeoTiffWriteOptions {
     bool bigTiff = false;
 };
 
-/// Writes a raster as a tiled, little-endian float32 GeoTIFF.
-///
-/// The transform is written as ModelPixelScale and ModelTiepoint, or ModelTransformation when
-/// rotated, shifted back half a pixel when `geoKeys` say PixelIsPoint; it is omitted for the
-/// identity transform without keys. The no-data value is written as GDAL_NODATA. Edge tiles are
-/// padded with the no-data value, or 0 without one.
+/// Writes a raster as a tiled, little-endian float32 GeoTIFF with its transform and its no-data
+/// value as GDAL_NODATA, edge tiles padded with the no-data value or 0.
 /// @param geoKeys The projection keys, as `ReadGeoTiff` returned them.
 /// @throws GeoTiffError for an empty raster, invalid options, or a file that cannot be written.
 void WriteGeoTiff(const std::filesystem::path& path, const Raster<float>& raster,

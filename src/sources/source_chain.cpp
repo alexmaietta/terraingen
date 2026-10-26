@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace terraingen {
 
@@ -27,6 +28,22 @@ constexpr double kMaxSeamLatticeSide = 2147483647.0;
 /// `value` shifted by `correction`, or `value` itself where the correction is 0.
 float Seamed(float value, double correction) {
     return correction == 0.0 ? value : static_cast<float>(static_cast<double>(value) + correction);
+}
+
+/// `measure` of the first of `sources` with a height at (`x`, `y`) at an infinite spacing, or
+/// infinity without one. Sources give a finite measure only where they have a height, so only a
+/// source measuring infinity is asked for its height.
+template <typename Measure>
+double FirstWithHeight(const std::vector<std::shared_ptr<const Source>>& sources, double x,
+                       double y, const Measure& measure) {
+    constexpr double kInfinity = std::numeric_limits<double>::infinity();
+    for (const auto& source : sources) {
+        const double value = measure(*source);
+        if (std::isfinite(value) || !std::isnan(source->HeightAt(x, y, kInfinity))) {
+            return value;
+        }
+    }
+    return kInfinity;
 }
 
 }  // namespace
@@ -153,13 +170,40 @@ float SourceChain::HeightAt(double x, double y, double spacing) const {
     return std::isnan(later) ? later : Seamed(later, Seam().At(x, y));
 }
 
-double SourceChain::ResolutionAt(double x, double y) const {
-    for (const auto& source : sources_) {
-        if (!std::isnan(source->HeightAt(x, y, std::numeric_limits<double>::infinity()))) {
-            return source->ResolutionAt(x, y);
+void SourceChain::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
+    detail::RequireHeightPerPoint(points, heights);
+    if (!prefix_) {
+        sources_.front()->HeightsAt(points, heights, spacing);
+        return;
+    }
+    prefix_->HeightsAt(points, heights, spacing);
+    std::vector<Vec2d> gaps;
+    std::vector<std::size_t> at;
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        if (std::isnan(heights[i])) {
+            gaps.push_back(points[i]);
+            at.push_back(i);
         }
     }
-    return std::numeric_limits<double>::infinity();
+    if (gaps.empty()) {
+        return;
+    }
+    std::vector<float> later(gaps.size());
+    sources_.back()->HeightsAt(Span<const Vec2d>(gaps), Span<float>(later), spacing);
+    for (std::size_t k = 0; k < at.size(); ++k) {
+        heights[at[k]] =
+            std::isnan(later[k]) ? later[k] : Seamed(later[k], Seam().At(gaps[k].x, gaps[k].y));
+    }
+}
+
+double SourceChain::ResolutionAt(double x, double y) const {
+    return FirstWithHeight(sources_, x, y,
+                           [&](const Source& source) { return source.ResolutionAt(x, y); });
+}
+
+double SourceChain::PostSpacingAt(double x, double y) const {
+    return FirstWithHeight(sources_, x, y,
+                           [&](const Source& source) { return source.PostSpacingAt(x, y); });
 }
 
 }  // namespace terraingen

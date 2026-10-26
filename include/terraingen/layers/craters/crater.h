@@ -208,10 +208,8 @@ template <typename Keep> CraterList FilterCraters(const CraterList& craters, con
 
 /// Appends `manual` to `craters`, flagged manual and given a `ManualCraterId` where their ID is 0.
 /// @param keep Which craters to append; empty for all.
-/// @throws std::invalid_argument for a crater with a non-finite position, a diameter that is not
-/// positive and finite, a negative or non-finite age, a depth that is neither NaN nor positive and
-/// finite, a rim height that is neither NaN nor finite and not negative, or a rim height without
-/// a depth, whether `keep` accepts it or not.
+/// @throws std::invalid_argument for any crater, kept or not, with a field outside the range its
+/// comment gives, or a rim height without a depth.
 void AppendManualCraters(const CraterList& manual, CraterList& craters,
                          const std::function<bool(const Crater&)>& keep = {});
 

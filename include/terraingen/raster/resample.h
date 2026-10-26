@@ -19,10 +19,9 @@ namespace terraingen {
 enum class ResampleMethod {
     Nearest,   ///< The value of the nearest cell center.
     Bilinear,  ///< Linear in each axis over the four surrounding cells.
-    Cubic,     ///< Keys cubic convolution (a = -0.5) over the sixteen surrounding cells.
-    /// The Catmull-Rom spline over the sixteen surrounding cells: the same kernel as `Cubic`, Keys
-    /// cubic convolution with a = -0.5, to the bit.
-    CatmullRom,
+    /// Keys cubic convolution (a = -0.5), the Catmull-Rom spline, over the sixteen surrounding
+    /// cells.
+    Cubic,
     /// The Lanczos kernel sinc(x) sinc(x / 3) over the 36 surrounding cells, its weights
     /// normalized to sum to 1 along each axis.
     Lanczos3,
@@ -34,14 +33,6 @@ enum class ResampleMethod {
 /// Cells either side of a point that `method` reads along each axis: 1 for nearest and bilinear,
 /// 2 for the cubic kernels, 3 for Lanczos.
 int KernelRadius(ResampleMethod method);
-
-namespace detail {
-
-/// The weight of a cubic, Catmull-Rom, Lanczos or B-spline kernel at an offset of `x` cells,
-/// before any normalization: 1 at 0 and 0 at the other whole offsets for the interpolating ones.
-double KernelWeight(ResampleMethod method, double x);
-
-}  // namespace detail
 
 /// The weights of the 2 `KernelRadius` cells around a point `fraction` of the way from cell 0 to
 /// cell 1, for cells -radius + 1 to radius, as the interpolation applies them; nearest is not a

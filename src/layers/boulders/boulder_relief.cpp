@@ -5,7 +5,7 @@
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
-#include "util/bisection.h"
+#include "util/numerics.h"
 
 #include <algorithm>
 #include <array>

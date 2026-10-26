@@ -2,8 +2,8 @@
 
 #include "terraingen/distribution/size_frequency.h"
 
-#include "util/bisection.h"
 #include "util/checks.h"
+#include "util/numerics.h"
 
 #include <algorithm>
 #include <cmath>

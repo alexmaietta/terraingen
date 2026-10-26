@@ -28,6 +28,7 @@ class EjectaIndex {
                 const std::function<double(const Crater&)>& reach,
                 std::vector<std::uint32_t> sources = {});
 
+    /// The indexed craters.
     const CraterList& Craters() const {
         return craters_;
     }
@@ -35,6 +36,7 @@ class EjectaIndex {
     std::uint32_t Source(std::size_t n) const {
         return sources_.empty() ? 0u : sources_[n];
     }
+    /// Whether no craters are indexed.
     bool Empty() const {
         return craters_.Empty();
     }

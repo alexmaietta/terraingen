@@ -8,6 +8,7 @@
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/resample.h"
+#include "terraingen/util/geometry.h"
 #include "terraingen/util/span.h"
 
 #include <algorithm>
@@ -102,6 +103,75 @@ template <typename T> struct LatticeWindow {
 /// The posts of `posts` over `box`, NaN where they have no data.
 LatticeWindow<float> ReadPosts(const PostLattice& posts, const IndexBox& box);
 
+/// The index along an axis of the post a lattice read takes for index `at`: wrapped into
+/// [0, `count`) when `wrap`, as longitudes around a body are, then clamped to [`begin`, `end`),
+/// so reads beyond the posts held repeat their edge.
+inline std::size_t PostIndex(std::int64_t at, bool wrap, std::size_t count, std::size_t begin,
+                             std::size_t end) {
+    const auto n = static_cast<std::int64_t>(count);
+    const std::int64_t wrapped = wrap ? ((at % n) + n) % n : at;
+    return static_cast<std::size_t>(std::clamp<std::int64_t>(
+        wrapped, static_cast<std::int64_t>(begin), static_cast<std::int64_t>(end) - 1));
+}
+
+/// Where a grid on a lattice starts, in lattice cells.
+struct LatticeOffset {
+    std::int64_t col = 0;
+    std::int64_t row = 0;
+};
+
+/// The offset of a grid with transform `grid` on a lattice placed by `lattice`, if its cells are
+/// the lattice's cells: the same size and rotation, starting a whole number of cells away.
+std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& lattice, const GeoTransform& grid);
+
+/// Cells per side of the tiles `FillByTiles` hands out.
+inline constexpr std::size_t kFillTileCells = 128;
+
+/// Sets the cells of `heights` tile by tile, tiles split over threads: `fill(centers, values)`
+/// gets the cell centers of a tile, row by row, and sets `values`, one per center.
+/// @param threads Threads to fill over; 0 for every hardware thread.
+template <typename FillPoints>
+void FillByTiles(Raster<float>& heights, unsigned threads, const FillPoints& fill) {
+    ForEachTile(heights.Width(), heights.Height(), kFillTileCells, threads,
+                [&](const PixelWindow& tile) {
+                    const std::size_t width = tile.colEnd - tile.colBegin;
+                    std::vector<Vec2d> centers;
+                    centers.reserve(width * (tile.rowEnd - tile.rowBegin));
+                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
+                        for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
+                            centers.push_back(heights.CellCenter(col, row));
+                        }
+                    }
+                    std::vector<float> values(centers.size());
+                    fill(Span<const Vec2d>(centers), Span<float>(values));
+                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
+                        std::copy_n(values.begin() +
+                                        static_cast<std::ptrdiff_t>((row - tile.rowBegin) * width),
+                                    width, heights.Row(row).begin() + tile.colBegin);
+                    }
+                });
+}
+
+/// Sets `heights`, one per point of `points`, by `expand(box, points, heights)`: once for them
+/// all when the box `readBox(points)` gives holds at most `perPoint` indices per point, so points
+/// close together read the lattice once, otherwise point by point with each point's own box.
+template <typename ReadBox, typename Expand>
+void ExpandPoints(Span<const Vec2d> points, Span<float> heights, double perPoint,
+                  const ReadBox& readBox, const Expand& expand) {
+    if (points.empty()) {
+        return;
+    }
+    const IndexBox box = readBox(points);
+    if (box.Area() <= perPoint * static_cast<double>(points.size())) {
+        expand(box, points, heights);
+        return;
+    }
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        const Span<const Vec2d> point = points.subspan(i, 1);
+        expand(readBox(point), point, heights.subspan(i, 1));
+    }
+}
+
 }  // namespace detail
 
 /// The posts of a raster that is a window of a larger lattice, such as a window read from a
@@ -153,8 +223,13 @@ class Upsampler {
     /// has none.
     virtual float HeightAt(const PostLattice& posts, double x, double y, double spacing) const = 0;
 
+    /// Sets each of `heights` to `HeightAt` the world point of `points` at its index, to the same
+    /// bits; the default calls `HeightAt` point by point.
+    virtual void HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,
+                           double spacing) const;
+
     /// Sets each cell of `heights` to `HeightAt` its center, to the same bits; the default calls
-    /// `HeightAt` cell by cell, rows split over threads.
+    /// `HeightsAt` tile by tile (`detail::FillByTiles`), tiles split over threads.
     /// @param threads Threads to fill over; 0 for every hardware thread.
     virtual void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
                       unsigned threads) const;
@@ -182,7 +257,15 @@ bool AtPostSpacing(const GeoTransform& transform, double spacing);
 float UpsampledHeight(const Upsampler& upsampler, const PostLattice& posts, double x, double y,
                       double spacing);
 
-/// Sets each cell of `heights` to `UpsampledHeight` at its center, to the same bits.
+/// Sets each of `heights` to `UpsampledHeight` at the point of `points` at its index, to the same
+/// bits, the points off the posts upsampled at once (`Upsampler::HeightsAt`).
+void UpsampledHeights(const Upsampler& upsampler, const PostLattice& posts,
+                      Span<const Vec2d> points, Span<float> heights, double spacing);
+
+/// Sets each cell of `heights` to `UpsampledHeight` at its center, to the same bits: a grid on the
+/// posts' lattice (`detail::OffsetOnLattice`) at their spacing or coarser reads the posts in
+/// blocks; any other grid is filled by `upsampler`, its cells centered on posts then given the
+/// posts' heights.
 /// @param threads Threads to fill over; 0 for every hardware thread.
 void FillUpsampled(const Upsampler& upsampler, const PostLattice& posts, Raster<float>& heights,
                    double spacing, unsigned threads);
@@ -202,10 +285,11 @@ class KernelUpsampler final : public Upsampler {
     /// @throws std::invalid_argument for a rotated lattice.
     float HeightAt(const PostLattice& posts, double x, double y, double spacing) const override;
 
-    /// Reads the posts once per block of cells, blocks split over threads.
+    /// Reads the posts once for points close together (`detail::ExpandPoints`), reusing a row's
+    /// kernel weights in the rows below it that share them, as on a grid aligned with the posts.
     /// @throws std::invalid_argument for a rotated lattice.
-    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
-              unsigned threads) const override;
+    void HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,
+                   double spacing) const override;
 
     /// The kernel's radius (`KernelRadius`).
     int Reach() const override {

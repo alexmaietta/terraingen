@@ -103,21 +103,21 @@ MaterialShares MaterialsAt(const TerrainGenerator& generator, const MaterialOpti
 
 std::vector<Raster<float>> EvaluateMaterials(const TerrainGenerator& generator,
                                              const MaterialOptions& options, const RasterGrid& grid,
-                                             const EvaluationOptions& evaluation) {
+                                             double spacing, unsigned threads) {
     const GroundCover ground(generator, options);
-    RequireNonNegative(evaluation.spacing, "Material spacing");
-    const double spacing = ResolvedSpacing(grid, evaluation.spacing, generator.surface);
+    RequireNonNegative(spacing, "Material spacing");
+    const double resolved = ResolvedSpacing(grid, spacing, generator.surface);
     std::vector<std::pair<MaterialClass, Raster<double>>> covers;
     ForEachLayer<MaterialSource>(generator, [&](const MaterialSource& source, std::size_t n) {
         const TerrainGround beneath = ground.Beneath(n);
         covers.emplace_back(source.Material(),
-                            source.MaterialCoverOver(grid, spacing, &beneath, evaluation.threads));
+                            source.MaterialCoverOver(grid, resolved, &beneath, threads));
     });
     std::vector<Raster<float>> bands(kMaterialClasses, grid.MakeRaster());
-    ParallelFor(grid.height, evaluation.threads, [&](std::size_t row) {
+    ParallelFor(grid.height, threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             const Vec2d center = bands[0].CellCenter(col, row);
-            MaterialShares shares = ground.At(center.x, center.y, spacing);
+            MaterialShares shares = ground.At(center.x, center.y, resolved);
             for (const auto& [material, cover] : covers) {
                 CoverWith(shares, material, cover(col, row));
             }

@@ -2,7 +2,6 @@
 
 #include "terraingen/sources/shape_model_source.h"
 
-#include "terraingen/util/parallel.h"
 #include "terraingen/util/radial_shape.h"
 #include "util/cube_faces.h"
 
@@ -10,6 +9,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace terraingen {
 namespace {
@@ -90,52 +90,75 @@ RasterGrid ShapeModelSource::Grid() const {
     return {0, 0, GeoTransform::NorthUp(-180.0, 90.0, labelDegrees_)};
 }
 
-double ShapeModelSource::FaceHeight(std::size_t face, const Vec3d& direction,
-                                    double spacing) const {
-    const detail::CubeFace& f = detail::kIcqFaces[face];
-    const double along = Dot(direction, f.normal);
-    const auto q = static_cast<double>(body_.Shape()->Q());
-    const double s = detail::EquiangularCoordinate(Dot(direction, f.u) / along, q);
-    const double t = detail::EquiangularCoordinate(Dot(direction, f.v) / along, q);
-    const double column = s + static_cast<double>(face) * static_cast<double>(kFaceColumns);
-    return UpsampledHeight(*upsamplers_[face], *posts_[face], column * labelDegrees_,
-                           -t * labelDegrees_, spacing);
+void ShapeModelSource::HeightsAt(Span<const Vec2d> points, Span<float> heights,
+                                 double spacing) const {
+    detail::RequireHeightPerPoint(points, heights);
+    const RadialShape& shape = *body_.Shape();
+    const auto q = static_cast<double>(shape.Q());
+    std::vector<Vec3d> directions(points.size());
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        directions[i] = UnitVector(points[i].x, points[i].y);
+    }
+    std::vector<double> weighted(points.size(), 0.0);
+    std::vector<double> total(points.size(), 0.0);
+    std::vector<Vec2d> onFace;
+    std::vector<std::size_t> at;
+    std::vector<double> weights;
+    std::vector<float> values;
+    for (std::size_t face = 0; face < detail::kIcqFaces.size(); ++face) {
+        const detail::CubeFace& f = detail::kIcqFaces[face];
+        onFace.clear();
+        at.clear();
+        weights.clear();
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            const double along = Dot(directions[i], f.normal);
+            if (along <= 0.0) {
+                continue;
+            }
+            const double s = detail::EquiangularCoordinate(Dot(directions[i], f.u) / along, q);
+            const double t = detail::EquiangularCoordinate(Dot(directions[i], f.v) / along, q);
+            const double weight = EdgeWeight(s, q) * EdgeWeight(t, q);
+            if (weight > 0.0) {
+                const double column =
+                    s + static_cast<double>(face) * static_cast<double>(kFaceColumns);
+                onFace.push_back({column * labelDegrees_, -t * labelDegrees_});
+                at.push_back(i);
+                weights.push_back(weight);
+            }
+        }
+        values.resize(onFace.size());
+        UpsampledHeights(*upsamplers_[face], *posts_[face], Span<const Vec2d>(onFace),
+                         Span<float>(values), spacing);
+        for (std::size_t k = 0; k < at.size(); ++k) {
+            weighted[at[k]] += weights[k] * static_cast<double>(values[k]);
+            total[at[k]] += weights[k];
+        }
+    }
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        heights[i] =
+            static_cast<float>(weighted[i] / total[i] + reference_ - shape.At(directions[i]));
+    }
 }
 
 float ShapeModelSource::HeightAt(double x, double y, double spacing) const {
-    const RadialShape& shape = *body_.Shape();
-    const Vec3d direction = UnitVector(x, y);
-    const auto q = static_cast<double>(shape.Q());
-    double weighted = 0.0;
-    double total = 0.0;
-    for (std::size_t face = 0; face < detail::kIcqFaces.size(); ++face) {
-        const detail::CubeFace& f = detail::kIcqFaces[face];
-        const double along = Dot(direction, f.normal);
-        if (along <= 0.0) {
-            continue;
-        }
-        const double weight =
-            EdgeWeight(detail::EquiangularCoordinate(Dot(direction, f.u) / along, q), q) *
-            EdgeWeight(detail::EquiangularCoordinate(Dot(direction, f.v) / along, q), q);
-        if (weight > 0.0) {
-            weighted += weight * FaceHeight(face, direction, spacing);
-            total += weight;
-        }
-    }
-    return static_cast<float>(weighted / total + reference_ - shape.At(direction));
+    float height = 0.0f;
+    const Vec2d point{x, y};
+    HeightsAt(Span<const Vec2d>(&point, 1), Span<float>(&height, 1), spacing);
+    return height;
 }
 
 void ShapeModelSource::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
-    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const Vec2d center = heights.CellCenter(col, row);
-            heights(col, row) = HeightAt(center.x, center.y, spacing);
-        }
+    detail::FillByTiles(heights, threads, [&](Span<const Vec2d> centers, Span<float> values) {
+        HeightsAt(centers, values, spacing);
     });
     MarkMissing(heights, std::nullopt);
 }
 
 double ShapeModelSource::ResolutionAt(double /*x*/, double /*y*/) const {
+    return labelDegrees_;
+}
+
+double ShapeModelSource::PostSpacingAt(double /*x*/, double /*y*/) const {
     return labelDegrees_;
 }
 

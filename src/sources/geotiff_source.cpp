@@ -2,7 +2,7 @@
 
 #include "terraingen/sources/geotiff_source.h"
 
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "util/checks.h"
 
 #include <algorithm>
@@ -68,16 +68,10 @@ class GeoTiffPosts final : public PostLattice {
 
     void Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
               Span<float> heights) const override {
-        const auto columns = static_cast<std::int64_t>(lattice_.width);
-        const auto index = [](std::int64_t at, std::size_t begin, std::size_t end) {
-            return static_cast<std::size_t>(std::clamp<std::int64_t>(
-                at, static_cast<std::int64_t>(begin), static_cast<std::int64_t>(end) - 1));
-        };
         std::vector<std::size_t> cols(width);
         for (std::size_t c = 0; c < width; ++c) {
-            const std::int64_t at = col0 + static_cast<std::int64_t>(c);
-            cols[c] = index(wrapColumns_ ? ((at % columns) + columns) % columns : at,
-                            window_.colBegin, window_.colEnd);
+            cols[c] = detail::PostIndex(col0 + static_cast<std::int64_t>(c), wrapColumns_,
+                                        lattice_.width, window_.colBegin, window_.colEnd);
         }
         const std::size_t blockWidth = reader_.BlockWidth();
         const std::size_t blockHeight = reader_.BlockHeight();
@@ -94,7 +88,8 @@ class GeoTiffPosts final : public PostLattice {
         };
         for (std::size_t r = 0; r < height; ++r) {
             const std::size_t row =
-                index(row0 + static_cast<std::int64_t>(r), window_.rowBegin, window_.rowEnd);
+                detail::PostIndex(row0 + static_cast<std::int64_t>(r), false, lattice_.height,
+                                  window_.rowBegin, window_.rowEnd);
             const std::size_t by = row / blockHeight;
             const std::size_t blockRow = row - by * blockHeight;
             const Raster<float>* current = nullptr;
@@ -228,8 +223,16 @@ float GeoTiffSource::HeightAt(double x, double y, double spacing) const {
     return Heights().HeightAt(x, y, spacing);
 }
 
+void GeoTiffSource::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
+    Heights().HeightsAt(points, heights, spacing);
+}
+
 double GeoTiffSource::ResolutionAt(double x, double y) const {
     return Heights().ResolutionAt(x, y);
+}
+
+double GeoTiffSource::PostSpacingAt(double x, double y) const {
+    return Heights().PostSpacingAt(x, y);
 }
 
 }  // namespace terraingen

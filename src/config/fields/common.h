@@ -21,21 +21,98 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace terraingen::config {
 
 /// The JSON "type" of the variant alternative `Spec` (`kName`) and what it is (`kDescription`).
 template <typename Spec> struct SpecName;
 
-/// The values a numeric field, or each number of a list, may take: `ConfigSchema` gives them to
-/// editors and the reference, and `CheckConfigRanges` enforces them. Rules that tie fields together
-/// are checked by validation. Unset bounds are open.
+/// What a field accepts on its own: the values a number, or each number of a list, may take, how
+/// many items a list holds, and whether the key must be given. `ConfigSchema` and the Python
+/// docstrings describe it after the field's description, `CheckConfigRanges` enforces the values,
+/// lengths and required optionals, and reading JSON reports a required key that is missing. Rules
+/// that tie fields together are checked by validation. Unset bounds are open.
 struct FieldRange {
-    std::optional<double> minimum;  ///< Smallest value, in the field's unit.
-    std::optional<double> maximum;  ///< Largest value, in the field's unit.
-    bool exclusiveMinimum = false;  ///< `minimum` itself is out.
-    bool exclusiveMaximum = false;  ///< `maximum` itself is out.
+    std::optional<double> minimum;           ///< Smallest value, in the field's unit.
+    std::optional<double> maximum;           ///< Largest value, in the field's unit.
+    bool exclusiveMinimum = false;           ///< `minimum` itself is out.
+    bool exclusiveMaximum = false;           ///< `maximum` itself is out.
+    std::optional<std::size_t> minLength{};  ///< Fewest items of a list.
+    std::optional<std::size_t> maxLength{};  ///< Most items of a list.
+    /// A list holds `minLength` or `maxLength` items, none between.
+    bool lengthAtBounds = false;
+    /// The key must be given; an optional field must also be set.
+    bool required = false;
+
+    /// This range, with the key required.
+    FieldRange Required() const {
+        FieldRange range = *this;
+        range.required = true;
+        return range;
+    }
+    /// This range, for a list of exactly `count` items.
+    FieldRange Length(std::size_t count) const {
+        return Length(count, count);
+    }
+    /// This range, for a list of `fewest` to `most` items.
+    FieldRange Length(std::size_t fewest, std::size_t most) const {
+        FieldRange range = *this;
+        range.minLength = fewest;
+        range.maxLength = most;
+        return range;
+    }
+    /// This range, for a list of at least `fewest` items.
+    FieldRange MinLength(std::size_t fewest) const {
+        FieldRange range = *this;
+        range.minLength = fewest;
+        return range;
+    }
+    /// This range, for a list of either `fewer` or `more` items.
+    FieldRange LengthEither(std::size_t fewer, std::size_t more) const {
+        FieldRange range = Length(fewer, more);
+        range.lengthAtBounds = true;
+        return range;
+    }
+    /// This range without its length or requirement, as it applies to each item of a list.
+    FieldRange Items() const {
+        return {minimum, maximum, exclusiveMinimum, exclusiveMaximum};
+    }
+    /// Whether it bounds the values.
+    bool Bounded() const {
+        return minimum || maximum;
+    }
+    /// Whether it bounds a list's length.
+    bool Counted() const {
+        return minLength || maxLength;
+    }
 };
+
+/// Any value, its key required.
+inline FieldRange Required() {
+    return FieldRange{}.Required();
+}
+
+/// A list of exactly `count` items of any value.
+inline FieldRange Length(std::size_t count) {
+    return FieldRange{}.Length(count);
+}
+
+/// A list of `fewest` to `most` items of any value.
+inline FieldRange Length(std::size_t fewest, std::size_t most) {
+    return FieldRange{}.Length(fewest, most);
+}
+
+/// A list of at least `fewest` items of any value.
+inline FieldRange MinLength(std::size_t fewest) {
+    return FieldRange{}.MinLength(fewest);
+}
+
+/// A list of either `fewer` or `more` items of any value; `LengthEither(0, 2)` for an empty
+/// (unset) list or a pair.
+inline FieldRange LengthEither(std::size_t fewer, std::size_t more) {
+    return FieldRange{}.LengthEither(fewer, more);
+}
 
 /// Values of at least `minimum`.
 inline FieldRange AtLeast(double minimum) {
@@ -72,9 +149,45 @@ inline FieldRange UnitInterval() {
     return Between(0.0, 1.0);
 }
 
-/// "lowest to highest", as descriptions give the counts a field allows.
+/// "lowest to highest", as messages give the counts a value allows.
 inline std::string CountText(std::size_t lowest, std::size_t highest) {
     return std::to_string(lowest) + " to " + std::to_string(highest);
+}
+
+/// What a range allows, as an error message says it: "positive", "from 1 to 4096 deg".
+/// @param unit The unit symbol given after the bounds, or empty.
+std::string DescribeRange(const FieldRange& range, std::string_view unit = {});
+
+/// What a range requires of a value, as a message says it: "must be positive", "must not be
+/// negative"; empty for an unbounded range.
+/// @param unit The unit symbol given after the bounds, or empty.
+std::string RangeRule(const FieldRange& range, std::string_view unit = {});
+
+/// How many items a range lets a list hold: "exactly 3 items", "1 to 8 items", "at least 1
+/// item", "1 or 3 items"; empty without a length.
+std::string DescribeLength(const FieldRange& range);
+
+/// A field's description followed by what its range says: its length, the rule on its values
+/// (each item's for a list) and whether it is required, such as "Semi-axes in meters. Holds
+/// exactly 3 items. Each must be positive. Required.".
+/// @param list Whether the field is a list.
+std::string FieldHelp(std::string_view description, std::string_view unit, const FieldRange& range,
+                      bool list);
+
+/// Whether a field of type `T` is a list, or an optional list.
+template <typename T> struct ListFieldTrait : std::false_type {};
+template <typename T> struct ListFieldTrait<std::vector<T>> : std::true_type {};
+template <typename T, std::size_t N> struct ListFieldTrait<std::array<T, N>> : std::true_type {};
+template <typename T> struct ListFieldTrait<std::optional<T>> : ListFieldTrait<T> {};
+
+/// A list field, or an optional one, whose range applies to each item.
+template <typename T> inline constexpr bool IsListField = ListFieldTrait<T>::value;
+
+/// `FieldHelp` of a field of type `T`.
+template <typename T>
+std::string FieldHelp(std::string_view description, std::string_view unit,
+                      const FieldRange& range) {
+    return FieldHelp(description, unit, range, IsListField<T>);
 }
 
 /// Whether `IO` declares `static constexpr bool kBindsNative = true`.
@@ -115,13 +228,6 @@ double DegreesFromRadians(double radians);
 /// An angle in radians from degrees as configurations give it.
 inline double RadiansFromDegrees(double degrees) {
     return degrees * kDegree;
-}
-
-/// An angle field in degrees, as the library stores it; `range` is in degrees.
-template <typename IO, typename Degrees>
-void DegreeField(IO& io, std::string_view key, Degrees& degrees, std::string_view description,
-                 const FieldRange& range = {}) {
-    io(key, degrees, description, "deg", range);
 }
 
 /// The fields of a resolution fade (`ResolutionFade`) as "fade_px", its start and end sample

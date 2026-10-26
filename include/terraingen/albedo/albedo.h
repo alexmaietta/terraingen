@@ -122,12 +122,10 @@ using AlbedoPixelVisitor =
 void ForEachAlbedoPixel(std::vector<Raster<float>>& bands, unsigned threads,
                         const AlbedoPixelVisitor& visit);
 
-/// `ForEachAlbedoCell` in blocks of rows, for visitors that prepare per block, such as a
-/// list of the features near it.
+/// `ForEachAlbedoCell` in blocks of rows, for visitors that prepare per block.
 /// @param threads Threads to split the blocks over; 0 for every hardware thread.
 /// @param blockRows Rows per block; positive.
-/// @param makeVisitor `makeVisitor(rowBegin, rowEnd)` returns the visitor of the cells of rows
-/// [`rowBegin`, `rowEnd`), called once per block on the thread that visits it.
+/// @param makeVisitor Returns the visitor of rows [`rowBegin`, `rowEnd`), once per block.
 void ForEachAlbedoBlock(
     std::vector<Raster<float>>& bands, unsigned threads, std::size_t blockRows,
     const std::function<AlbedoCellVisitor(std::size_t rowBegin, std::size_t rowEnd)>& makeVisitor);

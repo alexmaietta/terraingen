@@ -375,8 +375,8 @@ template <> struct EnumNames<ResampleMethod> {
         {"cubic", ResampleMethod::Cubic,
          "Keys cubic convolution (a = -0.5) over the sixteen surrounding cells: smooth, for "
          "upscaling DEMs."},
-        {"catmull_rom", ResampleMethod::CatmullRom,
-         "The Catmull-Rom spline over the sixteen surrounding cells, the same kernel as cubic."},
+        {"catmull_rom", ResampleMethod::Cubic,
+         "Another name for cubic: the Catmull-Rom spline is the same kernel."},
         {"lanczos3", ResampleMethod::Lanczos3,
          "The three-lobe Lanczos kernel over the 36 surrounding cells: sharper than cubic, with "
          "slight ringing at steps."},

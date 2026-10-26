@@ -49,10 +49,12 @@ MaterialShares MaterialsAt(const TerrainGenerator& generator, const MaterialOpti
                            double x, double y, double spacing);
 
 /// One raster per `MaterialClass` over `grid`, each cell `MaterialsAt` its center at the grid's
-/// spacing (or `evaluation.spacing` where coarser).
-/// @throws std::invalid_argument as `MaterialsAt`.
+/// spacing (or `spacing` where coarser), on several threads to the same bits as one.
+/// @param spacing Sample spacing in meters; 0 for the grid's.
+/// @param threads Threads to split the grid over; 0 for every hardware thread.
+/// @throws std::invalid_argument as `MaterialsAt`, or for a negative or non-finite `spacing`.
 std::vector<Raster<float>> EvaluateMaterials(const TerrainGenerator& generator,
                                              const MaterialOptions& options, const RasterGrid& grid,
-                                             const EvaluationOptions& evaluation = {});
+                                             double spacing = 0.0, unsigned threads = 0);
 
 }  // namespace terraingen

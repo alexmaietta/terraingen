@@ -31,8 +31,8 @@ TEST(LruCache, ComputesOnceAndEvictsWithinTheBudget) {
         cache.Get(key, [] { return std::string(4, 'x'); });
     }
     EXPECT_LE(cache.Size(), 64u);
-    EXPECT_GT(cache.Evictions(), 0u);
-    EXPECT_EQ(evicted, cache.Evictions());
+    EXPECT_GT(evicted, 0u);
+    EXPECT_EQ(cache.Size() + 4 * evicted, 4u * 199);
     EXPECT_THROW((LruCache<int, int>(0, [](const int&) { return std::size_t{1}; })),
                  std::invalid_argument);
 }

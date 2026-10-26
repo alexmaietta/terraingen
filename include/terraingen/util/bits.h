@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief Pi, bit casts and byte order, in C++17.
+/// @brief Pi, bit casts, byte order and integer arithmetic, in C++17.
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <type_traits>
 
@@ -27,5 +29,18 @@ inline constexpr bool kLittleEndian = true;
 #else
 inline constexpr bool kLittleEndian = __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__;
 #endif
+
+/// `value` / `divisor` rounded up, for a positive `divisor`: the tiles or batches of `divisor`
+/// items that cover `value` items.
+template <typename T, typename = std::enable_if_t<std::is_integral_v<T> && std::is_unsigned_v<T> &&
+                                                  !std::is_same_v<T, bool>>>
+constexpr T CeilDiv(T value, T divisor) {
+    return (value + divisor - 1) / divisor;
+}
+
+/// A whole-number `index` clamped to the valid indices [0, `size` - 1] of `size` > 0 items.
+constexpr std::size_t ClampIndex(double index, std::size_t size) {
+    return static_cast<std::size_t>(std::clamp(index, 0.0, static_cast<double>(size - 1)));
+}
 
 }  // namespace terraingen

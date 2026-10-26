@@ -39,11 +39,8 @@ struct LayerContext {
 void RequireGround(const Ground* ground, std::string_view what);
 
 /// Relief added on top of a source: noise, craters, or a layer of your own.
-///
-/// A layer implements `ApplySamples` over a `SampleBlock` (a grid's cells or scattered points), so
-/// a point gets the same height as a grid cell centered there. Implementations must be
-/// deterministic and thread-safe. Layers that place features list them on request
-/// (`CraterPlacer`, `BoulderPlacer`).
+/// Implementations of `ApplySamples` must be deterministic and thread-safe, and give a point the
+/// height of a grid cell centered there.
 class Layer {
   public:
     virtual ~Layer() = default;

@@ -51,14 +51,8 @@ struct CraterModels {
 /// profiles, and diffusion matched to the ages from the lunar fresh morphometry.
 CraterModels DefaultCraterModels();
 
-/// Craters a coarser level holds that the layer's source softens, stamped again sharp: those a
-/// coarser run listed (`ReadCraterList`) over the heights it wrote, which the source now
-/// upsamples, or a catalog of the craters a DEM holds. Each one the source resolves replaces
-/// (`Crater::replace`) what the source holds there, with its ID, age, depth and rim as listed, the
-/// rim only where the profile takes one (`TakesRimHeight`);
-/// smaller ones are left to generation, which fills the gaps beneath them, and generated craters
-/// the inherited ones stand in for are dropped. Without a source every inherited crater is
-/// stamped.
+/// Craters a coarser level or a DEM catalog holds that the layer's source softens, stamped again
+/// sharp in place of what the source holds; generated craters they stand in for are dropped.
 struct InheritedCraters {
     CraterList craters;  ///< The coarser level's craters; empty for none.
     /// Source cells across from which an inherited crater is stamped again and generated craters
@@ -121,13 +115,10 @@ struct CraterLayerOptions {
 /// over the whole grid; bands too small to resolve are not generated.
 class CraterLayer final : public Layer, public CraterPlacer {
   public:
-    /// @param models The density and ages may be null without `generateRandom` or a density map,
-    /// the ages may be null for those the degradation has, and the profile as `MatchedProfile`
-    /// takes it.
-    /// @param base What the craters lie on, copied into `generation.surface` and `apply.surface`,
-    /// and the source, which with `options.sourceResolvesPixels` holds the craters it resolves.
-    /// @throws std::invalid_argument for a missing model, a profile `MatchedProfile` rejects, or
-    /// invalid options.
+    /// Builds the layer.
+    /// @param models The density and ages may be null without `generateRandom` or a density map.
+    /// @param base The surface the craters lie on, and the source.
+    /// @throws std::invalid_argument for a missing model, a rejected profile or invalid options.
     CraterLayer(CraterModels models = DefaultCraterModels(), CraterLayerOptions options = {},
                 TerrainBase base = {});
 
@@ -144,13 +135,9 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// in meters.
     double MaxFeatureDiameter() const;
 
-    /// The craters this layer applies to a grid covering `region` (surface coordinates): generated
-    /// and manual ones centered in it or within the profile's reach of it.
-    /// @param spacing Sample spacing in meters; bands too small to resolve at it are skipped
-    /// (`CraterGenerationOptions::minResolvedDiameter`), 0 keeps every band.
-    /// @param minDiameter,maxDiameter Diameters (m) of the craters wanted: generated bands wholly
-    /// outside them may be skipped (`maxBandDiameter`), so craters outside them can still come
-    /// back.
+    /// The craters this layer applies to a grid covering `region` (surface coordinates).
+    /// @param spacing Sample spacing in meters; 0 keeps every band.
+    /// @param minDiameter,maxDiameter Diameters (m) wanted; craters outside them may still come.
     /// @param threads Threads the cells are drawn on; the craters do not depend on it.
     CraterList Craters(const Bounds2d& region, double spacing = 0.0, double minDiameter = 0.0,
                        double maxDiameter = std::numeric_limits<double>::infinity(),

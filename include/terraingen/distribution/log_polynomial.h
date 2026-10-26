@@ -16,13 +16,10 @@ class LogPolynomialSfd final : public SizeFrequencyDistribution {
   public:
     /// The distribution with the given coefficients and units.
     /// @param coefficients a_0, a_1, ... in increasing degree; at least one, all finite.
-    /// @param range Diameters in meters with 0 < `min` and finite `max`; polynomials diverge
-    /// outside the interval they were fitted on.
+    /// @param range Diameters in meters with 0 < `min` and finite `max`.
     /// @param diameterUnit Meters per unit of D in the fit; 1000 for coefficients in km.
     /// @param areaUnit m^2 per unit of area in the fit; 1e6 for counts per km^2.
-    /// @throws std::invalid_argument for no or non-finite coefficients, a unit that is not positive
-    /// and finite, a range without a positive minimum and finite maximum, or if N(>=D) increases
-    /// anywhere in the range.
+    /// @throws std::invalid_argument for a bad parameter or an N(>=D) that increases in the range.
     LogPolynomialSfd(std::vector<double> coefficients, SfdKind kind, DiameterRange range,
                      double diameterUnit = 1.0, double areaUnit = 1.0);
 

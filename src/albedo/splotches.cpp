@@ -10,7 +10,7 @@
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/span.h"
 #include "util/checks.h"

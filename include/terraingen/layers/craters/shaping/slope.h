@@ -14,11 +14,7 @@
 namespace terraingen {
 
 /// How craters formed on a slope become asymmetric along it and wear faster, after Plescia et al.
-/// (2019, https://www.hou.usra.edu/meetings/lpsc2019/pdf/2984.pdf).
-///
-/// The slope is that of the ground beneath the layer across each crater's datum footprint, leaving
-/// out the layer's own craters, so each crater's shape depends on no other. Needs the `Plane`
-/// datum.
+/// (2019, https://www.hou.usra.edu/meetings/lpsc2019/pdf/2984.pdf); needs the `Plane` datum.
 struct CraterSlopeResponse {
     /// Shapes craters asymmetrically along the slope; off keeps their shape on any slope. The wear
     /// that `criticalGradient` gives applies either way.

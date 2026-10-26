@@ -11,13 +11,9 @@ namespace terraingen {
 
 namespace detail {
 
-/// Dot product of an offset with one of eight unit gradients: the axis directions and the
-/// diagonals.
-/// @param hash Corner hash; its low three bits pick the gradient: x, -x, y, -y, then (x + y),
-/// (y - x), (x - y) and -(x + y) over sqrt(2).
-///
-/// Selects rather than branches, since a random hash defeats branch prediction; each case keeps
-/// its arithmetic to the bit (y - x is -x + y exactly).
+/// Dot product of an offset with one of eight unit gradients, the axes and the diagonals.
+/// @param hash Corner hash; its low three bits pick x, -x, y, -y, then (x + y), (y - x), (x - y)
+/// and -(x + y) over sqrt(2).
 inline float PerlinGradient2(uint32_t hash, float x, float y) {
     constexpr float kInvSqrt2 = 0.707106781186547524f;
     const uint32_t h = hash & 7u;

@@ -8,7 +8,7 @@
 #include "terraingen/raster/variogram.h"
 #include "terraingen/sources/raster_source.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/fft.h"
+#include "util/fft.h"
 
 #include <gtest/gtest.h>
 
@@ -20,6 +20,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -32,8 +33,6 @@ using terraingen::EstimateMidpointScale;
 using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::RasterGrid;
-using terraingen::detail::MidpointNodes;
-using terraingen::detail::MidpointRefiner;
 
 namespace {
 
@@ -64,14 +63,69 @@ class FunctionPosts final : public terraingen::PostLattice {
     std::function<float(double, double)> height_;
 };
 
-/// The nodes of `level` over columns [`col0`, `col1`] and rows [`row0`, `row1`].
-MidpointNodes RefinedNodes(const DiamondSquareOptions& options,
-                           const terraingen::PostLattice& posts, int level, std::int64_t col0,
-                           std::int64_t row0, std::int64_t col1, std::int64_t row1) {
-    terraingen::detail::IndexBox box;
-    box.Include(col0, col1, row0, row1);
-    return MidpointRefiner(options).Nodes(posts, level, box);
+/// The nodes of `level` over columns [`col0`, `col1`] and rows [`row0`, `row1`] of square posts,
+/// node rows rising northward: the heights diamond-square gives a grid with a cell centered on
+/// each node, at the node spacing.
+class RefinedNodes {
+  public:
+    /// @throws std::invalid_argument as `DiamondSquareUpsampler::Fill`.
+    RefinedNodes(const DiamondSquareOptions& options, const terraingen::PostLattice& posts,
+                 int level, std::int64_t col0, std::int64_t row0, std::int64_t col1,
+                 std::int64_t row1)
+        : col0_(col0), row1_(row1) {
+        const GeoTransform transform = posts.Transform();
+        const terraingen::Vec2d first = transform.PixelToWorld(0.5, 0.5);
+        const double step = std::ldexp(transform.pixelWidth, -level);
+        heights_ = RasterGrid{static_cast<std::size_t>(col1 - col0 + 1),
+                              static_cast<std::size_t>(row1 - row0 + 1),
+                              GeoTransform::NorthUp(
+                                  first.x + (static_cast<double>(col0) - 0.5) * step,
+                                  first.y + (static_cast<double>(row1) + 0.5) * step, step)}
+                       .MakeRaster();
+        DiamondSquareUpsampler(options).Fill(posts, heights_, step, 0);
+    }
+
+    /// The height of node (`col`, `row`).
+    double At(std::int64_t col, std::int64_t row) const {
+        return static_cast<double>(
+            heights_(static_cast<std::size_t>(col - col0_), static_cast<std::size_t>(row1_ - row)));
+    }
+
+    /// The nodes as a raster, the northernmost row first.
+    const Raster<float>& Heights() const {
+        return heights_;
+    }
+
+  private:
+    std::int64_t col0_;
+    std::int64_t row1_;
+    Raster<float> heights_;
+};
+
+/// The scale Se diamond-square with `options` displaces square-step node (`col`, `row`) of level 1
+/// of square posts by, both odd: its height less the height without displacement, over that
+/// with a scale of 1.
+double NodeScale(const DiamondSquareOptions& options, const terraingen::PostLattice& posts,
+                 std::int64_t col, std::int64_t row) {
+    const GeoTransform transform = posts.Transform();
+    const terraingen::Vec2d first = transform.PixelToWorld(0.5, 0.5);
+    const double step = 0.5 * transform.pixelWidth;
+    const double x = first.x + static_cast<double>(col) * step;
+    const double y = first.y + static_cast<double>(row) * step;
+    const auto height = [&](std::optional<double> scale) {
+        DiamondSquareOptions given = options;
+        if (scale) {
+            given.scale = scale;
+        }
+        return static_cast<double>(DiamondSquareUpsampler(given).HeightAt(posts, x, y, step));
+    };
+    const double still = height(0.0);
+    return (height(std::nullopt) - still) / (height(1.0) - still);
 }
+
+/// The scale fitted at node (`col`, `row`) of level 1 of posts `heights` from windows of 16 posts:
+/// bilinear between the `EstimateMidpointScale` of the windows around it, 8 posts apart.
+double WindowScale(const Raster<float>& heights, std::int64_t col, std::int64_t row);
 
 /// Gentle hills, with no data west of x = -1000.
 float Hills(double x, double y) {
@@ -208,6 +262,22 @@ Raster<float> Crop(const Raster<float>& heights, std::size_t col0, std::size_t r
     return crop;
 }
 
+double WindowScale(const Raster<float>& heights, std::int64_t col, std::int64_t row) {
+    const double u = 0.5 * static_cast<double>(col) / 8.0;
+    const double v = -0.5 * static_cast<double>(row) / 8.0;
+    const double i0 = std::floor(u);
+    const double j0 = std::floor(v);
+    const double s = u - i0;
+    const double t = v - j0;
+    const auto fit = [&](double i, double j) {
+        return EstimateMidpointScale(Crop(heights, static_cast<std::size_t>(8.0 * i - 8.0),
+                                          static_cast<std::size_t>(8.0 * j - 8.0), 16, 16));
+    };
+    const double first = fit(i0, j0) * (1.0 - s) + fit(i0 + 1.0, j0) * s;
+    const double second = fit(i0, j0 + 1.0) * (1.0 - s) + fit(i0 + 1.0, j0 + 1.0) * s;
+    return first * (1.0 - t) + second * t;
+}
+
 }  // namespace
 
 TEST(DiamondSquareOptions, RejectInvalidValues) {
@@ -250,17 +320,17 @@ TEST(DiamondSquareOptions, CompareMemberwise) {
 
 TEST(DiamondSquareUpsampler, RefinesAsManyLevelsAsTheSpacingResolves) {
     const DiamondSquareUpsampler upsampler(Options());
-    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 8.0), 0);
-    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 4.0), 0);
-    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 3.0), 1);
-    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 2.0), 1);
-    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 1.0), 2);
-    EXPECT_EQ(MidpointRefiner(Options()).Levels(4.0, 0.01), 9);
+    EXPECT_EQ(upsampler.Levels(4.0, 8.0), 0);
+    EXPECT_EQ(upsampler.Levels(4.0, 4.0), 0);
+    EXPECT_EQ(upsampler.Levels(4.0, 3.0), 1);
+    EXPECT_EQ(upsampler.Levels(4.0, 2.0), 1);
+    EXPECT_EQ(upsampler.Levels(4.0, 1.0), 2);
+    EXPECT_EQ(upsampler.Levels(4.0, 0.01), 9);
     DiamondSquareOptions capped = Options();
     capped.minPixelSize = 1.0;
-    EXPECT_EQ(MidpointRefiner(capped).Levels(4.0, 0.01), 2);
+    EXPECT_EQ(DiamondSquareUpsampler(capped).Levels(4.0, 0.01), 2);
     capped.minPixelSize = 8.0;
-    EXPECT_EQ(MidpointRefiner(capped).Levels(4.0, 0.01), 0);
+    EXPECT_EQ(DiamondSquareUpsampler(capped).Levels(4.0, 0.01), 0);
     EXPECT_EQ(upsampler.Reach(), 4);
     EXPECT_EQ(DiamondSquareUpsampler(Options(DiamondSquareInterp::CatmullRom)).Reach(), 8);
 }
@@ -269,11 +339,11 @@ TEST(DiamondSquareUpsampler, KeepsEveryCoarserNodeAndAgreesAcrossWindows) {
     const FunctionPosts posts(Hills);
     for (const DiamondSquareInterp interp :
          {DiamondSquareInterp::Bilinear, DiamondSquareInterp::CatmullRom}) {
-        const MidpointNodes base = RefinedNodes(Options(interp), posts, 0, -3, -2, 4, 5);
+        const RefinedNodes base(Options(interp), posts, 0, -3, -2, 4, 5);
         EXPECT_EQ(base.At(1, 2), static_cast<double>(Hills(6.0, 2.0)))
             << "node (1, 2) is 1 post east and 2 north of post (0, 0)";
-        const MidpointNodes coarse = RefinedNodes(Options(interp), posts, 2, -12, -8, 16, 20);
-        const MidpointNodes fine = RefinedNodes(Options(interp), posts, 3, -24, -16, 32, 40);
+        const RefinedNodes coarse(Options(interp), posts, 2, -12, -8, 16, 20);
+        const RefinedNodes fine(Options(interp), posts, 3, -24, -16, 32, 40);
         for (std::int64_t row = -2; row <= 5; ++row) {
             for (std::int64_t col = -3; col <= 4; ++col) {
                 EXPECT_EQ(coarse.At(4 * col, 4 * row), base.At(col, row));
@@ -284,7 +354,7 @@ TEST(DiamondSquareUpsampler, KeepsEveryCoarserNodeAndAgreesAcrossWindows) {
                 EXPECT_EQ(fine.At(2 * col, 2 * row), coarse.At(col, row));
             }
         }
-        const MidpointNodes shifted = RefinedNodes(Options(interp), posts, 3, 5, 7, 9, 12);
+        const RefinedNodes shifted(Options(interp), posts, 3, 5, 7, 9, 12);
         for (std::int64_t row = 7; row <= 12; ++row) {
             for (std::int64_t col = 5; col <= 9; ++col) {
                 EXPECT_EQ(shifted.At(col, row), fine.At(col, row));
@@ -311,7 +381,7 @@ TEST(DiamondSquareUpsampler, FillsTheSameBitsOnOneThreadAsOnEvery) {
 TEST(DiamondSquareUpsampler, DisplacesNewNodesByTheStepScale) {
     const FunctionPosts flat([](double, double) { return 0.0f; });
     const DiamondSquareOptions options = Options();
-    const MidpointNodes nodes = RefinedNodes(options, flat, 1, -200, -200, 200, 200);
+    const RefinedNodes nodes(options, flat, 1, -200, -200, 200, 200);
     double squares = 0.0;
     std::size_t count = 0;
     for (std::int64_t row = -199; row <= 199; row += 2) {
@@ -437,7 +507,8 @@ TEST(DiamondSquareUpsampler, NeedsItsRoughnessAndAnUnrotatedLattice) {
     const FunctionPosts posts(Hills);
     const DiamondSquareUpsampler unfitted{DiamondSquareOptions{}};
     EXPECT_THROW(static_cast<void>(unfitted.HeightAt(posts, 1.0, 1.0, 1.0)), std::invalid_argument);
-    EXPECT_THROW(RefinedNodes(DiamondSquareOptions{}, posts, 1, 0, 0, 1, 1), std::invalid_argument);
+    EXPECT_THROW(static_cast<void>(RefinedNodes(DiamondSquareOptions{}, posts, 1, 0, 0, 1, 1)),
+                 std::invalid_argument);
     DiamondSquareOptions windowed = Options();
     windowed.scale.reset();
     EXPECT_TRUE(std::isfinite(DiamondSquareUpsampler(windowed).HeightAt(posts, 1.3, 1.1, 1.0)))
@@ -466,12 +537,9 @@ TEST(DiamondSquareUpsampler, FitsAnUnsetRoughnessToThePosts) {
         const DiamondSquareUpsampler expander(source);
         const FunctionPosts flat([](double, double) { return 0.0f; });
         constexpr int kLevels = 6;
-        const MidpointNodes nodes = RefinedNodes(source, flat, kLevels, 0, 0, 511, 511);
-        auto raster = std::make_shared<Raster<float>>(nodes.width, nodes.box.Rows());
+        const RefinedNodes nodes(source, flat, kLevels, 0, 0, 511, 511);
+        auto raster = std::make_shared<Raster<float>>(nodes.Heights());
         raster->SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
-        for (std::size_t i = 0; i < nodes.values.size(); ++i) {
-            (*raster)(i % nodes.width, i / nodes.width) = static_cast<float>(nodes.values[i]);
-        }
         const terraingen::RasterPosts expanded(raster, terraingen::RasterPlacement::Whole(*raster));
         DiamondSquareOptions unset;
         unset.fitWindow = 0;
@@ -496,11 +564,11 @@ TEST(DiamondSquareUpsampler, FitsAnUnsetRoughnessToThePosts) {
         ASSERT_NE(local, nullptr);
         EXPECT_EQ(local->Options().fractalDimension, fitted->Options().fractalDimension);
         EXPECT_FALSE(local->Options().scale) << "read window by window as it refines";
-        const MidpointRefiner refiner(local->Options());
-        const double node = refiner.NodeScale(expanded, 2 * 256, -2 * 256, 1);
+        const double node = NodeScale(local->Options(), expanded, 513, -511);
         EXPECT_NEAR(node, last, 0.5 * last) << dimension;
-        EXPECT_EQ(node, EstimateMidpointScale(Crop(*raster, 248, 248, 16, 16)))
-            << "a node on a window's center takes that window's fit";
+        const double windows = WindowScale(*raster, 513, -511);
+        EXPECT_NEAR(node, windows, 1e-3 * windows)
+            << "a node's scale is bilinear between the fits of the windows around it";
         EXPECT_EQ(DiamondSquareUpsampler(local->Options()).FitTo(expanded), nullptr);
     }
 
@@ -523,14 +591,15 @@ TEST(DiamondSquareUpsampler, FitsEachWindowToItsOwnPostsSoABowlRoughensOnlyItsNe
     for (const DiamondSquareInterp interp :
          {DiamondSquareInterp::Bilinear, DiamondSquareInterp::CatmullRom}) {
         options.interp = interp;
-        const MidpointNodes far = RefinedNodes(options, plain, 2, 820, -600, 940, -400);
-        const MidpointNodes same = RefinedNodes(options, bowl, 2, 820, -600, 940, -400);
-        EXPECT_EQ(far.values, same.values) << "posts 205 to 235 across are 47 beyond the rim";
+        const RefinedNodes far(options, plain, 2, 820, -600, 940, -400);
+        const RefinedNodes same(options, bowl, 2, 820, -600, 940, -400);
+        EXPECT_TRUE(std::equal(far.Heights().Values().begin(), far.Heights().Values().end(),
+                               same.Heights().Values().begin()))
+            << "posts 205 to 235 across are 47 beyond the rim";
     }
-    const MidpointRefiner refiner(options);
-    const double inside = refiner.NodeScale(bowl, 256, -256, 1);
-    const double outside = refiner.NodeScale(bowl, 440, -256, 1);
-    EXPECT_EQ(outside, refiner.NodeScale(plain, 440, -256, 1));
+    const double inside = NodeScale(options, bowl, 257, -257);
+    const double outside = NodeScale(options, bowl, 441, -257);
+    EXPECT_EQ(outside, NodeScale(options, plain, 441, -257));
     EXPECT_GT(inside, 3.0 * outside) << "the bowl's own windows are rough";
 
     DiamondSquareOptions whole = options;

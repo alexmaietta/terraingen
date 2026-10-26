@@ -47,13 +47,9 @@ struct SceneNode {
 /// .gltf, .glb, .stl or .icq. `WriteScene` writes all but .icq (see `WriteIcq`).
 bool IsMeshPath(const std::filesystem::path& path);
 
-/// Writes meshes drawn once per node, in the format the extension names. glTF (.glb, or .gltf
-/// with a .bin beside it) stores each mesh once and instances it; OBJ (with an .mtl beside it)
-/// writes one object per node; both are y-up, TerrainGen's z-up (x, y, z) written as (x, z, -y).
-/// STL (binary) gets every node's mesh merged, z-up, without materials.
-/// @throws std::invalid_argument for another extension, no meshes or nodes, an empty or invalid
-/// mesh, mismatched normals, a node naming no mesh, a scale that is zero or not finite, or a pose
-/// whose rotation is not a rotation.
+/// Writes meshes drawn once per node as glTF or OBJ (y-up, as (x, z, -y)) or binary STL (merged,
+/// z-up, no materials), by extension.
+/// @throws std::invalid_argument for another extension, or invalid meshes, nodes or poses.
 /// @throws std::runtime_error if a file cannot be written.
 void WriteScene(const std::filesystem::path& path, const std::vector<SceneMesh>& meshes,
                 const std::vector<SceneNode>& nodes);
@@ -68,10 +64,8 @@ inline void WriteMesh(const std::filesystem::path& path, const TriangleMesh& mes
     WriteMesh(path, SceneMesh{mesh, {}, {}});
 }
 
-/// Reads every triangle of an .obj (polygons triangulated), a .gltf or .glb (every triangle
-/// primitive of the default scene, with its nodes' transforms), a binary or ASCII .stl, or an ICQ
-/// shape model in kilometers (.icq, as `ReadIcq` and `IcqToMesh`), in meters and z-up, with the
-/// first material's diffuse color where the format has one. Normals are not read.
+/// Reads every triangle of an .obj, .gltf, .glb, .stl or .icq (kilometers) file in meters and
+/// z-up, with the first material's diffuse color where there is one; normals are not read.
 /// @throws std::invalid_argument for another extension.
 /// @throws std::runtime_error if the file cannot be read or holds no triangles.
 SceneMesh ReadMesh(const std::filesystem::path& path);

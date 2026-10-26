@@ -58,12 +58,11 @@ template <> struct SpecName<TabulatedSpec> {
 };
 template <typename IO> void Fields(IO& io, TabulatedSpec& spec) {
     io("diameters", spec.diameters,
-       "Table diameters in diameter units, at least two, positive and strictly increasing; counts "
+       "Table diameters in diameter units, strictly increasing; counts "
        "are interpolated linearly in log D and log N between them.",
-       "", Above(0.0));
+       "", Above(0.0).MinLength(2));
     io("cumulative", spec.cumulative,
-       "Cumulative count N(>=D) at each diameter, per area unit; positive and not increasing.", "",
-       Above(0.0));
+       "Cumulative count N(>=D) at each diameter, per area unit; not increasing.", "", Above(0.0));
     io("diameter_unit", spec.diameterUnit,
        "Meters per table diameter unit: 1 for meters, 1000 for km.", "m/unit", Above(0.0));
     io("area_unit", spec.areaUnit, "Square meters per table area unit: 1 for m^2, 1e6 for km^2.",
@@ -105,9 +104,8 @@ template <typename IO> void Fields(IO& io, ProductionSurfaceSpec& spec) {
     io("production", spec.production, "Production function that gives the craters' sizes.");
     io("chronology", spec.chronology,
        "Chronology that gives how many craters at least 1 km across the surface holds.");
-    io("age_gyr", spec.ageGyr,
-       "Age of the surface in Gyr, from 0 to 4.6; older surfaces hold more craters.", "Gyr",
-       Between(0.0, 4.6));
+    io("age_gyr", spec.ageGyr, "Age of the surface in Gyr; older surfaces hold more craters.",
+       "Gyr", Between(0.0, 4.6));
 }
 
 template <> struct SpecName<MinimumSpec> {
@@ -168,7 +166,7 @@ template <> struct SpecName<UniformAgesSpec> {
 };
 template <typename IO> void Fields(IO& io, UniformAgesSpec& spec) {
     io("lifetime_gyr", spec.lifetimeGyr,
-       "Lifetime in Gyr, positive, that every crater's age is drawn uniformly within; with "
+       "Lifetime in Gyr that every crater's age is drawn uniformly within; with "
        "degradation, a crater this old is fully worn.",
        "Gyr", Above(0.0));
 }
@@ -182,7 +180,7 @@ template <> struct SpecName<SteadyStateAgesSpec> {
 };
 template <typename IO> void Fields(IO& io, SteadyStateAgesSpec& spec) {
     io("age_gyr", spec.ageGyr,
-       "Age of the surface in Gyr, from 0 to 4.6; it caps every crater's lifetime, so larger "
+       "Age of the surface in Gyr; it caps every crater's lifetime, so larger "
        "craters on an older surface can be older.",
        "Gyr", Between(0.0, 4.6));
     io("production", spec.production,
@@ -203,7 +201,7 @@ template <> struct SpecName<FreshnessAgesSpec> {
 };
 template <typename IO> void Fields(IO& io, FreshnessAgesSpec& spec) {
     io("lifetime_gyr", spec.lifetimeGyr,
-       "Lifetime in Gyr, positive, of every crater: freshness 0 is this old, 1 is new; crater "
+       "Lifetime in Gyr of every crater: freshness 0 is this old, 1 is new; crater "
        "albedo such as ray fading reads these ages.",
        "Gyr", Above(0.0));
     io("freshness", spec.freshness,
@@ -219,7 +217,7 @@ template <> struct SpecName<FreshnessDegradationSpec> {
 };
 template <typename IO> void Fields(IO& io, FreshnessDegradationSpec& spec) {
     io("cutoff_depth_ratio", spec.cutoffDepthRatio,
-       "Depth over diameter of a crater at the end of its lifetime, in (0, 0.1); lower values "
+       "Depth over diameter of a crater at the end of its lifetime; lower values "
        "let old craters wear shallower.",
        "", Inside(0.0, 0.1));
 }
@@ -231,23 +229,22 @@ template <> struct SpecName<NoDegradationSpec> {
 };
 template <typename IO> void Fields(IO& io, NoDegradationSpec& spec) {
     io("depth_ratio", spec.depthRatio,
-       "Depth over diameter given to every crater, positive; unset keeps each crater's fresh "
+       "Depth over diameter given to every crater; unset keeps each crater's fresh "
        "depth for the body.",
        "", Above(0.0));
 }
 
 template <typename IO> void Fields(IO& io, PowerLawDiffusivity& law) {
     io("coefficient", law.coefficient,
-       "Diffusivity of a 1 km crater, in m^2/Myr, positive; higher values wear craters down "
+       "Diffusivity of a 1 km crater, in m^2/Myr; higher values wear craters down "
        "faster.",
        "m^2/Myr", Above(0.0));
     io("exponent", law.exponent,
        "Exponent of the diameter in coefficient (D / 1 km)^exponent; 0 gives the same "
        "diffusivity for every crater size.");
     io("min_diameter_m", law.minDiameter,
-       "Diameter in meters below which the diffusivity is held at its value at this diameter; "
-       "not negative.",
-       "m", AtLeast(0.0));
+       "Diameter in meters below which the diffusivity is held at its value at this diameter.", "m",
+       AtLeast(0.0));
 }
 
 template <> struct SpecName<DiffusionDegradationSpec> {

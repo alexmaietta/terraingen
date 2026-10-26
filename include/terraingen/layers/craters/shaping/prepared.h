@@ -42,13 +42,11 @@ struct PreparedReuse {
     const void* owner = nullptr;
 };
 
-/// The craters with a non-zero resolution weight at `spacing`, prepared in `CraterApplyOrder`
-/// without datums, each in its `ResolvedCraterState`; `reshape`, when set, changes each outline
-/// after `IrregularOutline` and may be called on several threads at once.
+/// The craters resolved at `spacing`, prepared in `CraterApplyOrder` without datums.
 /// @param spacing Sample spacing in meters; positive.
 /// @param models Neither may be null.
 /// @param threads Threads to prepare the craters over; 0 for every hardware thread.
-/// @param reuse Whose craters a thread prepared before may be reused, as point queries do.
+/// @param reshape Changes each outline when set; called on several threads at once.
 /// @throws std::domain_error as `DegradationModel::State`.
 /// @throws std::invalid_argument as `ResolvedCraterState`.
 std::vector<PreparedCrater>

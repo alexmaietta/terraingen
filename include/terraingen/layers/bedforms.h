@@ -6,10 +6,10 @@
 
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
+#include "terraingen/layers/field.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/random/stream.h"
-#include "terraingen/sources/field.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/util/cells.h"
 
@@ -71,17 +71,11 @@ BedformOptions MarsLargeRipples();
 BedformOptions MarsTransverseAeolianRidges();
 
 /// Fields of wind-blown bedforms, ripples or dunes, added to the terrain.
-///
-/// Each lattice cell may hold a field with a ragged edge whose crests run across its wind; relief
-/// is C1 and zero in the troughs, and overlapping fields average by cover. A function of position
-/// only, so grids, tiles and points agree.
+/// Each lattice cell may hold a ragged-edged field; overlapping fields average by cover.
 class BedformLayer final : public FormulaLayer, public MaterialSource {
   public:
-    /// Fields are drawn in the surface's cells (`MakeCells`) and shaped in their centers' local
-    /// frames, with the azimuth counter-clockwise from local east. Applying the layer with the
-    /// exposure field enabled needs `context.ground`.
-    /// @param base The surface and the source, which with `options.sourceResolvesPixels` holds
-    /// the bedforms it resolves.
+    /// Builds the layer; the azimuth is counter-clockwise from local east, and an enabled exposure
+    /// field needs `context.ground`.
     /// @throws std::invalid_argument as `ValidateBedformOptions`.
     explicit BedformLayer(BedformOptions options, TerrainBase base = {});
 

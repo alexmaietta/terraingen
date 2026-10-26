@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "util/bisection.h"
+#include "util/numerics.h"
 
 #include <gtest/gtest.h>
 

@@ -11,7 +11,7 @@
 #include "terraingen/random/stream.h"
 #include "terraingen/random/streams.h"
 #include "terraingen/util/geometry.h"
-#include "util/bisection.h"
+#include "util/numerics.h"
 
 #include <algorithm>
 #include <array>

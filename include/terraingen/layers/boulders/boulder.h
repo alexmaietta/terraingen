@@ -282,46 +282,57 @@ struct ManualBoulder {
     ManualBoulder(double centerX, double centerY, double length)
         : x(centerX), y(centerY), diameter(length) {}
 
+    /// Sets `id`; this and the setters below return the boulder for chaining.
     ManualBoulder& Id(std::uint64_t value) {
         id = value;
         return *this;
     }
+    /// Sets `height`.
     ManualBoulder& Height(double meters) {
         height = meters;
         return *this;
     }
+    /// Sets `burial`.
     ManualBoulder& Burial(double share) {
         burial = share;
         return *this;
     }
+    /// Sets `yawDegrees`.
     ManualBoulder& YawDegrees(double degrees) {
         yawDegrees = degrees;
         return *this;
     }
+    /// Sets `leanDegrees`.
     ManualBoulder& LeanDegrees(double degrees) {
         leanDegrees = degrees;
         return *this;
     }
+    /// Sets `tiltDegrees`.
     ManualBoulder& TiltDegrees(double degrees) {
         tiltDegrees = degrees;
         return *this;
     }
+    /// Sets `tiltAzimuthDegrees`.
     ManualBoulder& TiltAzimuthDegrees(double degrees) {
         tiltAzimuthDegrees = degrees;
         return *this;
     }
+    /// Sets `wear`.
     ManualBoulder& Wear(double value) {
         wear = value;
         return *this;
     }
+    /// Sets `rest`.
     ManualBoulder& Rest(BoulderRest value) {
         rest = value;
         return *this;
     }
+    /// Sets `shapeSeed`.
     ManualBoulder& ShapeSeed(std::uint64_t value) {
         shapeSeed = value;
         return *this;
     }
+    /// Sets `model`.
     ManualBoulder& Model(bool value) {
         model = value;
         return *this;

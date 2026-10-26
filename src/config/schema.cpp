@@ -77,7 +77,8 @@ struct SchemaBuilder {
 /// `Describe(builder)`: the schema of `T`.
 template <typename T, typename = void> struct Describer;
 
-/// Describes each field a `Fields` function visits: its name, schema and default.
+/// Describes each field a `Fields` function visits: its name, schema, default and range, its
+/// description followed by what the range says (`FieldHelp`).
 class SchemaWriter {
   public:
     SchemaWriter(SchemaBuilder& builder, Json& fields) : builder_(builder), fields_(fields) {}
@@ -86,7 +87,7 @@ class SchemaWriter {
     void operator()(std::string_view key, T& value, std::string_view description = {},
                     std::string_view unit = {}, const FieldRange& range = {}) {
         Json field{{"name", std::string(key)},
-                   {"description", std::string(description)},
+                   {"description", FieldHelp<T>(description, unit, range)},
                    {"unit", std::string(unit)},
                    {"schema", Describer<T>::Describe(builder_)},
                    {"default", ToJson(value)}};
@@ -97,6 +98,19 @@ class SchemaWriter {
         if (range.maximum) {
             field["maximum"] = *range.maximum;
             field["exclusive_maximum"] = range.exclusiveMaximum;
+        }
+        if (range.lengthAtBounds) {
+            field["lengths"] = Json::array({range.minLength.value_or(0), *range.maxLength});
+        } else {
+            if (range.minLength) {
+                field["min_length"] = *range.minLength;
+            }
+            if (range.maxLength) {
+                field["max_length"] = *range.maxLength;
+            }
+        }
+        if (range.required) {
+            field["required"] = true;
         }
         fields_.push_back(std::move(field));
     }

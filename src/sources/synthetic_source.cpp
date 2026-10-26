@@ -89,7 +89,17 @@ float SyntheticSource::HeightAt(double x, double y, double spacing) const {
     return NoiseAt(x, y);
 }
 
-double SyntheticSource::ResolutionAt(double /*x*/, double /*y*/) const {
+void SyntheticSource::HeightsAt(Span<const Vec2d> points, Span<float> heights,
+                                double spacing) const {
+    detail::RequireHeightPerPoint(points, heights);
+    if (posts_) {
+        UpsampledHeights(*upsampler_, *posts_, points, heights, spacing);
+    } else {
+        NoiseAt(points, heights);
+    }
+}
+
+double SyntheticSource::PostSpacingAt(double /*x*/, double /*y*/) const {
     return pixelSize_.value_or(std::numeric_limits<double>::infinity());
 }
 

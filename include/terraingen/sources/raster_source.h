@@ -83,9 +83,9 @@ class RasterHeights {
         return lattice_;
     }
 
-    /// Copies cells on the lattice at its spacing or coarser, otherwise upsamples; cells beyond
-    /// those covered are no-data. A wrapping source fills each run of columns a turn of
-    /// longitude away from the lattice as the lattice's own longitudes.
+    /// Copies cells on the lattice at its spacing or coarser, otherwise upsamples
+    /// (`FillUpsampled`); cells beyond those covered are no-data. A wrapping source fills each
+    /// run of columns a turn of longitude away from the lattice as the lattice's own longitudes.
     /// @param threads Threads to fill over; 0 for every hardware thread.
     /// @throws std::invalid_argument for a rotated grid off the lattice.
     void Fill(Raster<float>& heights, double spacing, unsigned threads) const;
@@ -95,9 +95,15 @@ class RasterHeights {
     /// wrapping source reads `x` a whole number of turns into the lattice's longitudes.
     float HeightAt(double x, double y, double spacing) const;
 
+    /// `HeightAt` each of `points`, the points covered upsampled at once (`UpsampledHeights`).
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const;
+
     /// The effective pixel size, or else the native cell size, where `HeightAt` has a height;
     /// infinity elsewhere.
     double ResolutionAt(double x, double y) const;
+
+    /// The native cell size where `HeightAt` has a height; infinity elsewhere.
+    double PostSpacingAt(double x, double y) const;
 
     /// The upsampler in use, fitted to the cells (`Upsampler::FitTo`).
     const std::shared_ptr<const Upsampler>& UpsamplerInUse() const {
@@ -105,18 +111,10 @@ class RasterHeights {
     }
 
   private:
-    /// Where a grid on the lattice starts, in lattice cells.
-    struct LatticeOffset {
-        long long col = 0;
-        long long row = 0;
-    };
-
-    /// The offset of a grid with transform `target` when it lies on the lattice.
-    std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& target) const;
-    /// Copies the cells under `heights`, which starts at `offset`.
-    void CopyFromLattice(Raster<float>& heights, LatticeOffset offset, unsigned threads) const;
     /// Whether lattice position (`col`, `row`), in cells, is covered.
     bool Covers(double col, double row) const;
+    /// Whether `HeightAt` (`x`, `y`) at the lattice's spacing has a height.
+    bool HasHeight(double x, double y) const;
     /// The turns of longitude to take from `x` to bring it onto the lattice; 0 unless wrapping.
     double Turns(double x) const;
     /// `Fill` of a grid without wrapping.
@@ -180,10 +178,21 @@ class RasterSource final : public Source {
         return heights_.HeightAt(x, y, spacing);
     }
 
+    /// `HeightAt` each of `points`, those off the cells upsampled at once.
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override {
+        heights_.HeightsAt(points, heights, spacing);
+    }
+
     /// `effectivePixelSize`, or else the raster's cell size in CRS units, the larger side of a
     /// cell; infinity where `HeightAt` is NaN.
     double ResolutionAt(double x, double y) const override {
         return heights_.ResolutionAt(x, y);
+    }
+
+    /// The raster's cell size in CRS units, the larger side of a cell; infinity where `HeightAt`
+    /// is NaN.
+    double PostSpacingAt(double x, double y) const override {
+        return heights_.PostSpacingAt(x, y);
     }
 
     /// The upsampler in use, fitted to the raster (`Upsampler::FitTo`).

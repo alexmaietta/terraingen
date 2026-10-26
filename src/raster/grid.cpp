@@ -2,28 +2,18 @@
 
 #include "terraingen/raster/grid.h"
 
+#include "raster/mapped_bounds.h"
 #include "util/checks.h"
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <stdexcept>
 
 namespace terraingen {
 
 Bounds2d RasterGrid::Bounds() const {
-    constexpr double kInf = std::numeric_limits<double>::infinity();
-    Bounds2d bounds{kInf, kInf, -kInf, -kInf};
-    for (const double col : {0.0, static_cast<double>(width)}) {
-        for (const double row : {0.0, static_cast<double>(height)}) {
-            const Vec2d corner = transform.PixelToWorld(col, row);
-            bounds.minX = std::fmin(bounds.minX, corner.x);
-            bounds.minY = std::fmin(bounds.minY, corner.y);
-            bounds.maxX = std::fmax(bounds.maxX, corner.x);
-            bounds.maxY = std::fmax(bounds.maxY, corner.y);
-        }
-    }
-    return bounds;
+    return MappedBounds({0.0, 0.0, static_cast<double>(width), static_cast<double>(height)},
+                        [&](double col, double row) { return transform.PixelToWorld(col, row); });
 }
 
 double RasterGrid::Area() const {

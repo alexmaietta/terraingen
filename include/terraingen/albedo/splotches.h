@@ -114,13 +114,8 @@ struct SplotchAlbedoOptions {
 };
 
 /// Checks splotch options.
-/// @throws std::invalid_argument for a non-positive rate, slope or lifetime, diameters that are
-/// not positive and increasing, shares outside [0, 1] or summing above 1, changes that can reach
-/// -1 or are unbounded, a softness outside (0, 1], a raggedness outside [0, 1), a steep bright
-/// share outside [0, 1], a steep slope outside (0, 90) degrees, an invalid fade, or swarms with
-/// a non-positive rate, slope, count or range, crater diameters or ranges not increasing, a mu
-/// outside (0, 1), invalid or unbounded distributions, shares outside [0, 1] or summing above 1,
-/// or a wedge elongation below 1.
+/// @throws std::invalid_argument for any field outside the range its comment gives, here or in
+/// `swarms`.
 void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options);
 
 /// One splotch.

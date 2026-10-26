@@ -87,28 +87,27 @@ void LogStepTimes(const std::vector<StepTime>& steps, std::size_t grids, double 
     }
 }
 
-/// The distinct grids the outputs cover, in order.
-std::vector<RasterGrid> CoveredGrids(const ConfigSpec& config, const TerrainGenerator& generator) {
-    const std::optional<RasterGrid> source = SourceGrid(generator);
-    std::vector<RasterGrid> grids;
-    for (const OutputSpec& output : config.outputs) {
-        const std::optional<RasterGrid> grid =
-            config::OutputGrid(output, source, generator.surface);
-        if (grid && std::find(grids.begin(), grids.end(), *grid) == grids.end()) {
-            grids.push_back(*grid);
+/// The distinct grids of `grids`, in order.
+std::vector<RasterGrid> DistinctGrids(const std::vector<std::optional<RasterGrid>>& grids) {
+    std::vector<RasterGrid> distinct;
+    for (const std::optional<RasterGrid>& grid : grids) {
+        if (grid && std::find(distinct.begin(), distinct.end(), *grid) == distinct.end()) {
+            distinct.push_back(*grid);
         }
     }
-    return grids;
+    return distinct;
 }
 
-/// Generates what each output asks for over its grid, once per grid and result, timing each step.
+/// Generates what each output asks for over its grid (`GeneratedOutputs::outputGrids`), once per
+/// grid and result, timing each step.
 class OutputGenerator {
   public:
+    /// @param source The source's grid (`ConfigSummary::source`).
     OutputGenerator(const ConfigSpec& config, GeneratedOutputs& generated,
-                    const std::filesystem::path& directory, unsigned threads)
+                    const std::filesystem::path& directory, unsigned threads,
+                    std::optional<RasterGrid> source)
         : config_(config), generated_(generated), directory_(directory), threads_(threads),
-          source_(SourceGrid(generated.generator)),
-          grids_(CoveredGrids(config, generated.generator)) {
+          source_(std::move(source)), grids_(DistinctGrids(generated.outputGrids)) {
         for (std::size_t n = 0; n < config.layers.size(); ++n) {
             steps_.push_back(
                 {"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
@@ -118,14 +117,14 @@ class OutputGenerator {
         }
     }
 
-    /// Generates what `output` asks for, unless an earlier output did.
-    void Generate(const OutputSpec& output) {
+    /// Generates what output `i` asks for, unless an earlier output did.
+    void Generate(std::size_t i) {
+        const OutputSpec& output = config_.outputs[i];
         if (const auto* mesh = std::get_if<MeshOutput>(&output)) {
             AddBodyMesh(*mesh);
             return;
         }
-        const std::optional<RasterGrid> grid =
-            config::OutputGrid(output, source_, generated_.generator.surface);
+        const std::optional<RasterGrid>& grid = generated_.outputGrids[i];
         if (!grid) {
             return;
         }
@@ -214,7 +213,7 @@ class OutputGenerator {
             target.materials.empty()) {
             const Stopwatch stopwatch;
             target.materials = EvaluateMaterials(generated_.generator, config_.materials->options,
-                                                 target.grid, EvaluationOptions{0.0, threads_});
+                                                 target.grid, 0.0, threads_);
             Timed(Step::Materials, stopwatch.Milliseconds());
         }
         if (std::holds_alternative<PhotometryOutput>(output) && target.photometry.empty()) {
@@ -504,12 +503,15 @@ GeneratedOutputs GenerateFromConfig(const TerrainGenConfig& value,
                                     std::optional<Backend> backend) {
     const ConfigSpec& config = value.Spec();
     const std::filesystem::path directory = ConfigDirectory(config, given);
-    GeneratedOutputs generated{BuildGenerator(value, directory)};
+    config::CheckedGenerator checked = config::BuildCheckedGenerator(config, directory);
+    GeneratedOutputs generated{std::move(checked.generator)};
+    generated.outputGrids = std::move(checked.summary.outputGrids);
     generated.backend = ResolveBackend(backend.value_or(DefaultBackend()));
     const Stopwatch stopwatch;
-    OutputGenerator outputGenerator(config, generated, directory, threads);
-    for (const OutputSpec& output : config.outputs) {
-        outputGenerator.Generate(output);
+    OutputGenerator outputGenerator(config, generated, directory, threads,
+                                    std::move(checked.summary.source));
+    for (std::size_t i = 0; i < config.outputs.size(); ++i) {
+        outputGenerator.Generate(i);
     }
     generated.geoKeys = TerrainGeoKeys(generated.generator);
     generated.seconds = stopwatch.Milliseconds() / 1000.0;
@@ -548,9 +550,12 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& value,
                                                 const GeneratedOutputs& generated,
                                                 const std::filesystem::path& directory) {
     const ConfigSpec& config = value.Spec();
-    const std::optional<RasterGrid> source = SourceGrid(generated.generator);
+    if (generated.outputGrids.size() != config.outputs.size()) {
+        throw std::runtime_error("The outputs were generated from another configuration");
+    }
     std::vector<std::filesystem::path> written;
-    for (const OutputSpec& spec : config.outputs) {
+    for (std::size_t i = 0; i < config.outputs.size(); ++i) {
+        const OutputSpec& spec = config.outputs[i];
         const std::string& relative = OutputPath(spec);
         if (relative.empty()) {
             continue;
@@ -559,14 +564,10 @@ std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& value,
         if (path.has_parent_path()) {
             std::filesystem::create_directories(path.parent_path());
         }
-        const GeneratedGrid* found = nullptr;
-        if (config::OutputArea(spec)) {
-            const std::optional<RasterGrid> grid =
-                config::OutputGrid(spec, source, generated.generator.surface);
-            found = grid ? generated.Find(*grid) : nullptr;
-            if (!found) {
-                throw std::runtime_error("Nothing generated over the grid of " + path.string());
-            }
+        const std::optional<RasterGrid>& grid = generated.outputGrids[i];
+        const GeneratedGrid* found = grid ? generated.Find(*grid) : nullptr;
+        if (config::OutputArea(spec) && !found) {
+            throw std::runtime_error("Nothing generated over the grid of " + path.string());
         }
         const OutputContext context{generated, found};
         if (std::visit([&](const auto& output) { return Write(output, path, context); }, spec)) {

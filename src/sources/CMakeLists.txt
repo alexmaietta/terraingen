@@ -4,12 +4,12 @@ terraingen_add_library(
     sources
     SOURCES
     diamond_square.cpp
-    field.cpp
     flat_source.cpp
     geotiff_source.cpp
     raster_source.cpp
     seam_field.cpp
     shape_model_source.cpp
+    source.cpp
     source_chain.cpp
     synthetic_source.cpp
     upsampling.cpp

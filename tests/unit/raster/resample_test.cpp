@@ -5,6 +5,7 @@
 
 #include "support/resample.h"
 
+#include "raster/kernel_weight.h"
 #include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
@@ -154,8 +155,7 @@ namespace {
 
 /// Every kernel method.
 constexpr ResampleMethod kKernels[] = {ResampleMethod::Bilinear, ResampleMethod::Cubic,
-                                       ResampleMethod::CatmullRom, ResampleMethod::Lanczos3,
-                                       ResampleMethod::CubicBSpline};
+                                       ResampleMethod::Lanczos3, ResampleMethod::CubicBSpline};
 
 /// `values` on a lattice of whole positions interpolated at (u, v) with `method`.
 float InterpolateAt(const std::function<float(double, double)>& values, ResampleMethod method,
@@ -170,7 +170,6 @@ TEST(Kernels, HaveTheirRadiiAndWeightsThatSumToOne) {
     EXPECT_EQ(terraingen::KernelRadius(ResampleMethod::Nearest), 1);
     EXPECT_EQ(terraingen::KernelRadius(ResampleMethod::Bilinear), 1);
     EXPECT_EQ(terraingen::KernelRadius(ResampleMethod::Cubic), 2);
-    EXPECT_EQ(terraingen::KernelRadius(ResampleMethod::CatmullRom), 2);
     EXPECT_EQ(terraingen::KernelRadius(ResampleMethod::Lanczos3), 3);
     EXPECT_EQ(terraingen::KernelRadius(ResampleMethod::CubicBSpline), 2);
     for (const ResampleMethod method : kKernels) {
@@ -183,24 +182,21 @@ TEST(Kernels, HaveTheirRadiiAndWeightsThatSumToOne) {
             EXPECT_NEAR(total, 1.0, 1e-12) << static_cast<int>(method) << " " << fraction;
         }
     }
-    EXPECT_EQ(terraingen::detail::KernelWeight(ResampleMethod::Lanczos3, 0.0), 1.0);
-    EXPECT_NEAR(terraingen::detail::KernelWeight(ResampleMethod::Lanczos3, 1.0), 0.0, 1e-15);
-    EXPECT_NEAR(terraingen::detail::KernelWeight(ResampleMethod::Lanczos3, 0.5),
+    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::Lanczos3, 0.0), 1.0);
+    EXPECT_NEAR(terraingen::KernelWeight(ResampleMethod::Lanczos3, 1.0), 0.0, 1e-15);
+    EXPECT_NEAR(terraingen::KernelWeight(ResampleMethod::Lanczos3, 0.5),
                 std::sin(terraingen::kPi / 2.0) / (terraingen::kPi / 2.0) *
                     std::sin(terraingen::kPi / 6.0) / (terraingen::kPi / 6.0),
                 1e-15);
-    EXPECT_EQ(terraingen::detail::KernelWeight(ResampleMethod::Lanczos3, 3.0), 0.0);
-    EXPECT_DOUBLE_EQ(terraingen::detail::KernelWeight(ResampleMethod::CubicBSpline, 0.0),
-                     2.0 / 3.0);
-    EXPECT_DOUBLE_EQ(terraingen::detail::KernelWeight(ResampleMethod::CubicBSpline, 1.0),
-                     1.0 / 6.0);
-    EXPECT_EQ(terraingen::detail::KernelWeight(ResampleMethod::CubicBSpline, 2.0), 0.0);
+    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::Lanczos3, 3.0), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::KernelWeight(ResampleMethod::CubicBSpline, 0.0), 2.0 / 3.0);
+    EXPECT_DOUBLE_EQ(terraingen::KernelWeight(ResampleMethod::CubicBSpline, 1.0), 1.0 / 6.0);
+    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::CubicBSpline, 2.0), 0.0);
     EXPECT_EQ(terraingen::KernelWeights(ResampleMethod::Bilinear, 0.25)[0], 0.75);
-    for (const double x : {0.0, 0.3, 1.0, 1.6, 2.0}) {
-        EXPECT_EQ(terraingen::detail::KernelWeight(ResampleMethod::CatmullRom, x),
-                  terraingen::detail::KernelWeight(ResampleMethod::Cubic, x))
-            << "Catmull-Rom is Keys cubic convolution with a = -0.5";
-    }
+    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::Cubic, 0.0), 1.0);
+    EXPECT_EQ(terraingen::KernelWeight(ResampleMethod::Cubic, 1.0), 0.0);
+    EXPECT_DOUBLE_EQ(terraingen::KernelWeight(ResampleMethod::Cubic, 0.5), 0.5625);
+    EXPECT_DOUBLE_EQ(terraingen::KernelWeight(ResampleMethod::Cubic, 1.5), -0.0625);
 }
 
 TEST(Kernels, ReproduceConstantsAndLinearRamps) {
@@ -223,8 +219,8 @@ TEST(Kernels, ReproduceConstantsAndLinearRamps) {
 
 TEST(Kernels, InterpolatingKernelsPassThroughThePostsAndTheBSplineSmooths) {
     const auto spike = [](double u, double v) { return u == 0.0 && v == 0.0 ? 6.0f : 0.0f; };
-    for (const ResampleMethod method : {ResampleMethod::Bilinear, ResampleMethod::Cubic,
-                                        ResampleMethod::CatmullRom, ResampleMethod::Lanczos3}) {
+    for (const ResampleMethod method :
+         {ResampleMethod::Bilinear, ResampleMethod::Cubic, ResampleMethod::Lanczos3}) {
         EXPECT_EQ(InterpolateAt(spike, method, 0.0, 0.0), 6.0f) << static_cast<int>(method);
         EXPECT_EQ(InterpolateAt(spike, method, 1.0, 0.0), 0.0f) << static_cast<int>(method);
         EXPECT_EQ(InterpolateAt(spike, method, -2.0, 1.0), 0.0f) << static_cast<int>(method);
@@ -239,7 +235,7 @@ TEST(Kernels, InterpolatingKernelsPassThroughThePostsAndTheBSplineSmooths) {
     };
     EXPECT_NEAR(InterpolateAt(wave, ResampleMethod::CubicBSpline, 0.0, 0.0), 1.0 / 3.0, 1e-6)
         << "the B-spline damps the shortest wavelength to a third";
-    EXPECT_EQ(InterpolateAt(wave, ResampleMethod::CatmullRom, 0.0, 0.0), 1.0f);
+    EXPECT_EQ(InterpolateAt(wave, ResampleMethod::Cubic, 0.0, 0.0), 1.0f);
 }
 
 TEST(SampleRaster, InterpolatesWithEveryKernel) {

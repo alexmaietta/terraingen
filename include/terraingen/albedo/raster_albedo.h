@@ -60,13 +60,10 @@ struct RasterAlbedoOptions {
 /// Outside the map, or where it has no data, the albedo is NaN.
 class RasterAlbedo final : public AlbedoSource {
   public:
-    /// Builds the albedo and measures the map's roughness.
-    ///
-    /// On a sphere (`surface`) the map is in longitude and latitude, its cell size is its latitude
-    /// step in meters, and the detail is 3D Perlin noise at each point's 3D position.
+    /// Builds the albedo and measures the map's roughness; on a sphere the map is in longitude and
+    /// latitude.
     /// @param bands 1 or 3 rasters on one grid.
-    /// @throws std::invalid_argument for another band count, empty, rotated or mismatched rasters,
-    /// or invalid options.
+    /// @throws std::invalid_argument for a bad band count, mismatched rasters or invalid options.
     RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options = {},
                  TerrainBase base = {});
 

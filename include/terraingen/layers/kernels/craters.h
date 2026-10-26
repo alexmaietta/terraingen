@@ -2,10 +2,6 @@
 
 /// @file
 /// @brief The kernel of crater shaping (`ApplyCraters`); a kernel header for C++ and Slang.
-///
-/// The host prepares each crater (`CraterRecord`), fits its datum and gathers what varies in
-/// length, outlines and diffusion tables, into one array of floats (`CraterData`); the kernel
-/// shapes one sample from its offset to a crater's center, in single precision.
 #pragma once
 
 #include "terraingen/noise/fractal.h"
@@ -30,86 +26,86 @@ enum class CraterProfileKind : uint32_t {
 /// transition diameter (`ComplexCraterProfile`), and diffusion of the fresh shape by tables
 /// (`DiffusedProfile`).
 struct CraterProfileKernel {
-    CraterProfileKind simple = CraterProfileKind::FassettThomson;
-    uint32_t rim = 0;       ///< `FassettThomsonRim` as a number.
-    uint32_t complex = 0;   ///< 1 when complex craters apply.
-    uint32_t diffused = 0;  ///< 1 when the profile is diffused by tables.
-    float transitionDiameter = 0.0f;
-    float floorCoefficient = 0.0f;
-    float floorExponent = 0.0f;
-    float peakHeightCoefficient = 0.0f;
-    float peakHeightExponent = 0.0f;
-    float peakWidthCoefficient = 0.0f;
-    float peakWidthExponent = 0.0f;
-    uint32_t peakFromVolume = 0;  ///< 1 when the peak's base follows from its volume.
-    float peakFitMaxDiameter = 0.0f;
-    float ejectaExponent = 3.0f;
-    float complexReachRadii = 3.0f;
+    CraterProfileKind simple = CraterProfileKind::FassettThomson;  ///< The simple profile.
+    uint32_t rim = 0;                    ///< `FassettThomsonRim` as a number.
+    uint32_t complex = 0;                ///< 1 when complex craters apply.
+    uint32_t diffused = 0;               ///< 1 when the profile is diffused by tables.
+    float transitionDiameter = 0.0f;     ///< `ComplexCraterShape::transitionDiameter` (m).
+    float floorCoefficient = 0.0f;       ///< Coefficient of the floor diameter law.
+    float floorExponent = 0.0f;          ///< Exponent of the floor diameter law.
+    float peakHeightCoefficient = 0.0f;  ///< Coefficient of the peak height law.
+    float peakHeightExponent = 0.0f;     ///< Exponent of the peak height law.
+    float peakWidthCoefficient = 0.0f;   ///< Coefficient of the peak diameter or volume law.
+    float peakWidthExponent = 0.0f;      ///< Exponent of the peak diameter or volume law.
+    uint32_t peakFromVolume = 0;         ///< 1 when the peak's base follows from its volume.
+    float peakFitMaxDiameter = 0.0f;     ///< Largest diameter of the peak fit (m); 0 for none.
+    float ejectaExponent = 3.0f;         ///< `ComplexCraterShape::ejectaExponent`.
+    float complexReachRadii = 3.0f;      ///< Reach of complex craters, in radii.
     float tableExtent = 1.5f;  ///< Where tabulated heights end, in diameters from the center.
     uint32_t tableCells = 0;   ///< Cells of a tabulated profile row; rows hold one more height.
     uint32_t agesOffset = 0;   ///< Where the tabulated diffusion ages start in `CraterData`.
-    uint32_t ageCount = 0;
+    uint32_t ageCount = 0;     ///< Tabulated diffusion ages.
 };
 
 /// How craters are shaped, as `CraterApplyOptions` and the profile give it.
 struct CraterShapeKernel {
-    CraterProfileKernel profile;
-    float reachRadii = 1.5f;         ///< `CraterReachRadii`.
-    float profileReachRadii = 1.5f;  ///< The profile's own reach.
-    float blendStart = 0.8f;
-    float blendEnd = 1.2f;
-    uint32_t blendShape = 0;
-    float interiorReplacement = 0.0f;
-    float replaceStart = 1.0f;  ///< `CraterReplacement::startRadii`.
-    float replaceEnd = 1.5f;    ///< `CraterReplacement::EndRadii` of the profile.
-    float mantling = 0.0f;
-    float ejectaReachRadii = 3.0f;
-    float rimSigma = 0.0f;
-    float rimInner = 0.8f;
-    float rimOuter = 1.2f;
-    float rimStrength = 1.0f;
-    uint32_t rimShape = 0;
-    float noiseAmplitude = 0.0f;
-    float noiseWavelength = 0.5f;
-    int noiseOctaves = 4;
-    float noiseGain = 0.5f;
-    float noiseRimAmplitude = 0.0f;
-    float noiseRimWavelength = 0.1f;
-    float noiseRimInner = 0.8f;
-    float noiseRimOuter = 1.2f;
-    float wallStreaks = 0.0f;
-    float wallStreakWidth = 0.15f;
-    float ejecta = 0.0f;
-    float ejectaLineation = 0.15f;
-    float minFreshness = 0.5f;
+    CraterProfileKernel profile;       ///< The profile.
+    float reachRadii = 1.5f;           ///< `CraterReachRadii`.
+    float profileReachRadii = 1.5f;    ///< The profile's own reach.
+    float blendStart = 0.8f;           ///< `CraterBlend::startRadii`.
+    float blendEnd = 1.2f;             ///< `CraterBlend::endRadii`.
+    uint32_t blendShape = 0;           ///< `BlendShape` as a number.
+    float interiorReplacement = 0.0f;  ///< `CraterApplyOptions::interiorReplacement`.
+    float replaceStart = 1.0f;         ///< `CraterReplacement::startRadii`.
+    float replaceEnd = 1.5f;           ///< `CraterReplacement::EndRadii` of the profile.
+    float mantling = 0.0f;             ///< `CraterTexture::mantling`.
+    float ejectaReachRadii = 3.0f;     ///< `CraterTexture::ejectaReachRadii`.
+    float rimSigma = 0.0f;             ///< `RimSmoothing::sigmaRadii`.
+    float rimInner = 0.8f;             ///< `RimSmoothing::innerRadii`.
+    float rimOuter = 1.2f;             ///< `RimSmoothing::outerRadii`.
+    float rimStrength = 1.0f;          ///< `RimSmoothing::strength`.
+    uint32_t rimShape = 0;             ///< `RimSmoothing::shape` as a number.
+    float noiseAmplitude = 0.0f;       ///< `CraterNoise::amplitude`.
+    float noiseWavelength = 0.5f;      ///< `CraterNoise::wavelengthRadii`.
+    int noiseOctaves = 4;              ///< `CraterNoise::octaves`.
+    float noiseGain = 0.5f;            ///< `CraterNoise::gain`.
+    float noiseRimAmplitude = 0.0f;    ///< `CraterNoise::rimAmplitude`.
+    float noiseRimWavelength = 0.1f;   ///< `CraterNoise::rimWavelengthRadii`.
+    float noiseRimInner = 0.8f;        ///< `CraterNoise::rimInnerRadii`.
+    float noiseRimOuter = 1.2f;        ///< `CraterNoise::rimOuterRadii`.
+    float wallStreaks = 0.0f;          ///< `CraterTexture::wallStreaks`.
+    float wallStreakWidth = 0.15f;     ///< `CraterTexture::wallStreakWidthRadii`.
+    float ejecta = 0.0f;               ///< `CraterTexture::ejecta`.
+    float ejectaLineation = 0.15f;     ///< `CraterTexture::ejectaLineationRadii`.
+    float minFreshness = 0.5f;         ///< `CraterTexture::minFreshness`.
 };
 
 /// One crater ready to shape.
 struct CraterRecord {
-    float x = 0.0f;  ///< Center east of the dispatch's origin (m); read on the GPU only.
-    float y = 0.0f;  ///< Center north of the dispatch's origin (m); read on the GPU only.
-    float diameter = 0.0f;
-    float resolution = 1.0f;
-    float freshDepth = 0.0f;
-    float freshRim = 0.0f;
-    float currentDepth = 0.0f;
-    float currentRim = 0.0f;
-    float diffusion = 0.0f;
-    float ellipticity = 1.0f;
-    float heading = 0.0f;
-    uint32_t firstHarmonic = 2;
-    uint32_t harmonicCount = 0;
+    float x = 0.0f;           ///< Center east of the dispatch's origin (m); read on the GPU only.
+    float y = 0.0f;           ///< Center north of the dispatch's origin (m); read on the GPU only.
+    float diameter = 0.0f;    ///< Diameter (m).
+    float resolution = 1.0f;  ///< `ResolutionWeight` at the sample spacing.
+    float freshDepth = 0.0f;  ///< Fresh depth over diameter.
+    float freshRim = 0.0f;    ///< Fresh rim height over diameter.
+    float currentDepth = 0.0f;    ///< Current depth over diameter.
+    float currentRim = 0.0f;      ///< Current rim height over diameter.
+    float diffusion = 0.0f;       ///< `CraterState::diffusion`.
+    float ellipticity = 1.0f;     ///< The outline's long over short axis.
+    float heading = 0.0f;         ///< The outline's long axis, radians from east.
+    uint32_t firstHarmonic = 2;   ///< Order of the outline's first harmonic.
+    uint32_t harmonicCount = 0;   ///< The outline's harmonics.
     uint32_t harmonicOffset = 0;  ///< Amplitude and phase pairs in `CraterData`.
-    uint32_t tableCount = 0;
-    uint32_t tableOffset = 0;    ///< The outline's deviations in `CraterData`.
-    uint32_t profileOffset = 0;  ///< Its diffusion or profile table in `CraterData`.
-    uint32_t hasDatum = 0;
-    float datumA = 0.0f;
-    float datumB = 0.0f;
-    float datumC = 0.0f;
-    uint32_t noiseKey = 0;
-    uint32_t textureKey = 0;
-    uint32_t markCount = 0;
+    uint32_t tableCount = 0;      ///< Entries of the outline's deviation table.
+    uint32_t tableOffset = 0;     ///< The outline's deviations in `CraterData`.
+    uint32_t profileOffset = 0;   ///< Its diffusion or profile table in `CraterData`.
+    uint32_t hasDatum = 0;        ///< 1 when the crater has a datum plane.
+    float datumA = 0.0f;          ///< `Plane::a` of the datum (m).
+    float datumB = 0.0f;          ///< `Plane::b` of the datum.
+    float datumC = 0.0f;          ///< `Plane::c` of the datum.
+    uint32_t noiseKey = 0;        ///< Hash key of its noise.
+    uint32_t textureKey = 0;      ///< Hash key of its texture.
+    uint32_t markCount = 0;       ///< Knots of its outline marks; 0 for none.
     /// The marks' inner, outer and fade radii, then their knots, in `CraterData`.
     uint32_t markOffset = 0;
     float shiftX = 0.0f;         ///< `CraterSlopeShape::shift` east (m).
@@ -125,8 +121,8 @@ struct CraterRecord {
 
 /// A point east and north of a crater's center, in meters, as the kernel reads it.
 struct KernelOffset {
-    float dx = 0.0f;
-    float dy = 0.0f;
+    float dx = 0.0f;  ///< East (m).
+    float dy = 0.0f;  ///< North (m).
 };
 
 /// A crater's local frame on a body, from which the GPU works out each sample's offset
@@ -185,6 +181,7 @@ inline KernelOffset KernelFrameOffset(KERNEL_IN(CraterFrame) f, float px, float 
 /// Where the variable-length values of craters are read from: a buffer the dispatch binds.
 typedef StructuredBuffer<float> CraterData;
 
+/// The float at `index` of `data`.
 inline float CraterValue(CraterData data, uint32_t index) {
     return data[index];
 }
@@ -206,6 +203,7 @@ struct CraterData {
     const float* values = nullptr;
 };
 
+/// The float at `index` of `data`.
 inline float CraterValue(CraterData data, uint32_t index) {
     return data.values[index];
 }
@@ -239,6 +237,7 @@ inline float KernelFalloff(float x, float start, float end, uint32_t shape) {
     return KernelFalloffShape((x - start) / (end - start), shape);
 }
 
+/// Smoothstep of `t` clamped to [0, 1].
 inline float KernelSmoothstep(float t) {
     const float u = clamp(t, 0.0f, 1.0f);
     return u * u * (3.0f - 2.0f * u);
@@ -817,12 +816,9 @@ inline float KernelMarkShift(CraterData data, KERNEL_IN(CraterRecord) c, float d
 /// height in radii, number and phase, and the share of slump blocks missing from the benches.
 static const uint32_t kTerraceHeader = 20u;
 
-/// Floats of each scarp between two steps of a crater's terraces, after the header: its mean
-/// position across the wall, from 0 at the floor edge to 1 at the rim crest; the height of its
-/// scallops; their number around the rim and phase; the amplitude and phase of its slow wobble;
-/// and how far, and from which hash key, each scallop's block steps in or out. After the scarps
-/// come each step's bench level, where across its step the bench stands, and scarp share, the
-/// share of the step its two half-scarps take.
+/// Floats of each scarp of a crater's terraces after the header: mean position across the wall
+/// (0 floor edge, 1 rim crest), scallop height, scallop count and phase, wobble amplitude and
+/// phase, and each scallop block's step and hash key.
 static const uint32_t kTerraceScarpValues = 8u;
 
 /// Floats of each step of a crater's terraces, after its scarps: its bench level, its scarp share
@@ -943,18 +939,9 @@ inline float KernelTerraceEase(float v, float rounding) {
     return steepest * (v - 0.5f * rounding);
 }
 
-/// `radii` from crater `c`'s center toward `theta` with its wall terraced: between the floor edge
-/// and the rim crest the wall is remapped into `terraceCount` steps, each a bench of nearly
-/// constant radius in the round profile (so nearly level) between half-scarps rising from the
-/// bench below and to the bench above. Steps split the wall's height with jitter, and each bench
-/// stands at its step's mean height, so slumped blocks rise above the unterraced wall near their
-/// toes and drop below it under their headscarps, keeping its volume roughly. Each scarp scallops
-/// and wobbles around the rim on its own, and each bench covers its own arcs of the wall, less its
-/// missing slump blocks (those under its upper scarp's scallops, the top bench's under its lower
-/// one). The height of each step is read at the scarps' mean positions, so the wall keeps its mean
-/// shape; each step is blended toward an even rise by its bench's strength, the terraces' times its
-/// arc. The map is continuous, rises monotonically and leaves the floor and rim where they are; its
-/// slope breaks at the brinks of benches.
+/// `radii` from crater `c`'s center toward `theta` with its wall remapped into `terraceCount`
+/// nearly level benches between scarps; the map is continuous and monotonic and keeps the floor
+/// edge and rim crest in place.
 inline float KernelTerracedRadii(CraterData data, KERNEL_IN(CraterRecord) c, float radii,
                                  float theta) {
     const uint32_t o = c.terraceOffset;

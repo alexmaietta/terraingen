@@ -88,11 +88,8 @@ struct ValueDistribution {
 };
 
 /// Checks a value distribution.
-/// @throws std::invalid_argument for parameters that are not finite, a uniform with `b` < `a`, a
-/// negative standard deviation, a log-normal with a non-positive median, `min` above `max`, a
-/// normal or log-normal without a finite `max`, a piecewise kind without at least two strictly
-/// increasing finite edges and one non-negative weight per bin summing above zero, or edges or
-/// weights on any other kind.
+/// @throws std::invalid_argument for non-finite or out-of-range parameters, an unbounded normal or
+/// log-normal, bad piecewise edges or weights, or edges or weights on another kind.
 void ValidateValueDistribution(const ValueDistribution& distribution);
 
 }  // namespace terraingen

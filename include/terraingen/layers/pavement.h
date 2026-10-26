@@ -17,6 +17,9 @@
 
 namespace terraingen {
 
+/// The most crack octaves of a `PavementLayer` (`PavementOptions::octaves`).
+inline constexpr int kMaxPavementOctaves = 8;
+
 /// The plates and cracks of a `PavementLayer`. Lengths are in meters, angles in degrees.
 struct PavementOptions {
     double plateSize = 1.0;      ///< Mean plate width: the spacing of the plates' Voronoi sites.
@@ -57,8 +60,8 @@ struct PavementOptions {
 /// Checks pavement options.
 /// @throws std::invalid_argument for a plate size, crack width or exposure spacing that is not
 /// positive and finite, a negative crack depth, edge rounding, tilt or step, a tilt of 90 deg or
-/// more, a jitter outside [0, 1], a negative warp, octaves outside 1 to 8, a lacunarity not above
-/// 1, a gain outside (0, 1], or invalid exposure or fade.
+/// more, a jitter outside [0, 1], a negative warp, octaves outside 1 to `kMaxPavementOctaves`, a
+/// lacunarity not above 1, a gain outside (0, 1], or invalid exposure or fade.
 void ValidatePavementOptions(const PavementOptions& options);
 
 /// The desiccation ridges of the Old Soaker slab in Gale crater (Stein et al. 2018): 2 cm

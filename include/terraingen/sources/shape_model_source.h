@@ -41,15 +41,21 @@ class ShapeModelSource final : public Source {
     /// A grid without cells over the whole body, its cells the labels' spacing at a face's center.
     RasterGrid Grid() const override;
 
-    /// `HeightAt` each cell's center, rows split over threads.
+    /// `HeightsAt` the cell centers tile by tile, tiles split over threads.
     void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
 
     /// The refined radius at longitude and latitude (`x`, `y`) in degrees at a sample spacing of
     /// `spacing` degrees, less the body's radius there.
     float HeightAt(double x, double y, double spacing) const override;
 
+    /// `HeightAt` each of `points`, each face upsampling the points it weighs at once.
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
+
     /// The labels' spacing at a face's center, 90 / Q degrees.
     double ResolutionAt(double x, double y) const override;
+
+    /// The labels' spacing at a face's center, 90 / Q degrees.
+    double PostSpacingAt(double x, double y) const override;
 
     /// The body.
     const Surface& Body() const {
@@ -79,10 +85,6 @@ class ShapeModelSource final : public Source {
         const ShapeModelSource& source_;
         std::size_t face_;
     };
-
-    /// The refined radius along unit `direction` from face `face`'s posts, less the reference
-    /// radius.
-    double FaceHeight(std::size_t face, const Vec3d& direction, double spacing) const;
 
     Surface body_;
     double reference_ = 0.0;

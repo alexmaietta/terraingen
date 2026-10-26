@@ -2,7 +2,7 @@
 
 #include "terraingen/albedo/albedo.h"
 
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"

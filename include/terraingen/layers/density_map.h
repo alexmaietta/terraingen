@@ -5,7 +5,7 @@
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
-#include "terraingen/sources/field.h"
+#include "terraingen/layers/field.h"
 
 #include <limits>
 #include <memory>

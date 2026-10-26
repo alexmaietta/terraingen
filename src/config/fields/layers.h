@@ -16,7 +16,8 @@ namespace terraingen::config {
 /// The fields of a noise layer, its amplitude written as `amplitudeKey` in `amplitudeUnit`.
 template <typename IO>
 void FractalFields(IO& io, FractalSpec& config, std::string_view amplitudeKey,
-                   std::string_view amplitudeUnit, std::string_view amplitudeHelp) {
+                   std::string_view amplitudeUnit, std::string_view amplitudeHelp,
+                   const FieldRange& amplitudeRange = {}) {
     Fractal& fractal = config.fractal;
     io("enabled", fractal.enabled,
        "Includes this layer in the stack; disabled layers are skipped.");
@@ -31,21 +32,21 @@ void FractalFields(IO& io, FractalSpec& config, std::string_view amplitudeKey,
        "Wavelength of the first, broadest octave, in meters; sets the size of the largest "
        "features.",
        "m", Above(0.0));
-    io(amplitudeKey, config.amplitude, amplitudeHelp, amplitudeUnit);
+    io(amplitudeKey, config.amplitude, amplitudeHelp, amplitudeUnit, amplitudeRange);
     io("octaves", fractal.octaves,
-       "Number of octaves, at least 1; each one adds detail at a shorter wavelength.", "",
-       Between(1.0, 32.0));
-    io("lacunarity", fractal.lacunarity,
-       "Frequency ratio between successive octaves; greater than 1.", "", Above(1.0));
+       "Number of octaves; each one adds detail at a shorter wavelength.", "",
+       Between(1.0, kMaxFractalOctaves));
+    io("lacunarity", fractal.lacunarity, "Frequency ratio between successive octaves.", "",
+       Above(1.0));
     io("gain", fractal.gain,
-       "Weight ratio between successive octaves, greater than 0; higher values give rougher "
-       "terrain. Unused when the Hurst exponent is set.",
+       "Weight ratio between successive octaves; higher values give rougher terrain. Unused when "
+       "the Hurst exponent is set.",
        "", Above(0.0));
     io("hurst", config.hurst,
        "Hurst exponent that sets the octave gain to lacunarity^-hurst: near 1 is smooth, lower is "
        "rougher at short baselines. Unset uses the gain.");
-    io("offset", fractal.offset,
-       "Ridge offset of the ridged and hybrid multifractal types; greater than 0.", "", Above(0.0));
+    io("offset", fractal.offset, "Ridge offset of the ridged and hybrid multifractal types.", "",
+       Above(0.0));
     io("warp_amplitude_m", fractal.warpAmplitude,
        "Domain warp displacement in meters, which bends the noise into swirled shapes; 0 "
        "disables warping.",
@@ -63,7 +64,8 @@ template <typename IO> void Fields(IO& io, FractalSpec& config) {
 template <typename IO> void Fields(IO& io, AlbedoFractalSpec& config) {
     FractalFields(io, config, "amplitude", "",
                   "Largest value of the layer above or below 0, in what its stack varies: "
-                  "relative brightness, saturation or degrees of hue; required.");
+                  "relative brightness, saturation or degrees of hue.",
+                  Required());
 }
 
 template <> struct SpecName<NoiseLayerSpec> {
@@ -73,13 +75,13 @@ template <> struct SpecName<NoiseLayerSpec> {
         "relief.";
 };
 template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer) {
-    io("stack", layer.stack, NoiseStackHelp(1));
-    io("estimate_from_base", layer.estimateFromSource,
-       "Continues the base's roughness into the noise: each layer's unset hurst becomes the "
-       "Hurst exponent of the base's variogram at its native cell size, and each unset "
+    io("stack", layer.stack, std::string(kNoiseStackHelp), "", NoiseStackLength(1));
+    io("estimate_from_source", layer.estimateFromSource,
+       "Continues the source's roughness into the noise: each layer's unset hurst becomes the "
+       "Hurst exponent of the source's variogram at its native cell size, and each unset "
        "amplitude gives the layer the RMS height difference that variogram extrapolates to at "
-       "a lag of the layer's wavelength. Meant for wavelengths at or below the base's cell "
-       "size; needs a base.");
+       "a lag of the layer's wavelength. Meant for wavelengths at or below the source's cell "
+       "size; needs a source with posts.");
     SourceResolvesField(io, layer.sourceResolvesPixels, "noise layers of the stack",
                         "wavelength, the longest of each layer's octaves");
 }
@@ -96,8 +98,8 @@ inline constexpr std::string_view kRmsSlopeHelp =
 
 /// What a roughness's "hurst" field means.
 inline constexpr std::string_view kRoughnessHurstHelp =
-    "Hurst exponent, in (0, 1]: octave amplitudes grow as wavelength^hurst, so lower values put "
-    "relatively more roughness at short wavelengths.";
+    "Hurst exponent: octave amplitudes grow as wavelength^hurst, so lower values put relatively "
+    "more roughness at short wavelengths.";
 
 /// The fields of a roughness's octaves: their wavelengths, seed and fade.
 template <typename IO> void RoughnessOctaveFields(IO& io, RoughnessOptions& roughness) {
@@ -126,20 +128,21 @@ template <typename IO> void Fields(IO& io, RoughnessOptions& roughness) {
 template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
     io("rms_slope", spec.rmsSlope,
        std::string(kRmsSlopeHelp) +
-           " Unset is 0.15, or with estimate_from_base the base's RMS slope extrapolated to the "
-           "baseline.",
+           " Unset is 0.15, or with estimate_from_source the source's RMS slope extrapolated to "
+           "the baseline.",
        "", Above(0.0));
     io("baseline_m", spec.roughness.baseline, "Baseline the RMS slope is given over, in meters.",
        "m", Above(0.0));
     io("hurst", spec.hurst,
-       std::string(kRoughnessHurstHelp) + " Unset is 0.8, or with estimate_from_base the base's.",
+       std::string(kRoughnessHurstHelp) +
+           " Unset is 0.8, or with estimate_from_source the source's.",
        "", AboveUpTo(0.0, 1.0));
-    io("estimate_from_base", spec.estimateFromSource,
-       "Continues the base's roughness below its resolution: fits the Hurst exponent and RMS "
-       "height difference to the base's variogram at lags of 1 to 8 native cells, over up to "
+    io("estimate_from_source", spec.estimateFromSource,
+       "Continues the source's roughness below its resolution: fits the Hurst exponent and RMS "
+       "height difference to the source's variogram at lags of 1 to 8 native cells, over up to "
        "512 cells about its center, and extrapolates the RMS slope to the baseline. Set "
-       "rms_slope or hurst to override an estimate. Needs a base with relief; keep "
-       "max_wavelength_m near the base's cell size.");
+       "rms_slope or hurst to override an estimate. Needs a source with posts and relief; keep "
+       "max_wavelength_m near the source's cell size.");
     RoughnessOctaveFields(io, spec.roughness);
 }
 
@@ -149,8 +152,8 @@ template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
     io("height_m", ripples.height, "Trough-to-crest height of the ripples on flat sand, in meters.",
        "m", AtLeast(0.0));
     io("lee_fraction", ripples.leeFraction,
-       "Share of a ripple wavelength the lee face takes, in (0, 1): 0.5 is symmetric, lower "
-       "values give a steeper lee face.",
+       "Share of a ripple wavelength the lee face takes: 0.5 is symmetric, lower values give a "
+       "steeper lee face.",
        "", Inside(0.0, 1.0));
     io("sinuosity", ripples.sinuosity,
        "How far a ripple crest wanders along its length, in wavelengths.", "", AtLeast(0.0));
@@ -159,16 +162,14 @@ template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
        "faces and turn on the flanks; 0 keeps them straight across the wind.",
        "", AtLeast(0.0));
     io("interdune_cover", ripples.interduneCover,
-       "Share of the ripple height kept on the ground between dunes, from 0 to 1.", "",
-       UnitInterval());
+       "Share of the ripple height kept on the ground between dunes.", "", UnitInterval());
     io("defect_density", ripples.defectDensity,
        "Forked crests (Y-junctions): pairs of crest ends per meter of crest, as measured on dune "
        "fields (Ewing et al. 2010); 0 for none. Mars large ripples: 0.099.",
        "1/m", AtLeast(0.0));
     io("flank_straightening", ripples.flankStraightening,
-       "How far crests straighten off the stoss, from 0 to 1: 1 keeps the sinuosity on flat sand "
-       "and stoss slopes and takes it away on flanks and lee slopes, as Martian large ripples "
-       "do.",
+       "How far crests straighten off the stoss: 1 keeps the sinuosity on flat sand and stoss "
+       "slopes and takes it away on flanks and lee slopes, as Martian large ripples do.",
        "", UnitInterval());
     FadePixelFields(
         io, ripples.fade,
@@ -176,9 +177,8 @@ template <typename IO> void Fields(IO& io, DuneRipples& ripples) {
 }
 
 template <typename IO> void Fields(IO& io, DuneGrainflows& flows) {
-    io("cover", flows.cover,
-       "Chance, from 0 to 1, that each lattice cell of the slip faces holds a grainflow.", "",
-       UnitInterval());
+    io("cover", flows.cover, "Chance that each lattice cell of the slip faces holds a grainflow.",
+       "", UnitInterval());
     io("min_scarp_width_m", flows.minScarpWidth, "Narrowest scarp, in meters.", "m", Above(0.0));
     io("max_scarp_width_m", flows.maxScarpWidth, "Widest scarp, in meters.", "m", Above(0.0));
     io("min_scarp_length_m", flows.minScarpLength, "Shortest scarp downslope, in meters.", "m",
@@ -207,17 +207,17 @@ template <> struct SpecName<DuneLayerSpec> {
 /// The fields of every dune's shape and the wind that shapes it.
 template <typename IO> void DuneProfileFields(IO& io, DuneOptions& dunes) {
     io("shape", dunes.shape, "The kind of dune.");
-    DegreeField(io, "wind_azimuth_deg", dunes.windAzimuthDegrees,
-                WindAzimuthHelp("wind", "slip faces face it"));
-    DegreeField(io, "azimuth_spread_deg", dunes.azimuthSpreadDegrees,
-                "Largest difference of each barchan or dome's wind from the azimuth, in degrees.",
-                AtLeast(0.0));
-    DegreeField(io, "slip_face_angle_deg", dunes.slipFaceAngleDegrees,
-                "Slope of the lee slip faces, in degrees: the sand's angle of repose.",
-                Inside(0.0, 90.0));
-    DegreeField(io, "stoss_slope_deg", dunes.stossSlopeDegrees,
-                "Mean slope of the windward faces, in degrees; below the slip face angle.",
-                Inside(0.0, 90.0));
+    io("wind_azimuth_deg", dunes.windAzimuthDegrees, WindAzimuthHelp("wind", "slip faces face it"),
+       "deg");
+    io("azimuth_spread_deg", dunes.azimuthSpreadDegrees,
+       "Largest difference of each barchan or dome's wind from the azimuth, in degrees.", "deg",
+       AtLeast(0.0));
+    io("slip_face_angle_deg", dunes.slipFaceAngleDegrees,
+       "Slope of the lee slip faces, in degrees: the sand's angle of repose.", "deg",
+       Inside(0.0, 90.0));
+    io("stoss_slope_deg", dunes.stossSlopeDegrees,
+       "Mean slope of the windward faces, in degrees; below the slip face angle.", "deg",
+       Inside(0.0, 90.0));
     io("stoss_exponent", dunes.stossExponent,
        "Exponent alpha of the cos^alpha windward profile of dunes; higher is blunter.", "",
        Above(0.0));
@@ -230,13 +230,12 @@ template <typename IO> void DuneLatticeFields(IO& io, DuneOptions& dunes) {
     io("lattice_spacing_m", dunes.latticeSpacing,
        "Barchans and domes: side of the lattice cells, each holding at most one dune, in meters.",
        "m", Above(0.0));
-    io("density", dunes.density, "Barchans and domes: chance a cell holds a dune, from 0 to 1.", "",
+    io("density", dunes.density, "Barchans and domes: chance a cell holds a dune.", "",
        UnitInterval());
     io("width_m", dunes.width, "Barchans and domes: mean width, horn to horn, in meters.", "m",
        Above(0.0));
     io("width_spread", dunes.widthSpread,
-       "Barchans and domes: each width varies from (1 - spread) to (1 + spread) times the mean, "
-       "spread in [0, 1).",
+       "Barchans and domes: each width varies from (1 - spread) to (1 + spread) times the mean.",
        "", FromBelow(0.0, 1.0));
     io("min_width_m", dunes.minWidth,
        "Barchans: width in meters below which a dune is a dome without a slip face, blending "
@@ -262,15 +261,15 @@ template <typename IO> void DuneCrestFields(IO& io, DuneOptions& dunes) {
        "", AtLeast(0.0));
     io("defects", dunes.defects,
        "Transverse, barchanoid and linear dunes: share of the height that varies along crests, "
-       "lowering and ending some, from 0 to 1.",
+       "lowering and ending some.",
        "", UnitInterval());
     io("defect_density", dunes.defectDensity,
        "Transverse, barchanoid and linear dunes: pairs of crest ends per meter of crest, so crests "
        "break into segments about 1 / defect_density long; 0 for none. Olympia Undae: 0.0027 "
        "(Ewing et al. 2010).",
        "1/m", AtLeast(0.0));
-    DegreeField(io, "flank_slope_deg", dunes.flankSlopeDegrees,
-                "Linear dunes: mean slope of both flanks, in degrees.", Inside(0.0, 90.0));
+    io("flank_slope_deg", dunes.flankSlopeDegrees,
+       "Linear dunes: mean slope of both flanks, in degrees.", "deg", Inside(0.0, 90.0));
 }
 
 template <typename IO> void Fields(IO& io, DuneOptions& dunes) {
@@ -307,7 +306,7 @@ template <> struct SpecName<PavementLayerSpec> {
 template <typename IO> void Fields(IO& io, PavementOptions& pavement) {
     io("plate_size_m", pavement.plateSize, "Mean plate width, in meters.", "m", Above(0.0));
     io("jitter", pavement.jitter,
-       "How far plate centers stray from a square lattice, from 0 (square plates) to 1.", "",
+       "How far plate centers stray from a square lattice; 0 gives square plates.", "",
        UnitInterval());
     io("warp", pavement.warp, "Bend and roughness of the plate edges, in plate sizes.", "",
        AtLeast(0.0));
@@ -318,18 +317,17 @@ template <typename IO> void Fields(IO& io, PavementOptions& pavement) {
     io("raised", pavement.raised, "Whether plates are parted by raised ridges instead of cracks.");
     io("edge_rounding_m", pavement.edgeRounding,
        "Width of the rounded shoulder beside each crack, in meters.", "m", AtLeast(0.0));
-    DegreeField(io, "max_tilt_deg", pavement.maxTiltDegrees, "Largest tilt of a plate, in degrees.",
-                FromBelow(0.0, 90.0));
+    io("max_tilt_deg", pavement.maxTiltDegrees, "Largest tilt of a plate, in degrees.", "deg",
+       FromBelow(0.0, 90.0));
     io("max_step_m", pavement.maxStep, "Largest height offset of a plate, up or down, in meters.",
        "m", AtLeast(0.0));
     io("octaves", pavement.octaves,
-       "Crack octaves, 1 to 8: each finer octave splits every plate again, its cracks ending at "
-       "the plate's edges.",
-       "", Between(1.0, 8.0));
-    io("lacunarity", pavement.lacunarity, "Plate size ratio between octaves, above 1.", "",
-       Above(1.0));
+       "Crack octaves: each finer octave splits every plate again, its cracks ending at the "
+       "plate's edges.",
+       "", Between(1.0, kMaxPavementOctaves));
+    io("lacunarity", pavement.lacunarity, "Plate size ratio between octaves.", "", Above(1.0));
     io("gain", pavement.gain,
-       "Ratio of crack width, depth, rounding, tilt and step between octaves, in (0, 1].", "",
+       "Ratio of crack width, depth, rounding, tilt and step between octaves.", "",
        AboveUpTo(0.0, 1.0));
     io("seed", pavement.seed, "Seed of the plates.");
     ExposureFields(io, pavement.exposure, pavement.exposureSpacing,
@@ -354,32 +352,30 @@ template <typename IO> void Fields(IO& io, StrataOptions& strata) {
     io("bed_thickness_m", strata.bedThickness, "Mean thickness of a bed, in meters.", "m",
        Above(0.0));
     io("thickness_variation", strata.thicknessVariation,
-       "How far each bed boundary strays from even spacing, in bed thicknesses, in [0, 1).", "",
+       "How far each bed boundary strays from even spacing, in bed thicknesses.", "",
        FromBelow(0.0, 1.0));
-    DegreeField(io, "dip_deg", strata.dipDegrees,
-                "Dip of the beds from horizontal, in degrees, below 90.", FromBelow(0.0, 90.0));
-    DegreeField(io, "dip_azimuth_deg", strata.dipAzimuthDegrees,
-                "Direction the beds dip toward, in degrees counter-clockwise from +x (local east "
-                "on a body).");
+    io("dip_deg", strata.dipDegrees, "Dip of the beds from horizontal, in degrees.", "deg",
+       FromBelow(0.0, 90.0));
+    io("dip_azimuth_deg", strata.dipAzimuthDegrees,
+       "Direction the beds dip toward, in degrees counter-clockwise from +x (local east on a "
+       "body).",
+       "deg");
     io("sharpness", strata.sharpness,
-       "How sharply each bed is cut into a flat bench and a cliff, at least 1; 1 leaves the "
-       "ground as it is.",
+       "How sharply each bed is cut into a flat bench and a cliff; 1 leaves the ground as it is.",
        "", AtLeast(1.0));
-    io("strength", strata.strength, "Share of the terracing applied, in [0, 1].", "",
-       UnitInterval());
+    io("strength", strata.strength, "Share of the terracing applied.", "", UnitInterval());
     io("cliff_share", strata.cliffShare,
-       "Share of each bed's height, at its top, laid as bedrock in the material map, in (0, 1].",
-       "", AboveUpTo(0.0, 1.0));
+       "Share of each bed's height, at its top, laid as bedrock in the material map.", "",
+       AboveUpTo(0.0, 1.0));
     io("seed", strata.seed, "Seed of the bed boundaries.");
     AnchorFields(io, strata.anchor, "the dip is measured in");
     io("hard_share", strata.hardShare,
-       "Share of the beds that are hard rock, from 0 to 1: hard beds form benches and cliffs of "
-       "bedrock, soft beds slopes cut at soft_sharpness without bedrock.",
+       "Share of the beds that are hard rock: hard beds form benches and cliffs of bedrock, soft "
+       "beds slopes cut at soft_sharpness without bedrock.",
        "", UnitInterval());
     io("soft_sharpness", strata.softSharpness,
-       "How sharply soft beds are cut into benches and slopes, at least 1; 1 leaves them as they "
-       "are.",
-       "", AtLeast(1.0));
+       "How sharply soft beds are cut into benches and slopes; 1 leaves them as they are.", "",
+       AtLeast(1.0));
 }
 template <typename IO> void Fields(IO& io, StrataLayerSpec& spec) {
     Fields(io, spec.strata);
@@ -392,17 +388,17 @@ template <> struct SpecName<SandShadowLayerSpec> {
         "layer before this one; lays sand over the material map.";
 };
 template <typename IO> void Fields(IO& io, SandShadowOptions& shadows) {
-    DegreeField(io, "wind_azimuth_deg", shadows.windAzimuthDegrees,
-                WindAzimuthHelp("wind", "tails trail away from boulders along it"));
+    io("wind_azimuth_deg", shadows.windAzimuthDegrees,
+       WindAzimuthHelp("wind", "tails trail away from boulders along it"), "deg");
     io("length_ratio", shadows.lengthRatio,
        "Length of a tail beyond its boulder over the boulder's width; 1.1 is the reattachment "
        "length behind a dome, and modeled shadow dunes run 1.3 to 5.6, longer in lighter "
        "winds.",
        "", Above(0.0));
-    DegreeField(io, "flank_angle_deg", shadows.flankAngleDegrees,
-                "Slope of a tail's flanks, in degrees, at most the angle of repose (about 32 for "
-                "dry sand); sets the tail's height with the boulder's width.",
-                Inside(0.0, 90.0));
+    io("flank_angle_deg", shadows.flankAngleDegrees,
+       "Slope of a tail's flanks, in degrees, at most the angle of repose (about 32 for dry "
+       "sand); sets the tail's height with the boulder's width.",
+       "deg", Inside(0.0, 90.0));
     io("min_diameter_m", shadows.minDiameter, "Smallest boulder with a tail, in meters.", "m",
        AtLeast(0.0));
     io("cover_thickness_m", shadows.coverThickness,
@@ -427,8 +423,8 @@ template <typename IO> void Fields(IO& io, SandFillOptions& fill) {
        "Radius in meters of the surroundings a low is measured against: two rings, at half the "
        "reach and at the reach.",
        "m", Above(0.0));
-    io("fill", fill.fill, "Share of a low's depth below its surroundings that sand fills, 0 to 1.",
-       "", UnitInterval());
+    io("fill", fill.fill, "Share of a low's depth below its surroundings that sand fills.", "",
+       UnitInterval());
     io("max_thickness_m", fill.maxThickness,
        "The thickest the sand gets, in meters, approached smoothly.", "m", Above(0.0));
     io("cover_thickness_m", fill.coverThickness,
@@ -451,21 +447,20 @@ template <typename IO> void Fields(IO& io, BedformOptions& bedforms) {
     io("height_m", bedforms.height,
        "Trough-to-crest height, in meters, scaled with each field's wavelength.", "m",
        AtLeast(0.0));
-    DegreeField(io, "wind_azimuth_deg", bedforms.windAzimuthDegrees,
-                WindAzimuthHelp("wind", "crests lie across it"));
-    DegreeField(io, "azimuth_spread_deg", bedforms.azimuthSpreadDegrees,
-                "Largest difference of each field's wind from the azimuth, in degrees.",
-                AtLeast(0.0));
+    io("wind_azimuth_deg", bedforms.windAzimuthDegrees,
+       WindAzimuthHelp("wind", "crests lie across it"), "deg");
+    io("azimuth_spread_deg", bedforms.azimuthSpreadDegrees,
+       "Largest difference of each field's wind from the azimuth, in degrees.", "deg",
+       AtLeast(0.0));
     io("lee_fraction", bedforms.leeFraction,
-       "Share of a wavelength the lee face takes, in (0, 1): 0.5 is symmetric, lower values give "
-       "a steeper lee face.",
+       "Share of a wavelength the lee face takes: 0.5 is symmetric, lower values give a steeper "
+       "lee face.",
        "", Inside(0.0, 1.0));
     io("sinuosity", bedforms.sinuosity,
        "How far a crest wanders along its length, in wavelengths; 0 gives straight crests.", "",
        AtLeast(0.0));
-    io("cover", bedforms.cover,
-       "Share of the ground under bedform fields, from 0 to 0.9; 0 gives no bedforms.", "",
-       Between(0.0, 0.9));
+    io("cover", bedforms.cover, "Share of the ground under bedform fields; 0 gives no bedforms.",
+       "", Between(0.0, 0.9));
     io("field_size_m", bedforms.fieldSize, "Typical width of a bedform field, in meters.", "m",
        Above(0.0));
     io("seed", bedforms.seed,
@@ -489,11 +484,11 @@ void SpectralSynthesisFields(IO& io, double& minWavelength, double& taperOctaves
                              std::uint32_t& seed, ResolutionFade& fade) {
     io("min_wavelength_m", minWavelength,
        "Shortest wavelength of the detail in meters; the detail spans the wavelengths from twice "
-       "the base's pixel size down to it.",
+       "the source's pixel size down to it.",
        "m", Above(0.0));
     io("taper_octaves", taperOctaves,
-       "Octaves above the base's Nyquist frequency over which the detail fades in, so it adds "
-       "nothing at wavelengths the base resolves.",
+       "Octaves above the source's Nyquist frequency over which the detail fades in, so it adds "
+       "nothing at wavelengths the source resolves.",
        "", Above(0.0));
     io("seed", seed,
        "Seed of the detail; changing it gives a different pattern of the same "
@@ -505,16 +500,16 @@ void SpectralSynthesisFields(IO& io, double& minWavelength, double& taperOctaves
 
 template <typename IO> void Fields(IO& io, SpectralContinuationOptions& options) {
     io("pixel_size_m", options.pixelSize,
-       "Cell size of the base in meters; the detail starts at twice it, the base's Nyquist "
+       "Cell size of the source in meters; the detail starts at twice it, the source's Nyquist "
        "wavelength.",
        "m", Above(0.0));
     io("slope", options.slope,
-       "Spectral slope beta of the radially averaged power spectrum, P(f) ~ f^-beta, in [2, 4]: "
-       "beta = 2 H + 2 for Hurst exponent H.",
+       "Spectral slope beta of the radially averaged power spectrum, P(f) ~ f^-beta: beta = 2 H "
+       "+ 2 for Hurst exponent H.",
        "", Between(2.0, 4.0));
     io("octave_rms_m", options.octaveRms,
-       "RMS height in meters the power law holds at wavelengths from one to two base pixels.", "m",
-       AtLeast(0.0));
+       "RMS height in meters the power law holds at wavelengths from one to two source pixels.",
+       "m", AtLeast(0.0));
     SpectralSynthesisFields(io, options.minWavelength, options.taperOctaves, options.seed,
                             options.fade);
 }
@@ -522,29 +517,29 @@ template <typename IO> void Fields(IO& io, SpectralContinuationOptions& options)
 template <> struct SpecName<SpectralContinuationLayerSpec> {
     static constexpr std::string_view kName = "spectral_continuation";
     static constexpr std::string_view kDescription =
-        "Detail finer than the base continuing its measured power-law spectrum to shorter "
+        "Detail finer than the source continuing its measured power-law spectrum to shorter "
         "wavelengths with random phases, as sparse Gabor noise: an alternative to diamond-square "
         "upsampling without lattice artifacts.";
 };
 template <typename IO> void Fields(IO& io, SpectralContinuationLayerSpec& spec) {
     io("pixel_size_m", spec.pixelSize,
-       "Cell size of the base in meters; the detail starts at twice it. Unset uses the base's "
-       "cell size.",
+       "Cell size of the source in meters; the detail starts at twice it. Unset uses the "
+       "source's cell size.",
        "m", Above(0.0));
     io("slope", spec.slope,
-       "Spectral slope beta of the radially averaged power spectrum, P(f) ~ f^-beta, in [2, 4]: "
-       "beta = 2 H + 2 for Hurst exponent H. Unset fits it to the base.",
+       "Spectral slope beta of the radially averaged power spectrum, P(f) ~ f^-beta: beta = 2 H "
+       "+ 2 for Hurst exponent H. Unset fits it to the source.",
        "", Between(2.0, 4.0));
     io("octave_rms_m", spec.octaveRms,
-       "RMS height in meters the power law holds at wavelengths from one to two base pixels. "
-       "Unset fits it to the base.",
+       "RMS height in meters the power law holds at wavelengths from one to two source pixels. "
+       "Unset fits it to the source.",
        "m", AtLeast(0.0));
     io("fit_min_pixels", spec.fit.minPixels,
-       "Shortest wavelength, in base pixels, the base's spectrum is fitted over; at least 2.", "",
+       "Shortest wavelength, in source pixels, the source's spectrum is fitted over.", "",
        AtLeast(2.0));
     io("fit_max_pixels", spec.fit.maxPixels,
-       "Longest wavelength, in base pixels, the base's spectrum is fitted over; 0 for a quarter "
-       "of the window the spectrum is measured on (at most 512 cells a side).",
+       "Longest wavelength, in source pixels, the source's spectrum is fitted over; 0 for a "
+       "quarter of the window the spectrum is measured on (at most 512 cells a side).",
        "", AtLeast(0.0));
     SpectralSynthesisFields(io, spec.minWavelength, spec.taperOctaves, spec.seed, spec.fade);
 }
@@ -617,9 +612,10 @@ template <> struct SpecName<PolygonRegionSpec> {
 template <typename IO> void Fields(IO& io, PolygonRegionSpec& spec) {
     io("points", spec.points,
        "Vertices of the outline as [x, y] pairs, x east and y north in the surface's coordinates "
-       "(longitude and latitude in degrees on a sphere); at least 3, closed from the last back to "
-       "the first, so the first is not repeated. Points inside an odd number of outlines and "
-       "holes are inside.");
+       "(longitude and latitude in degrees on a sphere), closed from the last back to the first, "
+       "so the first is not repeated. Points inside an odd number of outlines and holes are "
+       "inside.",
+       "", MinLength(3));
     io("holes", spec.holes,
        "Outlines cut out of the polygon, each a list of at least 3 [x, y] vertices as `points`; "
        "the masked layer fades out from their edges as from the outline's.");

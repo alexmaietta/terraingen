@@ -29,7 +29,7 @@ template <typename IO> void Fields(IO& io, Bounds2d& box) {
 /// The fields of diamond-square upsampling, beside its "type".
 template <typename IO> void Fields(IO& io, DiamondSquareOptions& options) {
     io("fractal_dimension", options.fractalDimension,
-       "Fractal dimension, from 2 (smooth) to 3 (rough): each square or diamond step scales the "
+       "Fractal dimension, 2 smooth and 3 rough: each square or diamond step scales the "
        "displacement by 2^-((3 - F) / 2). Unset estimates it from the median height differences of "
        "the posts at lags of 1 to 8 posts.",
        "", Between(2.0, 3.0));
@@ -42,8 +42,7 @@ template <typename IO> void Fields(IO& io, DiamondSquareOptions& options) {
     io("fit_window_px", options.fitWindow,
        "Side in posts of the overlapping windows, centered every half side, that an unset "
        "scale_m is fitted over; each node's scale is bilinear between the windows around it. 0 "
-       "fits one scale to a sample of the posts; else 4 to " +
-           std::to_string(kMaxDiamondSquareFitWindow) + ".",
+       "fits one scale to a sample of the posts; else at least 4.",
        "px", Between(0.0, static_cast<double>(kMaxDiamondSquareFitWindow)));
     io("interp", options.interp,
        "How new nodes are filled from the coarser ones and samples read between the finest "
@@ -55,11 +54,14 @@ template <typename IO> void Fields(IO& io, DiamondSquareOptions& options) {
     io("seed", options.seed, "Seed of the displacements.");
 }
 
-/// The description of a terrain noise stack of `fewest` to `kMaxFractals` layers.
-inline std::string NoiseStackHelp(std::size_t fewest) {
-    return "Noise layers, " + CountText(fewest, kMaxFractals) +
-           ", combined in order: the first enabled layer sets the height and each later one is "
-           "combined with it by its blend mode.";
+/// The description of a terrain noise stack.
+inline constexpr std::string_view kNoiseStackHelp =
+    "Noise layers, combined in order: the first enabled layer sets the height and each later one "
+    "is combined with it by its blend mode.";
+
+/// The length of a noise stack: `fewest` to `kMaxFractals` layers.
+inline FieldRange NoiseStackLength(std::size_t fewest) {
+    return Length(fewest, kMaxFractals);
 }
 
 /// The description of a source's upsampling.
@@ -83,8 +85,8 @@ template <> struct SpecName<SphereSurfaceSpec> {
         "features generated over the whole body.";
 };
 template <typename IO> void Fields(IO& io, SphereSurfaceSpec& spec) {
-    io("radius_m", spec.radius, "Radius of the body's datum sphere, in meters; required.", "m",
-       Above(0.0));
+    io("radius_m", spec.radius, "Radius of the body's datum sphere, in meters.", "m",
+       Above(0.0).Required());
 }
 
 template <> struct SpecName<EllipsoidSurfaceSpec> {
@@ -97,8 +99,8 @@ template <> struct SpecName<EllipsoidSurfaceSpec> {
 template <typename IO> void Fields(IO& io, EllipsoidSurfaceSpec& spec) {
     io("radii_m", spec.radii,
        "Semi-axes a, b and c of the datum ellipsoid in meters, along x (longitude 0), y "
-       "(longitude 90) and z (the north pole); exactly three, each positive.",
-       "m", Above(0.0));
+       "(longitude 90) and z (the north pole).",
+       "m", Above(0.0).Length(3).Required());
 }
 
 template <> struct SpecName<ShapeModelSurfaceSpec> {
@@ -112,11 +114,11 @@ template <> struct SpecName<ShapeModelSurfaceSpec> {
 template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
     io("path", spec.path,
        InputPathHelp("Shape model in body-fixed coordinates around its origin: a Gaskell ICQ "
-                     "model (.icq) or a closed mesh (.obj, .gltf, .glb or .stl)"));
+                     "model (.icq) or a closed mesh (.obj, .gltf, .glb or .stl)"),
+       "", Required());
     io("q", spec.q,
-       "Intervals per cube face edge of the radial grid the model is resampled on, " +
-           CountText(1, kMaxCubeFaceCells) +
-           "; unset keeps an ICQ model's own Q and uses 256 for a mesh.",
+       "Intervals per cube face edge of the radial grid the model is resampled on; unset keeps "
+       "an ICQ model's own Q and uses 256 for a mesh.",
        "", CubeFaceCellsRange());
     io("meters_per_unit", spec.metersPerUnit,
        "Meters per unit of the file's coordinates; unset is 1000 for an ICQ model, whose "
@@ -131,7 +133,7 @@ template <> struct SpecName<RasterSourceSpec> {
         "finer spacings, to add relief to a real DEM.";
 };
 template <typename IO> void Fields(IO& io, RasterSourceSpec& source) {
-    io("path", source.path, InputPathHelp("GeoTIFF to read the heights from"));
+    io("path", source.path, InputPathHelp("GeoTIFF to read the heights from"), "", Required());
     GeoTiffSourceOptions& read = source.read;
     io("band", read.band, "Band of the file to read, counting from 0.");
     io("scale", read.scale,
@@ -180,7 +182,8 @@ template <typename IO> void Fields(IO& io, ChainSeams& seams) {
 template <typename IO> void Fields(IO& io, ChainSourceSpec& source) {
     io("sources", source.sources,
        "Sources tried in order, each filling where those before it have no data, each upsampled "
-       "as it says; the chain's grid is the first one's.");
+       "as it says; the chain's grid is the first one's.",
+       "", MinLength(1));
     io("seams", source.seams,
        "How each source is matched to the sources before it where it fills their gaps; by "
        "default each switches outright.");
@@ -195,8 +198,10 @@ template <> struct SpecName<SyntheticSourceSpec> {
 template <typename IO> void Fields(IO& io, SyntheticSourceSpec& source) {
     io("elevation_m", source.elevation, "Height in meters added everywhere.", "m");
     io("stack", source.stack,
-       NoiseStackHelp(0) + " Unset is one layer of fBm noise 400 m in wavelength and 12 m in "
-                           "amplitude; an empty stack gives a flat source.");
+       std::string(kNoiseStackHelp) +
+           " Unset is one layer of fBm noise 400 m in wavelength and 12 m in amplitude; an empty "
+           "stack gives a flat source.",
+       "", NoiseStackLength(0));
     io("pixel_size_m", source.pixelSize,
        "Spacing in meters of posts the noise is sampled at, as for a DEM of that cell size, "
        "which upsampling refines. Unset evaluates the noise at every point, at any spacing.",

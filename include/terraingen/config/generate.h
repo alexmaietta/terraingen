@@ -50,6 +50,9 @@ struct GeneratedOutputs {
     TerrainGenerator generator;
     /// One per distinct grid an output covers, in output order.
     std::vector<GeneratedGrid> grids{};
+    /// The grid each output covers (`ConfigSummary::outputGrids`), in order; none for a body mesh
+    /// or a report.
+    std::vector<std::optional<RasterGrid>> outputGrids{};
     std::optional<TriangleMesh> bodyMesh{};  ///< The whole body (`BodyMesh`), for mesh outputs.
     /// The whole body as an ICQ shape model (`BodyIcq`), for mesh outputs to .icq paths.
     std::optional<IcqModel> bodyIcq{};
@@ -93,11 +96,12 @@ std::string Summary(const GeneratedOutputs& generated);
 /// Writes each output of a configuration that has a path from what `GenerateFromConfig`
 /// returned, computing nothing, and returns the paths written: rasters with `generated.geoKeys`,
 /// meshes, crater and boulder lists and boulder models, each from the grid it covers
-/// (`config::OutputGrid`), and reports as JSON (`ReportToJson`). Outputs without a path are not
-/// written.
+/// (`GeneratedOutputs::outputGrids`), and reports as JSON (`ReportToJson`). Outputs without a path
+/// are not written.
 /// @param generated What `GenerateFromConfig` generated from `config`.
 /// @param directory Folder relative output paths resolve against.
-/// @throws std::runtime_error if an output cannot be written, or `generated` lacks what it needs.
+/// @throws std::runtime_error if an output cannot be written, `generated` lacks what it needs or
+/// has another number of outputs.
 std::vector<std::filesystem::path> WriteOutputs(const TerrainGenConfig& config,
                                                 const GeneratedOutputs& generated,
                                                 const std::filesystem::path& directory);

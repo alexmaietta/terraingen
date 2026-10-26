@@ -15,6 +15,7 @@ namespace terraingen {
 /// tangent frame of `anchor`, true to scale near it and empty on the far hemisphere.
 class AnchoredPlane {
   public:
+    /// The plane of `surface` at `anchor`, in surface coordinates.
     AnchoredPlane(const Surface& surface, const Vec2d& anchor);
 
     /// Surface (x, y) in the plane, in meters; nothing on a body's far hemisphere.

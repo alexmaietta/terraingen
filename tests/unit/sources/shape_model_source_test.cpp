@@ -56,6 +56,7 @@ TEST(ShapeModelSource, CoversTheWholeBodyAtTheLabelSpacing) {
     EXPECT_FALSE(terraingen::BoundedGrid(source).has_value());
     EXPECT_DOUBLE_EQ(source.Grid().PixelSize(), 90.0 / 16.0);
     EXPECT_DOUBLE_EQ(source.ResolutionAt(10.0, 20.0), 90.0 / 16.0);
+    EXPECT_DOUBLE_EQ(source.PostSpacingAt(10.0, 20.0), 90.0 / 16.0);
     EXPECT_TRUE(source.Keys().Empty());
     for (const auto& upsampler : source.UpsamplersInUse()) {
         EXPECT_EQ(upsampler, terraingen::DefaultUpsampler());
@@ -135,7 +136,7 @@ TEST(ShapeModelSource, DiamondSquareAddsDetailThatDiffersByFace) {
 
 TEST(ShapeModelSource, PointsTilesAndGridAgree) {
     const ShapeModelSource source(LumpyBody(16),
-                                  std::make_shared<KernelUpsampler>(ResampleMethod::CatmullRom));
+                                  std::make_shared<KernelUpsampler>(ResampleMethod::Cubic));
     terraingen::testing::ExpectPointsTilesAndGridAgree(
         source, RasterGrid{24, 12, GeoTransform::NorthUp(30.0, 50.0, 0.75)});
 }

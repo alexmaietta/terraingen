@@ -6,11 +6,6 @@
 
 namespace terraingen {
 
-bool HasData(const Raster<float>& heights, std::size_t col, std::size_t row) {
-    const float value = heights(col, row);
-    return std::isfinite(value) && !heights.IsNoData(value);
-}
-
 DeviogramFit FitDeviogram(const Raster<float>& heights) {
     constexpr std::size_t kMaxLag = 8;
     return FitLagLine(kMaxLag, [&](std::size_t lag) {

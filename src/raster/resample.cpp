@@ -2,7 +2,7 @@
 
 #include "terraingen/raster/resample.h"
 
-#include "terraingen/util/arithmetic.h"
+#include "raster/kernel_weight.h"
 #include "terraingen/util/bits.h"
 
 #include <algorithm>
@@ -92,14 +92,13 @@ int KernelRadius(ResampleMethod method) {
     case ResampleMethod::Lanczos3:
         return 3;
     case ResampleMethod::Cubic:
-    case ResampleMethod::CatmullRom:
     case ResampleMethod::CubicBSpline:
         break;
     }
     return 2;
 }
 
-double detail::KernelWeight(ResampleMethod method, double x) {
+double KernelWeight(ResampleMethod method, double x) {
     switch (method) {
     case ResampleMethod::Lanczos3:
         return Lanczos3Weight(x);
@@ -123,7 +122,7 @@ std::array<double, 6> KernelWeights(ResampleMethod method, double fraction) {
     const int radius = KernelRadius(method);
     double total = 0.0;
     for (int i = 1 - radius; i <= radius; ++i) {
-        const double weight = detail::KernelWeight(method, fraction - i);
+        const double weight = KernelWeight(method, fraction - i);
         weights[static_cast<std::size_t>(i + radius - 1)] = weight;
         total += weight;
     }

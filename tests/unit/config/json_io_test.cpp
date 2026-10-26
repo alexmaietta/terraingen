@@ -79,7 +79,8 @@ ConfigSpec Everything() {
     craters.maxCraters = 1234;
     craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u},
                       {6.0, 4.0, 6.0, 0.0, 0u, false, 0.9, 0.25, true}};
-    craters.replaceInheritedCraters = terraingen::InheritedCratersSpec{"coarse.json", 2.0, 40.0};
+    craters.replaceInheritedCraters =
+        terraingen::InheritedCratersSpec{"coarse.json", {{}, 2.0, 40.0}};
     craters.profile = terraingen::ComplexProfileSpec{terraingen::MartinParkesDunstanSpec{}};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
     craters.apply = terraingen::CraterApplyOptions{};
@@ -155,11 +156,11 @@ ConfigSpec Everything() {
     craterMap.field.scale = 0.001;
     craterMap.field.fallback = 2.0;
     craterMap.field.periodicLongitude = true;
-    craterMap.measure = terraingen::DensityMeasure::Count;
-    craterMap.minDiameter = 4.5;
-    craterMap.maxDiameter = 1000.0;
-    craterMap.areaUnit = 1e6;
-    craterMap.total = false;
+    craterMap.map.measure = terraingen::DensityMeasure::Count;
+    craterMap.map.minDiameter = 4.5;
+    craterMap.map.maxDiameter = 1000.0;
+    craterMap.map.areaUnit = 1e6;
+    craterMap.map.total = false;
     craters.densityMap = craterMap;
     terraingen::FieldSpec craterCompleteness;
     craterCompleteness.value = 1500.0;
@@ -242,8 +243,8 @@ ConfigSpec Everything() {
     synthterrain.ejectaSizes = terraingen::PiecewiseUniformSpec{{{0.5, 2.0, 0.001}}};
     terraingen::DensityMapSpec boulderMap;
     boulderMap.field.value = 0.01;
-    boulderMap.measure = terraingen::DensityMeasure::ArealFraction;
-    boulderMap.minDiameter = 1.0;
+    boulderMap.map.measure = terraingen::DensityMeasure::ArealFraction;
+    boulderMap.map.minDiameter = 1.0;
     synthterrain.densityMap = boulderMap;
     terraingen::ManualBoulder posed(1.0, 2.0, 1.5);
     posed.id = 11u;
@@ -262,10 +263,10 @@ ConfigSpec Everything() {
     synthterrain.completeness = boulderCompleteness;
     terraingen::SizeSlopeMapSpec slopeMap;
     slopeMap.field.path = "mean.tif";
-    slopeMap.measure = terraingen::SizeSlopeMeasure::MeanDiameter;
-    slopeMap.referenceDiameter = 4.5;
-    slopeMap.minExponent = 1.5;
-    slopeMap.maxExponent = 5.0;
+    slopeMap.map.measure = terraingen::SizeSlopeMeasure::MeanDiameter;
+    slopeMap.map.referenceDiameter = 4.5;
+    slopeMap.map.minExponent = 1.5;
+    slopeMap.map.maxExponent = 5.0;
     synthterrain.slopeMap = slopeMap;
     terraingen::RoughnessLayerSpec roughness;
     roughness.rmsSlope = 0.3;
@@ -356,10 +357,11 @@ TEST(ConfigJson, RoundTripsTheDefaultsAndEveryNonDefaultValue) {
     }
 }
 
-TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheBase) {
+TEST(ConfigJson, RoundTripsLayersThatEstimateFromTheSource) {
     const ConfigSpec config = ParseConfig(R"({"schema_version": 1,
-        "layers": [{"type": "roughness", "estimate_from_base": true, "hurst": 0.7},
-                   {"type": "noise", "estimate_from_base": true, "stack": [{"wavelength_m": 4}]}]})");
+        "layers": [{"type": "roughness", "estimate_from_source": true, "hurst": 0.7},
+                   {"type": "noise", "estimate_from_source": true,
+                    "stack": [{"wavelength_m": 4}]}]})");
     const auto& roughness = std::get<terraingen::RoughnessLayerSpec>(config.layers[0]);
     EXPECT_TRUE(roughness.estimateFromSource);
     EXPECT_EQ(roughness.hurst, 0.7);

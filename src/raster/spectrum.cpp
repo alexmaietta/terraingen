@@ -2,12 +2,13 @@
 
 #include "terraingen/raster/spectrum.h"
 
+#include "raster/radial_spectrum.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/fft.h"
 #include "terraingen/util/plane_fit.h"
 #include "util/checks.h"
+#include "util/fft.h"
 
 #include <algorithm>
 #include <array>
@@ -18,8 +19,6 @@
 #include <utility>
 
 namespace terraingen {
-
-using detail::SpectrumBin;
 
 namespace {
 
@@ -169,7 +168,7 @@ double PowerLawSpectrum::Coefficient(double nyquist) const {
     return octaveRms * octaveRms / (2.0 * kPi * OctaveIntegral(slope, nyquist));
 }
 
-std::vector<detail::SpectrumBin> detail::RadialPowerSpectrum(const Raster<float>& heights) {
+std::vector<SpectrumBin> RadialPowerSpectrum(const Raster<float>& heights) {
     const GeoTransform& transform = heights.Transform();
     if (transform.IsRotated()) {
         throw std::invalid_argument("A power spectrum needs an unrotated raster");
@@ -236,7 +235,7 @@ PowerLawSpectrum EstimatePowerLawSpectrum(const Raster<float>& heights,
     const double low = 1.0 / (maxPixels * pixel) * (1.0 - 1e-9);
     const double high = 1.0 / (band.minPixels * pixel) * (1.0 + 1e-9);
     std::vector<SpectrumBin> bins;
-    for (const SpectrumBin& bin : detail::RadialPowerSpectrum(heights)) {
+    for (const SpectrumBin& bin : RadialPowerSpectrum(heights)) {
         if (bin.frequency >= low && bin.frequency <= high) {
             bins.push_back(bin);
         }

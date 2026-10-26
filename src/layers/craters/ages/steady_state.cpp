@@ -3,7 +3,7 @@
 #include "terraingen/layers/craters/ages/steady_state.h"
 
 #include "terraingen/distribution/minimum.h"
-#include "util/bisection.h"
+#include "util/numerics.h"
 
 #include <cmath>
 #include <stdexcept>

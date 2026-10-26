@@ -55,13 +55,8 @@ struct StrataOptions {
 /// anchor.
 void ValidateStrataOptions(const StrataOptions& options);
 
-/// Layered rock: the ground beneath terraced into beds, each a flat bench below a cliff at its
-/// top, so hills become stepped buttes and mesas.
-///
-/// A point's stratigraphic level is its height less the dipping bed plane; within its bed it is
-/// remapped by u^sharpness (u its height through the bed), which keeps the bed's top and bottom in
-/// place, so the surface stays continuous. A function of the height beneath and position only, so
-/// grids, tiles and points agree; it lays bedrock over the material map on the cliffs.
+/// Layered rock: the ground beneath terraced into dipping beds, each a bench below a cliff, so
+/// hills become buttes and mesas; it lays bedrock over the material map on the cliffs.
 class StrataLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, the dip is measured in the tangent frame of `options.anchor`.

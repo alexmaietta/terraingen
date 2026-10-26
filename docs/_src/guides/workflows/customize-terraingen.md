@@ -66,7 +66,7 @@ A source gives a terrain's starting heights. It defines the grid it covers and t
 
 </figure>
 
-`fill(heights, spacing, threads)` is optional and fills a whole grid at once, for a source that can do that faster than point by point. `resolution_at(x, y)` tells crater and boulder layers which features the source already resolves, so they add only the smaller ones.
+`fill(heights, spacing, threads)` is optional and fills a whole grid at once, for a source that can do that faster than point by point. `resolution_at(x, y)` tells crater and boulder layers which features the source already resolves, so they add only the smaller ones. `post_spacing_at(x, y)` gives the spacing of the posts behind each height, measured or generated, which roughness estimates sample the source at.
 
 ## Layers
 

@@ -7,7 +7,7 @@
 #include "layers/craters/shaping/datum_fit.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
-#include "terraingen/util/arithmetic.h"
+#include "terraingen/util/bits.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"

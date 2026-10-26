@@ -29,15 +29,9 @@ PowerLawDiffusivity Fassett2022TraskDiffusivity();
 double FassettThomson2014DiffusionAge(double ageGyr);
 
 /// Diffusion ages that wear each crater of `profile` to `cutoffDepthRatio` at the end of its
-/// equilibrium lifetime, as Fassett et al. (2022, section 4) derive the diffusivity that holds an
-/// equilibrium: the fresh shape diffused to the cutoff, over the lifetime. A crater of diameter D
-/// and age t gets kappa t = tau_cut(D) D^2 t / lifetime(D), so its shape follows its age model
-/// whatever the profile.
-/// @param fresh The fresh morphometry the degradation starts from.
-/// @param lifetimeGyr The equilibrium lifetime in Gyr of craters of a diameter in meters, such as
-/// `SteadyStateAges::EquilibriumLifetimeGyr`; positive.
-/// @throws std::invalid_argument for a null `profile`, an empty `fresh` or `lifetimeGyr`, or a
-/// cutoff outside (0, 1).
+/// equilibrium lifetime (Fassett et al. 2022, section 4, https://doi.org/10.1029/2022JE007510).
+/// @param lifetimeGyr Equilibrium lifetime in Gyr of a crater diameter in meters; positive.
+/// @throws std::invalid_argument for a null or empty argument, or a cutoff outside (0, 1).
 DiffusionAgeModel EquilibriumDiffusionAges(std::shared_ptr<const DiffusedProfile> profile,
                                            FreshMorphometry fresh,
                                            std::function<double(double)> lifetimeGyr,
