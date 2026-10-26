@@ -28,12 +28,11 @@ void Source::Fill(const RasterGrid& grid, Span<float> heights, double spacing,
                                     std::to_string(grid.width * grid.height) + " heights, not " +
                                     std::to_string(heights.size()));
     }
-    Raster<float> filled = grid.MakeRaster();
+    Raster<float> filled(grid.width, grid.height, heights);
+    filled.SetTransform(grid.transform);
     Fill(filled, spacing, threads);
-    const Span<float> values = filled.Values();
-    for (std::size_t i = 0; i < values.size(); ++i) {
-        heights[i] =
-            filled.IsMissing(values[i]) ? std::numeric_limits<float>::quiet_NaN() : values[i];
+    for (float& value : heights) {
+        value = filled.IsMissing(value) ? std::numeric_limits<float>::quiet_NaN() : value;
     }
 }
 

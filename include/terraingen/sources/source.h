@@ -62,8 +62,8 @@ class Source {
         Fill(heights, RasterGrid::FromRaster(heights).PixelSize(), 0);
     }
 
-    /// `Fill` of the cells of `grid` into `heights`, row-major from row 0, NaN where the source
-    /// has no data. It fills a raster of `grid` and copies it into `heights`.
+    /// `Fill` of the cells of `grid` straight into `heights`, row-major from row 0, NaN where the
+    /// source has no data.
     /// @param spacing Sample spacing in the source's units.
     /// @param threads Threads to fill over; 0 for every hardware thread.
     /// @throws std::invalid_argument for `heights` not of `grid`'s size.

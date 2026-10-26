@@ -140,7 +140,7 @@ Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid
 void ApplyLayers(const TerrainGenerator& generator, std::size_t first, Raster<float>& heights,
                  const EvaluationOptions& options = {});
 
-/// Evaluates `generator` over `grid` into a caller buffer, to the same bits as `Evaluate`.
+/// Evaluates `generator` over `grid` straight into a caller buffer, to the same bits as `Evaluate`.
 /// @param heights grid.width * grid.height heights in meters, row-major with row 0 first (north
 /// up), as `Raster` stores them.
 /// @throws std::invalid_argument as `Evaluate`, or for a buffer of another size.

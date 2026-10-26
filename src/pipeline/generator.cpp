@@ -233,18 +233,28 @@ void ApplyLayersAt(const TerrainGenerator& generator, std::size_t first, Raster<
     }
 }
 
+/// Evaluates `generator` into every cell of `heights`, placed by its transform: the source, or
+/// the datum without one, then each layer.
+void EvaluateInto(const TerrainGenerator& generator, Raster<float>& heights,
+                  const EvaluationOptions& options) {
+    ValidateGenerator(generator);
+    RequireNonNegative(options.spacing, "Sample spacing");
+    const double resolved =
+        ResolvedSpacing(RasterGrid::FromRaster(heights), options.spacing, generator.surface);
+    if (generator.source) {
+        generator.source->Fill(heights, resolved / generator.surface.UnitLength(), options.threads);
+    } else {
+        std::fill(heights.Values().begin(), heights.Values().end(), 0.0f);
+    }
+    ApplyLayersAt(generator, 0, heights, resolved, options);
+}
+
 }  // namespace
 
 Raster<float> Evaluate(const TerrainGenerator& generator, const RasterGrid& grid,
                        const EvaluationOptions& options) {
-    ValidateGenerator(generator);
-    RequireNonNegative(options.spacing, "Sample spacing");
-    const double resolved = ResolvedSpacing(grid, options.spacing, generator.surface);
     Raster<float> heights = grid.MakeRaster();
-    if (generator.source) {
-        generator.source->Fill(heights, resolved / generator.surface.UnitLength(), options.threads);
-    }
-    ApplyLayersAt(generator, 0, heights, resolved, options);
+    EvaluateInto(generator, heights, options);
     return heights;
 }
 
@@ -268,9 +278,9 @@ void FillHeights(const TerrainGenerator& generator, const RasterGrid& grid, Span
         throw std::invalid_argument("The grid needs " + std::to_string(grid.width * grid.height) +
                                     " heights, not " + std::to_string(heights.size()));
     }
-    const Raster<float> evaluated = Evaluate(generator, grid, options);
-    const Span<const float> values = evaluated.Values();
-    std::copy(values.begin(), values.end(), heights.begin());
+    Raster<float> view(grid.width, grid.height, heights);
+    view.SetTransform(grid.transform);
+    EvaluateInto(generator, view, options);
 }
 
 void ValidateGenerator(const TerrainGenerator& generator) {

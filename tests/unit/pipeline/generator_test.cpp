@@ -81,6 +81,14 @@ TEST(FillHeights, WritesWhatEvaluateGivesToTheBitAndRejectsWrongSizes) {
     EXPECT_EQ(std::memcmp(defaults.data(), plain.Values().data(), defaults.size() * sizeof(float)),
               0);
 
+    TerrainGenerator datum = terrain;
+    datum.source = nullptr;
+    std::vector<float> stale(grid.width * grid.height, 123.0f);
+    terraingen::FillHeights(datum, grid, stale);
+    const auto onDatum = Evaluate(datum, grid);
+    EXPECT_EQ(std::memcmp(stale.data(), onDatum.Values().data(), stale.size() * sizeof(float)), 0)
+        << "without a source the buffer starts from the datum, whatever it held";
+
     std::vector<float> tooShort(grid.width * grid.height - 1);
     EXPECT_THROW(terraingen::FillHeights(terrain, grid, tooShort), std::invalid_argument);
     std::vector<float> tooLong(grid.width * grid.height + 1);
