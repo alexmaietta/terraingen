@@ -84,14 +84,16 @@ def digest(path):
 
 def fetch(asset):
     """The path of `asset`, downloading it into the cache first when missing. The download goes
-    to a .part file, is checked against the size and hash, and only then takes the asset's name.
-    It names itself in its User-Agent, as some archives refuse Python's default. Raises RuntimeError when the download does not match."""
+    to a .part file of this process, so gallery workers fetching the same asset at once do not
+    collide, is checked against the size and hash, and only then takes the asset's name. It names
+    itself in its User-Agent, as some archives refuse Python's default. Raises RuntimeError when
+    the download does not match."""
     path = cached(asset)
     if path:
         return path
     path = cache_dir() / asset.name
     path.parent.mkdir(parents=True, exist_ok=True)
-    partial = path.with_name(path.name + ".part")
+    partial = path.with_name(f"{path.name}.{os.getpid()}.part")
     print(f"downloading {asset.url} ({asset.size / 1e6:.1f} MB) to {path}", file=sys.stderr)
     request = urllib.request.Request(asset.url, headers={"User-Agent": "terraingen-docs"})
     with urllib.request.urlopen(request, timeout=60) as response, open(partial, "wb") as file:

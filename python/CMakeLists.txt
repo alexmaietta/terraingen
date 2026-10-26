@@ -30,6 +30,11 @@ target_include_directories(_terraingen SYSTEM PRIVATE "${NB_DIR}/include" ${Pyth
 foreach(nanobind_library nanobind-static nanobind-static-abi3)
     if(TARGET ${nanobind_library})
         set_target_properties(${nanobind_library} PROPERTIES COMPILE_WARNING_AS_ERROR OFF)
+        # GCC 11 miscompiles nanobind's lock-free override cache, so overrides read a bad name.
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+            set_source_files_properties("${NB_DIR}/src/trampoline.cpp" TARGET_DIRECTORY
+                                        ${nanobind_library} PROPERTIES COMPILE_OPTIONS -O1)
+        endif()
     endif()
 endforeach()
 # The generator expression keeps multi-config generators (Visual Studio) from adding a Release/
