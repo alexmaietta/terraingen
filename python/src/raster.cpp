@@ -135,6 +135,7 @@ void BindStats(nb::module_& m) {
         .def_ro("min", &RasterStats::min)
         .def_ro("max", &RasterStats::max)
         .def_ro("mean", &RasterStats::mean)
+        .def_ro("stddev", &RasterStats::stddev)
         .def_ro("valid_count", &RasterStats::validCount)
         .def("__repr__", [](const RasterStats& s) {
             return "RasterStats(min=" + std::to_string(s.min) + ", max=" + std::to_string(s.max) +

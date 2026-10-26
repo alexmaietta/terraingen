@@ -62,9 +62,4 @@ std::vector<PixelWindow> PixelWindowsIn(const RasterGrid& grid, const Bounds2d& 
     return windows;
 }
 
-std::vector<PixelWindow> PixelWindowsIn(const Raster<float>& raster, const Bounds2d& box,
-                                        const Surface& surface) {
-    return PixelWindowsIn(RasterGrid::FromRaster(raster), box, surface);
-}
-
 }  // namespace terraingen

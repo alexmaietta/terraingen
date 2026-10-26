@@ -149,55 +149,16 @@ double Median(std::vector<double>& values) {
     return *middle;
 }
 
-/// The median absolute difference of cells `lag` apart along rows and columns where both hold
-/// data, 0 without pairs.
-double MedianIncrement(const Raster<float>& heights, std::size_t lag) {
-    std::vector<double> increments;
-    const auto add = [&](std::size_t col, std::size_t row, std::size_t col2, std::size_t row2) {
-        if (HasData(heights, col, row) && HasData(heights, col2, row2)) {
-            increments.push_back(std::fabs(static_cast<double>(heights(col2, row2)) -
-                                           static_cast<double>(heights(col, row))));
-        }
-    };
-    for (std::size_t row = 0; row < heights.Height(); ++row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            if (col + lag < heights.Width()) {
-                add(col, row, col + lag, row);
-            }
-            if (row + lag < heights.Height()) {
-                add(col, row, col, row + lag);
-            }
-        }
-    }
-    return Median(increments);
-}
-
-/// The Hurst exponent H of `heights`, unclamped: the least-squares slope of log2 median absolute
-/// increment over log2 lag at 1, 2, 4 and 8 cells, stopping at the first lag without relief;
-/// none from fewer than two lags.
+/// The Hurst exponent H of `heights`, unclamped: `FitLagLine` of the median absolute difference of
+/// lag pairs; none from fewer than two lags.
 std::optional<double> MedianHurst(const Raster<float>& heights) {
-    double sumX = 0.0;
-    double sumY = 0.0;
-    double sumXX = 0.0;
-    double sumXY = 0.0;
-    int lags = 0;
-    for (std::size_t lag = 1; lag <= kMaxRoughnessLag; lag *= 2) {
-        const double increment = MedianIncrement(heights, lag);
-        if (!(increment > 0.0)) {
-            break;
-        }
-        const double x = std::log2(static_cast<double>(lag));
-        const double y = std::log2(increment);
-        sumX += x;
-        sumY += y;
-        sumXX += x * x;
-        sumXY += x * y;
-        ++lags;
-    }
-    if (lags < 2) {
-        return std::nullopt;
-    }
-    return (lags * sumXY - sumX * sumY) / (lags * sumXX - sumX * sumX);
+    const DeviogramFit fit = FitLagLine(kMaxRoughnessLag, [&](std::size_t lag) {
+        std::vector<double> increments;
+        ForEachLagPair(heights, lag,
+                       [&](double a, double b) { increments.push_back(std::fabs(b - a)); });
+        return Median(increments);
+    });
+    return fit.lags >= 2 ? std::optional<double>(fit.slope) : std::nullopt;
 }
 
 /// The posts [`col0`, `col0` + `width`) x [`row0`, `row0` + `height`) as a raster, NaN without

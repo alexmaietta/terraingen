@@ -3,6 +3,7 @@
 #include "terraingen/raster/spectrum.h"
 
 #include "terraingen/raster/geo_transform.h"
+#include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/fft.h"
 #include "terraingen/util/plane_fit.h"
@@ -129,12 +130,6 @@ double SignedIndex(std::size_t k, std::size_t n) {
     return k <= n / 2 ? static_cast<double>(k) : static_cast<double>(k) - static_cast<double>(n);
 }
 
-/// The pixel size of a raster: the square root of a cell's area.
-double CellSize(const Raster<float>& heights) {
-    const GeoTransform& transform = heights.Transform();
-    return std::sqrt(std::fabs(transform.pixelWidth * transform.pixelHeight));
-}
-
 /// A line fitted to log power over log frequency.
 struct LogLine {
     double gradient = 0.0;
@@ -233,7 +228,7 @@ void ValidateSpectrumFitBand(const SpectrumFitBand& band) {
 PowerLawSpectrum EstimatePowerLawSpectrum(const Raster<float>& heights,
                                           const SpectrumFitBand& band) {
     ValidateSpectrumFitBand(band);
-    const double pixel = CellSize(heights);
+    const double pixel = RasterGrid::FromRaster(heights).PixelSize();
     const Window window = CenteredWindow(heights);
     const double maxPixels =
         band.maxPixels > 0.0 ? band.maxPixels

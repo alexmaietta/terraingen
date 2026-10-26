@@ -2,6 +2,7 @@
 
 #include "terraingen/pipeline/report.h"
 
+#include "terraingen/raster/raster_stats.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/geometry.h"
 #include "terraingen/util/parallel.h"
@@ -91,34 +92,14 @@ double CellSlope(const Raster<float>& heights, const Surface& surface, std::size
 }
 
 void AddHeightStatistics(const Raster<float>& heights, GridReport& report) {
-    double sum = 0.0;
-    std::size_t count = 0;
-    double low = std::numeric_limits<double>::infinity();
-    double high = -std::numeric_limits<double>::infinity();
-    for (const float value : heights.Values()) {
-        if (!heights.IsMissing(value)) {
-            const auto height = static_cast<double>(value);
-            sum += height;
-            low = std::fmin(low, height);
-            high = std::fmax(high, height);
-            ++count;
-        }
-    }
-    if (count == 0) {
+    const RasterStats stats = ComputeStats(heights);
+    if (stats.validCount == 0) {
         return;
     }
-    const double mean = sum / static_cast<double>(count);
-    double squares = 0.0;
-    for (const float value : heights.Values()) {
-        if (!heights.IsMissing(value)) {
-            const double deviation = static_cast<double>(value) - mean;
-            squares += deviation * deviation;
-        }
-    }
-    report.heightMin = low;
-    report.heightMax = high;
-    report.heightMean = mean;
-    report.heightStd = std::sqrt(squares / static_cast<double>(count));
+    report.heightMin = stats.min;
+    report.heightMax = stats.max;
+    report.heightMean = stats.mean;
+    report.heightStd = stats.stddev;
 }
 
 void AddSlopeStatistics(const Raster<float>& heights, const Surface& surface, unsigned threads,

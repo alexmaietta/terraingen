@@ -244,10 +244,11 @@ std::vector<std::size_t> CratersOnRaster(const Raster<float>& raster,
                                          const std::vector<PreparedCrater>& prepared,
                                          double reachRadii, const Surface& surface,
                                          std::vector<std::vector<PixelWindow>>& windows) {
+    const RasterGrid grid = RasterGrid::FromRaster(raster);
     std::vector<std::size_t> onRaster;
     for (std::size_t k = 0; k < prepared.size(); ++k) {
         std::vector<PixelWindow> around =
-            PixelWindowsIn(raster, Footprint(prepared[k], reachRadii, surface), surface);
+            PixelWindowsIn(grid, Footprint(prepared[k], reachRadii, surface), surface);
         if (!around.empty()) {
             onRaster.push_back(k);
             windows.push_back(std::move(around));
@@ -349,7 +350,8 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         return;
     }
     const Stopwatch stopwatch;
-    const double resolved = ResolvedSpacing(raster, sampling.spacing, options.surface);
+    const double resolved =
+        ResolvedSpacing(RasterGrid::FromRaster(raster), sampling.spacing, options.surface);
     const CraterProfile& profile = *models.profile;
     std::vector<PreparedCrater> prepared =
         PrepareCraters(craters, options, resolved, models, sampling.threads, sampling.reshape);

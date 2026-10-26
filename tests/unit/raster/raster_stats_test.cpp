@@ -21,6 +21,7 @@ TEST(ComputeStats, SummarizesAllCells) {
     EXPECT_DOUBLE_EQ(stats.min, -1.0);
     EXPECT_DOUBLE_EQ(stats.max, 3.0);
     EXPECT_DOUBLE_EQ(stats.mean, 1.0);
+    EXPECT_DOUBLE_EQ(stats.stddev, std::sqrt(2.5));
 }
 
 TEST(ComputeStats, SkipsNoDataAndNonFiniteCells) {

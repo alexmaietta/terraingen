@@ -77,10 +77,6 @@ void ForEachTile(std::size_t width, std::size_t height, std::size_t side, unsign
 std::vector<PixelWindow> PixelWindowsIn(const RasterGrid& grid, const Bounds2d& box,
                                         const Surface& surface);
 
-/// `PixelWindowsIn` the raster's grid.
-std::vector<PixelWindow> PixelWindowsIn(const Raster<float>& raster, const Bounds2d& box,
-                                        const Surface& surface);
-
 /// Rows per band of `ForEachFeatureCell`, the unit of work handed to a thread.
 inline constexpr std::size_t kBandRows = 32;
 

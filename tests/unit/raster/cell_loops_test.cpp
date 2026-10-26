@@ -12,6 +12,7 @@
 
 using terraingen::PixelWindow;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 using terraingen::Surface;
 
 namespace {
@@ -52,10 +53,10 @@ TEST(Subgrid, StartsAtTheWindowsFirstCellOnTheSameLattice) {
 }
 
 TEST(PixelWindowsIn, GivesOneWindowOnAPlaneAndWrapsLongitudeOnASphere) {
-    const Raster<float> plane = Grid(10, 8);
+    const RasterGrid plane = RasterGrid::FromRaster(Grid(10, 8));
     EXPECT_EQ(terraingen::PixelWindowsIn(plane, {1.0, 1.0, 2.0, 2.0}, Surface()).size(), 1u);
     EXPECT_TRUE(terraingen::PixelWindowsIn(plane, {20.0, 20.0, 30.0, 30.0}, Surface()).empty());
-    const Raster<float> globe = Globe();
+    const RasterGrid globe = RasterGrid::FromRaster(Globe());
     const Surface moon = Surface::Sphere(1737400.0);
     const auto across = terraingen::PixelWindowsIn(globe, {170.0, -5.0, 190.0, 5.0}, moon);
     ASSERT_EQ(across.size(), 2u) << "the box runs past the antimeridian";
@@ -101,13 +102,15 @@ TEST(MapCells, MapsEveryCellHoldingData) {
 
 TEST(ResolvedSpacing, RaisesTheSpacingToTheRastersOwn) {
     const Raster<float> raster = Grid(4, 4);
-    EXPECT_EQ(terraingen::ResolvedSpacing(raster, 0.0, Surface()), 1.0);
-    EXPECT_EQ(terraingen::ResolvedSpacing(raster, 3.0, Surface()), 3.0);
+    EXPECT_EQ(terraingen::ResolvedSpacing(RasterGrid::FromRaster(raster), 0.0, Surface()), 1.0);
+    EXPECT_EQ(terraingen::ResolvedSpacing(RasterGrid::FromRaster(raster), 3.0, Surface()), 3.0);
     const Surface moon = Surface::Sphere(1737400.0);
-    EXPECT_DOUBLE_EQ(terraingen::ResolvedSpacing(Globe(), 0.0, moon), 10.0 * moon.UnitLength());
+    EXPECT_DOUBLE_EQ(terraingen::ResolvedSpacing(RasterGrid::FromRaster(Globe()), 0.0, moon),
+                     10.0 * moon.UnitLength());
     Raster<float> flat(2, 2, 0.0f);
     flat.SetTransform({0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
-    EXPECT_THROW(terraingen::ResolvedSpacing(flat, 0.0, Surface()), std::domain_error);
+    EXPECT_THROW(terraingen::ResolvedSpacing(RasterGrid::FromRaster(flat), 0.0, Surface()),
+                 std::domain_error);
 }
 
 TEST(ForEachTile, CoversEveryCellOnceInTilesOfTheSide) {
