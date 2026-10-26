@@ -35,7 +35,7 @@ template <typename T> nb::object PythonArgument(ByReference<T> argument) {
 template <typename Result, typename... Args>
 std::optional<Result> CallOverride(const nb::detail::trampoline& trampoline, const char* name,
                                    Args&&... args) {
-    const nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
+    nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
     if (!ticket.key.is_valid()) {
         return std::nullopt;
     }
@@ -48,7 +48,7 @@ std::optional<Result> CallOverride(const nb::detail::trampoline& trampoline, con
 template <typename... Args>
 bool CallOverrideIgnoringResult(const nb::detail::trampoline& trampoline, const char* name,
                                 Args&&... args) {
-    const nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
+    nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
     if (!ticket.key.is_valid()) {
         return false;
     }
@@ -62,7 +62,7 @@ bool CallOverrideIgnoringResult(const nb::detail::trampoline& trampoline, const 
 template <typename Convert, typename... Args>
 auto CallRequired(const nb::detail::trampoline& trampoline, const char* name, Convert convert,
                   Args&&... args) {
-    const nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
+    nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
     if (!ticket.key.is_valid()) {
         const std::string type = nb::cast<std::string>(trampoline.base().type().attr("__name__"));
         throw nb::type_error((type + " must define " + name + "()").c_str());
@@ -80,7 +80,7 @@ Result CallRequiredAs(const nb::detail::trampoline& trampoline, const char* name
 
 /// Whether the Python subclass behind `trampoline` overrides `name`.
 inline bool Overrides(const nb::detail::trampoline& trampoline, const char* name) {
-    const nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
+    nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
     return ticket.key.is_valid();
 }
 

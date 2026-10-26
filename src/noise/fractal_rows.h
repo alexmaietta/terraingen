@@ -13,8 +13,7 @@
 namespace terraingen {
 
 /// `Fractal2` at each point (`xs[i]`, `ys[i]`) into `heights`, to the bit: each octave's lattice
-/// turn, offset and seed are set once for every point, and on x86-64 Linux the loops run as AVX2
-/// where the CPU has it.
+/// turn, offset and seed are set once for every point.
 /// @param params Assumed valid, as for `Fractal2`.
 void Fractal2Rows(Span<const float> xs, Span<const float> ys, FractalParams params,
                   Span<float> heights);

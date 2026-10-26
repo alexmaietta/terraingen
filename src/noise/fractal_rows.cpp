@@ -4,14 +4,6 @@
 
 #include <vector>
 
-/// Compiles a function for AVX2 and for the baseline, picking one when the library loads; only
-/// where the loader supports it (x86-64 Linux with GCC or Clang).
-#if defined(__x86_64__) && defined(__linux__) && (defined(__GNUC__) || defined(__clang__))
-#define TERRAINGEN_AVX2_CLONES __attribute__((target_clones("avx2", "default")))
-#else
-#define TERRAINGEN_AVX2_CLONES
-#endif
-
 namespace terraingen {
 
 namespace {
@@ -20,7 +12,6 @@ namespace {
 constexpr std::size_t kRun = 256;
 
 /// One octave's basis noise at `count` lattice positions.
-TERRAINGEN_AVX2_CLONES
 void BasisRun(NoiseBasis basis, const float* lx, const float* ly, std::size_t count,
               std::uint32_t seed, float* noise) {
     if (basis == NoiseBasis::Perlin) {
@@ -41,7 +32,6 @@ void BasisRun(NoiseBasis basis, const float* lx, const float* ly, std::size_t co
 }
 
 /// `Fractal2` over one run of at most `kRun` points.
-TERRAINGEN_AVX2_CLONES
 void FractalRun(const float* xs, const float* ys, std::size_t count, FractalParams params,
                 float* heights) {
     float lx[kRun];
