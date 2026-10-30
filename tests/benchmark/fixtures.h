@@ -8,6 +8,7 @@
 #include "terraingen/terraingen.h"
 
 #include <memory>
+#include <vector>
 
 namespace terraingen::benchmarks {
 
@@ -15,17 +16,13 @@ namespace terraingen::benchmarks {
 /// Fassett and Thomson profile degraded by age, on rolling noise, over a flat `size` x `size` m
 /// source of `pixelSize` cells centered on the origin. `cacheCraters` sizes the crater cell cache
 /// (0 for none). On a sphere `body` the source is centered on longitude and latitude 0.
-inline TerrainGenerator LunarMare(double size, double pixelSize, double maxDiameter = 200.0,
-                                  std::size_t cacheCraters = 4000000,
-                                  CraterDatum datum = CraterDatum::None, const Surface& body = {}) {
-    TerrainGenerator terrain;
-    terrain.surface = body;
+inline Terrain LunarMare(double size, double pixelSize, double maxDiameter = 200.0,
+                         std::size_t cacheCraters = 4000000, CraterDatum datum = CraterDatum::None,
+                         const Surface& body = {}) {
     const auto cells = static_cast<std::size_t>(size / pixelSize);
-    terrain.source = std::make_shared<FlatSource>(cells, cells, pixelSize / body.UnitLength());
     std::vector<terraingen::Fractal> noise{terraingen::Fractal{}};
     noise[0].wavelength = 400.0f;
     noise[0].amplitude = 8.0f;
-    terrain.layers.push_back(std::make_shared<NoiseLayer>(noise, body));
     const auto density = testing::LunarCraterDensity(3.5);
     const auto ages = testing::LunarCraterAges(3.5);
     CraterLayerOptions options;
@@ -33,12 +30,19 @@ inline TerrainGenerator LunarMare(double size, double pixelSize, double maxDiame
     options.generation.dMax = maxDiameter;
     options.cacheCraters = cacheCraters;
     options.apply.datum = datum;
-    terrain.layers.push_back(std::make_shared<CraterLayer>(
-        CraterModels{density, ages,
-                     std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry),
-                     std::make_shared<FassettThomsonProfile>()},
-        options, body));
-    return terrain;
+    return Terrain(
+        body, std::make_shared<FlatSource>(cells, cells, pixelSize / body.UnitLength()),
+        {std::make_shared<NoiseLayer>(noise),
+         std::make_shared<CraterLayer>(
+             CraterModels{density, ages,
+                          std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry),
+                          std::make_shared<FassettThomsonProfile>()},
+             options, body)});
+}
+
+/// The grid of `terrain`'s source.
+inline RasterGrid SourceGrid(const Terrain& terrain) {
+    return terrain.Source()->Grid();
 }
 
 }  // namespace terraingen::benchmarks

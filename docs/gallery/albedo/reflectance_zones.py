@@ -23,8 +23,8 @@ def figure(quick=False):
     size = int(SIZE_M / pixel) + 1
     relief = terraingen.NoiseLayer(seed=3, wavelength=700.0, amplitude=40.0, octaves=5)
     crater = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)])
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, crater])
-    grid = terraingen.RasterGrid.from_raster(terraingen.evaluate(terrain))
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief, crater])
+    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
     base = terraingen.SyntheticAlbedo(value=0.11)
     x = (np.arange(size) - 0.5 * (size - 1)) * pixel
 
@@ -38,7 +38,7 @@ def figure(quick=False):
         zones.shadows = zone_shadows
         options.zones = zones
         albedo = terraingen.Albedo(base, [terraingen.CraterAlbedo(crater, options)])
-        values = terraingen.evaluate_albedo(albedo, grid, generator=terrain)[0].values
+        values = terraingen.evaluate_albedo(albedo, grid, ground=terrain)[0].values
         image = ax.imshow(values, cmap="gray", vmin=0.095, vmax=0.125)
         ax.set_axis_off()
         ax.set_title(title)

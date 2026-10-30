@@ -5,8 +5,8 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/random/value_distribution.h"
-#include "terraingen/util/geometry.h"
 
 #include <cstddef>
 #include <cstdint>

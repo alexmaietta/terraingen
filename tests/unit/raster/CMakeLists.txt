@@ -8,11 +8,8 @@ terraingen_add_test_suite(
     geotiff_test.cpp
     grid_test.cpp
     raster_test.cpp
-    raster_stats_test.cpp
     resample_test.cpp
-    spectrum_test.cpp
     tiff_format_test.cpp
-    variogram_test.cpp
     LIBRARIES
     terraingen::raster
     terraingen::random)

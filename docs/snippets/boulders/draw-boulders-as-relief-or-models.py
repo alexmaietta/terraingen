@@ -20,9 +20,9 @@ def draw_boulders_as_relief_or_models(relief=terraingen.BoulderRelief.SHAPE, mod
     rendering.shape_prototypes = 16  # boulders share 16 shapes; 0 gives each its own
     options.rendering = rendering
     boulders = terraingen.BoulderLayer(options)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(SIZE, SIZE, PIXEL), [boulders])
-    heights = terraingen.evaluate(terrain).values  # models are left out of the heights
-    models = terraingen.placed_boulders(terrain).models
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(SIZE, SIZE, PIXEL), layers=[boulders])
+    heights = terrain.evaluate().values  # models are left out of the heights
+    models = terrain.boulders().models
     # --8<-- [end:draw_boulders_as_relief_or_models]
     return heights, models
 

@@ -17,7 +17,7 @@ def write_the_whole_body_as_a_mesh(output_folder):
         ),
         base=body,
     )
-    terrain = terraingen.TerrainGenerator(None, [craters], surface=body)
+    terrain = terraingen.Terrain(body, layers=[craters])
     # --8<-- [start:write_the_whole_body_as_a_mesh]
     mesh = terraingen.body_mesh(terrain, 128, spacing=0.5)  # 6 x 128 x 128 quads, samples 0.5 m apart
     mesh.write(output_folder / "body.glb")  # or .gltf, .obj or .stl

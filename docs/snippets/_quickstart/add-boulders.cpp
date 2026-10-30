@@ -11,8 +11,7 @@ namespace terraingen {
 namespace {
 
 TEST_F(SnippetTest, QuickstartAddBoulders) {
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(257, 257, 0.5);
+    const auto source = std::make_shared<FlatSource>(257, 257, 0.5);
     Fractal fractal = Fractal::Fbm(1, 80.0, 2.0);
     fractal.octaves = 5;
     const auto noise = std::make_shared<NoiseLayer>(fractal);
@@ -20,9 +19,9 @@ TEST_F(SnippetTest, QuickstartAddBoulders) {
     // --8<-- [start:add_boulders]
     // With ejecta thrown out by those craters.
     const auto boulders = std::make_shared<BoulderLayer>(BoulderLayerOptions{}, craters);
-    terrain.layers = {noise, craters, boulders};
+    const Terrain terrain(Surface{}, source, {noise, craters, boulders});
     // --8<-- [end:add_boulders]
-    EXPECT_EQ(Evaluate(terrain).Width(), 257);
+    EXPECT_EQ(terrain.Evaluate().Width(), 257);
 }
 
 }  // namespace

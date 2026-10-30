@@ -12,16 +12,28 @@ namespace {
 
 /// A plane z = 2x - 3y, with no data west of x = -50.
 class Tilted final : public terraingen::Ground {
-  public:
-    float HeightAt(double x, double y, double /*spacing*/) const override {
-        if (x < -50.0) {
-            return std::numeric_limits<float>::quiet_NaN();
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const terraingen::Vec2d p = samples.Position(i);
+            samples.Height(i) = p.x < -50.0 ? std::numeric_limits<float>::quiet_NaN()
+                                            : static_cast<float>(2.0 * p.x - 3.0 * p.y);
         }
-        return static_cast<float>(2.0 * x - 3.0 * y);
     }
 };
 
 }  // namespace
+
+TEST(Ground, ReadsPointsThroughFillSamples) {
+    const Tilted ground;
+    EXPECT_EQ(ground.HeightAt(1.0, 1.0, 1.0), -1.0f);
+    const std::array<terraingen::Vec2d, 2> points{terraingen::Vec2d{2.0, 0.0},
+                                                  terraingen::Vec2d{-60.0, 0.0}};
+    std::array<float, 2> heights{};
+    ground.HeightsAt(points, heights, 1.0);
+    EXPECT_EQ(heights[0], 4.0f);
+    EXPECT_TRUE(std::isnan(heights[1]));
+}
 
 TEST(GradientPoints, StepEastWestNorthSouth) {
     const auto points = terraingen::GradientPoints(terraingen::Surface{}, {10.0, 20.0}, 2.0);

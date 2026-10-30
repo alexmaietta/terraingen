@@ -4,6 +4,7 @@
 
 #include "support/boulder_records.h"
 #include "support/golombek_rapp.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/terraingen.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/span.h"
@@ -50,8 +51,13 @@ Craters(const std::vector<terraingen::Crater>& manual) {
 class Analytic final : public terraingen::Ground {
   public:
     explicit Analytic(std::function<float(double, double)> height) : height_(std::move(height)) {}
-    float HeightAt(double x, double y, double /*spacing*/) const override {
-        return height_(x, y);
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const terraingen::Vec2d p = samples.Position(i);
+            samples.Height(i) = height_(p.x, p.y);
+        }
     }
 
   private:
@@ -136,6 +142,42 @@ TEST(BoulderLayer, TakesBlocksFromEveryCraterLayerGiven) {
                      std::vector<std::shared_ptr<const terraingen::CraterLayer>>{first, nullptr},
                      terraingen::Surface{}),
         std::invalid_argument);
+}
+
+TEST(BoulderLayer, ReseedsItsPlacementsAndShapes) {
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
+    options.sizes.coverage = 0.05;
+    const BoulderLayer layer(options);
+    const Bounds2d region{-20.0, -20.0, 20.0, 20.0};
+    const auto records = [&](const terraingen::LayerPtr& reseeded) {
+        return terraingen::testing::Records(
+            dynamic_cast<const BoulderLayer&>(*reseeded).Boulders(region));
+    };
+    const auto a = records(layer.Reseeded(9));
+    EXPECT_EQ(a, records(layer.Reseeded(9)));
+    EXPECT_NE(a, records(layer.Reseeded(10)));
+    EXPECT_NE(a, terraingen::testing::Records(layer.Boulders(region)));
+    const terraingen::LayerPtr held = layer.Reseeded(9);
+    const auto& reseeded = dynamic_cast<const BoulderLayer&>(*held);
+    EXPECT_EQ(reseeded.Options().seed, terraingen::ReseedWord(9, 0));
+    EXPECT_EQ(reseeded.Options().rendering.shapes.seed, terraingen::ReseedWord(9, 1));
+}
+
+TEST(BoulderLayer, RebindsToAReplacedCraterLayer) {
+    BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
+    options.ejecta.minCraterDiameter = 50.0;
+    const auto first = Craters({{0.0, 0.0, 100.0, 0.0, 0u}});
+    const auto moved = Craters({{1000.0, 0.0, 100.0, 0.0, 0u}});
+    const BoulderLayer layer(options, first);
+    EXPECT_EQ(layer.Rebound({}), nullptr);
+    const auto unrelated = Craters({});
+    EXPECT_EQ(layer.Rebound({{unrelated.get(), moved}}), nullptr) << "reads none of them";
+    const terraingen::LayerPtr rebound = layer.Rebound({{first.get(), moved}});
+    ASSERT_NE(rebound, nullptr);
+    EXPECT_EQ(rebound->Dependencies(), std::vector<const terraingen::Layer*>{moved.get()});
+    const auto& boulders = dynamic_cast<const BoulderLayer&>(*rebound);
+    EXPECT_EQ(boulders.AbundanceAt(1050.0, 0.0).ejecta, 1.0);
+    EXPECT_EQ(boulders.AbundanceAt(50.0, 0.0).ejecta, 0.0);
 }
 
 TEST(BoulderLayer, AddsBlocksAroundFreshCraters) {
@@ -963,18 +1005,17 @@ TEST(BoulderLayer, ReportsRockWhereBoulderTopsStandAndNotOnFillets) {
     const auto boulders = terraingen::testing::Records(layer.Boulders({-50.0, -50.0, 50.0, 50.0}));
     ASSERT_FALSE(boulders.empty());
     const Boulder& b = boulders.front();
-    EXPECT_EQ(layer.MaterialCoverAt(b.x, b.y, 0.05, nullptr), 1.0);
+    EXPECT_EQ(layer.MaterialCoverAt(b.x, b.y, {0.05}), 1.0);
     const double onFillet = 0.5 * b.diameter + 0.15 * b.diameter;
     double fillet = 1.0;
     for (int k = 0; k < 8; ++k) {
         const double turn = 0.25 * terraingen::kPi * k;
-        fillet =
-            std::min(fillet, layer.MaterialCoverAt(b.x + onFillet * std::cos(turn),
-                                                   b.y + onFillet * std::sin(turn), 0.05, nullptr));
+        fillet = std::min(fillet, layer.MaterialCoverAt(b.x + onFillet * std::cos(turn),
+                                                        b.y + onFillet * std::sin(turn), {0.05}));
     }
     EXPECT_EQ(fillet, 0.0);
-    EXPECT_EQ(layer.MaterialCoverAt(b.x, b.y, 10.0, nullptr), 0.0) << "unresolved";
-    EXPECT_EQ(layer.MaterialCoverAt(1e5, 1e5, 0.05, nullptr), 0.0);
+    EXPECT_EQ(layer.MaterialCoverAt(b.x, b.y, {10.0}), 0.0) << "unresolved";
+    EXPECT_EQ(layer.MaterialCoverAt(1e5, 1e5, {0.05}), 0.0);
 }
 
 TEST(BoulderLayer, ReportsRockOverShapesAndModelFootprints) {
@@ -986,15 +1027,15 @@ TEST(BoulderLayer, ReportsRockOverShapesAndModelFootprints) {
     const BoulderLayer shapes(options);
     const Boulder b =
         terraingen::testing::Records(shapes.Boulders({-50.0, -50.0, 50.0, 50.0})).front();
-    EXPECT_EQ(shapes.MaterialCoverAt(b.x, b.y, 0.05, nullptr), 1.0);
+    EXPECT_EQ(shapes.MaterialCoverAt(b.x, b.y, {0.05}), 1.0);
     options.rendering.modelThreshold.minDiameter = 1.0;
     const BoulderLayer models(options);
     const Boulder m =
         terraingen::testing::Records(models.Boulders({-50.0, -50.0, 50.0, 50.0})).front();
     ASSERT_TRUE(m.model);
-    EXPECT_EQ(models.MaterialCoverAt(m.x, m.y, 0.05, nullptr), 1.0);
+    EXPECT_EQ(models.MaterialCoverAt(m.x, m.y, {0.05}), 1.0);
     EXPECT_EQ(models.MaterialCoverAt(m.x + 0.51 * m.diameter / std::sqrt(0.5),
-                                     m.y + 0.51 * m.diameter / std::sqrt(0.5), 0.05, nullptr),
+                                     m.y + 0.51 * m.diameter / std::sqrt(0.5), {0.05}),
               0.0);
 }
 
@@ -1009,12 +1050,12 @@ TEST(BoulderLayer, GivesTheSameRockCoverOverAGridAsAtItsPoints) {
     const auto boulders = terraingen::testing::Records(layer.Boulders(grid.Bounds(), 0.2));
     ASSERT_TRUE(
         std::any_of(boulders.begin(), boulders.end(), [](const Boulder& b) { return b.model; }));
-    const Raster<double> cover = layer.MaterialCoverOver(grid, 0.2, nullptr, 3);
+    const Raster<double> cover = layer.MaterialCoverOver(grid, {0.2, 3});
     double rock = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             const auto center = cover.CellCenter(col, row);
-            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(center.x, center.y, 0.2, nullptr));
+            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(center.x, center.y, {0.2}));
             rock += cover(col, row);
         }
     }
@@ -1429,30 +1470,19 @@ TEST(BoulderLayer, RollsBouldersDownSteepGroundToRestAtItsFoot) {
 
 namespace {
 
-/// A sloping ground that counts how it is read, optionally refusing batches.
+/// A sloping ground that counts how often it is read.
 class Counted final : public terraingen::Ground {
   public:
-    explicit Counted(bool batches) : batches_(batches) {}
-    float HeightAt(double x, double y, double /*spacing*/) const override {
-        ++single_;
-        return static_cast<float>(0.1 * x + 0.05 * y * y);
-    }
-    void HeightsAt(terraingen::Span<const terraingen::Vec2d> points,
-                   terraingen::Span<float> heights, double spacing) const override {
-        if (!batches_) {
-            Ground::HeightsAt(points, heights, spacing);
-            return;
-        }
-        ++batched_;
-        for (std::size_t n = 0; n < points.size(); ++n) {
-            heights[n] = static_cast<float>(0.1 * points[n].x + 0.05 * points[n].y * points[n].y);
-        }
-    }
-    mutable std::atomic<int> single_{0};
-    mutable std::atomic<int> batched_{0};
+    mutable std::atomic<int> reads_{0};
 
-  private:
-    bool batches_;
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        ++reads_;
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const terraingen::Vec2d p = samples.Position(i);
+            samples.Height(i) = static_cast<float>(0.1 * p.x + 0.05 * p.y * p.y);
+        }
+    }
 };
 
 }  // namespace
@@ -1464,19 +1494,10 @@ TEST(BoulderLayer, ReadsTheGroundBeneathItsBouldersInOnePass) {
     options.pose.maxSlopeDegrees = 1.2 * terraingen::kRadian;
     const BoulderLayer layer(options);
     const Bounds2d region{-10.0, -10.0, 10.0, 10.0};
-    const Counted batched(true);
-    const Counted single(false);
-    const auto fast = terraingen::testing::Records(layer.Boulders(region, 0.0, &batched));
-    const auto slow = terraingen::testing::Records(layer.Boulders(region, 0.0, &single));
-    ASSERT_GT(fast.size(), 20u);
-    EXPECT_EQ(batched.batched_.load(), 1);
-    EXPECT_EQ(batched.single_.load(), 0) << "every point the boulders read was fetched";
-    ASSERT_EQ(fast.size(), slow.size());
-    for (std::size_t n = 0; n < fast.size(); ++n) {
-        EXPECT_EQ(fast[n].id, slow[n].id);
-        EXPECT_EQ(fast[n].ground, slow[n].ground);
-        EXPECT_EQ(fast[n].tilt, slow[n].tilt);
-    }
+    const Counted counted;
+    const auto boulders = terraingen::testing::Records(layer.Boulders(region, 0.0, &counted));
+    ASSERT_GT(boulders.size(), 20u);
+    EXPECT_EQ(counted.reads_.load(), 1) << "every point the boulders read was fetched at once";
 }
 
 TEST(BoulderLayer, MeasuresUnresolvedCoverUpToItsLargestBoulder) {

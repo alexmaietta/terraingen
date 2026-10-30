@@ -10,4 +10,5 @@ terraingen_add_library(
     surface_noise.cpp
     validate.cpp
     PUBLIC
+    terraingen_geometry
     terraingen_util)

@@ -161,6 +161,58 @@ void CopyPosts(const PostLattice& posts, detail::LatticeOffset offset, Raster<fl
     });
 }
 
+/// Sets the cells of `samples`, a grid, at the posts' spacing or coarser: copies the posts on
+/// their lattice, otherwise `upsample(samples)` then gives the cells centered on posts the posts'
+/// heights.
+template <typename Upsample>
+void FillGridAtPostSpacing(const PostLattice& posts, SampleBlock& samples, unsigned threads,
+                           const Upsample& upsample) {
+    Raster<float>& heights = *samples.Grid();
+    const GeoTransform transform = posts.Transform();
+    if (const auto offset = detail::OffsetOnLattice(transform, heights.Transform())) {
+        CopyPosts(posts, *offset, heights, threads);
+        return;
+    }
+    upsample(samples);
+    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            const Vec2d center = heights.CellCenter(col, row);
+            if (const auto post = CenteredPost(transform, center.x, center.y)) {
+                posts.Read(post->first, post->second, 1, 1, Span<float>(&heights(col, row), 1));
+            }
+        }
+    });
+}
+
+/// Sets the points of `samples` at the posts' spacing or coarser: those centered on posts to the
+/// posts' heights, the others by `upsample` of a block of them at once.
+template <typename Upsample>
+void FillPointsAtPostSpacing(const PostLattice& posts, SampleBlock& samples,
+                             const Upsample& upsample) {
+    const GeoTransform transform = posts.Transform();
+    const Span<const Vec2d> points = samples.Points();
+    const Span<float> heights = samples.Heights();
+    std::vector<Vec2d> between;
+    std::vector<std::size_t> at;
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        if (const auto post = CenteredPost(transform, points[i].x, points[i].y)) {
+            posts.Read(post->first, post->second, 1, 1, heights.subspan(i, 1));
+        } else {
+            between.push_back(points[i]);
+            at.push_back(i);
+        }
+    }
+    if (between.empty()) {
+        return;
+    }
+    std::vector<float> upsampled(between.size());
+    SampleBlock rest{Span<const Vec2d>(between), Span<float>(upsampled)};
+    upsample(rest);
+    for (std::size_t k = 0; k < at.size(); ++k) {
+        heights[at[k]] = upsampled[k];
+    }
+}
+
 /// The kernel upsamplers' names and kernels.
 const std::array<std::pair<const char*, ResampleMethod>, 6> kKernelNames{{
     {"nearest", ResampleMethod::Nearest},
@@ -261,64 +313,6 @@ bool AtPostSpacing(const GeoTransform& transform, double spacing) {
     return spacing >= cellSize * (1.0 - kSpacingTolerance);
 }
 
-float UpsampledHeight(const Upsampler& upsampler, const PostLattice& posts, double x, double y,
-                      double spacing) {
-    float height = 0.0f;
-    const Vec2d point{x, y};
-    UpsampledHeights(upsampler, posts, Span<const Vec2d>(&point, 1), Span<float>(&height, 1),
-                     spacing);
-    return height;
-}
-
-void UpsampledHeights(const Upsampler& upsampler, const PostLattice& posts,
-                      Span<const Vec2d> points, Span<float> heights, double spacing) {
-    const GeoTransform transform = posts.Transform();
-    if (!AtPostSpacing(transform, spacing)) {
-        upsampler.HeightsAt(posts, points, heights, spacing);
-        return;
-    }
-    std::vector<Vec2d> between;
-    std::vector<std::size_t> at;
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        if (const auto post = CenteredPost(transform, points[i].x, points[i].y)) {
-            posts.Read(post->first, post->second, 1, 1, heights.subspan(i, 1));
-        } else {
-            between.push_back(points[i]);
-            at.push_back(i);
-        }
-    }
-    if (between.empty()) {
-        return;
-    }
-    std::vector<float> upsampled(between.size());
-    upsampler.HeightsAt(posts, Span<const Vec2d>(between), Span<float>(upsampled), spacing);
-    for (std::size_t k = 0; k < at.size(); ++k) {
-        heights[at[k]] = upsampled[k];
-    }
-}
-
-void FillUpsampled(const Upsampler& upsampler, const PostLattice& posts, Raster<float>& heights,
-                   double spacing, unsigned threads) {
-    const GeoTransform transform = posts.Transform();
-    if (!AtPostSpacing(transform, spacing)) {
-        upsampler.Fill(posts, heights, spacing, threads);
-        return;
-    }
-    if (const auto offset = detail::OffsetOnLattice(transform, heights.Transform())) {
-        CopyPosts(posts, *offset, heights, threads);
-        return;
-    }
-    upsampler.Fill(posts, heights, spacing, threads);
-    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
-            const Vec2d center = heights.CellCenter(col, row);
-            if (const auto post = CenteredPost(transform, center.x, center.y)) {
-                posts.Read(post->first, post->second, 1, 1, Span<float>(&heights(col, row), 1));
-            }
-        }
-    });
-}
-
 void MarkMissing(Raster<float>& heights, std::optional<float> noData) {
     const float fill = noData.value_or(std::numeric_limits<float>::quiet_NaN());
     bool missing = false;
@@ -331,43 +325,57 @@ void MarkMissing(Raster<float>& heights, std::optional<float> noData) {
     heights.SetNoData(FilledNoData(noData, missing));
 }
 
-void Upsampler::HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,
-                          double spacing) const {
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        heights[i] = HeightAt(posts, points[i].x, points[i].y, spacing);
+void Upsampler::Fill(const PostLattice& posts, SampleBlock& samples, double spacing,
+                     unsigned threads) const {
+    const auto upsample = [&](SampleBlock& block) { FillSamples(posts, block, spacing, threads); };
+    if (samples.Size() == 0) {
+        return;
+    }
+    if (!AtPostSpacing(posts.Transform(), spacing)) {
+        upsample(samples);
+    } else if (samples.IsGrid()) {
+        FillGridAtPostSpacing(posts, samples, threads, upsample);
+    } else {
+        FillPointsAtPostSpacing(posts, samples, upsample);
     }
 }
 
 void Upsampler::Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
                      unsigned threads) const {
-    detail::FillByTiles(heights, threads, [&](Span<const Vec2d> centers, Span<float> values) {
-        HeightsAt(posts, centers, values, spacing);
-    });
+    SampleBlock samples(heights);
+    Fill(posts, samples, spacing, threads);
 }
 
-float KernelUpsampler::HeightAt(const PostLattice& posts, double x, double y,
-                                double spacing) const {
+float Upsampler::HeightAt(const PostLattice& posts, double x, double y, double spacing) const {
     float height = 0.0f;
     const Vec2d point{x, y};
     HeightsAt(posts, Span<const Vec2d>(&point, 1), Span<float>(&height, 1), spacing);
     return height;
 }
 
-void KernelUpsampler::HeightsAt(const PostLattice& posts, Span<const Vec2d> points,
-                                Span<float> heights, double /*spacing*/) const {
+void Upsampler::HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,
+                          double spacing) const {
+    SampleBlock samples(points, heights);
+    Fill(posts, samples, spacing, 1);
+}
+
+void KernelUpsampler::FillSamples(const PostLattice& posts, SampleBlock& samples,
+                                  double /*spacing*/, unsigned threads) const {
     const GeoTransform transform = UnrotatedTransform(posts);
-    std::vector<Vec2d> lattice(points.size());
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        const Vec2d pixel = transform.WorldToPixel(points[i].x, points[i].y);
-        lattice[i] = {pixel.x - 0.5, pixel.y - 0.5};
-    }
-    const auto taps = static_cast<double>(2 * KernelRadius(method_));
-    detail::ExpandPoints(
-        Span<const Vec2d>(lattice), heights, 4.0 * taps * taps,
-        [&](Span<const Vec2d> at) { return TapBox(method_, at); },
-        [&](const detail::IndexBox& box, Span<const Vec2d> at, Span<float> values) {
-            InterpolateBlock(detail::ReadPosts(posts, box), method_, at, values);
-        });
+    detail::FillByTiles(samples, threads, [&](Span<const Vec2d> points, Span<float> heights) {
+        std::vector<Vec2d> lattice(points.size());
+        for (std::size_t i = 0; i < points.size(); ++i) {
+            const Vec2d pixel = transform.WorldToPixel(points[i].x, points[i].y);
+            lattice[i] = {pixel.x - 0.5, pixel.y - 0.5};
+        }
+        const auto taps = static_cast<double>(2 * KernelRadius(method_));
+        detail::ExpandPoints(
+            Span<const Vec2d>(lattice), heights, 4.0 * taps * taps,
+            [&](Span<const Vec2d> at) { return TapBox(method_, at); },
+            [&](const detail::IndexBox& box, Span<const Vec2d> at, Span<float> values) {
+                InterpolateBlock(detail::ReadPosts(posts, box), method_, at, values);
+            });
+    });
 }
 
 std::shared_ptr<const Upsampler> DefaultUpsampler() {

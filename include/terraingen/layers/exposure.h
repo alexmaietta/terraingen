@@ -4,9 +4,9 @@
 /// @brief `ExposureField`, how far the ground is bare bedrock rather than soil, and `PatchNoise`.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/util/surface.h"
 
 #include <array>
 #include <cstdint>
@@ -62,6 +62,11 @@ class ExposureField {
     /// @param spacing Sample spacing in world units.
     double Exposure(const Ground& ground, double x, double y, double spacing) const;
 
+    /// `Exposure` with the surroundings read on `surface` in place of the field's own.
+    /// @param spacing Sample spacing in world units.
+    double Exposure(const Ground& ground, const Surface& surface, double x, double y,
+                    double spacing) const;
+
     /// Fills `raster` with `Exposure` at each cell center.
     /// @param spacing Sample spacing in world units.
     /// @param threads Worker threads; 0 for every hardware thread.
@@ -80,15 +85,16 @@ class ExposureField {
     std::array<Vec2d, 8> ring_{};
 };
 
-/// The exposure field a layer may read, at a fixed ground spacing; empty when the layer has none.
+/// The exposure field a layer may read, at a fixed ground spacing, on the surface it is read on;
+/// empty when the layer has none.
 class LayerExposure {
   public:
     LayerExposure() = default;
 
     /// @param spacing Sample spacing in meters the ground is read at.
     /// @param reader What reads the field, which starts the error message without a ground.
-    LayerExposure(const std::optional<ExposureParams>& params, double spacing,
-                  const Surface& surface, const char* reader);
+    /// @throws std::invalid_argument as `ValidateExposureParams`.
+    LayerExposure(const std::optional<ExposureParams>& params, double spacing, const char* reader);
 
     /// Whether the layer reads an exposure field.
     explicit operator bool() const {
@@ -99,9 +105,9 @@ class LayerExposure {
     /// @throws std::invalid_argument if the field is set and `ground` is null.
     void Require(const Ground* ground) const;
 
-    /// The field's exposure at world (x, y) on `ground`; call only when set.
+    /// The field's exposure at world (x, y) on `ground` lying on `surface`; call only when set.
     /// @throws std::invalid_argument if `ground` is null.
-    double At(double x, double y, const Ground* ground) const;
+    double At(double x, double y, const Ground* ground, const Surface& surface) const;
 
   private:
     std::optional<ExposureField> field_;

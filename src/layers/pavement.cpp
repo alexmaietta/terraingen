@@ -3,16 +3,18 @@
 #include "terraingen/layers/pavement.h"
 
 #include "layers/lattice.h"
+#include "terraingen/geometry/surface.h"
+#include "terraingen/layers/anchored_plane.h"
+#include "terraingen/layers/pavement_fields.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/surface.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -105,26 +107,7 @@ std::pair<double, std::size_t> NearestEdge(const Sites& around, const Vec2d& p) 
 }  // namespace
 
 void ValidatePavementOptions(const PavementOptions& options) {
-    RequirePositive(options.plateSize, "Pavement plateSize");
-    RequirePositive(options.crackWidth, "Pavement crackWidth");
-    RequirePositive(options.exposureSpacing, "Pavement exposureSpacing");
-    RequireNonNegative(options.crackDepth, "Pavement crackDepth");
-    RequireNonNegative(options.edgeRounding, "Pavement edgeRounding");
-    RequireNonNegative(options.maxStep, "Pavement maxStep");
-    RequireNonNegative(options.warp, "Pavement warp");
-    if (!((options.maxTiltDegrees * kDegree) >= 0.0 &&
-          (options.maxTiltDegrees * kDegree) < 0.5 * kPi)) {
-        throw std::invalid_argument("Pavement maxTiltDegrees must be in [0, 90) deg");
-    }
-    RequireUnitInterval(options.jitter, "Pavement jitter");
-    if (!(options.octaves >= 1 && options.octaves <= kMaxPavementOctaves &&
-          options.lacunarity > 1.0 && std::isfinite(options.lacunarity) && options.gain > 0.0 &&
-          options.gain <= 1.0)) {
-        throw std::invalid_argument("Pavement needs 1 to " + std::to_string(kMaxPavementOctaves) +
-                                    " octaves, a lacunarity above 1 and a gain in (0, 1]");
-    }
-    RequireFinite(options.anchor.x, "Pavement anchor x");
-    RequireFinite(options.anchor.y, "Pavement anchor y");
+    CheckRanges(options);
     if (options.exposure) {
         ValidateExposureParams(*options.exposure);
     }
@@ -145,11 +128,9 @@ PavementOptions MarsDesiccationRidges() {
     return ridges;
 }
 
-PavementLayer::PavementLayer(PavementOptions options, TerrainBase base)
-    : FormulaLayer(base.surface), options_(options), plane_(base.surface, options.anchor) {
+PavementLayer::PavementLayer(PavementOptions options) : options_(options) {
     ValidatePavementOptions(options_);
-    exposure_ =
-        LayerExposure(options_.exposure, options_.exposureSpacing, surface_, kExposureReader);
+    exposure_ = LayerExposure(options_.exposure, options_.exposureSpacing, kExposureReader);
     double size = 1.0;
     double relief = 1.0;
     for (int k = 0; k < options_.octaves; ++k) {
@@ -161,6 +142,12 @@ PavementLayer::PavementLayer(PavementOptions options, TerrainBase base)
         size *= options_.lacunarity;
         relief *= options_.gain;
     }
+}
+
+LayerPtr PavementLayer::Reseeded(std::uint64_t seed) const {
+    PavementOptions options = options_;
+    options.seed = ReseedWord(seed, 0);
+    return std::make_shared<PavementLayer>(options);
 }
 
 Vec2d PavementLayer::Warp(const Vec2d& q, double size, std::uint32_t seed) const {
@@ -211,26 +198,26 @@ double PavementLayer::Relief(const Vec2d& q, double spacing) const {
     return relief;
 }
 
-double PavementLayer::ExposureWeight(double x, double y, const Ground* ground) const {
-    return exposure_ ? exposure_.At(x, y, ground) : 1.0;
+double PavementLayer::ExposureWeight(double x, double y, const LayerContext& context) const {
+    return exposure_ ? exposure_.At(x, y, context.ground, context.SurfaceOrPlane()) : 1.0;
 }
 
-double PavementLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
-                                      const Ground* ground) const {
-    return plane_.Project(x, y) ? ExposureWeight(x, y, ground) : 0.0;
+double PavementLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
+    const AnchoredPlane plane(context.SurfaceOrPlane(), options_.anchor);
+    return plane.Project(x, y) ? ExposureWeight(x, y, context) : 0.0;
 }
 
-float PavementLayer::HeightAt(float height, double x, double y, double spacing,
-                              const Ground* ground) const {
-    const std::optional<Vec2d> q = plane_.Project(x, y);
-    if (!q || ResolutionWeight(options_.plateSize, spacing, options_.fade) <= 0.0) {
+float PavementLayer::HeightAt(float height, double x, double y, const LayerContext& context) const {
+    const std::optional<Vec2d> q =
+        AnchoredPlane(context.SurfaceOrPlane(), options_.anchor).Project(x, y);
+    if (!q || ResolutionWeight(options_.plateSize, context.spacing, options_.fade) <= 0.0) {
         return height;
     }
-    const double exposure = ExposureWeight(x, y, ground);
+    const double exposure = ExposureWeight(x, y, context);
     if (exposure <= 0.0) {
         return height;
     }
-    return static_cast<float>(static_cast<double>(height) + exposure * Relief(*q, spacing));
+    return static_cast<float>(static_cast<double>(height) + exposure * Relief(*q, context.spacing));
 }
 
 void PavementLayer::CheckContext(const LayerContext& context) const {

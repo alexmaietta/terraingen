@@ -48,13 +48,13 @@ def figure(quick=False):
     options.density_map = density_map
     relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     craters = terraingen.CraterLayer(models, options)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters])
 
     fig, axes = plt.subplots(1, 3, figsize=(17, 5), layout="constrained", width_ratios=[1, 1, 1.2])
     gallery.show_map(axes[0], scale, MAP_PIXEL, cmap="viridis", label="Density scale")
     axes[0].set_title("Density map")
-    table = terraingen.placed_craters(terrain).table
-    gallery.show_hillshade(axes[1], terraingen.evaluate(terrain).values, pixel)
+    table = terrain.craters().table
+    gallery.show_hillshade(axes[1], terrain.evaluate().values, pixel)
     axes[1].set_title(f"{len(table['diameter'])} craters")
 
     edges = np.linspace(-half, half, 11)

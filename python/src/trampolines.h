@@ -62,10 +62,17 @@ bool CallOverrideIgnoringResult(const nb::detail::trampoline& trampoline, const 
 template <typename Convert, typename... Args>
 auto CallRequired(const nb::detail::trampoline& trampoline, const char* name, Convert convert,
                   Args&&... args) {
+    const nb::gil_scoped_acquire gil;
+    const auto missing = [&] {
+        const std::string type = nb::cast<std::string>(trampoline.base().type().attr("__name__"));
+        return nb::type_error((type + " must define " + name + "()").c_str());
+    };
+    if (!nb::hasattr(trampoline.base(), name)) {
+        throw missing();
+    }
     nb::detail::ticket ticket(trampoline, name, nb::detail::str_hash(name), false);
     if (!ticket.key.is_valid()) {
-        const std::string type = nb::cast<std::string>(trampoline.base().type().attr("__name__"));
-        throw nb::type_error((type + " must define " + name + "()").c_str());
+        throw missing();
     }
     return convert(trampoline.base().attr(ticket.key)(PythonArgument(std::forward<Args>(args))...));
 }

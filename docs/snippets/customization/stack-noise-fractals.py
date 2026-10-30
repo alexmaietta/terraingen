@@ -11,8 +11,8 @@ def stack_noise_fractals():
         seed=2, wavelength=60.0, amplitude=1.5, octaves=5, type=terraingen.FractalType.RIDGED
     )
     noise = terraingen.NoiseLayer([hills, ridges])  # added in order
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, 1.0), [noise])
-    heights = terraingen.evaluate(terrain)
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(257, 257, 1.0), layers=[noise])
+    heights = terrain.evaluate()
     # --8<-- [end:stack_noise_fractals]
     return heights
 

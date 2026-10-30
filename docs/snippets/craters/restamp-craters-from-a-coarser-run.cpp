@@ -28,21 +28,18 @@ TEST_F(SnippetTest, RestampCratersFromACoarserRun) {
         return std::make_shared<CraterLayer>(DefaultCraterModels(), options, std::move(base));
     };
     const std::filesystem::path list = OutputFolder() / "coarse_craters.json";
-    TerrainGenerator coarse;
-    coarse.source = std::make_shared<FlatSource>(75, 75, 8.0);
-    coarse.layers.push_back(Craters());
-    const CraterFeatures placed = PlacedCraters(coarse, RasterGrid::FromRaster(Evaluate(coarse)));
+    const Terrain coarse(Surface{}, std::make_shared<FlatSource>(75, 75, 8.0), {Craters()});
+    const Raster<float> coarseHeights = coarse.Evaluate();
+    const CraterFeatures placed = coarse.Craters(RasterGrid::FromRaster(coarseHeights));
     WriteCraterList(placed.craters, list, ListFormat::Json, placed.attributes);
-    const auto dem = std::make_shared<RasterSource>(Evaluate(coarse));
+    const auto dem = std::make_shared<RasterSource>(coarseHeights);
     // --8<-- [start:restamp_craters_from_a_coarser_run]
     InheritedCraters inherited;
     inherited.craters = ReadCraterList(list);  // with the coarse run's realized depths
     const auto craters = Craters(inherited, TerrainBase{Surface::Plane(), dem});
-    TerrainGenerator fine;
-    fine.source = dem;
-    fine.layers.push_back(craters);
+    const Terrain fine(Surface::Plane(), dem, {craters});
     const Raster<float> heights =
-        Evaluate(fine, RasterGrid::Centered({0.0, 0.0}, {200.0, 200.0}, 1.0));
+        fine.Evaluate(RasterGrid::Centered({0.0, 0.0}, {200.0, 200.0}, 1.0));
     // --8<-- [end:restamp_craters_from_a_coarser_run]
     const CraterList applied = craters->Craters({-100.0, -100.0, 100.0, 100.0});
     std::size_t restamped = 0;

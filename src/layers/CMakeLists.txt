@@ -24,7 +24,6 @@ terraingen_add_library(
     source_resolved.cpp
     spectral_continuation.cpp
     strata.cpp
-    sample_block.cpp
     transforms.cpp
     boulders/boulder.cpp
     boulders/boulder_layer_abundance.cpp
@@ -69,7 +68,9 @@ terraingen_add_library(
     craters/shaping/resolved_state.cpp
     craters/shaping/slope.cpp
     PUBLIC
+    terraingen_analysis
     terraingen_distribution
+    terraingen_geometry
     terraingen_gpu
     terraingen_mesh
     terraingen_noise

@@ -40,16 +40,6 @@ int KernelRadius(ResampleMethod method);
 /// @param fraction In [0, 1).
 std::array<double, 6> KernelWeights(ResampleMethod method, double fraction);
 
-/// Values on a lattice interpolated at lattice position (`u`, `v`), measured in cells from the
-/// center of cell (0, 0), with `method`: cells are read as `value(col, row)` with whole `col`
-/// and `row` as doubles, and taps of zero weight are skipped. Nothing where a tap with weight
-/// holds a value that `missing(value)` says has no data.
-/// @tparam Value Callable as `float(double col, double row)`.
-/// @tparam Missing Callable as `bool(float value)`.
-template <typename Value, typename Missing>
-std::optional<float> InterpolateLattice(double u, double v, ResampleMethod method,
-                                        const Value& value, const Missing& missing);
-
 /// `InterpolateLattice` of a kernel of `radius` from its taps' weights, as `KernelWeights` gives
 /// them: `wxs` along the row from column `u0` and `wys` down the column from row `v0`, the cell
 /// at or before the point along each axis.
@@ -76,6 +66,12 @@ std::optional<float> InterpolateLatticeWeights(double u0, double v0,
     return static_cast<float>(sum);
 }
 
+/// Values on a lattice interpolated at lattice position (`u`, `v`), measured in cells from the
+/// center of cell (0, 0), with `method`: cells are read as `value(col, row)` with whole `col`
+/// and `row` as doubles, and taps of zero weight are skipped. Nothing where a tap with weight
+/// holds a value that `missing(value)` says has no data.
+/// @tparam Value Callable as `float(double col, double row)`.
+/// @tparam Missing Callable as `bool(float value)`.
 template <typename Value, typename Missing>
 std::optional<float> InterpolateLattice(double u, double v, ResampleMethod method,
                                         const Value& value, const Missing& missing) {

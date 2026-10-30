@@ -28,12 +28,11 @@ TEST_F(SnippetTest, ReplaceABlurredCrater) {
     Crater sharp = ManualCrater(0.0, 0.0, 40.0);
     sharp.depth = 8.0;
     sharp.replace = true;  // swaps out what the DEM holds there
-    TerrainGenerator terrain;
-    terrain.source = dem;
-    terrain.layers.push_back(CraterLayer::Manual(
-        {sharp}, DefaultCraterModels(), DefaultCraterApply(), TerrainBase{Surface::Plane(), dem}));
+    const auto craters = CraterLayer::Manual({sharp}, DefaultCraterModels(), DefaultCraterApply(),
+                                             TerrainBase{Surface::Plane(), dem});
+    const Terrain terrain(Surface::Plane(), dem, {craters});
     const Raster<float> heights =
-        Evaluate(terrain, RasterGrid::Centered({0.0, 0.0}, {100.0, 100.0}, 0.5));
+        terrain.Evaluate(RasterGrid::Centered({0.0, 0.0}, {100.0, 100.0}, 0.5));
     // --8<-- [end:replace_a_blurred_crater]
     float low = heights(100, 100);
     float high = low;

@@ -126,7 +126,7 @@ TEST(GeoTiffSource, UpsamplesOntoFinerGridsAsResamplingDoes) {
     const GeoTiffSource source(path, options);
     EXPECT_EQ(source.Grid().width, 20u);
     EXPECT_EQ(source.Grid().height, 10u);
-    auto heights = terraingen::ResampledGrid(source.Grid(), 2.0).MakeRaster();
+    auto heights = terraingen::testing::ResampledGrid(source.Grid(), 2.0).MakeRaster();
     source.Fill(heights);
     const Raster<float> expected =
         terraingen::testing::Resample(dem, 2.0, ResampleMethod::Bilinear);
@@ -171,6 +171,12 @@ TEST(GeoTiffSource, GivesCellsAtTheirCentersAndInterpolatesElsewhere) {
     const auto holes = TempPath("geotiff_source_holes.tif");
     terraingen::WriteGeoTiff(holes, dem, Keys());
     EXPECT_TRUE(std::isnan(GeoTiffSource(holes).HeightAt(1000.0 + 6.0, 2000.0 - 6.0, 4.0)));
+}
+
+TEST(GeoTiffSource, KeepsItsMeasuredDataWhenReseeded) {
+    const auto path = TempPath("geotiff_source_reseed.tif");
+    WriteDem(path);
+    EXPECT_EQ(GeoTiffSource(path).Reseeded(3), nullptr);
 }
 
 TEST(GeoTiffSource, ScalesSamplesByTheBandsMetadataOrOverrides) {
@@ -236,7 +242,7 @@ TEST(GeoTiffSource, RefinesWithDiamondSquareKeepingTheCells) {
     fractal.scale = 0.5;
     options.upsampler = std::make_shared<terraingen::DiamondSquareUpsampler>(fractal);
     const GeoTiffSource source(path, options);
-    auto fine = terraingen::ResampledGrid(source.Grid(), 1.0).MakeRaster();
+    auto fine = terraingen::testing::ResampledGrid(source.Grid(), 1.0).MakeRaster();
     source.Fill(fine);
     const Raster<float> smooth = terraingen::testing::Resample(dem, 1.0, ResampleMethod::Bilinear);
     double change = 0.0;

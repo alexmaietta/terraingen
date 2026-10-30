@@ -4,9 +4,9 @@
 /// @brief `SandFillLayer`, sand pooled in the lows of the ground beneath it.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
-#include "terraingen/util/geometry.h"
 
 #include <array>
 
@@ -38,11 +38,12 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, the rings lie in each point's local frame.
     /// @throws std::invalid_argument as `ValidateSandFillOptions`.
-    explicit SandFillLayer(SandFillOptions options = {}, TerrainBase base = {});
+    explicit SandFillLayer(SandFillOptions options = {});
 
-    /// The sand thickness at world (x, y) over `ground`, in meters.
-    /// @param spacing Sample spacing in meters the ground is read at.
-    double ThicknessAt(double x, double y, double spacing, const Ground& ground) const;
+    /// The sand thickness at world (x, y) over `context.ground`, read at `context.spacing` on
+    /// its surface, in meters.
+    /// @throws std::invalid_argument without `context.ground`.
+    double ThicknessAt(double x, double y, const LayerContext& context) const;
 
     /// The options the layer was made with.
     const SandFillOptions& Options() const {
@@ -52,16 +53,16 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
     MaterialClass Material() const override {
         return MaterialClass::Sand;
     }
-    /// @throws std::invalid_argument without `ground`.
-    double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
+    /// @throws std::invalid_argument without `context.ground`.
+    double MaterialCoverAt(double x, double y, const LayerContext& context) const override;
 
   protected:
-    float HeightAt(float height, double x, double y, double spacing,
-                   const Ground* ground) const override;
+    float HeightAt(float height, double x, double y, const LayerContext& context) const override;
     void CheckContext(const LayerContext& context) const override;
 
   private:
-    double Thickness(const Ground& ground, double x, double y, double height, double spacing) const;
+    /// The thickness at (x, y) where the ground is `height` meters high, read on the context's.
+    double Thickness(double x, double y, double height, const LayerContext& context) const;
 
     /// Points on each ring the surroundings are read at; the inner ring is turned half a step.
     static constexpr int kRingPoints = 8;

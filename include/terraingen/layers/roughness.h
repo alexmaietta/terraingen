@@ -4,9 +4,9 @@
 /// @brief `RoughnessLayer`, fine self-affine roughness from octaves of Perlin noise.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
-#include "terraingen/util/surface.h"
 
 #include <array>
 #include <cstdint>
@@ -45,13 +45,14 @@ void ValidateRoughnessOptions(const RoughnessOptions& options);
 /// growing as wavelength^H and scaled to `rmsSlope` over `baseline`; unresolved octaves fade.
 class RoughnessLayer final : public FormulaLayer {
   public:
-    /// On a sphere each octave is 3D Perlin noise at the 3D point, its lattice turned by a uniform
+    /// On a body each octave is 3D Perlin noise at the 3D point, its lattice turned by a uniform
     /// random rotation.
     /// @throws std::invalid_argument as `ValidateRoughnessOptions`.
-    explicit RoughnessLayer(RoughnessOptions options, TerrainBase base = {});
+    explicit RoughnessLayer(RoughnessOptions options);
 
-    /// The RMS slope (rise over run) over `baseline` meters with every octave resolved.
-    double RmsSlope(double baseline) const;
+    /// The RMS slope (rise over run) over `baseline` meters on `surface` with every octave
+    /// resolved.
+    double RmsSlope(double baseline, const Surface& surface = {}) const;
 
     /// The octaves' wavelengths in meters, longest first.
     std::vector<double> Wavelengths() const;
@@ -61,9 +62,11 @@ class RoughnessLayer final : public FormulaLayer {
         return options_;
     }
 
+    /// The layer with its seed `ReseedWord(seed, 0)`.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
+
   protected:
-    float HeightAt(float height, double x, double y, double spacing,
-                   const Ground* ground) const override;
+    float HeightAt(float height, double x, double y, const LayerContext& context) const override;
 
   private:
     struct Octave {
@@ -78,13 +81,19 @@ class RoughnessLayer final : public FormulaLayer {
         double offsetZ = 0.0;
     };
 
-    /// Octave `i` of `wavelength`, before its amplitude is scaled to the RMS slope.
-    Octave MakeOctave(std::uint32_t i, double wavelength) const;
-    /// The noise of one octave at (`x`, `y`), in [-1, 1].
-    double OctaveNoise(const Octave& octave, double x, double y) const;
+    /// Octave `i` of `wavelength`, before its amplitude is scaled to the RMS slope; with its
+    /// rotation on a body.
+    Octave MakeOctave(std::uint32_t i, double wavelength, bool body) const;
+    /// The octaves on a body or a plane, scaled to the RMS slope.
+    std::vector<Octave> MakeOctaves(bool body) const;
+    /// The RMS slope over `baseline` meters of `octaves` on a body or a plane.
+    static double OctavesRmsSlope(const std::vector<Octave>& octaves, double baseline, bool body);
+    /// The noise of one octave at (`x`, `y`) on `surface`, in [-1, 1].
+    static double OctaveNoise(const Octave& octave, const Surface& surface, double x, double y);
 
     RoughnessOptions options_;
-    std::vector<Octave> octaves_;
+    std::vector<Octave> planeOctaves_;
+    std::vector<Octave> bodyOctaves_;
 };
 
 }  // namespace terraingen

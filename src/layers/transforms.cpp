@@ -15,8 +15,8 @@ ScaleLayer::ScaleLayer(double scale, double offset) : scale_(scale), offset_(off
     }
 }
 
-float ScaleLayer::HeightAt(float height, double /*x*/, double /*y*/, double /*spacing*/,
-                           const Ground* /*ground*/) const {
+float ScaleLayer::HeightAt(float height, double /*x*/, double /*y*/,
+                           const LayerContext& /*context*/) const {
     return static_cast<float>(static_cast<double>(height) * scale_ + offset_);
 }
 
@@ -30,8 +30,8 @@ ClampLayer::ClampLayer(std::optional<double> min, std::optional<double> max)
     }
 }
 
-float ClampLayer::HeightAt(float height, double /*x*/, double /*y*/, double /*spacing*/,
-                           const Ground* /*ground*/) const {
+float ClampLayer::HeightAt(float height, double /*x*/, double /*y*/,
+                           const LayerContext& /*context*/) const {
     double value = static_cast<double>(height);
     if (min_) {
         value = std::max(value, *min_);
@@ -42,16 +42,14 @@ float ClampLayer::HeightAt(float height, double /*x*/, double /*y*/, double /*sp
     return static_cast<float>(value);
 }
 
-FunctionLayer::FunctionLayer(HeightFunction function, TerrainBase base)
-    : FormulaLayer(base.surface), function_(std::move(function)) {
+FunctionLayer::FunctionLayer(HeightFunction function) : function_(std::move(function)) {
     if (!function_) {
         throw std::invalid_argument("A function layer needs a function");
     }
 }
 
-float FunctionLayer::HeightAt(float height, double x, double y, double spacing,
-                              const Ground* /*ground*/) const {
-    return static_cast<float>(function_(x, y, spacing, static_cast<double>(height)));
+float FunctionLayer::HeightAt(float height, double x, double y, const LayerContext& context) const {
+    return static_cast<float>(function_(x, y, context.spacing, static_cast<double>(height)));
 }
 
 }  // namespace terraingen

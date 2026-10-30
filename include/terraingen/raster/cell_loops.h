@@ -4,12 +4,12 @@
 /// @brief Parallel loops over a raster's cells: every cell, or the windows around features.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/geometry.h"
 #include "terraingen/util/parallel.h"
-#include "terraingen/util/surface.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -145,22 +145,14 @@ void ForEachCell(Raster<T>& raster, unsigned threads, const Visit& visit) {
     });
 }
 
-/// Sets every cell of `raster` to `value(center)`, rows over several threads.
+/// Sets each cell of `raster` holding data to `map(value, center)` of its value and center, rows
+/// over several threads; a fresh raster holds data in every cell.
 /// @param threads Threads to split the rows over; 0 for every hardware thread.
-template <typename T, typename Value>
-void FillCells(Raster<T>& raster, unsigned threads, const Value& value) {
-    ForEachCell(raster, threads,
-                [&](T& cell, const Vec2d& center) { cell = static_cast<T>(value(center)); });
-}
-
-/// Sets each cell of a raster holding data to a function of its height and center, rows
-/// over several threads.
-/// @param threads Threads to split the rows over; 0 for every hardware thread.
-/// @param map `map(height, center)` returning the cell's new height as a `float`.
-template <typename Map> void MapCells(Raster<float>& heights, unsigned threads, const Map& map) {
-    ForEachCell(heights, threads, [&](float& cell, const Vec2d& center) {
-        if (!heights.IsNoData(cell)) {
-            cell = map(cell, center);
+template <typename T, typename Map>
+void MapCells(Raster<T>& raster, unsigned threads, const Map& map) {
+    ForEachCell(raster, threads, [&](T& cell, const Vec2d& center) {
+        if (!raster.IsNoData(cell)) {
+            cell = static_cast<T>(map(cell, center));
         }
     });
 }

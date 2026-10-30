@@ -8,14 +8,9 @@ edit_uri: edit/main/docs/_src/
 docs_dir: docs/_src
 site_dir: site
 strict: true
-# Each gallery figure's code page, linked from its caption rather than the nav, and the pages mkdoxy
-# writes for each C++ class, namespace and file, linked from the C++ API page.
 not_in_nav: |
   /gallery/*/*.md
   /cpp/
-# Write the configuration reference from the built library's schema, the Gallery page from docs/gallery,
-# the Guides section's task pages from docs/snippets, the CMake options table from CMakeLists.txt and
-# the command line reference from the built `terraingen --help`.
 hooks:
   - docs/scripts/generate_schema.py
   - docs/scripts/gallery_page.py
@@ -201,8 +196,6 @@ plugins:
   - mkdoxy:
       projects:
         cpp:
-          # The library's public headers, as installed; the Python bindings and the app are not
-          # part of the C++ API.
           src-dirs: include/terraingen
           full-doc: true
           doxy-cfg:
@@ -210,7 +203,6 @@ plugins:
             RECURSIVE: true
             EXTRACT_ALL: true
             JAVADOC_AUTOBRIEF: true
-            # Includes as users write them: "terraingen/layers/layer.h".
             FULL_PATH_NAMES: true
             STRIP_FROM_PATH: include
             STRIP_FROM_INC_PATH: include
@@ -219,7 +211,6 @@ plugins:
       default_handler: python
       handlers:
         python:
-          # The built package: the module's stubs (nanobind's stubgen) beside its Python files.
           paths: [build/python]
           options:
             docstring_style: google
@@ -240,6 +231,4 @@ plugins:
             merge_init_into_class: true
             show_if_no_docstring: true
             show_bases: true
-            # Public names only: no private or special members such as __doc__ or __module__,
-            # apart from constructors, merged into their class.
             filters: ["!^_", "^__init__$"]

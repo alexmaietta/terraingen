@@ -23,8 +23,12 @@ class Analytic final : public terraingen::Ground {
   public:
     explicit Analytic(std::function<float(double, double)> height) : height_(std::move(height)) {}
 
-    float HeightAt(double x, double y, double /*spacing*/) const override {
-        return height_(x, y);
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const terraingen::Vec2d p = samples.Position(i);
+            samples.Height(i) = height_(p.x, p.y);
+        }
     }
 
   private:
@@ -151,10 +155,11 @@ TEST(LayerExposure, ReadsTheFieldAtItsSpacingAndNeedsTheGround) {
     const terraingen::LayerExposure none;
     EXPECT_FALSE(none);
     EXPECT_NO_THROW(none.Require(nullptr));
-    const terraingen::LayerExposure exposure(ExposureParams{}, 2.0, {}, "Rocks");
+    const terraingen::LayerExposure exposure(ExposureParams{}, 2.0, "Rocks");
     ASSERT_TRUE(exposure);
     const Analytic steep([](double x, double) { return static_cast<float>(0.8 * x); });
-    EXPECT_EQ(exposure.At(3.0, 4.0, &steep), ExposureField().Exposure(steep, 3.0, 4.0, 2.0));
+    const terraingen::Surface plane;
+    EXPECT_EQ(exposure.At(3.0, 4.0, &steep, plane), ExposureField().Exposure(steep, 3.0, 4.0, 2.0));
     EXPECT_THROW(exposure.Require(nullptr), std::invalid_argument);
-    EXPECT_THROW(exposure.At(3.0, 4.0, nullptr), std::invalid_argument);
+    EXPECT_THROW(exposure.At(3.0, 4.0, nullptr, plane), std::invalid_argument);
 }

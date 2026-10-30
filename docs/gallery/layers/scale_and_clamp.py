@@ -28,7 +28,7 @@ def figure(quick=False):
         )
     )
     source = terraingen.FlatSource(size, size, pixel)
-    base = terraingen.evaluate(terraingen.TerrainGenerator(source, [relief, craters])).values
+    base = terraingen.Terrain(source=source, layers=[relief, craters]).evaluate().values
     low = float(round(np.percentile(base, 33)))
     high = float(round(np.percentile(base, 67)))
     panels = [
@@ -42,7 +42,7 @@ def figure(quick=False):
     fig, axes = plt.subplots(2, len(panels), figsize=(18, 7.6), layout="constrained", height_ratios=[1, 0.5])
     for column, (title, transform, level) in enumerate(panels):
         layers = [relief, craters] + ([] if transform is None else [transform])
-        heights = terraingen.evaluate(terraingen.TerrainGenerator(source, layers)).values
+        heights = terraingen.Terrain(source=source, layers=layers).evaluate().values
         gallery.show_hillshade(axes[0, column], heights, pixel)
         axes[0, column].set_title(title)
         axes[1, column].plot(x, heights[size // 2], lw=1.3)

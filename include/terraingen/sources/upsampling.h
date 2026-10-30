@@ -4,11 +4,12 @@
 /// @brief Upsamplers: how a source's posts become heights at any point and sample spacing.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/resample.h"
-#include "terraingen/util/geometry.h"
+#include "terraingen/sources/sample_block.h"
 #include "terraingen/util/span.h"
 
 #include <algorithm>
@@ -127,11 +128,18 @@ std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& lattice, const 
 /// Cells per side of the tiles `FillByTiles` hands out.
 inline constexpr std::size_t kFillTileCells = 128;
 
-/// Sets the cells of `heights` tile by tile, tiles split over threads: `fill(centers, values)`
-/// gets the cell centers of a tile, row by row, and sets `values`, one per center.
-/// @param threads Threads to fill over; 0 for every hardware thread.
+/// Sets the samples of `samples` by `fill(positions, values)`, which sets `values`, one per
+/// position: a grid tile by tile, tiles split over threads, each tile's cell centers row by row;
+/// points all at once.
+/// @param threads Threads to fill a grid over; 0 for every hardware thread.
 template <typename FillPoints>
-void FillByTiles(Raster<float>& heights, unsigned threads, const FillPoints& fill) {
+void FillByTiles(SampleBlock& samples, unsigned threads, const FillPoints& fill) {
+    Raster<float>* grid = samples.Grid();
+    if (grid == nullptr) {
+        fill(samples.Points(), samples.Heights());
+        return;
+    }
+    Raster<float>& heights = *grid;
     ForEachTile(heights.Width(), heights.Height(), kFillTileCells, threads,
                 [&](const PixelWindow& tile) {
                     const std::size_t width = tile.colEnd - tile.colBegin;
@@ -208,34 +216,45 @@ class RasterPosts final : public PostLattice {
 /// The spacing of a lattice's posts: the longer side of a cell of `transform`, in its units.
 double PostSpacing(const GeoTransform& transform);
 
+/// Whether `spacing` is no finer than the posts of a lattice placed by `transform`, to within
+/// rounding, measuring a post's cell as grids measure theirs (`RasterGrid::PixelSize`).
+bool AtPostSpacing(const GeoTransform& transform, double spacing);
+
 /// How a source's posts become heights at any point and at any sample spacing in the posts'
 /// units: interpolation, or refinement that adds detail as the spacing shrinks. Heights must
 /// depend only on the posts, the position and the spacing, and implementations must be
 /// thread-safe.
 ///
-/// Sources give a post's own height at the posts' spacing or coarser, so an upsampler only
-/// decides heights off the posts and below their spacing.
+/// A post keeps its own height at the posts' spacing or coarser, so an upsampler only decides
+/// heights off the posts and below their spacing, in `FillSamples`, the one method it evaluates.
 class Upsampler {
   public:
     virtual ~Upsampler() = default;
 
-    /// The height at world (`x`, `y`) from `posts` at a sample spacing of `spacing`, NaN where it
-    /// has none.
-    virtual float HeightAt(const PostLattice& posts, double x, double y, double spacing) const = 0;
+    /// Sets every sample of `samples` to its height from `posts` at a sample spacing of
+    /// `spacing`, NaN where it has none: a post's own where the sample is centered on one and the
+    /// spacing is no finer than the posts (`AtPostSpacing`), otherwise `FillSamples`'. A grid on
+    /// the posts' lattice (`detail::OffsetOnLattice`) at their spacing or coarser copies them.
+    /// @param threads Threads to fill a grid over; 0 for every hardware thread.
+    void Fill(const PostLattice& posts, SampleBlock& samples, double spacing,
+              unsigned threads) const;
+
+    /// `Fill` of every cell of `heights`, placed by its transform.
+    /// @param threads Threads to fill over; 0 for every hardware thread.
+    void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
+              unsigned threads) const;
+
+    /// The height `Fill` gives a cell centered at world (`x`, `y`), to the same bits.
+    float HeightAt(const PostLattice& posts, double x, double y, double spacing) const;
 
     /// Sets each of `heights` to `HeightAt` the world point of `points` at its index, to the same
-    /// bits; the default calls `HeightAt` point by point.
-    virtual void HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,
-                           double spacing) const;
+    /// bits, in one `Fill` on one thread.
+    /// @throws std::invalid_argument for spans of different sizes.
+    void HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,
+                   double spacing) const;
 
-    /// Sets each cell of `heights` to `HeightAt` its center, to the same bits; the default calls
-    /// `HeightsAt` tile by tile (`detail::FillByTiles`), tiles split over threads.
-    /// @param threads Threads to fill over; 0 for every hardware thread.
-    virtual void Fill(const PostLattice& posts, Raster<float>& heights, double spacing,
-                      unsigned threads) const;
-
-    /// Posts either side of a point that `HeightAt` reads, so that a source reading a window of
-    /// its posts reads enough around it: 2 by default.
+    /// Posts either side of a point that `FillSamples` reads, so that a source reading a window
+    /// of its posts reads enough around it: 2 by default.
     virtual int Reach() const {
         return 2;
     }
@@ -245,30 +264,21 @@ class Upsampler {
     virtual std::shared_ptr<const Upsampler> FitTo(const PostLattice& /*posts*/) const {
         return nullptr;
     }
+
+    /// A copy of the upsampler whose seeds draw from `seed` (`ReseedWord`); null for one without
+    /// seeds, the default, which a reseeded source keeps.
+    virtual std::shared_ptr<const Upsampler> Reseeded(std::uint64_t /*seed*/) const {
+        return nullptr;
+    }
+
+  protected:
+    /// Sets every sample of `samples` to the height from `posts` there at a sample spacing of
+    /// `spacing`, NaN where it has none, the same bits for a grid's cell as for a point at its
+    /// center.
+    /// @param threads Threads to split a grid over; 0 for every hardware thread.
+    virtual void FillSamples(const PostLattice& posts, SampleBlock& samples, double spacing,
+                             unsigned threads) const = 0;
 };
-
-/// Whether `spacing` is no finer than the posts of a lattice placed by `transform`, to within
-/// rounding, measuring a post's cell as grids measure theirs (`RasterGrid::PixelSize`).
-bool AtPostSpacing(const GeoTransform& transform, double spacing);
-
-/// The height a source with `posts` gives at (`x`, `y`) at a sample spacing of `spacing`: the
-/// post's own where (`x`, `y`) is a post and the spacing is no finer than the posts
-/// (`AtPostSpacing`), otherwise `upsampler`'s.
-float UpsampledHeight(const Upsampler& upsampler, const PostLattice& posts, double x, double y,
-                      double spacing);
-
-/// Sets each of `heights` to `UpsampledHeight` at the point of `points` at its index, to the same
-/// bits, the points off the posts upsampled at once (`Upsampler::HeightsAt`).
-void UpsampledHeights(const Upsampler& upsampler, const PostLattice& posts,
-                      Span<const Vec2d> points, Span<float> heights, double spacing);
-
-/// Sets each cell of `heights` to `UpsampledHeight` at its center, to the same bits: a grid on the
-/// posts' lattice (`detail::OffsetOnLattice`) at their spacing or coarser reads the posts in
-/// blocks; any other grid is filled by `upsampler`, its cells centered on posts then given the
-/// posts' heights.
-/// @param threads Threads to fill over; 0 for every hardware thread.
-void FillUpsampled(const Upsampler& upsampler, const PostLattice& posts, Raster<float>& heights,
-                   double spacing, unsigned threads);
 
 /// Gives the NaN cells of `heights`, filled from a source with no-data value `noData`, that value
 /// (NaN without one), and `heights` the no-data value that leaves (`FilledNoData`).
@@ -280,21 +290,18 @@ class KernelUpsampler final : public Upsampler {
   public:
     explicit KernelUpsampler(ResampleMethod method = ResampleMethod::Cubic) : method_(method) {}
 
-    /// The posts interpolated at (`x`, `y`) as `SampleRaster` interpolates a raster, NaN where a
-    /// post weighed holds no data.
-    /// @throws std::invalid_argument for a rotated lattice.
-    float HeightAt(const PostLattice& posts, double x, double y, double spacing) const override;
-
-    /// Reads the posts once for points close together (`detail::ExpandPoints`), reusing a row's
-    /// kernel weights in the rows below it that share them, as on a grid aligned with the posts.
-    /// @throws std::invalid_argument for a rotated lattice.
-    void HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,
-                   double spacing) const override;
-
     /// The kernel's radius (`KernelRadius`).
     int Reach() const override {
         return KernelRadius(method_);
     }
+
+  protected:
+    /// The posts interpolated at each sample as `SampleRaster` interpolates a raster, NaN where a
+    /// post weighed holds no data. Points close together read the posts once
+    /// (`detail::ExpandPoints`), reusing a row's kernel weights in the rows below that share them.
+    /// @throws std::invalid_argument for a rotated lattice.
+    void FillSamples(const PostLattice& posts, SampleBlock& samples, double spacing,
+                     unsigned threads) const override;
 
   private:
     ResampleMethod method_;

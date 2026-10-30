@@ -47,24 +47,25 @@ AlbedoSample HsvToRgb(double hue, double saturation, double value) {
     }
 }
 
-SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoOptions options, TerrainBase base)
-    : options_(std::move(options)), origin_(base.ReferencePoint()), surface_(base.surface) {
+SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoOptions options) : options_(std::move(options)) {
     ValidateSyntheticAlbedoOptions(options_);
 }
 
-double SyntheticAlbedo::Noise(const std::vector<Fractal>& fractals, double x, double y) const {
-    return static_cast<double>(FractalStackAt(fractals, origin_, surface_, x, y));
+double SyntheticAlbedo::Noise(const std::vector<Fractal>& fractals, double x, double y,
+                              const AlbedoContext& context) {
+    return static_cast<double>(
+        FractalStackAt(fractals, context.ReferencePoint(), context.SurfaceOrPlane(), x, y));
 }
 
-AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const AlbedoContext& /*context*/) const {
+AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const AlbedoContext& context) const {
     const double value =
-        std::clamp(options_.value * (1.0 + Noise(options_.valueNoise, x, y)), 0.0, 1.0);
+        std::clamp(options_.value * (1.0 + Noise(options_.valueNoise, x, y, context)), 0.0, 1.0);
     if (!options_.rgb) {
         return {static_cast<float>(value), 0.0f, 0.0f};
     }
-    const double hue = options_.hueDegrees + Noise(options_.hueNoiseDegrees, x, y);
+    const double hue = options_.hueDegrees + Noise(options_.hueNoiseDegrees, x, y, context);
     const double saturation =
-        std::clamp(options_.saturation + Noise(options_.saturationNoise, x, y), 0.0, 1.0);
+        std::clamp(options_.saturation + Noise(options_.saturationNoise, x, y, context), 0.0, 1.0);
     return HsvToRgb(hue, saturation, value);
 }
 

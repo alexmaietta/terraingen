@@ -52,9 +52,8 @@ def figure(quick=False):
             seed=3,
         )
         roughness = terraingen.RoughnessLayer(options)
-        heights = terraingen.evaluate(
-            terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [roughness])
-        ).values
+        source = terraingen.FlatSource(size, size, pixel)
+        heights = terraingen.Terrain(source=source, layers=[roughness]).evaluate().values
         fields.append(heights - heights.mean())
         map_axes[0, column].set_title(
             f"{title}\nH {hurst:g}, {slope_degrees:g} deg at {baseline:g} m", color=color

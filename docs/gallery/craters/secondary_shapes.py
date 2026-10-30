@@ -36,9 +36,7 @@ def figure(quick=False):
         shapes.elongated_share = share
         options.shapes = shapes
         secondaries = terraingen.SecondaryCraterLayer(primary, options)
-        terrain = terraingen.TerrainGenerator(source, [relief, primary, secondaries])
-        gallery.show_hillshade(
-            ax, terraingen.evaluate(terrain, grid=window).values, pixel, sun_elevation=20.0
-        )
+        terrain = terraingen.Terrain(source=source, layers=[relief, primary, secondaries])
+        gallery.show_hillshade(ax, terrain.evaluate(window).values, pixel, sun_elevation=20.0)
         ax.set_title("Round secondaries" if share == 0.0 else "80% elongated toward the primary")
     return fig

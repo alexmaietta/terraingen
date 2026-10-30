@@ -122,13 +122,13 @@ def test_a_synthetic_source_has_no_grid_and_upsamples_only_posts():
     config = terraingen.TerrainGenConfig.from_dict({"schema_version": 1, "source": synthetic})
     config.validate()
     assert config.to_dict()["source"]["upsampling"] == "bilinear"
-    terrain = terraingen.build_generator(config)
-    assert isinstance(terrain.source, terraingen.SyntheticSource)
-    assert terrain.source.pixel_size == 4.0
-    noise = terraingen.SyntheticSource(terrain.source.fractals)
+    source = terraingen.build_terrain(config).source()
+    assert isinstance(source, terraingen.SyntheticSource)
+    assert source.pixel_size == 4.0
+    noise = terraingen.SyntheticSource(source.fractals)
     expected = 3.0 + noise.height_at(8.0, 4.0, 4.0)
-    assert terrain.source.height_at(8.0, 4.0, 4.0) == pytest.approx(expected)
-    assert isinstance(terrain.source.upsampler, terraingen.KernelUpsampler)
+    assert source.height_at(8.0, 4.0, 4.0) == pytest.approx(expected)
+    assert isinstance(source.upsampler, terraingen.KernelUpsampler)
 
 
 def test_a_python_upsampler_registered_by_name_serves_a_config(tmp_path):
@@ -139,10 +139,12 @@ def test_a_python_upsampler_registered_by_name_serves_a_config(tmp_path):
             super().__init__()
             self.lift = lift
 
-        def height_at(self, posts, x, y, spacing):
-            col, row = posts.transform().world_to_pixel(x, y)
-            value = posts.read(int(np.floor(col)), int(np.floor(row)), 1, 1)[0, 0]
-            return float(value) + self.lift
+        def fill_samples(self, posts, samples, spacing, threads):
+            heights = samples.heights()
+            for i, (x, y) in enumerate(samples.positions()):
+                col, row = posts.transform().world_to_pixel(x, y)
+                value = posts.read(int(np.floor(col)), int(np.floor(row)), 1, 1)[0, 0]
+                heights[i] = float(value) + self.lift
 
     terraingen.register_upsampler("stepped_test", Stepped)
     assert "stepped_test" in terraingen.registered_upsampler_names()
@@ -163,14 +165,11 @@ def test_a_python_upsampler_registered_by_name_serves_a_config(tmp_path):
     )
     config.validate(str(tmp_path))
     assert config.to_dict()["source"]["upsampling"] == {"type": "stepped_test", "lift": 0.5}
-    terrain = terraingen.build_generator(config, str(tmp_path))
-    assert terrain.source.height_at(12.0, 37.0, 1.0) == pytest.approx(1.5)
-    assert (
-        terrain.source.height_at(15.0, 35.0, 10.0) == 1.0 and terrain.source.height_at(15.0, 35.0, 1.0) == 1.5
-    )
-    fine = terraingen.evaluate(
-        terrain, grid=terraingen.RasterGrid(8, 8, terraingen.GeoTransform.north_up(0.0, 40.0, 5.0))
-    )
+    terrain = terraingen.build_terrain(config, str(tmp_path))
+    source = terrain.source()
+    assert source.height_at(12.0, 37.0, 1.0) == pytest.approx(1.5)
+    assert source.height_at(15.0, 35.0, 10.0) == 1.0 and source.height_at(15.0, 35.0, 1.0) == 1.5
+    fine = terrain.evaluate(terraingen.RasterGrid(8, 8, terraingen.GeoTransform.north_up(0.0, 40.0, 5.0)))
     assert fine.values[0, 2] == pytest.approx(1.5)
     unknown = terraingen.TerrainGenConfig.from_dict(
         {"schema_version": 1, "source": {"type": "raster", "path": "dem.tif", "upsampling": "nope_test"}}
@@ -314,7 +313,7 @@ def test_a_sphere_needs_a_positive_radius(radius):
     assert sphere.value.path == "body.radius_m"
 
 
-def test_build_generator_builds_on_a_given_source():
+def test_build_terrain_builds_on_a_given_source():
     heights = terraingen.Raster.from_array(
         np.full((200, 200), 100.0, dtype=np.float32), terraingen.GeoTransform.north_up(-2000.0, 2000.0, 20.0)
     )
@@ -323,7 +322,8 @@ def test_build_generator_builds_on_a_given_source():
     config = terraingen.TerrainGenConfig.from_dict(
         {"schema_version": 1, "layers": [{"type": "craters", "generate_random": False, "manual": [crater]}]}
     )
-    terrain = terraingen.build_generator(config, source=dem)
+    terrain = terraingen.build_terrain(config, source=dem)
+    assert terrain.source() is dem
     on_flat = terraingen.TerrainGenConfig.from_dict(
         {
             "schema_version": 1,
@@ -331,17 +331,15 @@ def test_build_generator_builds_on_a_given_source():
             "layers": [{"type": "craters", "generate_random": False, "manual": [crater]}],
         }
     )
-    alone = terraingen.build_generator(on_flat)
-    assert terraingen.height_at(terraingen.build_generator(config), 0.0, 0.0, 1.0) != terraingen.height_at(
-        alone, 0.0, 0.0, 1.0
-    ), "without a source the crater lies on the default fBm base"
-    assert terraingen.height_at(terrain, 300.0, 300.0, 1.0) == pytest.approx(100.0, abs=1e-4)
-    assert terraingen.height_at(terrain, 0.0, 0.0, 1.0) == pytest.approx(
-        100.0 + terraingen.height_at(alone, 0.0, 0.0, 1.0), abs=1e-3
+    alone = terraingen.build_terrain(on_flat)
+    assert terraingen.build_terrain(config).height_at(0.0, 0.0, 1.0) != alone.height_at(0.0, 0.0, 1.0), (
+        "without a source the crater lies on the default fBm base"
     )
+    assert terrain.height_at(300.0, 300.0, 1.0) == pytest.approx(100.0, abs=1e-4)
+    assert terrain.height_at(0.0, 0.0, 1.0) == pytest.approx(100.0 + alone.height_at(0.0, 0.0, 1.0), abs=1e-3)
     with pytest.raises(terraingen.ConfigError):
         own = terraingen.TerrainGenConfig.from_dict({"schema_version": 1, "source": {"type": "synthetic"}})
-        terraingen.build_generator(own, source=dem)
+        terraingen.build_terrain(own, source=dem)
 
 
 def test_validate_config_summarizes_what_a_configuration_generates():

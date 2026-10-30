@@ -5,12 +5,12 @@
 /// continue it below the base's resolution.
 #pragma once
 
+#include "terraingen/analysis/variogram.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/noise/fractals.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/raster/variogram.h"
 #include "terraingen/sources/source.h"
-#include "terraingen/util/geometry.h"
-#include "terraingen/util/surface.h"
 
 namespace terraingen {
 

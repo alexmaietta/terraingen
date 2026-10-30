@@ -20,8 +20,8 @@ def weather_boulders_with_fillets_and_ventifacts():
     rendering.relief = terraingen.BoulderRelief.SHAPE  # facets cut the shapes' tops
     options.rendering = rendering
     boulders = terraingen.BoulderLayer.manual(BOULDERS, options)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(WIDTH, HEIGHT, PIXEL), [boulders])
-    heights = terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(WIDTH, HEIGHT, PIXEL), layers=[boulders])
+    heights = terrain.evaluate().values
     facets = [boulder.facets for boulder in boulders.boulders((-5.0, -2.0, 5.0, 2.0))]
     # --8<-- [end:weather_boulders_with_fillets_and_ventifacts]
     return heights, facets
@@ -46,9 +46,11 @@ def figure(quick=False):
     bare = terraingen.BoulderLayer.manual(
         BOULDERS, terraingen.BoulderLayerOptions(seed=1, rendering=rendering)
     )
-    plain = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(WIDTH, HEIGHT, PIXEL), [bare])
-    ).values
+    plain = (
+        terraingen.Terrain(source=terraingen.FlatSource(WIDTH, HEIGHT, PIXEL), layers=[bare])
+        .evaluate()
+        .values
+    )
     x = (np.arange(WIDTH) - 0.5 * (WIDTH - 1)) * PIXEL
     fig, axes = plt.subplots(2, 1, figsize=(9, 6.0), layout="constrained", height_ratios=[1, 0.7])
     gallery.show_hillshade(axes[0], heights, PIXEL, sun_elevation=25.0)

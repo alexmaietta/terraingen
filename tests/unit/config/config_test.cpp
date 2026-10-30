@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "config/spec.h"
+#include "config/terrain.h"
 
 #include "terraingen/config/json.h"
 

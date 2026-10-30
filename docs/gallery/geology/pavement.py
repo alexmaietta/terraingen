@@ -27,7 +27,7 @@ def figure(quick=False):
     for ax, (title, options, size_m, pixel) in zip(axes, panels, strict=True):
         size = int(size_m / pixel) + 1
         pavement = terraingen.PavementLayer(options)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [pavement])
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel, sun_elevation=25.0)
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[pavement])
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel, sun_elevation=25.0)
         ax.set_title(f"{title}, {size_m * 100.0:g} cm" if size_m < 1.0 else f"{title}, {size_m:g} m")
     return fig

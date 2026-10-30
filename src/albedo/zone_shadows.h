@@ -5,8 +5,8 @@
 #pragma once
 
 #include "terraingen/albedo/crater_albedo_options.h"
-#include "terraingen/util/geometry.h"
-#include "terraingen/util/surface.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 
 #include <cstddef>
 #include <vector>

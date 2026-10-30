@@ -129,17 +129,9 @@ def crater_layer():
     return build_crater_layer
 
 
-def build_noise_layer(seed, wavelength, amplitude, surface=None, **params):
+def build_noise_layer(seed, wavelength, amplitude, **params):
     """Single-fractal noise layer; extra keywords go to `Fractal`."""
-    if surface is None:
-        return terraingen.NoiseLayer(seed=seed, wavelength=wavelength, amplitude=amplitude, **params)
-    return terraingen.NoiseLayer(
-        seed=seed,
-        wavelength=wavelength,
-        amplitude=amplitude,
-        base=terraingen.TerrainBase(surface),
-        **params,
-    )
+    return terraingen.NoiseLayer(seed=seed, wavelength=wavelength, amplitude=amplitude, **params)
 
 
 @pytest.fixture(scope="session")
@@ -197,8 +189,9 @@ class Paraboloid(terraingen.Source):
     def grid(self):
         return terraingen.RasterGrid.centered((0, 0), (65 * 2.0, 65 * 2.0), 2.0)
 
-    def height_at(self, x, y, spacing):
-        return 0.001 * (x * x + y * y)
+    def fill_samples(self, samples, spacing, threads):
+        p = samples.positions()
+        samples.heights()[:] = 0.001 * (p[:, 0] ** 2 + p[:, 1] ** 2)
 
 
 @pytest.fixture

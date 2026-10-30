@@ -2,7 +2,7 @@
 
 #include "app/cli.h"
 
-#include "config/spec.h"
+#include "config/terrain.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
@@ -231,6 +231,20 @@ int Validate(const std::vector<std::string>& args, std::ostream& out, std::ostre
     });
 }
 
+/// `args` without "--gui", with a warning on `err` when it was given.
+std::vector<std::string> WithoutGui(const std::vector<std::string>& args, std::ostream& err) {
+    std::vector<std::string> rest;
+    for (const std::string& arg : args) {
+        if (arg != "--gui") {
+            rest.push_back(arg);
+        }
+    }
+    if (rest.size() != args.size()) {
+        err << "terraingen: warning: the GUI is still in work and not available yet\n";
+    }
+    return rest;
+}
+
 }  // namespace
 
 unsigned ParseThreads(const std::string& text) {
@@ -278,6 +292,7 @@ std::string Usage() {
            "  terraingen -V, --version\n"
            "                         Show version and build information\n"
            "  terraingen -h, --help  Show this message\n"
+           "  terraingen --gui       Not available yet: the GUI is still in work\n"
            "\n"
            "Options:\n"
            "  --output-dir DIR       Write outputs with relative paths under DIR rather than\n"
@@ -296,7 +311,11 @@ std::string Usage() {
            "for a usage error.\n";
 }
 
-int Run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err) {
+int Run(const std::vector<std::string>& given, std::ostream& out, std::ostream& err) {
+    const std::vector<std::string> args = WithoutGui(given, err);
+    if (args.empty() && !given.empty()) {
+        return kExitSuccess;
+    }
     try {
         if (args.empty()) {
             throw std::invalid_argument("Missing a command or configuration file");

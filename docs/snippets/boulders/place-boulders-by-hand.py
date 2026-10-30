@@ -39,9 +39,11 @@ def figure(quick=False):
     import matplotlib.pyplot as plt
 
     boulders, _ = place_boulders_by_hand()
-    heights = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(SIZE, SIZE, PIXEL), [boulders])
-    ).values
+    heights = (
+        terraingen.Terrain(source=terraingen.FlatSource(SIZE, SIZE, PIXEL), layers=[boulders])
+        .evaluate()
+        .values
+    )
     fig, ax = plt.subplots(figsize=(4.5, 4.5), layout="constrained")
     gallery.show_hillshade(ax, heights, PIXEL, sun_elevation=30.0)
     return fig

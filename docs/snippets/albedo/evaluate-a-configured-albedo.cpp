@@ -4,7 +4,7 @@
 /// @brief Evaluate the Albedo of a Configuration Without Heights
 ///
 /// A configuration's albedo is a source of starting values changed by albedo layers, here fresh
-/// craters brightened above a synthetic base. `BuildAlbedo` builds it for the generator built from
+/// craters brightened above a synthetic base. `BuildAlbedo` builds it for the terrain built from
 /// the same configuration, whose crater layers it reads. Layers that depend only on craters need
 /// no heights, so the albedo is evaluated over any grid alone.
 #include "snippet_test.h"
@@ -20,7 +20,7 @@ TEST_F(SnippetTest, EvaluateAConfiguredAlbedo) {
         "layers": [{"type": "craters", "min_diameter_m": 3, "max_diameter_m": 40}],
         "albedo": {"source": {"type": "synthetic", "value": 0.12}, "layers": [{"type": "craters"}]}
     })");
-    const TerrainGenerator terrain = BuildGenerator(config);
+    const Terrain terrain = BuildTerrain(config);
     const Albedo albedo = BuildAlbedo(config, terrain);
     const RasterGrid grid = RasterGrid::Centered({0.0, 0.0}, {100.0, 100.0}, 0.5);  // meters
     const std::vector<Raster<float>> bands = EvaluateAlbedo(albedo, grid, {});

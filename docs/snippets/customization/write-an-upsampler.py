@@ -11,10 +11,12 @@ def write_an_upsampler():
     class Terraces(terraingen.Upsampler):
         """The nearest post's height, rounded down to a multiple of 2 m, which makes flat terraces."""
 
-        def height_at(self, posts, x, y, spacing):
-            col, row = posts.transform().world_to_pixel(x, y)
-            height = posts.read(math.floor(col), math.floor(row), 1, 1)[0, 0]
-            return 2.0 * math.floor(height / 2.0)
+        def fill_samples(self, posts, samples, spacing, threads):
+            heights = samples.heights()
+            for i, (x, y) in enumerate(samples.positions()):
+                col, row = posts.transform().world_to_pixel(x, y)
+                height = posts.read(math.floor(col), math.floor(row), 1, 1)[0, 0]
+                heights[i] = 2.0 * math.floor(height / 2.0)
 
         def reach(self):
             return 1
@@ -31,9 +33,9 @@ def write_an_upsampler():
             },
         }
     )
-    terrain = terraingen.build_generator(config)
+    terrain = terraingen.build_terrain(config)
     grid = terraingen.RasterGrid.centered((0.0, 0.0), (128.0, 128.0), 1.0)
-    heights = terraingen.evaluate(terrain, grid=grid)
+    heights = terrain.evaluate(grid)
     # --8<-- [end:write_an_upsampler]
     return heights
 

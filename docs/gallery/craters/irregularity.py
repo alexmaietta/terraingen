@@ -40,8 +40,8 @@ def figure(quick=False):
         for (x, y), r in zip(gallery.grid_centers(SPACING), ROUGHNESS, strict=True)
     ]
     relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, *layers])
-    heights = terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief, *layers])
+    heights = terrain.evaluate().values
 
     fig, ax = plt.subplots(figsize=(7, 7), layout="constrained")
     gallery.show_crater_grid(ax, heights, pixel, [f"roughness {r:g}" for r in ROUGHNESS], SPACING)

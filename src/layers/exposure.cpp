@@ -4,10 +4,10 @@
 
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
+#include "terraingen/layers/layer_fields.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/cell_loops.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <array>
@@ -26,19 +26,13 @@ double BetweenSmooth(double value, double low, double high) {
 }  // namespace
 
 void ValidateExposureParams(const ExposureParams& params) {
-    RequirePositive(params.reach, "Exposure reach");
-    if (!(params.riseBoulder > params.riseSoil && std::isfinite(params.riseSoil) &&
-          std::isfinite(params.riseBoulder))) {
+    CheckRanges(params);
+    if (!(params.riseBoulder > params.riseSoil)) {
         throw std::invalid_argument("Exposure riseBoulder must exceed riseSoil");
     }
-    if (!(params.slopeBoulder > params.slopeSoil && std::isfinite(params.slopeSoil) &&
-          std::isfinite(params.slopeBoulder))) {
+    if (!(params.slopeBoulder > params.slopeSoil)) {
         throw std::invalid_argument("Exposure slopeBoulder must exceed slopeSoil");
     }
-    if (!(params.floorCover >= 0.0 && params.floorCover < 1.0)) {
-        throw std::invalid_argument("Exposure floorCover must be in [0, 1)");
-    }
-    RequirePositive(params.floorPatch, "Exposure floorPatch");
 }
 
 ExposureField::ExposureField(const ExposureParams& params, const Surface& surface)
@@ -55,13 +49,18 @@ ExposureField::ExposureField(const ExposureParams& params, const Surface& surfac
 }
 
 double ExposureField::Exposure(const Ground& ground, double x, double y, double spacing) const {
+    return Exposure(ground, surface_, x, y, spacing);
+}
+
+double ExposureField::Exposure(const Ground& ground, const Surface& surface, double x, double y,
+                               double spacing) const {
     const float here = ground.HeightAt(x, y, spacing);
     if (std::isnan(here)) {
         return 0.0;
     }
     const double reach = params_.reach;
     std::array<double, 8> heights{};
-    GroundAround(ground, surface_, {x, y}, ring_, spacing, static_cast<double>(here), heights);
+    GroundAround(ground, surface, {x, y}, ring_, spacing, static_cast<double>(here), heights);
     double mean = 0.0;
     for (const double height : heights) {
         mean += height / 8.0;
@@ -72,7 +71,7 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
     double exposure = std::max(BetweenSmooth(rise, params_.riseSoil, params_.riseBoulder),
                                BetweenSmooth(slope, params_.slopeSoil, params_.slopeBoulder));
     if (params_.floorCover > 0.0) {
-        const double noise = PatchNoise(surface_, x, y, params_.floorPatch, params_.seed);
+        const double noise = PatchNoise(surface, x, y, params_.floorPatch, params_.seed);
         const double threshold = 1.0 - 2.0 * params_.floorCover;
         exposure = std::max(exposure, BetweenSmooth(noise, threshold - 0.2, threshold + 0.2));
     }
@@ -81,15 +80,16 @@ double ExposureField::Exposure(const Ground& ground, double x, double y, double 
 
 void ExposureField::Fill(Raster<float>& raster, const Ground& ground, double spacing,
                          unsigned threads) const {
-    FillCells(raster, threads,
-              [&](const Vec2d& center) { return Exposure(ground, center.x, center.y, spacing); });
+    MapCells(raster, threads, [&](float, const Vec2d& center) {
+        return Exposure(ground, center.x, center.y, spacing);
+    });
 }
 
 LayerExposure::LayerExposure(const std::optional<ExposureParams>& params, double spacing,
-                             const Surface& surface, const char* reader)
+                             const char* reader)
     : spacing_(spacing), reader_(reader) {
     if (params) {
-        field_.emplace(*params, surface);
+        field_.emplace(*params);
     }
 }
 
@@ -99,9 +99,9 @@ void LayerExposure::Require(const Ground* ground) const {
     }
 }
 
-double LayerExposure::At(double x, double y, const Ground* ground) const {
+double LayerExposure::At(double x, double y, const Ground* ground, const Surface& surface) const {
     RequireGround(ground, reader_);
-    return field_->Exposure(*ground, x, y, spacing_);
+    return field_->Exposure(*ground, surface, x, y, spacing_);
 }
 
 double PatchNoise(const Surface& surface, double x, double y, double size, std::uint32_t seed) {

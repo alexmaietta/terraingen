@@ -4,11 +4,11 @@
 /// @brief `PreparedCrater`, a crater with everything needed to shape it at one sample spacing.
 #pragma once
 
+#include "terraingen/geometry/plane_fit.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/degradation/degradation_model.h"
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
-#include "terraingen/util/plane_fit.h"
 
 #include <functional>
 #include <optional>

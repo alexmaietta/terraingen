@@ -33,8 +33,12 @@ const Bounds2d kRegion{-15.0, -15.0, 15.0, 15.0};
 class Ramp final : public terraingen::Ground {
   public:
     explicit Ramp(double rise = 0.0) : rise_(rise) {}
-    float HeightAt(double x, double /*y*/, double /*spacing*/) const override {
-        return static_cast<float>(3.0 + rise_ * x);
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = static_cast<float>(3.0 + rise_ * samples.Position(i).x);
+        }
     }
 
   private:
@@ -401,8 +405,8 @@ TEST(ManualOnlyBoulderLayer, NeedsNoSizesCraterLayerOrGroundAndHasNoAbundance) {
     for (const auto& cover : layer.UnresolvedCoverOver(grid, 0.5, nullptr, 1)) {
         EXPECT_EQ(cover, terraingen::UnresolvedCover{});
     }
-    EXPECT_GT(layer.MaterialCoverAt(0.0, 0.0, 0.1, nullptr), 0.0) << "the manual boulder's rock";
-    EXPECT_EQ(layer.MaterialCoverAt(1.5, 1.5, 0.1, nullptr), 0.0);
+    EXPECT_GT(layer.MaterialCoverAt(0.0, 0.0, {0.1}), 0.0) << "the manual boulder's rock";
+    EXPECT_EQ(layer.MaterialCoverAt(1.5, 1.5, {0.1}), 0.0);
     options.generateRandom = true;
     EXPECT_THROW(terraingen::ValidateBoulderLayerOptions(options), std::invalid_argument);
 }

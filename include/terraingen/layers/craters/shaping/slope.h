@@ -4,9 +4,9 @@
 /// @brief Craters formed on slopes: floors offset downslope and raised rims lowered upslope.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/random/value_distribution.h"
-#include "terraingen/util/geometry.h"
 
 #include <cstdint>
 #include <optional>
@@ -57,8 +57,8 @@ struct CraterSlopeResponse {
 double SlopeWearRate(const CraterSlopeResponse& response, double east, double north);
 
 /// Checks slope response settings.
-/// @throws std::invalid_argument for an invalid floor offset distribution or one outside
-/// [0, 0.23), an `upslopeRim` outside [0, 1], or a `fullSlope` that is not positive and finite.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`), or an invalid
+/// floor offset distribution or one outside [0, 0.23).
 void ValidateCraterSlopeResponse(const CraterSlopeResponse& response);
 
 /// One crater's asymmetry on its slope.

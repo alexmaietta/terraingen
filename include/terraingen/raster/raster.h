@@ -137,11 +137,6 @@ template <typename T> class Raster {
         return {cells_ + row * width_, width_};
     }
 
-    /// Whether the cells are a caller's buffer rather than the raster's own.
-    bool Borrows() const {
-        return cells_ != nullptr && owned_.empty();
-    }
-
     /// The pixel-to-world transform.
     const GeoTransform& Transform() const {
         return transform_;

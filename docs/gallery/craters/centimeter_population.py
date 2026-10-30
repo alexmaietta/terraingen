@@ -44,13 +44,13 @@ def figure(quick=False):
     )
     relief = terraingen.NoiseLayer(seed=2, wavelength=SIZE_M, amplitude=0.03 * SIZE_M)
     size = int(SIZE_M / pixel)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters])
     zoom = terraingen.RasterGrid.centered(ZOOM_CENTER, (ZOOM_SIZE_M, ZOOM_SIZE_M), pixel)
 
     fig, axes = plt.subplots(
         1, 3, figsize=(15, 5.2), layout="constrained", gridspec_kw={"width_ratios": [1, 1, 1.1]}
     )
-    gallery.show_hillshade(axes[0], terraingen.evaluate(terrain).values, pixel)
+    gallery.show_hillshade(axes[0], terrain.evaluate().values, pixel)
     x, y = ZOOM_CENTER
     half = 0.5 * ZOOM_SIZE_M
     corner = ((x - half + 0.5 * SIZE_M) / pixel, (0.5 * SIZE_M - y - half) / pixel)
@@ -58,7 +58,7 @@ def figure(quick=False):
     axes[0].add_patch(Rectangle(corner, side, side, fill=False, color="#d62728", lw=2.0))
     axes[0].set_title(f"{SIZE_M:g} m at {PIXEL_M * 100:g} cm per pixel")
 
-    gallery.show_hillshade(axes[1], terraingen.evaluate(terrain, grid=zoom).values, pixel)
+    gallery.show_hillshade(axes[1], terrain.evaluate(zoom).values, pixel)
     axes[1].add_patch(
         Rectangle(
             (0.0, 0.0),
@@ -73,7 +73,7 @@ def figure(quick=False):
     )
     axes[1].set_title(f"Inset: {ZOOM_SIZE_M:g} m across")
 
-    table = terraingen.placed_craters(terrain).table
+    table = terrain.craters().table
     inside = (np.abs(table["x"]) <= 0.5 * SIZE_M) & (np.abs(table["y"]) <= 0.5 * SIZE_M)
     placed = np.sort(np.asarray(table["diameter"])[inside])[::-1]
     diameters = np.geomspace(D_MIN, D_MAX, 100)

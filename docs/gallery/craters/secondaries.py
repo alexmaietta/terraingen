@@ -65,8 +65,8 @@ def figure(quick=False):
     source = terraingen.FlatSource(
         int(2.0 * HALF_SIZE_M / pixel) + 1, int(2.0 * HALF_SIZE_M / pixel) + 1, pixel
     )
-    terrain = terraingen.TerrainGenerator(source, [primary, secondary_layer(primary, True)])
-    gallery.show_hillshade(axes[2], terraingen.evaluate(terrain, grid=grid).values, pixel, sun_elevation=20.0)
+    terrain = terraingen.Terrain(source=source, layers=[primary, secondary_layer(primary, True)])
+    gallery.show_hillshade(axes[2], terrain.evaluate(grid).values, pixel, sun_elevation=20.0)
     axes[2].add_patch(
         Rectangle(
             (0.0, 0.0),

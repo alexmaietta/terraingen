@@ -2,6 +2,7 @@
 
 #include "layers/craters/shaping/crater_kernel.h"
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/profiles/complex.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
@@ -10,7 +11,6 @@
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/random/streams.h"
-#include "terraingen/util/geometry.h"
 #include "util/numerics.h"
 
 #include <algorithm>

@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 using terraingen::Bounds2d;
 using terraingen::GeoTransform;
@@ -273,6 +274,49 @@ TEST(MaskedLayer, SkipsTheInnerLayerAwayFromTheRegion) {
     EXPECT_EQ(missing, -9999.0f);
     EXPECT_LE(*calls, 36) << "only the cells around the region";
     EXPECT_GE(*calls, 15) << "16 cells in the region, one without data";
+}
+
+TEST(MaskedLayer, ForwardsSurfaceSeedsAndDependenciesToItsInnerLayer) {
+    const RegionShape box = RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0});
+    EXPECT_FALSE(MaskedLayer(std::make_shared<terraingen::ScaleLayer>(2.0), box).LayerSurface());
+    EXPECT_EQ(MaskedLayer(std::make_shared<terraingen::ScaleLayer>(2.0), box).Reseeded(1), nullptr)
+        << "an inner layer without seeds";
+    const auto craters = ManualCraters();
+    const MaskedLayer masked(craters, box, 2.0);
+    EXPECT_EQ(masked.LayerSurface(), craters->LayerSurface());
+    const terraingen::LayerPtr reseeded = masked.Reseeded(3);
+    ASSERT_NE(reseeded, nullptr);
+    const auto& confining = dynamic_cast<const MaskedLayer&>(*reseeded);
+    EXPECT_EQ(dynamic_cast<const terraingen::CraterLayer&>(confining.Inner()).Options().seed,
+              terraingen::ReseedWord(3, 0));
+    EXPECT_TRUE(confining.Holds(6.5, 0.0)) << "the same region";
+
+    terraingen::BoulderLayerOptions options;
+    options.ejecta.minCraterDiameter = 5.0;
+    const auto boulders = std::make_shared<terraingen::BoulderLayer>(options, craters);
+    const MaskedLayer rocks(boulders, box);
+    EXPECT_EQ(rocks.Dependencies(), std::vector<const terraingen::Layer*>{craters.get()});
+    EXPECT_EQ(rocks.Rebound({}), nullptr);
+    const auto moved = ManualCraters();
+    const terraingen::LayerPtr rebound = rocks.Rebound({{craters.get(), moved}});
+    ASSERT_NE(rebound, nullptr);
+    EXPECT_EQ(rebound->Dependencies(), std::vector<const terraingen::Layer*>{moved.get()});
+}
+
+TEST(MaskedLayer, ConfinesALayerToARegionOnTheContextsSphere) {
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const MaskedLayer layer(std::make_shared<terraingen::ScaleLayer>(1.0, 5.0),
+                            RegionShape::Circle({-40.0, 45.0}, 1000.0), 200.0,
+                            terraingen::BlendShape::Linear);
+    const terraingen::Vec2d near = moon.Locate({-40.0, 45.0}, {900.0, 0.0});
+    terraingen::LayerContext onMoon{1.0};
+    onMoon.surface = &moon;
+    EXPECT_FLOAT_EQ(layer.ApplyAt(0.0f, near.x, near.y, onMoon), 5.0f);
+    EXPECT_EQ(layer.Weight(near.x, near.y, moon), 1.0);
+    const terraingen::Vec2d far = moon.Locate({-40.0, 45.0}, {1300.0, 0.0});
+    EXPECT_EQ(layer.ApplyAt(0.0f, far.x, far.y, onMoon), 0.0f);
+    EXPECT_EQ(layer.ApplyAt(0.0f, far.x, far.y, {1.0}), 5.0f)
+        << "within 1000 of the center in degrees read as meters on a plane";
 }
 
 TEST(MaskedLayer, RejectsInvalidSettings) {

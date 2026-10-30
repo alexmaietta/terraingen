@@ -63,4 +63,11 @@ constexpr std::uint32_t SubstreamSeed(std::uint32_t seed, std::uint32_t stream,
     return Philox4x32({a, 0u, 0u, 0xFFFFFFFFu}, {seed, stream}).x;
 }
 
+/// The 32-bit seed for seeded field `field` of a part reseeded with `seed`
+/// (`Layer::Reseeded`, `Source::Reseeded`), so one 64-bit seed varies every seed of a part.
+constexpr std::uint32_t ReseedWord(std::uint64_t seed, std::uint32_t field) {
+    const IdWords words = SplitId(seed);
+    return Philox4x32({field, 0u, 0u, 0xFFFFFFFEu}, {words.low, words.high}).x;
+}
+
 }  // namespace terraingen

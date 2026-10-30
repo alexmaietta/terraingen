@@ -15,11 +15,14 @@
 #include <memory>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
-using terraingen::Evaluate;
+using terraingen::EvaluationOptions;
 using terraingen::GeoTransform;
+using terraingen::LayerPtr;
 using terraingen::RasterGrid;
-using terraingen::TerrainGenerator;
+using terraingen::Surface;
+using terraingen::Terrain;
 using terraingen::testing::Datum;
 using terraingen::testing::ExpectSameRaster;
 using terraingen::testing::Rolling;
@@ -45,36 +48,51 @@ void ExpectSameCells(const terraingen::Raster<float>& window,
     }
 }
 
+/// Fresh lunar crater models with a power-law density of `coefficient` D^-2.
+terraingen::CraterModels LunarModels(double coefficient) {
+    return terraingen::CraterModels{
+        std::make_shared<terraingen::PowerLawSfd>(coefficient, 2.0),
+        std::make_shared<terraingen::UniformAges>(1.0),
+        std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
+        std::make_shared<terraingen::FassettThomsonProfile>()};
+}
+
+/// A terrain on `surface` over a flat 8 x 8 source at `elevation` with `layers`.
+Terrain OnBody(const Surface& surface, float elevation, std::vector<LayerPtr> layers = {}) {
+    return Terrain(surface, std::make_shared<terraingen::FlatSource>(8, 8, 1.0, elevation),
+                   std::move(layers));
+}
+
 }  // namespace
 
 TEST(Evaluate, AWindowEqualsTheSameCellsOfALargerGridWithRoundedRims) {
-    const TerrainGenerator terrain = Smoothed();
+    const Terrain terrain = Smoothed();
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-200.0, 160.0, 2.0)};
-    const auto whole = Evaluate(terrain, large);
+    const auto whole = terrain.Evaluate(large);
     for (const auto& [col0, row0] :
          {std::pair<std::size_t, std::size_t>{68, 48}, std::pair<std::size_t, std::size_t>{84, 32},
           std::pair<std::size_t, std::size_t>{52, 64}}) {
-        const auto window = Evaluate(terrain, Window(large, col0, row0),
-                                     terraingen::EvaluationOptions{}.Threads(4));
+        const auto window =
+            terrain.Evaluate(Window(large, col0, row0), EvaluationOptions{}.Threads(4));
         ExpectSameCells(window, whole, col0, row0);
     }
 }
 
 TEST(Evaluate, CratersCutToADatumEqualALargerGridInAWindow) {
-    const TerrainGenerator terrain = Datum();
+    const Terrain terrain = Datum();
     const RasterGrid large{120, 100, GeoTransform::NorthUp(-120.0, 100.0, 2.0)};
-    const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{}.Threads(4));
-    ExpectSameRaster(whole, Evaluate(terrain, large, terraingen::EvaluationOptions{}.Threads(1)));
+    const auto whole = terrain.Evaluate(large, EvaluationOptions{}.Threads(4));
+    ExpectSameRaster(whole, terrain.Evaluate(large, EvaluationOptions{}.Threads(1)));
     for (const auto& [col0, row0] : {std::pair<std::size_t, std::size_t>{28, 34},
                                      std::pair<std::size_t, std::size_t>{12, 18}}) {
-        ExpectSameCells(Evaluate(terrain, Window(large, col0, row0)), whole, col0, row0);
+        ExpectSameCells(terrain.Evaluate(Window(large, col0, row0)), whole, col0, row0);
     }
 }
 
 TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
-    TerrainGenerator terrain = Rolling();
+    const Terrain rolling = Rolling();
     const auto craters =
-        std::dynamic_pointer_cast<const terraingen::CraterLayer>(terrain.layers[1]);
+        std::dynamic_pointer_cast<const terraingen::CraterLayer>(rolling.Layers()[1]);
     ASSERT_NE(craters, nullptr);
     terraingen::BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.minDiameter = 1.0;
@@ -85,95 +103,83 @@ TEST(Evaluate, BouldersFromCraterEjectaAndBedrockAgreeOnGridsWindowsAndPoints) {
     options.ejecta.minFreshness = 0.0;
     options.bedrock.exposure = terraingen::ExposureParams{};
     options.fade = {1.0, 2.0};
-    terrain.layers.push_back(std::make_shared<terraingen::BoulderLayer>(options, craters));
+    std::vector<LayerPtr> layers = rolling.Layers();
+    layers.push_back(std::make_shared<terraingen::BoulderLayer>(options, craters));
+    const Terrain terrain(rolling.Surface(), rolling.Source(), layers);
 
     const RasterGrid large{240, 200, GeoTransform::NorthUp(-120.0, 100.0, 1.0)};
-    const auto whole = Evaluate(terrain, large, terraingen::EvaluationOptions{}.Threads(4));
-    EXPECT_FALSE(terraingen::PlacedBoulders(terrain, large).boulders.Empty());
+    const auto whole = terrain.Evaluate(large, EvaluationOptions{}.Threads(4));
+    EXPECT_FALSE(terrain.Boulders(large).boulders.Empty());
     for (std::size_t row = 3; row < large.height; row += 7) {
         for (std::size_t col = 1; col < large.width; col += 7) {
             const auto center = whole.CellCenter(col, row);
-            ASSERT_EQ(terraingen::HeightAt(terrain, center.x, center.y, 1.0), whole(col, row));
+            ASSERT_EQ(terrain.HeightAt(center.x, center.y, 1.0), whole(col, row));
         }
     }
-    ExpectSameCells(Evaluate(terrain, Window(large, 56, 68)), whole, 56, 68);
+    ExpectSameCells(terrain.Evaluate(Window(large, 56, 68)), whole, 56, 68);
 }
 
 TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
-    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const Surface moon = Surface::Sphere(1737400.0);
     const double step = 4.0 / moon.UnitLength();
-    TerrainGenerator terrain;
-    terrain.surface = moon;
-    terrain.source = std::make_shared<terraingen::FlatSource>(96, 64, step, 0.0f);
     std::vector<terraingen::Fractal> noise{terraingen::Fractal{}};
     noise[0].wavelength = 400.0f;
     noise[0].amplitude = 6.0f;
-    terrain.layers.push_back(std::make_shared<terraingen::NoiseLayer>(noise, moon));
     terraingen::CraterLayerOptions options;
     options.seed = 4;
     options.generation.dMin = 12.0;
     options.generation.dMax = 80.0;
     options.apply.rimSmoothing.sigmaRadii = 0.05;
-    terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-        terraingen::CraterModels{
-            std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
-            std::make_shared<terraingen::UniformAges>(1.0),
-            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
-            std::make_shared<terraingen::FassettThomsonProfile>()},
-        options, moon));
-    const auto whole = Evaluate(terrain, terrain.source->Grid());
-    EXPECT_GT(terraingen::PlacedCraters(terrain, terrain.source->Grid()).craters.Size(), 3u);
+    const Terrain terrain(
+        moon, std::make_shared<terraingen::FlatSource>(96, 64, step, 0.0f),
+        {std::make_shared<terraingen::NoiseLayer>(noise),
+         std::make_shared<terraingen::CraterLayer>(LunarModels(0.05), options, moon)});
+    const RasterGrid grid = terrain.Grid().value();
+    const auto whole = terrain.Evaluate(grid);
+    EXPECT_GT(terrain.Craters(grid).craters.Size(), 3u);
     for (const auto& [col, row] : {std::pair<std::size_t, std::size_t>{10, 10},
                                    std::pair<std::size_t, std::size_t>{50, 33}}) {
         const auto center = whole.CellCenter(col, row);
-        EXPECT_EQ(terraingen::HeightAt(terrain, center.x, center.y, 4.0), whole(col, row));
+        EXPECT_EQ(terrain.HeightAt(center.x, center.y, 4.0), whole(col, row));
     }
     const RasterGrid large{200, 160, GeoTransform::NorthUp(-100.0 * step, 80.0 * step, step)};
-    const auto smoothed = Evaluate(terrain, large);
+    const auto smoothed = terrain.Evaluate(large);
     for (const auto& [col0, row0] : {std::pair<std::size_t, std::size_t>{84, 64},
                                      std::pair<std::size_t, std::size_t>{100, 48}}) {
-        const auto window = Evaluate(terrain, Window(large, col0, row0),
-                                     terraingen::EvaluationOptions{}.Threads(2));
+        const auto window =
+            terrain.Evaluate(Window(large, col0, row0), EvaluationOptions{}.Threads(2));
         ExpectSameCells(window, smoothed, col0, row0, 1e-3f);
     }
 }
 
 TEST(Evaluate, WholeBodyGridsAgreeAcrossTheAntimeridianAndAtThePole) {
-    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    TerrainGenerator terrain;
-    terrain.surface = moon;
-    terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 0.0f);
+    const Surface moon = Surface::Sphere(1737400.0);
     terraingen::CraterLayerOptions options;
     options.seed = 6;
     options.generation.dMin = 300.0;
     options.generation.dMax = 1500.0;
     options.apply.rimSmoothing.sigmaRadii = 0.05;
-    terrain.layers.push_back(std::make_shared<terraingen::CraterLayer>(
-        terraingen::CraterModels{
-            std::make_shared<terraingen::PowerLawSfd>(0.5, 2.0),
-            std::make_shared<terraingen::UniformAges>(1.0),
-            std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
-            std::make_shared<terraingen::FassettThomsonProfile>()},
-        options, moon));
+    const Terrain terrain = OnBody(
+        moon, 0.0f, {std::make_shared<terraingen::CraterLayer>(LunarModels(0.5), options, moon)});
     const double size = 180.0 / 512.0;
     const double step = size / 16.0;
     const auto square = [&](double west, double north) {
         return RasterGrid{16, 16, GeoTransform::NorthUp(west, north, step)};
     };
-    const terraingen::EvaluationOptions two{0.0, 2};
+    const auto two = EvaluationOptions{}.Threads(2);
     for (const auto& [west, north] : {std::pair<double, double>{180.0 - size, 90.0 - 100.0 * size},
                                       std::pair<double, double>{-180.0, 90.0 - 100.0 * size},
                                       std::pair<double, double>{-180.0 + 37.0 * size, 90.0}}) {
-        const auto inner = Evaluate(terrain, square(west, north), two);
+        const auto inner = terrain.Evaluate(square(west, north), two);
         const RasterGrid around{
             48, 48, GeoTransform::NorthUp(west - 16.0 * step, north + 16.0 * step, step)};
-        ExpectSameCells(inner, Evaluate(terrain, around), 16, 16, 1e-3f);
+        ExpectSameCells(inner, terrain.Evaluate(around), 16, 16, 1e-3f);
     }
-    const auto east = Evaluate(terrain, square(180.0 - size, 90.0 - 100.0 * size));
-    const auto west = Evaluate(terrain, square(-180.0, 90.0 - 100.0 * size));
+    const auto east = terrain.Evaluate(square(180.0 - size, 90.0 - 100.0 * size));
+    const auto west = terrain.Evaluate(square(-180.0, 90.0 - 100.0 * size));
     const RasterGrid shifted{32, 16,
                              GeoTransform::NorthUp(180.0 - size, 90.0 - 100.0 * size, step)};
-    const auto across = Evaluate(terrain, shifted);
+    const auto across = terrain.Evaluate(shifted);
     double relief = 0.0;
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {
@@ -186,14 +192,11 @@ TEST(Evaluate, WholeBodyGridsAgreeAcrossTheAntimeridianAndAtThePole) {
 }
 
 TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
-    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    TerrainGenerator terrain;
-    terrain.surface = moon;
-    terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 100.0f);
+    const Surface moon = Surface::Sphere(1737400.0);
     std::vector<terraingen::Fractal> noise{terraingen::Fractal{}};
     noise[0].wavelength = 300000.0f;
     noise[0].amplitude = 2000.0f;
-    terrain.layers.push_back(std::make_shared<terraingen::NoiseLayer>(noise, moon));
+    const Terrain terrain = OnBody(moon, 100.0f, {std::make_shared<terraingen::NoiseLayer>(noise)});
     const std::size_t n = 8;
     const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, n, 0.0, 2);
     ASSERT_EQ(mesh.positions.size(), 6 * (n + 1) * (n + 1));
@@ -203,8 +206,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
         const auto& p = mesh.positions[k];
         const double r = std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
         const auto point = moon.Coordinates(p);
-        const double height =
-            static_cast<double>(terraingen::HeightAt(terrain, point.x, point.y, step));
+        const double height = static_cast<double>(terrain.HeightAt(point.x, point.y, step));
         EXPECT_NEAR(r, 1737400.0 + height, 1e-3);
     }
     for (const auto& t : mesh.triangles) {
@@ -228,8 +230,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     }
     EXPECT_LT(nearest, 1e-3);
 
-    TerrainGenerator flat = terrain;
-    flat.surface = {};
+    const Terrain flat(Surface{}, terrain.Source(), terrain.Layers());
     EXPECT_THROW(terraingen::BodyMesh(flat, 4), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyMesh(terrain, 0), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyMesh(terrain, 4, -1.0), std::invalid_argument);
@@ -237,10 +238,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
 }
 
 TEST(BodyMesh, PlacesAFlatTerrainOnItsEllipsoid) {
-    const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
-    TerrainGenerator terrain;
-    terrain.surface = body;
-    terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 0.0f);
+    const Terrain terrain = OnBody(Surface::Ellipsoid(270.0, 147.0, 104.0), 0.0f);
     const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, 6, 0.0, 2);
     for (const auto& p : mesh.positions) {
         EXPECT_NEAR(p.x * p.x / (270.0 * 270.0) + p.y * p.y / (147.0 * 147.0) +
@@ -250,10 +248,8 @@ TEST(BodyMesh, PlacesAFlatTerrainOnItsEllipsoid) {
 }
 
 TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
-    const terraingen::Surface body = terraingen::Surface::Ellipsoid(270.0, 147.0, 104.0);
-    TerrainGenerator terrain;
-    terrain.surface = body;
-    terrain.source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0, 3.0f);
+    const Surface body = Surface::Ellipsoid(270.0, 147.0, 104.0);
+    const Terrain terrain = OnBody(body, 3.0f);
     const terraingen::IcqModel model = terraingen::BodyIcq(terrain, 6, 0.0, 2);
     ASSERT_EQ(model.q, 6u);
     ASSERT_EQ(model.vertices.size(), 6u * 7u * 7u);
@@ -263,8 +259,8 @@ TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
                 const terraingen::Vec3d p = model.vertices[model.Index(i, j, f)];
                 const terraingen::Vec3d d = terraingen::IcqDirection(6, i, j, f);
                 const terraingen::Vec2d point = body.Coordinates(d);
-                const float height = terraingen::HeightAt(
-                    terrain, point.x, point.y, body.Radius() * terraingen::kPi / 2.0 / 6.0);
+                const float height =
+                    terrain.HeightAt(point.x, point.y, body.Radius() * terraingen::kPi / 2.0 / 6.0);
                 EXPECT_NEAR(terraingen::Length(p),
                             body.RadiusAt(point) +
                                 (std::isnan(height) ? 0.0 : static_cast<double>(height)),
@@ -273,8 +269,7 @@ TEST(BodyIcq, PlacesEachLabelAtTheBodysRadiusPlusTheHeight) {
         }
     }
     EXPECT_GT(terraingen::testing::Volume(terraingen::IcqToMesh(model)), 0.0);
-    TerrainGenerator flat = terrain;
-    flat.surface = {};
+    const Terrain flat(Surface{}, terrain.Source(), {});
     EXPECT_THROW(terraingen::BodyIcq(flat, 4), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyIcq(terrain, 0), std::invalid_argument);
     EXPECT_THROW(terraingen::BodyIcq(terrain, 4, -1.0), std::invalid_argument);

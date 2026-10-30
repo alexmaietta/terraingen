@@ -74,7 +74,7 @@ def test_snippets_that_draw_a_figure_are_figures():
     names = dict(gallery.figures())
     path = names["snippets/boulders/list-boulders-of-a-layer"]
     assert path == gallery.SNIPPETS / "boulders" / "list-boulders-of-a-layer.py"
-    assert "snippets/configuration/build-a-generator-from-a-config" not in names, "it draws nothing"
+    assert "snippets/configuration/build-a-terrain-from-a-config" not in names, "it draws nothing"
 
 
 def test_snippet_figures_save_beside_the_snippet_images(tmp_path):

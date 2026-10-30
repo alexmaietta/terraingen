@@ -2,14 +2,16 @@
 
 #include "terraingen/layers/strata.h"
 
+#include "terraingen/geometry/surface.h"
+#include "terraingen/layers/anchored_plane.h"
 #include "terraingen/layers/fade.h"
+#include "terraingen/layers/pavement_fields.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/surface.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 
@@ -24,34 +26,20 @@ constexpr double kCliffFade = 0.05;
 }  // namespace
 
 void ValidateStrataOptions(const StrataOptions& options) {
-    RequirePositive(options.bedThickness, "Strata bedThickness");
-    if (!(options.thicknessVariation >= 0.0 && options.thicknessVariation < 1.0)) {
-        throw std::invalid_argument("Strata thicknessVariation must be in [0, 1)");
-    }
-    if (!((options.dipDegrees * kDegree) >= 0.0 && (options.dipDegrees * kDegree) < 0.5 * kPi)) {
-        throw std::invalid_argument("Strata dipDegrees must be in [0, 90) deg");
-    }
-    if (!(options.sharpness >= 1.0 && std::isfinite(options.sharpness) &&
-          options.softSharpness >= 1.0 && std::isfinite(options.softSharpness))) {
-        throw std::invalid_argument(
-            "Strata sharpness and softSharpness must be finite and at least 1");
-    }
-    RequireUnitInterval(options.strength, "Strata strength");
-    RequireUnitInterval(options.hardShare, "Strata hardShare");
-    if (!(options.cliffShare > 0.0 && options.cliffShare <= 1.0)) {
-        throw std::invalid_argument("Strata cliffShare must be in (0, 1]");
-    }
-    RequireFinite((options.dipAzimuthDegrees * kDegree), "Strata dipAzimuthDegrees");
-    RequireFinite(options.anchor.x, "Strata anchor x");
-    RequireFinite(options.anchor.y, "Strata anchor y");
+    CheckRanges(options);
 }
 
-StrataLayer::StrataLayer(StrataOptions options, TerrainBase base)
-    : FormulaLayer(base.surface), options_(options), plane_(base.surface, options.anchor) {
+StrataLayer::StrataLayer(StrataOptions options) : options_(options) {
     ValidateStrataOptions(options_);
     dipDirection_ = {std::cos(options_.dipAzimuthDegrees * kDegree),
                      std::sin(options_.dipAzimuthDegrees * kDegree)};
     dipSlope_ = std::tan(options_.dipDegrees * kDegree);
+}
+
+LayerPtr StrataLayer::Reseeded(std::uint64_t seed) const {
+    StrataOptions options = options_;
+    options.seed = ReseedWord(seed, 0);
+    return std::make_shared<StrataLayer>(options);
 }
 
 RandomStream StrataLayer::BedStream(std::uint32_t stream, std::int64_t k) const {
@@ -83,8 +71,9 @@ StrataLayer::Bed StrataLayer::BedAt(double level) const {
     return {bottom, top, hard};
 }
 
-bool StrataLayer::StratigraphicLevel(double height, double x, double y, double& level) const {
-    const std::optional<Vec2d> q = plane_.Project(x, y);
+bool StrataLayer::StratigraphicLevel(double height, double x, double y, const Surface& surface,
+                                     double& level) const {
+    const std::optional<Vec2d> q = AnchoredPlane(surface, options_.anchor).Project(x, y);
     if (!q) {
         return false;
     }
@@ -92,9 +81,9 @@ bool StrataLayer::StratigraphicLevel(double height, double x, double y, double& 
     return std::isfinite(level);
 }
 
-double StrataLayer::TerracedAt(double height, double x, double y) const {
+double StrataLayer::TerracedAt(double height, double x, double y, const Surface& surface) const {
     double level = 0.0;
-    if (!StratigraphicLevel(height, x, y, level) || options_.strength <= 0.0) {
+    if (!StratigraphicLevel(height, x, y, surface, level) || options_.strength <= 0.0) {
         return height;
     }
     const Bed bed = BedAt(level);
@@ -105,15 +94,14 @@ double StrataLayer::TerracedAt(double height, double x, double y) const {
     return height + options_.strength * (terraced - height);
 }
 
-double StrataLayer::MaterialCoverAt(double x, double y, double spacing,
-                                    const Ground* ground) const {
-    RequireGround(ground, kGroundReader);
-    const double height = static_cast<double>(ground->HeightAt(x, y, spacing));
+double StrataLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
+    RequireGround(context.ground, kGroundReader);
+    const double height = static_cast<double>(context.ground->HeightAt(x, y, context.spacing));
     if (!std::isfinite(height) || options_.strength <= 0.0) {
         return 0.0;
     }
     double level = 0.0;
-    if (!StratigraphicLevel(height, x, y, level)) {
+    if (!StratigraphicLevel(height, x, y, context.SurfaceOrPlane(), level)) {
         return 0.0;
     }
     const Bed bed = BedAt(level);
@@ -124,9 +112,9 @@ double StrataLayer::MaterialCoverAt(double x, double y, double spacing,
     return Smoothstep((u - (1.0 - options_.cliffShare)) / kCliffFade + 0.5);
 }
 
-float StrataLayer::HeightAt(float height, double x, double y, double /*spacing*/,
-                            const Ground* /*ground*/) const {
-    return static_cast<float>(TerracedAt(static_cast<double>(height), x, y));
+float StrataLayer::HeightAt(float height, double x, double y, const LayerContext& context) const {
+    return static_cast<float>(
+        TerracedAt(static_cast<double>(height), x, y, context.SurfaceOrPlane()));
 }
 
 }  // namespace terraingen

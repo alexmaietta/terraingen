@@ -2,10 +2,10 @@
 
 #include "terraingen/layers/craters/shaping/irregularity.h"
 
+#include "terraingen/layers/craters/crater_fields.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/util/bits.h"
-#include "util/checks.h"
 #include "util/fft.h"
 
 #include <algorithm>
@@ -18,8 +18,6 @@
 namespace terraingen {
 
 namespace {
-
-constexpr int kMaxMarkKnots = 1024;
 
 /// How far a periodic Catmull-Rom spline can overshoot its knots, as a share of their largest
 /// magnitude.
@@ -181,16 +179,12 @@ void AddHarmonics(CraterOutline& outline, const CraterIrregularity& irregularity
 /// @throws std::invalid_argument as `ValidateCraterIrregularity`.
 void ValidateRadialMarks(const CraterIrregularity& irregularity) {
     ValidateValueDistribution(irregularity.marksAmplitude);
-    RequireUnitInterval(irregularity.marksShare, "Crater marks share");
-    if (!(irregularity.marksKnots >= 3 && irregularity.marksKnots <= kMaxMarkKnots)) {
-        throw std::invalid_argument("Crater mark knots must be from 3 to 1024");
-    }
     const double fade = irregularity.marksFadeRadii;
-    if (!(IsPositive(fade) && irregularity.marksInnerRadii - fade >= 0.0 &&
+    if (!(irregularity.marksInnerRadii - fade >= 0.0 &&
           irregularity.marksInnerRadii <= irregularity.marksOuterRadii &&
           irregularity.marksOuterRadii + fade <= 1.0)) {
-        throw std::invalid_argument("Crater marks need a positive fade with 0 <= inner - fade, "
-                                    "inner <= outer and outer + fade <= 1 radii");
+        throw std::invalid_argument("Crater marks need 0 <= inner - fade, inner <= outer and "
+                                    "outer + fade <= 1 radii");
     }
     if (!(irregularity.marksAmplitude.Lowest() >= 0.0 &&
           2.0 * kSplineOvershoot * kSmoothstepSlope * irregularity.marksAmplitude.Highest() <
@@ -203,16 +197,13 @@ void ValidateRadialMarks(const CraterIrregularity& irregularity) {
 }  // namespace
 
 void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
+    CheckRanges(irregularity);
     ValidateValueDistribution(irregularity.roughness);
     ValidateValueDistribution(irregularity.spectralSlope);
     ValidateValueDistribution(irregularity.ellipticity);
-    for (const double share : {irregularity.roughShare, irregularity.elongatedShare}) {
-        RequireUnitInterval(share, "Crater irregularity shares");
-    }
     ValidateCraterSelection(irregularity.selection, "Crater irregularity");
-    if (!(irregularity.minHarmonic >= 1 && irregularity.minHarmonic <= irregularity.maxHarmonic &&
-          irregularity.maxHarmonic <= 64)) {
-        throw std::invalid_argument("Crater harmonics must satisfy 1 <= min <= max <= 64");
+    if (irregularity.minHarmonic > irregularity.maxHarmonic) {
+        throw std::invalid_argument("Crater min_harmonic must be at most max_harmonic");
     }
     const int harmonics = irregularity.maxHarmonic - irregularity.minHarmonic + 1;
     if (!(irregularity.roughness.Lowest() >= 0.0 &&
@@ -223,13 +214,6 @@ void ValidateCraterIrregularity(const CraterIrregularity& irregularity) {
     }
     if (!(irregularity.ellipticity.Lowest() >= 1.0)) {
         throw std::invalid_argument("Crater ellipticity must be at least 1");
-    }
-    if (!(irregularity.maxDeviation > 0.0 && irregularity.maxDeviation <= 0.5)) {
-        throw std::invalid_argument("Crater maxDeviation must be in (0, 0.5]");
-    }
-    if ((irregularity.headingDegrees && !std::isfinite(*irregularity.headingDegrees)) ||
-        !IsNonNegative(irregularity.headingSpreadDegrees)) {
-        throw std::invalid_argument("Crater heading and spread must be finite, the spread >= 0");
     }
     ValidateRadialMarks(irregularity);
 }

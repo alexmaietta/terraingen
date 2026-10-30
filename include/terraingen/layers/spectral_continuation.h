@@ -5,12 +5,12 @@
 /// measured power-law spectrum (`EstimatePowerLawSpectrum`).
 #pragma once
 
+#include "terraingen/analysis/spectrum.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/raster/spectrum.h"
-#include "terraingen/util/geometry.h"
-#include "terraingen/util/surface.h"
 
 #include <cstdint>
 #include <vector>
@@ -52,16 +52,15 @@ void ValidateSpectralContinuationOptions(const SpectralContinuationOptions& opti
 class SpectralContinuationLayer final : public Layer {
   public:
     /// @throws std::invalid_argument as `ValidateSpectralContinuationOptions`.
-    explicit SpectralContinuationLayer(SpectralContinuationOptions options, TerrainBase base = {});
+    explicit SpectralContinuationLayer(SpectralContinuationOptions options);
 
     /// The options the layer was made with.
     const SpectralContinuationOptions& Options() const {
         return options_;
     }
 
-    std::optional<Surface> LayerSurface() const override {
-        return surface_;
-    }
+    /// The layer with its seed `ReseedWord(seed, 0)`.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
 
   protected:
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
@@ -91,7 +90,6 @@ class SpectralContinuationLayer final : public Layer {
                    double spacing) const;
 
     SpectralContinuationOptions options_;
-    Surface surface_;
     double coefficient_ = 0.0;  ///< C in m^(4 - beta), P(f) = C f^-beta.
     std::vector<Band> bands_;
 };

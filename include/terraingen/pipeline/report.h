@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief Terrain reports: statistics of evaluated grids, layer timings and run details as JSON.
+/// @brief Terrain reports: statistics of evaluated grids, layer timings and run details.
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/boulders/boulder_placer.h"
 #include "terraingen/layers/craters/crater_placer.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/util/surface.h"
 #include "terraingen/util/version.h"
 
 #include <cstddef>
@@ -85,9 +85,5 @@ struct TerrainReport {
 GridReport ReportGrid(const Raster<float>& heights, const Surface& surface,
                       const CraterFeatures* craters, const BoulderFeatures* boulders,
                       const SizeFrequencyDistribution* craterTarget, unsigned threads = 0);
-
-/// `report` as JSON text, with NaN written as null and doubles written exactly.
-/// @param indent Spaces per level; negative for one line.
-std::string ReportToJson(const TerrainReport& report, int indent = 2);
 
 }  // namespace terraingen

@@ -16,9 +16,9 @@ def list_craters_from_a_config(output_folder):
     config = terraingen.TerrainGenConfig.from_dict(CONFIG)
 
     # --8<-- [start:list_craters_from_a_config]
-    terrain = terraingen.build_generator(config)
+    terrain = terraingen.build_terrain(config)
     site = terraingen.RasterGrid.centered((30.0, -10.0), (0.004, 0.004), 0.0001)  # degrees
-    placed = terraingen.placed_craters(terrain, site)
+    placed = terrain.craters(site)
     table = placed.table  # NumPy columns x, y, diameter, age_gyr, rim_height, ...
     placed.write_list(output_folder / "craters.csv")
     # --8<-- [end:list_craters_from_a_config]

@@ -39,8 +39,10 @@ def figure(quick=False):
             generation.manual = terraingen.CraterList.from_table(CATALOG)
             generation.completeness = terraingen.ConstantField(COMPLETE_FROM_M)
         craters = terraingen.CraterLayer(options=terraingen.CraterLayerOptions(seed=1, generation=generation))
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
-        heights = terraingen.evaluate(terrain).values
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters]
+        )
+        heights = terrain.evaluate().values
         ax.imshow(
             gallery.LIGHT.hillshade(heights, dx=pixel, dy=pixel),
             cmap="gray",
@@ -49,7 +51,7 @@ def figure(quick=False):
             extent=gallery.extent(heights, pixel),
         )
         ax.set_axis_off()
-        table = terraingen.placed_craters(terrain).table
+        table = terrain.craters().table
         inside = (np.abs(table["x"]) <= 0.5 * SIZE_M) & (np.abs(table["y"]) <= 0.5 * SIZE_M)
         large = (
             inside

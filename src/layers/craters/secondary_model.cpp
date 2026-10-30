@@ -2,11 +2,11 @@
 
 #include "terraingen/layers/craters/secondary_model.h"
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/layers/craters/crater_fields.h"
 #include "terraingen/layers/fade.h"
-#include "terraingen/layers/source_resolved.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/random/streams.h"
-#include "terraingen/util/geometry.h"
 #include "util/checks.h"
 
 #include <algorithm>
@@ -84,39 +84,24 @@ double ElliottMedianRayLength(double diameter, double coefficient, double expone
 }
 
 void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options) {
-    if (!(options.onsetCount && IsPositive(*options.onsetCount))) {
+    if (!options.onsetCount) {
         throw std::invalid_argument("Secondary craters need an onset count: the sources give their "
                                     "sizes, not their number");
     }
-    if (!(IsPositive(options.countFraction) && IsPositive(options.sizeSlope))) {
-        throw std::invalid_argument("The secondary count fraction and size slope must be positive");
-    }
-    if (!(IsPositive(options.minDiameter) && options.maxDiameter > options.minDiameter)) {
-        throw std::invalid_argument("Secondary diameters must satisfy 0 < min < max");
-    }
-    if (options.outerRange && !IsPositive(*options.outerRange)) {
-        throw std::invalid_argument("The secondary outer range must be positive");
+    CheckRanges(options);
+    if (!(options.maxDiameter > options.minDiameter)) {
+        throw std::invalid_argument("Secondary max_diameter_m must be above min_diameter_m");
     }
     ValidateCraterSelection(options.selection, "Primary");
-    if (!(IsPositive(options.cellSizeFactor) && IsPositive(options.maxExpected))) {
-        throw std::invalid_argument("The cell size factor and expected limit must be positive");
+    if (!IsPositive(options.maxExpected)) {
+        throw std::invalid_argument("The expected secondary limit must be positive");
     }
-    const SecondaryRays& rays = options.rays;
-    ValidateRayLayout(rays.layout);
-    if (!(IsInUnitInterval(rays.share) && IsInUnitInterval(rays.clustering) &&
-          rays.minHalfAngleDegrees > 0.0 && rays.minHalfAngleDegrees < 90.0 &&
-          IsPositive(rays.clusterSpacing))) {
-        throw std::invalid_argument("Secondary rays need a share and clustering in [0, 1], a floor "
-                                    "angle in (0, 90) degrees and a positive cluster spacing");
+    ValidateRayLayout(options.rays.layout);
+    const ValueDistribution& ellipticity = options.shapes.ellipticity;
+    ValidateValueDistribution(ellipticity);
+    if (!(ellipticity.Lowest() >= 1.0 && std::isfinite(ellipticity.Highest()))) {
+        throw std::invalid_argument("Secondary ellipticity must be bounded and at least 1");
     }
-    const SecondaryShapes& shapes = options.shapes;
-    ValidateValueDistribution(shapes.ellipticity);
-    if (!(IsInUnitInterval(shapes.elongatedShare) && shapes.ellipticity.Lowest() >= 1.0 &&
-          std::isfinite(shapes.ellipticity.Highest()))) {
-        throw std::invalid_argument("Secondary shapes need a share in [0, 1] and a bounded "
-                                    "ellipticity of at least 1");
-    }
-    ValidateSourceResolvesPixels(options.sourceResolvesPixels);
 }
 
 double SecondaryOuterRange(double diameter, const SecondaryCraterOptions& options) {

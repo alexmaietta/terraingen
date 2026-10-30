@@ -20,19 +20,17 @@ namespace {
 TEST_F(SnippetTest, BrightenSteepSlopes) {
     Fractal hills = Fractal::Fbm(2, 200.0, 70.0);
     hills.octaves = 6;
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(201, 201, 2.0);
-    terrain.layers = {std::make_shared<NoiseLayer>(hills)};
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(201, 201, 2.0),
+                          {std::make_shared<NoiseLayer>(hills)});
     // --8<-- [start:brighten_steep_slopes]
     SlopeAlbedoOptions options;
     options.onsetDegrees = 20.0;
     Albedo albedo;
     albedo.source = std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{});
     albedo.layers = {std::make_shared<SlopeAlbedo>(options)};
-    const TerrainGround ground(terrain, terrain.layers.size());  // after every layer
     AlbedoContext context;
-    context.ground = &ground;
-    const RasterGrid grid = RasterGrid::FromRaster(Evaluate(terrain));
+    context.ground = &terrain;  // after every layer
+    const RasterGrid grid = RasterGrid::FromRaster(terrain.Evaluate());
     const std::vector<Raster<float>> bands = EvaluateAlbedo(albedo, grid, context);
     // --8<-- [end:brighten_steep_slopes]
     ASSERT_EQ(bands.size(), 1u);

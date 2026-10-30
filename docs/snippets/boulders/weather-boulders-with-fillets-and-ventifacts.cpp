@@ -31,10 +31,8 @@ TEST_F(SnippetTest, WeatherBouldersWithFilletsAndVentifacts) {
     options.ventifacts.windAzimuthDegrees = 0.0;      // blowing toward the east
     options.rendering.relief = BoulderRelief::Shape;  // facets cut the shapes' tops
     const auto boulders = BoulderLayer::Manual(catalog, options);
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(501, 201, 0.02);
-    terrain.layers.push_back(boulders);
-    const Raster<float> heights = Evaluate(terrain);
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(501, 201, 0.02), {boulders});
+    const Raster<float> heights = terrain.Evaluate();
     const BoulderList list = boulders->Boulders({-5.0, -2.0, 5.0, 2.0});
     // --8<-- [end:weather_boulders_with_fillets_and_ventifacts]
     EXPECT_GT(heights(250 + 42, 100), 0.0f);  // a fillet just beyond the middle boulder

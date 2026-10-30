@@ -6,16 +6,17 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/config/config.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
+#include "terraingen/io/feature_lists.h"
+#include "terraingen/io/report_json.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/mesh.h"
-#include "terraingen/pipeline/feature_lists.h"
-#include "terraingen/pipeline/generator.h"
 #include "terraingen/pipeline/report.h"
+#include "terraingen/pipeline/terrain.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/util/geometry.h"
-#include "terraingen/util/surface.h"
 
 #include <filesystem>
 #include <optional>
@@ -35,19 +36,19 @@ struct GeneratedGrid {
     std::vector<Raster<float>> materials{};
     /// The Hapke parameters the materials mix to (`EvaluatePhotometry`), for photometry outputs.
     std::vector<Raster<float>> photometry{};
-    /// The craters placed over the grid (`PlacedCraters`), for crater lists.
+    /// The craters placed over the grid (`Terrain::Craters`), for crater lists.
     std::optional<CraterFeatures> craters{};
-    /// The boulders placed over the grid (`PlacedBoulders`), for boulder lists and models.
+    /// The boulders placed over the grid (`Terrain::Boulders`), for boulder lists and models.
     std::optional<BoulderFeatures> boulders{};
     /// The heights as a mesh (`BuildMesh`), for terrain mesh outputs.
     std::optional<TriangleMesh> mesh{};
 };
 
-/// What a configuration's outputs ask for: its generator, what each grid they cover holds and the
+/// What a configuration's outputs ask for: its terrain, what each grid they cover holds and the
 /// whole body's mesh.
 struct GeneratedOutputs {
-    /// The generator built from the configuration, to evaluate or list features from further.
-    TerrainGenerator generator;
+    /// The terrain built from the configuration, to evaluate or list features from further.
+    Terrain terrain;
     /// One per distinct grid an output covers, in output order.
     std::vector<GeneratedGrid> grids{};
     /// The grid each output covers (`ConfigSummary::outputGrids`), in order; none for a body mesh
@@ -73,11 +74,11 @@ struct GeneratedOutputs {
     GeneratedGrid* Find(const RasterGrid& grid);
 };
 
-/// Generates everything a configuration's outputs ask for, each computed once: `BuildGenerator`,
-/// then over each distinct grid the outputs cover its heights (`Evaluate`), albedo, materials and
-/// photometry, terrain mesh, and the craters and boulders placed there, the whole body's mesh and,
-/// with a report output, the report (`GeneratedOutputs::report`). Nothing is written
-/// (`WriteOutputs`).
+/// Generates everything a configuration's outputs ask for, each computed once: `BuildTerrain`,
+/// then over each distinct grid the outputs cover its heights (`Terrain::Evaluate`), albedo,
+/// materials and photometry, terrain mesh, and the craters and boulders placed there, the whole
+/// body's mesh and, with a report output, the report (`GeneratedOutputs::report`). Nothing is
+/// written (`WriteOutputs`).
 /// @param directory Folder relative input paths resolve against; empty for the folder the
 /// configuration was read from (`TerrainGenConfig::directory`).
 /// @param threads Threads to use, 0 for every hardware thread; the result does not depend on it.

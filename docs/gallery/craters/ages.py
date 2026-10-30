@@ -51,10 +51,12 @@ def figure(quick=False):
         craters = terraingen.CraterLayer(
             terraingen.CraterModels(surface.density(), ages, degradation), options
         )
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
-        gallery.show_hillshade(axes[0, column], terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters]
+        )
+        gallery.show_hillshade(axes[0, column], terrain.evaluate().values, pixel)
         axes[0, column].set_title(title)
-        placed = terraingen.placed_craters(terrain)
+        placed = terrain.craters()
         freshness = np.array([a.freshness for a in placed.attributes])
         points = axes[1, column].scatter(
             placed.table["diameter"],

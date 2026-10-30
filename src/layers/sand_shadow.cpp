@@ -2,32 +2,26 @@
 
 #include "terraingen/layers/sand_shadow.h"
 
+#include "terraingen/layers/bedforms_fields.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/util/bits.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 
 namespace terraingen {
 
 void ValidateSandShadowOptions(const SandShadowOptions& options) {
-    RequireFinite((options.windAzimuthDegrees * kDegree), "Sand shadow windAzimuthDegrees");
-    RequirePositive(options.lengthRatio, "Sand shadow lengthRatio");
-    if (!((options.flankAngleDegrees * kDegree) > 0.0 &&
-          (options.flankAngleDegrees * kDegree) < 0.5 * kPi)) {
-        throw std::invalid_argument("Sand shadow flankAngleDegrees must be in (0, 90) deg");
-    }
-    RequireNonNegative(options.minDiameter, "Sand shadow minDiameter");
-    RequirePositive(options.coverThickness, "Sand shadow coverThickness");
+    CheckRanges(options);
     ValidateResolutionFade(options.fade);
 }
 
 SandShadowLayer::SandShadowLayer(std::shared_ptr<const BoulderLayer> boulders,
-                                 SandShadowOptions options, TerrainBase base)
-    : boulders_(std::move(boulders)), options_(options), surface_(base.surface) {
+                                 SandShadowOptions options)
+    : boulders_(std::move(boulders)), options_(options) {
     ValidateSandShadowOptions(options_);
     if (!boulders_) {
         throw std::invalid_argument("Sand shadows need a boulder layer");
@@ -37,12 +31,24 @@ SandShadowLayer::SandShadowLayer(std::shared_ptr<const BoulderLayer> boulders,
     flankSlope_ = std::tan(options_.flankAngleDegrees * kDegree);
 }
 
-std::vector<SandShadowLayer::Shadow>
-SandShadowLayer::ShadowsOver(const Bounds2d& region, double spacing, const Ground* ground) const {
+LayerPtr SandShadowLayer::Rebound(const LayerReplacements& replaced) const {
+    std::shared_ptr<const BoulderLayer> boulders = Replacement(boulders_, replaced);
+    if (boulders == boulders_) {
+        return nullptr;
+    }
+    auto rebound = std::make_shared<SandShadowLayer>(*this);
+    rebound->boulders_ = std::move(boulders);
+    return rebound;
+}
+
+std::vector<SandShadowLayer::Shadow> SandShadowLayer::ShadowsOver(const Bounds2d& region,
+                                                                  double spacing,
+                                                                  const Ground* ground,
+                                                                  const Surface& surface) const {
     const double longest = boulders_->MaxFeatureDiameter() * (0.5 + options_.lengthRatio);
     std::vector<Shadow> shadows;
     const BoulderList boulders =
-        boulders_->Boulders(surface_.Expand(region, longest), spacing, ground);
+        boulders_->Boulders(surface.Expand(region, longest), spacing, ground);
     for (std::size_t i = 0; i < boulders.Size(); ++i) {
         const Boulder boulder = boulders.At(i);
         if (boulder.diameter < options_.minDiameter) {
@@ -58,13 +64,14 @@ SandShadowLayer::ShadowsOver(const Bounds2d& region, double spacing, const Groun
                            boulder.diameter,
                            cap,
                            weight,
-                           surface_.Expand({boulder.x, boulder.y, boulder.x, boulder.y}, reach)});
+                           surface.Expand({boulder.x, boulder.y, boulder.x, boulder.y}, reach)});
     }
     return shadows;
 }
 
-double SandShadowLayer::ShadowDepth(const Shadow& shadow, double x, double y) const {
-    const Vec2d offset = surface_.Offset(shadow.center, {x, y});
+double SandShadowLayer::ShadowDepth(const Shadow& shadow, double x, double y,
+                                    const Surface& surface) const {
+    const Vec2d offset = surface.Offset(shadow.center, {x, y});
     const double along = offset.x * downwind_.x + offset.y * downwind_.y - 0.5 * shadow.width;
     const double length = options_.lengthRatio * shadow.width;
     if (!(along >= 0.0 && along < length)) {
@@ -89,30 +96,34 @@ std::vector<Bounds2d> SandShadowLayer::Boxes(const std::vector<Shadow>& shadows)
     return boxes;
 }
 
-double SandShadowLayer::ThicknessAt(double x, double y, double spacing,
-                                    const Ground* ground) const {
+double SandShadowLayer::ThicknessAt(double x, double y, const LayerContext& context) const {
+    const Surface& surface = context.SurfaceOrPlane();
     double depth = 0.0;
-    for (const Shadow& shadow : ShadowsOver({x, y, x, y}, spacing, ground)) {
-        if (surface_.Contains(shadow.box, {x, y})) {
-            depth = std::max(depth, ShadowDepth(shadow, x, y));
+    const std::vector<Shadow> shadows =
+        ShadowsOver({x, y, x, y}, context.spacing, context.ground, surface);
+    for (const Shadow& shadow : shadows) {
+        if (surface.Contains(shadow.box, {x, y})) {
+            depth = std::max(depth, ShadowDepth(shadow, x, y, surface));
         }
     }
     return depth;
 }
 
-double SandShadowLayer::MaterialCoverAt(double x, double y, double spacing,
-                                        const Ground* ground) const {
-    return Smoothstep(ThicknessAt(x, y, spacing, ground) / options_.coverThickness);
+double SandShadowLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
+    return Smoothstep(ThicknessAt(x, y, context) / options_.coverThickness);
 }
 
-Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid, double spacing,
-                                                  const Ground* ground, unsigned threads) const {
+Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid,
+                                                  const LayerContext& context) const {
+    const Surface& surface = context.SurfaceOrPlane();
     Raster<double> cover(grid.width, grid.height);
     cover.SetTransform(grid.transform);
-    const std::vector<Shadow> shadows = ShadowsOver(grid.Bounds(), spacing, ground);
+    const std::vector<Shadow> shadows =
+        ShadowsOver(grid.Bounds(), context.spacing, context.ground, surface);
     ForEachFeatureCell(
-        cover, threads, Boxes(shadows), surface_, [&](double& cell, const FeatureCell& at) {
-            cell = std::max(cell, ShadowDepth(shadows[at.feature], at.center.x, at.center.y));
+        cover, context.threads, Boxes(shadows), surface, [&](double& cell, const FeatureCell& at) {
+            cell =
+                std::max(cell, ShadowDepth(shadows[at.feature], at.center.x, at.center.y, surface));
         });
     for (double& cell : cover.Values()) {
         cell = Smoothstep(cell / options_.coverThickness);
@@ -121,11 +132,13 @@ Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid, double
 }
 
 void SandShadowLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
-    const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
-    const std::vector<Shadow> shadows = ShadowsOver(samples.Bounds(), spacing, context.ground);
-    DrawFeatures(samples, context.threads, Boxes(shadows), surface_,
+    const Surface& surface = context.SurfaceOrPlane();
+    const double spacing = samples.ResolvedSpacing(context.spacing, surface);
+    const std::vector<Shadow> shadows =
+        ShadowsOver(samples.Bounds(), spacing, context.ground, surface);
+    DrawFeatures(samples, context.threads, Boxes(shadows), surface,
                  [&](float height, float base, const Vec2d& p, std::size_t n) {
-                     const double depth = ShadowDepth(shadows[n], p.x, p.y);
+                     const double depth = ShadowDepth(shadows[n], p.x, p.y, surface);
                      return static_cast<float>(
                          std::max(static_cast<double>(height), static_cast<double>(base) + depth));
                  });

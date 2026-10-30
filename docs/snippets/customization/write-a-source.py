@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 """Write a Source of Your Own."""
 
-import math
+import numpy as np
 
 import terraingen
 
@@ -14,11 +14,13 @@ def write_a_source():
         def grid(self):
             return terraingen.RasterGrid.centered((0.0, 0.0), (129.0, 129.0), 1.0)
 
-        def height_at(self, x, y, spacing):
-            return 20.0 * math.exp(-(x * x + y * y) / (2.0 * 30.0**2))
+        def fill_samples(self, samples, spacing, threads):
+            p = samples.positions()
+            r2 = p[:, 0] ** 2 + p[:, 1] ** 2
+            samples.heights()[:] = 20.0 * np.exp(-r2 / (2.0 * 30.0**2))
 
     craters = terraingen.CraterLayer()
-    heights = terraingen.evaluate(terraingen.TerrainGenerator(Dome(), [craters]))
+    heights = terraingen.Terrain(source=Dome(), layers=[craters]).evaluate()
     # --8<-- [end:write_a_source]
     return heights
 

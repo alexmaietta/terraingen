@@ -4,7 +4,7 @@
 /// @brief Surface material classes, and `MaterialSource`, the layers that lay one down.
 #pragma once
 
-#include "terraingen/layers/ground.h"
+#include "terraingen/layers/layer.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 
@@ -47,18 +47,16 @@ class MaterialSource {
     /// The class the layer lays down.
     virtual MaterialClass Material() const = 0;
 
-    /// How fully the layer covers world (x, y) with its material, in [0, 1].
-    /// @param spacing Sample spacing in meters, as the layer's heights are evaluated at.
-    /// @param ground The terrain beneath the layer; layers that read it need it.
-    virtual double MaterialCoverAt(double x, double y, double spacing,
-                                   const Ground* ground) const = 0;
+    /// How fully the layer covers world (x, y) with its material, in [0, 1], evaluated as its
+    /// heights are in `context`: its sample spacing in meters, surface, and the ground beneath
+    /// it, which layers that read it need.
+    virtual double MaterialCoverAt(double x, double y, const LayerContext& context) const = 0;
 
-    /// `MaterialCoverAt` at every cell center of `grid`. By default cell by cell; layers that
+    /// `MaterialCoverAt` at every cell center of `grid` on `context.threads` threads, at
+    /// `context.spacing`, at least the grid's cell size. By default cell by cell; layers that
     /// place features override it to find them once for the whole grid.
-    /// @param spacing Sample spacing in meters, at least the grid's cell size.
-    /// @param threads Worker threads, 0 for all.
-    virtual Raster<double> MaterialCoverOver(const RasterGrid& grid, double spacing,
-                                             const Ground* ground, unsigned threads) const;
+    virtual Raster<double> MaterialCoverOver(const RasterGrid& grid,
+                                             const LayerContext& context) const;
 };
 
 }  // namespace terraingen

@@ -85,10 +85,9 @@ TEST(BlastZoneAlbedo, GridsAndPointsAgreeOnAPlaneAndASphere) {
         zone.y = 0.0;
         terraingen::SyntheticAlbedoOptions params;
         params.value = 0.1;
-        const Albedo albedo{
-            std::make_shared<terraingen::SyntheticAlbedo>(params, surface),
-            {std::make_shared<BlastZoneAlbedo>(std::vector<BlastZone>{zone}, surface)},
-            surface};
+        const Albedo albedo{std::make_shared<terraingen::SyntheticAlbedo>(params),
+                            {std::make_shared<BlastZoneAlbedo>(std::vector<BlastZone>{zone})},
+                            surface};
         const double step = 8.0 / surface.UnitLength();
         const RasterGrid grid{48, 48, GeoTransform::NorthUp(-24.0 * step, 24.0 * step, step)};
         const auto values = terraingen::EvaluateAlbedo(albedo, grid, {8.0});

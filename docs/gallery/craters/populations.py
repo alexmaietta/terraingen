@@ -75,12 +75,14 @@ def figure(quick=False):
     colors = plt.get_cmap("tab10")(np.arange(4))
     for index, (title, density, ages) in enumerate(populations()):
         craters = terraingen.CraterLayer(terraingen.CraterModels(density, ages, degradation), options)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters]
+        )
         ax = axes[str(index)]
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
         ax.set_title(title)
 
-        table = terraingen.placed_craters(terrain).table
+        table = terrain.craters().table
         inside = (np.abs(table["x"]) <= half) & (np.abs(table["y"]) <= half)
         placed = np.sort(np.asarray(table["diameter"])[inside])[::-1]
         color = colors[index % 4]

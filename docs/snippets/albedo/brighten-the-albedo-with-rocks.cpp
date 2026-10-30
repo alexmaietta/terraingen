@@ -23,20 +23,19 @@ TEST_F(SnippetTest, BrightenTheAlbedoWithRocks) {
     boulderOptions.sizes.distribution =
         std::make_shared<TabulatedSfd>(Sp8023IntercraterBlocks(SpecificationCurve::Maximum));
     const auto boulders = std::make_shared<BoulderLayer>(boulderOptions);
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(401, 401, 0.1);
-    terrain.layers = {boulders};
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(401, 401, 0.1), {boulders});
     // --8<-- [start:brighten_the_albedo_with_rocks]
     RockAlbedoOptions options;
     options.seed = 1;
     options.reflectanceRatio = 2.5;
     RockSource rocks;
     rocks.layer = boulders;
-    rocks.ground = SharedGround(terrain, 0);  // beneath the boulder layer, layer 0
+    // Beneath the boulder layer, layer 0.
+    rocks.ground = std::make_shared<const Terrain>(terrain.Ground(0));
     Albedo albedo;
     albedo.source = std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{});
     albedo.layers = {std::make_shared<RockAlbedo>(options, std::vector<RockSource>{rocks})};
-    const RasterGrid grid = RasterGrid::FromRaster(Evaluate(terrain));
+    const RasterGrid grid = RasterGrid::FromRaster(terrain.Evaluate());
     const std::vector<Raster<float>> bands = EvaluateAlbedo(albedo, grid, {});
     // --8<-- [end:brighten_the_albedo_with_rocks]
     ASSERT_EQ(bands.size(), 1u);

@@ -2,11 +2,11 @@
 
 #include "bindings.h"
 #include "common.h"
-#include "objects.h"
 #include "options.h"
 
 #include "terraingen/albedo/photometry.h"
 #include "terraingen/pipeline/materials.h"
+#include "terraingen/pipeline/terrain.h"
 
 #include <algorithm>
 #include <optional>
@@ -42,24 +42,31 @@ void BindMaterialMaps(nb::module_& m) {
         {&ValidateMaterialOptions, "validate_material_options", "options"});
     m.def(
         "materials_at",
-        [](const PyTerrainGenerator& generator, const MaterialOptions& material, double x, double y,
+        [](const Terrain& terrain, const MaterialOptions& material, double x, double y,
            double spacing) {
-            const MaterialShares shares = MaterialsAt(generator.Get(), material, x, y, spacing);
+            const MaterialShares shares = MaterialsAt(terrain, material, x, y, spacing);
             return std::vector<double>(shares.begin(), shares.end());
         },
-        "generator"_a, "options"_a, "x"_a, "y"_a, "spacing"_a,
+        "terrain"_a, "options"_a, "x"_a, "y"_a, "spacing"_a,
+        nb::call_guard<nb::gil_scoped_release>(),
         "The share of each MaterialClass at (x, y), in class order: soil, then bedrock where the "
         "ground beneath the first material layer is bare, dust in patches, and each material "
         "layer's cover in order.");
     m.def(
         "evaluate_materials",
-        [](const PyTerrainGenerator& generator, const MaterialOptions& material,
-           const RasterGrid& grid, double spacing, unsigned threads) {
-            return EvaluateMaterials(generator.Get(), material, grid, spacing, threads);
+        [](const Terrain& terrain, const MaterialOptions& material, const RasterGrid& grid,
+           double spacing, unsigned threads, std::optional<Backend> backend) {
+            EvaluationOptions options;
+            options.spacing = spacing;
+            options.threads = threads;
+            options.backend = backend;
+            return EvaluateMaterials(terrain, material, grid, options);
         },
-        "generator"_a, "options"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0,
-        nb::call_guard<nb::gil_scoped_release>(),
-        "One raster per MaterialClass over `grid`: each cell's share of that class.");
+        "terrain"_a, "options"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0,
+        "backend"_a = nb::none(), nb::call_guard<nb::gil_scoped_release>(),
+        "One raster per MaterialClass over `grid`, at a sample spacing of `spacing` meters (0 for "
+        "the grid's) on up to `threads` threads (0 for every hardware thread): each cell's share "
+        "of that class.");
 }
 
 void BindPhotometry(nb::module_& m) {

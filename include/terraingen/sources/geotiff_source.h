@@ -58,67 +58,29 @@ struct GeoTiffSourceOptions {
 /// a file too large to hold in memory reads only the blocks around it; a `crop` gives the same
 /// bits over its grid as the whole file. A file in longitude and latitude whose columns span 360
 /// degrees wraps in longitude as a `RasterSource` does.
-class GeoTiffSource final : public Source {
+class GeoTiffSource final : public detail::RasterHeightsSource {
   public:
-    using Source::Fill;
-
-    /// Reads the file's header.
+    /// Reads the file's header. The grid is the file's, clipped to the cells that meet `crop`
+    /// when set, and the projection the file's.
     /// @throws GeoTiffError if the file cannot be read.
     /// @throws std::invalid_argument for a missing band, a `scale` or `offset` that is not finite,
     /// an `effectivePixelSize` that is not positive and finite, or a `crop` that is not finite, is
     /// empty (`minX` >= `maxX` or `minY` >= `maxY`) or misses the file.
     explicit GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options = {});
 
-    /// The file's grid, clipped to the cells that meet `crop` when set.
-    RasterGrid Grid() const override {
-        return Subgrid(lattice_, cells_);
-    }
-
-    /// The top-left corner of the file's grid, in CRS units, with or without a crop.
-    Vec2d ReferencePoint() const override {
-        return detail::Corner(lattice_);
-    }
-
-    /// Copies cells on the source's lattice at its cell size or coarser, otherwise upsamples.
-    /// @throws std::invalid_argument for a rotated grid off the source's lattice.
+  protected:
+    /// Opens the file for reading blocks on first use.
     /// @throws GeoTiffError if the file cannot be read.
-    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
-
-    /// The height in meters of the source cell centered at CRS (`x`, `y`) at the cell size or
-    /// coarser, otherwise the upsampler's; NaN beyond the file or the crop's grid, and where it
-    /// has no data.
-    /// @throws GeoTiffError if the file cannot be read.
-    float HeightAt(double x, double y, double spacing) const override;
-
-    /// `HeightAt` each of `points`, those off the cells upsampled at once.
-    /// @throws GeoTiffError if the file cannot be read.
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
-
-    /// `effectivePixelSize`, or else the file's cell size in CRS units (degrees when geographic),
-    /// the larger side of a cell; infinity where `HeightAt` is NaN.
-    /// @throws GeoTiffError if the file cannot be read.
-    double ResolutionAt(double x, double y) const override;
-
-    /// The file's cell size in CRS units, the larger side of a cell; infinity where `HeightAt` is
-    /// NaN.
-    /// @throws GeoTiffError if the file cannot be read.
-    double PostSpacingAt(double x, double y) const override;
-
-    /// The file's projection.
-    GeoKeys Keys() const override {
-        return info_.geoKeys;
-    }
+    const detail::RasterHeights& Heights() const override;
 
   private:
-    /// Opens the file for reading blocks on first use.
-    const detail::RasterHeights& Heights() const;
+    /// The source of `path` with the header `info` read from it.
+    GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options, GeoTiffInfo info);
 
     std::filesystem::path path_;
     GeoTiffSourceOptions options_;
     GeoTiffInfo info_;
     BandScaling scaling_;
-    RasterGrid lattice_;
-    PixelWindow cells_;
     mutable std::once_flag loaded_;
     mutable std::optional<detail::RasterHeights> heights_;
 };

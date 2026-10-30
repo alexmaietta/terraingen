@@ -29,9 +29,11 @@ namespace {
 
 /// Level ground at height 0.
 class Level final : public terraingen::Ground {
-  public:
-    float HeightAt(double, double, double) const override {
-        return 0.0f;
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = 0.0f;
+        }
     }
 };
 
@@ -115,7 +117,7 @@ TEST(RockAlbedo, BrightensSamplesByTheRockThatCoversThem) {
         std::make_shared<RockAlbedo>(options, std::vector<terraingen::RockSource>{{layer, ground}});
     const RasterGrid grid{64, 64, GeoTransform::NorthUp(-6.4, 6.4, 0.2)};
     const auto values = terraingen::EvaluateAlbedo(Gray(resolvedOnly), grid, {0.2});
-    const auto cover = layer->MaterialCoverOver(grid, 0.2, ground.get(), 1);
+    const auto cover = layer->MaterialCoverOver(grid, {0.2, 1, ground.get()});
     bool covered = false;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {

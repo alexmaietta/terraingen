@@ -7,8 +7,8 @@ import terraingen
 def add_craters_to_a_terrain():
     # --8<-- [start:add_craters_to_a_terrain]
     craters = terraingen.CraterLayer()
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, 1.0), [craters])
-    heights = terraingen.evaluate(terrain)  # a Raster in meters; .values is a NumPy array
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(257, 257, 1.0), layers=[craters])
+    heights = terrain.evaluate()  # a Raster in meters; .values is a NumPy array
     # --8<-- [end:add_craters_to_a_terrain]
     return heights
 

@@ -3,8 +3,8 @@
 #include "terraingen/albedo/slope_albedo.h"
 
 #include "albedo/bands.h"
-#include "terraingen/util/geometry.h"
-#include "util/checks.h"
+#include "terraingen/albedo/albedo_fields.h"
+#include "terraingen/geometry/geometry.h"
 
 #include <cmath>
 #include <limits>
@@ -14,8 +14,9 @@
 namespace terraingen {
 
 struct SlopeAlbedo::Lattice {
-    double i0 = 0.0;  ///< Column of the first node, in steps from the origin.
-    double j0 = 0.0;  ///< Row of the first node.
+    double step = 1.0;  ///< Step between nodes in surface coordinates.
+    double i0 = 0.0;    ///< Column of the first node, in steps from the origin.
+    double j0 = 0.0;    ///< Row of the first node.
     std::size_t columns = 0;
     std::size_t rows = 0;
     std::vector<double> slopes;  ///< Degrees, row-major; 0 on the outer ring.
@@ -26,24 +27,14 @@ struct SlopeAlbedo::Lattice {
 };
 
 void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options) {
-    const SlopeAlbedoOptions& o = options;
-    if (!(o.onsetDegrees >= 0.0 && o.onsetDegrees < 90.0)) {
-        throw std::invalid_argument("Slope maturity onset must be in [0, 90) degrees");
+    CheckRanges(options);
+    if (!(options.maxMaturity >= options.backgroundMaturity)) {
+        throw std::invalid_argument("Slope maturity cap must not be below the background");
     }
-    RequireNonNegative(o.maturityPerDegree, "Slope maturity per degree");
-    if (!(o.backgroundMaturity > 0.0 && std::isfinite(o.maxMaturity) &&
-          o.maxMaturity >= o.backgroundMaturity)) {
-        throw std::invalid_argument(
-            "Slope background maturity must be positive and the cap finite and not below it");
-    }
-    RequirePositive(o.baseline, "Slope baseline");
-    RequireFinite(o.originReflectance, "Slope origin reflectance");
 }
 
-SlopeAlbedo::SlopeAlbedo(SlopeAlbedoOptions options, TerrainBase base)
-    : options_(options), surface_(base.surface) {
+SlopeAlbedo::SlopeAlbedo(SlopeAlbedoOptions options) : options_(options) {
     ValidateSlopeAlbedoOptions(options_);
-    step_ = options_.baseline / surface_.UnitLength();
 }
 
 double SlopeAlbedo::MaturityAt(double slopeDegrees) const {
@@ -52,16 +43,19 @@ double SlopeAlbedo::MaturityAt(double slopeDegrees) const {
     return std::fmin(options_.backgroundMaturity + excess, options_.maxMaturity);
 }
 
-SlopeAlbedo::Lattice SlopeAlbedo::ReadLattice(const Bounds2d& region, const Ground& ground) const {
+SlopeAlbedo::Lattice SlopeAlbedo::ReadLattice(const Bounds2d& region, const Ground& ground,
+                                              const Surface& surface) const {
     Lattice lattice;
-    lattice.i0 = std::floor(region.minX / step_) - 1.0;
-    lattice.j0 = std::floor(region.minY / step_) - 1.0;
+    const double step = options_.baseline / surface.UnitLength();
+    lattice.step = step;
+    lattice.i0 = std::floor(region.minX / step) - 1.0;
+    lattice.j0 = std::floor(region.minY / step) - 1.0;
     lattice.columns =
-        static_cast<std::size_t>(std::floor(region.maxX / step_) + 2.0 - lattice.i0) + 1;
-    lattice.rows = static_cast<std::size_t>(std::floor(region.maxY / step_) + 2.0 - lattice.j0) + 1;
+        static_cast<std::size_t>(std::floor(region.maxX / step) + 2.0 - lattice.i0) + 1;
+    lattice.rows = static_cast<std::size_t>(std::floor(region.maxY / step) + 2.0 - lattice.j0) + 1;
     const auto node = [&](std::size_t i, std::size_t j) {
-        return Vec2d{(lattice.i0 + static_cast<double>(i)) * step_,
-                     (lattice.j0 + static_cast<double>(j)) * step_};
+        return Vec2d{(lattice.i0 + static_cast<double>(i)) * step,
+                     (lattice.j0 + static_cast<double>(j)) * step};
     };
     std::vector<Vec2d> points;
     points.reserve(lattice.columns * lattice.rows);
@@ -79,9 +73,9 @@ SlopeAlbedo::Lattice SlopeAlbedo::ReadLattice(const Bounds2d& region, const Grou
                 return static_cast<double>(heights[b * lattice.columns + a]);
             };
             const double dx =
-                (z(i + 1, j) - z(i - 1, j)) / surface_.Distance(node(i - 1, j), node(i + 1, j));
+                (z(i + 1, j) - z(i - 1, j)) / surface.Distance(node(i - 1, j), node(i + 1, j));
             const double dy =
-                (z(i, j + 1) - z(i, j - 1)) / surface_.Distance(node(i, j - 1), node(i, j + 1));
+                (z(i, j + 1) - z(i, j - 1)) / surface.Distance(node(i, j - 1), node(i, j + 1));
             const double slope = GradientSlopeDegrees(dx, dy);
             lattice.slopes[j * lattice.columns + i] = std::isnan(slope) ? 0.0 : slope;
         }
@@ -89,9 +83,9 @@ SlopeAlbedo::Lattice SlopeAlbedo::ReadLattice(const Bounds2d& region, const Grou
     return lattice;
 }
 
-double SlopeAlbedo::Interpolate(const Lattice& lattice, double x, double y) const {
-    const double u = x / step_;
-    const double v = y / step_;
+double SlopeAlbedo::Interpolate(const Lattice& lattice, double x, double y) {
+    const double u = x / lattice.step;
+    const double v = y / lattice.step;
     const double fu = std::floor(u);
     const double fv = std::floor(v);
     const auto i = static_cast<std::size_t>(fu - lattice.i0);
@@ -102,8 +96,9 @@ double SlopeAlbedo::Interpolate(const Lattice& lattice, double x, double y) cons
            tv * ((1.0 - tu) * lattice.At(i, j + 1) + tu * lattice.At(i + 1, j + 1));
 }
 
-double SlopeAlbedo::SlopeAt(double x, double y, const Ground& ground) const {
-    return Interpolate(ReadLattice({x, y, x, y}, ground), x, y);
+double SlopeAlbedo::SlopeAt(double x, double y, const Ground& ground,
+                            const Surface& surface) const {
+    return Interpolate(ReadLattice({x, y, x, y}, ground, surface), x, y);
 }
 
 void SlopeAlbedo::Mature(AlbedoSample& value, std::size_t bands, double slopeDegrees) const {
@@ -117,7 +112,7 @@ void SlopeAlbedo::Mature(AlbedoSample& value, std::size_t bands, double slopeDeg
 void SlopeAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                           const AlbedoContext& context) const {
     if (context.ground != nullptr) {
-        Mature(value, bands, SlopeAt(x, y, *context.ground));
+        Mature(value, bands, SlopeAt(x, y, *context.ground, context.SurfaceOrPlane()));
     }
 }
 
@@ -147,7 +142,8 @@ void SlopeAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& 
     if (context.ground == nullptr || bands.empty()) {
         return;
     }
-    const Lattice lattice = ReadLattice(CellCenterBounds(bands[0]), *context.ground);
+    const Lattice lattice =
+        ReadLattice(CellCenterBounds(bands[0]), *context.ground, context.SurfaceOrPlane());
     const std::size_t count = bands.size();
     ForEachAlbedoCell(bands, context.threads, [&](AlbedoSample& value, double x, double y) {
         Mature(value, count, Interpolate(lattice, x, y));

@@ -64,8 +64,8 @@ def figure(quick=False):
     slope_axes = []
     for column, ((name, upsampler), color) in enumerate(zip(METHODS, COLORS, strict=True)):
         source = terraingen.RasterSource(heights, transform, upsampler=upsampler(), keys=keys)
-        terrain = terraingen.TerrainGenerator(source, [], surface=moon)
-        refined = terraingen.evaluate(terrain, grid=window).values
+        terrain = terraingen.Terrain(moon, source)
+        refined = terrain.evaluate(window).values
         shade_ax = fig.add_subplot(grid[0, column])
         gallery.show_hillshade(shade_ax, refined, pixel_m, sun_elevation=25.0)
         shade_ax.set_title(name, color=color)
@@ -73,12 +73,11 @@ def figure(quick=False):
         slopes = gallery.show_slopes(slope_ax, refined, pixel_m, vmax=30.0, colorbar=False)
         slope_axes.append(slope_ax)
         points = np.column_stack([profile_lon, np.full_like(profile_lon, post_lat)])
-        profile = terraingen.heights_at(terrain, points, pixel_m)
+        profile = terrain.heights_at(points, pixel_m)
         profile_ax.plot(
             (profile_lon - lon) * km_per_deg, np.asarray(profile) / 1000.0, color=color, lw=1.3, label=name
         )
-    posts = terraingen.heights_at(
-        terraingen.TerrainGenerator(terraingen.RasterSource(heights, transform, keys=keys), [], surface=moon),
+    posts = terraingen.Terrain(moon, terraingen.RasterSource(heights, transform, keys=keys)).heights_at(
         np.column_stack([post_lon, np.full_like(post_lon, post_lat)]),
         1000.0 * post * km_per_deg,
     )

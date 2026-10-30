@@ -10,9 +10,9 @@ def add_boulders():
     craters = terraingen.CraterLayer()
     # --8<-- [start:add_boulders]
     boulders = terraingen.BoulderLayer(craters=craters)  # with ejecta thrown out by those craters
-    terrain = terraingen.TerrainGenerator(source, [noise, craters, boulders])
+    terrain = terraingen.Terrain(source=source, layers=[noise, craters, boulders])
     # --8<-- [end:add_boulders]
-    return terraingen.evaluate(terrain)
+    return terrain.evaluate()
 
 
 def test_add_boulders():

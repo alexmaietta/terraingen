@@ -35,7 +35,7 @@ def figure(quick=False):
     )
     step = 1.0 if quick else 0.25
     grid = terraingen.RasterGrid.covering((-180.0, -90.0, 180.0, 90.0), step)
-    globe = terraingen.evaluate(terraingen.TerrainGenerator(source, [], surface=moon), grid=grid).values
+    globe = terraingen.Terrain(moon, source).evaluate(grid).values
 
     norm = Normalize(-8000.0, 8000.0)
     colormap = plt.get_cmap("gist_earth")

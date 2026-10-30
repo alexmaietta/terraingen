@@ -2,8 +2,9 @@
 
 #include "support/boulder_records.h"
 #include "terraingen/distribution/power_law.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/io/report_json.h"
 #include "terraingen/pipeline/report.h"
-#include "terraingen/util/geometry.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>

@@ -95,8 +95,8 @@ def figure(quick=False):
     size = int(SIZE_M / pixel) + 1
     stack, exposure = layers()
     source = terraingen.FlatSource(size, size, pixel)
-    terrain = terraingen.TerrainGenerator(source, stack)
-    heights = terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=source, layers=stack)
+    heights = terrain.evaluate().values
     materials = terraingen.evaluate_materials(
         terrain,
         terraingen.MaterialOptions(exposure=exposure, dust_cover=0.2, dust_patch=80.0, seed=9),
@@ -108,16 +108,18 @@ def figure(quick=False):
         shares = np.apply_along_axis(np.convolve, 1, shares, kernel, mode="same")
         shares = np.apply_along_axis(np.convolve, 2, shares, kernel, mode="same")
     shares /= shares.sum(axis=0, keepdims=True)
-    mottle = terraingen.evaluate(
-        terraingen.TerrainGenerator(
-            source,
-            [
+    mottle = (
+        terraingen.Terrain(
+            source=source,
+            layers=[
                 terraingen.NoiseLayer(
                     [terraingen.Fractal(seed=13, wavelength=60.0, amplitude=0.08, octaves=5)]
                 )
             ],
         )
-    ).values
+        .evaluate()
+        .values
+    )
     base = np.einsum("kij,kc->ijc", shares, TINTS) * (1.0 + mottle[..., np.newaxis])
     light = LightSource(azdeg=280, altdeg=22)
     shade = light.hillshade(heights, dx=pixel, dy=pixel, fraction=1.0)

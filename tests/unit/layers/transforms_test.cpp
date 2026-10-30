@@ -88,13 +88,18 @@ TEST(FunctionLayer, CallsTheFunctionAtCellCentersWithTheSpacing) {
     EXPECT_THROW(FunctionLayer(nullptr), std::invalid_argument);
 }
 
-TEST(FunctionLayer, ReportsItsBaseSurfaceWhileScaleAndClampWorkOnAny) {
+TEST(FunctionLayer, WorksOnAnySurfaceAndGetsTheSpacingInMetersThere) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    const FunctionLayer onMoon([](double, double, double, double height) { return height; }, moon);
-    EXPECT_EQ(onMoon.LayerSurface(), moon);
-    EXPECT_EQ(
-        FunctionLayer([](double, double, double, double height) { return height; }).LayerSurface(),
-        terraingen::Surface::Plane());
+    const FunctionLayer layer([](double, double, double spacing, double) { return spacing; });
+    EXPECT_FALSE(layer.LayerSurface());
     EXPECT_FALSE(ScaleLayer(2.0).LayerSurface());
     EXPECT_FALSE(ClampLayer(0.0, 1.0).LayerSurface());
+    EXPECT_EQ(layer.Reseeded(1), nullptr);
+    terraingen::Raster<float> heights(2, 2, 0.0f);
+    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 0.0, 0.001));
+    terraingen::LayerContext onMoon;
+    onMoon.surface = &moon;
+    layer.Apply(heights, onMoon);
+    EXPECT_FLOAT_EQ(heights(0, 0), static_cast<float>(0.001 * moon.UnitLength()))
+        << "a cell of 0.001 degrees on the context's sphere";
 }

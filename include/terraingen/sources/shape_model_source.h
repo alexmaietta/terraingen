@@ -4,9 +4,9 @@
 /// @brief `ShapeModelSource`, a shape-model body's own labels refined by an upsampler.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/upsampling.h"
-#include "terraingen/util/surface.h"
 
 #include <array>
 #include <cstddef>
@@ -28,8 +28,6 @@ namespace terraingen {
 /// what an upsampler makes between them.
 class ShapeModelSource final : public Source {
   public:
-    using Source::Fill;
-
     /// @param body A shape-model body.
     /// @param upsampler How the labels are refined; null for cubic interpolation.
     /// @throws std::invalid_argument for a body without a shape, or as `Upsampler::FitTo`.
@@ -40,16 +38,6 @@ class ShapeModelSource final : public Source {
 
     /// A grid without cells over the whole body, its cells the labels' spacing at a face's center.
     RasterGrid Grid() const override;
-
-    /// `HeightsAt` the cell centers tile by tile, tiles split over threads.
-    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
-
-    /// The refined radius at longitude and latitude (`x`, `y`) in degrees at a sample spacing of
-    /// `spacing` degrees, less the body's radius there.
-    float HeightAt(double x, double y, double spacing) const override;
-
-    /// `HeightAt` each of `points`, each face upsampling the points it weighs at once.
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
 
     /// The labels' spacing at a face's center, 90 / Q degrees.
     double ResolutionAt(double x, double y) const override;
@@ -67,7 +55,16 @@ class ShapeModelSource final : public Source {
         return upsamplers_;
     }
 
+  protected:
+    /// The refined radius at each sample's longitude and latitude in degrees at a sample spacing
+    /// of `spacing` degrees, less the body's radius there; each face upsamples the points it
+    /// weighs at once, a grid tile by tile over threads.
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
+
   private:
+    /// `FillSamples` of `points` into `heights`.
+    void FillPoints(Span<const Vec2d> points, Span<float> heights, double spacing) const;
+
     /// Columns between the first posts of consecutive faces, more than any face reads.
     static constexpr std::int64_t kFaceColumns = std::int64_t{1} << 20;
 

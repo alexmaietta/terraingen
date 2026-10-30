@@ -13,6 +13,7 @@ terraingen_add_library(
     metal.cpp
     vulkan.cpp
     PUBLIC
+    terraingen_geometry
     terraingen_raster
     terraingen_util
     PRIVATE

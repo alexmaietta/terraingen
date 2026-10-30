@@ -5,8 +5,8 @@
 /// triangulating them.
 #pragma once
 
+#include "terraingen/geometry/radial_shape.h"
 #include "terraingen/mesh/mesh.h"
-#include "terraingen/util/radial_shape.h"
 
 #include <cstddef>
 #include <filesystem>

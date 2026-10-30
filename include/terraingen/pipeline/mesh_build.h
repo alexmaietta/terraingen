@@ -4,11 +4,11 @@
 /// @brief `BuildMesh`, a grid of heights as a triangle mesh, and `FillMesh` into caller buffers.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/util/geometry.h"
 #include "terraingen/util/span.h"
-#include "terraingen/util/surface.h"
 
 #include <cstddef>
 #include <cstdint>

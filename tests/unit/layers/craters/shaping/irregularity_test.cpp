@@ -421,9 +421,11 @@ TEST(ApplyCraters, StretchesElongatedCratersAndKeepsPointQueriesOnTheGrid) {
     terraingen::Raster<float> heights(120, 120, 0.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(-60.0, 60.0, 1.0));
     const class Flat final : public terraingen::Ground {
-      public:
-        float HeightAt(double, double, double) const override {
-            return 0.0f;
+      protected:
+        void FillSamples(terraingen::SampleBlock& samples, double) const override {
+            for (std::size_t i = 0; i < samples.Size(); ++i) {
+                samples.Height(i) = 0.0f;
+            }
         }
     } flat;
     layer.Apply(heights, {1.0, 2, &flat});

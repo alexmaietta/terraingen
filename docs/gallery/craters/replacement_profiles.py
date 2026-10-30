@@ -23,7 +23,7 @@ def figure(quick=False):
     pixel = 1.0 if quick else 0.25
     worn = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, DIAMETER, depth=4.0)])
     flat = terraingen.FlatSource(POSTS, POSTS, POST_SPACING)
-    posts = terraingen.evaluate(terraingen.TerrainGenerator(flat, [worn])).values
+    posts = terraingen.Terrain(source=flat, layers=[worn]).evaluate().values
     half = 0.5 * POSTS * POST_SPACING
     centers = -half + POST_SPACING * (np.arange(POSTS) + 0.5)
     posts = posts + SLOPE * centers[np.newaxis, :]
@@ -40,7 +40,7 @@ def figure(quick=False):
             apply.replacement.end_radii = end_radii
             crater = terraingen.Crater(0.0, 0.0, DIAMETER, depth=12.0, replace=replace)
             layers = [terraingen.CraterLayer.manual([crater], apply=apply, base=base)]
-        return terraingen.evaluate(terraingen.TerrainGenerator(dem, layers), grid=line).values[0]
+        return terraingen.Terrain(source=dem, layers=layers).evaluate(line).values[0]
 
     curves = [
         ("DEM alone", section(None), "0.55"),

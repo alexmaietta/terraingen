@@ -4,7 +4,7 @@
 /// @brief The affine pixel-to-world transform of a georeferenced raster.
 #pragma once
 
-#include "terraingen/util/geometry.h"
+#include "terraingen/geometry/geometry.h"
 
 #include <array>
 #include <stdexcept>

@@ -24,10 +24,10 @@ TEST_F(SnippetTest, MixHapkePhotometryFromMaterials) {
     dunes.shape = DuneShape::Transverse;
     dunes.wavelength = 30.0;
     dunes.height = 2.0;
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(201, 201, 1.0);
-    terrain.layers = {std::make_shared<NoiseLayer>(hills), std::make_shared<DuneLayer>(dunes)};
-    const RasterGrid grid = RasterGrid::FromRaster(Evaluate(terrain));
+    const std::vector<LayerPtr> layers = {std::make_shared<NoiseLayer>(hills),
+                                          std::make_shared<DuneLayer>(dunes)};
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(201, 201, 1.0), layers);
+    const RasterGrid grid = RasterGrid::FromRaster(terrain.Evaluate());
     // --8<-- [start:mix_hapke_photometry_from_materials]
     MaterialOptions options;
     options.dustCover = 0.3;

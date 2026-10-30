@@ -3,6 +3,7 @@
 #include "terraingen/sources/synthetic_source.h"
 
 #include "terraingen/noise/validate.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"
 
@@ -34,14 +35,14 @@ void SyntheticSource::NoisePosts::Read(std::int64_t col0, std::int64_t row0, std
 SyntheticSource::SyntheticSource(std::vector<Fractal> fractals, float elevation,
                                  std::optional<double> pixelSize,
                                  std::shared_ptr<const Upsampler> upsampler, Surface surface)
-    : fractals_(std::move(fractals)), elevation_(elevation),
+    : fractals_(std::move(fractals)), elevation_(elevation), givenPixelSize_(pixelSize),
       pixelSize_(pixelSize ? std::optional<double>(*pixelSize / surface.UnitLength())
                            : std::nullopt),
-      surface_(surface) {
+      surface_(surface), givenUpsampler_(std::move(upsampler)) {
     ValidateFractals(fractals_);
     RequireFinite(static_cast<double>(elevation_), "Elevation");
     if (!pixelSize_) {
-        if (upsampler) {
+        if (givenUpsampler_) {
             throw std::invalid_argument(
                 "A synthetic source upsamples only posts, so an upsampler needs a pixel size");
         }
@@ -49,11 +50,26 @@ SyntheticSource::SyntheticSource(std::vector<Fractal> fractals, float elevation,
     }
     RequirePositive(*pixelSize_, "Pixel size");
     posts_.emplace(*this, *pixelSize_);
-    upsampler_ = FittedUpsampler(std::move(upsampler), *posts_);
+    upsampler_ = FittedUpsampler(givenUpsampler_, *posts_);
 }
 
-float SyntheticSource::NoiseAt(double x, double y) const {
-    return elevation_ + FractalStackAt(fractals_, {}, surface_, x, y);
+std::shared_ptr<const Source> SyntheticSource::Reseeded(std::uint64_t seed) const {
+    std::vector<Fractal> fractals = fractals_;
+    for (std::size_t n = 0; n < fractals.size(); ++n) {
+        fractals[n].seed = ReseedWord(seed, static_cast<std::uint32_t>(n));
+    }
+    std::shared_ptr<const Upsampler> upsampler = givenUpsampler_;
+    if (upsampler) {
+        if (auto reseeded = upsampler->Reseeded(
+                JoinWords(ReseedWord(seed, kMaxFractals), ReseedWord(seed, kMaxFractals + 1)))) {
+            upsampler = std::move(reseeded);
+        }
+    }
+    if (fractals.empty() && upsampler == givenUpsampler_) {
+        return nullptr;
+    }
+    return std::make_shared<SyntheticSource>(std::move(fractals), elevation_, givenPixelSize_,
+                                             std::move(upsampler), surface_);
 }
 
 void SyntheticSource::NoiseAt(Span<const Vec2d> points, Span<float> heights) const {
@@ -67,36 +83,23 @@ RasterGrid SyntheticSource::Grid() const {
     return {0, 0, posts_ ? posts_->Transform() : GeoTransform::NorthUp(0.0, 0.0, 1.0)};
 }
 
-void SyntheticSource::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
+void SyntheticSource::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
     if (posts_) {
-        FillUpsampled(*upsampler_, *posts_, heights, spacing, threads);
-    } else {
-        ParallelFor(heights.Height(), threads, [&](std::size_t row) {
-            std::vector<Vec2d> points(heights.Width());
-            for (std::size_t col = 0; col < points.size(); ++col) {
-                points[col] = heights.CellCenter(col, row);
-            }
-            NoiseAt(points, heights.Values().subspan(row * heights.Width(), heights.Width()));
-        });
+        upsampler_->Fill(*posts_, samples, spacing, threads);
+        return;
     }
-    MarkMissing(heights, std::nullopt);
-}
-
-float SyntheticSource::HeightAt(double x, double y, double spacing) const {
-    if (posts_) {
-        return UpsampledHeight(*upsampler_, *posts_, x, y, spacing);
+    Raster<float>* grid = samples.Grid();
+    if (grid == nullptr) {
+        NoiseAt(samples.Points(), samples.Heights());
+        return;
     }
-    return NoiseAt(x, y);
-}
-
-void SyntheticSource::HeightsAt(Span<const Vec2d> points, Span<float> heights,
-                                double spacing) const {
-    detail::RequireHeightPerPoint(points, heights);
-    if (posts_) {
-        UpsampledHeights(*upsampler_, *posts_, points, heights, spacing);
-    } else {
-        NoiseAt(points, heights);
-    }
+    ParallelFor(grid->Height(), threads, [&](std::size_t row) {
+        std::vector<Vec2d> points(grid->Width());
+        for (std::size_t col = 0; col < points.size(); ++col) {
+            points[col] = grid->CellCenter(col, row);
+        }
+        NoiseAt(points, grid->Values().subspan(row * grid->Width(), grid->Width()));
+    });
 }
 
 double SyntheticSource::PostSpacingAt(double /*x*/, double /*y*/) const {

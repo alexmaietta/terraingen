@@ -27,10 +27,8 @@ TEST_F(SnippetTest, RaiseCentralPeaks) {
     apply.peaks.minMassifs = 2;
     apply.peaks.maxMassifs = 5;
     const auto craters = CraterLayer::Manual({ManualCrater(0.0, 0.0, 40000.0)}, models, apply);
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(201, 201, 300.0);
-    terrain.layers.push_back(craters);
-    const Raster<float> heights = Evaluate(terrain);
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(201, 201, 300.0), {craters});
+    const Raster<float> heights = terrain.Evaluate();
     // --8<-- [end:raise_central_peaks]
     const CraterList list = craters->Craters({-1.0, -1.0, 1.0, 1.0});
     const CraterAttributes applied = models.Shape().Attributes(list.At(0));

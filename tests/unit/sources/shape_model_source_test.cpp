@@ -3,8 +3,8 @@
 #include "support/source_agreement.h"
 #include "terraingen/sources/shape_model_source.h"
 
+#include "terraingen/geometry/radial_shape.h"
 #include "terraingen/sources/diamond_square.h"
-#include "terraingen/util/radial_shape.h"
 
 #include <gtest/gtest.h>
 

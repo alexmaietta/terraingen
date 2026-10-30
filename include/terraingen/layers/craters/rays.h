@@ -31,7 +31,8 @@ struct RayLayout {
 };
 
 /// Checks a ray layout.
-/// @throws std::invalid_argument for invalid distributions, a count that can be below 0 or above
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`), invalid
+/// distributions, a count that can be below 0 or above
 /// 64, or widths outside (0, 180) degrees.
 void ValidateRayLayout(const RayLayout& layout);
 

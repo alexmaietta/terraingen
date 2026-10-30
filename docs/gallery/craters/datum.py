@@ -43,10 +43,10 @@ def figure(quick=False):
         crater = terraingen.CraterLayer.manual(
             [terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)], apply=apply
         )
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [tilt, relief, crater]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[tilt, relief, crater]
         )
-        heights = terraingen.evaluate(terrain).values
+        heights = terrain.evaluate().values
         gallery.show_hillshade(axes[0, column], heights, pixel)
         axes[0, column].set_title(name)
         image = axes[1, column].imshow(

@@ -13,7 +13,7 @@ def evaluate_a_configured_albedo():
             "albedo": {"source": {"type": "synthetic", "value": 0.12}, "layers": [{"type": "craters"}]},
         }
     )
-    terrain = terraingen.build_generator(config)
+    terrain = terraingen.build_terrain(config)
     albedo = terraingen.build_albedo(config, terrain)
     grid = terraingen.RasterGrid.centered((0.0, 0.0), (100.0, 100.0), 0.5)  # meters
     (bands,) = terraingen.evaluate_albedo(albedo, grid)  # one band, the synthetic value

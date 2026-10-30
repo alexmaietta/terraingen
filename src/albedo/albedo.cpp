@@ -126,6 +126,9 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
     }
     RequireNonNegative(context.spacing, "Albedo sample spacing");
     context.spacing = ResolvedSpacing(grid, context.spacing, albedo.surface);
+    if (context.surface == nullptr) {
+        context.surface = &albedo.surface;
+    }
     const std::size_t count = CheckAlbedo(albedo, context);
     std::vector<Raster<float>> bands;
     for (std::size_t band = 0; band < count; ++band) {
@@ -143,8 +146,10 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
     return bands;
 }
 
-AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y,
-                              const AlbedoContext& context) {
+AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y, AlbedoContext context) {
+    if (context.surface == nullptr) {
+        context.surface = &albedo.surface;
+    }
     const std::size_t count = CheckAlbedo(albedo, context);
     AlbedoSample value = albedo.source->ValueAt(x, y, context);
     for (std::size_t band = count; band < kMaxAlbedoBands; ++band) {

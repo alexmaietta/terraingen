@@ -2,6 +2,7 @@
 
 #include "terraingen/albedo/photometry.h"
 
+#include "terraingen/albedo/albedo_fields.h"
 #include "terraingen/raster/grid.h"
 
 #include <cstddef>
@@ -35,14 +36,9 @@ void ValidateMaterialPhotometry(const MaterialPhotometry& photometry) {
         if (!photometry[k]) {
             continue;
         }
-        const HapkeParameters& p = *photometry[k];
-        const auto unit = [](double v) { return v >= 0.0 && v <= 1.0; };
-        if (!(unit(p.albedo) && unit(p.b) && unit(p.c) && p.roughness >= 0.0 &&
-              p.roughness < 90.0)) {
-            throw std::invalid_argument(std::string("Hapke parameters of ") + kClassNames[k] +
-                                        " must have w, b and c in [0, 1] and a roughness in "
-                                        "[0, 90) degrees");
-        }
+        HapkeParameters parameters = *photometry[k];
+        RangeChecker checker(kClassNames[k]);
+        Fields(checker, parameters);
     }
 }
 

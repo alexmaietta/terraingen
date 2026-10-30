@@ -34,7 +34,7 @@ def figure(quick=False):
         source = terraingen.SyntheticSource(
             stack, pixel_size=POST_SPACING, upsampler=terraingen.DiamondSquareUpsampler(options)
         )
-        heights = terraingen.evaluate(terraingen.TerrainGenerator(source, []), grid=window).values
+        heights = terraingen.Terrain(source=source).evaluate(window).values
         image = gallery.show_slopes(ax, heights, pixel, vmax=45.0, colorbar=False)
         ax.set_title(title)
     fig.colorbar(image, ax=axes, label="Slope (degrees)", shrink=0.85)

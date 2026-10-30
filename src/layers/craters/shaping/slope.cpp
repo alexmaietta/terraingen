@@ -2,9 +2,9 @@
 
 #include "terraingen/layers/craters/shaping/slope.h"
 
+#include "terraingen/layers/craters/crater_fields.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/stream.h"
-#include "util/checks.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -19,18 +19,11 @@ constexpr double kMaxFloorOffset = 0.23;
 }  // namespace
 
 void ValidateCraterSlopeResponse(const CraterSlopeResponse& response) {
+    CheckRanges(response);
     ValidateValueDistribution(response.floorOffset);
     if (!(response.floorOffset.Lowest() >= 0.0 &&
           response.floorOffset.Highest() < kMaxFloorOffset)) {
         throw std::invalid_argument("Crater floor offset must be in [0, 0.23) diameters");
-    }
-    RequireUnitInterval(response.upslopeRim, "Crater upslopeRim");
-    RequirePositive(response.fullSlopeDegrees, "Crater fullSlopeDegrees");
-    if (response.criticalGradient) {
-        RequirePositive(*response.criticalGradient, "Crater criticalGradient");
-    }
-    if (!(std::isfinite(response.maxWearRate) && response.maxWearRate >= 1.0)) {
-        throw std::invalid_argument("Crater maxWearRate must be finite and at least 1");
     }
 }
 

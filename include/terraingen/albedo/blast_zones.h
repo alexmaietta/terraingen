@@ -5,8 +5,7 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
-#include "terraingen/sources/terrain_base.h"
-#include "terraingen/util/surface.h"
+#include "terraingen/geometry/surface.h"
 
 #include <cstdint>
 #include <vector>
@@ -44,9 +43,7 @@ struct BlastZone {
 };
 
 /// Checks a blast zone.
-/// @throws std::invalid_argument for a non-finite position, a non-positive area, an elongation or
-/// halo reach below 1, a non-finite heading, changes at or below -1 or not finite, a negative core
-/// radius, or a raggedness outside [0, 1).
+/// @throws std::invalid_argument naming the first field out of its range.
 void ValidateBlastZone(const BlastZone& zone);
 
 /// The share of a zone's peak change it averages over its area, by the radial profile: full out
@@ -58,21 +55,21 @@ double BlastZoneMeanShare();
 class BlastZoneAlbedo final : public AlbedoLayer {
   public:
     /// @throws std::invalid_argument for a zone invalid as `ValidateBlastZone`.
-    explicit BlastZoneAlbedo(std::vector<BlastZone> zones, TerrainBase base = {});
+    explicit BlastZoneAlbedo(std::vector<BlastZone> zones);
 
-    /// Changes the albedo at one point by the zones over it; NaN stays NaN.
+    /// Changes the albedo at one point on the context's surface by the zones over it; NaN stays
+    /// NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;
 
-    /// The relative reflectance change `zone` gives (`x`, `y`).
-    double Change(const BlastZone& zone, double x, double y) const;
+    /// The relative reflectance change `zone` gives (`x`, `y`) on `surface`.
+    static double Change(const BlastZone& zone, double x, double y, const Surface& surface = {});
 
     /// How far (m) from its lander `zone` changes the ground.
     static double Reach(const BlastZone& zone);
 
   private:
     std::vector<BlastZone> zones_;
-    Surface surface_;
 };
 
 }  // namespace terraingen

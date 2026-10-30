@@ -6,8 +6,7 @@
 
 #include "common.h"
 
-#include "config/fields/enums.h"
-#include "config/fields/fields.h"
+#include "config/terrain.h"
 
 #include <nanobind/stl/array.h>
 
@@ -26,19 +25,18 @@
 
 namespace terraingen::python {
 
-/// Walks a struct's configuration field list, `config::Fields`.
+/// Walks a struct's field list, `Fields`.
 struct VisitFields {
     template <typename IO, typename T> void operator()(IO& io, T& value) const {
-        config::Fields(io, value);
+        Fields(io, value);
     }
 };
 
-/// The docstring of a field of type `F`: its description and what its range says
-/// (`config::FieldHelp`), then its unit when it has one.
+/// The docstring of a field of type `F`: its description and what its range says (`FieldHelp`),
+/// then its unit when it has one.
 template <typename F>
-std::string FieldDoc(std::string_view description, std::string_view unit,
-                     const config::FieldRange& range) {
-    std::string doc = config::FieldHelp<F>(description, unit, range);
+std::string FieldDoc(std::string_view description, std::string_view unit, const FieldRange& range) {
+    std::string doc = FieldHelp<F>(description, unit, range);
     if (!unit.empty()) {
         doc += " Unit: " + std::string(unit) + ".";
     }
@@ -70,7 +68,7 @@ template <typename T> class OptionsBinder {
     /// Binds `member` as the property `key`.
     template <typename F>
     void operator()(std::string_view key, F& member, std::string_view description = {},
-                    std::string_view unit = {}, const config::FieldRange& range = {}) {
+                    std::string_view unit = {}, const FieldRange& range = {}) {
         using Q = std::conditional_t<nb::detail::is_base_caster_v<nb::detail::make_caster<F>>,
                                      const F&, F&&>;
         const std::size_t offset = Offset(key, member);
@@ -85,7 +83,7 @@ template <typename T> class OptionsBinder {
     /// Binds `bound` as the property `key`: None when it is not finite, and `unset` when set to
     /// None.
     void Bound(std::string_view key, double& bound, std::string_view description,
-               std::string_view unit, double unset, const config::FieldRange& range) {
+               std::string_view unit, double unset, const FieldRange& range) {
         const std::size_t offset = Offset(key, bound);
         Add(PythonName(key, unit));
         cls_.def_prop_rw(
@@ -265,7 +263,7 @@ inline std::string UpperName(std::string_view name) {
 /// in upper case and documented by its description; a name for a value already bound is skipped.
 template <typename E> nb::enum_<E> BindEnum(nb::handle scope, const char* name, const char* doc) {
     nb::enum_<E> binding(scope, name, doc);
-    const auto& entries = config::EnumNames<E>::kValues;
+    const auto& entries = EnumNames<E>::kValues;
     for (auto entry = entries.begin(); entry != entries.end(); ++entry) {
         if (std::any_of(entries.begin(), entry,
                         [&](const auto& earlier) { return earlier.value == entry->value; })) {

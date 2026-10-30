@@ -235,7 +235,7 @@ TEST(WriteOutputs, WritesWholeBodyMeshes) {
     ASSERT_TRUE(terrain.bodyMesh);
     EXPECT_FALSE(terrain.bodyIcq);
     EXPECT_EQ(terrain.bodyMesh->triangles.size(),
-              terraingen::BodyMesh(terrain.generator, 4, 20000.0).triangles.size());
+              terraingen::BodyMesh(terrain.terrain, 4, 20000.0).triangles.size());
     EXPECT_TRUE(terrain.grids.empty());
     const auto directory = TempPath("terraingen_body_mesh");
     std::filesystem::remove_all(directory);
@@ -431,7 +431,7 @@ TEST(WriteOutputs, WritesTheReportItReturned) {
 
 TEST(WriteOutputs, WritesMaterialsAndTheirPhotometry) {
     ConfigSpec config = Small();
-    config.layers.push_back(terraingen::SandFillLayerSpec{{6.0, 0.8, 0.5, 0.02}});
+    config.layers.push_back(terraingen::SandFillOptions{6.0, 0.8, 0.5, 0.02});
     terraingen::MaterialsSpec materials;
     materials.photometry.reference = terraingen::PhotometryReference::MarsPancam;
     materials.photometry.classes[3] = terraingen::HapkeParameters{0.7, 0.4, 0.3, 15.0};

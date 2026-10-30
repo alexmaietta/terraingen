@@ -4,11 +4,11 @@
 /// @brief `StrataLayer`, layered rock: the ground beneath terraced into benches and cliffs.
 #pragma once
 
-#include "terraingen/layers/anchored_plane.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/random/stream.h"
-#include "terraingen/util/geometry.h"
 
 #include <cstdint>
 
@@ -61,24 +61,26 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// On a body, the dip is measured in the tangent frame of `options.anchor`.
     /// @throws std::invalid_argument as `ValidateStrataOptions`.
-    explicit StrataLayer(StrataOptions options, TerrainBase base = {});
+    explicit StrataLayer(StrataOptions options);
 
     /// The options the layer was made with.
     const StrataOptions& Options() const {
         return options_;
     }
 
+    /// The layer with its seed `ReseedWord(seed, 0)`.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
+
     MaterialClass Material() const override {
         return MaterialClass::Bedrock;
     }
     /// 1 on the cliffs of hard beds, the top `cliffShare` of each, fading to 0 on the benches; 0 on
     /// soft beds.
-    /// @throws std::invalid_argument without `ground`.
-    double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
+    /// @throws std::invalid_argument without `context.ground`.
+    double MaterialCoverAt(double x, double y, const LayerContext& context) const override;
 
   protected:
-    float HeightAt(float height, double x, double y, double spacing,
-                   const Ground* ground) const override;
+    float HeightAt(float height, double x, double y, const LayerContext& context) const override;
 
   private:
     /// The bed holding stratigraphic level `level`: its bottom and top levels.
@@ -88,19 +90,20 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
         bool hard = true;
     };
     Bed BedAt(double level) const;
-    /// The terraced height of ground `height` meters high at world (x, y) (m).
-    double TerracedAt(double height, double x, double y) const;
+    /// The terraced height of ground `height` meters high at world (x, y) on `surface` (m).
+    double TerracedAt(double height, double x, double y, const Surface& surface) const;
     double BedBoundary(std::int64_t k) const;
     /// The random stream `stream` of bed `k`.
     RandomStream BedStream(std::uint32_t stream, std::int64_t k) const;
-    /// The stratigraphic level of ground `height` meters high at (x, y): its height less the
-    /// dipping bed plane. False on the far hemisphere of a body, where the layer does nothing.
-    bool StratigraphicLevel(double height, double x, double y, double& level) const;
+    /// The stratigraphic level of ground `height` meters high at (x, y) on `surface`: its height
+    /// less the dipping bed plane. False on the far hemisphere of a body, where the layer does
+    /// nothing.
+    bool StratigraphicLevel(double height, double x, double y, const Surface& surface,
+                            double& level) const;
 
     StrataOptions options_;
     Vec2d dipDirection_{1.0, 0.0};
     double dipSlope_ = 0.0;
-    AnchoredPlane plane_;
 };
 
 }  // namespace terraingen

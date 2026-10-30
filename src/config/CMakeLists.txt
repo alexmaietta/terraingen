@@ -3,16 +3,25 @@
 terraingen_add_library(
     config
     SOURCES
-    build.cpp
-    config.cpp
+    albedo.cpp
+    body.cpp
+    boulders.cpp
+    common.cpp
+    craters.cpp
     generate.cpp
     json.cpp
-    ranges.cpp
+    layers.cpp
+    materials.cpp
+    outputs.cpp
     schema.cpp
-    validate.cpp
+    sources.cpp
+    terrain.cpp
     PUBLIC
     terraingen_albedo
+    terraingen_analysis
     terraingen_distribution
+    terraingen_geometry
+    terraingen_io
     terraingen_layers
     terraingen_noise
     terraingen_pipeline

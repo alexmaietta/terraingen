@@ -11,8 +11,8 @@ def mix_hapke_photometry_from_materials():
     dunes = terraingen.DuneLayer(
         terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE, wavelength=30.0, height=2.0)
     )
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(201, 201, PIXEL), [hills, dunes])
-    grid = terraingen.RasterGrid.from_raster(terraingen.evaluate(terrain))
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(201, 201, PIXEL), layers=[hills, dunes])
+    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
     # --8<-- [start:mix_hapke_photometry_from_materials]
     options = terraingen.MaterialOptions(dust_cover=0.3, dust_patch=40.0, seed=1)
     materials = terraingen.evaluate_materials(terrain, options, grid)  # soil, sand, dust, bedrock, rock

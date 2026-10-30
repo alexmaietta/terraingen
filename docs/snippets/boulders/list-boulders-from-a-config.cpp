@@ -24,9 +24,9 @@ TEST_F(SnippetTest, ListBouldersFromAConfig) {
     const std::filesystem::path path = OutputFolder() / "boulders.json";
 
     // --8<-- [start:list_boulders_from_a_config]
-    const TerrainGenerator terrain = BuildGenerator(config);
+    const Terrain terrain = BuildTerrain(config);
     const RasterGrid site = RasterGrid::Centered({0.0, 0.0}, {100.0, 100.0}, 0.5);
-    const BoulderFeatures placed = PlacedBoulders(terrain, site);
+    const BoulderFeatures placed = terrain.Boulders(site);
     const std::vector<double>& grounds = placed.boulders.Grounds();  // meters
     WriteBoulderList(placed.boulders, path, ListFormat::Json);
     // --8<-- [end:list_boulders_from_a_config]

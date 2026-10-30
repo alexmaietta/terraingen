@@ -34,14 +34,14 @@ We also provide:
 - A C++17 library with Python bindings and minimal dependencies.
 - Smart and tested defaults for various surface features.
 - A command-line interface that generates terrain from JSON configuration files.
-- A GUI for editing configurations and viewing the results in 3D, rendered with Ernie.
-- A standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon.
-- Example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton.
+- A GUI for editing configurations and viewing the results in 3D, rendered with Ernie (in work).
+- A standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon (in work).
+- Example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton (in work).
 - A broad and comprehensive [gallery](https://alexmaietta.github.io/terraingen/gallery) showcasing the various features and capabilities of TerrainGen.
 
 For more features, examples, guides, and snippets to building terrains and using TerrainGen, see our latest [documentation](https://alexmaietta.github.io/terraingen) and notably our [guides](https://alexmaietta.github.io/terraingen/guides).
 
-Looking for a theoretical background behind TerrainGen, see our [concepts](https://alexmaietta.github.io/terraingen/concepts) and [features](https://alexmaietta.github.io/terraingen/features) documentation pages.
+Looking for a theoretical background behind TerrainGen, see our [concepts](https://alexmaietta.github.io/terraingen/concepts) and [features](https://alexmaietta.github.io/terraingen/features) documentation pages (in work).
 
 ## Requirements
 
@@ -62,11 +62,11 @@ terraingen --gui
 import terraingen
 
 craters = terraingen.CraterLayer()
-terrain = terraingen.TerrainGenerator(terraingen.FlatSource(257, 257, 1.0), [craters])
-heights = terraingen.evaluate(terrain)
+terrain = terraingen.Terrain(source=terraingen.FlatSource(257, 257, 1.0), layers=[craters])
+heights = terrain.evaluate()
 ```
 
-To edit a configuration and see the terrain in 3D, open the GUI, on its own or with a configuration file:
+To edit a configuration and see the terrain in 3D, open the GUI on its own or with a configuration file:
 
 ```sh
 # Write the config to a file

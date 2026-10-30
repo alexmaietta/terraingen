@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "config/fields/json_io.h"
+#include "config/json_io.h"
 
 #include <map>
 #include <typeindex>
@@ -256,7 +256,7 @@ std::string ConfigCatalog(int indent) {
     Json json = Json::object();
     ConfigSpec defaults;
     config::CatalogWriter writer(json);
-    config::Fields(writer, defaults);
+    Fields(writer, defaults);
     Json models = Json::object();
     models["noise_layer"] = config::ToJson(FractalSpec{});
     models["density"] = Alternatives<DensitySpec>();

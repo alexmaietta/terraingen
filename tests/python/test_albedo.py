@@ -47,7 +47,7 @@ def rayed_terrain(lunar_models):
             generation=terraingen.CraterGenerationOptions(d_min=60.0, d_max=300.0, manual=[young_crater()])
         ),
     )
-    return terraingen.TerrainGenerator(terraingen.FlatSource(129, 129, 8.0), [craters]), craters
+    return terraingen.Terrain(source=terraingen.FlatSource(129, 129, 8.0), layers=[craters]), craters
 
 
 def noisy_albedo():
@@ -95,14 +95,37 @@ def test_albedo_at_a_point_matches_the_evaluated_band(lunar_models):
 
 def test_synthetic_albedo_varies_around_its_value(lunar_models):
     terrain, _ = rayed_terrain(lunar_models)
-    base = terraingen.evaluate_albedo(noisy_albedo(), terrain.source.grid())[0].values
+    base = terraingen.evaluate_albedo(noisy_albedo(), terrain.grid())[0].values
     assert base.shape == (129, 129) and abs(base.mean() - 0.11) < 0.01
+
+
+def test_synthetic_albedo_noise_is_measured_from_the_terrains_source():
+    albedo = terraingen.Albedo(
+        terraingen.SyntheticAlbedo(
+            value=0.11, value_noise=[terraingen.Fractal(seed=4, wavelength=80.0, amplitude=0.02)]
+        )
+    )
+    far = terraingen.RasterSource(
+        np.zeros((16, 16), np.float32), terraingen.GeoTransform.north_up(1.0e6 - 64.0, 64.0, 8.0)
+    )
+    terrain = terraingen.Terrain(source=far)
+    on_terrain = terraingen.evaluate_albedo_at(albedo, 1.0e6 + 4.0, 4.0, 8.0, ground=terrain)
+    context = terraingen.AlbedoContext(spacing=8.0, source=far)
+    assert on_terrain[0] == pytest.approx(albedo.source.value_at(1.0e6 + 4.0, 4.0, context)[0])
+    assert on_terrain[0] != pytest.approx(
+        albedo.source.value_at(1.0e6 + 4.0, 4.0, terraingen.AlbedoContext(spacing=8.0))[0], abs=1e-9
+    )
+    assert context.source is far and context.reference_point() == far.reference_point()
+    band = terraingen.evaluate_albedo(albedo, terrain.grid(), ground=terrain)[0]
+    assert band.values[7, 8] == pytest.approx(
+        terraingen.evaluate_albedo_at(albedo, *band.cell_center(8, 7), 8.0, ground=terrain)[0]
+    )
 
 
 def test_crater_rays_brighten_the_young_crater(lunar_models):
     terrain, craters = rayed_terrain(lunar_models)
-    base = terraingen.evaluate_albedo(noisy_albedo(), terrain.source.grid())[0].values
-    rayed = terraingen.evaluate_albedo(rayed_albedo(craters), terrain.source.grid(), threads=2)[0].values
+    base = terraingen.evaluate_albedo(noisy_albedo(), terrain.grid())[0].values
+    rayed = terraingen.evaluate_albedo(rayed_albedo(craters), terrain.grid(), threads=2)[0].values
     assert rayed[64, 64] > base[64, 64]
 
 
@@ -117,10 +140,9 @@ def test_rgb_synthetic_albedo_has_three_bands():
         terraingen.RasterGrid.centered((0, 0), (129 * 8.0, 129 * 8.0), 8.0),
     )
     assert len(rgb) == 3
-    on_a_plane = terraingen.SyntheticAlbedo(
-        rgb=True, hue_deg=30.0, saturation=0.3, base=terraingen.TerrainBase(terraingen.Surface())
-    )
-    assert on_a_plane.bands() == 3
+    assert terraingen.SyntheticAlbedo(rgb=True, hue_deg=30.0, saturation=0.3).bands() == 3
+    with pytest.raises(TypeError):
+        terraingen.SyntheticAlbedo(rgb=True, base=terraingen.TerrainBase(terraingen.Surface()))
 
 
 def albedo_map():
@@ -243,17 +265,17 @@ def test_albedo_layers_read_the_terrain_heights(lunar_models):
     layer = terraingen.CraterAlbedo(
         manual_crater_layer(lunar_models), terraingen.CraterAlbedoOptions(zones=zones)
     )
-    flat = terraingen.TerrainGenerator(terraingen.FlatSource(5, 5, 2.0), [])
+    flat = terraingen.Terrain(source=terraingen.FlatSource(5, 5, 2.0))
     alone = layer.reflectance_change(young_crater(), 0.0, 0.0, 1.0)
-    assert layer.reflectance_change(young_crater(), 0.0, 0.0, 1.0, generator=flat) == pytest.approx(alone)
+    assert layer.reflectance_change(young_crater(), 0.0, 0.0, 1.0, ground=flat) == pytest.approx(alone)
     splotches = terraingen.SplotchAlbedo(
         terraingen.SplotchAlbedoOptions(min_diameter=2.0, steep_bright_share=1.0)
     )
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [layer, splotches])
     grid = terraingen.RasterGrid.centered((0, 0), (16 * 2.0, 16 * 2.0), 2.0)
-    with_terrain = terraingen.evaluate_albedo(albedo, grid, generator=flat)[0].values
+    with_terrain = terraingen.evaluate_albedo(albedo, grid, ground=flat)[0].values
     assert np.array_equal(with_terrain, terraingen.evaluate_albedo(albedo, grid)[0].values)
-    assert terraingen.evaluate_albedo_at(albedo, 1.0, 1.0, 2.0, generator=flat) == pytest.approx(
+    assert terraingen.evaluate_albedo_at(albedo, 1.0, 1.0, 2.0, ground=flat) == pytest.approx(
         terraingen.evaluate_albedo_at(albedo, 1.0, 1.0, 2.0)
     )
 
@@ -281,7 +303,7 @@ def test_splotch_swarms_follow_robinsons_crater():
 
 def test_rocks_brighten_by_the_share_they_cover():
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(seed=3))
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [boulders])
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(64, 64, 0.5), layers=[boulders])
     mean, variance = boulders.unresolved_cover_at(1.0, 2.0, 50.0)
     assert 0.0 < mean < 0.02 and variance > 0.0
     rocks = terraingen.RockAlbedo(terraingen.RockAlbedoOptions(seed=1), terrain, [0])
@@ -289,7 +311,7 @@ def test_rocks_brighten_by_the_share_they_cover():
     assert terraingen.rock_share(0.5, 0.0, 0.0, 0.0) == 0.5
     with pytest.raises(ValueError, match="no layer 1"):
         terraingen.RockAlbedo(terraingen.RockAlbedoOptions(), terrain, [1])
-    noisy = terraingen.TerrainGenerator(terrain.source, [terraingen.ScaleLayer(1.0), boulders])
+    noisy = terraingen.Terrain(source=terrain.source(), layers=[terraingen.ScaleLayer(1.0), boulders])
     with pytest.raises(ValueError, match="Layer 0 is not a boulder layer"):
         terraingen.RockAlbedo(terraingen.RockAlbedoOptions(), noisy, [0])
     with pytest.raises(ValueError):
@@ -300,8 +322,9 @@ def test_slopes_mature_from_twenty_degrees():
     layer = terraingen.SlopeAlbedo()
     assert layer.maturity_at(10.0) == pytest.approx(0.10)
     assert layer.maturity_at(30.0) == pytest.approx(0.165)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [])
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(64, 64, 0.5))
     assert layer.slope_at(1.0, 2.0, terrain) == pytest.approx(0.0)
+    assert layer.slope_at(1.0, 2.0, terrain.ground(0)) == pytest.approx(0.0)
     with pytest.raises(ValueError):
         terraingen.validate_slope_albedo_options(terraingen.SlopeAlbedoOptions(baseline=0.0))
 

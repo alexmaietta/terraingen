@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/craters/degradation/diffusion.h"
 
+#include "terraingen/layers/craters/crater_fields.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/util/bits.h"
 #include "util/checks.h"
@@ -149,11 +150,7 @@ double PowerLawDiffusivity::operator()(double diameter, double ageGyr) const {
 }
 
 void ValidatePowerLawDiffusivity(const PowerLawDiffusivity& law) {
-    RequirePositive(law.coefficient, "A diffusivity coefficient");
-    if (!(std::isfinite(law.exponent) && IsNonNegative(law.minDiameter))) {
-        throw std::invalid_argument(
-            "A diffusivity exponent must be finite and its minimum diameter not negative");
-    }
+    CheckRanges(law);
 }
 
 std::size_t DiffusedProfile::KeyHash::operator()(const Key& key) const {

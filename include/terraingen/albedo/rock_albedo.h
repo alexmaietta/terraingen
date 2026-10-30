@@ -31,7 +31,7 @@ struct RockAlbedoOptions {
 };
 
 /// Checks rock albedo options.
-/// @throws std::invalid_argument for a reflectance ratio that is not positive and finite.
+/// @throws std::invalid_argument naming the first field out of its range.
 void ValidateRockAlbedoOptions(const RockAlbedoOptions& options);
 
 /// A boulder layer whose rock brightens the albedo, and the ground beneath it.

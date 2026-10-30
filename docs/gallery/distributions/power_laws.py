@@ -50,10 +50,11 @@ def figure(quick=False):
         options = terraingen.CraterLayerOptions(
             seed=8, generation=terraingen.CraterGenerationOptions(d_min=D_MIN, d_max=D_MAX)
         )
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [relief, terraingen.CraterLayer(models, options)]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel),
+            layers=[relief, terraingen.CraterLayer(models, options)],
         )
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
         ax.set_title(f"b = {exponent:g}: {round(density.expected_count(SIZE_M**2, D_MIN, D_MAX))} craters")
     curves.axvspan(
         D_MIN, D_MAX, color="#e3e2de", alpha=0.6, lw=0, label=f"Placed below, {D_MIN:g} to {D_MAX:g} m"

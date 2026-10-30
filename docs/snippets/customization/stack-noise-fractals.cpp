@@ -22,10 +22,9 @@ TEST_F(SnippetTest, StackNoiseFractals) {
     ridges.type = FractalType::Ridged;
     ridges.octaves = 5;
 
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(257, 257, 1.0);
-    terrain.layers = {std::make_shared<NoiseLayer>(std::vector<Fractal>{hills, ridges})};
-    const Raster<float> heights = Evaluate(terrain);
+    const auto noise = std::make_shared<NoiseLayer>(std::vector<Fractal>{hills, ridges});
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(257, 257, 1.0), {noise});
+    const Raster<float> heights = terrain.Evaluate();
     // --8<-- [end:stack_noise_fractals]
     EXPECT_EQ(heights.Width(), 257);
 }

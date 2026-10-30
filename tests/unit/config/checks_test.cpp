@@ -1,18 +1,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "config/fields/checks.h"
+#include "config/common.h"
 
 #include <gtest/gtest.h>
 
-#include <limits>
 #include <stdexcept>
 #include <string>
 
 namespace config = terraingen::config;
 
 namespace {
-
-constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 
 template <typename Check> std::string ErrorOf(Check check) {
     try {
@@ -33,12 +30,10 @@ TEST(ConfigChecks, BuildsJsonPaths) {
 }
 
 TEST(ConfigChecks, PassValidValues) {
-    EXPECT_NO_THROW(config::CheckFinite(-1.0, "a"));
     EXPECT_NO_THROW(config::CheckNonEmpty("x.tif", "e.path"));
 }
 
 TEST(ConfigChecks, ReportInvalidValuesAtTheirPath) {
-    EXPECT_EQ(ErrorOf([] { config::CheckFinite(kNaN, "d[1]"); }), "d[1]: must be finite");
     EXPECT_EQ(ErrorOf([] { config::CheckNonEmpty("", "e.path"); }), "e.path: must not be empty");
 }
 
@@ -58,4 +53,13 @@ TEST(ConfigChecks, ReportLibraryErrorsAtTheirPath) {
               "a: bad");
     EXPECT_EQ(ErrorOf([] { config::At("b", [] { throw std::domain_error("out"); }); }), "b: out");
     EXPECT_THROW(config::At("c", [] { throw std::runtime_error("io"); }), std::runtime_error);
+}
+
+TEST(ConfigChecks, ReportFieldRangeErrorsBelowTheirPath) {
+    EXPECT_EQ(ErrorOf([] {
+                  config::At("layers[0]", [] {
+                      throw terraingen::FieldRangeError("ripples.wavelength_m", "must be positive");
+                  });
+              }),
+              "layers[0].ripples.wavelength_m: must be positive");
 }

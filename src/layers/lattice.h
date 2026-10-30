@@ -4,13 +4,29 @@
 /// @brief Jittered-lattice cell loops (`ForEachLatticeCell`) and their random streams.
 #pragma once
 
+#include "terraingen/geometry/cells.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/random/stream.h"
-#include "terraingen/util/geometry.h"
 
 #include <cmath>
 #include <cstdint>
+#include <memory>
 
 namespace terraingen {
+
+/// The cells features are generated in on `surface` (`MakeCells`), made once per thread for the
+/// surface it last asked for, so layers reading the surface from their context at each point
+/// keep their cells and the areas they recall.
+inline std::shared_ptr<const SurfaceCells> ThreadCells(const Surface& surface) {
+    thread_local Surface last{};
+    thread_local std::shared_ptr<const SurfaceCells> cells = MakeCells(last);
+    if (!(surface == last)) {
+        cells = MakeCells(surface);
+        last = surface;
+    }
+    return cells;
+}
 
 /// The random stream of lattice cell (`i`, `j`) under `seed` and `stream`, keyed by all 64 bits of
 /// each index.

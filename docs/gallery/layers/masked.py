@@ -41,7 +41,7 @@ def figure(quick=False):
     ]
     fig, axes = plt.subplots(1, len(panels), figsize=(19, 4.2), layout="constrained")
     for ax, (title, layer) in zip(axes, panels, strict=True):
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, layer])
-        gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel, cmap="copper")
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief, layer])
+        gallery.show_heights(ax, terrain.evaluate().values, pixel, cmap="copper")
         ax.set_title(title)
     return fig

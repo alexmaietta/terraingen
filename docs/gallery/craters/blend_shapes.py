@@ -41,13 +41,11 @@ def figure(quick=False):
         layers.append(
             terraingen.CraterLayer.manual([terraingen.Crater(x, 0.0, DIAMETER, age_gyr=0.0)], apply=apply)
         )
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), layers)
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(columns, rows, pixel), layers=layers)
 
     fig = plt.figure(figsize=(17, 8), layout="constrained")
     top, bottom = fig.subfigures(2, 1, height_ratios=[1, 0.7])
-    gallery.show_crater_row(
-        top.subplots(), terraingen.evaluate(terrain).values, pixel, [s[0] for s in SHAPES], SPACING
-    )
+    gallery.show_crater_row(top.subplots(), terrain.evaluate().values, pixel, [s[0] for s in SHAPES], SPACING)
     weights = bottom.subplots()
     radii = np.linspace(0.6, 1.4, 200)
     blend = terraingen.CraterApplyOptions().blend

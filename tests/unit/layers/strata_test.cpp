@@ -24,8 +24,12 @@ constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 class Level final : public terraingen::Ground {
   public:
     explicit Level(double height) : height_(height) {}
-    float HeightAt(double, double, double) const override {
-        return static_cast<float>(height_);
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = static_cast<float>(height_);
+        }
     }
 
   private:
@@ -151,13 +155,13 @@ TEST(StrataLayer, CliffsAreBedrockAndBenchesAreNot) {
     const Level bench(0.4);
     const Level brink(1.4);
     const Level none(std::nan(""));
-    EXPECT_EQ(layer.MaterialCoverAt(0.0, 0.0, 0.1, &cliff), 1.0);
-    EXPECT_EQ(layer.MaterialCoverAt(0.0, 0.0, 0.1, &bench), 0.0);
-    EXPECT_NEAR(layer.MaterialCoverAt(0.0, 0.0, 0.1, &brink), 0.5, 1e-6);
-    EXPECT_EQ(layer.MaterialCoverAt(0.0, 0.0, 0.1, &none), 0.0);
-    EXPECT_THROW(layer.MaterialCoverAt(0.0, 0.0, 0.1, nullptr), std::invalid_argument);
+    EXPECT_EQ(layer.MaterialCoverAt(0.0, 0.0, {0.1, 1, &cliff}), 1.0);
+    EXPECT_EQ(layer.MaterialCoverAt(0.0, 0.0, {0.1, 1, &bench}), 0.0);
+    EXPECT_NEAR(layer.MaterialCoverAt(0.0, 0.0, {0.1, 1, &brink}), 0.5, 1e-6);
+    EXPECT_EQ(layer.MaterialCoverAt(0.0, 0.0, {0.1, 1, &none}), 0.0);
+    EXPECT_THROW(layer.MaterialCoverAt(0.0, 0.0, {0.1}), std::invalid_argument);
     options.strength = 0.0;
-    EXPECT_EQ(StrataLayer(options).MaterialCoverAt(0.0, 0.0, 0.1, &cliff), 0.0);
+    EXPECT_EQ(StrataLayer(options).MaterialCoverAt(0.0, 0.0, {0.1, 1, &cliff}), 0.0);
 }
 
 TEST(StrataLayer, GridsAndPointsAgree) {
@@ -189,13 +193,30 @@ TEST(StrataLayer, DipsInTheAnchorsFrameOnABody) {
     StrataOptions options;
     options.dipDegrees = 5.0;
     options.anchor = {137.4, -4.6};
-    const StrataLayer body(options, mars);
-    const StrataLayer plane(options);
+    const StrataLayer layer(options);
     const terraingen::Vec2d point{137.4003, -4.5998};
     const terraingen::Vec2d offset = mars.Offset(options.anchor, point);
-    EXPECT_NEAR(Terraced(body, 1.3, point.x, point.y), Terraced(plane, 1.3, offset.x, offset.y),
-                1e-6);
-    EXPECT_EQ(body.ApplyAt(2.0f, -42.6, 4.6, {0.01}), 2.0f);
+    terraingen::LayerContext onMars{0.01};
+    onMars.surface = &mars;
+    EXPECT_NEAR(static_cast<double>(layer.ApplyAt(1.3f, point.x, point.y, onMars)),
+                Terraced(layer, 1.3, offset.x, offset.y), 1e-6);
+    EXPECT_EQ(layer.ApplyAt(2.0f, -42.6, 4.6, onMars), 2.0f);
+}
+
+TEST(StrataLayer, ReseedsItsBeds) {
+    StrataOptions options;
+    options.thicknessVariation = 0.5;
+    const StrataLayer layer(options);
+    const terraingen::LayerPtr a = layer.Reseeded(1);
+    const terraingen::LayerPtr c = layer.Reseeded(2);
+    double differ = 0.0;
+    for (double h = -20.0; h < 20.0; h += 0.37) {
+        const float ta = a->ApplyAt(static_cast<float>(h), 0.0, 0.0, {1.0});
+        EXPECT_EQ(ta, layer.Reseeded(1)->ApplyAt(static_cast<float>(h), 0.0, 0.0, {1.0}));
+        differ +=
+            std::fabs(static_cast<double>(ta - c->ApplyAt(static_cast<float>(h), 0.0, 0.0, {1.0})));
+    }
+    EXPECT_GT(differ, 0.0);
 }
 
 TEST(StrataLayer, RejectsBadOptions) {
@@ -230,7 +251,7 @@ TEST(StrataLayer, SoftBedsSlopeWithoutCliffsOrBedrock) {
         const double mid = (static_cast<double>(k) + 0.6) * options.bedThickness;
         const double terraced = Terraced(layer, mid, 0.0, 0.0);
         const Level ground(mid + 0.3 * options.bedThickness);
-        const double cover = layer.MaterialCoverAt(0.0, 0.0, 0.1, &ground);
+        const double cover = layer.MaterialCoverAt(0.0, 0.0, {0.1, 1, &ground});
         if (terraced == static_cast<double>(static_cast<float>(mid))) {
             ++soft;
             EXPECT_EQ(cover, 0.0) << "no bedrock on a soft bed";

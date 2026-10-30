@@ -26,11 +26,11 @@ TEST_F(SnippetTest, WriteBoulderModels) {
              "model_threshold": {"min_diameter_m": 1.5}, "shape_prototypes": 8}
         ]
     })");
-    const TerrainGenerator terrain = BuildGenerator(config);
+    const Terrain terrain = BuildTerrain(config);
     const Vec2d center{30.0, -10.0};  // longitude and latitude in degrees
     const RasterGrid site = RasterGrid::Centered(center, {0.004, 0.004}, 0.0001);
-    const std::vector<BoulderModel> models = PlacedBoulders(terrain, site).models;
-    WriteBoulderModels(models, path, 60.0, terrain.surface, center);
+    const std::vector<BoulderModel> models = terrain.Boulders(site).models;
+    WriteBoulderModels(models, path, 60.0, terrain.Surface(), center);
     // --8<-- [end:write_boulder_models]
     EXPECT_GT(models.size(), 0u);
     EXPECT_TRUE(std::filesystem::exists(path));

@@ -32,8 +32,12 @@ BedformOptions Field() {
 class Level final : public terraingen::Ground {
   public:
     explicit Level(double slope) : slope_(slope) {}
-    float HeightAt(double x, double, double) const override {
-        return static_cast<float>(slope_ * x);
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = static_cast<float>(slope_ * samples.Position(i).x);
+        }
     }
 
   private:
@@ -74,7 +78,7 @@ TEST(BedformLayer, CoversAboutTheShareOfGroundAskedFor) {
         constexpr int kSide = 200;
         for (int j = 0; j < kSide; ++j) {
             for (int i = 0; i < kSide; ++i) {
-                inside += layer.CoverAt(7.3 * i, 6.1 * j) > 0.5 ? 1.0 : 0.0;
+                inside += layer.MaterialCoverAt(7.3 * i, 6.1 * j, {}) > 0.5 ? 1.0 : 0.0;
             }
         }
         EXPECT_NEAR(inside / (kSide * kSide), cover, 0.12) << cover;
@@ -120,14 +124,28 @@ TEST(BedformLayer, KeepsSandOffBedrock) {
     double soil = 0.0;
     double boulder = 0.0;
     for (int n = 0; n < 400; ++n) {
-        soil += layer.CoverAt(5.3 * n, 2.9 * n, &flat);
-        boulder += layer.CoverAt(5.3 * n, 2.9 * n, &steep);
+        soil += layer.MaterialCoverAt(5.3 * n, 2.9 * n, {1.0, 1, &flat});
+        boulder += layer.MaterialCoverAt(5.3 * n, 2.9 * n, {1.0, 1, &steep});
     }
     EXPECT_GT(soil, 0.0);
     EXPECT_EQ(boulder, 0.0) << "steep ground is all bedrock";
-    EXPECT_THROW(layer.CoverAt(0.0, 0.0), std::invalid_argument);
+    EXPECT_THROW(layer.MaterialCoverAt(0.0, 0.0, {}), std::invalid_argument);
     Raster<float> heights(4, 4, 0.0f);
     EXPECT_THROW(layer.Apply(heights, {}), std::invalid_argument);
+}
+
+TEST(BedformLayer, ReseedsItsFields) {
+    const BedformLayer layer(Field());
+    const terraingen::LayerPtr a = layer.Reseeded(3);
+    const terraingen::LayerPtr b = layer.Reseeded(3);
+    const terraingen::LayerPtr c = layer.Reseeded(4);
+    double differ = 0.0;
+    for (int n = 0; n < 200; ++n) {
+        const float ha = a->ApplyAt(0.0f, 3.1 * n, 1.7 * n, {0.1});
+        EXPECT_EQ(ha, b->ApplyAt(0.0f, 3.1 * n, 1.7 * n, {0.1}));
+        differ += std::fabs(static_cast<double>(ha - c->ApplyAt(0.0f, 3.1 * n, 1.7 * n, {0.1})));
+    }
+    EXPECT_GT(differ, 0.0);
 }
 
 TEST(BedformLayer, RejectsInvalidOptions) {

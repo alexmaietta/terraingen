@@ -44,7 +44,7 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(2, len(sources), figsize=(13, 8.6), layout="constrained")
     for column, (title, source) in enumerate(sources):
-        heights = terraingen.evaluate(terraingen.TerrainGenerator(source, []), grid=window).values
+        heights = terraingen.Terrain(source=source).evaluate(window).values
         gallery.show_hillshade(axes[0, column], heights, pixel)
         image = gallery.show_slopes(axes[1, column], heights, pixel, vmax=40.0, colorbar=False)
         axes[0, column].set_title(title)

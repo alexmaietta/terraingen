@@ -42,8 +42,7 @@ struct PowerLawDiffusivity {
 };
 
 /// Checks a power-law diffusivity.
-/// @throws std::invalid_argument for a coefficient that is not positive, or an exponent or minimum
-/// diameter that is not finite, or a negative minimum diameter.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`).
 void ValidatePowerLawDiffusivity(const PowerLawDiffusivity& law);
 
 /// A fresh crater profile worn by topographic diffusion, tabulated in the diffusion age

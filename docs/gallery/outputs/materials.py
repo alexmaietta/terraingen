@@ -43,8 +43,8 @@ def figure(quick=False):
         )
     )
     source = terraingen.FlatSource(size, size, pixel)
-    terrain = terraingen.TerrainGenerator(source, [relief, ripples, sand, boulders])
-    heights = terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=source, layers=[relief, ripples, sand, boulders])
+    heights = terrain.evaluate().values
     materials = terraingen.evaluate_materials(
         terrain, terraingen.MaterialOptions(exposure=exposure, dust_cover=0.15, seed=4), source.grid()
     )

@@ -4,8 +4,8 @@
 /// @brief `BandBuckets`, indices bucketed by size band and surface position for neighbor searches.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/noise/hash.h"
-#include "terraingen/util/surface.h"
 
 #include <cstddef>
 #include <cstdint>

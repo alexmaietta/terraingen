@@ -324,7 +324,7 @@ TEST(CraterAlbedo, WorksOnASphereInMeters) {
     }
     SyntheticAlbedoOptions params;
     params.value = 0.11;
-    const Albedo albedo{std::make_shared<SyntheticAlbedo>(params, moon),
+    const Albedo albedo{std::make_shared<SyntheticAlbedo>(params),
                         {std::make_shared<CraterAlbedo>(sphereCraters)},
                         moon};
     const double step = 50.0 / moon.UnitLength();
@@ -717,8 +717,11 @@ namespace {
 
 /// Flat ground with a ridge 5 m high from x = 100 to 110 m.
 struct Ridge final : terraingen::Ground {
-    float HeightAt(double x, double, double) const override {
-        return x >= 100.0 && x < 110.0 ? 5.0f : 0.0f;
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const double x = samples.Position(i).x;
+            samples.Height(i) = x >= 100.0 && x < 110.0 ? 5.0f : 0.0f;
+        }
     }
 };
 
@@ -785,8 +788,11 @@ namespace {
 
 /// Flat ground with no data from x = 100 to 110 m.
 struct Gap final : terraingen::Ground {
-    float HeightAt(double x, double, double) const override {
-        return x >= 100.0 && x < 110.0 ? NAN : 0.0f;
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const double x = samples.Position(i).x;
+            samples.Height(i) = x >= 100.0 && x < 110.0 ? NAN : 0.0f;
+        }
     }
 };
 

@@ -132,6 +132,13 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         return layers;
     }
 
+    /// The layer with its seed `ReseedWord(seed, 0)` and its shapes' seed
+    /// (`rendering.shapes.seed`) `ReseedWord(seed, 1)`, on the same crater layers.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
+
+    /// A copy reading the replacements of its crater layers; null when none is replaced.
+    LayerPtr Rebound(const LayerReplacements& replaced) const override;
+
     /// The 3D shape of a boulder, shared between boulders with the same shape seed; for a
     /// fragment, its piece of its parent's shape.
     std::shared_ptr<const BoulderShape> Shape(const Boulder& boulder) const;
@@ -146,14 +153,15 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     MaterialClass Material() const override {
         return MaterialClass::Rock;
     }
-    /// The weight at `spacing` of the boulder whose rock stands at surface (x, y), a model's over
-    /// its footprint; 0 between boulders and on fillets.
-    /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
-    double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
+    /// The weight at `context.spacing` of the boulder whose rock stands at surface (x, y), a
+    /// model's over its footprint; 0 between boulders and on fillets.
+    /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is
+    /// null.
+    double MaterialCoverAt(double x, double y, const LayerContext& context) const override;
     /// `MaterialCoverAt` over `grid`, the boulders found once for the whole grid.
-    /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
-    Raster<double> MaterialCoverOver(const RasterGrid& grid, double spacing, const Ground* ground,
-                                     unsigned threads) const override;
+    /// @throws std::invalid_argument as `MaterialCoverAt`.
+    Raster<double> MaterialCoverOver(const RasterGrid& grid,
+                                     const LayerContext& context) const override;
 
   protected:
     /// Draws the exposed parts of non-model boulders into the samples.

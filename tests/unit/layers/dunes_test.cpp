@@ -278,14 +278,33 @@ TEST(DuneLayer, LaysDunesOutInTheAnchorsTangentFrameOnABody) {
     DuneOptions options;
     options.shape = DuneShape::Transverse;
     options.anchor = {137.4, -4.6};
-    const DuneLayer body(options, mars);
-    const DuneLayer plane(options);
+    const DuneLayer layer(options);
+    terraingen::LayerContext onMars{1.0};
+    onMars.surface = &mars;
     for (const Vec2d point : {Vec2d{137.41, -4.59}, Vec2d{137.5, -4.7}}) {
         const Vec2d offset = mars.Offset(options.anchor, point);
-        EXPECT_NEAR(body.DuneHeightAt(point.x, point.y), plane.DuneHeightAt(offset.x, offset.y),
-                    1e-9);
+        EXPECT_NEAR(layer.DuneHeightAt(point.x, point.y, mars),
+                    layer.DuneHeightAt(offset.x, offset.y), 1e-9);
+        EXPECT_NEAR(layer.ApplyAt(0.0f, point.x, point.y, onMars),
+                    layer.ApplyAt(0.0f, offset.x, offset.y, {1.0}), 1e-4);
     }
-    EXPECT_EQ(body.DuneHeightAt(-42.6, 4.6), 0.0) << "nothing on the far hemisphere";
+    EXPECT_EQ(layer.DuneHeightAt(-42.6, 4.6, mars), 0.0) << "nothing on the far hemisphere";
+    EXPECT_EQ(layer.MaterialCoverAt(-42.6, 4.6, onMars), 0.0);
+}
+
+TEST(DuneLayer, ReseedsItsDunes) {
+    DuneOptions options;
+    options.shape = DuneShape::Transverse;
+    const DuneLayer layer(options);
+    const auto heights = [](const terraingen::LayerPtr& dunes) {
+        std::vector<double> profile;
+        for (double x = 0.0; x < 2000.0; x += 50.0) {
+            profile.push_back(dynamic_cast<const DuneLayer&>(*dunes).DuneHeightAt(x, 37.0));
+        }
+        return profile;
+    };
+    EXPECT_EQ(heights(layer.Reseeded(4)), heights(layer.Reseeded(4)));
+    EXPECT_NE(heights(layer.Reseeded(4)), heights(layer.Reseeded(5)));
 }
 
 TEST(DuneLayer, RejectsBadOptions) {

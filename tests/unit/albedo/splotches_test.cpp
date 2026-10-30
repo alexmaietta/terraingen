@@ -33,8 +33,8 @@ namespace {
 Albedo Gray(SplotchAlbedoOptions options, Surface surface = {}) {
     SyntheticAlbedoOptions params;
     params.value = 0.11;
-    return {std::make_shared<SyntheticAlbedo>(params, surface),
-            {std::make_shared<SplotchAlbedo>(options, surface)},
+    return {std::make_shared<SyntheticAlbedo>(params),
+            {std::make_shared<SplotchAlbedo>(options)},
             surface};
 }
 
@@ -215,8 +215,10 @@ namespace {
 struct Tilted final : terraingen::Ground {
     double grade = 0.0;
     explicit Tilted(double degrees) : grade(std::tan(degrees * terraingen::kPi / 180.0)) {}
-    float HeightAt(double x, double, double) const override {
-        return static_cast<float>(grade * x);
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = static_cast<float>(grade * samples.Position(i).x);
+        }
     }
 };
 

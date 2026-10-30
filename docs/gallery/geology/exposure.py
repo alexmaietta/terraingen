@@ -40,11 +40,10 @@ def figure(quick=False):
         )
     )
     source = terraingen.FlatSource(size, size, pixel)
-    ground = terraingen.TerrainGenerator(source, [relief])
-    exposure_map = terraingen.ExposureField(exposure).fill(ground, 1, source.grid(), pixel).values
-    sandy = terraingen.evaluate(terraingen.TerrainGenerator(source, [relief, ripples])).values
-    rocky = terraingen.TerrainGenerator(source, [relief, boulders])
-    table = terraingen.placed_boulders(rocky).table
+    ground = terraingen.Terrain(source=source, layers=[relief])
+    exposure_map = terraingen.ExposureField(exposure).fill(ground, source.grid(), pixel).values
+    sandy = terraingen.Terrain(source=source, layers=[relief, ripples]).evaluate().values
+    table = terraingen.Terrain(source=source, layers=[relief, boulders]).boulders().table
 
     fig, axes = plt.subplots(1, 3, figsize=(17, 5.2), layout="constrained")
     gallery.show_map(axes[0], exposure_map, pixel, cmap="cividis", label="Exposure")
@@ -54,7 +53,7 @@ def figure(quick=False):
     rows = np.clip(((half - np.asarray(table["y"])) / pixel).astype(int), 0, size - 1)
     columns = np.clip(((np.asarray(table["x"]) + half) / pixel).astype(int), 0, size - 1)
     axes[2].imshow(
-        gallery.LIGHT.hillshade(terraingen.evaluate(ground).values, dx=pixel, dy=pixel),
+        gallery.LIGHT.hillshade(ground.evaluate().values, dx=pixel, dy=pixel),
         cmap="gray",
         vmin=-0.6,
         vmax=1.4,

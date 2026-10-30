@@ -17,6 +17,8 @@ terraingen_add_library(
     synthetic.cpp
     zone_shadows.cpp
     PUBLIC
+    terraingen_analysis
+    terraingen_geometry
     terraingen_layers
     terraingen_noise
     terraingen_random

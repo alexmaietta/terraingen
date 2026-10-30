@@ -127,10 +127,11 @@ TEST(SyntheticAlbedo, ColorAndNoiseVaryEachChannel) {
     params.hueNoiseDegrees = {Noise(10.0f, 40.0f, 1)};
     params.saturationNoise = {Noise(0.1f, 40.0f, 2)};
     params.valueNoise = {Noise(0.5f, 20.0f, 3)};
-    const Albedo albedo{
-        std::make_shared<SyntheticAlbedo>(params, terraingen::testing::ReferencedBase({5.0, 5.0})),
-        {}};
-    const auto bands = EvaluateAlbedo(albedo, Grid(64, 1.0), {1.0, 4});
+    const Albedo albedo{std::make_shared<SyntheticAlbedo>(params), {}};
+    const terraingen::testing::ReferencedSource origin({5.0, 5.0});
+    AlbedoContext context{1.0, 4};
+    context.source = &origin;
+    const auto bands = EvaluateAlbedo(albedo, Grid(64, 1.0), context);
     ASSERT_EQ(bands.size(), 3u);
     double sum = 0.0;
     float lowest = 1.0f;
@@ -333,18 +334,44 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
     params.saturation = 0.1;
     params.valueNoise = {Noise(0.3f, 2000.0f, 3)};
     params.hueNoiseDegrees = {Noise(20.0f, 5000.0f, 4)};
-    const SyntheticAlbedo albedo(params, moon);
-    const AlbedoContext context{10.0};
+    const SyntheticAlbedo albedo(params);
+    AlbedoContext context{10.0};
+    context.surface = &moon;
     const AlbedoSample east = albedo.ValueAt(180.0, 3.0, context);
     const AlbedoSample west = albedo.ValueAt(-180.0, 3.0, context);
     for (std::size_t band = 0; band < 3; ++band) {
         EXPECT_FLOAT_EQ(east[band], west[band]);
     }
     EXPECT_NE(albedo.ValueAt(10.0, 3.0, context)[0], east[0]);
+    EXPECT_EQ(albedo.ValueAt(10.0, 3.0, context)[0],
+              static_cast<float>(std::clamp(
+                  params.value *
+                      (1.0 + terraingen::FractalStackAt(params.valueNoise, {}, moon, 10.0, 3.0)),
+                  0.0, 1.0)))
+        << "3D noise on the context's sphere, as when the sphere was given at construction";
     params.valueNoise[0].basis = terraingen::NoiseBasis::Simplex;
-    const SyntheticAlbedo simplex(params, moon);
+    const SyntheticAlbedo simplex(params);
     EXPECT_FLOAT_EQ(simplex.ValueAt(180.0, 3.0, context)[0],
                     simplex.ValueAt(-180.0, 3.0, context)[0]);
+}
+
+TEST(SyntheticAlbedo, MeasuresNoiseFromTheContextsReferencePoint) {
+    SyntheticAlbedoOptions params;
+    params.valueNoise = {Noise(0.3f, 50.0f, 3)};
+    const SyntheticAlbedo albedo(params);
+    Raster<float> heights(4, 4, 0.0f);
+    heights.SetTransform(GeoTransform::NorthUp(1000.0, 2000.0, 1.0));
+    const terraingen::RasterSource dem(heights);
+    AlbedoContext context{1.0};
+    const float origin = albedo.ValueAt(1001.0, 1999.0, context)[0];
+    context.source = &dem;
+    const float referenced = albedo.ValueAt(1001.0, 1999.0, context)[0];
+    EXPECT_NE(origin, referenced);
+    EXPECT_EQ(referenced, static_cast<float>(std::clamp(
+                              params.value * (1.0 + terraingen::FractalStackAt(params.valueNoise,
+                                                                               dem.ReferencePoint(),
+                                                                               {}, 1001.0, 1999.0)),
+                              0.0, 1.0)));
 }
 
 TEST(RasterAlbedo, AddsDetailInMetersOnASphere) {
@@ -354,16 +381,21 @@ TEST(RasterAlbedo, AddsDetailInMetersOnASphere) {
     map.SetTransform(GeoTransform::NorthUp(40.0, 10.0, step));
     RasterAlbedoOptions plain;
     plain.detail.enabled = false;
-    const RasterAlbedo smooth({map}, plain, moon);
-    const RasterAlbedo detailed({map}, {}, moon);
+    const RasterAlbedo smooth({map}, plain);
+    const RasterAlbedo detailed({map});
     const double lon = 40.0 + 10.3 * step;
     const double lat = 10.0 - 12.7 * step;
-    EXPECT_EQ(detailed.ValueAt(lon, lat, {100.0})[0], smooth.ValueAt(lon, lat, {100.0})[0]);
-    EXPECT_NE(detailed.ValueAt(lon, lat, {2.0})[0], smooth.ValueAt(lon, lat, {2.0})[0]);
-    const Albedo composed{std::make_shared<RasterAlbedo>(std::vector<Raster<float>>{map},
-                                                         RasterAlbedoOptions{}, moon),
-                          {},
-                          moon};
+    const auto on = [&](double spacing) {
+        AlbedoContext context{spacing};
+        context.surface = &moon;
+        return context;
+    };
+    EXPECT_EQ(detailed.ValueAt(lon, lat, on(100.0))[0], smooth.ValueAt(lon, lat, on(100.0))[0]);
+    EXPECT_NE(detailed.ValueAt(lon, lat, on(2.0))[0], smooth.ValueAt(lon, lat, on(2.0))[0]);
+    EXPECT_NE(detailed.ValueAt(lon, lat, {2.0})[0], detailed.ValueAt(lon, lat, on(2.0))[0])
+        << "cells of degrees on a plane, not 100 m";
+    const Albedo composed{
+        std::make_shared<RasterAlbedo>(std::vector<Raster<float>>{map}), {}, moon};
     const RasterGrid grid{40, 40,
                           GeoTransform::NorthUp(40.0 + 3.0 * step, 10.0 - 3.0 * step, step / 8.0)};
     const auto bands = EvaluateAlbedo(composed, grid, {0.0, 2});

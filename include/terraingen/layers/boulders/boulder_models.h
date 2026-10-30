@@ -4,10 +4,10 @@
 /// @brief Boulders as 3D models: placing unit shapes on the ground, and their meshes.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/boulders/boulder_shape.h"
 #include "terraingen/mesh/mesh.h"
-#include "terraingen/util/surface.h"
 
 #include <array>
 #include <cmath>

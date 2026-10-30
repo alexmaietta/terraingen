@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -353,6 +354,28 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
                                            TerrainBase base)
     : SecondaryCraterLayer(primaries, primaries ? primaries->Models().Shape() : CraterShapeModels{},
                            std::move(options), std::move(apply), std::move(base)) {}
+
+LayerPtr SecondaryCraterLayer::Reseeded(std::uint64_t seed) const {
+    auto layer = std::make_shared<SecondaryCraterLayer>(*this);
+    layer->options_.seed = ReseedWord(seed, 0);
+    layer->apply_.irregularity.seed = ReseedWord(seed, 1);
+    layer->apply_.noise.seed = ReseedWord(seed, 2);
+    layer->apply_.texture.seed = ReseedWord(seed, 3);
+    layer->apply_.slope.seed = ReseedWord(seed, 4);
+    layer->apply_.terraces.seed = ReseedWord(seed, 5);
+    layer->apply_.peaks.seed = ReseedWord(seed, 6);
+    return layer;
+}
+
+LayerPtr SecondaryCraterLayer::Rebound(const LayerReplacements& replaced) const {
+    std::shared_ptr<const CraterLayer> primaries = Replacement(primaries_, replaced);
+    if (primaries == primaries_) {
+        return nullptr;
+    }
+    auto layer = std::make_shared<SecondaryCraterLayer>(*this);
+    layer->primaries_ = std::move(primaries);
+    return layer;
+}
 
 double SecondaryCraterLayer::OuterRange(double diameter) const {
     return SecondaryOuterRange(diameter, options_);

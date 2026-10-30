@@ -26,7 +26,7 @@ class Tilt(terraingen.Layer):
 
 
 def plain_heights(source):
-    return terraingen.evaluate(terraingen.TerrainGenerator(source)).values
+    return terraingen.Terrain(source=source).evaluate().values
 
 
 def test_noise_layer_matches_the_kernels():
@@ -34,10 +34,10 @@ def test_noise_layer_matches_the_kernels():
         terraingen.Fractal(seed=1, wavelength=200.0, amplitude=10.0, octaves=5),
         terraingen.Fractal(seed=2, wavelength=50.0, amplitude=2.0, octaves=5),
     ]
-    terrain = terraingen.TerrainGenerator(
-        terraingen.FlatSource(65, 65, 2.0), [terraingen.NoiseLayer(fractals)]
+    terrain = terraingen.Terrain(
+        source=terraingen.FlatSource(65, 65, 2.0), layers=[terraingen.NoiseLayer(fractals)]
     )
-    heights = terraingen.evaluate(terrain, threads=2).values
+    heights = terrain.evaluate(threads=2).values
     assert heights.shape == (65, 65) and np.ptp(heights) > 0
     expected = terraingen.evaluate_fractals(
         np.array([0.0], dtype=np.float32),
@@ -45,15 +45,29 @@ def test_noise_layer_matches_the_kernels():
         fractals,
     )
     assert heights[32, 32] == pytest.approx(float(expected[0]))
-    assert terraingen.height_at(terrain, 0.0, 0.0, 2.0) == heights[32, 32]
+    assert terrain.height_at(0.0, 0.0, 2.0) == heights[32, 32]
+
+
+def test_noise_layer_measures_from_the_source_in_its_context():
+    noise = terraingen.NoiseLayer(seed=5, wavelength=50.0, amplitude=2.0)
+    near = terraingen.FlatSource(8, 8, 1.0)
+    far = terraingen.FlatSource(8, 8, 1.0, center=(1.0e6, 0.0))
+    at_origin = noise.apply_at(0.0, 3.0, 4.0, terraingen.LayerContext(spacing=1.0))
+    assert noise.apply_at(0.0, 3.0, 4.0, terraingen.LayerContext(spacing=1.0, source=near)) == at_origin
+    shifted = terraingen.LayerContext(spacing=1.0, source=far)
+    assert shifted.source is far and shifted.reference_point() == far.reference_point()
+    assert shifted.surface is None and shifted.surface_or_plane() == terraingen.Surface()
+    terrain = terraingen.Terrain(source=far, layers=[noise])
+    x, y = 1.0e6 + 3.0, 4.0
+    assert terrain.height_at(x, y, 1.0) == noise.apply_at(0.0, x, y, shifted)
 
 
 def test_noise_layer_places_no_craters_or_boulders(noise_layer):
-    terrain = terraingen.TerrainGenerator(
-        terraingen.FlatSource(65, 65, 2.0), [noise_layer(1, 200.0, 10.0, octaves=5)]
+    terrain = terraingen.Terrain(
+        source=terraingen.FlatSource(65, 65, 2.0), layers=[noise_layer(1, 200.0, 10.0, octaves=5)]
     )
-    craters = terraingen.placed_craters(terrain).table
-    assert craters["x"].size == 0 and terraingen.placed_boulders(terrain).table["x"].size == 0
+    craters = terrain.craters().table
+    assert craters["x"].size == 0 and terrain.boulders().table["x"].size == 0
 
 
 def test_noise_layer_needs_a_fractal():
@@ -79,9 +93,7 @@ def test_masked_layer_feathers_its_inner_layer():
     region = terraingen.MaskedLayer(
         terraingen.ScaleLayer(1.0, 5.0), terraingen.RegionShape.circle(0.0, 0.0, 10.0), feather=5.0
     )
-    heights = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 1.0), [region])
-    ).values
+    heights = terraingen.Terrain(source=terraingen.FlatSource(65, 65, 1.0), layers=[region]).evaluate().values
     assert heights[32, 32] == pytest.approx(5.0) and heights[0, 0] == 0.0
     assert region.weight(0.0, 0.0) == 1.0 and region.weight(30.0, 0.0) == 0.0
 
@@ -157,23 +169,23 @@ def test_polygon_region_with_a_hole():
 def test_clamp_layer_caps_heights():
     flat = terraingen.FlatSource(65, 65, 1.0)
     layers = [terraingen.ScaleLayer(1.0, 5.0), terraingen.ClampLayer(max=2.0)]
-    assert terraingen.evaluate(terraingen.TerrainGenerator(flat, layers)).values.max() == 2.0
+    assert terraingen.Terrain(source=flat, layers=layers).evaluate().values.max() == 2.0
 
 
 def test_function_layer_runs_a_python_callable_on_any_thread():
     shifted = terraingen.FunctionLayer(lambda x, y, spacing, height: height + x)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(8, 8, 1.0), [shifted])
-    heights = terraingen.evaluate(terrain, threads=4).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(8, 8, 1.0), layers=[shifted])
+    heights = terrain.evaluate(threads=4).values
     np.testing.assert_allclose(heights[0], np.arange(-3.5, 4.5))
 
 
 def test_roughness_matches_its_rms_slope():
     rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(rms_slope=0.2, seed=3))
     assert rough.rms_slope(0.25) == pytest.approx(0.2, rel=0.05)
-    heights = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(65, 65, 0.05), [rough])
-    ).values
+    heights = terraingen.Terrain(source=terraingen.FlatSource(65, 65, 0.05), layers=[rough]).evaluate().values
     assert np.ptp(heights) > 0
+    reseeded = rough.reseeded(11)
+    assert isinstance(reseeded, terraingen.RoughnessLayer) and reseeded.options.seed != 3
 
 
 def test_roughness_spans_several_wavelengths():
@@ -188,7 +200,7 @@ def test_perlin_structure_functions_grow_with_lag():
 def test_bedform_cover_is_non_negative():
     ripples = terraingen.mars_large_ripples()
     ripples.cover = 0.9
-    assert terraingen.BedformLayer(ripples).cover_at(0.0, 0.0) >= 0.0
+    assert terraingen.BedformLayer(ripples).material_cover_at(0.0, 0.0) >= 0.0
 
 
 def test_mars_transverse_aeolian_ridges_are_longer_than_large_ripples():
@@ -201,30 +213,33 @@ def bedforms_on_noise(noise_layer):
     sand = terraingen.BedformLayer(
         terraingen.BedformOptions(wavelength=2.5, height=0.25, cover=0.8, field_size=30.0, exposure=exposure)
     )
-    ground = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [noise_layer(3, 60.0, 5.0)])
+    ground = terraingen.Terrain(source=terraingen.FlatSource(64, 64, 0.5), layers=[noise_layer(3, 60.0, 5.0)])
     return sand, ground
 
 
 def test_bedform_cover_with_exposure_needs_the_ground(noise_layer):
     sand, _ = bedforms_on_noise(noise_layer)
     with pytest.raises(ValueError):
-        sand.cover_at(0.0, 0.0)
+        sand.material_cover_at(0.0, 0.0)
 
 
 def test_bedform_cover_on_the_ground_is_a_fraction(noise_layer):
     sand, ground = bedforms_on_noise(noise_layer)
-    covers = [sand.cover_at(x, 0.0, ground, 1) for x in np.linspace(-15.0, 15.0, 31)]
+    covers = [sand.material_cover_at(x, 0.0, 0.5, ground) for x in np.linspace(-15.0, 15.0, 31)]
     assert all(0.0 <= c <= 1.0 for c in covers)
+    assert covers == [sand.material_cover_at(x, 0.0, ground=ground) for x in np.linspace(-15.0, 15.0, 31)]
 
 
 def exposure_terrain(noise_layer):
-    return terraingen.TerrainGenerator(terraingen.FlatSource(256, 256, 0.25), [noise_layer(1, 30.0, 3.0)])
+    return terraingen.Terrain(
+        source=terraingen.FlatSource(256, 256, 0.25), layers=[noise_layer(1, 30.0, 3.0)]
+    )
 
 
 def test_exposure_is_a_fraction_that_varies_over_relief(noise_layer):
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
     grid = terraingen.RasterGrid.centered((0, 0), (256 * 0.25, 256 * 0.25), 0.25)
-    exposure = field.fill(exposure_terrain(noise_layer), 1, grid, 0.25).values
+    exposure = field.fill(exposure_terrain(noise_layer), grid, 0.25).values
     assert exposure.shape == (256, 256) and 0.0 <= exposure.min() and exposure.max() <= 1.0
     assert np.ptp(exposure) > 0.1
 
@@ -233,9 +248,9 @@ def test_exposure_at_a_point_matches_the_filled_raster(noise_layer):
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
     terrain = exposure_terrain(noise_layer)
     exposure = field.fill(
-        terrain, 1, terraingen.RasterGrid.centered((0, 0), (256 * 0.25, 256 * 0.25), 0.25), 0.25
+        terrain, terraingen.RasterGrid.centered((0, 0), (256 * 0.25, 256 * 0.25), 0.25), 0.25
     ).values
-    assert field.exposure(0.125, 0.125, 0.25, terrain, 1) == pytest.approx(exposure[127, 128], abs=1e-6)
+    assert field.exposure(0.125, 0.125, 0.25, terrain) == pytest.approx(exposure[127, 128], abs=1e-6)
     with pytest.raises(ValueError, match="need the ground"):
         field.exposure(0.125, 0.125)
 
@@ -243,8 +258,7 @@ def test_exposure_at_a_point_matches_the_filled_raster(noise_layer):
 def test_exposure_of_flat_ground_is_uniform():
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
     flat = field.fill(
-        terraingen.TerrainGenerator(terraingen.FlatSource(16, 16, 0.25)),
-        0,
+        terraingen.Terrain(source=terraingen.FlatSource(16, 16, 0.25)).ground(0),
         terraingen.RasterGrid.centered((0, 0), (16 * 0.25, 16 * 0.25), 0.25),
         0.25,
     )
@@ -278,50 +292,91 @@ def test_layer_validators_reject_bad_options(validate, bad):
 
 def test_python_point_layer_adds_its_bump(paraboloid):
     plain = plain_heights(paraboloid)
-    bumped = terraingen.evaluate(terraingen.TerrainGenerator(paraboloid, [Bump()])).values
+    bumped = terraingen.Terrain(source=paraboloid, layers=[Bump()]).evaluate().values
     assert bumped[32, 32] - plain[32, 32] == pytest.approx(1.0, abs=1e-3)
 
 
 def test_python_point_layer_answers_point_queries(paraboloid):
-    assert terraingen.height_at(
-        terraingen.TerrainGenerator(paraboloid, [Bump()]), 0.0, 0.0, 2.0
-    ) == pytest.approx(1.0, abs=1e-3)
+    terrain = terraingen.Terrain(source=paraboloid, layers=[Bump()])
+    assert terrain.height_at(0.0, 0.0, 2.0) == pytest.approx(1.0, abs=1e-3)
 
 
 def test_python_raster_layer_edits_the_heights(paraboloid):
     plain = plain_heights(paraboloid)
-    tilted = terraingen.evaluate(terraingen.TerrainGenerator(paraboloid, [Tilt()])).values
+    tilted = terraingen.Terrain(source=paraboloid, layers=[Tilt()]).evaluate().values
     np.testing.assert_allclose(tilted - plain, np.broadcast_to(np.linspace(0, 1, 65), (65, 65)), atol=1e-5)
+
+
+def test_python_layers_read_the_surface_source_and_ground_from_their_context(paraboloid, moon):
+    seen = []
+
+    class Probe(terraingen.Layer):
+        def apply_at(self, height, x, y, context):
+            seen.append((context.surface_or_plane(), context.source, context.ground is not None))
+            return height
+
+    probe = Probe()
+    terraingen.Terrain(source=paraboloid, layers=[probe]).height_at(0.0, 0.0, 2.0)
+    surface, source, has_ground = seen[-1]
+    assert surface == terraingen.Surface() and source is paraboloid and has_ground
+    site = terraingen.FlatSource(4, 4, 100.0, center=(23.47, 0.67), surface=moon)
+    terraingen.Terrain(moon, site, [probe]).height_at(23.47, 0.67, 100.0)
+    assert seen[-1][0] == moon and seen[-1][1] is site
+
+
+def test_python_layers_reseed_when_they_say():
+    class Lift(terraingen.Layer):
+        def __init__(self, amount):
+            super().__init__()
+            self.amount = amount
+
+        def apply_at(self, height, x, y, context):
+            return height + self.amount
+
+        def reseeded(self, seed):
+            return Lift(float(seed % 7))
+
+    assert Bump().reseeded(3) is None
+    lifted = Lift(0.0).reseeded(9)
+    assert isinstance(lifted, Lift) and lifted.amount == 2.0
+    terrain = terraingen.Terrain(layers=[Lift(0.0)])
+    assert terrain.reseed(4).layers()[0] is not terrain.layers()[0]
 
 
 def test_base_layer_without_overrides_raises(paraboloid):
     with pytest.raises(TypeError):
-        terraingen.evaluate(terraingen.TerrainGenerator(paraboloid, [terraingen.Layer()]))
+        terraingen.Terrain(source=paraboloid, layers=[terraingen.Layer()]).evaluate()
 
 
-def test_region_weight_on_a_sphere_uses_degrees():
-    moon = terraingen.Surface.sphere(1737400.0)
+def test_region_weight_on_a_sphere_uses_degrees(moon):
     region = terraingen.MaskedLayer(
-        terraingen.ScaleLayer(1.0, 100.0), terraingen.RegionShape.circle(23.47, 0.67, 1.0), base=moon
+        terraingen.ScaleLayer(1.0, 100.0), terraingen.RegionShape.circle(23.47, 0.67, 1.0)
     )
-    assert region.weight(23.47, 0.67) == 1.0
+    assert region.weight(23.47, 0.67, moon) == 1.0
+    assert region.weight(23.47 + 2.0, 0.67, moon) == 0.0 and region.holds(23.47, 0.67, moon)
 
 
-def test_layers_are_built_on_one_terrain_base(lunar_models):
-    moon = terraingen.Surface.sphere(1737400.0)
+def test_only_layers_that_derive_state_from_their_surface_take_a_base(lunar_models, moon):
     base = terraingen.TerrainBase(moon)
     generation = terraingen.CraterGenerationOptions(d_min=20000.0, d_max=300000.0)
     craters = terraingen.CraterLayer(
         lunar_models(3.8), terraingen.CraterLayerOptions(generation=generation), base
     )
-    rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions(), base)
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, base)
-    bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples(), base=moon)
-    assert all(part.layer_surface() == moon for part in (craters, rough, boulders, bedforms))
+    assert all(part.layer_surface() == moon for part in (craters, boulders))
+    rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions())
+    bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples())
+    assert all(part.layer_surface() is None for part in (rough, bedforms))
+    with pytest.raises(TypeError):
+        terraingen.RoughnessLayer(terraingen.RoughnessOptions(), base)
+    with pytest.raises(TypeError):
+        terraingen.NoiseLayer(seed=1, base=moon)
     assert not hasattr(terraingen.CraterLayerOptions(), "surface")
     assert base.source is None and base.reference_point() == (0.0, 0.0)
     with pytest.raises(ValueError):
         terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters)
+    terrain = terraingen.Terrain(moon, None, [rough, craters, boulders, bedforms])
+    assert len(terrain.layers()) == 4
 
 
 def test_angles_are_degrees_in_options_and_configs():
@@ -345,8 +400,8 @@ def test_dune_presets_build_barchans_with_slip_faces_and_ripples():
     assert terraingen.mars_transverse_dunes().wavelength == pytest.approx(248.0)
     options = terraingen.DuneOptions(width=400.0, width_spread=0.0, lattice_spacing=2000.0, density=1.0)
     layer = terraingen.DuneLayer(options)
-    terrain = terraingen.TerrainGenerator(None, [layer])
-    raster = terraingen.evaluate(terrain, grid=terraingen.FlatSource(100, 100, 20.0).grid())
+    terrain = terraingen.Terrain(layers=[layer])
+    raster = terrain.evaluate(terraingen.FlatSource(100, 100, 20.0).grid())
     heights = raster.values
     assert heights.max() == pytest.approx(400.0 / 15.0, rel=0.05)
     row, col = np.unravel_index(np.argmax(heights), heights.shape)
@@ -394,18 +449,19 @@ def test_sand_fill_pools_sand_and_lays_it_on_the_material_map():
     pit = terraingen.NoiseLayer(seed=4, wavelength=20.0, amplitude=1.0, octaves=3)
     fill = terraingen.SandFillLayer(terraingen.SandFillOptions(reach=6.0, fill=0.7, max_thickness=0.4))
     assert fill.material == terraingen.MaterialClass.SAND
-    terrain = terraingen.TerrainGenerator(None, [pit, fill])
+    terrain = terraingen.Terrain(layers=[pit, fill])
     grid = terraingen.FlatSource(80, 80, 0.5).grid()
-    filled = terraingen.evaluate(terrain, grid=grid).values
-    bare = terraingen.evaluate(terraingen.TerrainGenerator(None, [pit]), grid=grid).values
+    filled = terrain.evaluate(grid).values
+    bare = terrain.ground(1).evaluate(grid).values
     thickness = filled - bare
     assert thickness.min() >= 0.0 and 0.05 < thickness.max() <= 0.4
     row, col = np.unravel_index(np.argmax(thickness), thickness.shape)
-    x, y = terraingen.evaluate(terrain, grid=grid).cell_center(int(col), int(row))
-    assert fill.thickness_at(x, y, 0.5, terrain, 1) == pytest.approx(thickness[row, col], abs=1e-5)
-    assert fill.material_cover_at(x, y, 0.5, terrain, 1) == pytest.approx(1.0)
-    assert fill.thickness_at(x, y, spacing=0.5, generator=terrain, layers=1) >= 0.0
-    with pytest.raises(ValueError, match="need the ground"):
+    x, y = terrain.evaluate(grid).cell_center(int(col), int(row))
+    beneath = terrain.ground(1)
+    assert fill.thickness_at(x, y, 0.5, beneath) == pytest.approx(thickness[row, col], abs=1e-5)
+    assert fill.material_cover_at(x, y, 0.5, beneath) == pytest.approx(1.0)
+    assert fill.thickness_at(x, y, spacing=0.5, ground=beneath) >= 0.0
+    with pytest.raises(ValueError):
         fill.thickness_at(x, y)
     with pytest.raises(ValueError):
         terraingen.SandFillLayer(terraingen.SandFillOptions(reach=0.0))
@@ -429,7 +485,7 @@ def test_pancam_photometry_mixes_and_needs_every_present_class():
     with pytest.raises(ValueError):
         terraingen.mix_photometry([0.0, 0.0, 0.0, 1.0, 0.0], partial)
     grid = terraingen.FlatSource(8, 8, 1.0).grid()
-    bands = terraingen.evaluate_materials(terraingen.TerrainGenerator(), terraingen.MaterialOptions(), grid)
+    bands = terraingen.evaluate_materials(terraingen.Terrain(), terraingen.MaterialOptions(), grid)
     photometry = terraingen.evaluate_photometry(bands, pancam)
     assert len(photometry) == 4 and photometry[0].values.mean() == pytest.approx(0.76)
 
@@ -572,7 +628,7 @@ def test_diamond_square_upsampling_expands_posts_keeping_them():
     assert upsampler.options.interp == terraingen.DiamondSquareInterp.BILINEAR
     source = terraingen.RasterSource(posts, upsampler=upsampler)
     grid = terraingen.RasterGrid(63, 63, terraingen.GeoTransform.north_up(0.5, 63.5, 1.0))
-    heights = terraingen.evaluate(terraingen.TerrainGenerator(source), grid=grid)
+    heights = terraingen.Terrain(source=source).evaluate(grid)
     values = heights.values
     assert np.all(values[1::4, 1::4] == 0.0)
     assert np.abs(values).max() > 0.1
@@ -614,7 +670,7 @@ def test_diamond_square_fits_its_scale_window_by_window():
 
     def refined(refiner):
         source = terraingen.RasterSource(posts, upsampler=refiner)
-        return terraingen.evaluate(terraingen.TerrainGenerator(source), grid=grid).values
+        return terraingen.Terrain(source=source).evaluate(grid).values
 
     added = refined(upsampler) - refined(smooth)
     assert np.all(np.isfinite(added))
@@ -631,13 +687,13 @@ def test_spectral_continuation_adds_detail_below_the_base_following_its_spectrum
     options.validate()
     layer = terraingen.SpectralContinuationLayer(options)
     assert layer.options.slope == 3.0
-    heights = terraingen.evaluate(terraingen.TerrainGenerator(None, [layer]), grid=grid)
+    heights = terraingen.Terrain(layers=[layer]).evaluate(grid)
     assert heights.values.std() > 0.05
     at = heights.cell_center(5, 7)
     point = layer.apply_at(0.0, at[0], at[1], terraingen.LayerContext(0.125, 1))
     assert point == heights.values[7, 5]
     coarse_grid = terraingen.FlatSource(32, 32, 1.0).grid()
-    coarse = terraingen.evaluate(terraingen.TerrainGenerator(None, [layer]), grid=coarse_grid)
+    coarse = terraingen.Terrain(layers=[layer]).evaluate(coarse_grid)
     assert np.all(coarse.values == 0.0)
 
     band = terraingen.SpectrumFitBand(min_px=3.0, max_px=6.0)
@@ -761,11 +817,11 @@ def test_roughness_and_noise_layers_estimate_their_settings_from_a_dem(tmp_path)
     layers = config.to_dict()["layers"]
     assert layers[1]["estimate_from_source"] and layers[1]["hurst"] is None and layers[1]["rms_slope"] == 0.3
     assert terraingen.TerrainGenConfig.from_dict(config.to_dict()) == config
-    terrain = terraingen.build_generator(config, str(tmp_path))
-    base = terraingen.estimate_source_roughness(terrain.source)
-    roughness = terrain.layers[1].options
+    terrain = terraingen.build_terrain(config, str(tmp_path))
+    base = terraingen.estimate_source_roughness(terrain.source())
+    roughness = terrain.layers()[1].options
     assert roughness.hurst == pytest.approx(base.hurst) and roughness.rms_slope == 0.3
-    noise = terrain.layers[0].options.fractals[0]
+    noise = terrain.layers()[0].options.fractals[0]
     assert noise.gain == pytest.approx(terraingen.gain_from_hurst(base.hurst, 2.0), rel=1e-6)
     assert noise.amplitude > 0.0
     without_base = terraingen.TerrainGenConfig.from_dict(
@@ -783,14 +839,14 @@ def test_layers_leave_out_what_the_source_resolves():
     assert terraingen.source_resolved_limit(dem, 4.0).value_at(50.0, 50.0) == 400.0
     dunes = terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE)
     assert dunes.source_resolves_px == 4.0
-    held = terraingen.DuneLayer(dunes, base=dem)
-    free = terraingen.DuneLayer(dunes)
+    layer = terraingen.DuneLayer(dunes)
     context = terraingen.LayerContext(spacing=1.0)
+    on_dem = terraingen.LayerContext(spacing=1.0, source=dem)
     xs = np.arange(10.0, 1000.0, 37.0)
-    assert all(held.apply_at(0.0, x, 700.0, context) == 0.0 for x in xs), "550 m dunes over 400 m"
-    assert any(free.apply_at(0.0, x, 700.0, context) != 0.0 for x in xs)
+    assert all(layer.apply_at(0.0, x, 700.0, on_dem) == 0.0 for x in xs), "550 m dunes over 400 m"
+    assert any(layer.apply_at(0.0, x, 700.0, context) != 0.0 for x in xs)
     dunes.source_resolves_px = None
-    assert terraingen.DuneLayer(dunes, base=dem).apply_at(0.0, 400.0, 700.0, context) == free.apply_at(
+    assert terraingen.DuneLayer(dunes).apply_at(0.0, 400.0, 700.0, on_dem) == layer.apply_at(
         0.0, 400.0, 700.0, context
     )
     assert terraingen.BedformOptions().source_resolves_px == 4.0
@@ -799,10 +855,13 @@ def test_layers_leave_out_what_the_source_resolves():
     assert terraingen.CraterLayerOptions().source_resolves_px == 4.0
     big = terraingen.Fractal()
     big.wavelength = 1000.0
-    noise = terraingen.NoiseLayer(terraingen.NoiseLayerOptions(fractals=[big], source_resolves_px=4.0), dem)
+    noise = terraingen.NoiseLayer(terraingen.NoiseLayerOptions(fractals=[big], source_resolves_px=4.0))
     assert noise.options.source_resolves_px == 4.0
-    assert noise.apply_at(0.0, 300.0, 300.0, context) == 0.0
-    assert terraingen.NoiseLayer([big], base=dem).apply_at(0.0, 300.0, 300.0, context) != 0.0
+    assert noise.apply_at(0.0, 300.0, 300.0, on_dem) == 0.0
+    assert noise.apply_at(0.0, 300.0, 300.0, context) != 0.0
+    assert terraingen.NoiseLayer([big]).apply_at(0.0, 300.0, 300.0, on_dem) != 0.0
+    terrain = terraingen.Terrain(source=dem, layers=[noise])
+    assert terrain.height_at(300.0, 300.0, 1.0) == 0.0
     apply = terraingen.CraterApplyOptions(fade=terraingen.ResolutionFade(start_samples=1.0, end_samples=3.0))
     assert apply.fade.end_samples == 3.0 and not hasattr(apply, "fade_px")
     dunes = terraingen.DuneOptions()

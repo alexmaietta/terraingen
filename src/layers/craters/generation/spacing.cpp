@@ -3,10 +3,9 @@
 #include "terraingen/layers/craters/generation/spacing.h"
 
 #include "terraingen/layers/craters/band_buckets.h"
-#include "util/checks.h"
+#include "terraingen/layers/craters/crater_fields.h"
 
 #include <cmath>
-#include <stdexcept>
 
 namespace terraingen {
 
@@ -67,10 +66,7 @@ class ConflictSearch {
 }  // namespace
 
 void ValidateCraterSpacing(const CraterSpacing& spacing) {
-    if (!(std::isfinite(spacing.diameterRatio) && spacing.diameterRatio >= 1.0)) {
-        throw std::invalid_argument("Crater spacing diameter ratio must be at least 1");
-    }
-    RequireNonNegative(spacing.separation, "Crater spacing separation");
+    CheckRanges(spacing);
 }
 
 bool CratersConflict(const Crater& a, const Crater& b, const CraterSpacing& spacing,

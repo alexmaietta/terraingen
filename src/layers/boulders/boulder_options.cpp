@@ -4,7 +4,7 @@
 
 #include "terraingen/distribution/sp8023.h"
 #include "terraingen/layers/boulders/boulder_abundance.h"
-#include "terraingen/layers/source_resolved.h"
+#include "terraingen/layers/boulders/boulder_fields.h"
 #include "terraingen/util/bits.h"
 #include "util/checks.h"
 
@@ -37,36 +37,11 @@ void CheckDistribution(const SizeFrequencyDistribution& distribution, const Boul
     }
 }
 
-/// Checks the settings that only matter when craters throw blocks.
-void CheckThrownBlocks(const BoulderEjecta& ejecta, const BoulderSizes& sizes) {
-    if (ejecta.distribution) {
-        CheckDistribution(*ejecta.distribution, sizes, "The boulder ejecta distribution");
-    } else if (!(ejecta.Coverage() > 0.0 && ejecta.Coverage() < 1.0)) {
-        throw std::invalid_argument("Boulder ejecta coverage must be between 0 and 1");
-    }
-    if (!(std::isfinite(ejecta.reach) && ejecta.reach > 1.0)) {
-        throw std::invalid_argument("Boulder ejecta need a reach over 1 radius");
-    }
-    if (!(IsPositive(ejecta.decayRadii) && IsInUnitInterval(ejecta.floorShare))) {
-        throw std::invalid_argument(
-            "Boulder ejecta need a positive decayRadii and a floorShare in [0, 1]");
-    }
-    if (!(ejecta.minFreshness >= 0.0 && ejecta.minFreshness < 1.0 &&
-          IsPositive(ejecta.lifetimeGyr) && IsNonNegative(ejecta.agingExponent))) {
-        throw std::invalid_argument("Boulder ejecta need minFreshness in [0, 1), a positive "
-                                    "lifetimeGyr and a non-negative agingExponent");
-    }
-    if (ejecta.gravity) {
-        RequirePositive(*ejecta.gravity, "Boulder ejecta gravity");
-    }
-}
-
-/// Checks boulder sizes: 0 < min < max diameter, and a density distribution covering them or a
-/// coverage in (0, 1).
-void ValidateBoulderSizes(const BoulderSizes& sizes) {
-    if (!(IsPositive(sizes.minDiameter) && std::isfinite(sizes.maxDiameter) &&
-          sizes.maxDiameter > sizes.minDiameter)) {
-        throw std::invalid_argument("Boulder diameters must satisfy 0 < minDiameter < maxDiameter");
+/// Checks what boulder sizes tie together, their ranges checked: min < max diameter, and a density
+/// distribution covering them or a coverage in (0, 1).
+void CheckBoulderSizes(const BoulderSizes& sizes) {
+    if (!(sizes.maxDiameter > sizes.minDiameter)) {
+        throw std::invalid_argument("Boulder diameters must satisfy minDiameter < maxDiameter");
     }
     if (sizes.distribution) {
         CheckDistribution(*sizes.distribution, sizes, "The boulder distribution");
@@ -97,71 +72,38 @@ void CheckGolombekRappTerms(const BoulderLayerOptions& options) {
     }
 }
 
-/// Checks crater blocks, whose distribution must cover `sizes`.
-void ValidateBoulderEjecta(const BoulderEjecta& ejecta, const BoulderSizes& sizes) {
-    if (ejecta.minCraterDiameter) {
-        RequireNonNegative(*ejecta.minCraterDiameter, "Boulder ejecta minCraterDiameter");
+/// Checks what crater blocks that craters throw tie together, their ranges checked: a
+/// distribution that covers `sizes`, or else a coverage.
+void CheckBoulderEjecta(const BoulderEjecta& ejecta, const BoulderSizes& sizes) {
+    if (!ejecta.ThrowingDiameter()) {
+        return;
     }
-    if (ejecta.regolithThickness) {
-        RequirePositive(*ejecta.regolithThickness, "Boulder ejecta regolithThickness");
-    }
-    if (!(ejecta.excavationDepthRatio > 0.0 && ejecta.excavationDepthRatio <= 1.0)) {
-        throw std::invalid_argument("Boulder ejecta excavationDepthRatio must be in (0, 1]");
-    }
-    if (ejecta.ThrowingDiameter()) {
-        CheckThrownBlocks(ejecta, sizes);
+    if (ejecta.distribution) {
+        CheckDistribution(*ejecta.distribution, sizes, "The boulder ejecta distribution");
+    } else if (!(ejecta.Coverage() > 0.0 && ejecta.Coverage() < 1.0)) {
+        throw std::invalid_argument("Boulder ejecta coverage must be between 0 and 1");
     }
 }
 
-/// Checks bedrock boulders.
-void ValidateBoulderBedrock(const BoulderBedrock& bedrock) {
-    RequirePositive(bedrock.abundance, "Boulder bedrock abundance");
-    if (bedrock.exposure) {
-        ValidateExposureParams(*bedrock.exposure);
+/// Checks what a boulder pose ties together, its ranges checked.
+void CheckBoulderPose(const BoulderPose& pose) {
+    if (!(pose.maxHeightRatio >= pose.minHeightRatio)) {
+        throw std::invalid_argument("Boulder height ratios must satisfy min <= max");
     }
-    RequirePositive(bedrock.meanSize, "Boulder bedrock meanSize");
-}
-
-/// Checks boulder poses.
-void ValidateBoulderPose(const BoulderPose& pose) {
-    if (!(pose.minHeightRatio > 0.0 && pose.maxHeightRatio >= pose.minHeightRatio &&
-          std::isfinite(pose.maxHeightRatio))) {
-        throw std::invalid_argument("Boulder height ratios must satisfy 0 < min <= max");
+    if (!(pose.maxBurial >= pose.minBurial)) {
+        throw std::invalid_argument("Boulder burial must satisfy min <= max");
     }
-    if (!(pose.minBurial >= 0.0 && pose.maxBurial >= pose.minBurial && pose.maxBurial < 1.0)) {
-        throw std::invalid_argument("Boulder burial must satisfy 0 <= min <= max < 1");
+    if (!(pose.sideShare + pose.endShare <= 1.0)) {
+        throw std::invalid_argument("Boulder sideShare and endShare must sum to at most 1");
     }
-    RequireNonNegative((pose.maxLeanDegrees * kDegree), "Boulder maxLean");
-    RequireUnitInterval(pose.burialByWear, "Boulder burialByWear");
-    if (!(pose.sideShare >= 0.0 && pose.endShare >= 0.0 && pose.sideShare + pose.endShare <= 1.0)) {
-        throw std::invalid_argument(
-            "Boulder sideShare and endShare must not be negative and must sum to at most 1");
-    }
-    if (!((pose.maxTiltDegrees * kDegree) >= 0.0 && (pose.maxTiltDegrees * kDegree) <= kPi)) {
-        throw std::invalid_argument("Boulder maxTilt must be in [0, pi]");
-    }
-    if (pose.maxSlopeDegrees && !((*pose.maxSlopeDegrees * kDegree) > 0.0 &&
-                                  (*pose.maxSlopeDegrees * kDegree) < 0.5 * kPi)) {
-        throw std::invalid_argument("Boulder maxSlopeDegrees must be in (0, 90)");
-    }
-    if (pose.rollDistance &&
-        !(pose.maxSlopeDegrees && *pose.rollDistance > 0.0 && std::isfinite(*pose.rollDistance))) {
-        throw std::invalid_argument("Boulder rollDistance must be positive and finite, with a "
-                                    "maxSlope");
+    if (pose.rollDistance && !pose.maxSlopeDegrees) {
+        throw std::invalid_argument("Boulder rollDistance needs a maxSlopeDegrees");
     }
 }
 
-/// Checks how boulders are drawn.
-void ValidateBoulderRendering(const BoulderRendering& rendering) {
-    const BoulderModelThreshold& models = rendering.modelThreshold;
-    for (const auto& threshold :
-         {models.minDiameter, models.minPixels, models.maxDiameter, models.maxPixels}) {
-        if (threshold) {
-            RequirePositive(*threshold, "Boulder model thresholds");
-        }
-    }
+/// Checks what the drawing of boulders ties together, its ranges checked.
+void CheckBoulderRendering(const BoulderRendering& rendering) {
     const BoulderReliefRange& range = rendering.reliefRange;
-    RequireNonNegative(range.minDiameter, "Boulder relief minDiameter");
     if (range.maxDiameter && !(*range.maxDiameter > range.minDiameter)) {
         throw std::invalid_argument("Boulder relief maxDiameter must exceed its minDiameter");
     }
@@ -197,61 +139,39 @@ double BoulderThrowDistance(double craterDiameter, double regolithThickness, dou
 }
 
 void ValidateBoulderPatches(const BoulderPatches& patches) {
-    if (!(std::isfinite(patches.spread) && patches.spread >= 1.0 && IsPositive(patches.size))) {
-        throw std::invalid_argument("Boulder patches need spread >= 1 and a positive size");
-    }
+    CheckRanges(patches);
 }
 
 void ValidateBoulderFillet(const BoulderFillet& fillet) {
-    RequireUnitInterval(fillet.heightShare, "Boulder fillet heightShare");
-    RequirePositive(fillet.widthRatio, "Boulder fillet widthRatio");
+    CheckRanges(fillet);
 }
 
 void ValidateBoulderClusters(const BoulderClusters& clusters) {
-    RequireUnitInterval(clusters.share, "Boulder cluster share");
+    CheckRanges(clusters);
     if (clusters.model == BoulderClusterModel::Thomas) {
-        if (!(clusters.radius > 0.0 && clusters.radius <= 2.0 * clusters.centerSpacing &&
-              std::isfinite(clusters.centerSpacing))) {
-            throw std::invalid_argument(
-                "Thomas boulder clusters must satisfy 0 < radius <= 2 spacing");
+        if (!(clusters.radius <= 2.0 * clusters.centerSpacing)) {
+            throw std::invalid_argument("Thomas boulder clusters must satisfy radius <= 2 spacing");
         }
-        return;
-    }
-    if (!(clusters.radius > 0.0 && clusters.radius < clusters.centerSpacing &&
-          std::isfinite(clusters.centerSpacing))) {
-        throw std::invalid_argument("Boulder clusters must satisfy 0 < radius < spacing");
+    } else if (!(clusters.radius < clusters.centerSpacing)) {
+        throw std::invalid_argument("Boulder clusters must satisfy radius < spacing");
     }
 }
 
 void ValidateBoulderFragmentation(const BoulderFragmentation& fragmentation) {
-    RequirePositive(fragmentation.minDiameter, "Boulder fragmentation minDiameter");
-    if (!(fragmentation.splitWear >= 0.0 && fragmentation.rubbleWear >= fragmentation.splitWear &&
-          fragmentation.rubbleWear <= 1.0)) {
-        throw std::invalid_argument(
-            "Boulder fragmentation must satisfy 0 <= splitWear <= rubbleWear <= 1");
+    CheckRanges(fragmentation);
+    if (!(fragmentation.rubbleWear >= fragmentation.splitWear)) {
+        throw std::invalid_argument("Boulder fragmentation must satisfy splitWear <= rubbleWear");
     }
-    if (!(fragmentation.minPieces >= 2 && fragmentation.maxPieces >= fragmentation.minPieces &&
-          fragmentation.maxPieces <= 12)) {
-        throw std::invalid_argument("Boulder fragments must satisfy 2 <= min <= max <= 12 pieces");
+    if (!(fragmentation.maxPieces >= fragmentation.minPieces)) {
+        throw std::invalid_argument("Boulder fragments must satisfy minPieces <= maxPieces");
     }
-    RequireNonNegative(fragmentation.gapRatio, "Boulder fragmentation gapRatio");
-    RequireNonNegative(fragmentation.spreadRatio, "Boulder fragmentation spreadRatio");
-    RequireUnitInterval(fragmentation.slabShare, "Boulder fragmentation slabShare");
 }
 
 void ValidateBoulderVentifacts(const BoulderVentifacts& ventifacts) {
-    RequireUnitInterval(ventifacts.share, "Boulder ventifact share");
-    RequireUnitInterval(ventifacts.keelShare, "Boulder ventifact keelShare");
-    if (!((ventifacts.minAngleDegrees * kDegree) > 0.0 &&
-          (ventifacts.minAngleDegrees * kDegree) <= (ventifacts.maxAngleDegrees * kDegree) &&
-          (ventifacts.maxAngleDegrees * kDegree) < 0.5 * kPi)) {
+    CheckRanges(ventifacts);
+    if (!(ventifacts.minAngleDegrees <= ventifacts.maxAngleDegrees)) {
         throw std::invalid_argument(
-            "Boulder ventifact facet angles must satisfy 0 < minAngle <= maxAngle < 90 deg");
-    }
-    if (!(std::isfinite(ventifacts.windAzimuthDegrees * kDegree) &&
-          (!ventifacts.secondWindAzimuthDegrees ||
-           std::isfinite((*ventifacts.secondWindAzimuthDegrees * kDegree))))) {
-        throw std::invalid_argument("Boulder ventifact wind azimuths must be finite");
+            "Boulder ventifact facet angles must satisfy minAngleDegrees <= maxAngleDegrees");
     }
 }
 
@@ -288,27 +208,7 @@ double FilletHeight(const Boulder& boulder, double distance, const BoulderFillet
 }
 
 void ValidateManualBoulder(const ManualBoulder& boulder) {
-    RequireFinite(boulder.x, "A manual boulder's x");
-    RequireFinite(boulder.y, "A manual boulder's y");
-    RequirePositive(boulder.diameter, "A manual boulder's diameter");
-    if (boulder.height) {
-        RequirePositive(*boulder.height, "A manual boulder's height");
-    }
-    if (boulder.burial && !(*boulder.burial >= 0.0 && *boulder.burial < 1.0)) {
-        throw std::invalid_argument("A manual boulder's burial must be in [0, 1)");
-    }
-    const auto angle = [](const std::optional<double>& value, const char* what) {
-        if (value) {
-            RequireFinite(*value, what);
-        }
-    };
-    angle(boulder.yawDegrees, "A manual boulder's yawDegrees");
-    angle(boulder.leanDegrees, "A manual boulder's leanDegrees");
-    angle(boulder.tiltDegrees, "A manual boulder's tiltDegrees");
-    angle(boulder.tiltAzimuthDegrees, "A manual boulder's tiltAzimuthDegrees");
-    if (boulder.wear) {
-        RequireUnitInterval(*boulder.wear, "A manual boulder's wear");
-    }
+    CheckRanges(boulder);
 }
 
 std::uint64_t ManualBoulderId(const ManualBoulder& boulder) {
@@ -317,6 +217,7 @@ std::uint64_t ManualBoulderId(const ManualBoulder& boulder) {
 }
 
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
+    CheckRanges(options);
     std::unordered_set<std::uint64_t> ids;
     for (const ManualBoulder& boulder : options.manual) {
         ValidateManualBoulder(boulder);
@@ -325,7 +226,7 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
         }
     }
     if (options.generateRandom) {
-        ValidateBoulderSizes(options.sizes);
+        CheckBoulderSizes(options.sizes);
         CheckGolombekRappTerms(options);
     }
     if (options.densityMap) {
@@ -338,26 +239,24 @@ void ValidateBoulderLayerOptions(const BoulderLayerOptions& options) {
                 "A boulder size slope map needs a size distribution, not Golombek-Rapp sizes");
         }
     }
-    ValidateBoulderPatches(options.patches);
     ValidateBoulderClusters(options.clusters);
     if (options.fragmentation) {
         ValidateBoulderFragmentation(*options.fragmentation);
     }
-    ValidateBoulderBedrock(options.bedrock);
-    RequirePositive(options.groundSpacing, "Boulder groundSpacing");
+    if (options.bedrock.exposure) {
+        ValidateExposureParams(*options.bedrock.exposure);
+    }
     if (options.generateRandom) {
         if (!options.sizes.distribution &&
             options.sizes.Coverage() * MaxBackgroundAbundance(options) >= 1.0) {
             throw std::invalid_argument("Boulder coverage times the patch spread, cluster and "
                                         "bedrock abundance must stay below 1");
         }
-        ValidateBoulderEjecta(options.ejecta, options.sizes);
+        CheckBoulderEjecta(options.ejecta, options.sizes);
     }
-    ValidateBoulderPose(options.pose);
-    ValidateBoulderFillet(options.fillet);
+    CheckBoulderPose(options.pose);
     ValidateBoulderVentifacts(options.ventifacts);
     ValidateResolutionFade(options.fade);
-    ValidateBoulderRendering(options.rendering);
-    ValidateSourceResolvesPixels(options.sourceResolvesPixels);
+    CheckBoulderRendering(options.rendering);
 }
 }  // namespace terraingen

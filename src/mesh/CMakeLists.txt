@@ -14,6 +14,7 @@ terraingen_add_library(
     polyhedra.cpp
     shape_model.cpp
     PUBLIC
+    terraingen_geometry
     terraingen_util
     PRIVATE
     $<BUILD_INTERFACE:terraingen_mesh_formats>)

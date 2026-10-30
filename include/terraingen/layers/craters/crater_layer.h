@@ -66,8 +66,8 @@ struct InheritedCraters {
 };
 
 /// Checks inherited crater settings.
-/// @throws std::invalid_argument for a source pixel count that is set and not positive and finite,
-/// or a `maxSourcePixels` not above `minSourcePixels`.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`) or a
+/// `maxSourcePixels` not above `minSourcePixels`.
 void ValidateInheritedCraters(const InheritedCraters& inherited);
 
 /// How a `CraterLayer` generates and applies its craters.
@@ -158,6 +158,11 @@ class CraterLayer final : public Layer, public CraterPlacer {
     std::optional<Surface> LayerSurface() const override {
         return surface_;
     }
+
+    /// The layer with its seed `ReseedWord(seed, 0)` and the apply seeds of the irregularity,
+    /// noise, texture, slope, terraces and peaks `ReseedWord(seed, 1)` to `ReseedWord(seed, 6)`,
+    /// sharing its models and craters but not its cached cells.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
 
   protected:
     /// Generates and applies the craters reaching the samples. Datums are fitted to

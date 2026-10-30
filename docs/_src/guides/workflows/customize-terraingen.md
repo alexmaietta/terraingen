@@ -6,9 +6,9 @@ This guide walks through each kind of part, from combining built-in parts to wri
 
 | To change | Subclass | Implement |
 | --- | --- | --- |
-| [The starting heights](#sources) | `Source` | the grid it covers and the height at a point |
+| [The starting heights](#sources) | `Source` | the grid it covers and the heights of a block of samples |
 | [The relief over them](#layers) | `Layer` (`FormulaLayer` in C++) | the height at a point from the height before it |
-| [How posts are refined](#upsamplers) | `Upsampler` | the height at a point from the posts around it |
+| [How posts are refined](#upsamplers) | `Upsampler` | the heights of a block of samples from the posts around them |
 | [How many craters or boulders there are](#size-frequency-distributions) | `SizeFrequencyDistribution` | the cumulative count N(>= D) |
 | [How old craters are](#crater-age-models) | `CraterAgeModel` | the lifetime by diameter, and optionally how ages are drawn |
 | [The shape of a crater](#crater-profiles) | `CraterProfile` | the height by distance from the center, and its reach |
@@ -66,7 +66,7 @@ A source gives a terrain's starting heights. It defines the grid it covers and t
 
 </figure>
 
-`fill(heights, spacing, threads)` is optional and fills a whole grid at once, for a source that can do that faster than point by point. `resolution_at(x, y)` tells crater and boulder layers which features the source already resolves, so they add only the smaller ones. `post_spacing_at(x, y)` gives the spacing of the posts behind each height, measured or generated, which roughness estimates sample the source at.
+`fill_samples(samples, spacing, threads)` is the one method that makes heights. A sample block is either the cells of a grid or a list of points, so the same code serves whole grids and single queries and both give the same height at the same place. `samples.positions()` gives every position and `samples.heights()` is the array to fill, NaN where the source has no data. `resolution_at(x, y)` tells crater and boulder layers which features the source already resolves, so they add only the smaller ones. `post_spacing_at(x, y)` gives the spacing of the posts behind each height, measured or generated, which roughness estimates sample the source at.
 
 ## Layers
 

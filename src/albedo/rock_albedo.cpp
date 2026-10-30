@@ -3,11 +3,11 @@
 #include "terraingen/albedo/rock_albedo.h"
 
 #include "albedo/bands.h"
+#include "terraingen/albedo/albedo_fields.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -17,7 +17,7 @@
 namespace terraingen {
 
 void ValidateRockAlbedoOptions(const RockAlbedoOptions& options) {
-    RequirePositive(options.reflectanceRatio, "Rock reflectance ratio");
+    CheckRanges(options);
 }
 
 double RockShare(double resolved, const UnresolvedCover& unresolved, double normal) {
@@ -42,6 +42,21 @@ RockAlbedo::RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> source
     }
 }
 
+namespace {
+
+/// The context `source`'s boulder layer is read in for an albedo evaluated in `context`.
+LayerContext LayerOn(const RockSource& source, const AlbedoContext& context) {
+    LayerContext layer;
+    layer.spacing = context.spacing;
+    layer.threads = context.threads;
+    layer.ground = source.ground.get();
+    layer.surface = context.surface;
+    layer.source = context.source;
+    return layer;
+}
+
+}  // namespace
+
 double RockAlbedo::UnresolvedNormal(double x, double y, std::size_t source) const {
     RandomStream random(options_.seed, kRockAlbedoStream, HashWord64(BitCast<std::uint64_t>(x)),
                         HashWord64(BitCast<std::uint64_t>(y)), static_cast<std::uint32_t>(source));
@@ -53,8 +68,7 @@ double RockAlbedo::ShareAt(double x, double y, const AlbedoContext& context) con
     double bare = 1.0;
     for (std::size_t n = 0; n < sources_.size(); ++n) {
         const RockSource& source = sources_[n];
-        const double resolved =
-            source.layer->MaterialCoverAt(x, y, context.spacing, source.ground.get());
+        const double resolved = source.layer->MaterialCoverAt(x, y, LayerOn(source, context));
         const UnresolvedCover unresolved =
             options_.unresolved
                 ? source.layer->UnresolvedCoverAt(x, y, context.spacing, source.ground.get())
@@ -76,8 +90,8 @@ std::vector<double> RockAlbedo::BareShares(const Raster<float>& first,
     std::vector<double> bare(grid.width * grid.height, 1.0);
     for (std::size_t n = 0; n < sources_.size(); ++n) {
         const RockSource& source = sources_[n];
-        const Raster<double> resolved = source.layer->MaterialCoverOver(
-            grid, context.spacing, source.ground.get(), context.threads);
+        const Raster<double> resolved =
+            source.layer->MaterialCoverOver(grid, LayerOn(source, context));
         const std::vector<UnresolvedCover> unresolved =
             options_.unresolved ? source.layer->UnresolvedCoverOver(
                                       grid, context.spacing, source.ground.get(), context.threads)

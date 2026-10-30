@@ -3,7 +3,6 @@ requires = ["scikit-build-core>=0.10", "nanobind>=2.0"]
 build-backend = "scikit_build_core.build"
 
 [project]
-# The PyPI name; the package still imports as terraingen and installs the terraingen command.
 name = "terraingenpy"
 dynamic = ["version"]
 description = "Scientific terrain generation for planetary surfaces"
@@ -41,9 +40,7 @@ minimum-version = "build-system.requires"
 cmake.version = ">=3.22"
 build-dir = "build/{wheel_tag}"
 wheel.packages = ["python/terraingen"]
-# A stable-ABI wheel on Python 3.12 and newer, where nanobind supports it; a wheel per version before.
 wheel.py-api = "cp312"
-# Render textures are Git LFS files that no package ships; CI checks out without LFS, so leave them out.
 sdist.exclude = ["assets/"]
 
 [tool.scikit-build.metadata.version]
@@ -53,10 +50,8 @@ regex = 'set\(TERRAINGEN_FULL_VERSION "(?P<value>\d+\.\d+\.\d+(\.dev\d+)?)"\)'
 
 [tool.ruff]
 line-length = 110
-# The package sits in python/terraingen, so imports of it sort as first-party.
 src = [".", "python"]
 target-version = "py310"
-# The docs pages include their code from tested files with --8<-- lines, which formatting would break.
 extend-exclude = ["third_party/", "docs/_src/"]
 force-exclude = true
 
@@ -65,7 +60,6 @@ testpaths = ["tests/python"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
-# ruff format keeps code within the line length; long strings and comments are left alone.
 ignore = ["E501"]
 
 [tool.scikit-build.cmake.define]
@@ -75,25 +69,19 @@ TERRAINGEN_BUILD_BENCHMARKS = "OFF"
 TERRAINGEN_BUILD_APP = "ON"
 TERRAINGEN_INSTALL = "OFF"
 
-# The wheels CI builds, one job per platform and Python (the job sets CIBW_BUILD to one of these): a
-# wheel each for Python 3.10 and 3.11, and one stable-ABI wheel for 3.12 and newer.
 [tool.cibuildwheel]
 build = ["cp310-*", "cp311-*", "cp312-*"]
 skip = "*-musllinux_*"
-# glibc 2.34 (Ubuntu 22.04 and newer): the prebuilt slangc needs its newer C++ runtime.
 manylinux-x86_64-image = "manylinux_2_34"
 manylinux-aarch64-image = "manylinux_2_34"
 test-requires = ["pytest"]
 test-command = "terraingen --version && pytest {project}/tests/python"
 
 [tool.cibuildwheel.linux]
-# AlmaLinux 9, under manylinux_2_34, builds for x86-64-v2 (SSE4.2, POPCNT: every x86 CPU since 2009),
-# which auditwheel otherwise rejects for that tag.
 repair-wheel-command = "auditwheel repair --disable-isa-ext-check -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
 environment = { MACOSX_DEPLOYMENT_TARGET = "11.0" }
 
 [tool.cibuildwheel.windows]
-# 64-bit only: Slang and NVRTC have no 32-bit Windows builds.
 archs = ["AMD64"]

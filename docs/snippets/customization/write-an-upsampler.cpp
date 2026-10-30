@@ -20,17 +20,22 @@ TEST_F(SnippetTest, WriteAnUpsampler) {
     // --8<-- [start:write_an_upsampler]
     class Terraces final : public Upsampler {
       public:
-        float HeightAt(const PostLattice& posts, double x, double y,
-                       double /*spacing*/) const override {
-            const Vec2d pixel = posts.Transform().WorldToPixel(x, y);
-            float height = 0.0f;
-            posts.Read(static_cast<std::int64_t>(std::floor(pixel.x)),
-                       static_cast<std::int64_t>(std::floor(pixel.y)), 1, 1, {&height, 1});
-            return 2.0f * std::floor(height / 2.0f);
-        }
-
         int Reach() const override {
             return 1;
+        }
+
+      protected:
+        void FillSamples(const PostLattice& posts, SampleBlock& samples, double /*spacing*/,
+                         unsigned /*threads*/) const override {
+            const GeoTransform transform = posts.Transform();
+            for (std::size_t i = 0; i < samples.Size(); ++i) {
+                const Vec2d p = samples.Position(i);
+                const Vec2d pixel = transform.WorldToPixel(p.x, p.y);
+                float height = 0.0f;
+                posts.Read(static_cast<std::int64_t>(std::floor(pixel.x)),
+                           static_cast<std::int64_t>(std::floor(pixel.y)), 1, 1, {&height, 1});
+                samples.Height(i) = 2.0f * std::floor(height / 2.0f);
+            }
         }
     };
 
@@ -42,7 +47,7 @@ TEST_F(SnippetTest, WriteAnUpsampler) {
                    "stack": [{"wavelength_m": 120, "amplitude_m": 8, "octaves": 3}]}
     })");
     const RasterGrid grid = RasterGrid::Centered({0.0, 0.0}, {128.0, 128.0}, 1.0);
-    const Raster<float> heights = Evaluate(BuildGenerator(config), grid);
+    const Raster<float> heights = BuildTerrain(config).Evaluate(grid);
     // --8<-- [end:write_an_upsampler]
     for (const float height : heights.Values()) {
         EXPECT_EQ(std::fmod(height, 2.0f), 0.0f);

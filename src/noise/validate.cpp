@@ -2,6 +2,8 @@
 
 #include "terraingen/noise/validate.h"
 
+#include "terraingen/noise/noise_fields.h"
+
 #include "util/checks.h"
 
 #include <cmath>
@@ -31,12 +33,16 @@ void ValidateFractalParams(const FractalParams& params) {
 }
 
 void ValidateFractal(const Fractal& fractal) {
-    ValidateFractalParams(FractalParamsFrom(fractal));
+    CheckRanges(fractal);
+    if (static_cast<std::uint32_t>(fractal.basis) >= kNoiseBasisCount) {
+        throw std::invalid_argument("Unknown noise basis");
+    }
+    if (static_cast<std::uint32_t>(fractal.type) >= kFractalTypeCount) {
+        throw std::invalid_argument("Unknown fractal type");
+    }
     if (static_cast<std::uint32_t>(fractal.blend) >= kFractalBlendCount) {
         throw std::invalid_argument("Unknown layer blend mode");
     }
-    RequireNonNegative(static_cast<double>(fractal.warpAmplitude), "Warp amplitude");
-    RequirePositive(static_cast<double>(fractal.warpWavelength), "Warp wavelength");
 }
 
 void ValidateFractals(const std::vector<Fractal>& fractals, std::size_t minFractals) {

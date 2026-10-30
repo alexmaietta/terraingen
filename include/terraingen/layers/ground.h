@@ -4,9 +4,10 @@
 /// @brief The terrain beneath a layer, readable at any point.
 #pragma once
 
-#include "terraingen/util/geometry.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
+#include "terraingen/sources/sample_block.h"
 #include "terraingen/util/span.h"
-#include "terraingen/util/surface.h"
 
 #include <array>
 #include <cstddef>
@@ -17,23 +18,28 @@ namespace terraingen {
 /// The terrain beneath a layer (its source and the layers before it), readable anywhere.
 ///
 /// Layers that depend on the shape of the ground, such as craters cut to a datum, read it here
-/// rather than from cells they changed, so they agree on every grid, tile and point.
+/// rather than from cells they changed, so they agree on every grid, tile and point. Like a
+/// `Source`, a ground evaluates one method, `FillSamples`, which `HeightAt` and `HeightsAt` wrap.
+/// A `Terrain` is a ground, and so is every prefix of one (`Terrain::Ground`).
 /// Implementations must be deterministic and thread-safe.
 class Ground {
   public:
     virtual ~Ground() = default;
 
     /// The ground's height at world (x, y), or NaN where there is no data.
-    /// @param spacing Sample spacing in world units.
-    virtual float HeightAt(double x, double y, double spacing) const = 0;
+    /// @param spacing Sample spacing in meters.
+    float HeightAt(double x, double y, double spacing) const;
 
-    /// `HeightAt` at each of `points`, into `heights` of the same size; implementations may read
-    /// them all in one pass, to the same values.
-    virtual void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
-        for (std::size_t i = 0; i < points.size(); ++i) {
-            heights[i] = HeightAt(points[i].x, points[i].y, spacing);
-        }
-    }
+    /// `HeightAt` at each of `points`, into `heights` of the same size, in one `FillSamples`.
+    /// @param spacing Sample spacing in meters.
+    /// @throws std::invalid_argument for spans of different sizes.
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const;
+
+  protected:
+    /// Sets every sample of `samples` to the ground's height there at a sample spacing of
+    /// `spacing` meters, NaN where there is no data; a point gets the bits of a grid cell
+    /// centered there.
+    virtual void FillSamples(SampleBlock& samples, double spacing) const = 0;
 };
 
 /// The four points `step` meters east, west, north and south of `center` on `surface`, in that

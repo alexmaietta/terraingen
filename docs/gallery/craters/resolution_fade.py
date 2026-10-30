@@ -34,10 +34,10 @@ def figure(quick=False):
         for column, spacing in enumerate(SPACINGS):
             pixel = max(spacing, 1.0) if quick else spacing
             size = int(SIZE_M / pixel) + 1
-            terrain = terraingen.TerrainGenerator(
-                terraingen.FlatSource(size, size, pixel), [relief, craters, boulders]
+            terrain = terraingen.Terrain(
+                source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters, boulders]
             )
             ax = axes[row, column]
-            gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
+            gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
             ax.set_title(f"{spacing:g} m, {'fading' if row == 0 else 'no fading'}")
     return fig

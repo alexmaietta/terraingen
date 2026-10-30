@@ -3,16 +3,18 @@
 #include "terraingen/layers/dunes.h"
 
 #include "layers/lattice.h"
+#include "terraingen/geometry/surface.h"
+#include "terraingen/layers/anchored_plane.h"
+#include "terraingen/layers/dunes_fields.h"
 #include "terraingen/layers/source_resolved.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/surface.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -152,80 +154,21 @@ double RippleProfile(double t, double lee) {
     return t < upwind ? t / upwind : 1.0 - (t - upwind) / lee;
 }
 
-/// Checks the slopes of dunes.
-/// @throws std::invalid_argument unless the slip face and flank are in (0, 90) deg and the stoss
-/// slope is positive and below the slip face.
-void ValidateDuneSlopes(const DuneOptions& options) {
-    if (!((options.slipFaceAngleDegrees * kDegree) > 0.0 &&
-          (options.slipFaceAngleDegrees * kDegree) < kHalfPi &&
-          (options.stossSlopeDegrees * kDegree) > 0.0 &&
-          (options.stossSlopeDegrees * kDegree) < (options.slipFaceAngleDegrees * kDegree) &&
-          (options.flankSlopeDegrees * kDegree) > 0.0 &&
-          (options.flankSlopeDegrees * kDegree) < kHalfPi)) {
-        throw std::invalid_argument(
-            "Dune slopes must be positive and below 90 deg, the stoss below the slip face");
-    }
-}
-
-/// Checks the sizes, shares and wind of dunes.
-/// @throws std::invalid_argument as `ValidateDuneOptions`.
-void ValidateDuneSizes(const DuneOptions& options) {
-    RequirePositive(options.stossExponent, "Dune stossExponent");
-    RequirePositive(options.domeExponent, "Dune domeExponent");
-    RequirePositive(options.latticeSpacing, "Dune spacing");
-    RequirePositive(options.width, "Dune width");
-    RequireNonNegative(options.minWidth, "Dune minWidth");
-    RequirePositive(options.heightRatio, "Dune heightRatio");
-    RequireNonNegative(options.hornLength, "Dune hornLength");
-    RequirePositive(options.domeLength, "Dune domeLength");
-    RequirePositive(options.wavelength, "Dune wavelength");
-    RequireNonNegative(options.height, "Dune height");
-    RequireUnitInterval(options.density, "Dune density");
-    RequireUnitInterval(options.defects, "Dune defects");
-    if (!(options.widthSpread >= 0.0 && options.widthSpread < 1.0)) {
-        throw std::invalid_argument("Dune widthSpread must be in [0, 1)");
-    }
-    RequireNonNegative(options.sinuosity, "Dune sinuosity");
-    RequireNonNegative((options.azimuthSpreadDegrees * kDegree), "Dune azimuthSpread");
-    RequireNonNegative(options.defectDensity, "Dune defectDensity");
-    RequireFinite((options.windAzimuthDegrees * kDegree), "Dune windAzimuth");
-    RequireFinite(options.anchor.x, "Dune anchor x");
-    RequireFinite(options.anchor.y, "Dune anchor y");
-}
-
-/// Checks the ripples on dunes.
-/// @throws std::invalid_argument as `ValidateDuneOptions`.
-void ValidateDuneRipples(const DuneRipples& ripples) {
-    RequirePositive(ripples.wavelength, "Dune ripple wavelength");
-    RequireNonNegative(ripples.height, "Dune ripple height");
-    if (!(ripples.leeFraction > 0.0 && ripples.leeFraction < 1.0)) {
-        throw std::invalid_argument("Dune ripple leeFraction must be in (0, 1)");
-    }
-    RequireNonNegative(ripples.sinuosity, "Dune ripple sinuosity");
-    RequireNonNegative(ripples.slopeCoupling, "Dune ripple slopeCoupling");
-    RequireUnitInterval(ripples.interduneCover, "Dune ripple interduneCover");
-    RequireNonNegative(ripples.defectDensity, "Dune ripple defectDensity");
-    RequireUnitInterval(ripples.flankStraightening, "Dune ripple flankStraightening");
-    ValidateResolutionFade(ripples.fade);
-}
-
-/// Checks a size range of grainflows: positive, the minimum at most the maximum, both finite.
-void RequireSizeRange(double low, double high, const char* what) {
-    if (!(IsPositive(low) && high >= low && std::isfinite(high))) {
+/// Checks that a size range of grainflows has its minimum at most its maximum.
+void RequireSizeOrder(double low, double high, const char* what) {
+    if (!(high >= low)) {
         throw std::invalid_argument(std::string(what) +
-                                    " must be positive, the minimum at most the maximum");
+                                    ": the minimum must not exceed the maximum");
     }
 }
 
-/// Checks the grainflows on slip faces.
+/// Checks the size order and fade of the grainflows on slip faces.
 /// @throws std::invalid_argument as `ValidateDuneOptions`.
 void ValidateDuneGrainflows(const DuneGrainflows& flows) {
-    RequireUnitInterval(flows.cover, "Dune grainflow cover");
-    RequireSizeRange(flows.minScarpWidth, flows.maxScarpWidth, "Dune grainflow scarp widths");
-    RequireSizeRange(flows.minScarpLength, flows.maxScarpLength, "Dune grainflow scarp lengths");
-    RequireSizeRange(flows.minLobeWidth, flows.maxLobeWidth, "Dune grainflow lobe widths");
-    RequireSizeRange(flows.minLobeLength, flows.maxLobeLength, "Dune grainflow lobe lengths");
-    RequireNonNegative(flows.thickness, "Dune grainflow thickness");
+    RequireSizeOrder(flows.minScarpWidth, flows.maxScarpWidth, "Dune grainflow scarp widths");
+    RequireSizeOrder(flows.minScarpLength, flows.maxScarpLength, "Dune grainflow scarp lengths");
+    RequireSizeOrder(flows.minLobeWidth, flows.maxLobeWidth, "Dune grainflow lobe widths");
+    RequireSizeOrder(flows.minLobeLength, flows.maxLobeLength, "Dune grainflow lobe lengths");
     ValidateResolutionFade(flows.fade);
 }
 
@@ -249,16 +192,17 @@ double Between(double low, double high, double t) {
 }  // namespace
 
 void ValidateDuneOptions(const DuneOptions& options) {
-    ValidateDuneSlopes(options);
-    ValidateDuneSizes(options);
+    CheckRanges(options);
+    if (!(options.stossSlopeDegrees < options.slipFaceAngleDegrees)) {
+        throw std::invalid_argument("Dune stoss slope must be below the slip face angle");
+    }
     if (options.ripples) {
-        ValidateDuneRipples(*options.ripples);
+        ValidateResolutionFade(options.ripples->fade);
     }
     ValidateResolutionFade(options.fade);
     if (options.grainflows) {
         ValidateDuneGrainflows(*options.grainflows);
     }
-    ValidateSourceResolvesPixels(options.sourceResolvesPixels);
 }
 
 DuneRipples MarsDuneRipples() {
@@ -314,10 +258,8 @@ DuneOptions MarsTransverseDunes() {
     return dunes;
 }
 
-DuneLayer::DuneLayer(DuneOptions options, TerrainBase base)
-    : FormulaLayer(base.surface), options_(options), plane_(base.surface, options.anchor) {
+DuneLayer::DuneLayer(DuneOptions options) : options_(options) {
     ValidateDuneOptions(options_);
-    limit_ = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, base.surface);
     wind_ = {std::cos(options_.windAzimuthDegrees * kDegree),
              std::sin(options_.windAzimuthDegrees * kDegree)};
     const double widest = options_.width * (1.0 + options_.widthSpread);
@@ -327,6 +269,12 @@ DuneLayer::DuneLayer(DuneOptions options, TerrainBase base)
     wanderSeed_ = SubstreamSeed(options_.seed, kRippleWanderStream);
     kinkSeed_ = SubstreamSeed(options_.seed, kRippleKinkStream);
     fadeSeed_ = SubstreamSeed(options_.seed, kRippleFadeStream);
+}
+
+LayerPtr DuneLayer::Reseeded(std::uint64_t seed) const {
+    DuneOptions options = options_;
+    options.seed = ReseedWord(seed, 0);
+    return std::make_shared<DuneLayer>(options);
 }
 
 double DuneLayer::Barchans(const Vec2d& q) const {
@@ -603,9 +551,9 @@ double DuneLayer::SandDepth(double dune) const {
     return Smoothstep(dune / std::max(1e-9, kSandEdge * reference));
 }
 
-double DuneLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
-                                  const Ground* /*ground*/) const {
-    const std::optional<Vec2d> q = plane_.Project(x, y);
+double DuneLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
+    const std::optional<Vec2d> q =
+        AnchoredPlane(context.SurfaceOrPlane(), options_.anchor).Project(x, y);
     if (!q) {
         return 0.0;
     }
@@ -617,22 +565,22 @@ double DuneLayer::MaterialCoverAt(double x, double y, double /*spacing*/,
     return kept + (1.0 - kept) * sand;
 }
 
-double DuneLayer::DuneHeightAt(double x, double y) const {
-    const std::optional<Vec2d> q = plane_.Project(x, y);
+double DuneLayer::DuneHeightAt(double x, double y, const Surface& surface) const {
+    const std::optional<Vec2d> q = AnchoredPlane(surface, options_.anchor).Project(x, y);
     return q ? Height(*q) : 0.0;
 }
 
-float DuneLayer::HeightAt(float height, double x, double y, double spacing,
-                          const Ground* /*ground*/) const {
-    const std::optional<Vec2d> q = plane_.Project(x, y);
+float DuneLayer::HeightAt(float height, double x, double y, const LayerContext& context) const {
+    const Surface& surface = context.SurfaceOrPlane();
+    const std::optional<Vec2d> q = AnchoredPlane(surface, options_.anchor).Project(x, y);
     if (!q) {
         return height;
     }
     const double size = IsIsolated(options_.shape) ? options_.width : options_.wavelength;
     const double resolved =
-        limit_ ? limit_->ValueAt(x, y) : std::numeric_limits<double>::infinity();
+        SourceResolvedSize(context.source, options_.sourceResolvesPixels, surface, x, y);
     const auto weight = [&](double feature, const ResolutionFade& fade) {
-        return feature >= resolved ? 0.0 : ResolutionWeight(feature, spacing, fade);
+        return feature >= resolved ? 0.0 : ResolutionWeight(feature, context.spacing, fade);
     };
     const double duneWeight = weight(size, options_.fade);
     const std::optional<DuneRipples>& ripples = options_.ripples;

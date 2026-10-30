@@ -31,10 +31,10 @@ def figure(quick=False):
     coarse = 24.0 if quick else 6.0
     fine = 0.8 if quick else 0.2
     size = int(FIELD_M / coarse) + 1
-    field = terraingen.TerrainGenerator(
-        terraingen.FlatSource(size, size, coarse), [terraingen.DuneLayer(dune_options(None))]
+    field = terraingen.Terrain(
+        source=terraingen.FlatSource(size, size, coarse), layers=[terraingen.DuneLayer(dune_options(None))]
     )
-    heights = terraingen.evaluate(field).values
+    heights = field.evaluate().values
     row, column = np.unravel_index(np.argmax(heights), heights.shape)
     crest = ((column - 0.5 * (size - 1)) * coarse, (0.5 * (size - 1) - row) * coarse)
     center = (crest[0] - 70.0, crest[1] + 60.0)
@@ -71,8 +71,10 @@ def figure(quick=False):
     axes[0].set_title("Barchan at 6 m, inset boxed")
     window = terraingen.RasterGrid.centered(center, (WINDOW_M, WINDOW_M), fine)
     for ax, (title, ripples) in zip(axes[1:], panels, strict=True):
-        terrain = terraingen.TerrainGenerator(field.source, [terraingen.DuneLayer(dune_options(ripples))])
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain, grid=window).values, fine, sun_elevation=25.0)
+        terrain = terraingen.Terrain(
+            source=field.source(), layers=[terraingen.DuneLayer(dune_options(ripples))]
+        )
+        gallery.show_hillshade(ax, terrain.evaluate(window).values, fine, sun_elevation=25.0)
         ax.add_patch(
             Rectangle(
                 (0.0, 0.0),

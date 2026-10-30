@@ -66,8 +66,8 @@ def figure(quick=False):
     boulder_options.ejecta = ejecta
     boulders = terraingen.BoulderLayer(boulder_options, fresh)
     source = terraingen.FlatSource(size, size, pixel)
-    terrain = terraingen.TerrainGenerator(source, [hills, roughness, field, fresh, boulders])
-    raster = terraingen.evaluate(terrain)
+    terrain = terraingen.Terrain(source=source, layers=[hills, roughness, field, fresh, boulders])
+    raster = terrain.evaluate()
     heights = raster.values
 
     base = terraingen.SyntheticAlbedo(
@@ -81,7 +81,7 @@ def figure(quick=False):
         terraingen.RockAlbedo(terraingen.RockAlbedoOptions(seed=2), terrain, [4]),
     ]
     albedo = terraingen.evaluate_albedo(
-        terraingen.Albedo(base, albedo_layers), terraingen.RasterGrid.from_raster(raster), generator=terrain
+        terraingen.Albedo(base, albedo_layers), terraingen.RasterGrid.from_raster(raster), ground=terrain
     )[0].values
 
     light = LightSource(azdeg=90, altdeg=15)

@@ -25,9 +25,9 @@ def upsample_a_shape_model():
     )
     # Diamond-square with a roughness fitted to the labels.
     rough = terraingen.ShapeModelSource(body, terraingen.DiamondSquareUpsampler())
-    terrain = terraingen.TerrainGenerator(rough, [], surface=body)
+    terrain = terraingen.Terrain(body, rough)
     site = terraingen.RasterGrid.covering((20.0, 10.0, 30.0, 20.0), 0.05)  # longitude and latitude, degrees
-    heights = terraingen.evaluate(terrain, grid=site, spacing=0.25)  # meters above the bilinear shape
+    heights = terrain.evaluate(site, spacing=0.25)  # meters above the bilinear shape
     # --8<-- [end:upsample_a_shape_model]
     return body, {"Cubic": cubic, "Lanczos": lanczos, "Diamond-square": rough}, heights
 

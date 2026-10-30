@@ -51,7 +51,7 @@ def figure(quick=False):
     fig = plt.figure(figsize=(18, 10.5), layout="constrained")
     grid = fig.add_gridspec(2, 1 + len(PANELS), height_ratios=[1, 0.7])
     counts_ax = fig.add_subplot(grid[1, :])
-    alone = terraingen.evaluate(terraingen.TerrainGenerator(source, [], surface=moon), grid=window).values
+    alone = terraingen.Terrain(moon, source).evaluate(window).values
     ax = fig.add_subplot(grid[0, 0])
     gallery.show_hillshade(ax, alone, pixel_m, sun_elevation=20.0)
     ax.set_title("LDEM_8, cubic")
@@ -61,8 +61,7 @@ def figure(quick=False):
         )
         options.source_resolves_px = resolves
         craters = terraingen.CraterLayer(options=options, base=terraingen.TerrainBase(moon, source))
-        terrain = terraingen.TerrainGenerator(source, [craters], surface=moon)
-        added = terraingen.evaluate(terrain, grid=window).values
+        added = terraingen.Terrain(moon, source, [craters]).evaluate(window).values
         ax = fig.add_subplot(grid[0, column + 1])
         gallery.show_hillshade(ax, added, pixel_m, sun_elevation=20.0)
         diameters = np.sort(np.asarray(craters.craters(region, pixel_m)["diameter"]))[::-1] / 1000.0

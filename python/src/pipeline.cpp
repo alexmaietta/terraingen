@@ -3,18 +3,16 @@
 #include "arrays.h"
 #include "bindings.h"
 #include "common.h"
-#include "objects.h"
 #include "tables.h"
 
-#include "config/spec.h"
+#include "config/terrain.h"
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
-#include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/pipeline/body_mesh.h"
-#include "terraingen/pipeline/generator.h"
 #include "terraingen/pipeline/mesh_build.h"
+#include "terraingen/pipeline/terrain.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -34,33 +32,18 @@ std::filesystem::path Directory(const OptionalPath& directory) {
     return directory.value_or(std::filesystem::path{});
 }
 
-/// `HeightsAt` over the rows of an (n, 2) array, as a float32 array.
-nb::object HeightsAtArray(const PyTerrainGenerator& generator, const CpuMatrix<double>& points,
-                          double spacing, unsigned threads, EvaluationCache* cache) {
-    std::vector<Vec2d> positions;
-    for (const auto& row : Rows<2>(points)) {
-        positions.push_back({row[0], row[1]});
-    }
-    std::vector<float> heights;
-    {
-        nb::gil_scoped_release release;
-        heights = HeightsAt(generator.Get(), positions, spacing, threads, cache);
-    }
-    return Column(std::move(heights));
-}
-
 /// @brief `text` parsed by Python's json module.
 nb::object FromJson(const std::string& text) {
     return nb::module_::import_("json").attr("loads")(text);
 }
 
-/// @brief `grid`, or else the grid of `generator`'s source.
+/// @brief `grid`, or else the grid of `terrain`'s source.
 /// @throws std::invalid_argument when there is neither.
-RasterGrid GridOr(const TerrainGenerator& generator, const std::optional<RasterGrid>& grid) {
+RasterGrid GridOr(const Terrain& terrain, const std::optional<RasterGrid>& grid) {
     if (grid) {
         return *grid;
     }
-    const std::optional<RasterGrid> bounded = SourceGrid(generator);
+    const std::optional<RasterGrid> bounded = terrain.Grid();
     if (!bounded) {
         throw std::invalid_argument(
             "A terrain without a source, or with a source without bounds, needs a grid");
@@ -68,21 +51,156 @@ RasterGrid GridOr(const TerrainGenerator& generator, const std::optional<RasterG
     return *bounded;
 }
 
-void BindGeneratorClass(nb::module_& m) {
-    nb::class_<PyTerrainGenerator>(m, "TerrainGenerator",
-                                   "A terrain generator: heights from `source` (the datum, 0 m, "
-                                   "when None), plus each of `layers` in order.")
+/// @brief Evaluation options from the Python keywords.
+EvaluationOptions Options(double spacing, unsigned threads, std::optional<Backend> backend,
+                          StageCache* stageCache) {
+    EvaluationOptions options;
+    options.spacing = spacing;
+    options.threads = threads;
+    options.backend = backend;
+    options.stageCache = stageCache;
+    return options;
+}
+
+/// @brief `Terrain::HeightsAt` over the rows of an (n, 2) array, as a float32 array.
+nb::object TerrainHeightsAt(const Terrain& terrain, const CpuMatrix<double>& points, double spacing,
+                            unsigned threads) {
+    std::vector<Vec2d> positions;
+    for (const auto& row : Rows<2>(points)) {
+        positions.push_back({row[0], row[1]});
+    }
+    std::vector<float> heights(positions.size());
+    {
+        const nb::gil_scoped_release release;
+        terrain.HeightsAt(Span<const Vec2d>(positions), Span<float>(heights), spacing, threads);
+    }
+    return Column(std::move(heights));
+}
+
+/// @brief `Terrain::Fill` into a writable array of shape (grid.height, grid.width).
+/// @throws std::invalid_argument for an array of another shape.
+void FillArray(const Terrain& terrain, const RasterGrid& grid, CpuOutMatrix<float> heights,
+               const EvaluationOptions& options) {
+    if (heights.shape(0) != grid.height || heights.shape(1) != grid.width) {
+        throw std::invalid_argument("Expected a float32 array of shape (" +
+                                    std::to_string(grid.height) + ", " +
+                                    std::to_string(grid.width) + ")");
+    }
+    const nb::gil_scoped_release release;
+    terrain.Fill(grid, Span<float>(heights.data(), heights.size()), options);
+}
+
+void BindStageCache(nb::module_& m) {
+    nb::class_<StageCache>(
+        m, "StageCache",
+        "The heights a terrain held before one of its layers when it was last evaluated over a "
+        "grid, so evaluating the same grid at the same spacing again after `set_layer` of that "
+        "layer or a later one applies only the layers from there on. Pass it as `stage_cache`; "
+        "one evaluation may use it at a time.")
+        .def(nb::init<std::size_t>(), "stage"_a,
+             "A cache of the heights before layer `stage`: the source's for 0, the finished "
+             "heights for the terrain's layer count.")
+        .def("stage", &StageCache::Stage, "The index of the layer whose input the cache keeps.")
+        .def("empty", &StageCache::Empty, "Whether the cache holds heights.")
+        .def("clear", &StageCache::Clear, "Drops the heights held, freeing their memory.");
+}
+
+void BindTerrainEvaluation(nb::class_<Terrain, Ground>& terrain) {
+    terrain
         .def(
-            "__init__",
-            [](PyTerrainGenerator* self, std::shared_ptr<Source> source,
-               std::vector<std::shared_ptr<Layer>> layers, const Surface& surface) {
-                new (self) PyTerrainGenerator{std::move(source), std::move(layers), surface};
+            "evaluate",
+            [](const Terrain& t, std::optional<RasterGrid> grid, double spacing, unsigned threads,
+               std::optional<Backend> backend, StageCache* stageCache) {
+                return t.Evaluate(GridOr(t, grid), Options(spacing, threads, backend, stageCache));
             },
-            "source"_a = nb::none(), "layers"_a = std::vector<std::shared_ptr<Layer>>{},
-            "surface"_a = Surface{}, "`surface` must be the one the layers were built for.")
-        .def_rw("surface", &PyTerrainGenerator::surface)
-        .def_rw("source", &PyTerrainGenerator::source)
-        .def_rw("layers", &PyTerrainGenerator::layers);
+            "grid"_a = nb::none(), "spacing"_a = 0.0, "threads"_a = 0, "backend"_a = nb::none(),
+            "stage_cache"_a = nb::none(), nb::call_guard<nb::gil_scoped_release>(),
+            "The heights over `grid` (by default its source's) at a sample spacing of `spacing` "
+            "meters (0 for the grid's), on up to `threads` threads (0 for every hardware thread; "
+            "the result does not depend on it), on `backend` (None for default_backend()), "
+            "restarting from `stage_cache` (a StageCache) when it is still current. On Vulkan the "
+            "heights match the CPU to within float rounding.")
+        .def(
+            "fill",
+            [](const Terrain& t, const RasterGrid& grid, CpuOutMatrix<float> heights,
+               double spacing, unsigned threads, std::optional<Backend> backend,
+               StageCache* stageCache) {
+                FillArray(t, grid, heights, Options(spacing, threads, backend, stageCache));
+            },
+            "grid"_a, nb::arg("heights").noconvert(), "spacing"_a = 0.0, "threads"_a = 0,
+            "backend"_a = nb::none(), "stage_cache"_a = nb::none(),
+            "Evaluates the terrain over `grid` into `heights`, a writable C-contiguous float32 "
+            "array of shape (height, width), to the same bits as `evaluate` with the same "
+            "options.")
+        .def("heights_at", &TerrainHeightsAt, "points"_a, "spacing"_a, "threads"_a = 0,
+             "The heights at `points`, an array of shape (n, 2) in surface coordinates, sampled "
+             "every `spacing` meters on up to `threads` threads (0 for every hardware thread), "
+             "as a float32 array; each equals `height_at` there and the cell centered there of "
+             "`evaluate`. Batches of points are much faster than one call per point.")
+        .def(
+            "craters",
+            [](const Terrain& t, std::optional<RasterGrid> grid, double spacing) {
+                return t.Craters(GridOr(t, grid), spacing);
+            },
+            "grid"_a = nb::none(), "spacing"_a = 0.0, nb::call_guard<nb::gil_scoped_release>(),
+            "The CraterFeatures the crater and secondary crater layers apply over `grid` (by "
+            "default its source's) at `spacing` meters (0 for the grid's), in layer order.")
+        .def(
+            "boulders",
+            [](const Terrain& t, std::optional<RasterGrid> grid, double spacing) {
+                return t.Boulders(GridOr(t, grid), spacing);
+            },
+            "grid"_a = nb::none(), "spacing"_a = 0.0, nb::call_guard<nb::gil_scoped_release>(),
+            "The BoulderFeatures the boulder layers place over `grid` (by default its source's) "
+            "at `spacing` meters (0 for the grid's), and the boulder models among them.");
+}
+
+void BindTerrainUpdates(nb::class_<Terrain, Ground>& terrain) {
+    terrain
+        .def("ground", &Terrain::Ground, "stages"_a,
+             "The terrain beneath layer `stages`: the source and the first `stages` layers, "
+             "sharing their versions and point-query values with this terrain.")
+        .def("set_layer", &Terrain::SetLayer, "index"_a, "layer"_a,
+             "Replaces layer `index` with `layer`; later layers that read the old one are rebound "
+             "to it. Raises ValueError for an invalid terrain, which is then unchanged.")
+        .def("set_source", &Terrain::SetSource, "source"_a.none(),
+             "Replaces the source; None for none. Raises ValueError for an invalid terrain, which "
+             "is then unchanged.")
+        .def("layer_version", &Terrain::LayerVersion, "index"_a,
+             "A stamp that changes whenever layer `index` is replaced, shared by copies and "
+             "prefixes.")
+        .def("source_version", &Terrain::SourceVersion,
+             "A stamp that changes whenever the source is replaced.")
+        .def("reseed", &Terrain::Reseed, "seed"_a, nb::call_guard<nb::gil_scoped_release>(),
+             "A copy whose seeded layers and source draw from `seed`, each part from its own seed "
+             "derived from it, without reading any data again; measured data stays as it is.");
+}
+
+void BindTerrain(nb::module_& m) {
+    BindStageCache(m);
+    nb::class_<Terrain, Ground> terrain(
+        m, "Terrain",
+        "A terrain: heights from `source` (the datum, 0 m, when None), plus each of `layers` in "
+        "order, on `surface`. Its parts are immutable and shared by copies; `set_layer` and "
+        "`set_source` replace one. A terrain is a Ground, and so is each of its prefixes "
+        "(`ground`).");
+    terrain
+        .def(nb::init<Surface, std::shared_ptr<const Source>, std::vector<LayerPtr>>(),
+             "surface"_a = Surface{}, "source"_a.none() = nb::none(),
+             "layers"_a = std::vector<LayerPtr>{},
+             "Raises ValueError for a source of the wrong kind for the surface, a None layer, a "
+             "layer built for another surface, or a layer reading one that does not come before "
+             "it.")
+        .def("surface", &Terrain::Surface, "What the terrain lies on.")
+        .def("source", &Terrain::Source, "The starting heights; None for none.")
+        .def("layers", &Terrain::Layers, "The layers, applied in order.")
+        .def("grid", &Terrain::Grid,
+             "The RasterGrid of the source; None without a source or for one without bounds.")
+        .def("keys", &Terrain::Keys,
+             "The GeoKeys a raster of the terrain's heights is written with: its source's, or "
+             "geographic keys on its body without one.");
+    BindTerrainEvaluation(terrain);
+    BindTerrainUpdates(terrain);
 }
 
 void BindFeatureWriters(nb::module_& m) {
@@ -153,101 +271,9 @@ void BindFeatures(nb::module_& m) {
             "Writes the boulder models as a glTF scene (.glb or .gltf), OBJ (.obj) or STL (.stl): "
             "each shared shape once, drawn per boulder, or with `instanced` false every boulder as "
             "its own placed mesh.");
-    m.def(
-        "placed_craters",
-        [](const PyTerrainGenerator& generator, std::optional<RasterGrid> grid, double spacing) {
-            const TerrainGenerator built = generator.Get();
-            return PlacedCraters(built, GridOr(built, grid), spacing);
-        },
-        "generator"_a, "grid"_a = nb::none(), "spacing"_a = 0.0,
-        nb::call_guard<nb::gil_scoped_release>(),
-        "The craters the generator's crater and secondary crater layers apply over `grid` (by "
-        "default its source's) at `spacing` meters (0 for the grid's), in layer order.");
     m.def("describe_craters", &DescribeCraters, "craters"_a, "models"_a,
           "`craters` (a CraterList) with their attributes under `models` (CraterShapeModels), as "
           "CraterFeatures.");
-    m.def(
-        "placed_boulders",
-        [](const PyTerrainGenerator& generator, std::optional<RasterGrid> grid, double spacing) {
-            const TerrainGenerator built = generator.Get();
-            return PlacedBoulders(built, GridOr(built, grid), spacing);
-        },
-        "generator"_a, "grid"_a = nb::none(), "spacing"_a = 0.0,
-        nb::call_guard<nb::gil_scoped_release>(),
-        "The boulders the generator's boulder layers place over `grid` (by default its source's) "
-        "at "
-        "`spacing` meters (0 for the grid's), and the boulder models among them.");
-}
-
-void BindEvaluation(nb::module_& m) {
-    m.def(
-        "evaluate",
-        [](const PyTerrainGenerator& generator, double spacing, unsigned threads,
-           std::optional<RasterGrid> grid, std::optional<Backend> backend) {
-            const TerrainGenerator built = generator.Get();
-            return Evaluate(built, GridOr(built, grid),
-                            EvaluationOptions{spacing, threads, backend});
-        },
-        "generator"_a, "spacing"_a = 0.0, "threads"_a = 0, "grid"_a = nb::none(),
-        "backend"_a = nb::none(), nb::call_guard<nb::gil_scoped_release>(),
-        "Evaluates `generator` over `grid` (by default its source's) at a sample spacing of "
-        "`spacing` meters (0 for the grid's), on up to `threads` threads (0 for every hardware "
-        "thread; the result does not depend on it), on `backend` (None for default_backend()). "
-        "On Vulkan the heights match the CPU to within float rounding.");
-    nb::class_<EvaluationCache>(
-        m, "EvaluationCache",
-        "Values point queries keep between calls, such as fitted crater datums. Without one, "
-        "`height_at` and `heights_at` share a cache kept per generator; pass one to manage it. A "
-        "cache belongs to one generator; start a new one after changing its source or layers.")
-        .def(nb::init<std::size_t>(), "capacity"_a = std::size_t{1} << 20U,
-             "A cache holding at most `capacity` values.");
-    m.def(
-        "height_at",
-        [](const PyTerrainGenerator& generator, double x, double y, double spacing,
-           EvaluationCache* cache) { return HeightAt(generator.Get(), x, y, spacing, cache); },
-        "generator"_a, "x"_a, "y"_a, "spacing"_a, "cache"_a = nb::none(),
-        nb::call_guard<nb::gil_scoped_release>(),
-        "The generator's height at (x, y) sampled every `spacing` meters; equal to the cell "
-        "centered there of `evaluate`. `cache`, an EvaluationCache, replaces the cache kept for "
-        "the generator.");
-    m.def("heights_at", &HeightsAtArray, "generator"_a, "points"_a, "spacing"_a, "threads"_a = 0,
-          "cache"_a = nb::none(),
-          "The generator's heights at `points`, an array of shape (n, 2) in surface coordinates, "
-          "sampled every `spacing` meters, as a float32 array; each equals `height_at` there. "
-          "Batches of points are much faster than one call per point. `cache`, an "
-          "EvaluationCache, replaces the cache kept for the generator.");
-    m.def(
-        "fill_heights",
-        [](const PyTerrainGenerator& generator, const RasterGrid& grid, CpuOutMatrix<float> heights,
-           double spacing, unsigned threads, std::optional<Backend> backend) {
-            if (heights.shape(0) != grid.height || heights.shape(1) != grid.width) {
-                throw std::invalid_argument("Expected a float32 array of shape (" +
-                                            std::to_string(grid.height) + ", " +
-                                            std::to_string(grid.width) + ")");
-            }
-            const TerrainGenerator built = generator.Get();
-            nb::gil_scoped_release release;
-            FillHeights(built, grid, Span<float>(heights.data(), heights.size()),
-                        EvaluationOptions{spacing, threads, backend});
-        },
-        "generator"_a, "grid"_a, nb::arg("heights").noconvert(), "spacing"_a = 0.0, "threads"_a = 0,
-        "backend"_a = nb::none(),
-        "Evaluates `generator` over `grid` into `heights`, a writable C-contiguous float32 array "
-        "of "
-        "shape (height, width), to the same bits as `evaluate` with the same options.");
-    m.def(
-        "apply_layers",
-        [](const PyTerrainGenerator& generator, std::size_t first, Raster<float>& heights,
-           double spacing, unsigned threads, std::optional<Backend> backend) {
-            const TerrainGenerator built = generator.Get();
-            nb::gil_scoped_release release;
-            ApplyLayers(built, first, heights, EvaluationOptions{spacing, threads, backend});
-        },
-        "generator"_a, "first"_a, "heights"_a, "spacing"_a = 0.0, "threads"_a = 0,
-        "backend"_a = nb::none(),
-        "Applies the generator's layers from index `first` onward to `heights`, a Raster changed "
-        "in place, such as `evaluate` of a generator with only the first `first` layers; "
-        "re-runs a replaced layer and those after it to the bits of `evaluate`.");
 }
 
 /// Mesh options from the Python arguments.
@@ -319,24 +345,15 @@ void BindMeshBuild(nb::module_& m) {
 }
 
 void BindBodyMesh(nb::module_& m) {
-    m.def(
-        "body_mesh",
-        [](const PyTerrainGenerator& generator, std::size_t cellsPerFace, double spacing,
-           unsigned threads) { return BodyMesh(generator.Get(), cellsPerFace, spacing, threads); },
-        "generator"_a, "cells_per_face"_a, "spacing"_a = 0.0, "threads"_a = 0,
-        nb::call_guard<nb::gil_scoped_release>(),
-        "A mesh of the whole body a terrain on a sphere or ellipsoid lies on: six cube faces of "
-        "`cells_per_face` squared quads, each vertex at the radius plus the terrain's height "
-        "there.");
-    m.def(
-        "body_icq",
-        [](const PyTerrainGenerator& generator, std::size_t q, double spacing, unsigned threads) {
-            return BodyIcq(generator.Get(), q, spacing, threads);
-        },
-        "generator"_a, "q"_a, "spacing"_a = 0.0, "threads"_a = 0,
-        nb::call_guard<nb::gil_scoped_release>(),
-        "The whole body a terrain on a sphere or ellipsoid lies on as an ICQ shape model with "
-        "`q` intervals per face edge, each label at the radius plus the terrain's height there.");
+    m.def("body_mesh", &BodyMesh, "terrain"_a, "cells_per_face"_a, "spacing"_a = 0.0,
+          "threads"_a = 0, nb::call_guard<nb::gil_scoped_release>(),
+          "A mesh of the whole body a terrain on a sphere or ellipsoid lies on: six cube faces of "
+          "`cells_per_face` squared quads, each vertex at the radius plus the terrain's height "
+          "there.");
+    m.def("body_icq", &BodyIcq, "terrain"_a, "q"_a, "spacing"_a = 0.0, "threads"_a = 0,
+          nb::call_guard<nb::gil_scoped_release>(),
+          "The whole body a terrain on a sphere or ellipsoid lies on as an ICQ shape model with "
+          "`q` intervals per face edge, each label at the radius plus the terrain's height there.");
 }
 
 /// @brief Registers ConfigError, a ValueError with the JSON `path` of the offending value, as
@@ -544,8 +561,9 @@ void BindGeneratedOutputs(nb::module_& m) {
             "The TerrainReport, for a configuration with a report output; None otherwise. Its "
             "grids list craters and boulders only where a list output asked for them.")
         .def_prop_ro(
-            "generator", [](const GeneratedOutputs& g) { return FromGenerator(g.generator); },
-            "A copy of the TerrainGenerator built from the configuration.");
+            "terrain", [](const GeneratedOutputs& g) { return g.terrain; },
+            "A copy of the Terrain built from the configuration, sharing its parts, to evaluate "
+            "or list features from further.");
     generated
         .def_ro("seconds", &GeneratedOutputs::seconds,
                 "Wall-clock time the heights and albedo took to evaluate, in seconds.")
@@ -569,27 +587,24 @@ void BindRun(nb::module_& m) {
         "evaluating the heights on `backend` (None for default_backend()). Relative input "
         "paths resolve against `directory`. Raises ConfigError for an invalid configuration.");
     m.def(
-        "build_generator",
+        "build_terrain",
         [](const TerrainGenConfig& config, const OptionalPath& directory,
            std::shared_ptr<const Source> source) {
-            return FromGenerator(
-                source ? BuildGenerator(config, std::move(source), Directory(directory))
-                       : BuildGenerator(config, Directory(directory)));
+            return source ? BuildTerrain(config, std::move(source), Directory(directory))
+                          : BuildTerrain(config, Directory(directory));
         },
         "config"_a, "directory"_a = nb::none(), "source"_a = nb::none(),
-        "The TerrainGenerator a configuration describes, as library objects to evaluate, tile, "
-        "query at points or change; relative input paths resolve against `directory`. With a "
-        "`source`, the generator is built on it in place of a source of the configuration's "
-        "own, which it must not give.");
+        "The Terrain a configuration describes, to evaluate, tile, query at points or update; "
+        "relative input paths resolve against `directory`. With a `source`, the terrain is built "
+        "on it in place of a source of the configuration's own, which it must not give.");
     m.def(
         "build_albedo",
-        [](const TerrainGenConfig& config, const PyTerrainGenerator& generator,
-           const OptionalPath& directory) {
-            return FromAlbedo(BuildAlbedo(config, generator.Get(), Directory(directory)));
+        [](const TerrainGenConfig& config, const Terrain& terrain, const OptionalPath& directory) {
+            return BuildAlbedo(config, terrain, Directory(directory));
         },
-        "config"_a, "generator"_a, "directory"_a = nb::none(),
-        "The Albedo a configuration describes for `generator`, built from the same configuration "
-        "by `build_generator`.");
+        "config"_a, "terrain"_a, "directory"_a = nb::none(),
+        "The Albedo a configuration describes for `terrain`, built from the same configuration "
+        "by `build_terrain`.");
     m.def("write_outputs", &WriteOutputs, "config"_a, "generated"_a, "directory"_a,
           nb::call_guard<nb::gil_scoped_release>(),
           "Writes each of `config`'s outputs that has a path from `generated`, what "
@@ -600,9 +615,8 @@ void BindRun(nb::module_& m) {
 }  // namespace
 
 void BindPipeline(nb::module_& m) {
-    BindGeneratorClass(m);
     BindFeatures(m);
-    BindEvaluation(m);
+    BindTerrain(m);
     BindMeshBuild(m);
     BindBodyMesh(m);
     BindConfig(m);

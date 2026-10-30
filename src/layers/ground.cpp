@@ -6,6 +6,19 @@
 
 namespace terraingen {
 
+float Ground::HeightAt(double x, double y, double spacing) const {
+    const Vec2d point{x, y};
+    float height = 0.0f;
+    SampleBlock samples({&point, 1}, {&height, 1});
+    FillSamples(samples, spacing);
+    return height;
+}
+
+void Ground::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
+    SampleBlock samples(points, heights);
+    FillSamples(samples, spacing);
+}
+
 std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& center, double step) {
     return {surface.Locate(center, {step, 0.0}), surface.Locate(center, {-step, 0.0}),
             surface.Locate(center, {0.0, step}), surface.Locate(center, {0.0, -step})};

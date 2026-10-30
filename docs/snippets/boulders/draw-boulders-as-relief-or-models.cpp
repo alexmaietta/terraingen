@@ -27,11 +27,10 @@ TEST_F(SnippetTest, DrawBouldersAsReliefOrModels) {
     rendering.relief = BoulderRelief::Shape;     // Dome is cheap; Shape draws each 3D shape's top
     rendering.modelThreshold.minDiameter = 1.0;  // meters
     rendering.shapePrototypes = 16;              // boulders share 16 shapes; 0 gives each its own
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(201, 201, 0.05);
-    terrain.layers.push_back(std::make_shared<BoulderLayer>(options));
-    const Raster<float> heights = Evaluate(terrain);  // models are left out of the heights
-    const std::vector<BoulderModel> models = PlacedBoulders(terrain, terrain.source->Grid()).models;
+    const auto source = std::make_shared<FlatSource>(201, 201, 0.05);
+    const Terrain terrain(Surface{}, source, {std::make_shared<BoulderLayer>(options)});
+    const Raster<float> heights = terrain.Evaluate();  // models are left out of the heights
+    const std::vector<BoulderModel> models = terrain.Boulders(source->Grid()).models;
     // --8<-- [end:draw_boulders_as_relief_or_models]
     EXPECT_EQ(heights.Width(), 201u);
     ASSERT_GT(models.size(), 0u);

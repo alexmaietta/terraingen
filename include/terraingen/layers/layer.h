@@ -4,22 +4,26 @@
 /// @brief `Layer`, relief added on top of a source, and `FormulaLayer` for point-wise layers.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/gpu/backend.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/sources/terrain_base.h"
-#include "terraingen/util/surface.h"
+#include "terraingen/sources/source.h"
 
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace terraingen {
 
 class EvaluationCache;
 
-/// How a layer is evaluated.
+/// How a layer is evaluated: where, at what spacing, and on what terrain.
 struct LayerContext {
     /// Sample spacing in world units; features unresolvable at it are left out. At least the cell
     /// size in `Layer::Apply`; positive in `Layer::ApplyAt`.
@@ -31,12 +35,35 @@ struct LayerContext {
     Backend backend = Backend::Cpu;
     /// Values the batches of one evaluation of points share, such as crater datums; null for none.
     EvaluationCache* cache = nullptr;
+    const Surface* surface = nullptr;  ///< What the terrain lies on; null for a plane.
+    const Source* source = nullptr;    ///< The terrain's starting heights; null for none.
+
+    /// The surface the terrain lies on: `*surface`, or a plane without one.
+    const Surface& SurfaceOrPlane() const {
+        static const Surface plane{};
+        return surface != nullptr ? *surface : plane;
+    }
+
+    /// Where noise on a plane is measured from: the source's `ReferencePoint`, or the origin
+    /// without a source.
+    Vec2d ReferencePoint() const {
+        return source != nullptr ? source->ReferencePoint() : Vec2d{};
+    }
 };
 
 /// Checks that a layer that reads the ground beneath it was given one.
 /// @param what What reads it, which starts the error message ("<what> need the ground").
 /// @throws std::invalid_argument if `ground` is null.
 void RequireGround(const Ground* ground, std::string_view what);
+
+class Layer;
+
+/// A shared, immutable layer, as a `Terrain` holds them.
+using LayerPtr = std::shared_ptr<const Layer>;
+
+/// The layers of a terrain that an update replaced, each with its replacement, in the terrain's
+/// order; layers that read other layers rebind to them (`Layer::Rebound`).
+using LayerReplacements = std::vector<std::pair<const Layer*, LayerPtr>>;
 
 /// Relief added on top of a source: noise, craters, or a layer of your own.
 /// Implementations of `ApplySamples` must be deterministic and thread-safe, and give a point the
@@ -56,15 +83,28 @@ class Layer {
     /// @throws std::invalid_argument without a positive `context.spacing`.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const;
 
-    /// What the layer was built to lie on, which must be its generator's surface; unset for a
-    /// layer that works on any surface.
+    /// The surface a layer that derives state from it when built (craters, boulders) was built
+    /// for, which must be its terrain's; unset for a layer that reads it from its context.
     virtual std::optional<Surface> LayerSurface() const {
         return std::nullopt;
     }
 
-    /// The other layers this one reads, which must come before it in its generator's layers.
+    /// The other layers this one reads, which must come before it in its terrain's layers.
     virtual std::vector<const Layer*> Dependencies() const {
         return {};
+    }
+
+    /// A copy of the layer whose seeds draw from `seed` (`ReseedWord`); null for a layer without
+    /// seeds (the default), which `Terrain::Reseed` keeps.
+    virtual LayerPtr Reseeded(std::uint64_t /*seed*/) const {
+        return nullptr;
+    }
+
+    /// A copy of the layer reading the layers `replaced` gives in place of those it reads
+    /// (`Replacement`); null when it reads none of them, as for a layer without
+    /// `Dependencies` (the default), which `Terrain::SetLayer` and `Terrain::Reseed` keep.
+    virtual LayerPtr Rebound(const LayerReplacements& /*replaced*/) const {
+        return nullptr;
     }
 
   protected:
@@ -73,31 +113,34 @@ class Layer {
     virtual void ApplySamples(SampleBlock& samples, const LayerContext& context) const = 0;
 };
 
+/// The layer `replaced` gives in place of `layer`, or `layer` itself where it gives none or one
+/// of another type.
+template <typename T>
+std::shared_ptr<const T> Replacement(const std::shared_ptr<const T>& layer,
+                                     const LayerReplacements& replaced) {
+    for (const auto& entry : replaced) {
+        if (entry.first == layer.get()) {
+            if (auto same = std::dynamic_pointer_cast<const T>(entry.second)) {
+                return same;
+            }
+        }
+    }
+    return layer;
+}
+
 /// A layer whose height at a point depends only on the height there and the point (noise,
 /// roughness, transforms); the base applies `HeightAt` to every sample in parallel.
 class FormulaLayer : public Layer {
-  public:
-    std::optional<Surface> LayerSurface() const override {
-        return surface_;
-    }
-
   protected:
-    /// @param surface What the layer's coordinates lie on, which converts a grid's cell size to
-    /// meters for the sample spacing.
-    explicit FormulaLayer(Surface surface = {}) : surface_(surface) {}
-
     /// The height at (x, y) after the layer, from `height` before it.
-    /// @param spacing Sample spacing in meters.
-    /// @param ground The terrain beneath the layer, null when the context gives none.
-    virtual float HeightAt(float height, double x, double y, double spacing,
-                           const Ground* ground) const = 0;
+    /// @param context The layer's context with `spacing` resolved to the sample spacing in meters
+    /// and `ground` the one to read at this point, null when the context gives none.
+    virtual float HeightAt(float height, double x, double y, const LayerContext& context) const = 0;
 
     /// Checks the context before any sample is evaluated; accepts any by default.
     virtual void CheckContext(const LayerContext& /*context*/) const {}
 
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const final;
-
-    Surface surface_;  ///< What the layer's coordinates lie on.
 };
 
 }  // namespace terraingen

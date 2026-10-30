@@ -24,7 +24,7 @@ def figure(quick=False):
     for ax, lacunarity in zip(axes, LACUNARITIES, strict=True):
         noise = terraingen.Fractal(seed=5, wavelength=200.0, amplitude=20.0, octaves=6, lacunarity=lacunarity)
         relief = terraingen.NoiseLayer(noise)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
-        gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief])
+        gallery.show_heights(ax, terrain.evaluate().values, pixel)
         ax.set_title(f"Lacunarity {lacunarity:g}")
     return fig

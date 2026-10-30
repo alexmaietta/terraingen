@@ -183,7 +183,7 @@ def test_icq_models_round_trip_and_triangulate(tmp_path):
 
 def test_body_icq_follows_an_ellipsoid():
     body = terraingen.Surface.ellipsoid(270.0, 147.0, 104.0)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(4, 4, 1.0, 0.0), surface=body)
+    terrain = terraingen.Terrain(body, terraingen.FlatSource(4, 4, 1.0, 0.0))
     model = terraingen.body_icq(terrain, 4)
     assert model.q == 4
     x = model.vertices[model.index(2, 2, 5)][0]

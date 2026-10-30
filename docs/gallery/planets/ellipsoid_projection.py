@@ -34,9 +34,9 @@ def figure(quick=False):
     craters = terraingen.CraterLayer.manual(
         [terraingen.Crater(lon, lat, DIAMETER, age_gyr=0.0) for lon, lat in CENTERS], models, base=body
     )
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(8, 8, 1.0), [craters], surface=body)
+    terrain = terraingen.Terrain(body, layers=[craters])
     grid = terraingen.RasterGrid.covering((-180.0, -90.0, 180.0, 90.0), step)
-    heights = terraingen.evaluate(terrain, grid=grid, spacing=0.5).values
+    heights = terrain.evaluate(grid, spacing=0.5).values
     norm = plt.Normalize(np.percentile(heights, 0.5), np.percentile(heights, 99.5))
 
     fig = plt.figure(figsize=(18, 11), layout="constrained")
@@ -80,7 +80,7 @@ def figure(quick=False):
         lonlat = np.array(
             [[body.locate(center, (east, north)) for east in offsets] for north in offsets[::-1]]
         )
-        local = terraingen.heights_at(terrain, np.ascontiguousarray(lonlat.reshape(-1, 2)), 0.5)
+        local = terrain.heights_at(np.ascontiguousarray(lonlat.reshape(-1, 2)), 0.5)
         local = np.asarray(local).reshape(len(offsets), len(offsets))
         gallery.show_hillshade(ax, local, local_pixel)
         ax.set_title(f"{index}: {center[0]:g} E, {center[1]:g} N, local frame")

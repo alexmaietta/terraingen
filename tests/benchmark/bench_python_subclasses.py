@@ -112,12 +112,12 @@ def cases():
 
 
 def time_terrain(layer, size, threads, repeats):
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, 1.0), [layer])
-    terraingen.evaluate(terrain, threads=threads)
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, 1.0), layers=[layer])
+    terrain.evaluate(threads=threads)
     best = float("inf")
     for _ in range(repeats):
         start = time.perf_counter()
-        terraingen.evaluate(terrain, threads=threads)
+        terrain.evaluate(threads=threads)
         best = min(best, time.perf_counter() - start)
     return best * 1000.0
 

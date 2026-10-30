@@ -24,9 +24,8 @@ TEST_F(SnippetTest, WriteTheWholeBodyAsAMesh) {
     options.seed = 6;
     options.generation.dMin = 3.0;
     options.generation.dMax = 40.0;
-    TerrainGenerator terrain;
-    terrain.surface = body;
-    terrain.layers = {std::make_shared<CraterLayer>(DefaultCraterModels(), options, body)};
+    const Terrain terrain(body, nullptr,
+                          {std::make_shared<CraterLayer>(DefaultCraterModels(), options, body)});
     // --8<-- [start:write_the_whole_body_as_a_mesh]
     const TriangleMesh mesh =
         BodyMesh(terrain, 128, 0.5);       // 6 x 128 x 128 quads, samples 0.5 m apart

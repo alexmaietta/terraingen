@@ -5,7 +5,8 @@
 #include <gtest/gtest.h>
 
 TEST(AnchoredPlane, IsThePlaneItselfOnAPlane) {
-    const terraingen::AnchoredPlane plane({}, {5.0, 5.0});
+    const terraingen::Surface flat;
+    const terraingen::AnchoredPlane plane(flat, {5.0, 5.0});
     const auto q = plane.Project(3.0, -4.0);
     ASSERT_TRUE(q);
     EXPECT_EQ(*q, (terraingen::Vec2d{3.0, -4.0}));

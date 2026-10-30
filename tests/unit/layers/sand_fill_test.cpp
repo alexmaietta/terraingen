@@ -5,6 +5,7 @@
 #include "terraingen/layers/bedforms.h"
 #include "terraingen/layers/dunes.h"
 #include "terraingen/layers/material.h"
+#include "terraingen/raster/grid.h"
 
 #include <gtest/gtest.h>
 
@@ -23,8 +24,14 @@ namespace {
 class Mound final : public terraingen::Ground {
   public:
     Mound(double depth, double width) : depth_(depth), width_(width) {}
-    float HeightAt(double x, double y, double) const override {
-        return static_cast<float>(depth_ * std::exp(-(x * x + y * y) / (width_ * width_)));
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const terraingen::Vec2d p = samples.Position(i);
+            const double r2 = (p.x * p.x + p.y * p.y) / (width_ * width_);
+            samples.Height(i) = static_cast<float>(depth_ * std::exp(-r2));
+        }
     }
 
   private:
@@ -60,19 +67,20 @@ TEST(SandFillLayer, FillsLowsUpToItsThicknessAndLeavesRisesBare) {
     const double center = Fill(layer, pit, 0.0, 0.0);
     EXPECT_GT(center, 0.1);
     EXPECT_LT(center, options.fill * 0.4) << "a share of the depth, approached smoothly";
-    EXPECT_NEAR(layer.ThicknessAt(0.0, 0.0, 0.1, pit), center, 1e-6);
+    EXPECT_NEAR(layer.ThicknessAt(0.0, 0.0, {0.1, 1, &pit}), center, 1e-6);
     EXPECT_EQ(Fill(layer, Mound(0.4, 3.0), 0.0, 0.0), 0.0) << "a hill holds no sand";
     EXPECT_EQ(Fill(layer, Mound(0.0, 3.0), 2.0, 1.0), 0.0) << "nor does level ground";
     EXPECT_LE(Fill(layer, Mound(-50.0, 3.0), 0.0, 0.0), options.maxThickness);
     EXPECT_GT(Fill(layer, Mound(-50.0, 3.0), 0.0, 0.0), 0.99 * options.maxThickness);
 
     EXPECT_EQ(layer.Material(), MaterialClass::Sand);
-    EXPECT_EQ(layer.MaterialCoverAt(0.0, 0.0, 0.1, &pit), 1.0);
-    EXPECT_EQ(layer.MaterialCoverAt(20.0, 0.0, 0.1, &pit), 0.0);
-    EXPECT_THROW(layer.MaterialCoverAt(0.0, 0.0, 0.1, nullptr), std::invalid_argument);
+    EXPECT_EQ(layer.MaterialCoverAt(0.0, 0.0, {0.1, 1, &pit}), 1.0);
+    EXPECT_EQ(layer.MaterialCoverAt(20.0, 0.0, {0.1, 1, &pit}), 0.0);
+    EXPECT_THROW(layer.MaterialCoverAt(0.0, 0.0, {0.1}), std::invalid_argument);
     EXPECT_THROW(layer.ApplyAt(0.0f, 0.0, 0.0, {0.1}), std::invalid_argument) << "needs ground";
-    EXPECT_EQ(SandFillLayer(SandFillOptions{8.0, 0.0, 0.5, 0.02}).ThicknessAt(0.0, 0.0, 0.1, pit),
-              0.0);
+    const SandFillLayer none(SandFillOptions{8.0, 0.0, 0.5, 0.02});
+    EXPECT_EQ(none.ThicknessAt(0.0, 0.0, {0.1, 1, &pit}), 0.0);
+    EXPECT_EQ(layer.Reseeded(3), nullptr) << "no seeds";
 }
 
 TEST(SandFillLayer, RejectsBadOptions) {
@@ -93,7 +101,7 @@ TEST(MaterialSource, DunesAndBedformsLaySand) {
     double on = 0.0;
     double off = 1.0;
     for (double x = 0.0; x < options.wavelength; x += 1.0) {
-        const double cover = dunes.MaterialCoverAt(x, 0.0, 1.0, nullptr);
+        const double cover = dunes.MaterialCoverAt(x, 0.0, {1.0});
         if (dunes.DuneHeightAt(x, 0.0) > 0.5 * options.height) {
             on = std::max(on, cover);
         }
@@ -109,7 +117,7 @@ TEST(MaterialSource, DunesAndBedformsLaySand) {
     double interdune = 1.0;
     for (double x = 0.0; x < options.wavelength; x += 1.0) {
         if (rippled.DuneHeightAt(x, 0.0) == 0.0) {
-            interdune = std::min(interdune, rippled.MaterialCoverAt(x, 0.0, 1.0, nullptr));
+            interdune = std::min(interdune, rippled.MaterialCoverAt(x, 0.0, {1.0}));
         }
     }
     EXPECT_DOUBLE_EQ(interdune, 0.3) << "rippled sand between the dunes";
@@ -119,7 +127,25 @@ TEST(MaterialSource, DunesAndBedformsLaySand) {
     fields.fieldSize = 30.0;
     const terraingen::BedformLayer bedforms(fields);
     EXPECT_EQ(bedforms.Material(), MaterialClass::Sand);
+    double covered = 0.0;
     for (double x = 0.0; x < 200.0; x += 7.0) {
-        EXPECT_EQ(bedforms.MaterialCoverAt(x, 3.0, 1.0, nullptr), bedforms.CoverAt(x, 3.0));
+        const double cover = bedforms.MaterialCoverAt(x, 3.0, {1.0});
+        EXPECT_GE(cover, 0.0);
+        EXPECT_LE(cover, 1.0);
+        EXPECT_EQ(cover, bedforms.MaterialCoverAt(x, 3.0, {0.1})) << "independent of the spacing";
+        covered += cover;
+    }
+    EXPECT_GT(covered, 0.0);
+}
+
+TEST(MaterialSource, CoversAGridCellByCellByDefault) {
+    terraingen::DuneOptions options;
+    options.shape = terraingen::DuneShape::Transverse;
+    const terraingen::DuneLayer dunes(options);
+    const terraingen::RasterGrid grid{30, 4, terraingen::GeoTransform::NorthUp(0.0, 4.0, 10.0)};
+    const terraingen::Raster<double> cover = dunes.MaterialCoverOver(grid, {10.0, 2});
+    for (std::size_t col = 0; col < grid.width; ++col) {
+        const terraingen::Vec2d c = cover.CellCenter(col, 1);
+        EXPECT_EQ(cover(col, 1), dunes.MaterialCoverAt(c.x, c.y, {10.0}));
     }
 }

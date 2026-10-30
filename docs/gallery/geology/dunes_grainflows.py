@@ -35,23 +35,23 @@ def figure(quick=False):
     coarse = 24.0
     fine = 0.1 if quick else 0.04
     size = int(FIELD_M / coarse) + 1
-    field = terraingen.TerrainGenerator(
-        terraingen.FlatSource(size, size, coarse), [terraingen.DuneLayer(dune_options(0.0))]
+    field = terraingen.Terrain(
+        source=terraingen.FlatSource(size, size, coarse), layers=[terraingen.DuneLayer(dune_options(0.0))]
     )
-    heights = terraingen.evaluate(field).values
+    heights = field.evaluate().values
     row, column = np.unravel_index(np.argmax(heights), heights.shape)
     center = ((column - 0.5 * (size - 1)) * coarse + 25.0, (0.5 * (size - 1) - row) * coarse)
     window = terraingen.RasterGrid.centered(center, (WINDOW_M, WINDOW_M), fine)
-    bare = terraingen.evaluate(
-        terraingen.TerrainGenerator(field.source, [terraingen.DuneLayer(dune_options(0.0))]), grid=window
-    ).values
+    bare = field.evaluate(window).values
 
     fig, axes = plt.subplots(1, len(COVERS) + 1, figsize=(14, 4.6), layout="constrained")
     gallery.show_hillshade(axes[0], bare, fine)
     axes[0].set_title("Bare slip face")
     for ax, cover in zip(axes[1:], COVERS, strict=True):
-        terrain = terraingen.TerrainGenerator(field.source, [terraingen.DuneLayer(dune_options(cover))])
-        difference = terraingen.evaluate(terrain, grid=window).values - bare
+        terrain = terraingen.Terrain(
+            source=field.source(), layers=[terraingen.DuneLayer(dune_options(cover))]
+        )
+        difference = terrain.evaluate(window).values - bare
         image = ax.imshow(difference * 100.0, cmap="RdBu_r", vmin=-2.0, vmax=2.0)
         ax.set_axis_off()
         ax.set_title(f"Grainflows over {cover:.0%} of the face")

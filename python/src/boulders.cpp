@@ -444,28 +444,25 @@ void BindLayerQueries(nb::class_<BoulderLayer, Layer>& layer) {
     layer
         .def(
             "abundance_at",
-            [](const BoulderLayer& boulders, double x, double y,
-               const PyTerrainGenerator* generator, std::size_t layers) {
-                const BoulderAbundance abundance =
-                    WithGround(generator, layers,
-                               [&](const Ground* g) { return boulders.AbundanceAt(x, y, g); });
+            [](const BoulderLayer& boulders, double x, double y, const Ground* ground) {
+                const BoulderAbundance abundance = boulders.AbundanceAt(x, y, ground);
                 return std::pair{abundance.background, abundance.ejecta};
             },
-            "x"_a, "y"_a, "generator"_a = nb::none(), "layers"_a = 0,
+            "x"_a, "y"_a, "ground"_a = nb::none(), nb::call_guard<nb::gil_scoped_release>(),
             "The boulder abundance at (x, y): (background, ejecta). With the exposure field, give "
-            "the ground beneath the boulders: `generator`'s source and its first `layers` layers.")
+            "the ground beneath the boulders, such as `terrain.ground(n)` for layer n.")
         .def(
             "unresolved_cover_at",
             [](const BoulderLayer& boulders, double x, double y, double spacing,
-               const PyTerrainGenerator* generator, std::size_t layers) {
-                const UnresolvedCover cover = WithGround(generator, layers, [&](const Ground* g) {
-                    return boulders.UnresolvedCoverAt(x, y, spacing, g);
-                });
+               const Ground* ground) {
+                const UnresolvedCover cover = boulders.UnresolvedCoverAt(x, y, spacing, ground);
                 return std::pair{cover.mean, cover.variance};
             },
-            "x"_a, "y"_a, "spacing"_a, "generator"_a = nb::none(), "layers"_a = 0,
+            "x"_a, "y"_a, "spacing"_a, "ground"_a = nb::none(),
+            nb::call_guard<nb::gil_scoped_release>(),
             "The share of a sample `spacing` meters across at (x, y) that boulders too small "
-            "to resolve cover: (mean, variance).");
+            "to resolve cover: (mean, variance), with the ground beneath them as for "
+            "`abundance_at`.");
 }
 
 void BindLayer(nb::module_& m) {
@@ -542,16 +539,17 @@ void BindSandShadows(nb::module_& m) {
     layer
         .def(
             "__init__",
-            [](SandShadowLayer* self, std::shared_ptr<BoulderLayer> boulders,
-               const SandShadowOptions& shadowOptions, TerrainBase base) {
-                new (self) SandShadowLayer(std::move(boulders), shadowOptions, std::move(base));
+            [](SandShadowLayer* self, std::shared_ptr<const BoulderLayer> boulders,
+               const SandShadowOptions& shadowOptions) {
+                new (self) SandShadowLayer(std::move(boulders), shadowOptions);
             },
-            "boulders"_a, "options"_a = SandShadowOptions{}, "base"_a = TerrainBase{})
+            "boulders"_a, "options"_a = SandShadowOptions{})
         .def_prop_ro("options", &SandShadowLayer::Options);
     BindGroundQuery<SandShadowLayer>(
         layer, "thickness_at",
-        [](const SandShadowLayer& shadows, double x, double y, double spacing,
-           const Ground* ground) { return shadows.ThicknessAt(x, y, spacing, ground); },
+        [](const SandShadowLayer& shadows, double x, double y, const LayerContext& context) {
+            return shadows.ThicknessAt(x, y, context);
+        },
         "The sand depth at (x, y) in meters; with the boulders' exposure field it reads the "
         "ground.");
     BindMaterialCover<SandShadowLayer>(layer);

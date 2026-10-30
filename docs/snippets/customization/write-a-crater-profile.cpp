@@ -41,10 +41,9 @@ TEST_F(SnippetTest, WriteACraterProfile) {
     options.seed = 1;
     options.generation.dMin = 6.0;
     options.generation.dMax = 60.0;
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(129, 129, 1.0);
-    terrain.layers = {std::make_shared<CraterLayer>(models, options)};
-    const Raster<float> heights = Evaluate(terrain);
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(129, 129, 1.0),
+                          {std::make_shared<CraterLayer>(models, options)});
+    const Raster<float> heights = terrain.Evaluate();
     // --8<-- [end:write_a_crater_profile]
     EXPECT_EQ(heights.Width(), 129);
 }

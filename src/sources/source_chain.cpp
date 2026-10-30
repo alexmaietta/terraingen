@@ -3,6 +3,7 @@
 #include "terraingen/sources/source_chain.h"
 
 #include "sources/seam_field.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"
 
@@ -127,12 +128,20 @@ const detail::SeamField& SourceChain::Seam() const {
     return *seam_;
 }
 
-void SourceChain::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
+void SourceChain::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
     if (!prefix_) {
-        sources_.front()->Fill(heights, spacing, threads);
+        sources_.front()->Fill(samples, spacing, threads);
         return;
     }
-    prefix_->Fill(heights, spacing, threads);
+    prefix_->Fill(samples, spacing, threads);
+    if (Raster<float>* grid = samples.Grid()) {
+        FillGridGaps(*grid, spacing, threads);
+    } else {
+        FillPointGaps(samples.Points(), samples.Heights(), spacing);
+    }
+}
+
+void SourceChain::FillGridGaps(Raster<float>& heights, double spacing, unsigned threads) const {
     const auto values = heights.Values();
     if (std::none_of(values.begin(), values.end(),
                      [&](float value) { return heights.IsMissing(value); })) {
@@ -158,25 +167,8 @@ void SourceChain::Fill(Raster<float>& heights, double spacing, unsigned threads)
     });
 }
 
-float SourceChain::HeightAt(double x, double y, double spacing) const {
-    if (!prefix_) {
-        return sources_.front()->HeightAt(x, y, spacing);
-    }
-    const float height = prefix_->HeightAt(x, y, spacing);
-    if (!std::isnan(height)) {
-        return height;
-    }
-    const float later = sources_.back()->HeightAt(x, y, spacing);
-    return std::isnan(later) ? later : Seamed(later, Seam().At(x, y));
-}
-
-void SourceChain::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
-    detail::RequireHeightPerPoint(points, heights);
-    if (!prefix_) {
-        sources_.front()->HeightsAt(points, heights, spacing);
-        return;
-    }
-    prefix_->HeightsAt(points, heights, spacing);
+void SourceChain::FillPointGaps(Span<const Vec2d> points, Span<float> heights,
+                                double spacing) const {
     std::vector<Vec2d> gaps;
     std::vector<std::size_t> at;
     for (std::size_t i = 0; i < points.size(); ++i) {
@@ -204,6 +196,20 @@ double SourceChain::ResolutionAt(double x, double y) const {
 double SourceChain::PostSpacingAt(double x, double y) const {
     return FirstWithHeight(sources_, x, y,
                            [&](const Source& source) { return source.PostSpacingAt(x, y); });
+}
+
+std::shared_ptr<const Source> SourceChain::Reseeded(std::uint64_t seed) const {
+    std::vector<std::shared_ptr<const Source>> sources = sources_;
+    bool changed = false;
+    for (std::size_t n = 0; n < sources.size(); ++n) {
+        const auto word = static_cast<std::uint32_t>(2 * n);
+        const std::uint64_t part = JoinWords(ReseedWord(seed, word), ReseedWord(seed, word + 1));
+        if (auto reseeded = sources[n]->Reseeded(part)) {
+            sources[n] = std::move(reseeded);
+            changed = true;
+        }
+    }
+    return changed ? std::make_shared<SourceChain>(std::move(sources), seams_) : nullptr;
 }
 
 }  // namespace terraingen

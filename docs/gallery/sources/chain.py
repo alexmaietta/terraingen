@@ -38,9 +38,8 @@ def figure(quick=False):
         )
     )
     ground = terraingen.SyntheticSource([terraingen.Fractal(seed=7, wavelength=300.0, amplitude=20.0)])
-    dem = terraingen.evaluate(
-        terraingen.TerrainGenerator(ground, [craters]),
-        grid=terraingen.RasterGrid.centered((0.0, 0.0), (POSTS * PIXEL, POSTS * PIXEL), PIXEL),
+    dem = terraingen.Terrain(source=ground, layers=[craters]).evaluate(
+        terraingen.RasterGrid.centered((0.0, 0.0), (POSTS * PIXEL, POSTS * PIXEL), PIXEL)
     )
     truth = np.array(dem.values, dtype=np.float32)
     holed = truth.copy()
@@ -72,7 +71,7 @@ def figure(quick=False):
         seams.width = 20.0
         seams.decay_length = 60.0
         chain = terraingen.SourceChain([source, fallback], seams)
-        chained = terraingen.evaluate(terraingen.TerrainGenerator(chain, [])).values
+        chained = terraingen.Terrain(source=chain).evaluate().values
         ax = fig.add_subplot(layout[0, column])
         gallery.show_hillshade(ax, chained, PIXEL)
         ax.contour(gaps, levels=[0.5], colors="#d62728", linewidths=0.8)

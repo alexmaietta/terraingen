@@ -98,15 +98,15 @@ TEST(SampleBlock, AppliesALayerToManyPointsAsToEachAlone) {
 TEST(FunctionLayer, PassesTheSpacingInMetersOnASphere) {
     const auto moon = terraingen::Surface::Sphere(1737400.0);
     double seen = 0.0;
-    const terraingen::FunctionLayer layer(
-        [&seen](double, double, double spacing, double height) {
-            seen = spacing;
-            return height;
-        },
-        moon);
+    const terraingen::FunctionLayer layer([&seen](double, double, double spacing, double height) {
+        seen = spacing;
+        return height;
+    });
     Raster<float> heights(1, 1, 0.0f);
     heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 0.001, 0.001));
-    layer.Apply(heights, {});
+    terraingen::LayerContext context;
+    context.surface = &moon;
+    layer.Apply(heights, context);
     EXPECT_NEAR(seen, 0.001 * moon.UnitLength(), 1e-9);
 }
 

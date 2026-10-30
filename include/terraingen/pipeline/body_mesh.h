@@ -6,7 +6,7 @@
 
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/mesh.h"
-#include "terraingen/pipeline/generator.h"
+#include "terraingen/pipeline/terrain.h"
 
 #include <cstddef>
 
@@ -23,8 +23,8 @@ namespace terraingen {
 /// @param threads Threads to use; 0 for every hardware thread.
 /// @throws std::invalid_argument for a terrain not on a body, zero cells, or a negative or
 /// non-finite spacing; and whatever the terrain's parts throw.
-TriangleMesh BodyMesh(const TerrainGenerator& generator, std::size_t cellsPerFace,
-                      double spacing = 0.0, unsigned threads = 0);
+TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing = 0.0,
+                      unsigned threads = 0);
 
 /// The whole body a terrain on a sphere or ellipsoid lies on as an ICQ shape model with `q`
 /// intervals per face edge: each label at `IcqDirection`, at the body's radius in that direction
@@ -33,7 +33,6 @@ TriangleMesh BodyMesh(const TerrainGenerator& generator, std::size_t cellsPerFac
 /// @param threads Threads to use; 0 for every hardware thread.
 /// @throws std::invalid_argument for a terrain not on a body, a `q` of 0, or a negative or
 /// non-finite spacing; and whatever the terrain's parts throw.
-IcqModel BodyIcq(const TerrainGenerator& generator, std::size_t q, double spacing = 0.0,
-                 unsigned threads = 0);
+IcqModel BodyIcq(const Terrain& terrain, std::size_t q, double spacing = 0.0, unsigned threads = 0);
 
 }  // namespace terraingen

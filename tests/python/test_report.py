@@ -41,8 +41,8 @@ def test_report_grid_bins_the_placed_features(small_config):
         terraingen.TerrainGenConfig.from_dict(small_config), threads=2
     )
     grid = generated.grids[0]
-    craters = terraingen.placed_craters(generated.generator, grid.grid)
-    boulders = terraingen.placed_boulders(generated.generator, grid.grid)
+    craters = generated.terrain.craters(grid.grid)
+    boulders = generated.terrain.boulders(grid.grid)
     target = terraingen.PowerLawSfd(0.01, 2.0)
     plane = terraingen.Surface.plane()
     report = terraingen.report_grid(

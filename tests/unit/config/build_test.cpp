@@ -388,7 +388,7 @@ TEST(BuildField, BuildsConstantsAndReadsGeoTiffs) {
     EXPECT_THROW(terraingen::config::BuildField(cubic, "f"), ConfigError);
 }
 
-TEST(BuildDensityMap, BuildsTheFieldAndLeavesTheMapUnchecked) {
+TEST(BuildDensityMap, BuildsTheFieldAndChecksTheMap) {
     terraingen::DensityMapSpec spec = ConstantDensityMap(5.0);
     spec.map.measure = terraingen::DensityMeasure::Count;
     spec.map.minDiameter = 4.5;
@@ -402,7 +402,12 @@ TEST(BuildDensityMap, BuildsTheFieldAndLeavesTheMapUnchecked) {
     EXPECT_FALSE(map.total);
     terraingen::DensityMapSpec counts;
     counts.map.measure = terraingen::DensityMeasure::Count;
-    EXPECT_NO_THROW(terraingen::config::BuildDensityMap(counts, "layers[0].density_map"));
+    try {
+        terraingen::config::BuildDensityMap(counts, "layers[0].density_map");
+        FAIL() << "expected a ConfigError for a count without a smallest diameter";
+    } catch (const ConfigError& error) {
+        EXPECT_EQ(error.Path(), "layers[0].density_map");
+    }
     try {
         terraingen::DensityMapSpec missing;
         missing.field = FileField("missing.tif");
@@ -508,7 +513,7 @@ TEST(Resolve, ResolvesRelativePathsAgainstAFolder) {
     EXPECT_EQ(terraingen::config::Resolve("a.tif", {}), std::filesystem::path("a.tif"));
 }
 
-TEST(BuildGenerator, BoulderEjectaComeFromEveryCraterLayerBefore) {
+TEST(BuildTerrain, BoulderEjectaComeFromEveryCraterLayerBefore) {
     ConfigSpec config;
     config.outputs = {
         terraingen::testing::Heightmap("e.tif", terraingen::testing::GridRegion{65, 65})};
@@ -521,13 +526,13 @@ TEST(BuildGenerator, BoulderEjectaComeFromEveryCraterLayerBefore) {
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.ejecta.minCraterDiameter = 10.0;
     config.layers = {first, second, boulders};
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
-    const auto& layer = dynamic_cast<const terraingen::BoulderLayer&>(*terrain.layers[2]);
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const auto& layer = dynamic_cast<const terraingen::BoulderLayer&>(*terrain.Layers()[2]);
     EXPECT_EQ(layer.AbundanceAt(20.0, 0.0).ejecta, 1.0) << "the first crater layer's rim";
     EXPECT_EQ(layer.AbundanceAt(520.0, 0.0).ejecta, 1.0) << "the second crater layer's rim";
 }
 
-TEST(BuildGenerator, BuildsEveryLayerKindInOrder) {
+TEST(BuildTerrain, BuildsEveryLayerKindInOrder) {
     ConfigSpec config = Small();
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders.sizes.minDiameter = 1.0;
@@ -537,48 +542,49 @@ TEST(BuildGenerator, BuildsEveryLayerKindInOrder) {
     config.layers.push_back(boulders);
     config.layers.push_back(secondaries);
     config.layers.push_back(terraingen::RoughnessLayerSpec{});
-    config.layers.push_back(terraingen::BedformLayerSpec{});
+    config.layers.push_back(terraingen::BedformOptions{});
     config.layers.push_back(terraingen::ScaleLayerSpec{2.0, 1.0});
     config.layers.push_back(terraingen::ClampLayerSpec{0.0, 1.0});
     config.layers.push_back(terraingen::MaskedLayerSpec{terraingen::CircleRegionSpec{0, 0, 10}});
-    config.layers.push_back(terraingen::DuneLayerSpec{terraingen::MarsBarchans()});
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
-    ASSERT_EQ(terrain.layers.size(), 10u);
-    EXPECT_NE(dynamic_cast<const terraingen::NoiseLayer*>(terrain.layers[0].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::BoulderLayer*>(terrain.layers[2].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::SecondaryCraterLayer*>(terrain.layers[3].get()),
-              nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::RoughnessLayer*>(terrain.layers[4].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::BedformLayer*>(terrain.layers[5].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::ScaleLayer*>(terrain.layers[6].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::ClampLayer*>(terrain.layers[7].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::MaskedLayer*>(terrain.layers[8].get()), nullptr);
-    EXPECT_NE(dynamic_cast<const terraingen::DuneLayer*>(terrain.layers[9].get()), nullptr);
+    config.layers.push_back(terraingen::MarsBarchans());
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const std::vector<terraingen::LayerPtr>& layers = terrain.Layers();
+    ASSERT_EQ(layers.size(), 10u);
+    EXPECT_NE(dynamic_cast<const terraingen::NoiseLayer*>(layers[0].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::CraterLayer*>(layers[1].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::BoulderLayer*>(layers[2].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::SecondaryCraterLayer*>(layers[3].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::RoughnessLayer*>(layers[4].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::BedformLayer*>(layers[5].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::ScaleLayer*>(layers[6].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::ClampLayer*>(layers[7].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::MaskedLayer*>(layers[8].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::DuneLayer*>(layers[9].get()), nullptr);
+    EXPECT_NE(dynamic_cast<const terraingen::SyntheticSource*>(terrain.Source().get()), nullptr);
     ConfigSpec narrow;
     narrow.outputs = {
         terraingen::testing::Heightmap("n.tif", terraingen::testing::GridRegion{1, 1})};
-    EXPECT_THROW(terraingen::BuildGenerator(narrow), ConfigError);
+    EXPECT_THROW(terraingen::BuildTerrain(narrow), ConfigError);
 }
 
 TEST(BuildAlbedo, BrightensEveryOrOneCraterLayer) {
     ConfigSpec both = terraingen::testing::WithAlbedo();
     both.layers.push_back(Craters(both));
     std::get<terraingen::CraterAlbedoSpec>(both.albedo->layers[0]).craterLayer.reset();
-    EXPECT_EQ(terraingen::BuildAlbedo(both, terraingen::BuildGenerator(both)).layers.size(), 2u);
+    EXPECT_EQ(terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both)).layers.size(), 2u);
     std::get<terraingen::CraterAlbedoSpec>(both.albedo->layers[0]).craterLayer = 1;
-    EXPECT_EQ(terraingen::BuildAlbedo(both, terraingen::BuildGenerator(both)).layers.size(), 1u);
-    both.albedo->layers.push_back(terraingen::SplotchAlbedoSpec{});
+    EXPECT_EQ(terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both)).layers.size(), 1u);
+    both.albedo->layers.push_back(terraingen::SplotchAlbedoOptions{});
     const terraingen::Albedo spotted =
-        terraingen::BuildAlbedo(both, terraingen::BuildGenerator(both));
+        terraingen::BuildAlbedo(both, terraingen::BuildTerrain(both));
     ASSERT_EQ(spotted.layers.size(), 2u);
     EXPECT_NE(dynamic_cast<const terraingen::SplotchAlbedo*>(spotted.layers[1].get()), nullptr);
     ConfigSpec rocky = both;
     rocky.layers.push_back(terraingen::BoulderLayerSpec{});
     rocky.layers.push_back(terraingen::BoulderLayerSpec{});
-    rocky.albedo->layers = {terraingen::RockAlbedoSpec{}, terraingen::SlopeAlbedoSpec{}};
+    rocky.albedo->layers = {terraingen::RockAlbedoSpec{}, terraingen::SlopeAlbedoOptions{}};
     const terraingen::Albedo rocks =
-        terraingen::BuildAlbedo(rocky, terraingen::BuildGenerator(rocky));
+        terraingen::BuildAlbedo(rocky, terraingen::BuildTerrain(rocky));
     ASSERT_EQ(rocks.layers.size(), 2u);
     EXPECT_NE(dynamic_cast<const terraingen::RockAlbedo*>(rocks.layers[0].get()), nullptr);
     EXPECT_NE(dynamic_cast<const terraingen::SlopeAlbedo*>(rocks.layers[1].get()), nullptr);
@@ -586,27 +592,28 @@ TEST(BuildAlbedo, BrightensEveryOrOneCraterLayer) {
     EXPECT_EQ(terraingen::EvaluateAlbedo(rocks, grid, {1.0})[0].Width(), 8u)
         << "the rock's grounds outlive the terrain they were built from";
     ConfigSpec none = Small();
-    EXPECT_THROW(terraingen::BuildAlbedo(none, terraingen::BuildGenerator(none)), ConfigError);
+    EXPECT_THROW(terraingen::BuildAlbedo(none, terraingen::BuildTerrain(none)), ConfigError);
     ConfigSpec invalid = terraingen::testing::WithAlbedo();
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(invalid);
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(invalid);
     std::get<terraingen::SyntheticAlbedoSpec>(invalid.albedo->source).value = 2.0;
     EXPECT_THROW(terraingen::BuildAlbedo(invalid, terrain), ConfigError);
 }
 
-TEST(BuildAlbedo, RejectsAGeneratorChangedAfterBuilding) {
+TEST(BuildAlbedo, RejectsATerrainChangedAfterBuilding) {
     ConfigSpec rocky = terraingen::testing::WithAlbedo();
     rocky.layers.push_back(terraingen::BoulderLayerSpec{});
     rocky.albedo->layers.push_back(terraingen::RockAlbedoSpec{});
-    const terraingen::TerrainGenerator built = terraingen::BuildGenerator(rocky);
-    ASSERT_GE(built.layers.size(), 2u);
-    terraingen::TerrainGenerator shorter = built;
-    shorter.layers.pop_back();
-    terraingen::TerrainGenerator swapped = built;
-    std::swap(swapped.layers.front(), swapped.layers.back());
-    for (const terraingen::TerrainGenerator* changed : {&shorter, &swapped}) {
+    const terraingen::Terrain built = terraingen::BuildTerrain(rocky);
+    const std::size_t last = built.Layers().size() - 1;
+    ASSERT_GE(last, 1u);
+    const terraingen::Terrain shorter = built.Ground(last);
+    terraingen::Terrain replaced = built;
+    replaced.SetLayer(last, std::make_shared<terraingen::ScaleLayer>(1.0));
+    for (const terraingen::Terrain* changed :
+         std::initializer_list<const terraingen::Terrain*>{&shorter, &replaced}) {
         try {
             terraingen::BuildAlbedo(rocky, *changed);
-            ADD_FAILURE() << "a changed generator was accepted";
+            ADD_FAILURE() << "a changed terrain was accepted";
         } catch (const ConfigError& error) {
             EXPECT_EQ(error.Path().rfind("layers[", 0), 0u) << error.Path();
         }
@@ -686,14 +693,14 @@ TEST(BuildSurface, ReportsShapeModelProblemsAtTheirKeys) {
               "body.path");
 }
 
-TEST(BuildGenerator, AShapeModelBodyIsItsOwnSourceUpsampledAsGiven) {
+TEST(BuildTerrain, AShapeModelBodyIsItsOwnSourceUpsampledAsGiven) {
     terraingen::WriteIcq(terraingen::testing::TempPath("config_source.icq"),
                          terraingen::ToIcq(Lumpy(12)));
     ConfigSpec config;
     config.body = terraingen::ShapeModelSurfaceSpec{"config_source.icq"};
     const auto source = [&] {
         return std::dynamic_pointer_cast<const terraingen::ShapeModelSource>(
-            terraingen::BuildGenerator(config, ::testing::TempDir()).source);
+            terraingen::BuildTerrain(config, ::testing::TempDir()).Source());
     };
     ASSERT_NE(source(), nullptr) << "a shape-model body is its own source";
     const terraingen::ShapeModelSource cubic(source()->Body());
@@ -712,7 +719,7 @@ TEST(BuildGenerator, AShapeModelBodyIsItsOwnSourceUpsampledAsGiven) {
     sphere.body = terraingen::SphereSurfaceSpec{1000.0};
     sphere.source = terraingen::ShapeModelSourceSpec{};
     try {
-        terraingen::BuildGenerator(sphere);
+        terraingen::BuildTerrain(sphere);
         FAIL() << "a shape-model source needs a shape-model body";
     } catch (const ConfigError& error) {
         EXPECT_EQ(error.Path(), "source");
@@ -724,10 +731,10 @@ TEST(GenerateFromConfig, RefinesAShapeModelBodyBetweenItsLabels) {
                          terraingen::ToIcq(Lumpy(8)));
     ConfigSpec config;
     config.body = terraingen::ShapeModelSurfaceSpec{"config_refined.icq"};
-    const terraingen::TerrainGenerator terrain =
-        terraingen::BuildGenerator(config, ::testing::TempDir());
-    const terraingen::Raster<float> heights = terraingen::Evaluate(
-        terrain, terraingen::RasterGrid::Covering({-180.0, -90.0, 180.0, 90.0}, 3.0), 1.0);
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config, ::testing::TempDir());
+    const terraingen::Raster<float> heights =
+        terrain.Evaluate(terraingen::RasterGrid::Covering({-180.0, -90.0, 180.0, 90.0}, 3.0),
+                         terraingen::EvaluationOptions{}.Spacing(1.0));
     float largest = 0.0f;
     for (const float height : heights.Values()) {
         largest = std::max(largest, std::abs(height));
@@ -736,7 +743,7 @@ TEST(GenerateFromConfig, RefinesAShapeModelBodyBetweenItsLabels) {
     EXPECT_LT(largest, 5.0f);
 }
 
-TEST(BuildGenerator, GivesLayersTheirMapsCatalogsAndCompleteness) {
+TEST(BuildTerrain, GivesLayersTheirMapsCatalogsAndCompleteness) {
     ConfigSpec config = Small();
     auto& craters = std::get<CraterLayerSpec>(config.layers.at(1));
     craters.densityMap = ConstantDensityMap(2.0);
@@ -753,8 +760,8 @@ TEST(BuildGenerator, GivesLayersTheirMapsCatalogsAndCompleteness) {
     boulders.sizes = terraingen::PowerLawSpec{0.01, 3.0};
     boulders.slopeMap = ConstantSlopeMap(2.5);
     config.layers.push_back(boulders);
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
-    const auto* crater = dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get());
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const auto* crater = dynamic_cast<const terraingen::CraterLayer*>(terrain.Layers()[1].get());
     ASSERT_NE(crater, nullptr);
     ASSERT_TRUE(crater->Options().densityMap);
     EXPECT_EQ(crater->Options().densityMap->field->ValueAt(0.0, 0.0), 2.0);
@@ -771,16 +778,16 @@ TEST(BuildGenerator, GivesLayersTheirMapsCatalogsAndCompleteness) {
     EXPECT_EQ(options, options);
 }
 
-TEST(BuildGenerator, GivesCraterLayersTheSecondariesThrownFromThem) {
+TEST(BuildTerrain, GivesCraterLayersTheSecondariesThrownFromThem) {
     ConfigSpec config = Small();
     terraingen::SecondaryLayerSpec secondaries;
     secondaries.secondaries.onsetCount = 5.0;
     config.layers.push_back(secondaries);
     config.layers.push_back(secondaries);
     config.layers.push_back(std::get<CraterLayerSpec>(config.layers.at(1)));
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config);
-    const auto* first = dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[1].get());
-    const auto* last = dynamic_cast<const terraingen::CraterLayer*>(terrain.layers[4].get());
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config);
+    const auto* first = dynamic_cast<const terraingen::CraterLayer*>(terrain.Layers()[1].get());
+    const auto* last = dynamic_cast<const terraingen::CraterLayer*>(terrain.Layers()[4].get());
     ASSERT_NE(first, nullptr);
     ASSERT_NE(last, nullptr);
     EXPECT_EQ(first->Options().secondaries.size(), 2u);
@@ -844,9 +851,18 @@ TEST(InferListFormat, FollowsTheJsonExtension) {
 namespace {
 
 /// The craters of the crater layer `index` of `terrain` centered in `region`.
-terraingen::CraterList CratersIn(const terraingen::TerrainGenerator& terrain, std::size_t index,
+terraingen::CraterList CratersIn(const terraingen::Terrain& terrain, std::size_t index,
                                  const terraingen::Bounds2d& region) {
-    return dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(index)).Craters(region);
+    return dynamic_cast<const terraingen::CraterLayer&>(*terrain.Layers().at(index))
+        .Craters(region);
+}
+
+/// The completeness the crater layer `index` of `terrain` was built with.
+std::shared_ptr<const terraingen::SurfaceField>
+CraterCompleteness(const terraingen::Terrain& terrain, std::size_t index) {
+    return dynamic_cast<const terraingen::CraterLayer&>(*terrain.Layers().at(index))
+        .Options()
+        .generation.completeness;
 }
 
 /// Writes a flat 64 x 64 DEM of 5 m cells over (0, 0) to (320, 320) as `name` in `folder`, and
@@ -866,7 +882,7 @@ ConfigSpec FlatDemCraters(const std::filesystem::path& folder, const std::string
 /// The path of the `ConfigError` that building `config` from `folder` throws.
 std::string BuildErrorPath(const ConfigSpec& config, const std::filesystem::path& folder) {
     try {
-        terraingen::BuildGenerator(config, folder);
+        terraingen::BuildTerrain(config, folder);
     } catch (const ConfigError& error) {
         return error.Path();
     }
@@ -875,14 +891,14 @@ std::string BuildErrorPath(const ConfigSpec& config, const std::filesystem::path
 
 }  // namespace
 
-TEST(BuildGenerator, ReadsOnlyTheCropOfARasterSource) {
+TEST(BuildTerrain, ReadsOnlyTheCropOfARasterSource) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_region");
     terraingen::testing::WriteDem(folder, "dem.tif");
     ConfigSpec config = terraingen::testing::RasterConfig("dem.tif");
     const terraingen::Bounds2d region{1050.0, 1900.0, 1100.0, 1950.0};
     terraingen::testing::RasterSpec(config).read.crop = region;
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config, folder);
-    const terraingen::RasterGrid grid = terrain.source->Grid();
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config, folder);
+    const terraingen::RasterGrid grid = terrain.Source()->Grid();
     terraingen::GeoTiffSourceOptions read;
     read.crop = region;
     EXPECT_EQ(grid, terraingen::GeoTiffSource(folder / "dem.tif", read).Grid());
@@ -893,10 +909,10 @@ TEST(BuildGenerator, ReadsOnlyTheCropOfARasterSource) {
     EXPECT_GE(bounds.minX, region.minX - 5.0);
     EXPECT_GE(bounds.maxX, region.maxX);
     EXPECT_LE(bounds.maxX, region.maxX + 5.0);
-    EXPECT_TRUE(std::isnan(terrain.source->HeightAt(1010.0, 1990.0, 1.0))) << "outside the crop";
+    EXPECT_TRUE(std::isnan(terrain.Source()->HeightAt(1010.0, 1990.0, 1.0))) << "outside the crop";
 }
 
-TEST(BuildGenerator, ReadsALongitudeAndLatitudeRasterOnABody) {
+TEST(BuildTerrain, ReadsALongitudeAndLatitudeRasterOnABody) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_lonlat");
     std::filesystem::create_directories(folder);
     terraingen::Raster<float> dem(8, 4, 0.0f);
@@ -905,22 +921,21 @@ TEST(BuildGenerator, ReadsALongitudeAndLatitudeRasterOnABody) {
     terraingen::WriteGeoTiff(folder / "moon.tif", dem, terraingen::GeographicSphereKeys(1737400.0));
     ConfigSpec config = terraingen::testing::RasterConfig("moon.tif");
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config, folder);
-    EXPECT_TRUE(terrain.surface.IsBody());
-    EXPECT_TRUE(terraingen::TerrainGeoKeys(terrain).IsGeographic());
-    const terraingen::Raster<float> heights = terraingen::Evaluate(terrain);
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config, folder);
+    EXPECT_TRUE(terrain.Surface().IsBody());
+    EXPECT_TRUE(terrain.Keys().IsGeographic());
+    const terraingen::Raster<float> heights = terrain.Evaluate();
     EXPECT_EQ(heights.Width(), 8u);
     EXPECT_EQ(heights(3, 1), 250.0f);
 }
 
-TEST(BuildGenerator, UpsamplesTheSourceAsItsUpsamplingSays) {
+TEST(BuildTerrain, UpsamplesTheSourceAsItsUpsamplingSays) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_upsampling");
     const terraingen::Raster<float> dem = terraingen::testing::WriteDem(folder, "dem.tif");
     ConfigSpec config = terraingen::testing::RasterConfig("dem.tif");
     const terraingen::RasterGrid fine =
-        terraingen::ResampledGrid(terraingen::RasterGrid::FromRaster(dem), 1.0);
-    const terraingen::Raster<float> cubic =
-        terraingen::Evaluate(terraingen::BuildGenerator(config, folder), fine);
+        terraingen::testing::ResampledGrid(terraingen::RasterGrid::FromRaster(dem), 1.0);
+    const terraingen::Raster<float> cubic = terraingen::BuildTerrain(config, folder).Evaluate(fine);
     const terraingen::Raster<float> expected =
         terraingen::testing::Resample(dem, 1.0, terraingen::ResampleMethod::Cubic);
     for (std::size_t i = 0; i < cubic.Size(); ++i) {
@@ -929,22 +944,23 @@ TEST(BuildGenerator, UpsamplesTheSourceAsItsUpsamplingSays) {
     terraingen::UpsamplingSpec& upsampling = terraingen::testing::RasterSpec(config).upsampling;
     upsampling.type = "diamond_square";
     upsampling.diamondSquare.minPixelSize = 2.0;
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config, folder);
-    const auto source = std::dynamic_pointer_cast<const terraingen::GeoTiffSource>(terrain.source);
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config, folder);
+    const auto source =
+        std::dynamic_pointer_cast<const terraingen::GeoTiffSource>(terrain.Source());
     ASSERT_NE(source, nullptr);
-    const terraingen::Raster<float> refined = terraingen::Evaluate(terrain, fine);
+    const terraingen::Raster<float> refined = terrain.Evaluate(fine);
     EXPECT_NE(refined(8, 6), cubic(8, 6));
     EXPECT_EQ(refined(2, 2), dem(0, 0)) << "the cells stay";
     upsampling.type = "lanczos3";
-    EXPECT_NE(terraingen::Evaluate(terraingen::BuildGenerator(config, folder), fine)(8, 6),
-              cubic(8, 6));
+    EXPECT_NE(terraingen::BuildTerrain(config, folder).Evaluate(fine)(8, 6), cubic(8, 6));
 }
 
-TEST(BuildGenerator, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
+TEST(BuildTerrain, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
     ConfigSpec config = Small();
     config.source.reset();
-    const terraingen::TerrainGenerator rolling = terraingen::BuildGenerator(config);
-    const auto base = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(rolling.source);
+    const terraingen::Terrain rolling = terraingen::BuildTerrain(config);
+    const auto base =
+        std::dynamic_pointer_cast<const terraingen::SyntheticSource>(rolling.Source());
     ASSERT_NE(base, nullptr);
     ASSERT_EQ(base->Fractals().size(), 1u);
     const terraingen::Fractal& fractal = base->Fractals()[0];
@@ -957,14 +973,13 @@ TEST(BuildGenerator, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
     config.source = terraingen::SyntheticSourceSpec{};
     const terraingen::RasterGrid grid =
         terraingen::RasterGrid::Centered({0.0, 0.0}, {64.0, 64.0}, 1.0);
-    const terraingen::Raster<float> given =
-        terraingen::Evaluate(terraingen::BuildGenerator(config), grid);
-    const terraingen::Raster<float> unset = terraingen::Evaluate(rolling, grid);
+    const terraingen::Raster<float> given = terraingen::BuildTerrain(config).Evaluate(grid);
+    const terraingen::Raster<float> unset = rolling.Evaluate(grid);
     EXPECT_TRUE(std::equal(given.Values().begin(), given.Values().end(), unset.Values().begin()))
         << "a synthetic source without a stack is the same default";
     std::get<terraingen::SyntheticSourceSpec>(*config.source).stack.clear();
-    const terraingen::TerrainGenerator flat = terraingen::BuildGenerator(config);
-    const auto datum = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(flat.source);
+    const terraingen::Terrain flat = terraingen::BuildTerrain(config);
+    const auto datum = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(flat.Source());
     ASSERT_NE(datum, nullptr);
     EXPECT_TRUE(datum->Fractals().empty()) << "an empty stack is flat";
     EXPECT_EQ(datum->HeightAt(123.0, -4.0, 1.0), 0.0f);
@@ -977,8 +992,8 @@ TEST(BuildGenerator, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
     bilinear.type = "bilinear";
     synthetic.upsampling = bilinear;
     config.source = synthetic;
-    const terraingen::TerrainGenerator noise = terraingen::BuildGenerator(config);
-    const auto made = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(noise.source);
+    const terraingen::Terrain noise = terraingen::BuildTerrain(config);
+    const auto made = std::dynamic_pointer_cast<const terraingen::SyntheticSource>(noise.Source());
     ASSERT_NE(made, nullptr);
     const terraingen::SyntheticSource bilinearPosts(
         terraingen::StackFractals(synthetic.stack), -20.0f, 16.0,
@@ -991,7 +1006,7 @@ TEST(BuildGenerator, BuildsASyntheticSourceOrADefaultFbmOneWithoutASource) {
     ASSERT_NE(kernel, nullptr);
 }
 
-TEST(BuildGenerator, MakesRegisteredUpsamplersWithTheirSettings) {
+TEST(BuildTerrain, MakesRegisteredUpsamplersWithTheirSettings) {
     std::string received;
     terraingen::RegisterUpsampler("config_test_kernel", [&received](const std::string& settings) {
         received = settings;
@@ -1002,14 +1017,14 @@ TEST(BuildGenerator, MakesRegisteredUpsamplersWithTheirSettings) {
     ConfigSpec config = terraingen::testing::RasterConfig("dem.tif");
     terraingen::testing::RasterSpec(config).upsampling.type = "config_test_kernel";
     terraingen::testing::RasterSpec(config).upsampling.settings = R"({"sharpness":2})";
-    terraingen::BuildGenerator(config, folder);
+    terraingen::BuildTerrain(config, folder);
     EXPECT_EQ(received, R"({"sharpness":2})");
     terraingen::testing::RasterSpec(config).upsampling.settings.clear();
-    terraingen::BuildGenerator(config, folder);
+    terraingen::BuildTerrain(config, folder);
     EXPECT_EQ(received, "{}");
 }
 
-TEST(BuildGenerator, ReportsACropThatIsInvertedNotFiniteOrOffTheFile) {
+TEST(BuildTerrain, ReportsACropThatIsInvertedNotFiniteOrOffTheFile) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_bad_region");
     terraingen::testing::WriteDem(folder, "dem.tif");
     const double nan = std::numeric_limits<double>::quiet_NaN();
@@ -1023,7 +1038,7 @@ TEST(BuildGenerator, ReportsACropThatIsInvertedNotFiniteOrOffTheFile) {
     }
 }
 
-TEST(BuildGenerator, GeneratesOnlyTheCratersTheDemDoesNotResolveByDefault) {
+TEST(BuildTerrain, GeneratesOnlyTheCratersTheDemDoesNotResolveByDefault) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_unresolved");
     const ConfigSpec limited = FlatDemCraters(folder, "flat.tif");
     ASSERT_EQ(std::get<CraterLayerSpec>(limited.layers.at(0)).sourceResolvesPixels, 4.0);
@@ -1031,9 +1046,9 @@ TEST(BuildGenerator, GeneratesOnlyTheCratersTheDemDoesNotResolveByDefault) {
     std::get<CraterLayerSpec>(every.layers.at(0)).sourceResolvesPixels.reset();
     const terraingen::Bounds2d region{20.0, 20.0, 300.0, 300.0};
     const terraingen::CraterList all =
-        CratersIn(terraingen::BuildGenerator(every, folder), 0, region);
+        CratersIn(terraingen::BuildTerrain(every, folder), 0, region);
     const terraingen::CraterList kept =
-        CratersIn(terraingen::BuildGenerator(limited, folder), 0, region);
+        CratersIn(terraingen::BuildTerrain(limited, folder), 0, region);
     std::vector<std::uint64_t> unresolved;
     std::size_t resolved = 0;
     std::size_t offDemLarge = 0;
@@ -1057,16 +1072,13 @@ TEST(BuildGenerator, GeneratesOnlyTheCratersTheDemDoesNotResolveByDefault) {
     }
 }
 
-TEST(BuildGenerator, TakesTheLesserOfTheCatalogAndUnresolvedLimits) {
+TEST(BuildTerrain, TakesTheLesserOfTheCatalogAndUnresolvedLimits) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_unresolved_catalog");
     ConfigSpec config = FlatDemCraters(folder, "flat.tif");
     auto& craters = std::get<CraterLayerSpec>(config.layers.at(0));
     craters.completeness = ConstantField(50.0);
     const auto completeness = [&](const ConfigSpec& built) {
-        const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(built, folder);
-        return dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(0))
-            .Options()
-            .generation.completeness;
+        return CraterCompleteness(terraingen::BuildTerrain(built, folder), 0);
     };
     const auto wide = completeness(config);
     ASSERT_NE(wide, nullptr);
@@ -1076,21 +1088,18 @@ TEST(BuildGenerator, TakesTheLesserOfTheCatalogAndUnresolvedLimits) {
     EXPECT_EQ(completeness(config)->ValueAt(100.0, 100.0), 12.0);
     const terraingen::Bounds2d region{20.0, 20.0, 300.0, 300.0};
     const terraingen::CraterList kept =
-        CratersIn(terraingen::BuildGenerator(config, folder), 0, region);
+        CratersIn(terraingen::BuildTerrain(config, folder), 0, region);
     ASSERT_GT(kept.Size(), 0u);
     for (std::size_t n = 0; n < kept.Size(); ++n) {
         EXPECT_LT(kept.At(n).diameter, 12.0) << n;
     }
 }
 
-TEST(BuildGenerator, IgnoresTheSourceResolvedLimitOnASyntheticSource) {
+TEST(BuildTerrain, IgnoresTheSourceResolvedLimitOnASyntheticSource) {
     ConfigSpec config = Small();
     Craters(config).sourceResolvesPixels = 4.0;
     const auto completeness = [](const ConfigSpec& built) {
-        const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(built);
-        return dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(1))
-            .Options()
-            .generation.completeness;
+        return CraterCompleteness(terraingen::BuildTerrain(built), 1);
     };
     EXPECT_EQ(completeness(config), nullptr);
     terraingen::SyntheticSourceSpec posts;
@@ -1102,7 +1111,7 @@ TEST(BuildGenerator, IgnoresTheSourceResolvedLimitOnASyntheticSource) {
     EXPECT_EQ(completeness(config)->ValueAt(0.0, 0.0), 30.0);
 }
 
-TEST(BuildGenerator, GivesEachRasterOfAChainItsOwnSourceResolvedLimit) {
+TEST(BuildTerrain, GivesEachRasterOfAChainItsOwnSourceResolvedLimit) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_resolved_chain");
     const ConfigSpec fine = FlatDemCraters(folder, "fine.tif");
     terraingen::Raster<float> coarse(20, 20, 1.0f);
@@ -1113,10 +1122,7 @@ TEST(BuildGenerator, GivesEachRasterOfAChainItsOwnSourceResolvedLimit) {
     ConfigSpec config = fine;
     config.source = terraingen::ChainSourceSpec{
         {*fine.source, terraingen::RasterSourceSpec{"coarse.tif"}, synthetic}};
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config, folder);
-    const auto limit = dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers.at(0))
-                           .Options()
-                           .generation.completeness;
+    const auto limit = CraterCompleteness(terraingen::BuildTerrain(config, folder), 0);
     ASSERT_NE(limit, nullptr);
     EXPECT_EQ(limit->ValueAt(100.0, 100.0), 20.0) << "4 cells of 5 m";
     EXPECT_EQ(limit->ValueAt(-300.0, -300.0), 200.0) << "4 cells of 50 m";
@@ -1124,46 +1130,46 @@ TEST(BuildGenerator, GivesEachRasterOfAChainItsOwnSourceResolvedLimit) {
         << "only the synthetic source there";
     config.source = terraingen::ChainSourceSpec{{synthetic}};
     config.outputs.clear();
-    EXPECT_EQ(dynamic_cast<const terraingen::CraterLayer&>(
-                  *terraingen::BuildGenerator(config, folder).layers.at(0))
-                  .Options()
-                  .generation.completeness,
-              nullptr);
+    EXPECT_EQ(CraterCompleteness(terraingen::BuildTerrain(config, folder), 0), nullptr);
 }
 
-TEST(BuildGenerator, LeavesOutWhatTheRasterResolvesInEveryLayerKind) {
+TEST(BuildTerrain, LeavesOutWhatTheRasterResolvesInEveryLayerKind) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_resolved_layers");
     const ConfigSpec base = FlatDemCraters(folder, "flat.tif");
     ConfigSpec config = base;
-    terraingen::DuneLayerSpec dunes;
-    dunes.dunes.shape = terraingen::DuneShape::Transverse;
-    dunes.dunes.wavelength = 25.0;
-    dunes.dunes.height = 1.0;
-    terraingen::BedformLayerSpec bedforms;
-    bedforms.bedforms.wavelength = 25.0;
-    bedforms.bedforms.cover = 0.9;
+    terraingen::DuneOptions dunes;
+    dunes.shape = terraingen::DuneShape::Transverse;
+    dunes.wavelength = 25.0;
+    dunes.height = 1.0;
+    terraingen::BedformOptions bedforms;
+    bedforms.wavelength = 25.0;
+    bedforms.cover = 0.9;
     terraingen::NoiseLayerSpec noise;
     noise.stack[0].fractal.wavelength = 40.0f;
     noise.sourceResolvesPixels = 4.0;
     config.layers = {dunes, bedforms, noise};
     ConfigSpec unset = config;
-    std::get<terraingen::DuneLayerSpec>(unset.layers[0]).dunes.sourceResolvesPixels.reset();
-    std::get<terraingen::BedformLayerSpec>(unset.layers[1]).bedforms.sourceResolvesPixels.reset();
+    std::get<terraingen::DuneOptions>(unset.layers[0]).sourceResolvesPixels.reset();
+    std::get<terraingen::BedformOptions>(unset.layers[1]).sourceResolvesPixels.reset();
     std::get<terraingen::NoiseLayerSpec>(unset.layers[2]).sourceResolvesPixels.reset();
-    const terraingen::TerrainGenerator limited = terraingen::BuildGenerator(config, folder);
-    const terraingen::TerrainGenerator every = terraingen::BuildGenerator(unset, folder);
+    const terraingen::Terrain limited = terraingen::BuildTerrain(config, folder);
+    const terraingen::Terrain every = terraingen::BuildTerrain(unset, folder);
+    terraingen::LayerContext context;
+    context.spacing = 0.5;
+    context.surface = &limited.Surface();
+    context.source = limited.Source().get();
     for (std::size_t i = 0; i < 3; ++i) {
         bool differs = false;
         for (double x = 1.0; x < 300.0; x += 3.7) {
-            const float held = limited.layers[i]->ApplyAt(0.0f, x, 150.0, {0.5});
+            const float held = limited.Layers()[i]->ApplyAt(0.0f, x, 150.0, context);
             EXPECT_EQ(held, 0.0f) << i << " at " << x << ": 25 m and 40 m are over 20 m";
-            differs = differs || every.layers[i]->ApplyAt(0.0f, x, 150.0, {0.5}) != held;
+            differs = differs || every.Layers()[i]->ApplyAt(0.0f, x, 150.0, context) != held;
         }
         EXPECT_TRUE(differs) << i;
     }
 }
 
-TEST(BuildGenerator, ReportsASourceResolvedLimitThatIsNotPositiveAndFinite) {
+TEST(BuildTerrain, ReportsASourceResolvedLimitThatIsNotPositiveAndFinite) {
     for (const double pixels : {0.0, -2.0, std::numeric_limits<double>::infinity()}) {
         ConfigSpec config = Small();
         Craters(config).sourceResolvesPixels = pixels;
@@ -1182,7 +1188,7 @@ std::shared_ptr<const terraingen::Source> FlatDem() {
 
 }  // namespace
 
-TEST(BuildGenerator, BuildsOnAGivenSourceAsMeasuredData) {
+TEST(BuildTerrain, BuildsOnAGivenSourceAsMeasuredData) {
     const ConfigSpec config = terraingen::ParseConfig(R"({
         "schema_version": 1,
         "layers": [
@@ -1191,29 +1197,28 @@ TEST(BuildGenerator, BuildsOnAGivenSourceAsMeasuredData) {
         ]
     })");
     const auto dem = FlatDem();
-    const terraingen::TerrainGenerator onDem = terraingen::BuildGenerator(config, dem);
+    const terraingen::Terrain onDem = terraingen::BuildTerrain(config, dem);
     ConfigSpec onFlat = config;
     terraingen::SyntheticSourceSpec flat;
     flat.stack.clear();
     onFlat.source = flat;
-    const terraingen::TerrainGenerator alone = terraingen::BuildGenerator(onFlat);
+    const terraingen::Terrain alone = terraingen::BuildTerrain(onFlat);
 
-    EXPECT_EQ(onDem.source, dem);
-    EXPECT_NEAR(terraingen::HeightAt(onDem, 300.0, 300.0, 1.0), 100.0, 1e-4);
-    EXPECT_NEAR(terraingen::HeightAt(onDem, 0.0, 0.0, 1.0),
-                100.0 + terraingen::HeightAt(alone, 0.0, 0.0, 1.0), 1e-3)
+    EXPECT_EQ(onDem.Source(), dem);
+    EXPECT_NEAR(onDem.HeightAt(300.0, 300.0, 1.0), 100.0, 1e-4);
+    EXPECT_NEAR(onDem.HeightAt(0.0, 0.0, 1.0), 100.0 + alone.HeightAt(0.0, 0.0, 1.0), 1e-3)
         << "the crater is cut into the given source";
 }
 
-TEST(BuildGenerator, LeavesOutCratersTheGivenSourceResolves) {
+TEST(BuildTerrain, LeavesOutCratersTheGivenSourceResolves) {
     const ConfigSpec config = terraingen::ParseConfig(R"({
         "schema_version": 1,
         "layers": [{"type": "craters", "seed": 2, "min_diameter_m": 20, "max_diameter_m": 1000}]
     })");
     const terraingen::RasterGrid grid =
         terraingen::RasterGrid::Centered({0.0, 0.0}, {4000.0, 4000.0}, 20.0);
-    const auto largest = [&](const terraingen::TerrainGenerator& generator) {
-        const terraingen::CraterList craters = terraingen::PlacedCraters(generator, grid).craters;
+    const auto largest = [&](const terraingen::Terrain& terrain) {
+        const terraingen::CraterList craters = terrain.Craters(grid).craters;
         double most = 0.0;
         for (std::size_t i = 0; i < craters.Size(); ++i) {
             if (std::abs(craters.X()[i]) < 1500.0 && std::abs(craters.Y()[i]) < 1500.0) {
@@ -1222,22 +1227,22 @@ TEST(BuildGenerator, LeavesOutCratersTheGivenSourceResolves) {
         }
         return most;
     };
-    EXPECT_GT(largest(terraingen::BuildGenerator(config)), 80.0);
-    EXPECT_LT(largest(terraingen::BuildGenerator(config, FlatDem())), 80.0)
+    EXPECT_GT(largest(terraingen::BuildTerrain(config)), 80.0);
+    EXPECT_LT(largest(terraingen::BuildTerrain(config, FlatDem())), 80.0)
         << "craters 4 cells (80 m) across and up are in the 20 m source where it has data";
 }
 
-TEST(BuildGenerator, AGivenSourceReplacesNoneOfTheConfigurations) {
+TEST(BuildTerrain, AGivenSourceReplacesNoneOfTheConfigurations) {
     const ConfigSpec withSource = terraingen::ParseConfig(R"({
         "schema_version": 1,
         "source": {"type": "synthetic"},
         "layers": []
     })");
-    EXPECT_THROW(terraingen::BuildGenerator(withSource, FlatDem()), ConfigError);
-    EXPECT_THROW(terraingen::BuildGenerator(Small(), nullptr), std::invalid_argument);
+    EXPECT_THROW(terraingen::BuildTerrain(withSource, FlatDem()), ConfigError);
+    EXPECT_THROW(terraingen::BuildTerrain(Small(), nullptr), std::invalid_argument);
 }
 
-TEST(BuildGenerator, GivesAChainItsSeamsInTheSurfacesUnits) {
+TEST(BuildTerrain, GivesAChainItsSeamsInTheSurfacesUnits) {
     const auto folder = terraingen::testing::TempPath("terraingen_config_chain_seams");
     std::filesystem::create_directories(folder);
     terraingen::Raster<float> dem(8, 4, 1.0f);
@@ -1251,8 +1256,8 @@ TEST(BuildGenerator, GivesAChainItsSeamsInTheSurfacesUnits) {
     ConfigSpec config;
     config.body = terraingen::SphereSurfaceSpec{1737400.0};
     config.source = chain;
-    const terraingen::TerrainGenerator terrain = terraingen::BuildGenerator(config, folder);
-    const auto* built = dynamic_cast<const terraingen::SourceChain*>(terrain.source.get());
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config, folder);
+    const auto* built = dynamic_cast<const terraingen::SourceChain*>(terrain.Source().get());
     ASSERT_NE(built, nullptr);
     const double unit = terraingen::Surface::Sphere(1737400.0).UnitLength();
     EXPECT_EQ(built->Seams().mode, terraingen::ChainSeamMode::Slope);
@@ -1262,12 +1267,12 @@ TEST(BuildGenerator, GivesAChainItsSeamsInTheSurfacesUnits) {
     chain.sources.front() = terraingen::RasterSourceSpec{"meters.tif"};
     terraingen::WriteGeoTiff(folder / "meters.tif", dem, terraingen::testing::Keys());
     config.source = chain;
-    const terraingen::TerrainGenerator plane = terraingen::BuildGenerator(config, folder);
-    EXPECT_EQ(dynamic_cast<const terraingen::SourceChain&>(*plane.source).Seams(), chain.seams)
+    const terraingen::Terrain plane = terraingen::BuildTerrain(config, folder);
+    EXPECT_EQ(dynamic_cast<const terraingen::SourceChain&>(*plane.Source()).Seams(), chain.seams)
         << "meters on a plane";
 }
 
-TEST(BuildGenerator, ReplacesTheInheritedCratersTheSourceResolves) {
+TEST(BuildTerrain, ReplacesTheInheritedCratersTheSourceResolves) {
     const auto folder = terraingen::testing::TempDirectory("terraingen_inherited");
     std::ofstream(folder / "coarse.csv") << "x,y,diameter,age_gyr,id,depth_ratio,rim_height\n"
                                             "0,0,100,0.5,21,0.15,2\n"
@@ -1280,9 +1285,8 @@ TEST(BuildGenerator, ReplacesTheInheritedCratersTheSourceResolves) {
              "replace_inherited_craters": {"path": "coarse.csv"}}
         ]
     })");
-    const terraingen::TerrainGenerator terrain =
-        terraingen::BuildGenerator(config, FlatDem(), folder);
-    const auto& layer = dynamic_cast<const terraingen::CraterLayer&>(*terrain.layers[0]);
+    const terraingen::Terrain terrain = terraingen::BuildTerrain(config, FlatDem(), folder);
+    const auto& layer = dynamic_cast<const terraingen::CraterLayer&>(*terrain.Layers()[0]);
     const terraingen::CraterList& manual = layer.Options().generation.manual;
     ASSERT_EQ(manual.Size(), 2u) << "50 m is under 4 cells of 20 m";
     EXPECT_TRUE(manual.At(0).replace);
@@ -1290,11 +1294,10 @@ TEST(BuildGenerator, ReplacesTheInheritedCratersTheSourceResolves) {
     EXPECT_TRUE(manual.At(1).replace);
     EXPECT_DOUBLE_EQ(*manual.At(1).depth, 15.0);
     EXPECT_FALSE(manual.At(1).rimHeight) << "the diffused profile ties the rim to the depth";
-    EXPECT_LT(terraingen::HeightAt(terrain, 0.0, 0.0, 1.0), 100.0 - 10.0)
-        << "cut sharp into the flat DEM";
+    EXPECT_LT(terrain.HeightAt(0.0, 0.0, 1.0), 100.0 - 10.0) << "cut sharp into the flat DEM";
 }
 
-TEST(BuildGenerator, ReportsAnUnreadableInheritedListAtItsPath) {
+TEST(BuildTerrain, ReportsAnUnreadableInheritedListAtItsPath) {
     ConfigSpec config;
     config.outputs = {
         terraingen::testing::Heightmap("e.tif", terraingen::testing::GridRegion{65, 65})};
@@ -1302,7 +1305,7 @@ TEST(BuildGenerator, ReportsAnUnreadableInheritedListAtItsPath) {
     craters.replaceInheritedCraters = terraingen::InheritedCratersSpec{"missing.csv"};
     config.layers = {craters};
     try {
-        terraingen::BuildGenerator(config, FlatDem(), "/nonexistent");
+        terraingen::BuildTerrain(config, FlatDem(), "/nonexistent");
         ADD_FAILURE() << "read a missing crater list";
     } catch (const ConfigError& error) {
         EXPECT_EQ(error.Path(), "layers[0].replace_inherited_craters.path");

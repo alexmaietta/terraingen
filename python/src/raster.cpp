@@ -5,13 +5,13 @@
 #include "common.h"
 #include "options.h"
 
+#include "terraingen/analysis/raster_stats.h"
+#include "terraingen/analysis/variogram.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/raster/raster_stats.h"
 #include "terraingen/raster/resample.h"
-#include "terraingen/raster/variogram.h"
 
 #include <nanobind/ndarray.h>
 #include <nanobind/operators.h>

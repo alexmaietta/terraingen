@@ -328,8 +328,9 @@ struct BoulderVentifacts {
     }
 };
 
-/// @throws std::invalid_argument for a share or keel share outside [0, 1], facet angles outside
-/// (0, 90) deg or out of order, or non-finite wind azimuths.
+/// Checks boulder ventifacts against their field ranges (`CheckRanges`) and facet angles in order.
+/// @throws std::invalid_argument naming the first field out of its range, or for a minimum facet
+/// angle above the maximum.
 void ValidateBoulderVentifacts(const BoulderVentifacts& ventifacts);
 
 /// The ventifacts of Gale crater's Bradbury Landing to Rocknest traverse: half the rocks are
@@ -474,39 +475,39 @@ struct BoulderLayerOptions {
     }
 };
 
-/// Checks boulder patches.
-/// @throws std::invalid_argument unless `spread` >= 1 is finite and `size` positive.
+/// Checks boulder patches against their field ranges (`CheckRanges`).
+/// @throws std::invalid_argument naming the first field out of its range.
 void ValidateBoulderPatches(const BoulderPatches& patches);
 
-/// Checks boulder clusters.
-/// @throws std::invalid_argument unless the share is in [0, 1], the spacing is finite and the
-/// radius positive, below the spacing for `Nearest` and at most twice it for `Thomas`.
+/// Checks boulder clusters against their field ranges (`CheckRanges`) and the radius against the
+/// spacing: below it for `Nearest`, at most twice it for `Thomas`.
+/// @throws std::invalid_argument naming the first field out of its range, or for a radius too
+/// large for the spacing.
 void ValidateBoulderClusters(const BoulderClusters& clusters);
 
-/// Checks boulder fragmentation.
-/// @throws std::invalid_argument unless the minimum diameter is positive, 0 <= `splitWear` <=
-/// `rubbleWear` <= 1, 2 <= `minPieces` <= `maxPieces` <= 12, and the ratios are finite and not
-/// negative.
+/// Checks boulder fragmentation against its field ranges (`CheckRanges`), with `splitWear` <=
+/// `rubbleWear` and `minPieces` <= `maxPieces`.
+/// @throws std::invalid_argument naming the first field out of its range, or for wears or piece
+/// counts out of order.
 void ValidateBoulderFragmentation(const BoulderFragmentation& fragmentation);
 
-/// Checks boulder fillets.
-/// @throws std::invalid_argument unless the height share is in [0, 1] and the width ratio is
-/// positive and finite.
+/// Checks boulder fillets against their field ranges (`CheckRanges`).
+/// @throws std::invalid_argument naming the first field out of its range.
 void ValidateBoulderFillet(const BoulderFillet& fillet);
 
-/// Checks a manual boulder.
-/// @throws std::invalid_argument unless the position is finite, the diameter positive and finite,
-/// and each set field valid: the height positive and finite, the burial in [0, 1), the angles
-/// finite and the wear in [0, 1].
+/// Checks a manual boulder against its field ranges (`CheckRanges`).
+/// @throws std::invalid_argument naming the first field out of its range.
 void ValidateManualBoulder(const ManualBoulder& boulder);
 
 /// The ID a manual boulder is placed with: its own, or `ManualCraterId` of its position and size
 /// when it has none (or 0).
 std::uint64_t ManualBoulderId(const ManualBoulder& boulder);
 
-/// Checks boulder layer options; sizes and ejecta only with `generateRandom`.
-/// @throws std::invalid_argument for any invalid part, a non-positive ground spacing, a coverage
-/// that patches and bedrock raise to 1 or more, an unused Golombek-Rapp term, or shared IDs.
+/// Checks boulder layer options against their field ranges (`CheckRanges`) and what ties them
+/// together; size distributions and crater blocks only with `generateRandom`.
+/// @throws std::invalid_argument naming the first field out of its range, or for any invalid
+/// part, a coverage that patches and bedrock raise to 1 or more, an unused Golombek-Rapp term, or
+/// shared IDs.
 void ValidateBoulderLayerOptions(const BoulderLayerOptions& options);
 
 }  // namespace terraingen

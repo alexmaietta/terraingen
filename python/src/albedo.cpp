@@ -15,9 +15,11 @@
 #include "terraingen/albedo/slope_albedo.h"
 #include "terraingen/albedo/splotches.h"
 #include "terraingen/albedo/synthetic.h"
-#include "terraingen/pipeline/generator.h"
+#include "terraingen/pipeline/terrain.h"
 
+#include <memory>
 #include <stdexcept>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -77,15 +79,41 @@ class PyAlbedoLayer : public AlbedoLayer {
 };
 
 void BindBases(nb::module_& m) {
-    nb::class_<AlbedoContext>(m, "AlbedoContext", "How an albedo is evaluated.")
+    nb::class_<AlbedoContext>(
+        m, "AlbedoContext",
+        "How an albedo is evaluated: the sample spacing (m), threads, the terrain's `ground` "
+        "(None leaves it flat), the `surface` it lies on (None for a plane) and its `source` "
+        "(None for none). The context keeps what it is given alive.")
         .def(
             "__init__",
-            [](AlbedoContext* self, double spacing, unsigned threads) {
-                new (self) AlbedoContext{spacing, threads};
+            [](AlbedoContext* self, double spacing, unsigned threads, const Ground* ground,
+               const Surface* surface, const Source* source) {
+                new (self) AlbedoContext{};
+                self->spacing = spacing;
+                self->threads = threads;
+                self->ground = ground;
+                self->surface = surface;
+                self->source = source;
             },
-            "spacing"_a = 1.0, "threads"_a = 1)
+            "spacing"_a = 1.0, "threads"_a = 1, "ground"_a = nb::none(), "surface"_a = nb::none(),
+            "source"_a = nb::none(), nb::keep_alive<1, 4>(), nb::keep_alive<1, 5>(),
+            nb::keep_alive<1, 6>())
         .def_ro("spacing", &AlbedoContext::spacing)
-        .def_ro("threads", &AlbedoContext::threads);
+        .def_ro("threads", &AlbedoContext::threads)
+        .def_prop_ro(
+            "ground", [](const AlbedoContext& c) { return c.ground; }, nb::rv_policy::reference,
+            "The terrain's heights; None leaves it flat.")
+        .def_prop_ro(
+            "surface", [](const AlbedoContext& c) { return c.surface; }, nb::rv_policy::reference,
+            "What the terrain lies on; None for a plane.")
+        .def_prop_ro(
+            "source", [](const AlbedoContext& c) { return c.source; }, nb::rv_policy::reference,
+            "The terrain's starting heights; None for none.")
+        .def("surface_or_plane", &AlbedoContext::SurfaceOrPlane,
+             "The surface the terrain lies on, or a plane without one.")
+        .def("reference_point", &AlbedoContext::ReferencePoint,
+             "Where noise on a plane is measured from: the source's reference point, or the "
+             "origin without a source.");
     m.def("validate_albedo_context", &ValidateAlbedoContext, "context"_a, kValidateDoc);
     nb::class_<AlbedoSource, PyAlbedoSource>(
         m, "AlbedoSource",
@@ -122,7 +150,7 @@ void BindSynthetic(nb::module_& m) {
             "__init__",
             [](SyntheticAlbedo* self, double value, std::vector<Fractal> valueNoise, bool rgb,
                double hue, double saturation, std::vector<Fractal> hueNoiseDegrees,
-               std::vector<Fractal> saturationNoise, TerrainBase base) {
+               std::vector<Fractal> saturationNoise) {
                 SyntheticAlbedoOptions params;
                 params.value = value;
                 params.valueNoise = std::move(valueNoise);
@@ -131,12 +159,14 @@ void BindSynthetic(nb::module_& m) {
                 params.saturation = saturation;
                 params.hueNoiseDegrees = std::move(hueNoiseDegrees);
                 params.saturationNoise = std::move(saturationNoise);
-                new (self) SyntheticAlbedo(std::move(params), std::move(base));
+                new (self) SyntheticAlbedo(std::move(params));
             },
             "value"_a = kDefaultSyntheticAlbedoValue, "value_noise"_a = std::vector<Fractal>{},
             "rgb"_a = false, "hue_deg"_a = 0.0, "saturation"_a = 0.0,
             "hue_noise_deg"_a = std::vector<Fractal>{},
-            "saturation_noise"_a = std::vector<Fractal>{}, "base"_a = TerrainBase{});
+            "saturation_noise"_a = std::vector<Fractal>{},
+            "Noise is measured on a plane from the reference point of the source of the ground "
+            "it is evaluated on.");
     m.def(
         "hsv_to_rgb",
         [](double hue, double saturation, double value) {
@@ -161,8 +191,8 @@ void BindRasterAlbedo(nb::module_& m) {
         m, "RasterAlbedo",
         "An albedo map (1 or 3 bands, such as a normal albedo mosaic from orbit) interpolated to "
         "the grid and given sub-cell detail; NaN outside it.")
-        .def(nb::init<std::vector<Raster<float>>, RasterAlbedoOptions, TerrainBase>(), "bands"_a,
-             "options"_a = RasterAlbedoOptions{}, "base"_a = TerrainBase{})
+        .def(nb::init<std::vector<Raster<float>>, RasterAlbedoOptions>(), "bands"_a,
+             "options"_a = RasterAlbedoOptions{})
         .def_prop_ro("hurst", &RasterAlbedo::Hurst, "The Hurst exponent the detail uses.")
         .def_prop_ro("cell_roughness", &RasterAlbedo::CellRoughness,
                      "The roughness of the log brightness at one cell, as measured.");
@@ -243,14 +273,13 @@ void BindCraterAlbedo(nb::module_& m) {
         .def(
             "reflectance_change",
             [](const CraterAlbedo& layer, const Crater& crater, double x, double y, double spacing,
-               const PyTerrainGenerator* generator) {
-                return WithFullGround(generator, [&](const Ground* ground) {
-                    return layer.ReflectanceChange(crater, x, y, spacing, ground);
-                });
+               const Ground* ground) {
+                return layer.ReflectanceChange(crater, x, y, spacing, ground);
             },
-            "crater"_a, "x"_a, "y"_a, "spacing"_a, "generator"_a = nb::none(),
-            "The relative reflectance change the zones of `crater` give (x, y), shadowed by "
-            "`generator`'s heights when given.")
+            "crater"_a, "x"_a, "y"_a, "spacing"_a, "ground"_a = nb::none(),
+            nb::call_guard<nb::gil_scoped_release>(),
+            "The relative reflectance change the zones of `crater` give (x, y), shadowed by the "
+            "heights of `ground` (such as a Terrain) when given.")
         .def("impact", &CraterAlbedo::Impact, "crater"_a,
              "The impact `crater` came from, drawn from its ID.")
         .def("reach", &CraterAlbedo::Reach, "crater"_a,
@@ -281,20 +310,21 @@ void BindSplotches(nb::module_& m) {
              "Splotches of at least 1 m per m^2 at any time.");
     nb::class_<SplotchAlbedo, AlbedoLayer>(
         m, "SplotchAlbedo", "Dark and bright splotches over the surface, the youngest on top.")
-        .def(nb::init<SplotchAlbedoOptions, TerrainBase>(), "options"_a = SplotchAlbedoOptions{},
-             "base"_a = TerrainBase{})
+        .def(nb::init<SplotchAlbedoOptions>(), "options"_a = SplotchAlbedoOptions{})
         .def(
             "count",
-            [](const SplotchAlbedo& layer, const Bounds2d& region, double spacing) {
-                return layer.Splotches(region, spacing).size();
+            [](const SplotchAlbedo& layer, const Bounds2d& region, double spacing,
+               const Surface& surface) {
+                return layer.Splotches(region, spacing, nullptr, surface).size();
             },
-            "region"_a, "spacing"_a, "How many splotches resolved at `spacing` m reach `region`.")
+            "region"_a, "spacing"_a, "surface"_a = Surface{},
+            "How many splotches on `surface` resolved at `spacing` m reach `region`.")
         .def(
             "swarm_size",
-            [](const SplotchAlbedo& layer, const Crater& crater, double spacing) {
-                return layer.Swarm(crater, spacing).size();
-            },
-            "crater"_a, "spacing"_a = 0.0, "How many splotches `crater`'s swarm holds.")
+            [](const SplotchAlbedo& layer, const Crater& crater, double spacing,
+               const Surface& surface) { return layer.Swarm(crater, spacing, surface).size(); },
+            "crater"_a, "spacing"_a = 0.0, "surface"_a = Surface{},
+            "How many splotches `crater`'s swarm on `surface` holds.")
         .def_prop_ro("options", &SplotchAlbedo::Options);
 }
 
@@ -309,9 +339,10 @@ void BindBlastZones(nb::module_& m) {
           "The share of a zone's peak change it averages over its area, by the radial profile.");
     nb::class_<BlastZoneAlbedo, AlbedoLayer>(m, "BlastZoneAlbedo",
                                              "Blast zones around landers, brightening the albedo.")
-        .def(nb::init<std::vector<BlastZone>, TerrainBase>(), "zones"_a, "base"_a = TerrainBase{})
-        .def("change", &BlastZoneAlbedo::Change, "zone"_a, "x"_a, "y"_a,
-             "The relative reflectance change `zone` gives (x, y).")
+        .def(nb::init<std::vector<BlastZone>>(), "zones"_a)
+        .def_static("change", &BlastZoneAlbedo::Change, "zone"_a, "x"_a, "y"_a,
+                    "surface"_a = Surface{},
+                    "The relative reflectance change `zone` gives (x, y) on `surface`.")
         .def_static("reach", &BlastZoneAlbedo::Reach, "zone"_a,
                     "How far (m) from its lander a zone changes the ground.");
 }
@@ -325,60 +356,60 @@ void BindMaturity(nb::module_& m) {
 }
 
 void BindEvaluation(nb::module_& m) {
-    nb::class_<PyAlbedo>(m, "Albedo", "An albedo: `source`, changed by each of `layers` in order.")
+    nb::class_<Albedo>(m, "Albedo",
+                       "An albedo: `source`, changed by each of `layers` in order, on `surface`, "
+                       "which turns a grid's cell size into meters.")
         .def(
             "__init__",
-            [](PyAlbedo* self, std::shared_ptr<AlbedoSource> source,
-               std::vector<std::shared_ptr<AlbedoLayer>> layers, const Surface& surface) {
-                new (self) PyAlbedo{std::move(source), std::move(layers), surface};
+            [](Albedo* self, std::shared_ptr<const AlbedoSource> source,
+               std::vector<std::shared_ptr<const AlbedoLayer>> layers, const Surface& surface) {
+                new (self) Albedo{std::move(source), std::move(layers), surface};
             },
-            "source"_a, "layers"_a = std::vector<std::shared_ptr<AlbedoLayer>>{},
+            "source"_a, "layers"_a = std::vector<std::shared_ptr<const AlbedoLayer>>{},
             "surface"_a = Surface{})
-        .def_rw("surface", &PyAlbedo::surface)
-        .def_rw("source", &PyAlbedo::source)
-        .def_rw("layers", &PyAlbedo::layers);
+        .def_rw("surface", &Albedo::surface)
+        .def_rw("source", &Albedo::source)
+        .def_rw("layers", &Albedo::layers);
     m.def(
         "evaluate_albedo_at",
-        [](const PyAlbedo& albedo, double x, double y, double spacing,
-           const PyTerrainGenerator* generator) {
-            const AlbedoSample sample = WithFullGround(generator, [&](const Ground* ground) {
-                return EvaluateAlbedoAt(albedo.Get(), x, y, AlbedoContext{spacing, 1, ground});
-            });
+        [](const Albedo& albedo, double x, double y, double spacing, const Ground* ground) {
+            const AlbedoSample sample = EvaluateAlbedoAt(
+                albedo, x, y, GroundAlbedoContext(spacing, 1, ground, &albedo.surface));
             return Bands(sample, albedo.source ? albedo.source->Bands() : 1);
         },
-        "albedo"_a, "x"_a, "y"_a, "spacing"_a, "generator"_a = nb::none(),
+        "albedo"_a, "x"_a, "y"_a, "spacing"_a, "ground"_a = nb::none(),
         "The albedo's bands at (x, y) sampled every `spacing` meters, equal to the grid cell "
-        "centered there; layers shaped by the ground read `generator`'s heights when given.");
+        "centered there; layers shaped by the ground read `ground` (such as a Terrain), which "
+        "also gives noise its source's reference point.");
     m.def(
         "evaluate_albedo",
-        [](const PyAlbedo& albedo, const RasterGrid& grid, double spacing, unsigned threads,
-           const PyTerrainGenerator* generator) {
-            return WithFullGround(generator, [&](const Ground* ground) {
-                return EvaluateAlbedo(albedo.Get(), grid, AlbedoContext{spacing, threads, ground});
-            });
+        [](const Albedo& albedo, const RasterGrid& grid, double spacing, unsigned threads,
+           const Ground* ground) {
+            return EvaluateAlbedo(albedo, grid,
+                                  GroundAlbedoContext(spacing, threads, ground, &albedo.surface));
         },
-        "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "generator"_a = nb::none(),
+        "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "ground"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
         "The albedo's bands over `grid` (such as `RasterGrid.from_raster(heights)` or a source's "
         "`grid()`), sampled every `spacing` meters (0 for the grid's), one Raster per band; layers "
-        "shaped by the ground read `generator`'s heights when given.");
+        "shaped by the ground read `ground` (such as a Terrain), which also gives noise its "
+        "source's reference point.");
 }
 
-/// @brief The rock of `generator`'s boulder layers at indices `layers`, each read on the ground
+/// @brief The rock of `terrain`'s boulder layers at indices `layers`, each read on the ground
 /// beneath it.
-std::vector<RockSource> RockSources(const PyTerrainGenerator& generator,
+std::vector<RockSource> RockSources(const Terrain& terrain,
                                     const std::vector<std::size_t>& layers) {
-    const TerrainGenerator built = generator.Get();
     std::vector<RockSource> sources;
     for (const std::size_t n : layers) {
-        if (n >= built.layers.size()) {
+        if (n >= terrain.Layers().size()) {
             throw std::invalid_argument("The terrain has no layer " + std::to_string(n));
         }
-        auto layer = std::dynamic_pointer_cast<const BoulderLayer>(built.layers[n]);
+        auto layer = std::dynamic_pointer_cast<const BoulderLayer>(terrain.Layers()[n]);
         if (!layer) {
             throw std::invalid_argument("Layer " + std::to_string(n) + " is not a boulder layer");
         }
-        sources.push_back({std::move(layer), SharedGround(built, n)});
+        sources.push_back({std::move(layer), std::make_shared<const Terrain>(terrain.Ground(n))});
     }
     return sources;
 }
@@ -393,12 +424,12 @@ void BindRocks(nb::module_& m) {
                                         "Rock of boulder layers brightening the albedo.")
         .def(
             "__init__",
-            [](RockAlbedo* self, RockAlbedoOptions options, const PyTerrainGenerator& generator,
+            [](RockAlbedo* self, RockAlbedoOptions options, const Terrain& terrain,
                const std::vector<std::size_t>& layers) {
-                new (self) RockAlbedo(options, RockSources(generator, layers));
+                new (self) RockAlbedo(options, RockSources(terrain, layers));
             },
-            "options"_a, "generator"_a, "layers"_a,
-            "The rock of `generator`'s boulder layers at indices `layers`, each read on the ground "
+            "options"_a, "terrain"_a, "layers"_a,
+            "The rock of `terrain`'s boulder layers at indices `layers`, each read on the ground "
             "beneath it.")
         .def(
             "share_at",
@@ -425,16 +456,17 @@ void BindSlopes(nb::module_& m) {
         {&ValidateSlopeAlbedoOptions, "validate_slope_albedo_options", "options"});
     nb::class_<SlopeAlbedo, AlbedoLayer>(m, "SlopeAlbedo",
                                          "Steep ground brightened as fresher material.")
-        .def(nb::init<SlopeAlbedoOptions, TerrainBase>(), "options"_a = SlopeAlbedoOptions{},
-             "base"_a = TerrainBase{})
+        .def(nb::init<SlopeAlbedoOptions>(), "options"_a = SlopeAlbedoOptions{})
         .def(
             "slope_at",
-            [](const SlopeAlbedo& slopes, double x, double y, const PyTerrainGenerator& generator) {
-                return WithFullGround(&generator, [&](const Ground* ground) {
-                    return slopes.SlopeAt(x, y, *ground);
-                });
+            [](const SlopeAlbedo& slopes, double x, double y, const Ground& ground) {
+                const Terrain* terrain = AsTerrain(&ground);
+                return slopes.SlopeAt(x, y, ground,
+                                      terrain != nullptr ? terrain->Surface() : Surface{});
             },
-            "x"_a, "y"_a, "generator"_a, "The slope in degrees at (x, y) on `generator`.")
+            "x"_a, "y"_a, "ground"_a, nb::call_guard<nb::gil_scoped_release>(),
+            "The slope in degrees at (x, y) on `ground`, such as a Terrain, read on its surface "
+            "(a plane for another ground).")
         .def("maturity_at", &SlopeAlbedo::MaturityAt, "slope_deg"_a,
              "The OMAT of ground of `slope_deg` degrees.");
 }

@@ -5,16 +5,14 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/random/value_distribution.h"
-#include "terraingen/sources/terrain_base.h"
-#include "terraingen/util/cells.h"
-#include "terraingen/util/surface.h"
 
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <vector>
 
@@ -114,8 +112,9 @@ struct SplotchAlbedoOptions {
 };
 
 /// Checks splotch options.
-/// @throws std::invalid_argument for any field outside the range its comment gives, here or in
-/// `swarms`.
+/// @throws std::invalid_argument naming the first field out of its range, here or in `swarms`, or
+/// for diameters, crater diameters or ranges that do not increase, dark and bright shares above 1
+/// together, or invalid distributions.
 void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options);
 
 /// One splotch.
@@ -130,28 +129,33 @@ struct Splotch {
     bool wedge = false;        ///< Narrowing to a point toward the crater.
 };
 
-/// The splotches of `SplotchAlbedoOptions` on `surface`, darkening and brightening the albedo; the
-/// same in any grid, tile or point.
+/// The splotches of `SplotchAlbedoOptions` on the context's surface, darkening and brightening the
+/// albedo; the same in any grid, tile or point.
 class SplotchAlbedo final : public AlbedoLayer {
   public:
     /// @throws std::invalid_argument for options invalid as `ValidateSplotchAlbedoOptions`.
-    explicit SplotchAlbedo(SplotchAlbedoOptions options = {}, TerrainBase base = {});
+    explicit SplotchAlbedo(SplotchAlbedoOptions options = {});
 
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                  const AlbedoContext& context) const override;
 
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
-    /// The splotches resolved at `spacing` meters reaching `region`, youngest first; with
-    /// `ground`, those on steep slopes follow `steepBrightShare`.
+    /// The splotches on `surface` resolved at `spacing` meters reaching `region`, youngest first;
+    /// with `ground`, those on steep slopes follow `steepBrightShare`.
     std::vector<Splotch> Splotches(const Bounds2d& region, double spacing,
-                                   const Ground* ground = nullptr) const;
+                                   const Ground* ground = nullptr,
+                                   const Surface& surface = {}) const;
 
-    /// The splotches of the swarm `crater` throws, resolved at `spacing` meters (0 for all).
-    std::vector<Splotch> Swarm(const Crater& crater, double spacing) const;
+    /// The splotches of the swarm `crater` throws on `surface`, resolved at `spacing` meters (0
+    /// for all).
+    std::vector<Splotch> Swarm(const Crater& crater, double spacing,
+                               const Surface& surface = {}) const;
 
-    /// The relative reflectance change `splotch` alone gives (`x`, `y`) at `spacing` meters.
-    double Change(const Splotch& splotch, double x, double y, double spacing) const;
+    /// The relative reflectance change `splotch` alone gives (`x`, `y`) on `surface` at `spacing`
+    /// meters.
+    double Change(const Splotch& splotch, double x, double y, double spacing,
+                  const Surface& surface = {}) const;
 
     /// What the splotches are.
     const SplotchAlbedoOptions& Options() const {
@@ -159,27 +163,29 @@ class SplotchAlbedo final : public AlbedoLayer {
     }
 
   private:
-    /// The splotches of `region` resolved at `spacing` meters, before their sides are drawn.
-    std::vector<Splotch> Marks(const Bounds2d& region, double spacing) const;
+    /// The splotches of `region` on `surface` resolved at `spacing` meters, before their sides
+    /// are drawn.
+    std::vector<Splotch> Marks(const Bounds2d& region, double spacing,
+                               const Surface& surface) const;
     /// The slope in degrees of `ground` under each of `splotches`, over its width, read at
     /// `spacing` meters (half the smallest splotch for 0); all 0 without `ground` or a steep
     /// bright share.
     std::vector<double> SteepSlopes(const std::vector<Splotch>& splotches, double spacing,
-                                    const Ground* ground) const;
+                                    const Ground* ground, const Surface& surface) const;
     /// Draws whether `splotch` on ground of `slopeDegrees` is dark, bright or mixed, and its
     /// changes, split and lobes.
     void DrawSides(Splotch& splotch, double slopeDegrees) const;
     /// Adds the splotches of the swarms reaching `region` to `splotches`.
-    void AddSwarms(const Bounds2d& region, double spacing, std::vector<Splotch>& splotches) const;
+    void AddSwarms(const Bounds2d& region, double spacing, const Surface& surface,
+                   std::vector<Splotch>& splotches) const;
     /// The `index`th splotch of the swarm `crater` throws, its draws the next of `random`.
-    Splotch DrawSwarmSplotch(RandomStream& random, const Crater& crater, std::uint64_t index) const;
+    Splotch DrawSwarmSplotch(RandomStream& random, const Crater& crater, std::uint64_t index,
+                             const Surface& surface) const;
     /// The change of `splotches`, youngest first, at (`x`, `y`).
     double ChangeAt(const std::vector<const Splotch*>& splotches, double x, double y,
-                    double spacing) const;
+                    double spacing, const Surface& surface) const;
 
     SplotchAlbedoOptions options_;
-    Surface surface_;
-    std::shared_ptr<const SurfaceCells> cells_;
 };
 
 }  // namespace terraingen

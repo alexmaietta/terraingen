@@ -30,8 +30,8 @@ def figure(quick=False):
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(seed=4), craters)
     pixel = 0.2
     size = int(2.0 * HALF_SIZE_M / pixel) + 1
-    terrain = terraingen.TerrainGenerator(
-        terraingen.FlatSource(size, size, pixel), [relief, craters, boulders]
+    terrain = terraingen.Terrain(
+        source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters, boulders]
     )
 
     travel = np.linspace(0.0, 1.0, steps)
@@ -42,8 +42,8 @@ def figure(quick=False):
     for step, (x, y, heading) in enumerate(zip(xs, ys, headings, strict=True)):
         cos, sin = np.cos(heading), np.sin(heading)
         for wheel, (forward, left) in enumerate(WHEELS):
-            wheels[step, wheel] = terraingen.height_at(
-                terrain, x + forward * cos - left * sin, y + forward * sin + left * cos, SPACING
+            wheels[step, wheel] = terrain.height_at(
+                x + forward * cos - left * sin, y + forward * sin + left * cos, SPACING
             )
     pitch = np.degrees(np.arctan2(wheels[:, :2].mean(axis=1) - wheels[:, 2:].mean(axis=1), 2.0))
     roll = np.degrees(np.arctan2(wheels[:, [0, 2]].mean(axis=1) - wheels[:, [1, 3]].mean(axis=1), 1.6))
@@ -51,7 +51,7 @@ def figure(quick=False):
     fig, (map_ax, plot_ax) = plt.subplots(
         1, 2, figsize=(16, 5.6), layout="constrained", width_ratios=[1, 1.4]
     )
-    heights = terraingen.evaluate(terrain).values
+    heights = terrain.evaluate().values
     map_ax.imshow(
         gallery.LIGHT.hillshade(heights, dx=pixel, dy=pixel),
         cmap="gray",

@@ -4,10 +4,10 @@
 /// @brief Running a kernel over a grid on a GPU backend.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/gpu/backend.h"
 #include "terraingen/gpu/program.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/util/geometry.h"
 #include "terraingen/util/span.h"
 
 #include <cstddef>

@@ -298,9 +298,9 @@ void BindSelectionClass(nb::module_& m) {
         "Which craters a model applies to: diameters (m) and ages (Gyr) within ranges, and manual "
         "craters only with `manual`.",
         [](auto& io, CraterSelection& selection) {
-            config::SelectionFields(io, selection, "selected craters",
-                                    "Selects manual craters too; otherwise only generated craters "
-                                    "are selected.");
+            SelectionFields(io, selection, "selected craters",
+                            "Selects manual craters too; otherwise only generated craters are "
+                            "selected.");
         })
         .def("includes", &CraterSelection::Includes, "crater"_a, "Whether `crater` is selected.")
         .def(

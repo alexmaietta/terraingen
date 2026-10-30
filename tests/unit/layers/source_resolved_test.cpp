@@ -44,6 +44,13 @@ std::shared_ptr<const Source> Dem(std::size_t cells, double size, double left, d
     return std::make_shared<RasterSource>(heights);
 }
 
+/// The context of a point query at `spacing` meters over `source`.
+terraingen::LayerContext Over(const std::shared_ptr<const Source>& source, double spacing) {
+    terraingen::LayerContext context{spacing};
+    context.source = source.get();
+    return context;
+}
+
 /// Transverse dunes 550 m apart, without ripples.
 terraingen::DuneOptions Crests() {
     terraingen::DuneOptions dunes;
@@ -107,24 +114,28 @@ TEST(LayerResolvedLimit, IsNullWithoutASourceOrACount) {
     ASSERT_NE(LayerResolvedLimit(dem, 3.0, {}), nullptr);
     EXPECT_EQ(LayerResolvedLimit(dem, 3.0, {})->ValueAt(1.5, 1.5), 3.0);
     EXPECT_FALSE(terraingen::InSource(nullptr, 100.0, 0.0, 0.0));
+    EXPECT_EQ(terraingen::SourceResolvedSize(dem.get(), 3.0, {}, 1.5, 1.5), 3.0);
+    EXPECT_EQ(terraingen::SourceResolvedSize(nullptr, 3.0, {}, 1.5, 1.5), kInf);
+    EXPECT_EQ(terraingen::SourceResolvedSize(dem.get(), std::nullopt, {}, 1.5, 1.5), kInf);
 }
 
 TEST(DuneLayer, LeavesOutDunesTheSourceResolves) {
-    const terraingen::DuneLayer free(Crests());
+    const terraingen::DuneLayer dunes(Crests());
     const auto fine = Dem(20, 100.0, 0.0, 2000.0);
-    const terraingen::DuneLayer held(Crests(), fine);
-    const terraingen::DuneLayer coarse(Crests(), Dem(20, 200.0, 0.0, 4000.0));
+    const auto coarse = Dem(20, 200.0, 0.0, 4000.0);
     terraingen::DuneOptions unset = Crests();
     unset.sourceResolvesPixels.reset();
-    const terraingen::DuneLayer ignored(unset, fine);
+    const terraingen::DuneLayer ignored(unset);
     bool relief = false;
     for (double x = 10.0; x < 1000.0; x += 37.0) {
-        const float alone = free.ApplyAt(0.0f, x, 700.0, {1.0});
+        const float alone = dunes.ApplyAt(0.0f, x, 700.0, {1.0});
         relief = relief || alone != 0.0f;
-        EXPECT_EQ(held.ApplyAt(0.0f, x, 700.0, {1.0}), 0.0f) << "550 m dunes over 400 m";
-        EXPECT_EQ(coarse.ApplyAt(0.0f, x, 700.0, {1.0}), alone) << "550 m dunes under 800 m";
-        EXPECT_EQ(ignored.ApplyAt(0.0f, x, 700.0, {1.0}), alone);
-        EXPECT_EQ(held.ApplyAt(0.0f, x, 2500.0, {1.0}), free.ApplyAt(0.0f, x, 2500.0, {1.0}))
+        EXPECT_EQ(dunes.ApplyAt(0.0f, x, 700.0, Over(fine, 1.0)), 0.0f) << "550 m dunes over 400 m";
+        EXPECT_EQ(dunes.ApplyAt(0.0f, x, 700.0, Over(coarse, 1.0)), alone)
+            << "550 m dunes under 800 m";
+        EXPECT_EQ(ignored.ApplyAt(0.0f, x, 700.0, Over(fine, 1.0)), alone);
+        EXPECT_EQ(dunes.ApplyAt(0.0f, x, 2500.0, Over(fine, 1.0)),
+                  dunes.ApplyAt(0.0f, x, 2500.0, {1.0}))
             << "off the DEM";
     }
     EXPECT_TRUE(relief);
@@ -168,15 +179,16 @@ TEST(BedformLayer, LeavesOutBedformsTheSourceResolves) {
     options.height = 0.1;
     options.cover = 0.9;
     options.fieldSize = 20.0;
-    const terraingen::BedformLayer free(options);
-    const terraingen::BedformLayer held(options, Dem(50, 0.2, 0.0, 10.0));
-    const terraingen::BedformLayer coarse(options, Dem(50, 0.5, 0.0, 25.0));
+    const terraingen::BedformLayer layer(options);
+    const auto fine = Dem(50, 0.2, 0.0, 10.0);
+    const auto coarse = Dem(50, 0.5, 0.0, 25.0);
     bool relief = false;
     for (double x = 0.1; x < 9.9; x += 0.13) {
-        const float alone = free.ApplyAt(0.0f, x, 5.0, {0.05});
+        const float alone = layer.ApplyAt(0.0f, x, 5.0, {0.05});
         relief = relief || alone != 0.0f;
-        EXPECT_EQ(held.ApplyAt(0.0f, x, 5.0, {0.05}), 0.0f) << "1 m bedforms over 0.8 m";
-        EXPECT_EQ(coarse.ApplyAt(0.0f, x, 5.0, {0.05}), alone) << "1 m bedforms under 2 m";
+        EXPECT_EQ(layer.ApplyAt(0.0f, x, 5.0, Over(fine, 0.05)), 0.0f) << "1 m bedforms over 0.8 m";
+        EXPECT_EQ(layer.ApplyAt(0.0f, x, 5.0, Over(coarse, 0.05)), alone)
+            << "1 m bedforms under 2 m";
     }
     EXPECT_TRUE(relief);
 }
@@ -191,28 +203,31 @@ TEST(NoiseLayer, LeavesOutTheNoiseLayersTheSourceResolves) {
     std::vector<terraingen::Fractal> fine = params;
     fine[0].enabled = false;
     const auto dem = Dem(20, 100.0, 0.0, 2000.0);
-    const terraingen::NoiseLayer held(terraingen::NoiseLayerOptions{params, 4.0}, dem);
-    const terraingen::NoiseLayer small(fine, dem);
-    const terraingen::NoiseLayer all(params, dem);
-    const terraingen::NoiseLayer unset(params, dem);
+    const terraingen::NoiseLayer held(terraingen::NoiseLayerOptions{params, 4.0});
+    const terraingen::NoiseLayer small(fine);
+    const terraingen::NoiseLayer all(params);
     for (double x = 5.0; x < 1900.0; x += 97.0) {
-        EXPECT_EQ(held.ApplyAt(0.0f, x, 300.0, {1.0}), small.ApplyAt(0.0f, x, 300.0, {1.0}))
+        EXPECT_EQ(held.ApplyAt(0.0f, x, 300.0, Over(dem, 1.0)),
+                  small.ApplyAt(0.0f, x, 300.0, Over(dem, 1.0)))
             << "the 1000 m layer is in the 400 m limit";
-        EXPECT_EQ(held.ApplyAt(0.0f, x, 2500.0, {1.0}), all.ApplyAt(0.0f, x, 2500.0, {1.0}))
+        EXPECT_EQ(held.ApplyAt(0.0f, x, 2500.0, Over(dem, 1.0)),
+                  all.ApplyAt(0.0f, x, 2500.0, Over(dem, 1.0)))
             << "off the DEM";
-        EXPECT_EQ(unset.ApplyAt(0.0f, x, 300.0, {1.0}), all.ApplyAt(0.0f, x, 300.0, {1.0}));
+        EXPECT_EQ(held.ApplyAt(0.0f, x, 300.0, Over(nullptr, 1.0)),
+                  all.ApplyAt(0.0f, x, 300.0, Over(nullptr, 1.0)))
+            << "nothing resolved without a source";
     }
     Raster<float> grid(16, 16, 0.0f);
     grid.SetTransform(GeoTransform::NorthUp(100.0, 900.0, 25.0));
-    held.Apply(grid, {25.0});
+    held.Apply(grid, Over(dem, 25.0));
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {
             const auto center = grid.CellCenter(col, row);
-            ASSERT_EQ(grid(col, row), held.ApplyAt(0.0f, center.x, center.y, {25.0}));
+            ASSERT_EQ(grid(col, row), held.ApplyAt(0.0f, center.x, center.y, Over(dem, 25.0)));
         }
     }
     EXPECT_EQ(held.Options().sourceResolvesPixels, 4.0);
-    EXPECT_THROW(terraingen::NoiseLayer(terraingen::NoiseLayerOptions{params, -1.0}, dem),
+    EXPECT_THROW(terraingen::NoiseLayer(terraingen::NoiseLayerOptions{params, -1.0}),
                  std::invalid_argument);
 }
 

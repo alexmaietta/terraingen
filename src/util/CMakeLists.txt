@@ -5,14 +5,10 @@ terraingen_add_library(
     util
     SOURCES
     checks.cpp
-    cube_sphere_cells.cpp
     fft.cpp
-    surface.cpp
     log.cpp
+    option_fields.cpp
     parallel.cpp
-    planar_cells.cpp
-    plane_fit.cpp
-    radial_shape.cpp
     special_functions.cpp
     text.cpp
     version.cpp

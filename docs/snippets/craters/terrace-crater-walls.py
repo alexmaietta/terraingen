@@ -22,15 +22,14 @@ def terrace_crater_walls():
     apply = terraingen.CraterApplyOptions()
     apply.terraces = terraingen.CraterTerraces(enabled=True, onset_diameter=20000.0, max_benches=4)
     craters = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, 60000.0)], models, apply=apply)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(SIZE, SIZE, PIXEL), [craters])
-    heights = terraingen.evaluate(terrain)
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(SIZE, SIZE, PIXEL), layers=[craters])
+    heights = terrain.evaluate()
     # --8<-- [end:terrace_crater_walls]
     smooth = terraingen.CraterLayer.manual(
         [terraingen.Crater(0.0, 0.0, 60000.0)], models, apply=terraingen.CraterApplyOptions()
     )
-    plain = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(SIZE, SIZE, PIXEL), [smooth])
-    )
+    terrain.set_layer(0, smooth)
+    plain = terrain.evaluate()
     return heights, plain
 
 

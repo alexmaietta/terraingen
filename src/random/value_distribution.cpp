@@ -2,6 +2,7 @@
 
 #include "terraingen/random/value_distribution.h"
 
+#include "terraingen/random/random_fields.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "util/checks.h"
@@ -40,17 +41,11 @@ void CheckPiecewise(const ValueDistribution& d) {
             "A piecewise distribution needs at least two edges and one weight per bin");
     }
     for (std::size_t i = 0; i + 1 < d.edges.size(); ++i) {
-        if (!(std::isfinite(d.edges[i]) && std::isfinite(d.edges[i + 1]) &&
-              d.edges[i] < d.edges[i + 1])) {
-            throw std::invalid_argument(
-                "A piecewise distribution needs finite, strictly increasing edges");
+        if (!(d.edges[i] < d.edges[i + 1])) {
+            throw std::invalid_argument("A piecewise distribution needs strictly increasing edges");
         }
     }
-    double total = 0.0;
-    for (const double weight : d.weights) {
-        RequireNonNegative(weight, "Piecewise weight");
-        total += weight;
-    }
+    const double total = std::accumulate(d.weights.begin(), d.weights.end(), 0.0);
     if (!IsPositive(total)) {
         throw std::invalid_argument("A piecewise distribution needs weights summing above zero");
     }
@@ -116,9 +111,9 @@ double ValueDistribution::Highest() const {
 }
 
 void ValidateValueDistribution(const ValueDistribution& d) {
-    if (!(std::isfinite(d.a) && std::isfinite(d.b)) || std::isnan(d.min) || std::isnan(d.max) ||
-        d.min > d.max) {
-        throw std::invalid_argument("Distribution parameters must be finite with min <= max");
+    CheckRanges(d);
+    if (std::isnan(d.min) || std::isnan(d.max) || d.min > d.max) {
+        throw std::invalid_argument("Distribution min must not exceed max");
     }
     if (d.kind == ValueDistribution::Kind::Uniform && d.b < d.a) {
         throw std::invalid_argument("A uniform distribution needs b >= a");

@@ -23,18 +23,18 @@ def boulder_terrain(lunar_models, crater_layer, size=201):
     """Craters 3 to 20 m and boulders with models above 0.6 m on a `size` square grid at 0.1 m."""
     craters = crater_layer(lunar_models(), 3.0, 20.0)
     boulders = terraingen.BoulderLayer(model_options(), craters)
-    return terraingen.TerrainGenerator(terraingen.FlatSource(size, size, 0.1), [craters, boulders])
+    return terraingen.Terrain(source=terraingen.FlatSource(size, size, 0.1), layers=[craters, boulders])
 
 
 @pytest.fixture
 def first_model(lunar_models, crater_layer):
-    return terraingen.placed_boulders(boulder_terrain(lunar_models, crater_layer)).models[0]
+    return boulder_terrain(lunar_models, crater_layer).boulders().models[0]
 
 
 def test_boulder_and_crater_tables_match_their_lists(lunar_models, crater_layer):
     terrain = boulder_terrain(lunar_models, crater_layer)
-    boulders = terraingen.placed_boulders(terrain)
-    craters = terraingen.placed_craters(terrain)
+    boulders = terrain.boulders()
+    craters = terrain.craters()
     assert len(boulders.boulders) == len(boulders.table["x"])
     assert len(craters.craters) == len(craters.table["x"])
 
@@ -99,15 +99,30 @@ def test_boulder_candidates_cover_the_diameter_range():
 
 
 def test_boulder_layer_places_boulders_with_models(lunar_models, crater_layer):
-    placed = terraingen.placed_boulders(boulder_terrain(lunar_models, crater_layer, 301))
+    placed = boulder_terrain(lunar_models, crater_layer, 301).boulders()
     assert len(placed.table["x"]) > 50 and len(placed.models) > 0
     assert placed.table["model"].sum() >= len(placed.models)
 
 
+def test_boulder_layers_follow_their_craters_when_reseeded_or_replaced(lunar_models, crater_layer):
+    terrain = boulder_terrain(lunar_models, crater_layer)
+    craters, boulders = terrain.layers()
+    assert boulders.rebound([(boulders, boulders)]) is None
+    moved = crater_layer(lunar_models(), 3.0, 20.0, seed=8)
+    rebound = boulders.rebound([(craters, moved)])
+    assert isinstance(rebound, terraingen.BoulderLayer) and rebound is not boulders
+    terraingen.Terrain(terrain.surface(), terrain.source(), [moved, rebound])
+    with pytest.raises(ValueError):
+        terraingen.Terrain(terrain.surface(), terrain.source(), [moved, boulders])
+    reseeded = terrain.reseed(2)
+    assert reseeded.layers()[1] is not boulders
+    assert reseeded.boulders().table["x"].tolist() != terrain.boulders().table["x"].tolist()
+
+
 def test_placed_lists_and_models_are_written(tmp_path, lunar_models, crater_layer):
     terrain = boulder_terrain(lunar_models, crater_layer, 301)
-    craters = terraingen.placed_craters(terrain)
-    boulders = terraingen.placed_boulders(terrain)
+    craters = terrain.craters()
+    boulders = terrain.boulders()
     craters.write_list(tmp_path / "craters.csv")
     craters.write_list(tmp_path / "craters.json")
     boulders.write_list(tmp_path / "boulders.csv")
@@ -180,7 +195,7 @@ def test_boulder_fillets_ramp_into_the_dome_with_no_bench():
         0.0, 0.0, 2.0, height=1.0, burial=0.0, yaw_deg=0.0, lean_deg=0.0, tilt_deg=0.0
     )
     layer = terraingen.BoulderLayer.manual([boulder], options)
-    heights = terraingen.evaluate(terraingen.TerrainGenerator(terraingen.FlatSource(401, 401, 0.01), [layer]))
+    heights = terraingen.Terrain(source=terraingen.FlatSource(401, 401, 0.01), layers=[layer]).evaluate()
     values = np.asarray(heights.values, dtype=float)
     row, col = np.unravel_index(np.argmax(values), values.shape)
     line = values[row, col:]
@@ -289,9 +304,10 @@ def test_boulder_abundance_follows_exposed_bedrock(noise_layer):
     boulders = terraingen.BoulderLayer(
         terraingen.BoulderLayerOptions(bedrock=terraingen.BoulderBedrock(exposure=exposure, abundance=4.0))
     )
-    ground = terraingen.TerrainGenerator(terraingen.FlatSource(64, 64, 0.5), [noise_layer(3, 60.0, 5.0)])
-    abundances = [boulders.abundance_at(x, 0.0, ground, 1)[0] for x in np.linspace(-15.0, 15.0, 31)]
+    ground = terraingen.Terrain(source=terraingen.FlatSource(64, 64, 0.5), layers=[noise_layer(3, 60.0, 5.0)])
+    abundances = [boulders.abundance_at(x, 0.0, ground)[0] for x in np.linspace(-15.0, 15.0, 31)]
     assert min(abundances) < max(abundances) <= 4.0 + 1e-9
+    assert abundances[3] == boulders.abundance_at(-12.0, 0.0, ground=ground.ground(1))[0]
 
 
 def test_boulder_ejecta_defaults_to_freshness_aging():
@@ -466,15 +482,15 @@ def test_a_manual_only_boulder_layer_places_just_its_manual_boulders():
     assert built.options.rendering.relief == terraingen.BoulderRelief.SHAPE
     assert sorted(np.asarray(built.boulders((-10.0, -10.0, 10.0, 10.0)).table["diameter"])) == [1.5, 2.0]
     centered = terraingen.BoulderLayer.manual([terraingen.ManualBoulder(0.0, 0.0, 1.0)])
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(41, 41, 0.1), [centered])
-    heights = terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(41, 41, 0.1), layers=[centered])
+    heights = terrain.evaluate().values
     assert heights.max() > 0.2 and heights[0, 0] == 0.0
 
 
 def test_feature_lists_and_boulder_models_write_as_files(tmp_path, lunar_models, crater_layer):
     terrain = boulder_terrain(lunar_models, crater_layer, size=101)
-    craters = terraingen.placed_craters(terrain)
-    boulders = terraingen.placed_boulders(terrain)
+    craters = terrain.craters()
+    boulders = terrain.boulders()
     terraingen.write_crater_list(
         craters.craters, tmp_path / "craters.csv", terraingen.ListFormat.CSV, craters.attributes
     )

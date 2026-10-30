@@ -5,9 +5,9 @@
 #pragma once
 
 #include "terraingen/albedo/albedo.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/raster/resample.h"
-#include "terraingen/sources/terrain_base.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -38,8 +38,7 @@ struct AlbedoDetail {
 };
 
 /// Checks albedo detail settings.
-/// @throws std::invalid_argument for octaves outside 1 to 16, a negative or non-finite scale, a
-/// Hurst exponent outside [0, 1], or an invalid fade.
+/// @throws std::invalid_argument naming the first field out of its range, or for an invalid fade.
 void ValidateAlbedoDetail(const AlbedoDetail& detail);
 
 /// How a `RasterAlbedo` interpolates its map and adds detail.
@@ -60,12 +59,11 @@ struct RasterAlbedoOptions {
 /// Outside the map, or where it has no data, the albedo is NaN.
 class RasterAlbedo final : public AlbedoSource {
   public:
-    /// Builds the albedo and measures the map's roughness; on a sphere the map is in longitude and
-    /// latitude.
+    /// Builds the albedo and measures the map's roughness; on a body the map is in longitude and
+    /// latitude, its cells sized on the context's surface.
     /// @param bands 1 or 3 rasters on one grid.
     /// @throws std::invalid_argument for a bad band count, mismatched rasters or invalid options.
-    RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options = {},
-                 TerrainBase base = {});
+    RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options = {});
 
     /// 1 or 3 bands, as the map has.
     std::size_t Bands() const override {
@@ -95,13 +93,11 @@ class RasterAlbedo final : public AlbedoSource {
   private:
     /// Measures `roughness_` and `hurst_` from the map.
     void MeasureRoughness();
-    /// The sum of the detail octaves at (`x`, `y`) resolved at `spacing`.
-    double DetailSum(double x, double y, double spacing) const;
+    /// The sum of the detail octaves at (`x`, `y`) on `surface` resolved at `spacing`.
+    double DetailSum(double x, double y, double spacing, const Surface& surface) const;
 
     std::vector<Raster<float>> bands_;
     RasterAlbedoOptions options_;
-    Surface surface_;
-    double cell_ = 0.0;
     double hurst_ = 0.5;
     double roughness_ = 0.0;
 };

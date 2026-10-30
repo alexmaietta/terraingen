@@ -25,8 +25,8 @@ PANELS = [
 def figure(quick=False):
     pixel = 20.0 if quick else 5.0
     size = int(SIZE_M / pixel) + 1
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [])
-    grid = terraingen.RasterGrid.from_raster(terraingen.evaluate(terrain))
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel))
+    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
     base = terraingen.SyntheticAlbedo(value=0.11)
     crater = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)])
 

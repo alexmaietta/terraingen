@@ -193,7 +193,7 @@ TEST(RasterSource, HonoursNoData) {
     source.Fill(heights);
     EXPECT_EQ(heights.NoData(), -9999.0f);
     EXPECT_EQ(heights(3, 4), -9999.0f);
-    auto fine = terraingen::ResampledGrid(source.Grid(), 2.0).MakeRaster();
+    auto fine = terraingen::testing::ResampledGrid(source.Grid(), 2.0).MakeRaster();
     source.Fill(fine);
     EXPECT_EQ(fine.NoData(), -9999.0f);
     EXPECT_EQ(fine(6, 8), -9999.0f);

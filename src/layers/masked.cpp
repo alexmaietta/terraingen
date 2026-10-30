@@ -2,8 +2,8 @@
 
 #include "terraingen/layers/masked.h"
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/raster/cell_loops.h"
-#include "terraingen/util/geometry.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"
 
@@ -11,6 +11,7 @@
 #include <cmath>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -224,9 +225,8 @@ void ValidateRegionShape(const RegionShape& shape) {
 }
 
 MaskedLayer::MaskedLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather,
-                         BlendShape blend, TerrainBase base)
-    : inner_(std::move(inner)), shape_(shape), feather_(feather), blend_(blend),
-      surface_(base.surface) {
+                         BlendShape blend)
+    : inner_(std::move(inner)), shape_(shape), feather_(feather), blend_(blend) {
     if (!inner_) {
         throw std::invalid_argument("A masked layer needs a layer to apply");
     }
@@ -234,8 +234,25 @@ MaskedLayer::MaskedLayer(std::shared_ptr<const Layer> inner, RegionShape shape, 
     RequireNonNegative(feather_, "Masked layer feather");
 }
 
-double MaskedLayer::Weight(double x, double y) const {
-    const double distance = shape_.DistanceOutside(x, y, surface_);
+LayerPtr MaskedLayer::Confining(LayerPtr inner) const {
+    if (!inner) {
+        return nullptr;
+    }
+    auto confining = std::make_shared<MaskedLayer>(*this);
+    confining->inner_ = std::move(inner);
+    return confining;
+}
+
+LayerPtr MaskedLayer::Reseeded(std::uint64_t seed) const {
+    return Confining(inner_->Reseeded(seed));
+}
+
+LayerPtr MaskedLayer::Rebound(const LayerReplacements& replaced) const {
+    return Confining(inner_->Rebound(replaced));
+}
+
+double MaskedLayer::Weight(double x, double y, const Surface& surface) const {
+    const double distance = shape_.DistanceOutside(x, y, surface);
     if (distance <= 0.0) {
         return 1.0;
     }
@@ -245,17 +262,18 @@ double MaskedLayer::Weight(double x, double y) const {
     return Falloff(distance, 0.0, feather_, blend_);
 }
 
-bool MaskedLayer::Holds(double x, double y) const {
-    return shape_.DistanceOutside(x, y, surface_) <= feather_;
+bool MaskedLayer::Holds(double x, double y, const Surface& surface) const {
+    return shape_.DistanceOutside(x, y, surface) <= feather_;
 }
 
-PixelWindow MaskedLayer::InnerWindow(const RasterGrid& grid) const {
-    const Bounds2d reach = surface_.Expand(shape_.Bounds(surface_), feather_);
-    return MergeWindows(PixelWindowsIn(grid, reach, surface_));
+PixelWindow MaskedLayer::InnerWindow(const RasterGrid& grid, const Surface& surface) const {
+    const Bounds2d reach = surface.Expand(shape_.Bounds(surface), feather_);
+    return MergeWindows(PixelWindowsIn(grid, reach, surface));
 }
 
-std::optional<RasterGrid> MaskedLayer::InnerGrid(const RasterGrid& grid) const {
-    const PixelWindow window = InnerWindow(grid);
+std::optional<RasterGrid> MaskedLayer::InnerGrid(const RasterGrid& grid,
+                                                 const Surface& surface) const {
+    const PixelWindow window = InnerWindow(grid, surface);
     if (window.Empty()) {
         return std::nullopt;
     }
@@ -264,7 +282,8 @@ std::optional<RasterGrid> MaskedLayer::InnerGrid(const RasterGrid& grid) const {
 
 CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) const {
     const auto* placer = dynamic_cast<const CraterPlacer*>(inner_.get());
-    const std::optional<RasterGrid> inner = InnerGrid(grid);
+    const Surface surface = LayerSurface().value_or(Surface{});
+    const std::optional<RasterGrid> inner = InnerGrid(grid, surface);
     CraterFeatures held;
     if (placer == nullptr || !inner) {
         return held;
@@ -272,7 +291,7 @@ CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) 
     const CraterFeatures all = placer->CratersOver(*inner, spacing);
     for (std::size_t n = 0; n < all.craters.Size(); ++n) {
         const Crater crater = all.craters.At(n);
-        if (Holds(crater.x, crater.y)) {
+        if (Holds(crater.x, crater.y, surface)) {
             held.craters.Append(crater);
             held.attributes.push_back(all.attributes[n]);
         }
@@ -283,19 +302,20 @@ CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) 
 BoulderFeatures MaskedLayer::BouldersOver(const RasterGrid& grid, double spacing,
                                           const Ground* ground) const {
     const auto* placer = dynamic_cast<const BoulderPlacer*>(inner_.get());
-    const std::optional<RasterGrid> inner = InnerGrid(grid);
+    const Surface surface = LayerSurface().value_or(Surface{});
+    const std::optional<RasterGrid> inner = InnerGrid(grid, surface);
     BoulderFeatures held;
     if (placer == nullptr || !inner) {
         return held;
     }
     const BoulderFeatures all = placer->BouldersOver(*inner, spacing, ground);
     for (std::size_t i = 0; i < all.boulders.Size(); ++i) {
-        if (Holds(all.boulders.X()[i], all.boulders.Y()[i])) {
+        if (Holds(all.boulders.X()[i], all.boulders.Y()[i], surface)) {
             held.boulders.Append(all.boulders.At(i));
         }
     }
     std::copy_if(all.models.begin(), all.models.end(), std::back_inserter(held.models),
-                 [&](const BoulderModel& m) { return Holds(m.boulder.x, m.boulder.y); });
+                 [&](const BoulderModel& m) { return Holds(m.boulder.x, m.boulder.y, surface); });
     return held;
 }
 
@@ -314,7 +334,8 @@ void MaskedLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& contex
     std::vector<double> weights;
     for (std::size_t i = 0; i < samples.Size(); ++i) {
         const Vec2d p = samples.Position(i);
-        const double weight = samples.IsNoData(i) ? 0.0 : Weight(p.x, p.y);
+        const double weight =
+            samples.IsNoData(i) ? 0.0 : Weight(p.x, p.y, context.SurfaceOrPlane());
         if (weight > 0.0) {
             indices.push_back(i);
             positions.push_back(p);
@@ -331,7 +352,8 @@ void MaskedLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& contex
 }
 
 void MaskedLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context) const {
-    const PixelWindow window = InnerWindow(RasterGrid::FromRaster(heights));
+    const Surface& surface = context.SurfaceOrPlane();
+    const PixelWindow window = InnerWindow(RasterGrid::FromRaster(heights), surface);
     if (window.Empty()) {
         return;
     }
@@ -345,7 +367,7 @@ void MaskedLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& contex
                 continue;
             }
             const Vec2d center = heights.CellCenter(col, row);
-            const double weight = Weight(center.x, center.y);
+            const double weight = Weight(center.x, center.y, surface);
             if (weight > 0.0) {
                 cell = Blend(cell, inner(col - window.colBegin, r), weight);
             }

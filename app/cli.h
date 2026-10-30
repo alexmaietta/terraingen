@@ -43,7 +43,8 @@ Backend ParseBackend(const std::string& text);
 /// - `validate CONFIG` checks CONFIG without generating and reports its grid and expected craters;
 /// - `schema` prints the structure of a configuration for editors (`ConfigSchema`);
 /// - `backends` prints each backend with its device or why it is unavailable, then the default;
-/// - `-V` or `--version`, and `-h` or `--help`.
+/// - `-V` or `--version`, and `-h` or `--help`;
+/// - `--gui` anywhere only warns that the GUI is not available yet and is otherwise ignored.
 /// @param args The arguments, without the program name.
 /// @return `kExitSuccess`, `kExitFailure` for a `ConfigError` or another error, or `kExitUsage`
 /// for bad arguments, which prints the problem and a pointer to `--help`.

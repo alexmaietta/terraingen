@@ -5,12 +5,12 @@
 #include "common.h"
 #include "options.h"
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/mesh/io/icq.h"
 #include "terraingen/mesh/io/mesh_io.h"
 #include "terraingen/mesh/mesh.h"
 #include "terraingen/mesh/polyhedra.h"
 #include "terraingen/mesh/shape_model.h"
-#include "terraingen/util/geometry.h"
 
 #include <nanobind/operators.h>
 #include <nanobind/stl/array.h>

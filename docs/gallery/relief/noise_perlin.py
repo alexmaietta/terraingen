@@ -36,7 +36,7 @@ def figure(quick=False):
             type=fractal,
         )
         relief = terraingen.NoiseLayer(noise)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief])
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
         ax.set_title(name)
     return fig

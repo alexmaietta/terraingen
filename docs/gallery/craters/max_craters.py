@@ -43,8 +43,10 @@ def figure(quick=False):
         generation = terraingen.CraterGenerationOptions(d_min=4.0, d_max=300.0)
         generation.max_craters = cap
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=1, generation=generation))
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
-        count = len(terraingen.placed_craters(terrain).table["diameter"])
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters]
+        )
+        count = len(terrain.craters().table["diameter"])
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
         ax.set_title(f"{'Every crater' if cap is None else f'Largest {cap}'}: {count} placed")
     return fig

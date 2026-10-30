@@ -9,9 +9,9 @@ def add_noise():
     # --8<-- [start:add_noise]
     noise = terraingen.NoiseLayer(seed=1, wavelength=80.0, amplitude=2.0, octaves=5)
     craters = terraingen.CraterLayer()
-    terrain = terraingen.TerrainGenerator(source, [noise, craters])  # layers apply in order
+    terrain = terraingen.Terrain(source=source, layers=[noise, craters])  # layers apply in order
     # --8<-- [end:add_noise]
-    return terraingen.evaluate(terrain)
+    return terrain.evaluate()
 
 
 def test_add_noise():

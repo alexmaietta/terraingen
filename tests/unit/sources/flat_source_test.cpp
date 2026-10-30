@@ -63,3 +63,7 @@ TEST(FlatSource, TakesItsCellSizeInMetersOnASurface) {
     EXPECT_EQ(plane.Grid().transform, GeoTransform::NorthUp(29.0, -9.5, 0.5));
     EXPECT_THROW(FlatSource(4, 2, 0.0, 0.0f, {}, moon), std::invalid_argument);
 }
+
+TEST(FlatSource, HasNoSeedsToReseed) {
+    EXPECT_EQ(FlatSource(4, 2, 1.0, 3.0f).Reseeded(7), nullptr);
+}

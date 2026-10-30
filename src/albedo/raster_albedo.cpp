@@ -2,12 +2,12 @@
 
 #include "terraingen/albedo/raster_albedo.h"
 
+#include "terraingen/albedo/albedo_fields.h"
+#include "terraingen/analysis/variogram.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/noise/structure_function.h"
 #include "terraingen/random/streams.h"
-#include "terraingen/raster/variogram.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <array>
@@ -63,19 +63,12 @@ double PerlinRms() {
 }  // namespace
 
 void ValidateAlbedoDetail(const AlbedoDetail& detail) {
-    if (detail.octaves < 1 || detail.octaves > 16) {
-        throw std::invalid_argument("Albedo detail needs 1 to 16 octaves");
-    }
-    RequireNonNegative(detail.scale, "The albedo detail scale");
-    if (detail.hurst) {
-        RequireUnitInterval(*detail.hurst, "The albedo detail Hurst exponent");
-    }
+    CheckRanges(detail);
     ValidateResolutionFade(detail.fade);
 }
 
-RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options,
-                           TerrainBase base)
-    : bands_(std::move(bands)), options_(options), surface_(base.surface) {
+RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options)
+    : bands_(std::move(bands)), options_(options) {
     if (bands_.size() != 1 && bands_.size() != kMaxAlbedoBands) {
         throw std::invalid_argument("An albedo map must have 1 or 3 bands");
     }
@@ -90,7 +83,6 @@ RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions
         }
     }
     ValidateAlbedoDetail(options_.detail);
-    cell_ = RasterGrid::FromRaster(first).Spacing(surface_);
     MeasureRoughness();
     if (options_.detail.hurst) {
         hurst_ = *options_.detail.hurst;
@@ -106,12 +98,13 @@ void RasterAlbedo::MeasureRoughness() {
     }
 }
 
-double RasterAlbedo::DetailSum(double x, double y, double spacing) const {
+double RasterAlbedo::DetailSum(double x, double y, double spacing, const Surface& surface) const {
     const AlbedoDetail& detail = options_.detail;
     const Vec2d origin = bands_.front().CellCenter(0, 0);
+    const double cell = RasterGrid::FromRaster(bands_.front()).Spacing(surface);
     double sum = 0.0;
     for (int octave = 0; octave < detail.octaves; ++octave) {
-        const double wavelength = cell_ / std::exp2(octave + 1);
+        const double wavelength = cell / std::exp2(octave + 1);
         const double weight = ResolutionWeight(wavelength, spacing, detail.fade);
         if (weight == 0.0) {
             break;
@@ -119,8 +112,8 @@ double RasterAlbedo::DetailSum(double x, double y, double spacing) const {
         const std::uint32_t seed =
             PcgHash(detail.seed + kOctaveSeedStep * static_cast<std::uint32_t>(octave));
         float noise = 0.0f;
-        if (surface_.IsBody()) {
-            const Vec3d p = surface_.Position({x, y});
+        if (surface.IsBody()) {
+            const Vec3d p = surface.Position({x, y});
             noise = PerlinNoise3Precise(p.x / wavelength, p.y / wavelength, p.z / wavelength, seed);
         } else {
             noise =
@@ -144,9 +137,10 @@ AlbedoSample RasterAlbedo::ValueAt(double x, double y, const AlbedoContext& cont
     if (!detail.enabled || detail.scale == 0.0 || roughness_ == 0.0) {
         return value;
     }
-    const double sum = DetailSum(x, y, context.spacing);
+    const Surface& surface = context.SurfaceOrPlane();
+    const double sum = DetailSum(x, y, context.spacing, surface);
     const double rms =
-        surface_.IsBody() ? std::sqrt(0.5 * Perlin3StructureFunction(1e6)) : PerlinRms();
+        surface.IsBody() ? std::sqrt(0.5 * Perlin3StructureFunction(1e6)) : PerlinRms();
     const double factor = std::exp(detail.scale * roughness_ * sum / rms);
     for (std::size_t band = 0; band < bands_.size(); ++band) {
         value[band] = static_cast<float>(static_cast<double>(value[band]) * factor);

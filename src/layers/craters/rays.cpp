@@ -2,8 +2,9 @@
 
 #include "terraingen/layers/craters/rays.h"
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/layers/craters/crater_fields.h"
 #include "terraingen/random/stream.h"
-#include "terraingen/util/geometry.h"
 
 #include <algorithm>
 #include <cmath>
@@ -12,6 +13,7 @@
 namespace terraingen {
 
 void ValidateRayLayout(const RayLayout& layout) {
+    CheckRanges(layout);
     ValidateValueDistribution(layout.count);
     ValidateValueDistribution(layout.widthDegrees);
     if (layout.count.Lowest() < 0.0 || layout.count.Highest() > 64.0) {

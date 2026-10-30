@@ -13,6 +13,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 namespace terraingen {
 
@@ -73,36 +74,19 @@ class RasterHeights {
                   std::optional<float> noData, const RasterSourceOptions& options,
                   const PixelWindow& cells, std::string name, bool wrapLongitude = false);
 
-    /// The cells covered, on the lattice.
-    RasterGrid Grid() const {
-        return Subgrid(lattice_, cells_);
-    }
-
-    /// The source's grid without a window: the lattice.
-    const RasterGrid& Lattice() const {
-        return lattice_;
-    }
-
-    /// Copies cells on the lattice at its spacing or coarser, otherwise upsamples
-    /// (`FillUpsampled`); cells beyond those covered are no-data. A wrapping source fills each
-    /// run of columns a turn of longitude away from the lattice as the lattice's own longitudes.
-    /// @param threads Threads to fill over; 0 for every hardware thread.
+    /// Sets each sample to the height of the lattice cell centered there at the lattice's spacing
+    /// or coarser, otherwise the upsampler's (`Upsampler::Fill`); NaN, or a grid's no-data value,
+    /// beyond the cells covered and where there is no data. A wrapping source reads each sample
+    /// a whole number of turns of longitude into the lattice's longitudes.
+    /// @param threads Threads to fill a grid over; 0 for every hardware thread.
     /// @throws std::invalid_argument for a rotated grid off the lattice.
-    void Fill(Raster<float>& heights, double spacing, unsigned threads) const;
+    void Fill(SampleBlock& samples, double spacing, unsigned threads) const;
 
-    /// The height of the lattice cell centered at (`x`, `y`) at the lattice's spacing or coarser,
-    /// otherwise the upsampler's; NaN beyond the cells covered and where there is no data. A
-    /// wrapping source reads `x` a whole number of turns into the lattice's longitudes.
-    float HeightAt(double x, double y, double spacing) const;
-
-    /// `HeightAt` each of `points`, the points covered upsampled at once (`UpsampledHeights`).
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const;
-
-    /// The effective pixel size, or else the native cell size, where `HeightAt` has a height;
+    /// The effective pixel size, or else the native cell size, where `Fill` gives a height;
     /// infinity elsewhere.
     double ResolutionAt(double x, double y) const;
 
-    /// The native cell size where `HeightAt` has a height; infinity elsewhere.
+    /// The native cell size where `Fill` gives a height; infinity elsewhere.
     double PostSpacingAt(double x, double y) const;
 
     /// The upsampler in use, fitted to the cells (`Upsampler::FitTo`).
@@ -113,12 +97,17 @@ class RasterHeights {
   private:
     /// Whether lattice position (`col`, `row`), in cells, is covered.
     bool Covers(double col, double row) const;
-    /// Whether `HeightAt` (`x`, `y`) at the lattice's spacing has a height.
+    /// Whether `Fill` gives (`x`, `y`) a height at the lattice's spacing.
     bool HasHeight(double x, double y) const;
     /// The turns of longitude to take from `x` to bring it onto the lattice; 0 unless wrapping.
     double Turns(double x) const;
+    /// `Fill` of a grid, each run of columns a turn of longitude away from the lattice filled
+    /// as the lattice's own longitudes.
+    void FillGrid(Raster<float>& heights, double spacing, unsigned threads) const;
     /// `Fill` of a grid without wrapping.
     void FillUnwrapped(Raster<float>& heights, double spacing, unsigned threads) const;
+    /// `Fill` of `points`, the points covered upsampled at once.
+    void FillPoints(Span<const Vec2d> points, Span<float> heights, double spacing) const;
 
     std::shared_ptr<const PostLattice> posts_;
     RasterGrid lattice_;
@@ -131,6 +120,73 @@ class RasterHeights {
     bool wrapLongitude_ = false;
 };
 
+/// A source serving the heights of a window of a lattice (`RasterHeights`): what `RasterSource`
+/// and `GeoTiffSource` share.
+class RasterHeightsSource : public Source {
+  public:
+    /// The lattice's cells covered.
+    RasterGrid Grid() const final {
+        return Subgrid(lattice_, cells_);
+    }
+
+    /// The top-left corner of the whole lattice, with or without a window of it.
+    Vec2d ReferencePoint() const final {
+        return Corner(lattice_);
+    }
+
+    /// The projection given at construction.
+    GeoKeys Keys() const final {
+        return keys_;
+    }
+
+    /// The effective pixel size, or else the cell size in CRS units, the larger side of a cell;
+    /// infinity where the source has no height.
+    /// @throws GeoTiffError if a file read for the heights cannot be read.
+    double ResolutionAt(double x, double y) const final {
+        return Heights().ResolutionAt(x, y);
+    }
+
+    /// The cell size in CRS units, the larger side of a cell; infinity where the source has no
+    /// height.
+    /// @throws GeoTiffError if a file read for the heights cannot be read.
+    double PostSpacingAt(double x, double y) const final {
+        return Heights().PostSpacingAt(x, y);
+    }
+
+  protected:
+    /// @param lattice The whole grid the heights lie on.
+    /// @param cells The window of `lattice` covered.
+    /// @param keys The projection outputs are written with.
+    RasterHeightsSource(const RasterGrid& lattice, const PixelWindow& cells, GeoKeys keys)
+        : lattice_(lattice), cells_(cells), keys_(std::move(keys)) {}
+
+    /// The whole grid the heights lie on.
+    const RasterGrid& Lattice() const {
+        return lattice_;
+    }
+
+    /// The window of the lattice covered.
+    const PixelWindow& Cells() const {
+        return cells_;
+    }
+
+    /// Copies cells on the lattice at its cell size or coarser, otherwise upsamples
+    /// (`RasterHeights::Fill`).
+    /// @throws std::invalid_argument for a rotated grid off the lattice.
+    /// @throws GeoTiffError if a file read for the heights cannot be read.
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const final {
+        Heights().Fill(samples, spacing, threads);
+    }
+
+    /// The heights served.
+    virtual const RasterHeights& Heights() const = 0;
+
+  private:
+    RasterGrid lattice_;
+    PixelWindow cells_;
+    GeoKeys keys_;
+};
+
 }  // namespace detail
 
 /// Heights from a raster held in memory, in a projected CRS or the surface's coordinates.
@@ -140,10 +196,8 @@ class RasterHeights {
 /// the upsampler gives each cell from the raster's cells, its posts. Cells beyond the raster are
 /// no-data. With geographic `keys` and columns spanning 360 degrees the raster wraps in
 /// longitude (`detail::WrapsLongitude`), so a file from 0 to 360 also serves -180 to 0.
-class RasterSource final : public Source {
+class RasterSource final : public detail::RasterHeightsSource {
   public:
-    using Source::Fill;
-
     /// The source of `heights`.
     /// @param keys The projection outputs are written with.
     /// @throws std::invalid_argument for an empty raster, invalid options, or as
@@ -151,57 +205,17 @@ class RasterSource final : public Source {
     explicit RasterSource(Raster<float> heights, const RasterSourceOptions& options = {},
                           GeoKeys keys = {});
 
-    /// The raster's grid.
-    RasterGrid Grid() const override {
-        return heights_.Grid();
-    }
-
-    /// The top-left corner of the grid.
-    Vec2d ReferencePoint() const override {
-        return detail::Corner(heights_.Lattice());
-    }
-
-    /// The projection given at construction.
-    GeoKeys Keys() const override {
-        return keys_;
-    }
-
-    /// Copies cells on the source's lattice at its cell size or coarser, otherwise upsamples.
-    /// @throws std::invalid_argument for a rotated grid off the source's lattice.
-    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override {
-        heights_.Fill(heights, spacing, threads);
-    }
-
-    /// The height of the source cell centered at (`x`, `y`) at the cell size or coarser, otherwise
-    /// the upsampler's; NaN beyond the raster and where it has no data.
-    float HeightAt(double x, double y, double spacing) const override {
-        return heights_.HeightAt(x, y, spacing);
-    }
-
-    /// `HeightAt` each of `points`, those off the cells upsampled at once.
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override {
-        heights_.HeightsAt(points, heights, spacing);
-    }
-
-    /// `effectivePixelSize`, or else the raster's cell size in CRS units, the larger side of a
-    /// cell; infinity where `HeightAt` is NaN.
-    double ResolutionAt(double x, double y) const override {
-        return heights_.ResolutionAt(x, y);
-    }
-
-    /// The raster's cell size in CRS units, the larger side of a cell; infinity where `HeightAt`
-    /// is NaN.
-    double PostSpacingAt(double x, double y) const override {
-        return heights_.PostSpacingAt(x, y);
-    }
-
     /// The upsampler in use, fitted to the raster (`Upsampler::FitTo`).
     const std::shared_ptr<const Upsampler>& UpsamplerInUse() const {
         return heights_.UpsamplerInUse();
     }
 
+  protected:
+    const detail::RasterHeights& Heights() const override {
+        return heights_;
+    }
+
   private:
-    GeoKeys keys_;
     detail::RasterHeights heights_;
 };
 

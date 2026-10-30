@@ -2,9 +2,9 @@
 
 #include "terraingen/mesh/shape_model.h"
 
+#include "geometry/cube_faces.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/log.h"
-#include "util/cube_faces.h"
 
 #include <algorithm>
 #include <array>

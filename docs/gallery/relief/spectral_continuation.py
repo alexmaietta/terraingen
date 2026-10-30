@@ -26,9 +26,9 @@ def figure(quick=False):
     relief = terraingen.NoiseLayer(
         [terraingen.Fractal(seed=4, wavelength=1500.0, amplitude=120.0, octaves=10)]
     )
-    dem = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(posts, posts, POST_SPACING), [relief])
-    )
+    dem = terraingen.Terrain(
+        source=terraingen.FlatSource(posts, posts, POST_SPACING), layers=[relief]
+    ).evaluate()
     half = 0.5 * (posts - 1) * POST_SPACING
     source = terraingen.RasterSource(
         np.ascontiguousarray(dem.values, dtype=np.float32),
@@ -43,8 +43,8 @@ def figure(quick=False):
         )
     )
     window = terraingen.RasterGrid.centered((0.0, 0.0), (WINDOW_M, WINDOW_M), pixel)
-    interpolated = terraingen.evaluate(terraingen.TerrainGenerator(source, []), grid=window).values
-    continued = terraingen.evaluate(terraingen.TerrainGenerator(source, [continuation]), grid=window).values
+    interpolated = terraingen.Terrain(source=source).evaluate(window).values
+    continued = terraingen.Terrain(source=source, layers=[continuation]).evaluate(window).values
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.6), layout="constrained", width_ratios=[1, 1, 1.25])
     vmax = float(np.percentile(gallery.slopes_degrees(continued, pixel), 99))

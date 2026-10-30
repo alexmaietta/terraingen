@@ -8,13 +8,13 @@ PIXEL = 2.0
 
 def brighten_steep_slopes():
     hills = terraingen.NoiseLayer(seed=2, wavelength=200.0, amplitude=70.0, octaves=6)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(201, 201, PIXEL), [hills])
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(201, 201, PIXEL), layers=[hills])
     # --8<-- [start:brighten_steep_slopes]
     slopes = terraingen.SlopeAlbedo(terraingen.SlopeAlbedoOptions(onset_deg=20.0))
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [slopes])
-    heights = terraingen.evaluate(terrain)
+    heights = terrain.evaluate()
     grid = terraingen.RasterGrid.from_raster(heights)
-    (bands,) = terraingen.evaluate_albedo(albedo, grid, generator=terrain)  # slopes read on terrain
+    (bands,) = terraingen.evaluate_albedo(albedo, grid, ground=terrain)  # slopes read on terrain
     # --8<-- [end:brighten_steep_slopes]
     return heights.values, bands.values
 

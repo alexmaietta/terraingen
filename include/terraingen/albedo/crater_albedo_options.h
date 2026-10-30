@@ -44,8 +44,8 @@ struct RayRetention {
 };
 
 /// Checks ray retention settings.
-/// @throws std::invalid_argument unless the diameters are positive and increasing and the times
-/// and scale positive, all finite.
+/// @throws std::invalid_argument naming the first field out of its range, or for diameters that
+/// do not increase.
 void ValidateRayRetention(const RayRetention& retention);
 
 /// How oblique impacts shape a crater's rays. Each crater gets an impact angle from the
@@ -86,9 +86,9 @@ struct CraterImpact {
 };
 
 /// Checks oblique impact settings.
-/// @throws std::invalid_argument for an invalid speed ratio distribution or one that can be below
-/// 1, angles outside [0, 90] or out of order (butterfly <= forbidden <= asymmetric), a zone half
-/// width outside [0, 180], or a heading that is not finite.
+/// @throws std::invalid_argument naming the first field out of its range, or for an invalid speed
+/// ratio distribution or one that can be below 1, or angles out of order (butterfly <= forbidden
+/// <= asymmetric).
 void ValidateObliqueImpacts(const ObliqueImpacts& oblique);
 
 /// The rays of a crater: narrow streaks of immature material running out from the rim,
@@ -130,9 +130,9 @@ struct CraterRays {
 };
 
 /// Checks ray settings.
-/// @throws std::invalid_argument for invalid distributions, a count that can be below 0 or above
-/// 64, widths outside (0, 180) degrees, a non-positive coefficient or exponent, a negative excess,
-/// a patchiness outside [0, 1], a non-positive patch wavelength or an invalid layout.
+/// @throws std::invalid_argument naming the first field out of its range, or for invalid
+/// distributions, a count that can be below 0 or above 64, widths outside (0, 180) degrees, or an
+/// invalid oblique impact or layout.
 void ValidateCraterRays(const CraterRays& rays);
 
 /// The texture of fresh craters' bright material, keyed to each crater and off by default: radial
@@ -165,9 +165,7 @@ struct CraterAlbedoTexture {
 };
 
 /// Checks crater albedo texture settings.
-/// @throws std::invalid_argument for streaks or a floor share outside [0, 1], lobes outside
-/// [0, 0.9], a lobe count outside 1 to 64, a non-positive streak width or length, or a
-/// negative continuous reach.
+/// @throws std::invalid_argument naming the first field out of its range.
 void ValidateCraterAlbedoTexture(const CraterAlbedoTexture& texture);
 
 /// One reflectance zone around new small craters: a share of craters has it, it changes the
@@ -199,10 +197,8 @@ struct ReflectanceZone {
 };
 
 /// Checks a reflectance zone.
-/// @throws std::invalid_argument for a share outside [0, 1], an invalid change that can reach -1,
-/// a non-positive coefficient or exponent, a scale that can be non-positive or unbounded, a
-/// raggedness outside [0, 1), a non-positive finger width, a feather outside (0, 1] or a
-/// non-positive retention time.
+/// @throws std::invalid_argument naming the first field out of its range, or for an invalid change
+/// that can reach -1 or a scale that can be non-positive or unbounded.
 void ValidateReflectanceZone(const ReflectanceZone& zone);
 
 /// Topographic shadows in the distal reflectance zones (Speyerer et al. 2016): ground below a jet
@@ -297,9 +293,7 @@ struct CraterReflectanceZones {
 };
 
 /// Checks crater reflectance zones.
-/// @throws std::invalid_argument for an invalid zone, a non-positive largest diameter or
-/// excavation ratio, a negative mature depth, or shadows with a jet angle outside (0, 90), a
-/// non-positive depth, or sample counts outside 8 to 8192.
+/// @throws std::invalid_argument naming the first field out of its range, or for an invalid zone.
 void ValidateCraterReflectanceZones(const CraterReflectanceZones& zones);
 
 /// The bright material of fresh craters, in optical maturity (OMAT) over the background's:
@@ -343,9 +337,8 @@ struct CraterAlbedoOptions {
 };
 
 /// Checks crater albedo options.
-/// @throws std::invalid_argument for invalid rays, retention, fade or selection, a share outside
-/// [0, 1], a background maturity that is not positive or a cap below it, negative excesses, a
-/// non-positive ejecta exponent, a reach of 1 radius or less, or a non-positive fade exponent.
+/// @throws std::invalid_argument naming the first field out of its range, or for invalid zones,
+/// rays, retention, fade or selection, or a maturity cap below the background.
 void ValidateCraterAlbedoOptions(const CraterAlbedoOptions& options);
 
 }  // namespace terraingen

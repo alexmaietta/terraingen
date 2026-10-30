@@ -4,8 +4,8 @@
 /// @brief Keeping craters of similar size apart: conflicts, precedence and thinning.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/craters/crater.h"
-#include "terraingen/util/surface.h"
 
 #include <limits>
 #include <vector>
@@ -43,7 +43,7 @@ struct CraterSpacing {
 };
 
 /// Checks crater spacing settings.
-/// @throws std::invalid_argument unless `diameterRatio` >= 1 and `separation` >= 0 are finite.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`).
 void ValidateCraterSpacing(const CraterSpacing& spacing);
 
 /// Whether two craters are similar in size and closer than `spacing` allows, measured on

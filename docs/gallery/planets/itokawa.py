@@ -31,8 +31,7 @@ def figure(quick=False):
     relief = terraingen.NoiseLayer(
         terraingen.Fractal(
             seed=5, basis=terraingen.NoiseBasis.SIMPLEX, wavelength=40.0, amplitude=0.6, octaves=4
-        ),
-        base=body,
+        )
     )
     defaults = terraingen.default_crater_models()
     craters = terraingen.CraterLayer(
@@ -52,7 +51,7 @@ def figure(quick=False):
     options.rendering = rendering
     boulders = terraingen.BoulderLayer(options, craters, base=body)
     upsampled = terraingen.ShapeModelSource(body, terraingen.DiamondSquareUpsampler())
-    terrain = terraingen.TerrainGenerator(upsampled, [relief, craters, boulders], surface=body)
+    terrain = terraingen.Terrain(body, upsampled, [relief, craters, boulders])
     whole = (-180.0, -90.0, 180.0, 90.0)
     crater_count = len(craters.craters(whole, 1.0)["diameter"])
     boulder_count = len(boulders.boulders(whole).table["diameter"])
@@ -85,12 +84,12 @@ def figure(quick=False):
         ax.set_zlim(low[2], high[2])
         ax.set_box_aspect(high - low, zoom=1.05)
     stages = [
-        (terraingen.TerrainGenerator(None, [], surface=body), "Gaskell's model, bilinear"),
-        (terraingen.TerrainGenerator(upsampled, [], surface=body), "Upsampled by diamond-square"),
+        (terraingen.Terrain(body), "Gaskell's model, bilinear"),
+        (terrain.ground(0), "Upsampled by diamond-square"),
         (terrain, "With relief, craters and boulders"),
     ]
-    for ax, (generator, title) in zip(insets, stages, strict=True):
-        patch_positions, patch_triangles = patch(generator, body, pixel)
+    for ax, (stage, title) in zip(insets, stages, strict=True):
+        patch_positions, patch_triangles = patch(stage, body, pixel)
         gallery.show_mesh(ax, patch_positions, patch_triangles, title=title, elevation=40.0)
         ax.set_zlim(-0.5 * PATCH_M, 0.5 * PATCH_M)
         ax.set_box_aspect((1, 1, 1), zoom=1.25)
@@ -109,7 +108,7 @@ def patch(terrain, body, pixel):
     grid = terraingen.RasterGrid.covering(
         (lon - half_lon, lat - half_lat, lon + half_lon, lat + half_lat), step
     )
-    heights = terraingen.evaluate(terrain, grid=grid, spacing=pixel).values
+    heights = terrain.evaluate(grid, spacing=pixel).values
     rows, columns = heights.shape
     lons = lon - half_lon + (np.arange(columns) + 0.5) * (2.0 * half_lon / columns)
     lats = lat + half_lat - (np.arange(rows) + 0.5) * (2.0 * half_lat / rows)

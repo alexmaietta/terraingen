@@ -3,8 +3,8 @@
 /// @file
 /// @brief Add Relief, Craters and Boulders Over a Whole Body
 ///
-/// Layers built on a body cover all of it. Each layer takes the body as its base, and the
-/// generator takes it as its surface, here with the shape upsampled as its source.
+/// Layers on a body cover all of it. The terrain takes the body as its surface, here with the
+/// shape upsampled as its source, and the crater and boulder layers take it as their base.
 /// Noise is 3D at each point, so it has no seams, and craters and boulders are drawn per cube-face
 /// cell by that cell's true area. Grids and regions are longitude and latitude in degrees, and
 /// spacings are meters. Here fresh craters from 3 m to 40 m and boulders from 1 m to 15 m cover a
@@ -23,7 +23,7 @@ TEST_F(SnippetTest, AddTerrainOverAWholeBody) {
     // --8<-- [start:add_terrain_over_a_whole_body]
     Fractal fractal = Fractal::Fbm(5, 40.0, 0.6);  // seed, wavelength and amplitude in meters
     fractal.octaves = 4;
-    const auto relief = std::make_shared<NoiseLayer>(fractal, body);
+    const auto relief = std::make_shared<NoiseLayer>(fractal);
     CraterModels models = DefaultCraterModels();
     models.density = std::make_shared<PowerLawSfd>(0.05, 2.0);
     models.ages = std::make_shared<FreshAges>();
@@ -38,13 +38,12 @@ TEST_F(SnippetTest, AddTerrainOverAWholeBody) {
     boulderOptions.sizes.minDiameter = 1.0;
     boulderOptions.sizes.maxDiameter = 15.0;
     const auto boulders = std::make_shared<BoulderLayer>(boulderOptions, craters, body);
-    TerrainGenerator terrain;
-    terrain.surface = body;
-    terrain.source = std::make_shared<ShapeModelSource>(body);  // the shape, upsampled by cubic
-    terrain.layers = {relief, craters, boulders};
+    const auto shape = std::make_shared<ShapeModelSource>(body);  // the shape, upsampled by cubic
+    const Terrain terrain(body, shape, {relief, craters, boulders});
 
     const Bounds2d whole{-180.0, -90.0, 180.0, 90.0};  // longitude and latitude, degrees
-    const Raster<float> heights = Evaluate(terrain, RasterGrid::Covering(whole, 10.0), 0.5);
+    const Raster<float> heights =
+        terrain.Evaluate(RasterGrid::Covering(whole, 10.0), EvaluationOptions{}.Spacing(0.5));
     const CraterList listed = craters->Craters(whole, 0.5);  // every crater on the body
     // --8<-- [end:add_terrain_over_a_whole_body]
     EXPECT_EQ(heights.Width(), 36u);

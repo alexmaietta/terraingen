@@ -32,8 +32,10 @@ def figure(quick=False):
         generation = terraingen.CraterGenerationOptions(d_min=5.0, d_max=60.0)
         generation.spacing = terraingen.CraterSpacing(diameter_ratio=RATIO, separation=separation)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=4, generation=generation))
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
-        count = len(terraingen.placed_craters(terrain).table["diameter"])
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters]
+        )
+        count = len(terrain.craters().table["diameter"])
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
         ax.set_title(f"ratio {RATIO:g}, separation {separation:g}: {count} craters")
     return fig

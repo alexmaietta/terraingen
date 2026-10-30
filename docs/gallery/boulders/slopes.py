@@ -30,9 +30,8 @@ def figure(quick=False):
     relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     region = (-HALF_SIZE_M, -HALF_SIZE_M, HALF_SIZE_M, HALF_SIZE_M)
     craters = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)])
-    ground = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
-    ).values
+    source = terraingen.FlatSource(size, size, pixel)
+    ground = terraingen.Terrain(source=source, layers=[relief, craters]).evaluate().values
     slopes = gallery.slopes_degrees(ground, pixel)
 
     fig, axes = plt.subplots(1, len(PANELS), figsize=(15, 4.9), layout="constrained")
@@ -49,10 +48,8 @@ def figure(quick=False):
         pose.roll_distance = roll
         options.pose = pose
         boulders = terraingen.BoulderLayer(options, craters)
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [relief, craters, boulders]
-        )
-        table = terraingen.placed_boulders(terrain).table
+        terrain = terraingen.Terrain(source=source, layers=[relief, craters, boulders])
+        table = terrain.boulders().table
 
         rows = np.clip(((HALF_SIZE_M - np.asarray(table["y"])) / pixel).astype(int), 0, size - 1)
         columns = np.clip(((np.asarray(table["x"]) + HALF_SIZE_M) / pixel).astype(int), 0, size - 1)

@@ -66,25 +66,6 @@ double SnappedCells(double span, double cell) {
     return std::max(1.0, std::ceil(span / cell - kGridSnapTolerance));
 }
 
-RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize) {
-    RequirePositive(pixelSize, "Pixel size");
-    const GeoTransform& source = grid.transform;
-    if (source.IsRotated()) {
-        throw std::invalid_argument("Cannot resample a rotated raster");
-    }
-    const double scaleX = std::fabs(source.pixelWidth) / pixelSize;
-    const double scaleY = std::fabs(source.pixelHeight) / pixelSize;
-    const double width = std::max(1.0, std::round(static_cast<double>(grid.width) * scaleX));
-    const double height = std::max(1.0, std::round(static_cast<double>(grid.height) * scaleY));
-    if (width > 2147483647.0 || height > 2147483647.0) {
-        throw std::invalid_argument("Resampled raster would be too large");
-    }
-    RasterGrid resampled{static_cast<std::size_t>(width), static_cast<std::size_t>(height), source};
-    resampled.transform.pixelWidth = std::copysign(pixelSize, source.pixelWidth);
-    resampled.transform.pixelHeight = std::copysign(pixelSize, source.pixelHeight);
-    return resampled;
-}
-
 double ResolvedSpacing(const RasterGrid& grid, double spacing, const Surface& surface) {
     if (!(grid.PixelSize() > 0.0)) {
         throw std::domain_error("The grid's transform is not invertible");

@@ -3,6 +3,7 @@
 #include "support/source_agreement.h"
 #include "terraingen/sources/synthetic_source.h"
 
+#include "terraingen/random/stream.h"
 #include "terraingen/sources/diamond_square.h"
 
 #include <gtest/gtest.h>
@@ -148,4 +149,65 @@ TEST(SyntheticSource, TakesItsPixelSizeInMetersOnABody) {
     ASSERT_TRUE(source.PixelSize().has_value());
     EXPECT_DOUBLE_EQ(*source.PixelSize(), 5.0 / moon.UnitLength()) << "posts 5 m apart, in degrees";
     EXPECT_EQ(*SyntheticSource(Hills(), 0.0f, 5.0).PixelSize(), 5.0) << "meters on a plane";
+}
+
+namespace {
+
+/// The heights of `source` over a 24 x 16 grid of 2.5 m cells.
+Raster<float> Sampled(const terraingen::Source& source) {
+    Raster<float> heights =
+        RasterGrid{24, 16, GeoTransform::NorthUp(-30.0, 20.0, 2.5)}.MakeRaster();
+    source.Fill(heights, 1.0);
+    return heights;
+}
+
+/// Whether `a` and `b` hold the same bits in every cell.
+bool Same(const Raster<float>& a, const Raster<float>& b) {
+    return std::memcmp(a.Values().data(), b.Values().data(), a.Size() * sizeof(float)) == 0;
+}
+
+}  // namespace
+
+TEST(SyntheticSource, ReseedsEachFractalFromItsOwnWord) {
+    std::vector<Fractal> stack = Hills();
+    stack.push_back(stack[0]);
+    stack[1].wavelength = 20.0f;
+    const SyntheticSource source(stack, 3.0f);
+    const auto one = std::dynamic_pointer_cast<const SyntheticSource>(source.Reseeded(11));
+    ASSERT_NE(one, nullptr);
+    ASSERT_EQ(one->Fractals().size(), 2u);
+    EXPECT_EQ(one->Fractals()[0].seed, terraingen::ReseedWord(11, 0));
+    EXPECT_EQ(one->Fractals()[1].seed, terraingen::ReseedWord(11, 1));
+    EXPECT_EQ(one->Fractals()[1].wavelength, 20.0f) << "only the seeds change";
+    EXPECT_TRUE(Same(Sampled(*one), Sampled(*source.Reseeded(11)))) << "deterministic";
+    EXPECT_FALSE(Same(Sampled(*one), Sampled(*source.Reseeded(12))));
+    EXPECT_FALSE(Same(Sampled(*one), Sampled(source)));
+    EXPECT_EQ(SyntheticSource().Reseeded(11), nullptr) << "an empty stack has no seeds";
+}
+
+TEST(SyntheticSource, ReseedsItsUpsamplerAndKeepsItsPosts) {
+    terraingen::DiamondSquareOptions options;
+    options.fractalDimension = 2.4;
+    options.scale = 0.5;
+    const auto refined = std::make_shared<terraingen::DiamondSquareUpsampler>(options);
+    const SyntheticSource source(Hills(), 0.0f, 5.0, refined);
+    const auto one = std::dynamic_pointer_cast<const SyntheticSource>(source.Reseeded(4));
+    ASSERT_NE(one, nullptr);
+    EXPECT_EQ(one->PixelSize(), source.PixelSize());
+    const auto upsampler =
+        std::dynamic_pointer_cast<const terraingen::DiamondSquareUpsampler>(one->UpsamplerInUse());
+    ASSERT_NE(upsampler, nullptr);
+    EXPECT_EQ(upsampler->Options().seed,
+              terraingen::ReseedWord(
+                  terraingen::JoinWords(terraingen::ReseedWord(4, terraingen::kMaxFractals),
+                                        terraingen::ReseedWord(4, terraingen::kMaxFractals + 1)),
+                  0));
+    EXPECT_TRUE(Same(Sampled(*one), Sampled(*source.Reseeded(4))));
+
+    const SyntheticSource flatPosts({}, 1.0f, 5.0, refined);
+    const auto posts = std::dynamic_pointer_cast<const SyntheticSource>(flatPosts.Reseeded(4));
+    ASSERT_NE(posts, nullptr) << "the upsampler has a seed though the stack is empty";
+    EXPECT_TRUE(posts->Fractals().empty());
+    EXPECT_EQ(SyntheticSource({}, 1.0f, 5.0).Reseeded(4), nullptr)
+        << "cubic interpolation has no seed";
 }

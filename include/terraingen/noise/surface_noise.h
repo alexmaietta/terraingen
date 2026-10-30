@@ -4,10 +4,10 @@
 /// @brief Fractal stacks evaluated at points of a plane or a body's surface.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/noise/fractals.h"
-#include "terraingen/util/geometry.h"
 #include "terraingen/util/span.h"
-#include "terraingen/util/surface.h"
 
 #include <vector>
 

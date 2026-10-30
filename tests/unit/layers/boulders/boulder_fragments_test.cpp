@@ -200,9 +200,11 @@ TEST(BoulderLayer, GathersBouldersInClustersKeepingTheirMeanDensity) {
 namespace {
 
 class Level final : public terraingen::Ground {
-  public:
-    float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {
-        return 3.0f;
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = 3.0f;
+        }
     }
 };
 

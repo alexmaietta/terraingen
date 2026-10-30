@@ -45,8 +45,8 @@ def figure(quick=False):
     fig, axes = plt.subplots(1, len(panels), figsize=(17, 5.2), layout="constrained")
     for ax, (title, shape, feather, holed) in zip(axes, panels, strict=True):
         layer = terraingen.MaskedLayer(dunes(), shape, feather=feather)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, layer])
-        gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel, cmap="copper")
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief, layer])
+        gallery.show_heights(ax, terrain.evaluate().values, pixel, cmap="copper")
         for ring in [OUTLINE] + ([HOLE] if holed else []):
             closed = np.array(ring + ring[:1])
             ax.plot(closed[:, 0], closed[:, 1], color="#d62728", lw=1.4, ls="--")

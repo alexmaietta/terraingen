@@ -35,9 +35,11 @@ def figure(quick=False):
         if ratio is not None:
             generation.spacing = terraingen.CraterSpacing(diameter_ratio=ratio, separation=SEPARATION)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=4, generation=generation))
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, craters])
-        count = len(terraingen.placed_craters(terrain).table["diameter"])
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[relief, craters]
+        )
+        count = len(terrain.craters().table["diameter"])
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
         if ratio is None:
             ax.set_title(f"No spacing: {count} craters")
         else:

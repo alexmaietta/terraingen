@@ -61,9 +61,11 @@ def figure(quick=False):
     rows = 2 * int(0.5 * SPACING / pixel) + 1
     relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=3.0)
     layers = [relief] + [crater_layer((i - 1) * SPACING, s) for i, s in enumerate(SETTINGS)]
-    heights = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), layers)
-    ).values
+    heights = (
+        terraingen.Terrain(source=terraingen.FlatSource(columns, rows, pixel), layers=layers)
+        .evaluate()
+        .values
+    )
 
     fig, (row_ax, rim_ax) = plt.subplots(
         2, 1, figsize=(16, 10.5), layout="constrained", height_ratios=[1, 0.8]

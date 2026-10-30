@@ -11,12 +11,12 @@ def write_outputs():
     noise = terraingen.NoiseLayer(seed=1, wavelength=80.0, amplitude=2.0, octaves=5)
     craters = terraingen.CraterLayer()
     boulders = terraingen.BoulderLayer(craters=craters)
-    terrain = terraingen.TerrainGenerator(source, [noise, craters, boulders])
-    heights = terraingen.evaluate(terrain)
+    terrain = terraingen.Terrain(source=source, layers=[noise, craters, boulders])
+    heights = terrain.evaluate()
     # --8<-- [start:write_outputs]
-    terraingen.write_geotiff("terrain.tif", heights)
-    terraingen.placed_craters(terrain).write_list("craters.csv")
-    terraingen.placed_boulders(terrain).write_list("boulders.csv")
+    terraingen.write_geotiff("terrain.tif", heights, terrain.keys())
+    terrain.craters().write_list("craters.csv")
+    terrain.boulders().write_list("boulders.csv")
     # --8<-- [end:write_outputs]
 
 

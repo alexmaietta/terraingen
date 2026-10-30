@@ -4,10 +4,10 @@
 /// @brief Raster grids without values, and resampled grids and spacings derived from them.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/util/geometry.h"
-#include "terraingen/util/surface.h"
 
 #include <cstddef>
 
@@ -73,14 +73,6 @@ inline constexpr double kGridSnapTolerance = 1e-6;
 /// The cells of side `cell` that cover `span` snapped outward: ceil(`span` / `cell` -
 /// `kGridSnapTolerance`), at least 1, as a double so callers can check it before converting.
 double SnappedCells(double span, double cell);
-
-/// A grid with square cells over the same extent, origin and axis directions as an unrotated
-/// `grid`: round(width * |pixelWidth| / `pixelSize`) x round(height * |pixelHeight| /
-/// `pixelSize`) cells, at least one each.
-/// @param pixelSize The new cell side in world units; positive and finite.
-/// @throws std::invalid_argument for a rotated grid, a `pixelSize` that is not positive and finite,
-/// or a result wider or taller than 2^31 cells.
-RasterGrid ResampledGrid(const RasterGrid& grid, double pixelSize);
 
 /// The spacing a grid is evaluated at: the larger of `spacing` and the grid's own spacing on
 /// `surface` (`RasterGrid::Spacing`).

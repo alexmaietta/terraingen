@@ -55,8 +55,8 @@ def figure(quick=False):
             profile,
         )
         crater = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)], models)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [crater])
-        surface = terraingen.evaluate(terrain).values
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[crater])
+        surface = terrain.evaluate().values
         gallery.show_hillshade(map_axes[0, column], surface, pixel)
         image = gallery.show_slopes(map_axes[1, column], surface, pixel, vmax=40.0, colorbar=False)
         map_axes[0, column].set_title(name)

@@ -51,8 +51,8 @@ def figure(quick=False):
         layers.append(
             terraingen.CraterLayer.manual([terraingen.Crater(x, 0.0, DIAMETER, age_gyr=0.0)], apply=apply)
         )
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), layers)
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(columns, rows, pixel), layers=layers)
 
     fig, ax = plt.subplots(figsize=(15, 5.4), layout="constrained")
-    gallery.show_crater_row(ax, terraingen.evaluate(terrain).values, pixel, [p[0] for p in PANELS], SPACING)
+    gallery.show_crater_row(ax, terrain.evaluate().values, pixel, [p[0] for p in PANELS], SPACING)
     return fig

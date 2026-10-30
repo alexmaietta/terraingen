@@ -8,6 +8,7 @@
 #include "terraingen/layers/dunes.h"
 #include "terraingen/layers/sand_fill.h"
 #include "terraingen/layers/sand_shadow.h"
+#include "terraingen/layers/transforms.h"
 
 #include <gtest/gtest.h>
 
@@ -18,10 +19,12 @@
 #include <stdexcept>
 #include <vector>
 
+using terraingen::EvaluationOptions;
+using terraingen::LayerPtr;
 using terraingen::MaterialClass;
 using terraingen::MaterialOptions;
 using terraingen::MaterialsAt;
-using terraingen::TerrainGenerator;
+using terraingen::Terrain;
 
 namespace {
 
@@ -35,8 +38,8 @@ class Tilt final : public terraingen::FormulaLayer {
     Tilt(double slope, double depth, double pitX) : slope_(slope), depth_(depth), pitX_(pitX) {}
 
   protected:
-    float HeightAt(float height, double x, double y, double,
-                   const terraingen::Ground*) const override {
+    float HeightAt(float height, double x, double y,
+                   const terraingen::LayerContext&) const override {
         const double pit = depth_ * std::exp(-((x - pitX_) * (x - pitX_) + y * y) / 9.0);
         return static_cast<float>(static_cast<double>(height) + slope_ * x - pit);
     }
@@ -47,22 +50,35 @@ class Tilt final : public terraingen::FormulaLayer {
     double pitX_;
 };
 
-TerrainGenerator Ground(double slope, double depth = 0.0, double pitX = 0.0) {
-    return TerrainGenerator{nullptr, {std::make_shared<Tilt>(slope, depth, pitX)}, {}};
+/// A terrain without a source of a `Tilt`, then `layers`.
+Terrain Tilted(double slope, double depth = 0.0, double pitX = 0.0,
+               const std::vector<LayerPtr>& layers = {}) {
+    std::vector<LayerPtr> all{std::make_shared<Tilt>(slope, depth, pitX)};
+    all.insert(all.end(), layers.begin(), layers.end());
+    return Terrain(terraingen::Surface{}, nullptr, all);
+}
+
+/// Transverse dunes 40 m apart, which lay sand.
+LayerPtr Dunes() {
+    terraingen::DuneOptions dunes;
+    dunes.shape = terraingen::DuneShape::Transverse;
+    dunes.wavelength = 40.0;
+    dunes.height = 3.0;
+    return std::make_shared<terraingen::DuneLayer>(dunes);
 }
 
 }  // namespace
 
 TEST(MaterialsAt, StartAsSoilWithBedrockOnSteepGround) {
     const MaterialOptions options;
-    const auto level = MaterialsAt(Ground(0.0), options, 3.0, 4.0, 1.0);
+    const auto level = MaterialsAt(Tilted(0.0), options, 3.0, 4.0, 1.0);
     EXPECT_EQ(level[Index(MaterialClass::Soil)], 1.0);
-    const auto steep = MaterialsAt(Ground(0.6), options, 3.0, 4.0, 1.0);
+    const auto steep = MaterialsAt(Tilted(0.6), options, 3.0, 4.0, 1.0);
     EXPECT_EQ(steep[Index(MaterialClass::Bedrock)], 1.0);
     MaterialOptions noBedrock;
     noBedrock.exposure.reset();
-    EXPECT_EQ(MaterialsAt(Ground(0.6), noBedrock, 3.0, 4.0, 1.0)[Index(MaterialClass::Soil)], 1.0);
-    EXPECT_THROW(MaterialsAt(Ground(0.0), options, 0.0, 0.0, 0.0), std::invalid_argument);
+    EXPECT_EQ(MaterialsAt(Tilted(0.6), noBedrock, 3.0, 4.0, 1.0)[Index(MaterialClass::Soil)], 1.0);
+    EXPECT_THROW(MaterialsAt(Tilted(0.0), options, 0.0, 0.0, 0.0), std::invalid_argument);
 }
 
 TEST(MaterialsAt, LaysDustInPatchesAndSandFromLayersInOrder) {
@@ -71,17 +87,18 @@ TEST(MaterialsAt, LaysDustInPatchesAndSandFromLayersInOrder) {
     options.dustPatch = 20.0;
     double dust = 0.0;
     int count = 0;
+    const Terrain level = Tilted(0.0);
     for (double y = 0.0; y < 400.0; y += 4.0) {
         for (double x = 0.0; x < 400.0; x += 4.0) {
-            dust += MaterialsAt(Ground(0.0), options, x, y, 1.0)[Index(MaterialClass::Dust)];
+            dust += MaterialsAt(level, options, x, y, 1.0)[Index(MaterialClass::Dust)];
             ++count;
         }
     }
     EXPECT_NEAR(dust / count, 0.4, 0.15) << "about the dust cover";
 
-    TerrainGenerator sandy = Ground(0.6, 3.0, 0.0);
-    sandy.layers.push_back(std::make_shared<terraingen::SandFillLayer>(
-        terraingen::SandFillOptions{8.0, 0.8, 1.0, 0.02}));
+    const Terrain sandy = Tilted(0.6, 3.0, 0.0,
+                                 {std::make_shared<terraingen::SandFillLayer>(
+                                     terraingen::SandFillOptions{8.0, 0.8, 1.0, 0.02})});
     const auto pit = MaterialsAt(sandy, {}, 0.0, 0.0, 0.5);
     EXPECT_EQ(pit[Index(MaterialClass::Sand)], 1.0) << "sand over the steep bedrock";
     const auto beside = MaterialsAt(sandy, {}, 40.0, 0.0, 0.5);
@@ -90,17 +107,13 @@ TEST(MaterialsAt, LaysDustInPatchesAndSandFromLayersInOrder) {
 }
 
 TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
-    TerrainGenerator terrain = Ground(0.15, 2.0, 5.0);
-    terraingen::DuneOptions dunes;
-    dunes.shape = terraingen::DuneShape::Transverse;
-    dunes.wavelength = 40.0;
-    dunes.height = 3.0;
-    terrain.layers.push_back(std::make_shared<terraingen::DuneLayer>(dunes));
+    const Terrain terrain = Tilted(0.15, 2.0, 5.0, {Dunes()});
     MaterialOptions options;
     options.dustCover = 0.3;
     options.dustPatch = 15.0;
     const terraingen::RasterGrid grid{24, 18, terraingen::GeoTransform::NorthUp(-30.0, 20.0, 2.0)};
-    const auto bands = terraingen::EvaluateMaterials(terrain, options, grid, 0.0, 3);
+    const auto bands =
+        terraingen::EvaluateMaterials(terrain, options, grid, EvaluationOptions{}.Threads(3));
     ASSERT_EQ(bands.size(), terraingen::kMaterialClasses);
     double sand = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
@@ -119,8 +132,36 @@ TEST(EvaluateMaterials, GivesEachCellItsSharesSummingToOne) {
     EXPECT_GT(sand, 0.0);
 }
 
+TEST(EvaluateMaterials, FollowsTheEvaluationOptions) {
+    const Terrain terrain = Tilted(
+        0.15, 2.0, 5.0, {Dunes(), std::make_shared<terraingen::ScaleLayer>(1.0, 2.0), Dunes()});
+    const terraingen::RasterGrid grid{20, 12, terraingen::GeoTransform::NorthUp(-30.0, 20.0, 2.0)};
+    const auto plain = terraingen::EvaluateMaterials(terrain, {}, grid);
+    std::vector<std::size_t> layers;
+    EvaluationOptions options = EvaluationOptions{}.Threads(2).On(terraingen::Backend::Cpu);
+    options.onLayer = [&](std::size_t layer, double milliseconds) {
+        layers.push_back(layer);
+        EXPECT_GE(milliseconds, 0.0);
+    };
+    const auto timed = terraingen::EvaluateMaterials(terrain, {}, grid, options);
+    EXPECT_EQ(layers, (std::vector<std::size_t>{1, 3})) << "each layer that lays a material";
+    for (std::size_t k = 0; k < terraingen::kMaterialClasses; ++k) {
+        for (std::size_t i = 0; i < plain[k].Size(); ++i) {
+            ASSERT_EQ(timed[k].Values()[i], plain[k].Values()[i]) << "band " << k << " cell " << i;
+        }
+    }
+    const auto coarse =
+        terraingen::EvaluateMaterials(terrain, {}, grid, EvaluationOptions{}.Spacing(8.0));
+    const auto center = coarse[0].CellCenter(3, 4);
+    const auto shares = MaterialsAt(terrain, {}, center.x, center.y, 8.0);
+    for (std::size_t k = 0; k < terraingen::kMaterialClasses; ++k) {
+        EXPECT_EQ(coarse[k](3, 4), static_cast<float>(shares[k])) << "at the coarser spacing";
+    }
+    const auto negative = EvaluationOptions{}.Spacing(-1.0);
+    EXPECT_THROW(terraingen::EvaluateMaterials(terrain, {}, grid, negative), std::invalid_argument);
+}
+
 TEST(EvaluateMaterials, FindsBouldersOnceAndAgreesWithPoints) {
-    TerrainGenerator terrain = Ground(0.05, 0.0, 0.0);
     terraingen::BoulderLayerOptions rocks = terraingen::testing::GolombekRappBoulders();
     rocks.sizes.coverage = 0.1;
     rocks.sizes.minDiameter = 0.1;
@@ -129,12 +170,13 @@ TEST(EvaluateMaterials, FindsBouldersOnceAndAgreesWithPoints) {
     rocks.rendering.relief = terraingen::BoulderRelief::Shape;
     rocks.rendering.modelThreshold.minDiameter = 0.6;
     const auto boulders = std::make_shared<terraingen::BoulderLayer>(rocks);
-    terrain.layers.push_back(boulders);
     terraingen::SandShadowOptions tails;
     tails.lengthRatio = 2.0;
-    terrain.layers.push_back(std::make_shared<terraingen::SandShadowLayer>(boulders, tails));
+    const Terrain terrain = Tilted(
+        0.05, 0.0, 0.0, {boulders, std::make_shared<terraingen::SandShadowLayer>(boulders, tails)});
     const terraingen::RasterGrid grid{64, 48, terraingen::GeoTransform::NorthUp(-1.6, 1.2, 0.05)};
-    const auto bands = terraingen::EvaluateMaterials(terrain, MaterialOptions{}, grid, 0.0, 3);
+    const auto bands = terraingen::EvaluateMaterials(terrain, MaterialOptions{}, grid,
+                                                     EvaluationOptions{}.Threads(3));
     double rock = 0.0;
     double sand = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {

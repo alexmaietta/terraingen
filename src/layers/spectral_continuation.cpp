@@ -3,23 +3,21 @@
 #include "terraingen/layers/spectral_continuation.h"
 
 #include "layers/lattice.h"
+#include "terraingen/layers/layer_fields.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/random/streams.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 
 namespace terraingen {
 
 namespace {
-
-constexpr double kMinSlope = 2.0;
-constexpr double kMaxSlope = 4.0;
 
 /// The Gaussian envelope parameter a of a band's impulses over the band's lowest frequency: the
 /// impulses' spectra are Gaussians of standard deviation a / (2 sqrt(pi)), about a seventh of it.
@@ -43,14 +41,7 @@ double EnvelopeEnergy() {
 }  // namespace
 
 void ValidateSpectralContinuationOptions(const SpectralContinuationOptions& options) {
-    RequirePositive(options.pixelSize, "Spectral continuation pixel size");
-    RequireFinite(options.slope, "Spectral continuation slope");
-    if (options.slope < kMinSlope || options.slope > kMaxSlope) {
-        throw std::invalid_argument("Spectral continuation slope must be in [2, 4]");
-    }
-    RequireNonNegative(options.octaveRms, "Spectral continuation octave RMS");
-    RequirePositive(options.minWavelength, "Spectral continuation min wavelength");
-    RequirePositive(options.taperOctaves, "Spectral continuation taper octaves");
+    CheckRanges(options);
     ValidateResolutionFade(options.fade);
 }
 
@@ -72,9 +63,8 @@ struct SpectralContinuationLayer::ImpulseTable {
     std::vector<Impulse> impulses;  ///< `kImpulsesPerCell` per cell, row by row.
 };
 
-SpectralContinuationLayer::SpectralContinuationLayer(SpectralContinuationOptions options,
-                                                     TerrainBase base)
-    : options_(options), surface_(base.surface) {
+SpectralContinuationLayer::SpectralContinuationLayer(SpectralContinuationOptions options)
+    : options_(options) {
     ValidateSpectralContinuationOptions(options_);
     const double nyquist = 0.5 / options_.pixelSize;
     coefficient_ = PowerLawSpectrum{options_.slope, options_.octaveRms}.Coefficient(nyquist);
@@ -91,6 +81,12 @@ SpectralContinuationLayer::SpectralContinuationLayer(SpectralContinuationOptions
                                   static_cast<std::uint32_t>(i));
         bands_.push_back(band);
     }
+}
+
+LayerPtr SpectralContinuationLayer::Reseeded(std::uint64_t seed) const {
+    SpectralContinuationOptions options = options_;
+    options.seed = ReseedWord(seed, 0);
+    return std::make_shared<SpectralContinuationLayer>(options);
 }
 
 double SpectralContinuationLayer::TargetPsd(double frequency) const {
@@ -197,12 +193,13 @@ double SpectralContinuationLayer::DetailAt(const std::vector<ImpulseTable>& tabl
 
 void SpectralContinuationLayer::ApplySamples(SampleBlock& samples,
                                              const LayerContext& context) const {
-    const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
+    const Surface& surface = context.SurfaceOrPlane();
+    const double spacing = samples.ResolvedSpacing(context.spacing, surface);
     if (bands_.empty() ||
         !(ResolutionWeight(1.0 / bands_.front().frequency, spacing, options_.fade) > 0.0)) {
         return;
     }
-    const double unit = surface_.UnitLength();
+    const double unit = surface.UnitLength();
     Raster<float>* grid = samples.Grid();
     if (!grid) {
         for (std::size_t i = 0; i < samples.Size(); ++i) {

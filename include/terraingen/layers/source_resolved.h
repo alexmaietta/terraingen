@@ -4,9 +4,9 @@
 /// @brief The feature size from which a source's measured data already holds a layer's features.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/field.h"
 #include "terraingen/sources/source.h"
-#include "terraingen/util/surface.h"
 
 #include <memory>
 #include <optional>
@@ -27,6 +27,11 @@ std::shared_ptr<const SurfaceField> SourceResolvedLimit(std::shared_ptr<const So
 std::shared_ptr<const SurfaceField> LayerResolvedLimit(const std::shared_ptr<const Source>& source,
                                                        const std::optional<double>& pixelsAcross,
                                                        const Surface& surface);
+
+/// The value of `LayerResolvedLimit` at surface (`x`, `y`) without building the field: the size in
+/// meters from which `source` resolves features there, infinity when either is unset.
+double SourceResolvedSize(const Source* source, const std::optional<double>& pixelsAcross,
+                          const Surface& surface, double x, double y);
 
 /// Checks a layer's `sourceResolvesPixels`.
 /// @throws std::invalid_argument "Source resolves pixels must be positive and finite" for a set

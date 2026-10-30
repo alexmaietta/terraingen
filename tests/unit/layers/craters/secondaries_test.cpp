@@ -13,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 using terraingen::Crater;
 using terraingen::CraterLayer;
@@ -116,6 +117,30 @@ TEST(SecondaryCraterLayer, HasTheGivenCountAtTheOnsetAndSingersSizes) {
     EXPECT_GT(ratio, 10.0);
     EXPECT_LT(ratio, 24.0);
     EXPECT_GT(layer.MaxFeatureDiameter(), 20.0);
+}
+
+TEST(SecondaryCraterLayer, ReseedsItsSecondariesAndRebindsToNewPrimaries) {
+    const Crater primary{0.0, 0.0, 2000.0, 0.0, 9u, true};
+    const auto primaries = Primaries(primary);
+    const SecondaryCraterLayer layer(primaries, Models(), Options(20.0, 20.0));
+    const double outer = layer.OuterRange(2000.0);
+    const terraingen::Bounds2d region{-outer, -outer, outer, outer};
+    const auto diameters = [&](const terraingen::LayerPtr& reseeded) {
+        return dynamic_cast<const SecondaryCraterLayer&>(*reseeded).Secondaries(region).Diameters();
+    };
+    const auto a = diameters(layer.Reseeded(2));
+    EXPECT_EQ(a, diameters(layer.Reseeded(2)));
+    EXPECT_NE(a, diameters(layer.Reseeded(3)));
+    const terraingen::LayerPtr held = layer.Reseeded(2);
+    const auto& reseeded = dynamic_cast<const SecondaryCraterLayer&>(*held);
+    EXPECT_EQ(reseeded.Options().seed, terraingen::ReseedWord(2, 0));
+
+    EXPECT_EQ(layer.Rebound({}), nullptr);
+    const auto moved = Primaries({5000.0, 0.0, 2000.0, 0.0, 9u, true});
+    const terraingen::LayerPtr rebound = layer.Rebound({{primaries.get(), moved}});
+    ASSERT_NE(rebound, nullptr);
+    EXPECT_EQ(rebound->Dependencies(), std::vector<const terraingen::Layer*>{moved.get()});
+    EXPECT_EQ(layer.Rebound({{moved.get(), primaries}}), nullptr) << "reads none of them";
 }
 
 TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {

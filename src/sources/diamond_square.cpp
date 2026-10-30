@@ -2,10 +2,10 @@
 
 #include "terraingen/sources/diamond_square.h"
 
+#include "terraingen/analysis/variogram.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/random/streams.h"
-#include "terraingen/raster/variogram.h"
 #include "util/checks.h"
 
 #include <algorithm>
@@ -438,35 +438,27 @@ double DiamondSquareUpsampler::Interpolate(const NodeFrame& frame, const Nodes& 
     return value;
 }
 
-void DiamondSquareUpsampler::HeightsAt(const PostLattice& posts, Span<const Vec2d> points,
-                                       Span<float> heights, double spacing) const {
-    if (points.empty()) {
-        return;
-    }
+void DiamondSquareUpsampler::FillSamples(const PostLattice& posts, SampleBlock& samples,
+                                         double spacing, unsigned threads) const {
     if (!Fitted()) {
         throw std::invalid_argument("Diamond-square needs a fractal dimension, and a scale or a "
                                     "fit window, given or estimated from the posts");
     }
     const NodeFrame frame = Frame(posts);
     const int level = Levels(PostSpacing(posts.Transform()), spacing);
-    detail::ExpandPoints(
-        points, heights, kNodesPerPoint,
-        [&](Span<const Vec2d> at) { return ReadBox(frame, level, at); },
-        [&](const detail::IndexBox& box, Span<const Vec2d> at, Span<float> values) {
-            const Nodes nodes =
-                Refine(posts, level, box, level > 0 ? Scales(posts, level, box) : ScaleField{});
-            for (std::size_t i = 0; i < at.size(); ++i) {
-                values[i] = static_cast<float>(Interpolate(frame, nodes, level, at[i].x, at[i].y));
-            }
-        });
-}
-
-float DiamondSquareUpsampler::HeightAt(const PostLattice& posts, double x, double y,
-                                       double spacing) const {
-    float height = 0.0f;
-    const Vec2d point{x, y};
-    HeightsAt(posts, Span<const Vec2d>(&point, 1), Span<float>(&height, 1), spacing);
-    return height;
+    detail::FillByTiles(samples, threads, [&](Span<const Vec2d> points, Span<float> heights) {
+        detail::ExpandPoints(
+            points, heights, kNodesPerPoint,
+            [&](Span<const Vec2d> at) { return ReadBox(frame, level, at); },
+            [&](const detail::IndexBox& box, Span<const Vec2d> at, Span<float> values) {
+                const Nodes nodes =
+                    Refine(posts, level, box, level > 0 ? Scales(posts, level, box) : ScaleField{});
+                for (std::size_t i = 0; i < at.size(); ++i) {
+                    values[i] =
+                        static_cast<float>(Interpolate(frame, nodes, level, at[i].x, at[i].y));
+                }
+            });
+    });
 }
 
 int DiamondSquareUpsampler::Reach() const {
@@ -500,6 +492,12 @@ std::shared_ptr<const Upsampler> DiamondSquareUpsampler::FitTo(const PostLattice
         fitted.scale = options_.scale.value_or(roughness.scale);
     }
     return std::make_shared<DiamondSquareUpsampler>(fitted);
+}
+
+std::shared_ptr<const Upsampler> DiamondSquareUpsampler::Reseeded(std::uint64_t seed) const {
+    DiamondSquareOptions reseeded = options_;
+    reseeded.seed = ReseedWord(seed, 0);
+    return std::make_shared<DiamondSquareUpsampler>(reseeded);
 }
 
 }  // namespace terraingen

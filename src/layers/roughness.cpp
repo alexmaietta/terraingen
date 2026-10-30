@@ -2,19 +2,21 @@
 
 #include "terraingen/layers/roughness.h"
 
+#include "terraingen/layers/layer_fields.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/noise/structure_function.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/random/streams.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/log.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <memory>
 #include <stdexcept>
 
 namespace terraingen {
@@ -55,15 +57,10 @@ std::array<double, 9> UniformRotation(const UVec3& turn) {
 }  // namespace
 
 void ValidateRoughnessOptions(const RoughnessOptions& options) {
-    RequirePositive(options.rmsSlope, "Roughness rmsSlope");
-    RequirePositive(options.baseline, "Roughness baseline");
-    if (!(options.hurst > 0.0 && options.hurst <= 1.0)) {
-        throw std::invalid_argument("Roughness hurst must be in (0, 1]");
-    }
-    if (!(std::isfinite(options.maxWavelength) && options.minWavelength > 0.0 &&
-          options.minWavelength <= options.maxWavelength)) {
-        throw std::invalid_argument(
-            "Roughness wavelengths must satisfy 0 < minWavelength <= maxWavelength");
+    CheckRanges(options);
+    if (!(options.minWavelength <= options.maxWavelength)) {
+        throw std::invalid_argument("Roughness wavelengths must satisfy minWavelength <= "
+                                    "maxWavelength");
     }
     if (std::log2(options.maxWavelength / options.minWavelength) >= kMaxOctaves) {
         throw std::invalid_argument("Roughness wavelengths may span at most " +
@@ -72,21 +69,34 @@ void ValidateRoughnessOptions(const RoughnessOptions& options) {
     ValidateResolutionFade(options.fade);
 }
 
-RoughnessLayer::RoughnessLayer(RoughnessOptions options, TerrainBase base)
-    : FormulaLayer(base.surface), options_(options) {
+RoughnessLayer::RoughnessLayer(RoughnessOptions options) : options_(options) {
     ValidateRoughnessOptions(options_);
+    planeOctaves_ = MakeOctaves(false);
+    bodyOctaves_ = MakeOctaves(true);
+}
+
+LayerPtr RoughnessLayer::Reseeded(std::uint64_t seed) const {
+    RoughnessOptions options = options_;
+    options.seed = ReseedWord(seed, 0);
+    return std::make_shared<RoughnessLayer>(options);
+}
+
+std::vector<RoughnessLayer::Octave> RoughnessLayer::MakeOctaves(bool body) const {
+    std::vector<Octave> octaves;
     const double shortest = options_.minWavelength * (1.0 - 1e-12);
     double wavelength = options_.maxWavelength;
     for (std::uint32_t i = 0; wavelength >= shortest; ++i, wavelength *= 0.5) {
-        octaves_.push_back(MakeOctave(i, wavelength));
+        octaves.push_back(MakeOctave(i, wavelength, body));
     }
-    const double scale = options_.rmsSlope / RmsSlope(options_.baseline);
-    for (Octave& octave : octaves_) {
+    const double scale = options_.rmsSlope / OctavesRmsSlope(octaves, options_.baseline, body);
+    for (Octave& octave : octaves) {
         octave.amplitude *= scale;
     }
+    return octaves;
 }
 
-RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavelength) const {
+RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavelength,
+                                                  bool body) const {
     const UVec3 hash = Pcg3dHash({options_.seed, i, kRoughnessOctaveStream});
     const double angle = kGoldenAngle * static_cast<double>(i);
     Octave octave{wavelength,
@@ -96,16 +106,17 @@ RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavele
                   LatticeOffset(hash.x),
                   LatticeOffset(hash.y),
                   hash.z};
-    if (surface_.IsBody()) {
+    if (body) {
         octave.rotation = UniformRotation(Pcg3dHash({options_.seed, i, kRoughnessRotationStream}));
         octave.offsetZ = LatticeOffset(Pcg3dHash({hash.z, i, kOffsetZSalt}).x);
     }
     return octave;
 }
 
-double RoughnessLayer::OctaveNoise(const Octave& octave, double x, double y) const {
-    if (surface_.IsBody()) {
-        const Vec3d p = surface_.Position({x, y});
+double RoughnessLayer::OctaveNoise(const Octave& octave, const Surface& surface, double x,
+                                   double y) {
+    if (surface.IsBody()) {
+        const Vec3d p = surface.Position({x, y});
         const std::array<double, 9>& m = octave.rotation;
         const double scale = 1.0 / octave.wavelength;
         return static_cast<double>(PerlinNoise3Precise(
@@ -118,34 +129,40 @@ double RoughnessLayer::OctaveNoise(const Octave& octave, double x, double y) con
     return static_cast<double>(PerlinNoise2Precise(u, v, octave.seed));
 }
 
-double RoughnessLayer::RmsSlope(double baseline) const {
+double RoughnessLayer::OctavesRmsSlope(const std::vector<Octave>& octaves, double baseline,
+                                       bool body) {
     double structure = 0.0;
-    for (const Octave& octave : octaves_) {
+    for (const Octave& octave : octaves) {
         const double lag = baseline / octave.wavelength;
-        structure +=
-            octave.amplitude * octave.amplitude *
-            (surface_.IsBody() ? Perlin3StructureFunction(lag) : PerlinStructureFunction(lag));
+        structure += octave.amplitude * octave.amplitude *
+                     (body ? Perlin3StructureFunction(lag) : PerlinStructureFunction(lag));
     }
     return std::sqrt(structure) / baseline;
 }
 
+double RoughnessLayer::RmsSlope(double baseline, const Surface& surface) const {
+    const bool body = surface.IsBody();
+    return OctavesRmsSlope(body ? bodyOctaves_ : planeOctaves_, baseline, body);
+}
+
 std::vector<double> RoughnessLayer::Wavelengths() const {
     std::vector<double> wavelengths;
-    for (const Octave& octave : octaves_) {
+    for (const Octave& octave : planeOctaves_) {
         wavelengths.push_back(octave.wavelength);
     }
     return wavelengths;
 }
 
-float RoughnessLayer::HeightAt(float height, double x, double y, double spacing,
-                               const Ground* /*ground*/) const {
+float RoughnessLayer::HeightAt(float height, double x, double y,
+                               const LayerContext& context) const {
+    const Surface& surface = context.SurfaceOrPlane();
     double sum = 0.0;
-    for (const Octave& octave : octaves_) {
-        const double weight = ResolutionWeight(octave.wavelength, spacing, options_.fade);
+    for (const Octave& octave : surface.IsBody() ? bodyOctaves_ : planeOctaves_) {
+        const double weight = ResolutionWeight(octave.wavelength, context.spacing, options_.fade);
         if (weight <= 0.0) {
             break;
         }
-        sum += weight * octave.amplitude * OctaveNoise(octave, x, y);
+        sum += weight * octave.amplitude * OctaveNoise(octave, surface, x, y);
     }
     return height + static_cast<float>(sum);
 }

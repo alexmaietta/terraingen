@@ -5,7 +5,7 @@
 #pragma once
 
 #include "terraingen/config/config.h"
-#include "terraingen/pipeline/feature_lists.h"
+#include "terraingen/io/feature_lists.h"
 
 #include <filesystem>
 #include <stdexcept>

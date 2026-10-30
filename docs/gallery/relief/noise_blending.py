@@ -32,9 +32,9 @@ def figure(quick=False):
     panels = [("Rough layer alone", [rough])]
     panels += [(name, [rough, terraingen.Fractal(**broad, blend=blend)]) for name, blend in BLENDS]
     for ax, (title, layers) in zip(axes, panels, strict=True):
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [terraingen.NoiseLayer(layers)]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[terraingen.NoiseLayer(layers)]
         )
-        gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel)
+        gallery.show_heights(ax, terrain.evaluate().values, pixel)
         ax.set_title(title)
     return fig

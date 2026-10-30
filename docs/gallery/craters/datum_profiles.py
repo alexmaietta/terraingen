@@ -30,9 +30,11 @@ def figure(quick=False):
     size = int(SIZE_M / pixel) + 1
     tilt = terraingen.FunctionLayer(lambda x, y, spacing, height: height + TILT * x)
     relief = terraingen.NoiseLayer(seed=3, wavelength=120.0, amplitude=4.0, octaves=5)
-    ground = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [tilt, relief])
-    ).values[size // 2]
+    ground = (
+        terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[tilt, relief])
+        .evaluate()
+        .values[size // 2]
+    )
     x = (np.arange(size) - 0.5 * (size - 1)) * pixel
     plane = TILT * x
 
@@ -46,10 +48,10 @@ def figure(quick=False):
         crater = terraingen.CraterLayer.manual(
             [terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)], apply=apply
         )
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [tilt, relief, crater]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[tilt, relief, crater]
         )
-        profile = terraingen.evaluate(terrain).values[size // 2]
+        profile = terrain.evaluate().values[size // 2]
         heights_ax.plot(x, profile, lw=1.5, ls=style, label=name)
         relative_ax.plot(x, profile - plane, lw=1.5, ls=style, label=name)
     for ax in (heights_ax, relative_ax):

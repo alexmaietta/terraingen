@@ -4,7 +4,7 @@
 /// @brief `Vec2d`, `Vec3d` and `Bounds2d` as Python tuples of floats.
 #pragma once
 
-#include "terraingen/util/geometry.h"
+#include "terraingen/geometry/geometry.h"
 
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/array.h>

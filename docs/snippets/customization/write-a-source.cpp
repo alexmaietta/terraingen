@@ -3,9 +3,10 @@
 /// @file
 /// @brief Write a Source of Your Own
 ///
-/// A source gives a terrain's starting heights, as the grid it covers and the height at any point
-/// and sample spacing. It can be an analytic surface, a DEM in a format of your own or another
-/// simulation's ground. Layers are laid over it as over a GeoTIFF.
+/// A source gives a terrain's starting heights, as the grid it covers and, in one method that
+/// serves grids and points alike, the heights of a block of samples at a sample spacing. It can be
+/// an analytic surface, a DEM in a format of your own or another simulation's ground. Layers are
+/// laid over it as over a GeoTIFF.
 #include "snippet_test.h"
 #include "terraingen/terraingen.h"
 
@@ -24,24 +25,19 @@ TEST_F(SnippetTest, WriteASource) {
             return RasterGrid::Centered({0.0, 0.0}, {129.0, 129.0}, 1.0);
         }
 
-        float HeightAt(double x, double y, double /*spacing*/) const override {
-            return static_cast<float>(20.0 * std::exp(-(x * x + y * y) / (2.0 * 30.0 * 30.0)));
-        }
-
-        void Fill(Raster<float>& heights, double spacing, unsigned threads) const override {
-            ParallelFor(heights.Height(), threads, [&](std::size_t row) {
-                for (std::size_t col = 0; col < heights.Width(); ++col) {
-                    const Vec2d center = heights.CellCenter(col, row);
-                    heights(col, row) = HeightAt(center.x, center.y, spacing);
-                }
-            });
+      protected:
+        void FillSamples(SampleBlock& samples, double /*spacing*/,
+                         unsigned /*threads*/) const override {
+            for (std::size_t i = 0; i < samples.Size(); ++i) {
+                const Vec2d p = samples.Position(i);
+                const double r2 = p.x * p.x + p.y * p.y;
+                samples.Height(i) = static_cast<float>(20.0 * std::exp(-r2 / (2.0 * 30.0 * 30.0)));
+            }
         }
     };
 
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<Dome>();
-    terrain.layers = {std::make_shared<CraterLayer>()};
-    const Raster<float> heights = Evaluate(terrain);
+    const Terrain terrain(Surface{}, std::make_shared<Dome>(), {std::make_shared<CraterLayer>()});
+    const Raster<float> heights = terrain.Evaluate();
     // --8<-- [end:write_a_source]
     EXPECT_EQ(heights.Width(), 129);
 }

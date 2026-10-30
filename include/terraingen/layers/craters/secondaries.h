@@ -84,6 +84,13 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
         return {primaries_.get()};
     }
 
+    /// The layer with its seed `ReseedWord(seed, 0)` and the apply seeds of the irregularity,
+    /// noise, texture, slope, terraces and peaks `ReseedWord(seed, 1)` to `ReseedWord(seed, 6)`.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
+
+    /// A copy reading the replacement of its primaries; null when they are not replaced.
+    LayerPtr Rebound(const LayerReplacements& replaced) const override;
+
   protected:
     /// Applies the secondaries reaching the samples.
     /// @throws std::invalid_argument if more than `maxExpected` secondaries are expected.

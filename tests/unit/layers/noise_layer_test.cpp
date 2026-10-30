@@ -7,6 +7,7 @@
 #include "gpu/kernel.h"
 #include "terraingen/noise/fractals.h"
 #include "terraingen/noise/surface_noise.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/sources/synthetic_source.h"
 #include "terraingen/util/span.h"
 
@@ -14,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -31,6 +33,21 @@ std::vector<terraingen::Fractal> Params() {
     params[0].amplitude = 4.0f;
     return params;
 }
+
+/// The context at `spacing` on `backend` over a source whose reference point is `origin`, which
+/// it keeps.
+struct Measured {
+    explicit Measured(terraingen::Vec2d origin) : source(origin) {}
+
+    terraingen::LayerContext At(double spacing,
+                                terraingen::Backend backend = terraingen::Backend::Cpu) const {
+        terraingen::LayerContext context{spacing, 1, nullptr, backend};
+        context.source = &source;
+        return context;
+    }
+
+    terraingen::testing::ReferencedSource source;
+};
 
 }  // namespace
 
@@ -52,8 +69,7 @@ TEST(NoiseLayer, MeasuresPositionsFromItsOriginAndSkipsNoData) {
     heights.SetNoData(std::numeric_limits<float>::quiet_NaN());
     heights(1, 2) = std::numeric_limits<float>::quiet_NaN();
     const std::vector<terraingen::Fractal> params = Params();
-    NoiseLayer(params, terraingen::testing::ReferencedBase({500000.0, 4000000.0}))
-        .Apply(heights, {1.0});
+    NoiseLayer(params).Apply(heights, Measured({500000.0, 4000000.0}).At(1.0));
     EXPECT_TRUE(std::isnan(heights(1, 2)));
     const auto center = heights.CellCenter(3, 1);
     EXPECT_EQ(heights(3, 1), terraingen::EvaluateFractals(static_cast<float>(center.x - 500000.0),
@@ -69,12 +85,31 @@ TEST(NoiseLayer, RejectsInvalidParameters) {
 TEST(NoiseLayer, PointQueriesMatchCellsAndKeepNoData) {
     Raster<float> heights(8, 8, 3.0f);
     heights.SetTransform(GeoTransform::NorthUp(-8.0, 8.0, 2.0));
-    const NoiseLayer relief(Params(), terraingen::testing::ReferencedBase({1.0, -2.0}));
-    relief.Apply(heights, {2.0});
+    const NoiseLayer relief(Params());
+    const Measured from({1.0, -2.0});
+    relief.Apply(heights, from.At(2.0));
     const auto center = heights.CellCenter(5, 2);
-    EXPECT_EQ(relief.ApplyAt(3.0f, center.x, center.y, {2.0}), heights(5, 2));
-    EXPECT_TRUE(
-        std::isnan(relief.ApplyAt(std::numeric_limits<float>::quiet_NaN(), 0.0, 0.0, {2.0})));
+    EXPECT_EQ(relief.ApplyAt(3.0f, center.x, center.y, from.At(2.0)), heights(5, 2));
+    EXPECT_NE(relief.ApplyAt(3.0f, center.x, center.y, {2.0}), heights(5, 2))
+        << "measured from the origin without the source";
+    EXPECT_TRUE(std::isnan(
+        relief.ApplyAt(std::numeric_limits<float>::quiet_NaN(), 0.0, 0.0, from.At(2.0))));
+}
+
+TEST(NoiseLayer, ReseedsEachFractalFromItsOwnWord) {
+    std::vector<terraingen::Fractal> params = Params();
+    params.push_back(params[0]);
+    params[1].wavelength = 9.0f;
+    const NoiseLayer relief(params);
+    const terraingen::LayerPtr held = relief.Reseeded(11);
+    const auto& reseeded = dynamic_cast<const NoiseLayer&>(*held);
+    for (std::size_t n = 0; n < reseeded.Options().fractals.size(); ++n) {
+        EXPECT_EQ(reseeded.Options().fractals[n].seed,
+                  terraingen::ReseedWord(11, static_cast<std::uint32_t>(n)));
+    }
+    const float a = reseeded.ApplyAt(0.0f, 3.0, 4.0, {1.0});
+    EXPECT_EQ(a, relief.Reseeded(11)->ApplyAt(0.0f, 3.0, 4.0, {1.0}));
+    EXPECT_NE(a, relief.Reseeded(12)->ApplyAt(0.0f, 3.0, 4.0, {1.0}));
 }
 
 TEST(FractalStackAt, EvaluatesThePlaneFromItsOriginAndTheSphereIn3D) {
@@ -146,8 +181,8 @@ TEST(NoiseLayer, MatchesTheCpuOnEachGpuBackendAndSkipsNoData) {
     if (gpus.empty()) {
         GTEST_SKIP() << "No GPU backend runs here";
     }
-    const NoiseLayer relief(GpuParams(),
-                            terraingen::testing::ReferencedBase({500000.0, 4000000.0}));
+    const NoiseLayer relief(GpuParams());
+    const Measured from({500000.0, 4000000.0});
     for (const terraingen::Backend backend : gpus) {
         SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
         for (const float noData : {std::numeric_limits<float>::quiet_NaN(), -9999.0f}) {
@@ -157,8 +192,8 @@ TEST(NoiseLayer, MatchesTheCpuOnEachGpuBackendAndSkipsNoData) {
             cpu(3, 4) = noData;
             cpu(202, 76) = noData;
             Raster<float> gpu = cpu;
-            relief.Apply(cpu, {5.0});
-            relief.Apply(gpu, On(backend, 5.0));
+            relief.Apply(cpu, from.At(5.0));
+            relief.Apply(gpu, from.At(5.0, backend));
             ExpectNear(gpu, cpu);
             EXPECT_TRUE(gpu.IsNoData(gpu(3, 4)) && gpu.IsNoData(gpu(202, 76)));
         }
@@ -219,22 +254,28 @@ TEST(NoiseLayer, FallsBackToTheCpuOnSpheresAndRotatedOrVeryWideGrids) {
     }
     for (const terraingen::Backend backend : gpus) {
         SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
-        const auto expectSame = [&](const NoiseLayer& relief, Raster<float> cpu, double spacing) {
+        const auto expectSame = [&](const NoiseLayer& relief, Raster<float> cpu, double spacing,
+                                    const terraingen::Surface* surface) {
             Raster<float> gpu = cpu;
-            relief.Apply(cpu, {spacing});
-            relief.Apply(gpu, On(backend, spacing));
+            terraingen::LayerContext onCpu{spacing};
+            onCpu.surface = surface;
+            terraingen::LayerContext onGpu = On(backend, spacing);
+            onGpu.surface = surface;
+            relief.Apply(cpu, onCpu);
+            relief.Apply(gpu, onGpu);
             for (std::size_t i = 0; i < cpu.Size(); ++i) {
                 ASSERT_EQ(gpu.Values()[i], cpu.Values()[i]) << i;
             }
         };
+        const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
         Raster<float> lonLat(16, 8, 0.0f);
         lonLat.SetTransform(GeoTransform::NorthUp(10.0, 20.0, 0.01));
-        expectSame(NoiseLayer(GpuParams(), terraingen::Surface::Sphere(1737400.0)), lonLat, 300.0);
+        expectSame(NoiseLayer(GpuParams()), lonLat, 300.0, &moon);
         Raster<float> rotated(16, 8, 0.0f);
         rotated.SetTransform(GeoTransform{0.0, 2.0, 0.5, 0.0, 0.5, -2.0});
-        expectSame(NoiseLayer(GpuParams()), rotated, 2.0);
+        expectSame(NoiseLayer(GpuParams()), rotated, 2.0, nullptr);
         Raster<float> wide(16 * 65535 + 1, 1, 0.0f);
-        expectSame(NoiseLayer(Params()), wide, 1.0);
+        expectSame(NoiseLayer(Params()), wide, 1.0, nullptr);
     }
 }
 
@@ -245,7 +286,7 @@ TEST(NoiseLayer, SkipsDisabledLayersAsTheFullStackDoes) {
     EXPECT_EQ(kernel.stack.count, 2u);
     Raster<float> heights(9, 7, 2.0f);
     heights.SetTransform(GeoTransform::NorthUp(30.0, 40.0, 3.0));
-    NoiseLayer(params, terraingen::testing::ReferencedBase({10.0, 5.0})).Apply(heights, {3.0});
+    NoiseLayer(params).Apply(heights, Measured({10.0, 5.0}).At(3.0));
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             const auto center = heights.CellCenter(col, row);
@@ -259,14 +300,15 @@ TEST(NoiseLayer, SkipsDisabledLayersAsTheFullStackDoes) {
 }
 
 TEST(NoiseLayer, PointsStayOnTheCpuWhateverTheBackend) {
-    const NoiseLayer relief(GpuParams(), terraingen::testing::ReferencedBase({-20.0, 15.0}));
+    const NoiseLayer relief(GpuParams());
+    const Measured from({-20.0, 15.0});
     const std::vector<terraingen::Vec2d> points{{1.5, 2.5}, {-300.0, 812.25}};
     std::vector<float> cpu(points.size(), 4.0f);
     std::vector<float> vulkan = cpu;
     terraingen::SampleBlock onCpu(points, cpu);
     terraingen::SampleBlock onVulkan(points, vulkan);
-    relief.Apply(onCpu, {2.0});
-    relief.Apply(onVulkan, On(terraingen::Backend::Vulkan, 2.0));
+    relief.Apply(onCpu, from.At(2.0));
+    relief.Apply(onVulkan, from.At(2.0, terraingen::Backend::Vulkan));
     EXPECT_EQ(vulkan, cpu);
 }
 

@@ -4,11 +4,11 @@
 /// @brief How craters are applied to the terrain: their order, datum, blend, outlines and rims.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 #include "terraingen/layers/craters/shaping/slope.h"
 #include "terraingen/layers/fade.h"
-#include "terraingen/util/surface.h"
 
 #include <cmath>
 #include <cstddef>
@@ -74,8 +74,8 @@ struct CraterReplacement {
 };
 
 /// Checks crater replacement settings.
-/// @throws std::invalid_argument for a `startRadii` that is not positive and finite, an
-/// `endRadii` not above it or not finite, or a `fitWidthRadii` that is not positive and finite.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`) or an `endRadii`
+/// not above `startRadii`.
 void ValidateCraterReplacement(const CraterReplacement& replacement);
 
 /// How crater rims are rounded: near the rim, the profile is blended toward itself smoothed across
@@ -99,8 +99,7 @@ struct RimSmoothing {
 };
 
 /// Checks rim smoothing settings.
-/// @throws std::invalid_argument for a negative or non-finite `sigmaRadii`, a `strength` outside
-/// [0, 1], or a band that does not satisfy 0 <= `innerRadii` < 1 < `outerRadii`.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`).
 void ValidateRimSmoothing(const RimSmoothing& smoothing);
 
 /// Fractal noise added to each crater, keyed to its ID so tiles and point queries agree: over the
@@ -134,9 +133,7 @@ struct CraterNoise {
 };
 
 /// Checks crater noise settings.
-/// @throws std::invalid_argument for a negative or non-finite amplitude, a non-positive
-/// wavelength or gain, octaves outside 1 to 12, or a rim band that does not satisfy
-/// 0 <= `rimInnerRadii` < 1 < `rimOuterRadii`.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`).
 void ValidateCraterNoise(const CraterNoise& noise);
 
 /// The texture of a crater's walls and ejecta, keyed to its ID: radial gullies down the inner
@@ -178,8 +175,7 @@ struct CraterTexture {
 };
 
 /// Checks crater texture settings.
-/// @throws std::invalid_argument for a negative or non-finite amplitude, a non-positive width, a
-/// mantling outside [0, 1], a reach of 1 radius or less, or a freshness outside [0, 1).
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`).
 void ValidateCraterTexture(const CraterTexture& texture);
 
 /// Slump terraces on the walls of large craters, benches and scarps drawn per crater ID that
@@ -235,10 +231,9 @@ struct CraterTerraces {
 };
 
 /// Checks crater terraces.
-/// @throws std::invalid_argument for a non-positive onset diameter or a full diameter not above
-/// it, benches outside 1 <= min <= max <= 12, a bench slope outside (0, 45) degrees, a scarp share
-/// outside (0, 1), an arc share outside (0, 1], a negative or non-finite rim variation, or a
-/// minimum freshness outside [0, 1).
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`), a full diameter
+/// not above the onset diameter, more `minBenches` than `maxBenches`, or a scarp slope not above
+/// the bench slope.
 void ValidateCraterTerraces(const CraterTerraces& terraces);
 
 /// Central peaks of complex craters built from massifs drawn per crater ID in place of the round
@@ -290,10 +285,8 @@ struct CraterPeaks {
 };
 
 /// Checks crater central peaks.
-/// @throws std::invalid_argument for massifs outside 1 <= min <= max <= 8, a spread outside
-/// [0, 2], an elongation under 1 or over 4, a chain spread outside [0, 360] degrees, a sharpness,
-/// lopsidedness, height variation or roughness outside [0, 1], a non-positive roughness wavelength,
-/// a warp outside [0, 0.3], a height scale outside (0, 4] or a width scale outside (0, 3].
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`) or more
+/// `minMassifs` than `maxMassifs`.
 void ValidateCraterPeaks(const CraterPeaks& peaks);
 
 /// How `ApplyCraters` shapes craters into the terrain.
@@ -352,10 +345,9 @@ CraterApplyOptions DefaultCraterApply();
 CraterApplyOptions SeededCraterApply(CraterApplyOptions apply, std::uint32_t seed);
 
 /// Checks crater apply options.
-/// @throws std::invalid_argument for an invalid `fade`, `irregularity`, `rimSmoothing`, `slope` or
-/// `replacement`, a slope response without the `Plane` datum, a non-positive `datumFitRadii`, an
-/// `interiorReplacement` outside [0, 1], or a blend that does not satisfy
-/// 0 <= `startRadii` < `endRadii`.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`), an invalid `fade`,
+/// `irregularity`, `slope`, `terraces`, `peaks` or `replacement`, a slope response without the
+/// `Plane` datum, or a blend whose `endRadii` is not above its `startRadii`.
 void ValidateCraterApplyOptions(const CraterApplyOptions& options);
 
 /// Indices into `craters` in the order they are applied; ties fall to age, then diameter, then

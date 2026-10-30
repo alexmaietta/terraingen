@@ -47,8 +47,8 @@ def crater_heights(size, pixel, slope_degrees, diffusion_age):
     crater = terraingen.CraterLayer.manual(
         [terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=age)], models, apply=apply
     )
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [hillside, crater])
-    return terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[hillside, crater])
+    return terrain.evaluate().values
 
 
 def figure(quick=False):

@@ -34,11 +34,9 @@ def figure(quick=False):
         layers.append(
             terraingen.CraterLayer.manual([terraingen.Crater(x, 0.0, DIAMETER, age_gyr=0.0)], apply=apply)
         )
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), layers)
-    heights = terraingen.evaluate(terrain).values
-    ground = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), [relief])
-    ).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(columns, rows, pixel), layers=layers)
+    heights = terrain.evaluate().values
+    ground = terrain.ground(1).evaluate().values
 
     fig = plt.figure(figsize=(15, 9), layout="constrained")
     top, bottom = fig.subfigures(2, 1, height_ratios=[1, 0.8])

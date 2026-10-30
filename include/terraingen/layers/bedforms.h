@@ -6,15 +6,11 @@
 
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
-#include "terraingen/layers/field.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/random/stream.h"
-#include "terraingen/sources/source.h"
-#include "terraingen/util/cells.h"
 
 #include <cstdint>
-#include <memory>
 #include <optional>
 
 namespace terraingen {
@@ -77,30 +73,26 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     /// Builds the layer; the azimuth is counter-clockwise from local east, and an enabled exposure
     /// field needs `context.ground`.
     /// @throws std::invalid_argument as `ValidateBedformOptions`.
-    explicit BedformLayer(BedformOptions options, TerrainBase base = {});
-
-    /// How fully world (x, y) lies in a field, in [0, 1]; independent of the spacing.
-    /// @param ground Read by the exposure field; may be null without one.
-    /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
-    double CoverAt(double x, double y, const Ground* ground = nullptr) const;
+    explicit BedformLayer(BedformOptions options);
 
     /// The options the layer was made with.
     const BedformOptions& Options() const {
         return options_;
     }
 
+    /// The layer with its seed `ReseedWord(seed, 0)`.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
+
     MaterialClass Material() const override {
         return MaterialClass::Sand;
     }
-    /// `CoverAt`: the bedform fields are sand.
-    double MaterialCoverAt(double x, double y, double /*spacing*/,
-                           const Ground* ground) const override {
-        return CoverAt(x, y, ground);
-    }
+    /// How fully world (x, y) lies in a field, in [0, 1]: the bedform fields are sand. Independent
+    /// of the spacing.
+    /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is null.
+    double MaterialCoverAt(double x, double y, const LayerContext& context) const override;
 
   protected:
-    float HeightAt(float height, double x, double y, double spacing,
-                   const Ground* ground) const override;
+    float HeightAt(float height, double x, double y, const LayerContext& context) const override;
     void CheckContext(const LayerContext& context) const override;
 
   private:
@@ -108,17 +100,15 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
         double cover = 0.0;
         double relief = 0.0;
     };
-    FieldSum SumFields(double x, double y, const Ground* ground) const;
+    FieldSum SumFields(double x, double y, const LayerContext& context) const;
     void AddField(FieldSum& sum, RandomStream& random, const Vec2d& center, const Vec2d& offset,
-                  const Ground* ground) const;
+                  const LayerContext& context) const;
 
     BedformOptions options_;
-    std::shared_ptr<const SurfaceField> limit_;  ///< `SourceResolvedLimit`; null for none.
     double cell_ = 1.0;
     double density_ = 0.0;
     std::uint32_t wanderSeed_ = 0;  ///< Seed of the crest wander noise.
     LayerExposure exposure_;
-    std::shared_ptr<const SurfaceCells> cells_;
 };
 
 }  // namespace terraingen

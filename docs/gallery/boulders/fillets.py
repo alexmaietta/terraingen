@@ -43,9 +43,8 @@ def figure(quick=False):
         boulders = terraingen.BoulderLayer.manual(
             [terraingen.ManualBoulder(x=0.0, y=0.0, diameter=DIAMETER, height=1.0, burial=0.2)], options
         )
-        heights = terraingen.evaluate(
-            terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [boulders])
-        ).values
+        source = terraingen.FlatSource(size, size, pixel)
+        heights = terraingen.Terrain(source=source, layers=[boulders]).evaluate().values
         sampled = heights[::stride, ::stride]
         light = LightSource(azdeg=315, altdeg=35)
         shaded = light.shade(

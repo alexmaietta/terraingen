@@ -291,9 +291,9 @@ std::vector<Boulder> BoulderLayer::ReliefBoulders(const Bounds2d& region, double
     return BoulderRecords(surface_.Expand(region, rim), spacing, ground);
 }
 
-double BoulderLayer::MaterialCoverAt(double x, double y, double spacing,
-                                     const Ground* ground) const {
-    const std::vector<Boulder> boulders = ReliefBoulders({x, y, x, y}, spacing, ground);
+double BoulderLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
+    const double spacing = context.spacing;
+    const std::vector<Boulder> boulders = ReliefBoulders({x, y, x, y}, spacing, context.ground);
     double cover = 0.0;
     for (const Relief& relief : PrepareRelief(boulders, spacing, false)) {
         cover = std::fmax(cover, RockCover(relief, {x, y}));
@@ -304,11 +304,13 @@ double BoulderLayer::MaterialCoverAt(double x, double y, double spacing,
     return cover;
 }
 
-Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid, double spacing,
-                                               const Ground* ground, unsigned threads) const {
+Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid,
+                                               const LayerContext& context) const {
+    const double spacing = context.spacing;
+    const unsigned threads = context.threads;
     Raster<double> cover(grid.width, grid.height);
     cover.SetTransform(grid.transform);
-    const std::vector<Boulder> boulders = ReliefBoulders(grid.Bounds(), spacing, ground);
+    const std::vector<Boulder> boulders = ReliefBoulders(grid.Bounds(), spacing, context.ground);
     std::vector<Relief> reliefs = PrepareRelief(boulders, spacing, false);
     reliefs.erase(std::remove_if(reliefs.begin(), reliefs.end(),
                                  [](const Relief& relief) { return !relief.rock; }),

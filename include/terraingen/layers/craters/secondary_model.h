@@ -4,10 +4,10 @@
 /// @brief The laws secondary craters follow, their options, and their density around a primary.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/rays.h"
 #include "terraingen/random/value_distribution.h"
-#include "terraingen/util/geometry.h"
 
 #include <cstdint>
 #include <limits>
@@ -123,8 +123,9 @@ struct SecondaryCraterOptions {
 };
 
 /// Checks secondary crater options.
-/// @throws std::invalid_argument without a positive `onsetCount`, or for any field, selection,
-/// ray layout or shape outside the range its comment gives.
+/// @throws std::invalid_argument without an `onsetCount`, for a field outside its range
+/// (`CheckRanges`), a `maxDiameter` not above `minDiameter`, or an invalid selection, ray layout
+/// or ellipticity.
 void ValidateSecondaryCraterOptions(const SecondaryCraterOptions& options);
 
 /// The outer range from its center, in meters, of the secondaries of a primary of `diameter`

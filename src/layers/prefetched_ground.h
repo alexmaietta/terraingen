@@ -4,9 +4,9 @@
 /// @brief Ground reads recorded, read up front in one pass and replayed, and `MapReadingGround`.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/geometry.h"
 #include "terraingen/util/parallel.h"
 #include "terraingen/util/span.h"
 
@@ -29,8 +29,8 @@ class RecordingGround final : public Ground {
     /// A ground recording into `reads`, which must outlive it.
     explicit RecordingGround(std::vector<GroundRead>& reads) : reads_(reads) {}
 
-    float HeightAt(double x, double y, double spacing) const override;
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
+  protected:
+    void FillSamples(SampleBlock& samples, double spacing) const override;
 
   private:
     std::vector<GroundRead>& reads_;
@@ -90,13 +90,13 @@ class ReplayedGround final : public Ground {
         : held_(held), reads_(reads),
           heights_(Span<const float>(held.Heights()).subspan(first, reads.size())) {}
 
-    float HeightAt(double x, double y, double spacing) const override;
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
-
     /// The number of recorded reads replayed in order so far.
     std::size_t Replayed() const {
         return next_;
     }
+
+  protected:
+    void FillSamples(SampleBlock& samples, double spacing) const override;
 
   private:
     /// The height of the next recorded read if it is at (`x`, `y`) and `spacing`, else of any

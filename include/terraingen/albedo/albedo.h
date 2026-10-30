@@ -4,10 +4,12 @@
 /// @brief The albedo source and layer interfaces, albedo compositions and their evaluation.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
-#include "terraingen/util/surface.h"
+#include "terraingen/sources/source.h"
 
 #include <array>
 #include <cstddef>
@@ -34,6 +36,20 @@ struct AlbedoContext {
     /// The terrain's heights, for layers shaped by the ground; null leaves it flat. It must outlive
     /// the evaluation.
     const Ground* ground = nullptr;
+    const Surface* surface = nullptr;  ///< What the terrain lies on; null for a plane.
+    const Source* source = nullptr;    ///< The terrain's starting heights; null for none.
+
+    /// The surface the terrain lies on: `*surface`, or a plane without one.
+    const Surface& SurfaceOrPlane() const {
+        static const Surface plane{};
+        return surface != nullptr ? *surface : plane;
+    }
+
+    /// Where noise on a plane is measured from: the source's `ReferencePoint`, or the origin
+    /// without a source.
+    Vec2d ReferencePoint() const {
+        return source != nullptr ? source->ReferencePoint() : Vec2d{};
+    }
 };
 
 /// Checks an evaluation context.
@@ -89,17 +105,16 @@ struct Albedo {
 
 /// Evaluates `albedo` over `grid`: one raster per band, with no-data NaN.
 /// @param context `spacing` in meters, raised to the grid's spacing on the albedo's surface
-/// (`RasterGrid::Spacing`) when smaller or 0.
+/// (`RasterGrid::Spacing`) when smaller or 0; a null `surface` reads the albedo's.
 /// @throws std::invalid_argument if `albedo` has no source, holds a null layer, the source has a
 /// band count other than 1 or 3, `grid` is empty, or the spacing is negative or not finite.
 std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid& grid,
                                           AlbedoContext context);
 
 /// The albedo at world point (`x`, `y`): the cell centered there of `EvaluateAlbedo` over a grid
-/// of `context.spacing`, to the same bits.
+/// of `context.spacing`, to the same bits; a null `context.surface` reads the albedo's.
 /// @throws std::invalid_argument as `EvaluateAlbedo`.
-AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y,
-                              const AlbedoContext& context);
+AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y, AlbedoContext context);
 
 /// Visits the albedo at one cell center: `visit(value, x, y)` may change `value`.
 using AlbedoCellVisitor = std::function<void(AlbedoSample& value, double x, double y)>;

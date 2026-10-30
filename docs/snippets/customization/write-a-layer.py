@@ -15,8 +15,8 @@ def write_a_layer():
             return height + 2.0 * math.cos(2.0 * math.pi * x / 40.0)
 
     craters = terraingen.CraterLayer()
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(129, 129, 1.0), [Ridges(), craters])
-    heights = terraingen.evaluate(terrain)
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(129, 129, 1.0), layers=[Ridges(), craters])
+    heights = terrain.evaluate()
     # --8<-- [end:write_a_layer]
     return heights
 

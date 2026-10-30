@@ -26,9 +26,8 @@ def figure(quick=False):
     region = (-HALF_SIZE_M, -HALF_SIZE_M, HALF_SIZE_M, HALF_SIZE_M)
     cells = int(2.0 * HALF_SIZE_M / MAP_PIXEL)
     noise = terraingen.NoiseLayer(seed=7, wavelength=40.0, amplitude=1.0, octaves=4)
-    pattern = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(cells, cells, MAP_PIXEL), [noise])
-    ).values
+    source = terraingen.FlatSource(cells, cells, MAP_PIXEL)
+    pattern = terraingen.Terrain(source=source, layers=[noise]).evaluate().values
     cover = 0.1 * np.clip((pattern - np.percentile(pattern, 20)) / np.ptp(pattern), 0.0, 1.0)
     raster = terraingen.Raster.from_array(
         cover.astype(np.float32),

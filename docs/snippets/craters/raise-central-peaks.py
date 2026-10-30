@@ -22,8 +22,8 @@ def raise_central_peaks():
     apply = terraingen.CraterApplyOptions()
     apply.peaks = terraingen.CraterPeaks(enabled=True, min_massifs=2, max_massifs=5)
     craters = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, 40000.0)], models, apply=apply)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(SIZE, SIZE, PIXEL), [craters])
-    heights = terraingen.evaluate(terrain)
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(SIZE, SIZE, PIXEL), layers=[craters])
+    heights = terrain.evaluate()
     # --8<-- [end:raise_central_peaks]
     return craters, heights
 

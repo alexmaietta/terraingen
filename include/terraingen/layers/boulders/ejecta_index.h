@@ -4,9 +4,9 @@
 /// @brief `EjectaIndex`, craters bucketed by the discs their ejecta reach.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/craters/band_buckets.h"
 #include "terraingen/layers/craters/crater.h"
-#include "terraingen/util/surface.h"
 
 #include <cstdint>
 #include <functional>

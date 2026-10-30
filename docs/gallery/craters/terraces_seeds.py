@@ -53,9 +53,11 @@ def figure(quick=False):
         [terraingen.Fractal(seed=2, wavelength=0.6 * DIAMETER, amplitude=0.007 * DIAMETER)]
     )
     layers = [relief] + [crater_layer((i - 1) * SPACING, terraces(s)) for i, s in enumerate(SETTINGS)]
-    heights = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), layers)
-    ).values
+    heights = (
+        terraingen.Terrain(source=terraingen.FlatSource(columns, rows, pixel), layers=layers)
+        .evaluate()
+        .values
+    )
 
     fig, (row_ax, profile_ax) = plt.subplots(
         2, 1, figsize=(16, 11), layout="constrained", height_ratios=[1, 0.9]
@@ -66,9 +68,11 @@ def figure(quick=False):
     radii = (np.arange(columns) - 0.5 * (columns - 1)) * pixel / (0.5 * DIAMETER)
     inside = np.abs(radii) <= 1.5
     for setting, color in zip([*SETTINGS, None], [*COLORS, "0.35"], strict=True):
-        profile = terraingen.evaluate(
-            terraingen.TerrainGenerator(strip, [relief, crater_layer(0.0, terraces(setting))])
-        ).values[0]
+        profile = (
+            terraingen.Terrain(source=strip, layers=[relief, crater_layer(0.0, terraces(setting))])
+            .evaluate()
+            .values[0]
+        )
         profile_ax.plot(
             radii[inside],
             profile[inside] / 1000.0,

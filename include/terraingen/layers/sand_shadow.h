@@ -47,24 +47,18 @@ void ValidateSandShadowOptions(const SandShadowOptions& options);
 /// the boulder and `lengthRatio` widths long (Hesp 1981); place it after the boulder layer.
 class SandShadowLayer final : public Layer, public MaterialSource {
   public:
-    /// @param boulders The boulder layer whose boulders cast shadows; on `surface`.
+    /// @param boulders The boulder layer whose boulders cast shadows.
     /// @throws std::invalid_argument for invalid options or a null boulder layer.
-    SandShadowLayer(std::shared_ptr<const BoulderLayer> boulders, SandShadowOptions options,
-                    TerrainBase base = {});
+    SandShadowLayer(std::shared_ptr<const BoulderLayer> boulders, SandShadowOptions options);
 
-    /// The sand depth (m) the shadows lay at world (x, y).
-    /// @param spacing Sample spacing in meters, which picks the boulders as the boulder layer does.
-    /// @param ground Needed with the boulder layer's exposure field.
-    double ThicknessAt(double x, double y, double spacing = 0.0,
-                       const Ground* ground = nullptr) const;
+    /// The sand depth (m) the shadows lay at world (x, y), evaluated as in `context`: its spacing
+    /// picks the boulders as the boulder layer does (0 keeps every one), and its ground is needed
+    /// with the boulder layer's exposure field.
+    double ThicknessAt(double x, double y, const LayerContext& context = {}) const;
 
     /// The options the layer was made with.
     const SandShadowOptions& Options() const {
         return options_;
-    }
-
-    std::optional<Surface> LayerSurface() const override {
-        return surface_;
     }
 
     /// The boulder layer the shadows trail, which must come before this layer.
@@ -72,14 +66,17 @@ class SandShadowLayer final : public Layer, public MaterialSource {
         return {boulders_.get()};
     }
 
+    /// A copy trailing the replacement of its boulder layer; null when it is not replaced.
+    LayerPtr Rebound(const LayerReplacements& replaced) const override;
+
     MaterialClass Material() const override {
         return MaterialClass::Sand;
     }
     /// The sand depth over `coverThickness`, smoothed, in [0, 1].
-    double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
+    double MaterialCoverAt(double x, double y, const LayerContext& context) const override;
     /// `MaterialCoverAt` over `grid`, the boulders found once for the whole grid.
-    Raster<double> MaterialCoverOver(const RasterGrid& grid, double spacing, const Ground* ground,
-                                     unsigned threads) const override;
+    Raster<double> MaterialCoverOver(const RasterGrid& grid,
+                                     const LayerContext& context) const override;
 
   protected:
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
@@ -93,14 +90,13 @@ class SandShadowLayer final : public Layer, public MaterialSource {
         double weight = 1.0;
         Bounds2d box{};
     };
-    std::vector<Shadow> ShadowsOver(const Bounds2d& region, double spacing,
-                                    const Ground* ground) const;
-    double ShadowDepth(const Shadow& shadow, double x, double y) const;
+    std::vector<Shadow> ShadowsOver(const Bounds2d& region, double spacing, const Ground* ground,
+                                    const Surface& surface) const;
+    double ShadowDepth(const Shadow& shadow, double x, double y, const Surface& surface) const;
     static std::vector<Bounds2d> Boxes(const std::vector<Shadow>& shadows);
 
     std::shared_ptr<const BoulderLayer> boulders_;
     SandShadowOptions options_;
-    Surface surface_;
     Vec2d downwind_{1.0, 0.0};
     double flankSlope_ = 0.0;
 };

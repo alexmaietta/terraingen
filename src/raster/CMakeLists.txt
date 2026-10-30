@@ -8,8 +8,6 @@ terraingen_add_library(
     cell_loops.cpp
     grid.cpp
     resample.cpp
-    spectrum.cpp
-    variogram.cpp
     geotiff/geotiff.cpp
     geotiff/geotiff_read.cpp
     geotiff/geotiff_write.cpp
@@ -17,6 +15,7 @@ terraingen_add_library(
     geotiff/tiff_format.cpp
     $<TARGET_OBJECTS:terraingen_miniz>
     PUBLIC
+    terraingen_geometry
     terraingen_util
     PRIVATE
     $<BUILD_INTERFACE:terraingen_miniz_config>)

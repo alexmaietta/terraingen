@@ -678,8 +678,10 @@ TEST(ApplyCraterTo, BuriesOlderReliefUnderTheEjectaByTheDatum) {
 
 TEST(SamplingFrom, CarriesTheLayerContext) {
     struct Flat final : terraingen::Ground {
-        float HeightAt(double x, double /*y*/, double spacing) const override {
-            return static_cast<float>(x + spacing);
+        void FillSamples(terraingen::SampleBlock& samples, double spacing) const override {
+            for (std::size_t i = 0; i < samples.Size(); ++i) {
+                samples.Height(i) = static_cast<float>(samples.Position(i).x + spacing);
+            }
         }
     };
     const Flat ground;

@@ -4,13 +4,13 @@
 /// @brief `MaskedLayer`, another layer applied only inside a rectangle, circle or polygon.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/boulders/boulder_placer.h"
 #include "terraingen/layers/craters/crater_placer.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/grid.h"
-#include "terraingen/util/geometry.h"
 
 #include <memory>
 #include <optional>
@@ -97,19 +97,20 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
     /// @throws std::invalid_argument for a null `inner`, an invalid `shape`, or a negative or
     /// non-finite `feather`.
     MaskedLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather = 0.0,
-                BlendShape blend = BlendShape::Smoothstep, TerrainBase base = {});
+                BlendShape blend = BlendShape::Smoothstep);
 
-    /// The inner layer's weight at surface (x, y): 1 inside the shape, 0 from `feather` outside
-    /// it, the blend between.
-    double Weight(double x, double y) const;
+    /// The inner layer's weight at (x, y) on `surface`: 1 inside the shape, 0 from `feather`
+    /// outside it, the blend between.
+    double Weight(double x, double y, const Surface& surface = {}) const;
 
     /// The confined layer.
     const Layer& Inner() const {
         return *inner_;
     }
 
+    /// The confined layer's surface, if it was built for one.
     std::optional<Surface> LayerSurface() const override {
-        return surface_;
+        return inner_->LayerSurface();
     }
 
     /// The layers the confined layer reads.
@@ -117,8 +118,16 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
         return inner_->Dependencies();
     }
 
-    /// Whether a feature centered at (x, y) belongs to the region: within it or its feather.
-    bool Holds(double x, double y) const;
+    /// The layer confining the confined layer reseeded with `seed`; null when it has no seeds.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
+
+    /// The layer confining the confined layer rebound to `replaced`; null when it reads none of
+    /// them.
+    LayerPtr Rebound(const LayerReplacements& replaced) const override;
+
+    /// Whether a feature centered at (x, y) on `surface` belongs to the region: within it or its
+    /// feather.
+    bool Holds(double x, double y, const Surface& surface = {}) const;
 
     /// The inner layer's craters over its part of `grid` that the region `Holds`; none when the
     /// inner layer places no craters.
@@ -136,15 +145,16 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
   private:
     void ApplyToGrid(Raster<float>& heights, const LayerContext& context) const;
     void ApplyToPoints(SampleBlock& samples, const LayerContext& context) const;
-    PixelWindow InnerWindow(const RasterGrid& grid) const;
+    PixelWindow InnerWindow(const RasterGrid& grid, const Surface& surface) const;
     /// The part of `grid` the inner layer is applied to; nothing when no cell is near the region.
-    std::optional<RasterGrid> InnerGrid(const RasterGrid& grid) const;
+    std::optional<RasterGrid> InnerGrid(const RasterGrid& grid, const Surface& surface) const;
+    /// This layer confining `inner` in place of its own.
+    LayerPtr Confining(LayerPtr inner) const;
 
     std::shared_ptr<const Layer> inner_;
     RegionShape shape_;
     double feather_;
     BlendShape blend_;
-    Surface surface_;
 };
 
 }  // namespace terraingen

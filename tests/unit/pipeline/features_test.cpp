@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/pipeline/generator.h"
+#include "terraingen/pipeline/terrain.h"
 
 #include "support/boulder_records.h"
 #include "support/golombek_rapp.h"
+#include "support/resample.h"
 #include "terraingen/terraingen.h"
 #include "terrains.h"
 
@@ -11,12 +12,15 @@
 
 #include <cmath>
 #include <memory>
+#include <utility>
 #include <vector>
 
+using terraingen::LayerPtr;
 using terraingen::RasterGrid;
 using terraingen::RegionShape;
-using terraingen::TerrainGenerator;
+using terraingen::Terrain;
 using terraingen::testing::PowerLawCraterModels;
+using terraingen::testing::ResampledGrid;
 
 namespace {
 
@@ -31,11 +35,15 @@ ManualCraters(const std::vector<terraingen::Vec2d>& centers) {
     return std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options);
 }
 
-/// A 100 x 80 flat source of 1 m cells at 2 m.
-TerrainGenerator Flat() {
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<terraingen::FlatSource>(100, 80, 1.0, 2.0f);
-    return terrain;
+/// `layers` over a 100 x 80 flat source of 1 m cells at 2 m.
+Terrain Flat(std::vector<LayerPtr> layers) {
+    return Terrain(terraingen::Surface{},
+                   std::make_shared<terraingen::FlatSource>(100, 80, 1.0, 2.0f), std::move(layers));
+}
+
+/// The grid of `terrain`'s source.
+RasterGrid SourceGrid(const Terrain& terrain) {
+    return terrain.Grid().value();
 }
 
 /// Boulders of 1 m and more, every one a model.
@@ -49,13 +57,11 @@ terraingen::BoulderLayerOptions Models() {
 
 }  // namespace
 
-TEST(PlacedCraters, ListsEachCraterLayerInOrderWithItsAttributes) {
-    TerrainGenerator terrain = Flat();
+TEST(Craters, ListsEachCraterLayerInOrderWithItsAttributes) {
     const auto first = ManualCraters({{0.0, 0.0}, {10.0, 5.0}});
     const auto second = ManualCraters({{-20.0, -10.0}});
-    terrain.layers = {first, std::make_shared<terraingen::ScaleLayer>(2.0), second};
-    const RasterGrid grid = terrain.source->Grid();
-    const auto placed = terraingen::PlacedCraters(terrain, grid);
+    const Terrain terrain = Flat({first, std::make_shared<terraingen::ScaleLayer>(2.0), second});
+    const auto placed = terrain.Craters(SourceGrid(terrain));
     ASSERT_EQ(placed.craters.Size(), 3u);
     ASSERT_EQ(placed.attributes.size(), 3u);
     EXPECT_EQ(placed.craters.At(1).x, 10.0);
@@ -63,28 +69,28 @@ TEST(PlacedCraters, ListsEachCraterLayerInOrderWithItsAttributes) {
     EXPECT_EQ(placed.attributes[2], second->Models().Shape().Attributes(placed.craters.At(2)));
 }
 
-TEST(PlacedCraters, KeepsOnlyTheCratersARegionHolds) {
-    TerrainGenerator terrain = Flat();
-    terrain.layers = {std::make_shared<terraingen::MaskedLayer>(
+TEST(Craters, KeepsOnlyTheCratersARegionHolds) {
+    Terrain terrain = Flat({std::make_shared<terraingen::MaskedLayer>(
         ManualCraters({{0.0, 0.0}, {16.0, 0.0}, {30.0, 20.0}}),
-        RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 12.0)};
-    const auto placed = terraingen::PlacedCraters(terrain, terrain.source->Grid());
+        RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0}), 12.0)});
+    const auto placed = terrain.Craters(SourceGrid(terrain));
     ASSERT_EQ(placed.craters.Size(), 2u) << "the crater 11 m off is inside a 12 m feather";
     EXPECT_EQ(placed.craters.At(1).x, 16.0);
-    terrain.layers = {std::make_shared<terraingen::MaskedLayer>(
-        ManualCraters({{0.0, 0.0}}), RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0}))};
-    EXPECT_TRUE(terraingen::PlacedCraters(terrain, terrain.source->Grid()).craters.Empty());
+    terrain.SetLayer(
+        0, std::make_shared<terraingen::MaskedLayer>(
+               ManualCraters({{0.0, 0.0}}), RegionShape::Rectangle({500.0, 500.0, 510.0, 510.0})));
+    EXPECT_TRUE(terrain.Craters(SourceGrid(terrain)).craters.Empty());
 }
 
-TEST(PlacedCraters, ListsAtASpacingFinerThanTheGrid) {
-    TerrainGenerator terrain = Flat();
+TEST(Craters, ListsAtASpacingFinerThanTheGrid) {
     terraingen::CraterLayerOptions options;
     options.generation.dMin = 0.5;
     options.generation.dMax = 20.0;
-    terrain.layers = {std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options)};
-    const RasterGrid grid = terrain.source->Grid();
-    const auto atGrid = terraingen::PlacedCraters(terrain, grid);
-    const auto finer = terraingen::PlacedCraters(terrain, grid, 0.25);
+    const Terrain terrain =
+        Flat({std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options)});
+    const RasterGrid grid = SourceGrid(terrain);
+    const auto atGrid = terrain.Craters(grid);
+    const auto finer = terrain.Craters(grid, 0.25);
     EXPECT_GT(finer.craters.Size(), atGrid.craters.Size())
         << "craters too small for the grid but not for the spacing";
     double smallest = 1e9;
@@ -94,15 +100,14 @@ TEST(PlacedCraters, ListsAtASpacingFinerThanTheGrid) {
     EXPECT_LT(smallest, 2.0) << "below two of the grid's 1 m cells";
 }
 
-TEST(PlacedBoulders, ListsEveryBoulderOfTheSizesHoweverSmall) {
-    TerrainGenerator terrain = Flat();
+TEST(Boulders, ListsEveryBoulderOfTheSizesHoweverSmall) {
     terraingen::BoulderLayerOptions options = terraingen::testing::GolombekRappBoulders();
     options.sizes.minDiameter = 0.2;
     options.sizes.coverage = 0.1;
     const auto layer = std::make_shared<terraingen::BoulderLayer>(options);
-    terrain.layers = {layer};
-    const RasterGrid grid = terrain.source->Grid();
-    const auto placed = terraingen::PlacedBoulders(terrain, grid);
+    const Terrain terrain = Flat({layer});
+    const RasterGrid grid = SourceGrid(terrain);
+    const auto placed = terrain.Boulders(grid);
     EXPECT_EQ(placed.boulders.Size(),
               terraingen::testing::Records(layer->Boulders(grid.Bounds())).size());
     std::size_t small = 0;
@@ -110,16 +115,14 @@ TEST(PlacedBoulders, ListsEveryBoulderOfTheSizesHoweverSmall) {
         small += boulder.diameter < 2.0 ? 1 : 0;
     }
     EXPECT_GT(small, 0u) << "boulders the 1 m grid cannot draw stay in the list";
-    EXPECT_EQ(placed.boulders.Size(),
-              terraingen::PlacedBoulders(terrain, grid, 4.0).boulders.Size())
+    EXPECT_EQ(placed.boulders.Size(), terrain.Boulders(grid, 4.0).boulders.Size())
         << "the spacing does not decide which boulders exist";
 }
 
-TEST(PlacedBoulders, PlacesModelsOnTheGroundBeneathTheirLayer) {
-    TerrainGenerator terrain = Flat();
-    terrain.layers = {std::make_shared<terraingen::ScaleLayer>(1.0, 3.0),
-                      std::make_shared<terraingen::BoulderLayer>(Models())};
-    const auto placed = terraingen::PlacedBoulders(terrain, terrain.source->Grid());
+TEST(Boulders, PlacesModelsOnTheGroundBeneathTheirLayer) {
+    const Terrain terrain = Flat({std::make_shared<terraingen::ScaleLayer>(1.0, 3.0),
+                                  std::make_shared<terraingen::BoulderLayer>(Models())});
+    const auto placed = terrain.Boulders(SourceGrid(terrain));
     ASSERT_FALSE(placed.boulders.Empty());
     ASSERT_EQ(placed.models.size(), placed.boulders.Size());
     for (const auto& model : placed.models) {
@@ -151,17 +154,17 @@ terraingen::CraterList DemCraters(const std::shared_ptr<const terraingen::Source
     if (limited) {
         options.generation.completeness = terraingen::SourceResolvedLimit(source, 4.0);
     }
-    TerrainGenerator terrain;
-    terrain.source = source;
-    terrain.layers = {std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options)};
-    return terraingen::PlacedCraters(terrain, grid).craters;
+    const Terrain terrain(
+        terraingen::Surface{}, source,
+        {std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options)});
+    return terrain.Craters(grid).craters;
 }
 
 }  // namespace
 
-TEST(PlacedCraters, LeavesTheCratersADemResolvesToIt) {
+TEST(Craters, LeavesTheCratersADemResolvesToIt) {
     const auto dem = Dem(26, 5.0, -65.0, 65.0);
-    const RasterGrid grid = terraingen::ResampledGrid(dem->Grid(), 2.0);
+    const RasterGrid grid = ResampledGrid(dem->Grid(), 2.0);
     const terraingen::CraterList all = DemCraters(dem, grid, false);
     const terraingen::CraterList kept = DemCraters(dem, grid, true);
     std::size_t resolved = 0;
@@ -184,12 +187,12 @@ TEST(PlacedCraters, LeavesTheCratersADemResolvesToIt) {
     EXPECT_GT(smaller, 0u);
 }
 
-TEST(PlacedCraters, FollowTheResolutionOfEachMemberOfASourceChain) {
+TEST(Craters, FollowTheResolutionOfEachMemberOfASourceChain) {
     const auto site = Dem(40, 2.0, -40.0, 40.0);
     const auto region = Dem(32, 8.0, -128.0, 128.0);
     const auto chain = std::make_shared<terraingen::SourceChain>(
         std::vector<std::shared_ptr<const terraingen::Source>>{site, region});
-    const RasterGrid grid = terraingen::ResampledGrid(region->Grid(), 2.0);
+    const RasterGrid grid = ResampledGrid(region->Grid(), 2.0);
     const terraingen::CraterList all = DemCraters(chain, grid, false);
     const terraingen::CraterList kept = DemCraters(chain, grid, true);
     std::size_t siteResolved = 0;
@@ -215,12 +218,11 @@ TEST(PlacedCraters, FollowTheResolutionOfEachMemberOfASourceChain) {
     EXPECT_GT(between, 0u) << "craters the site would resolve stay beyond it";
 }
 
-TEST(PlacedBoulders, KeepsOnlyTheBouldersARegionHolds) {
-    TerrainGenerator terrain = Flat();
-    terrain.layers = {std::make_shared<terraingen::MaskedLayer>(
+TEST(Boulders, KeepsOnlyTheBouldersARegionHolds) {
+    const Terrain terrain = Flat({std::make_shared<terraingen::MaskedLayer>(
         std::make_shared<terraingen::BoulderLayer>(Models()),
-        RegionShape::Circle({0.0, 0.0}, 35.0))};
-    const auto placed = terraingen::PlacedBoulders(terrain, terrain.source->Grid());
+        RegionShape::Circle({0.0, 0.0}, 35.0))});
+    const auto placed = terrain.Boulders(SourceGrid(terrain));
     ASSERT_FALSE(placed.boulders.Empty());
     ASSERT_FALSE(placed.models.empty());
     for (const auto& boulder : terraingen::testing::Records(placed.boulders)) {

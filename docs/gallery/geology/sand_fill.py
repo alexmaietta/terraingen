@@ -27,7 +27,7 @@ def figure(quick=False):
         )
     )
     source = terraingen.FlatSource(size, size, pixel)
-    bare = terraingen.evaluate(terraingen.TerrainGenerator(source, [relief, craters])).values
+    bare = terraingen.Terrain(source=source, layers=[relief, craters]).evaluate().values
 
     fig, axes = plt.subplots(2, len(FILLS) + 1, figsize=(18, 9), layout="constrained")
     gallery.show_hillshade(axes[0, 0], bare, pixel)
@@ -36,7 +36,7 @@ def figure(quick=False):
     axes[1, 0].set_axis_off()
     for column, fill in enumerate(FILLS, start=1):
         sand = terraingen.SandFillLayer(terraingen.SandFillOptions(fill=fill))
-        heights = terraingen.evaluate(terraingen.TerrainGenerator(source, [relief, craters, sand])).values
+        heights = terraingen.Terrain(source=source, layers=[relief, craters, sand]).evaluate().values
         gallery.show_hillshade(axes[0, column], heights, pixel)
         axes[0, column].set_title(f"Filled {fill:.0%}")
         image = axes[1, column].imshow(heights - bare, cmap="YlOrBr", vmin=0.0, vmax=0.5)

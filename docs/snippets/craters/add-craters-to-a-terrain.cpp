@@ -16,10 +16,9 @@ namespace {
 
 TEST_F(SnippetTest, AddCratersToATerrain) {
     // --8<-- [start:add_craters_to_a_terrain]
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(257, 257, 1.0);
-    terrain.layers.push_back(std::make_shared<CraterLayer>());
-    const Raster<float> heights = Evaluate(terrain);  // meters
+    const auto source = std::make_shared<FlatSource>(257, 257, 1.0);
+    const Terrain terrain(Surface{}, source, {std::make_shared<CraterLayer>()});
+    const Raster<float> heights = terrain.Evaluate();  // meters
     // --8<-- [end:add_craters_to_a_terrain]
     EXPECT_EQ(heights.Width(), 257);
 }

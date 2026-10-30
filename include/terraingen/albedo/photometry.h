@@ -37,7 +37,8 @@ using MaterialPhotometry = std::array<std::optional<HapkeParameters>, kMaterialC
 MaterialPhotometry MarsPancamPhotometry();
 
 /// Checks photometry parameters.
-/// @throws std::invalid_argument for a parameter outside its range.
+/// @throws std::invalid_argument naming the class and parameter outside its range, such as
+/// "soil.albedo".
 void ValidateMaterialPhotometry(const MaterialPhotometry& photometry);
 
 /// The Hapke parameters of a mix of materials: each parameter the share-weighted mean of the

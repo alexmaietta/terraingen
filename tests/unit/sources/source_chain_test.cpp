@@ -2,6 +2,7 @@
 
 #include "terraingen/sources/source_chain.h"
 
+#include "terraingen/random/stream.h"
 #include "terraingen/sources/diamond_square.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/raster_source.h"
@@ -11,6 +12,8 @@
 
 #include <atomic>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -39,23 +42,24 @@ class Patchy final : public terraingen::Source {
     terraingen::Vec2d ReferencePoint() const override {
         return {7.0, 8.0};
     }
-    void Fill(Raster<float>& heights, double spacing, unsigned /*threads*/) const override {
-        ++fills;
-        const float fill = noData_.value_or(std::numeric_limits<float>::quiet_NaN());
-        for (std::size_t row = 0; row < heights.Height(); ++row) {
-            for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const auto center = heights.CellCenter(col, row);
-                const float height = HeightAt(center.x, center.y, spacing);
-                heights(col, row) = std::isnan(height) ? fill : height;
-            }
-        }
-        heights.SetNoData(fill);
-    }
-    float HeightAt(double x, double y, double /*spacing*/) const override {
-        return covered_(x, y) ? static_cast<float>(x + 2.0 * y) : std::nanf("");
-    }
 
     mutable std::atomic<int> fills{0};
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
+        Raster<float>* grid = samples.Grid();
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        const float fill = grid != nullptr ? noData_.value_or(nan) : nan;
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const terraingen::Vec2d p = samples.Position(i);
+            samples.Height(i) = covered_(p.x, p.y) ? static_cast<float>(p.x + 2.0 * p.y) : fill;
+        }
+        if (grid != nullptr) {
+            ++fills;
+            grid->SetNoData(fill);
+        }
+    }
 
   private:
     bool (*covered_)(double, double);
@@ -74,16 +78,15 @@ class Shaped final : public terraingen::Source {
     RasterGrid Grid() const override {
         return grid_;
     }
-    void Fill(Raster<float>& heights, double spacing, unsigned /*threads*/) const override {
-        for (std::size_t row = 0; row < heights.Height(); ++row) {
-            for (std::size_t col = 0; col < heights.Width(); ++col) {
-                const auto center = heights.CellCenter(col, row);
-                heights(col, row) = HeightAt(center.x, center.y, spacing);
-            }
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const terraingen::Vec2d p = samples.Position(i);
+            samples.Height(i) =
+                covered_(p.x, p.y) ? static_cast<float>(height_(p.x, p.y)) : std::nanf("");
         }
-    }
-    float HeightAt(double x, double y, double /*spacing*/) const override {
-        return covered_(x, y) ? static_cast<float>(height_(x, y)) : std::nanf("");
     }
 
   private:
@@ -182,16 +185,13 @@ TEST(SourceChain, FillsNaNGapsOfSourcesWithoutANoDataValue) {
         RasterGrid Grid() const override {
             return kGrid;
         }
-        void Fill(Raster<float>& heights, double spacing, unsigned /*threads*/) const override {
-            for (std::size_t row = 0; row < heights.Height(); ++row) {
-                for (std::size_t col = 0; col < heights.Width(); ++col) {
-                    const auto center = heights.CellCenter(col, row);
-                    heights(col, row) = HeightAt(center.x, center.y, spacing);
-                }
+
+      protected:
+        void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                         unsigned /*threads*/) const override {
+            for (std::size_t i = 0; i < samples.Size(); ++i) {
+                samples.Height(i) = samples.Position(i).x < 0.0 ? std::nanf("") : 1.0f;
             }
-        }
-        float HeightAt(double x, double /*y*/, double /*spacing*/) const override {
-            return x < 0.0 ? std::nanf("") : 1.0f;
         }
     };
     const SourceChain chain(
@@ -535,4 +535,37 @@ TEST(SourceChainSeams, WidensTheGridBeyondTheSeamsReach) {
     EXPECT_THROW(terraingen::SeamLattice(RasterGrid{4, 4, GeoTransform{0, 0, 0, 0, 0, 0}},
                                          Seams(ChainSeamMode::Height, 4.0)),
                  std::invalid_argument);
+}
+
+TEST(SourceChain, ReseedsItsSeededSourcesAndKeepsTheRest) {
+    terraingen::Fractal hills;
+    hills.seed = 3;
+    hills.wavelength = 40.0f;
+    hills.amplitude = 5.0f;
+    const auto flat = std::make_shared<terraingen::FlatSource>(8, 8, 2.0, 1.0f);
+    const auto noise =
+        std::make_shared<terraingen::SyntheticSource>(std::vector<terraingen::Fractal>{hills});
+    const SourceChain chain({noise, flat}, Seams(ChainSeamMode::Height, 4.0));
+    const auto one = std::dynamic_pointer_cast<const SourceChain>(chain.Reseeded(5));
+    ASSERT_NE(one, nullptr);
+    ASSERT_EQ(one->Sources().size(), 2u);
+    EXPECT_EQ(one->Sources()[1], flat) << "measured data is kept";
+    EXPECT_EQ(one->Seams(), chain.Seams());
+    const auto reseeded =
+        std::dynamic_pointer_cast<const terraingen::SyntheticSource>(one->Sources()[0]);
+    ASSERT_NE(reseeded, nullptr);
+    const std::uint64_t part =
+        terraingen::JoinWords(terraingen::ReseedWord(5, 0), terraingen::ReseedWord(5, 1));
+    EXPECT_EQ(reseeded->Fractals()[0].seed, terraingen::ReseedWord(part, 0)) << "source 0";
+
+    const auto again = chain.Reseeded(5);
+    const auto other = chain.Reseeded(6);
+    std::size_t differing = 0;
+    for (double x = 20.0; x < 120.0; x += 3.3) {
+        const float height = one->HeightAt(x, -40.0, 1.0);
+        EXPECT_EQ(height, again->HeightAt(x, -40.0, 1.0)) << "deterministic at " << x;
+        differing += height != other->HeightAt(x, -40.0, 1.0) ? 1 : 0;
+    }
+    EXPECT_GT(differing, 0u) << "beyond the flat source the noise differs";
+    EXPECT_EQ(SourceChain({flat, flat}).Reseeded(5), nullptr) << "no seeded source";
 }

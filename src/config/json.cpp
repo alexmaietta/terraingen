@@ -1,21 +1,18 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "config/build_steps.h"
-#include "config/fields/json_io.h"
+#include "config/json_io.h"
 
 #include "terraingen/sources/upsampling.h"
 #include "util/text.h"
 
 #include <array>
 #include <cmath>
-#include <cstdio>
-#include <cstdlib>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
-#include <type_traits>
-#include <variant>
 
 namespace terraingen {
 
@@ -23,22 +20,6 @@ namespace config {
 
 void Fail(const std::string& path, const std::string& message) {
     throw ConfigError(path, message);
-}
-
-double DegreesFromRadians(double radians) {
-    const double nearest = radians * kRadian;
-    if (!std::isfinite(nearest)) {
-        return nearest;
-    }
-    std::array<char, 32> text{};
-    for (int digits = 1; digits <= 17; ++digits) {
-        std::snprintf(text.data(), text.size(), "%.*g", digits, nearest);
-        const double degrees = std::strtod(text.data(), nullptr);
-        if (RadiansFromDegrees(degrees) == radians) {
-            return degrees;
-        }
-    }
-    return nearest;
 }
 
 Reader::Reader(const Json& json, std::string path) : json_(json), path_(std::move(path)) {
@@ -247,19 +228,6 @@ bool operator!=(const TerrainGenConfig& a, const TerrainGenConfig& b) {
 ListFormat InferListFormat(std::string_view path) {
     return HasExtension(std::filesystem::path(path), {".json"}) ? ListFormat::Json
                                                                 : ListFormat::Csv;
-}
-
-std::string LayerType(const LayerSpec& layer) {
-    return std::visit(
-        [](const auto& spec) {
-            using Spec = std::decay_t<decltype(spec)>;
-            std::string type(config::SpecName<Spec>::kName);
-            if constexpr (std::is_same_v<Spec, MaskedLayerSpec>) {
-                type += " (" + LayerType(*spec.layer) + ")";
-            }
-            return type;
-        },
-        layer);
 }
 
 }  // namespace terraingen

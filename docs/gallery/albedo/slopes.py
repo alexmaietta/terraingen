@@ -21,8 +21,8 @@ def figure(quick=False):
     size = int(SIZE_M / pixel) + 1
     hills = terraingen.NoiseLayer(seed=2, wavelength=250.0, amplitude=45.0, octaves=6)
     crater = terraingen.CraterLayer.manual([terraingen.Crater(-60.0, 40.0, 90.0, age_gyr=0.0)])
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [hills, crater])
-    heights = terraingen.evaluate(terrain)
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[hills, crater])
+    heights = terrain.evaluate()
     grid = terraingen.RasterGrid.from_raster(heights)
     base = terraingen.SyntheticAlbedo(value=0.11)
 
@@ -31,9 +31,7 @@ def figure(quick=False):
     axes[0].set_title("Slope")
     for ax, onset in zip(axes[1:], ONSETS, strict=True):
         layer = terraingen.SlopeAlbedo(terraingen.SlopeAlbedoOptions(onset_deg=onset))
-        values = terraingen.evaluate_albedo(terraingen.Albedo(base, [layer]), grid, generator=terrain)[
-            0
-        ].values
+        values = terraingen.evaluate_albedo(terraingen.Albedo(base, [layer]), grid, ground=terrain)[0].values
         image = ax.imshow(values, cmap="gray", vmin=0.09, vmax=0.15)
         ax.set_axis_off()
         ax.set_title(f"Onset {onset:g} degrees")

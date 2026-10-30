@@ -4,12 +4,11 @@
 /// @brief `PavementLayer`, fractured bedrock: polygonal plates parted by cracks or raised ridges.
 #pragma once
 
-#include "terraingen/layers/anchored_plane.h"
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/exposure.h"
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
-#include "terraingen/util/geometry.h"
 
 #include <cstdint>
 #include <optional>
@@ -80,23 +79,26 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
     /// On a body, plates are laid out in the tangent frame of `options.anchor`. Applying the layer
     /// with the exposure field enabled needs `context.ground`.
     /// @throws std::invalid_argument as `ValidatePavementOptions`.
-    explicit PavementLayer(PavementOptions options, TerrainBase base = {});
+    explicit PavementLayer(PavementOptions options);
 
     /// The options the layer was made with.
     const PavementOptions& Options() const {
         return options_;
     }
 
+    /// The layer with its seed `ReseedWord(seed, 0)`.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
+
     MaterialClass Material() const override {
         return MaterialClass::Bedrock;
     }
     /// How fully the pavement covers (x, y): 1, or the exposure of the ground beneath.
-    /// @throws std::invalid_argument if the exposure field is enabled and `ground` is null.
-    double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
+    /// @throws std::invalid_argument if the exposure field is enabled and `context.ground` is
+    /// null.
+    double MaterialCoverAt(double x, double y, const LayerContext& context) const override;
 
   protected:
-    float HeightAt(float height, double x, double y, double spacing,
-                   const Ground* ground) const override;
+    float HeightAt(float height, double x, double y, const LayerContext& context) const override;
     void CheckContext(const LayerContext& context) const override;
 
   private:
@@ -123,11 +125,10 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
     Plate PlateAt(const Vec2d& q, const Level& level, std::uint32_t seed, double crackWeight) const;
     /// The relief of every octave at planar point `q`, each faded at `spacing`.
     double Relief(const Vec2d& q, double spacing) const;
-    double ExposureWeight(double x, double y, const Ground* ground) const;
+    double ExposureWeight(double x, double y, const LayerContext& context) const;
 
     PavementOptions options_;
     LayerExposure exposure_;
-    AnchoredPlane plane_;
     std::vector<Level> levels_;
 };
 

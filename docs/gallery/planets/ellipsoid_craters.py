@@ -38,10 +38,10 @@ def figure(quick=False):
         ),
         base=body,
     )
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(8, 8, 1.0), [craters], surface=body)
+    terrain = terraingen.Terrain(body, layers=[craters])
     whole = (-180.0, -90.0, 180.0, 90.0)
     grid = terraingen.RasterGrid.covering(whole, step)
-    heights = terraingen.evaluate(terrain, grid=grid, spacing=0.5).values
+    heights = terrain.evaluate(grid, spacing=0.5).values
     table = craters.craters(whole, 0.5)
     area = grid.surface_area(body)
 

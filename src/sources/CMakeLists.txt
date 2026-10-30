@@ -7,6 +7,7 @@ terraingen_add_library(
     flat_source.cpp
     geotiff_source.cpp
     raster_source.cpp
+    sample_block.cpp
     seam_field.cpp
     shape_model_source.cpp
     source.cpp
@@ -14,6 +15,8 @@ terraingen_add_library(
     synthetic_source.cpp
     upsampling.cpp
     PUBLIC
+    terraingen_analysis
+    terraingen_geometry
     terraingen_noise
     terraingen_random
     terraingen_raster

@@ -71,14 +71,26 @@ class CountingPosts final : public terraingen::PostLattice {
 /// The mean of the four posts around a point, whatever the spacing.
 class MeanUpsampler final : public terraingen::Upsampler {
   public:
-    float HeightAt(const terraingen::PostLattice& posts, double x, double y,
-                   double /*spacing*/) const override {
+    /// The mean of the four posts of `posts` around (`x`, `y`).
+    static float Mean(const terraingen::PostLattice& posts, double x, double y) {
         const terraingen::Vec2d pixel = posts.Transform().WorldToPixel(x, y);
         std::vector<float> values(4);
         posts.Read(static_cast<std::int64_t>(std::floor(pixel.x - 0.5)),
                    static_cast<std::int64_t>(std::floor(pixel.y - 0.5)), 2, 2,
                    terraingen::Span<float>(values));
         return 0.25f * (values[0] + values[1] + values[2] + values[3]);
+    }
+
+  protected:
+    void FillSamples(const terraingen::PostLattice& posts, terraingen::SampleBlock& samples,
+                     double /*spacing*/, unsigned threads) const override {
+        terraingen::detail::FillByTiles(
+            samples, threads,
+            [&](terraingen::Span<const terraingen::Vec2d> points, terraingen::Span<float> heights) {
+                for (std::size_t i = 0; i < points.size(); ++i) {
+                    heights[i] = Mean(posts, points[i].x, points[i].y);
+                }
+            });
     }
 };
 
@@ -184,26 +196,23 @@ TEST(KernelUpsampler, RejectsARotatedLattice) {
                  std::invalid_argument);
 }
 
-TEST(UpsampledHeight, GivesThePostsOwnHeightAtTheirSpacingOrCoarser) {
+TEST(Upsampler, GivesThePostsOwnHeightAtTheirSpacingOrCoarser) {
     const CountingPosts posts;
     const MeanUpsampler mean;
     EXPECT_TRUE(terraingen::AtPostSpacing(posts.Transform(), 2.0));
     EXPECT_TRUE(terraingen::AtPostSpacing(posts.Transform(), 2.0 * (1.0 - 1e-12)));
     EXPECT_FALSE(terraingen::AtPostSpacing(posts.Transform(), 1.9));
-    EXPECT_EQ(terraingen::UpsampledHeight(mean, posts, 3.0, -5.0, 2.0), 1.0f + 200.0f);
-    EXPECT_EQ(terraingen::UpsampledHeight(mean, posts, 3.0, -5.0, 1.0),
-              mean.HeightAt(posts, 3.0, -5.0, 1.0));
-    EXPECT_EQ(terraingen::UpsampledHeight(mean, posts, 3.5, -5.0, 2.0),
-              mean.HeightAt(posts, 3.5, -5.0, 2.0));
+    EXPECT_EQ(mean.HeightAt(posts, 3.0, -5.0, 2.0), 1.0f + 200.0f);
+    EXPECT_EQ(mean.HeightAt(posts, 3.0, -5.0, 1.0), MeanUpsampler::Mean(posts, 3.0, -5.0));
+    EXPECT_EQ(mean.HeightAt(posts, 3.5, -5.0, 2.0), MeanUpsampler::Mean(posts, 3.5, -5.0));
     const RasterGrid grid{5, 4, GeoTransform::NorthUp(0.0, 0.0, 2.0)};
     for (const double spacing : {2.0, 0.5}) {
         Raster<float> filled = grid.MakeRaster();
-        terraingen::FillUpsampled(mean, posts, filled, spacing, 0);
+        mean.Fill(posts, filled, spacing, 0);
         for (std::size_t row = 0; row < filled.Height(); ++row) {
             for (std::size_t col = 0; col < filled.Width(); ++col) {
                 const terraingen::Vec2d center = filled.CellCenter(col, row);
-                EXPECT_EQ(filled(col, row),
-                          terraingen::UpsampledHeight(mean, posts, center.x, center.y, spacing));
+                EXPECT_EQ(filled(col, row), mean.HeightAt(posts, center.x, center.y, spacing));
             }
         }
     }
@@ -218,21 +227,28 @@ namespace {
 /// `MeanUpsampler`, noting each thread that reads it.
 class ThreadNotingUpsampler final : public terraingen::Upsampler {
   public:
-    float HeightAt(const terraingen::PostLattice& posts, double x, double y,
-                   double spacing) const override {
-        {
-            const std::lock_guard lock(mutex_);
-            threads_.insert(std::this_thread::get_id());
-        }
-        return mean_.HeightAt(posts, x, y, spacing);
-    }
     std::set<std::thread::id> Threads() const {
         const std::lock_guard lock(mutex_);
         return threads_;
     }
 
+  protected:
+    void FillSamples(const terraingen::PostLattice& posts, terraingen::SampleBlock& samples,
+                     double /*spacing*/, unsigned threads) const override {
+        terraingen::detail::FillByTiles(
+            samples, threads,
+            [&](terraingen::Span<const terraingen::Vec2d> points, terraingen::Span<float> heights) {
+                {
+                    const std::lock_guard lock(mutex_);
+                    threads_.insert(std::this_thread::get_id());
+                }
+                for (std::size_t i = 0; i < points.size(); ++i) {
+                    heights[i] = MeanUpsampler::Mean(posts, points[i].x, points[i].y);
+                }
+            });
+    }
+
   private:
-    MeanUpsampler mean_;
     mutable std::mutex mutex_;
     mutable std::set<std::thread::id> threads_;
 };
@@ -244,11 +260,11 @@ TEST(Upsampler, FillsOnTheThreadsGivenToTheSameBits) {
     const RasterGrid grid{40, 30, GeoTransform::NorthUp(1.0, -1.0, 0.5)};
     ThreadNotingUpsampler serial;
     Raster<float> one = grid.MakeRaster();
-    terraingen::FillUpsampled(serial, posts, one, 0.5, 1);
+    serial.Fill(posts, one, 0.5, 1);
     EXPECT_EQ(serial.Threads(), std::set<std::thread::id>{std::this_thread::get_id()});
     ThreadNotingUpsampler parallel;
     Raster<float> every = grid.MakeRaster();
-    terraingen::FillUpsampled(parallel, posts, every, 0.5, 0);
+    parallel.Fill(posts, every, 0.5, 0);
     terraingen::testing::ExpectSameRaster(one, every);
     const Raster<float> heights = Heights();
     const RasterPosts lattice = Posts(heights);
@@ -282,7 +298,7 @@ TEST(KernelUpsampler, FillsARotatedGridCellByCellToTheBitsOfItsPoints) {
     }
 }
 
-TEST(Upsampler, FillsCellByCellByDefaultAndFitsNothing) {
+TEST(Upsampler, FillsAGridToTheBitsOfItsPointsAndFitsNothing) {
     const CountingPosts posts;
     const MeanUpsampler mean;
     EXPECT_EQ(mean.Reach(), 2);
@@ -410,22 +426,21 @@ TEST(Upsampler, HeightsAtGiveEachPointsHeightToTheBit) {
             }
         }
         std::vector<float> upsampled(points.size());
-        terraingen::UpsampledHeights(mean, posts, terraingen::Span<const terraingen::Vec2d>(points),
-                                     terraingen::Span<float>(upsampled), 3.0);
+        mean.HeightsAt(posts, terraingen::Span<const terraingen::Vec2d>(points),
+                       terraingen::Span<float>(upsampled), 3.0);
         for (std::size_t i = 0; i < points.size(); ++i) {
-            EXPECT_TRUE(SameBits(upsampled[i], terraingen::UpsampledHeight(mean, posts, points[i].x,
-                                                                           points[i].y, 3.0)))
+            EXPECT_TRUE(SameBits(upsampled[i], mean.HeightAt(posts, points[i].x, points[i].y, 3.0)))
                 << i;
         }
     }
 }
 
-TEST(FillUpsampled, CopiesTheLatticesPostsWithoutUpsampling) {
+TEST(Upsampler, CopiesTheLatticesPostsWithoutUpsampling) {
     const Raster<float> raster = Heights();
     const RasterPosts posts = Posts(raster);
     const ThreadNotingUpsampler noting;
     Raster<float> filled = RasterGrid{6, 4, GeoTransform::NorthUp(0.0, 27.0, 3.0)}.MakeRaster();
-    terraingen::FillUpsampled(noting, posts, filled, 3.0, 0);
+    noting.Fill(posts, filled, 3.0, 0);
     EXPECT_TRUE(noting.Threads().empty()) << "no cell is upsampled";
     for (std::size_t row = 0; row < filled.Height(); ++row) {
         for (std::size_t col = 0; col < filled.Width(); ++col) {

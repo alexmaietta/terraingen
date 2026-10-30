@@ -6,8 +6,7 @@
 
 #include "terraingen/albedo/albedo.h"
 #include "terraingen/albedo/maturity.h"
-#include "terraingen/sources/terrain_base.h"
-#include "terraingen/util/surface.h"
+#include "terraingen/geometry/surface.h"
 
 #include <vector>
 
@@ -36,9 +35,8 @@ struct SlopeAlbedoOptions {
 };
 
 /// Checks slope maturity options.
-/// @throws std::invalid_argument for an onset outside [0, 90), a negative or unbounded rate, a
-/// background maturity that is not positive, a cap below it, a baseline that is not positive, or
-/// any value that is not finite.
+/// @throws std::invalid_argument naming the first field out of its range, or for a cap below the
+/// background maturity.
 void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options);
 
 /// The albedo of steep ground moved toward fresher material: slopes are read on the ground at the
@@ -47,7 +45,7 @@ void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options);
 class SlopeAlbedo final : public AlbedoLayer {
   public:
     /// @throws std::invalid_argument for options invalid as `ValidateSlopeAlbedoOptions`.
-    explicit SlopeAlbedo(SlopeAlbedoOptions options = {}, TerrainBase base = {});
+    explicit SlopeAlbedo(SlopeAlbedoOptions options = {});
 
     /// Moves `value` to the maturity of the slope at (`x`, `y`); NaN stays NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
@@ -56,8 +54,9 @@ class SlopeAlbedo final : public AlbedoLayer {
     /// `ApplyAt` at every cell center, the lattice read once.
     void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
 
-    /// The slope in degrees at (`x`, `y`) on `ground`, interpolated between lattice nodes.
-    double SlopeAt(double x, double y, const Ground& ground) const;
+    /// The slope in degrees at (`x`, `y`) on `ground` lying on `surface`, interpolated between
+    /// lattice nodes.
+    double SlopeAt(double x, double y, const Ground& ground, const Surface& surface = {}) const;
 
     /// The OMAT of ground of `slopeDegrees`.
     double MaturityAt(double slopeDegrees) const;
@@ -65,15 +64,14 @@ class SlopeAlbedo final : public AlbedoLayer {
   private:
     struct Lattice;
 
-    /// The lattice nodes covering `region` and one node beyond, their heights read on `ground`.
-    Lattice ReadLattice(const Bounds2d& region, const Ground& ground) const;
+    /// The lattice nodes on `surface` covering `region` and one node beyond, their heights read on
+    /// `ground`.
+    Lattice ReadLattice(const Bounds2d& region, const Ground& ground, const Surface& surface) const;
     /// The slope at (`x`, `y`) from the nodes of `lattice` around it.
-    double Interpolate(const Lattice& lattice, double x, double y) const;
+    static double Interpolate(const Lattice& lattice, double x, double y);
     void Mature(AlbedoSample& value, std::size_t bands, double slopeDegrees) const;
 
     SlopeAlbedoOptions options_;
-    Surface surface_;
-    double step_ = 0.0;  ///< Lattice step in surface coordinates.
 };
 
 }  // namespace terraingen

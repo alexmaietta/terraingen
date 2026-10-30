@@ -2,6 +2,8 @@
 
 #include "terraingen/layers/fade.h"
 
+#include "terraingen/layers/layer_fields.h"
+
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -39,9 +41,9 @@ double Falloff(double x, double start, double end, BlendShape shape) {
 }
 
 void ValidateResolutionFade(const ResolutionFade& fade) {
-    if (!(std::isfinite(fade.startSamples) && std::isfinite(fade.endSamples) &&
-          fade.startSamples >= 0.0 && fade.endSamples > fade.startSamples)) {
-        throw std::invalid_argument("Resolution fade must satisfy 0 <= startSamples < endSamples");
+    CheckRanges(fade);
+    if (!(fade.endSamples > fade.startSamples)) {
+        throw std::invalid_argument("Resolution fade must satisfy startSamples < endSamples");
     }
 }
 

@@ -34,7 +34,7 @@ def figure(quick=False):
             layers.append(
                 terraingen.StrataLayer(terraingen.StrataOptions(bed_thickness=4.0, seed=2, **fields))
             )
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), layers)
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel, sun_elevation=25.0)
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=layers)
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel, sun_elevation=25.0)
         ax.set_title(title)
     return fig

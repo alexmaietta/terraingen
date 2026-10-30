@@ -49,9 +49,11 @@ def figure(quick=False):
     layers = [relief] + [
         crater_layer((index - 1) * SPACING, diameter, on) for index, diameter in enumerate(DIAMETERS)
     ]
-    heights = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), layers)
-    ).values
+    heights = (
+        terraingen.Terrain(source=terraingen.FlatSource(columns, rows, pixel), layers=layers)
+        .evaluate()
+        .values
+    )
 
     fig, (row_ax, profile_ax) = plt.subplots(
         2, 1, figsize=(16, 11), layout="constrained", height_ratios=[1, 0.9]
@@ -63,9 +65,11 @@ def figure(quick=False):
     for diameter, color in zip(DIAMETERS, COLORS, strict=True):
         radii = east / (0.5 * diameter)
         for terraces, style in ((on, "-"), (off, "--")):
-            profile = terraingen.evaluate(
-                terraingen.TerrainGenerator(strip, [relief, crater_layer(0.0, diameter, terraces)])
-            ).values[0]
+            profile = (
+                terraingen.Terrain(source=strip, layers=[relief, crater_layer(0.0, diameter, terraces)])
+                .evaluate()
+                .values[0]
+            )
             inside = np.abs(radii) <= 1.5
             profile_ax.plot(
                 radii[inside],

@@ -34,14 +34,12 @@ def figure(quick=False):
     for ax, (title, ratio, pixel, unresolved) in zip(axes, PANELS, strict=True):
         pixel = max(pixel, 0.4) if quick else pixel
         size = int(SIZE_M / pixel) + 1
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [boulders])
-        grid = terraingen.RasterGrid.from_raster(terraingen.evaluate(terrain))
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[boulders])
+        grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
         rocks = terraingen.RockAlbedo(
             terraingen.RockAlbedoOptions(seed=1, reflectance_ratio=ratio, unresolved=unresolved), terrain, [0]
         )
-        values = terraingen.evaluate_albedo(terraingen.Albedo(base, [rocks]), grid, generator=terrain)[
-            0
-        ].values
+        values = terraingen.evaluate_albedo(terraingen.Albedo(base, [rocks]), grid, ground=terrain)[0].values
         image = ax.imshow(values, cmap="gray", vmin=0.1, vmax=0.3)
         ax.set_axis_off()
         ax.set_title(title)

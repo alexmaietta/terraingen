@@ -4,8 +4,8 @@
 /// @brief `ShapeModelFromMesh`, a body's shape model mesh as a `RadialShape`.
 #pragma once
 
+#include "terraingen/geometry/radial_shape.h"
 #include "terraingen/mesh/mesh.h"
-#include "terraingen/util/radial_shape.h"
 
 #include <cstddef>
 

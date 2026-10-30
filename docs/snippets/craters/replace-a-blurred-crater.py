@@ -15,7 +15,7 @@ def blurred_dem():
     """A DEM with 4 m posts on a gentle slope, holding a 40 m crater only 2 m deep."""
     worn = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, 40.0, depth=2.0)])
     flat = terraingen.FlatSource(POSTS, POSTS, POST_SPACING)
-    heights = terraingen.evaluate(terraingen.TerrainGenerator(flat, [worn])).values
+    heights = terraingen.Terrain(source=flat, layers=[worn]).evaluate().values
     heights = heights + SLOPE * POST_SPACING * np.arange(POSTS)[np.newaxis, :]
     half = 0.5 * (POSTS - 1) * POST_SPACING + 0.5 * POST_SPACING
     return terraingen.RasterSource(
@@ -29,8 +29,8 @@ def replace_a_blurred_crater(replace=True):
     sharp = terraingen.Crater(0.0, 0.0, 40.0, depth=8.0, replace=replace)  # swaps out what is there
     base = terraingen.TerrainBase(terraingen.Surface.plane(), dem)
     craters = terraingen.CraterLayer.manual([sharp], base=base)
-    terrain = terraingen.TerrainGenerator(dem, [craters])
-    heights = terraingen.evaluate(terrain, grid=WINDOW).values  # 0.5 m over the crater
+    terrain = terraingen.Terrain(source=dem, layers=[craters])
+    heights = terrain.evaluate(WINDOW).values  # 0.5 m over the crater
     # --8<-- [end:replace_a_blurred_crater]
     return dem, heights
 
@@ -58,7 +58,7 @@ def figure(quick=False):
 
     dem, replaced = replace_a_blurred_crater()
     _, added = replace_a_blurred_crater(replace=False)
-    alone = terraingen.evaluate(terraingen.TerrainGenerator(dem, []), grid=WINDOW).values
+    alone = terraingen.Terrain(source=dem).evaluate(WINDOW).values
     fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), layout="constrained")
     for ax, heights, title in zip(
         axes, (alone, added, replaced), ("DEM alone", "Added onto it", "Replacing it"), strict=True

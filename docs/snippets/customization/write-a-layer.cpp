@@ -21,16 +21,15 @@ TEST_F(SnippetTest, WriteALayer) {
     // Ridges 2 m high and 40 m apart, running north.
     class Ridges final : public FormulaLayer {
       protected:
-        float HeightAt(float height, double x, double /*y*/, double /*spacing*/,
-                       const Ground* /*ground*/) const override {
+        float HeightAt(float height, double x, double /*y*/,
+                       const LayerContext& /*context*/) const override {
             return height + static_cast<float>(2.0 * std::cos(2.0 * kPi * x / 40.0));
         }
     };
 
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(129, 129, 1.0);
-    terrain.layers = {std::make_shared<Ridges>(), std::make_shared<CraterLayer>()};
-    const Raster<float> heights = Evaluate(terrain);
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(129, 129, 1.0),
+                          {std::make_shared<Ridges>(), std::make_shared<CraterLayer>()});
+    const Raster<float> heights = terrain.Evaluate();
     // --8<-- [end:write_a_layer]
     EXPECT_EQ(heights.Width(), 129);
 }

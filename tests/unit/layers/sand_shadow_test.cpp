@@ -13,6 +13,7 @@
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 using terraingen::Boulder;
 using terraingen::BoulderLayer;
@@ -104,11 +105,11 @@ TEST(SandShadowLayer, SkipsSmallAndUnresolvedBoulders) {
     options.minDiameter = 2.0;
     EXPECT_EQ(SandShadowLayer(boulders, options).ThicknessAt(x, b.y), 0.0);
     const SandShadowLayer layer(boulders, SandShadowOptions{});
-    EXPECT_GT(layer.ThicknessAt(x, b.y, 0.05), 0.0);
-    EXPECT_EQ(layer.ThicknessAt(x, b.y, 5.0), 0.0) << "too small for the spacing";
+    EXPECT_GT(layer.ThicknessAt(x, b.y, {0.05}), 0.0);
+    EXPECT_EQ(layer.ThicknessAt(x, b.y, {5.0}), 0.0) << "too small for the spacing";
     SandShadowOptions strict;
     strict.fade = {20.0, 40.0, terraingen::BlendShape::Smoothstep};
-    EXPECT_EQ(SandShadowLayer(boulders, strict).ThicknessAt(x, b.y, 0.1), 0.0)
+    EXPECT_EQ(SandShadowLayer(boulders, strict).ThicknessAt(x, b.y, {0.1}), 0.0)
         << "a stricter fade than the boulders'";
     EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), x, b.y, {0.05})));
 }
@@ -131,8 +132,8 @@ TEST(SandShadowLayer, GridsAndPointsAgreeAndCoverIsSand) {
     }
     EXPECT_GT(deepest, 0.1);
     EXPECT_EQ(layer.Material(), terraingen::MaterialClass::Sand);
-    EXPECT_EQ(layer.MaterialCoverAt(b.x + 0.5 * b.diameter + 0.01, b.y, 0.05, nullptr), 1.0);
-    EXPECT_EQ(layer.MaterialCoverAt(b.x - b.diameter, b.y, 0.05, nullptr), 0.0);
+    EXPECT_EQ(layer.MaterialCoverAt(b.x + 0.5 * b.diameter + 0.01, b.y, {0.05}), 1.0);
+    EXPECT_EQ(layer.MaterialCoverAt(b.x - b.diameter, b.y, {0.05}), 0.0);
     EXPECT_EQ(layer.Options(), SandShadowOptions{});
 }
 
@@ -143,13 +144,29 @@ TEST(SandShadowLayer, FollowsTheBoulderFramesOnABody) {
     options.sizes.minDiameter = 1.0;
     options.sizes.maxDiameter = 2.0;
     const auto boulders = std::make_shared<BoulderLayer>(options, nullptr, mars);
-    const SandShadowLayer layer(boulders, SandShadowOptions{}, mars);
+    const SandShadowLayer layer(boulders, SandShadowOptions{});
     const auto placed =
         terraingen::testing::Records(boulders->Boulders({137.4, -4.6, 137.402, -4.598}));
     ASSERT_FALSE(placed.empty());
     const Boulder& b = placed.front();
     const terraingen::Vec2d behind = mars.Locate({b.x, b.y}, {0.5 * b.diameter + 0.01, 0.0});
-    EXPECT_GT(layer.ThicknessAt(behind.x, behind.y), 0.0);
+    terraingen::LayerContext onMars;
+    onMars.surface = &mars;
+    EXPECT_GT(layer.ThicknessAt(behind.x, behind.y, onMars), 0.0);
+    EXPECT_FALSE(layer.LayerSurface()) << "read from the context";
+}
+
+TEST(SandShadowLayer, RebindsToAReplacedBoulderLayer) {
+    const auto boulders = Sparse();
+    const SandShadowLayer layer(boulders, SandShadowOptions{});
+    EXPECT_EQ(layer.Rebound({}), nullptr);
+    const auto other = Sparse();
+    EXPECT_EQ(layer.Rebound({{other.get(), Sparse()}}), nullptr) << "reads none of them";
+    const terraingen::LayerPtr replacement = boulders->Reseeded(4);
+    const terraingen::LayerPtr rebound = layer.Rebound({{boulders.get(), replacement}});
+    ASSERT_NE(rebound, nullptr);
+    EXPECT_EQ(rebound->Dependencies(), std::vector<const terraingen::Layer*>{replacement.get()});
+    EXPECT_EQ(layer.Dependencies(), std::vector<const terraingen::Layer*>{boulders.get()});
 }
 
 TEST(SandShadowLayer, RejectsBadOptions) {
@@ -180,12 +197,12 @@ TEST(SandShadowLayer, GivesTheSameCoverOverAGridAsAtItsPoints) {
     const SandShadowLayer layer(boulders, options);
     const terraingen::RasterGrid grid{240, 240,
                                       terraingen::GeoTransform::NorthUp(-60.0, 60.0, 0.5)};
-    const terraingen::Raster<double> cover = layer.MaterialCoverOver(grid, 0.5, nullptr, 3);
+    const terraingen::Raster<double> cover = layer.MaterialCoverOver(grid, {0.5, 3});
     double sand = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             const auto center = cover.CellCenter(col, row);
-            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(center.x, center.y, 0.5, nullptr));
+            ASSERT_EQ(cover(col, row), layer.MaterialCoverAt(center.x, center.y, {0.5}));
             sand += cover(col, row);
         }
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "config/build_steps.h"
-#include "config/fields/json_io.h"
+#include "config/json_io.h"
+#include "config/terrain.h"
 #include "configs.h"
 #include "terraingen/config/build.h"
 #include "terraingen/layers/bedforms.h"
@@ -285,19 +285,18 @@ ConfigSpec Everything() {
         terraingen::BoulderLayerSpec{},
         synthterrain,
         table,
-        terraingen::BedformLayerSpec{terraingen::MarsLargeRipples()},
-        terraingen::DuneLayerSpec{terraingen::MarsBarchans()},
-        terraingen::DuneLayerSpec{terraingen::MarsTransverseDunes()},
-        terraingen::DuneLayerSpec{flowing},
-        terraingen::SandFillLayerSpec{{6.0, 0.4, 0.3, 0.05}},
-        terraingen::PavementLayerSpec{terraingen::MarsDesiccationRidges()},
-        terraingen::PavementLayerSpec{plates},
-        terraingen::StrataLayerSpec{
-            {3.5, 0.2, 0.05, 1.2, 6.0, 0.8, 0.25, 9u, {137.4, -4.6}, 0.6, 2.0}},
-        terraingen::StrataLayerSpec{},
-        terraingen::SandShadowLayerSpec{
-            {1.2, 2.5, 0.5, 0.3, 0.01, {1.0, 3.0, terraingen::BlendShape::Linear}}},
-        terraingen::SandShadowLayerSpec{},
+        terraingen::MarsLargeRipples(),
+        terraingen::MarsBarchans(),
+        terraingen::MarsTransverseDunes(),
+        flowing,
+        terraingen::SandFillOptions{6.0, 0.4, 0.3, 0.05},
+        terraingen::MarsDesiccationRidges(),
+        plates,
+        terraingen::StrataOptions{3.5, 0.2, 0.05, 1.2, 6.0, 0.8, 0.25, 9u, {137.4, -4.6}, 0.6, 2.0},
+        terraingen::StrataOptions{},
+        terraingen::SandShadowOptions{
+            1.2, 2.5, 0.5, 0.3, 0.01, {1.0, 3.0, terraingen::BlendShape::Linear}},
+        terraingen::SandShadowOptions{},
         roughness,
         terraingen::RoughnessLayerSpec{},
         terraingen::ScaleLayerSpec{1.5, -20.0},
@@ -558,11 +557,11 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     craters.options.rays.oblique.zoneHalfWidthDegrees = 30.0;
     craters.options.rays.oblique.downrangeSpeedRatio = {
         terraingen::ValueDistribution::Kind::Constant, 1.3};
-    terraingen::SplotchAlbedoSpec splotches;
-    splotches.options.minDiameter = 3.0;
-    splotches.options.darkChange = {terraingen::ValueDistribution::Kind::Uniform, -0.06, -0.02};
-    splotches.options.swarms.enabled = true;
-    splotches.options.swarms.craters = {{10.0, -20.0, 18.8, 0.0, 0u, false}};
+    terraingen::SplotchAlbedoOptions splotches;
+    splotches.minDiameter = 3.0;
+    splotches.darkChange = {terraingen::ValueDistribution::Kind::Uniform, -0.06, -0.02};
+    splotches.swarms.enabled = true;
+    splotches.swarms.craters = {{10.0, -20.0, 18.8, 0.0, 0u, false}};
     terraingen::BlastZoneAlbedoSpec blast;
     terraingen::BlastZone zone;
     zone.x = 5.0;
@@ -573,9 +572,9 @@ TEST(ConfigJson, RoundTripsAlbedos) {
     rocks.boulderLayer = 0;
     rocks.options.reflectanceRatio = 1.5;
     rocks.options.unresolved = false;
-    terraingen::SlopeAlbedoSpec slopes;
-    slopes.options.baseline = 2.0;
-    slopes.options.onsetDegrees = 25.0;
+    terraingen::SlopeAlbedoOptions slopes;
+    slopes.baseline = 2.0;
+    slopes.onsetDegrees = 25.0;
     config.albedo = terraingen::AlbedoSpec{
         synthetic, {craters, terraingen::CraterAlbedoSpec{}, splotches, blast, rocks, slopes}};
     config.outputs = {

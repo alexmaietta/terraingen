@@ -3,9 +3,9 @@
 #include "terraingen/albedo/blast_zones.h"
 
 #include "albedo/bands.h"
+#include "terraingen/albedo/albedo_fields.h"
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/random/streams.h"
-#include "terraingen/util/geometry.h"
-#include "util/checks.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -31,23 +31,7 @@ std::pair<double, double> SemiAxes(const BlastZone& zone) {
 }  // namespace
 
 void ValidateBlastZone(const BlastZone& zone) {
-    if (!(std::isfinite(zone.x) && std::isfinite(zone.y) && std::isfinite(zone.headingDegrees))) {
-        throw std::invalid_argument("A blast zone needs a finite position and heading");
-    }
-    RequirePositive(zone.area, "A blast zone's area");
-    if (!(zone.elongation >= 1.0 && std::isfinite(zone.elongation) && zone.haloReach >= 1.0 &&
-          std::isfinite(zone.haloReach))) {
-        throw std::invalid_argument("A blast zone's elongation and halo reach must be at least 1");
-    }
-    for (const double change : {zone.change, zone.haloChange, zone.coreChange}) {
-        if (!(change > -1.0 && std::isfinite(change))) {
-            throw std::invalid_argument("Blast zone changes must be finite and above -1");
-        }
-    }
-    RequireNonNegative(zone.coreRadius, "A blast zone's core radius");
-    if (!(zone.raggedness >= 0.0 && zone.raggedness < 1.0)) {
-        throw std::invalid_argument("A blast zone's raggedness must be in [0, 1)");
-    }
+    CheckRanges(zone);
 }
 
 double BlastZoneMeanShare() {
@@ -63,8 +47,7 @@ double BlastZoneMeanShare() {
     return share;
 }
 
-BlastZoneAlbedo::BlastZoneAlbedo(std::vector<BlastZone> zones, TerrainBase base)
-    : zones_(std::move(zones)), surface_(std::move(base.surface)) {
+BlastZoneAlbedo::BlastZoneAlbedo(std::vector<BlastZone> zones) : zones_(std::move(zones)) {
     for (const BlastZone& zone : zones_) {
         ValidateBlastZone(zone);
     }
@@ -74,8 +57,8 @@ double BlastZoneAlbedo::Reach(const BlastZone& zone) {
     return std::fmax(SemiAxes(zone).first * zone.haloReach, zone.coreRadius);
 }
 
-double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y) const {
-    const Vec2d offset = surface_.Offset({zone.x, zone.y}, {x, y});
+double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y, const Surface& surface) {
+    const Vec2d offset = surface.Offset({zone.x, zone.y}, {x, y});
     const double distance = std::hypot(offset.x, offset.y);
     if (distance >= Reach(zone)) {
         return 0.0;
@@ -102,10 +85,10 @@ double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y) const 
 }
 
 void BlastZoneAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                              const AlbedoContext& /*context*/) const {
+                              const AlbedoContext& context) const {
     double change = 0.0;
     for (const BlastZone& zone : zones_) {
-        change += Change(zone, x, y);
+        change += Change(zone, x, y, context.SurfaceOrPlane());
     }
     ChangeBands(value, bands, change);
 }

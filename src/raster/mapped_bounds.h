@@ -4,7 +4,7 @@
 /// @brief `MappedBounds`, the box around a box's corners mapped by a transform.
 #pragma once
 
-#include "terraingen/util/geometry.h"
+#include "terraingen/geometry/geometry.h"
 
 #include <cmath>
 #include <initializer_list>

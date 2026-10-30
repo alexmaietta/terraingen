@@ -4,13 +4,13 @@
 
 #include "albedo/bands.h"
 #include "albedo/zone_shadows.h"
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/craters/secondaries.h"
 #include "terraingen/layers/craters/shaping/irregularity.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/value.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
-#include "terraingen/util/geometry.h"
 #include "terraingen/util/log.h"
 #include "util/checks.h"
 

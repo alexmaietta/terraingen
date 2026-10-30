@@ -45,6 +45,38 @@ Raster<float> Grid(double originX = -64.0, double originY = 64.0) {
 
 }  // namespace
 
+TEST(CraterLayer, ReseedsItsCratersAsANewLayerOfThoseSeeds) {
+    const CraterLayer layer(Models(), Options());
+    const terraingen::Bounds2d region{-64.0, -64.0, 64.0, 64.0};
+    const auto craters = [&](const terraingen::LayerPtr& reseeded) {
+        return dynamic_cast<const CraterLayer&>(*reseeded).Craters(region).Diameters();
+    };
+    const auto a = craters(layer.Reseeded(7));
+    EXPECT_EQ(a, craters(layer.Reseeded(7)));
+    EXPECT_NE(a, craters(layer.Reseeded(8)));
+    CraterLayerOptions options = Options();
+    options.seed = terraingen::ReseedWord(7, 0);
+    options.apply.irregularity.seed = terraingen::ReseedWord(7, 1);
+    options.apply.noise.seed = terraingen::ReseedWord(7, 2);
+    options.apply.texture.seed = terraingen::ReseedWord(7, 3);
+    options.apply.slope.seed = terraingen::ReseedWord(7, 4);
+    options.apply.terraces.seed = terraingen::ReseedWord(7, 5);
+    options.apply.peaks.seed = terraingen::ReseedWord(7, 6);
+    const CraterLayer fresh(Models(), options);
+    EXPECT_EQ(a, fresh.Craters(region).Diameters());
+    const terraingen::LayerPtr held = layer.Reseeded(7);
+    const auto& reseeded = dynamic_cast<const CraterLayer&>(*held);
+    EXPECT_EQ(reseeded.Options().apply, fresh.Options().apply);
+    Raster<float> mine = Grid();
+    Raster<float> theirs = Grid();
+    reseeded.Apply(mine, {2.0});
+    fresh.Apply(theirs, {2.0});
+    for (std::size_t i = 0; i < mine.Size(); ++i) {
+        ASSERT_EQ(mine.Values()[i], theirs.Values()[i]);
+    }
+    EXPECT_EQ(layer.Rebound({}), nullptr);
+}
+
 TEST(CraterLayer, GeneratesAndAppliesCratersOverTheGrid) {
     const CraterLayer layer(Models(), Options());
     Raster<float> heights = Grid();
@@ -374,9 +406,11 @@ namespace {
 
 /// Ground at height 2 everywhere.
 class Level final : public terraingen::Ground {
-  public:
-    float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {
-        return 2.0f;
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = 2.0f;
+        }
     }
 };
 

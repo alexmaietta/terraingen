@@ -22,9 +22,9 @@ TEST_F(SnippetTest, ListCratersFromAConfig) {
     const std::filesystem::path path = OutputFolder() / "craters.csv";
 
     // --8<-- [start:list_craters_from_a_config]
-    const TerrainGenerator terrain = BuildGenerator(config);
+    const Terrain terrain = BuildTerrain(config);
     const RasterGrid site = RasterGrid::Centered({30.0, -10.0}, {0.004, 0.004}, 0.0001);
-    const CraterFeatures placed = PlacedCraters(terrain, site);
+    const CraterFeatures placed = terrain.Craters(site);
     const std::vector<double>& diameters = placed.craters.Diameters();  // meters
     WriteCraterList(placed.craters, path, ListFormat::Csv, placed.attributes);
     // --8<-- [end:list_craters_from_a_config]

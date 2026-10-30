@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "config/build_steps.h"
-#include "config/fields/fields.h"
-#include "config/fields/json_io.h"
-#include "config/fields/ranges.h"
+#include "config/json_io.h"
+#include "config/terrain.h"
 #include "configs.h"
-#include "terraingen/util/geometry.h"
+#include "terraingen/geometry/geometry.h"
 
 #include <gtest/gtest.h>
 
@@ -22,10 +20,10 @@ using config::RadiansFromDegrees;
 using terraingen::ConfigError;
 using terraingen::ConfigSpec;
 using terraingen::ConfigToJson;
-using terraingen::DuneLayerSpec;
+using terraingen::DuneOptions;
 using terraingen::kDegree;
 using terraingen::ParseConfig;
-using terraingen::StrataLayerSpec;
+using terraingen::StrataOptions;
 
 namespace {
 
@@ -37,7 +35,7 @@ std::string OneLayer(const std::string& layer) {
 /// The message reading `json` throws, or "valid".
 std::string ReadError(const std::string& json) {
     try {
-        terraingen::config::CheckConfigRanges(ParseConfig(json));
+        terraingen::config::CheckConfigRanges(ParseConfig(json).Spec());
     } catch (const ConfigError& error) {
         return error.what();
     }
@@ -60,7 +58,7 @@ TEST(DegreesFromRadians, GivesTheShortestDegreesThatTurnBackIntoTheRadians) {
 TEST(ConfigAngles, ReadDegreesIntoRadians) {
     const ConfigSpec config = ParseConfig(OneLayer(
         R"({"type": "dunes", "wind_azimuth_deg": 90, "slip_face_angle_deg": 30, "stoss_slope_deg": 10})"));
-    const auto& dunes = std::get<DuneLayerSpec>(config.layers.at(0)).dunes;
+    const auto& dunes = std::get<DuneOptions>(config.layers.at(0));
     EXPECT_EQ((dunes.windAzimuthDegrees * terraingen::kDegree), 90.0 * kDegree);
     EXPECT_EQ((dunes.slipFaceAngleDegrees * terraingen::kDegree), 30.0 * kDegree);
     EXPECT_EQ((dunes.stossSlopeDegrees * terraingen::kDegree), 10.0 * kDegree);
@@ -68,14 +66,14 @@ TEST(ConfigAngles, ReadDegreesIntoRadians) {
 
 TEST(ConfigAngles, LeaveUnreadAnglesExactlyAsTheyWere) {
     const ConfigSpec config = ParseConfig(OneLayer(R"({"type": "dunes"})"));
-    EXPECT_EQ(std::get<DuneLayerSpec>(config.layers.at(0)).dunes, DuneLayerSpec{}.dunes);
+    EXPECT_EQ(std::get<DuneOptions>(config.layers.at(0)), DuneOptions{});
 }
 
 TEST(ConfigAngles, WriteDegreesAndRoundTripExactly) {
     ConfigSpec config;
-    StrataLayerSpec strata;
-    strata.strata.dipDegrees = 1.7;
-    strata.strata.dipAzimuthDegrees = 45.8;
+    StrataOptions strata;
+    strata.dipDegrees = 1.7;
+    strata.dipAzimuthDegrees = 45.8;
     config.layers.push_back(strata);
     const std::string json = ConfigToJson(config);
     const Json layer = Json::parse(json)["layers"][0];

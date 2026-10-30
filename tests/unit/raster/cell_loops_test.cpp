@@ -146,10 +146,11 @@ TEST(ForEachFeatureCell, VisitsTheCellsOfEachFeaturesBox) {
     EXPECT_EQ(raster(5, 5), 0.0);
 }
 
-TEST(FillCells, SetsEveryCellFromItsCenter) {
+TEST(MapCells, SetsEveryCellOfAFreshRasterOfAnyType) {
     Raster<double> raster(4, 3, 7.0);
     raster.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 3.0, 1.0));
-    terraingen::FillCells(raster, 2, [](const terraingen::Vec2d& center) { return center.x; });
-    EXPECT_EQ(raster(0, 0), 0.5);
-    EXPECT_EQ(raster(3, 2), 3.5);
+    terraingen::MapCells(
+        raster, 2, [](double value, const terraingen::Vec2d& center) { return value + center.x; });
+    EXPECT_EQ(raster(0, 0), 7.5);
+    EXPECT_EQ(raster(3, 2), 10.5);
 }

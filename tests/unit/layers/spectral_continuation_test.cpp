@@ -2,7 +2,7 @@
 
 #include "terraingen/layers/spectral_continuation.h"
 
-#include "raster/radial_spectrum.h"
+#include "analysis/radial_spectrum.h"
 #include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
@@ -238,12 +238,22 @@ TEST(SpectralContinuationLayer, VariesWithTheSeedAndSkipsCellsWithoutData) {
 TEST(SpectralContinuationLayer, ScalesBodyCoordinatesToMeters) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const double unit = moon.UnitLength();
-    const SpectralContinuationLayer plane(Options());
-    const SpectralContinuationLayer body(Options(), moon);
+    const SpectralContinuationLayer layer(Options());
     terraingen::LayerContext context;
     context.spacing = 0.125;
+    terraingen::LayerContext onMoon = context;
+    onMoon.surface = &moon;
     const double x = 37.0 / unit;
     const double y = -12.0 / unit;
-    EXPECT_NEAR(body.ApplyAt(0.0f, x, y, context), plane.ApplyAt(0.0f, x * unit, y * unit, context),
+    EXPECT_NEAR(layer.ApplyAt(0.0f, x, y, onMoon), layer.ApplyAt(0.0f, x * unit, y * unit, context),
                 1e-5);
+}
+
+TEST(SpectralContinuationLayer, ReseedsItsDetail) {
+    const SpectralContinuationLayer layer(Options());
+    terraingen::LayerContext context;
+    context.spacing = 0.125;
+    const float a = layer.Reseeded(1)->ApplyAt(0.0f, 3.0, 4.0, context);
+    EXPECT_EQ(a, layer.Reseeded(1)->ApplyAt(0.0f, 3.0, 4.0, context));
+    EXPECT_NE(a, layer.Reseeded(2)->ApplyAt(0.0f, 3.0, 4.0, context));
 }

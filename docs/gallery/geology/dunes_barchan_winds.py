@@ -28,9 +28,9 @@ def figure(quick=False):
     fig, axes = plt.subplots(1, len(PANELS), figsize=(18, 4), layout="constrained")
     for ax, (title, spread, width_spread) in zip(axes, PANELS, strict=True):
         options = terraingen.DuneOptions(seed=3, azimuth_spread_deg=spread, width_spread=width_spread)
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [terraingen.DuneLayer(options)]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[terraingen.DuneLayer(options)]
         )
-        gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel, cmap="copper")
+        gallery.show_heights(ax, terrain.evaluate().values, pixel, cmap="copper")
         ax.set_title(title)
     return fig

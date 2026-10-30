@@ -16,16 +16,10 @@ constexpr std::uint32_t kEmpty = 0xFFFFFFFFU;
 
 }  // namespace
 
-float RecordingGround::HeightAt(double x, double y, double spacing) const {
-    reads_.push_back({{x, y}, spacing});
-    return 0.0f;
-}
-
-void RecordingGround::HeightsAt(Span<const Vec2d> points, Span<float> heights,
-                                double spacing) const {
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        reads_.push_back({points[i], spacing});
-        heights[i] = 0.0f;
+void RecordingGround::FillSamples(SampleBlock& samples, double spacing) const {
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        reads_.push_back({samples.Position(i), spacing});
+        samples.Height(i) = 0.0f;
     }
 }
 
@@ -106,20 +100,15 @@ const float* ReplayedGround::Held(double x, double y, double spacing) const {
     return held_.Find(x, y, spacing);
 }
 
-float ReplayedGround::HeightAt(double x, double y, double spacing) const {
-    const float* held = Held(x, y, spacing);
-    return held != nullptr ? *held : held_.Read().HeightAt(x, y, spacing);
-}
-
-void ReplayedGround::HeightsAt(Span<const Vec2d> points, Span<float> heights,
-                               double spacing) const {
+void ReplayedGround::FillSamples(SampleBlock& samples, double spacing) const {
     std::vector<Vec2d> missing;
     std::vector<std::size_t> where;
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        if (const float* held = Held(points[i].x, points[i].y, spacing)) {
-            heights[i] = *held;
+    for (std::size_t i = 0; i < samples.Size(); ++i) {
+        const Vec2d point = samples.Position(i);
+        if (const float* held = Held(point.x, point.y, spacing)) {
+            samples.Height(i) = *held;
         } else {
-            missing.push_back(points[i]);
+            missing.push_back(point);
             where.push_back(i);
         }
     }
@@ -129,7 +118,7 @@ void ReplayedGround::HeightsAt(Span<const Vec2d> points, Span<float> heights,
     std::vector<float> read(missing.size());
     held_.Read().HeightsAt(missing, read, spacing);
     for (std::size_t n = 0; n < missing.size(); ++n) {
-        heights[where[n]] = read[n];
+        samples.Height(where[n]) = read[n];
     }
 }
 

@@ -28,6 +28,7 @@ CATEGORIES = {
     "boulders": "Boulders",
     "albedo": "Albedo",
     "bodies": "Irregular bodies",
+    "simulation": "Simulation",
     "customization": "Customization",
 }
 
@@ -87,6 +88,14 @@ ORDER = {
         "add-terrain-over-a-whole-body",
         "write-the-whole-body-as-a-mesh",
         "configure-a-shape-model-body",
+    ],
+    "simulation": [
+        "query-heights-at-contact-points",
+        "fill-a-buffer-you-own",
+        "evaluate-on-the-gpu",
+        "update-a-terrain-between-runs",
+        "randomize-a-terrain-each-episode",
+        "read-the-ground-beneath-a-layer",
     ],
     "customization": [
         "stack-noise-fractals",

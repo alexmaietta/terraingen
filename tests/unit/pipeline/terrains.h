@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief Small terrain generators built from objects, shared by the evaluation tests.
+/// @brief Small terrains built from objects, shared by the evaluation tests.
 #pragma once
 
-#include "terraingen/pipeline/generator.h"
+#include "terraingen/pipeline/terrain.h"
 #include "terraingen/terraingen.h"
 
 #include <memory>
+#include <vector>
 
 namespace terraingen::testing {
 
@@ -21,25 +22,27 @@ inline CraterModels PowerLawCraterModels() {
                         std::make_shared<FassettThomsonProfile>()};
 }
 
-/// A 96 x 64 flat source of 2 m cells at 5 m, rolling noise, then 6 to 50 m craters shaped with
-/// `apply`.
-inline TerrainGenerator Rolling(const CraterApplyOptions& apply = {}) {
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(96, 64, 2.0, 5.0f);
-    std::vector<terraingen::Fractal> noise{terraingen::Fractal{}};
-    noise[0].wavelength = 80.0f;
-    noise[0].amplitude = 6.0f;
-    terrain.layers.push_back(std::make_shared<NoiseLayer>(noise));
+/// The 6 to 50 m craters of `Rolling`, shaped with `apply`.
+inline LayerPtr RollingCraters(const CraterApplyOptions& apply = {}) {
     CraterLayerOptions options;
     options.generation.dMin = 6.0;
     options.generation.dMax = 50.0;
     options.apply = apply;
-    terrain.layers.push_back(std::make_shared<CraterLayer>(PowerLawCraterModels(), options));
-    return terrain;
+    return std::make_shared<CraterLayer>(PowerLawCraterModels(), options);
+}
+
+/// A 96 x 64 flat source of 2 m cells at 5 m, rolling noise, then 6 to 50 m craters shaped with
+/// `apply`.
+inline Terrain Rolling(const CraterApplyOptions& apply = {}) {
+    std::vector<Fractal> noise{Fractal{}};
+    noise[0].wavelength = 80.0f;
+    noise[0].amplitude = 6.0f;
+    return Terrain(Surface{}, std::make_shared<FlatSource>(96, 64, 2.0, 5.0f),
+                   {std::make_shared<NoiseLayer>(noise), RollingCraters(apply)});
 }
 
 /// `Rolling` with rounded crater rims.
-inline TerrainGenerator Smoothed() {
+inline Terrain Smoothed() {
     CraterApplyOptions apply;
     apply.rimSmoothing.sigmaRadii = 0.05;
     return Rolling(apply);
@@ -48,13 +51,11 @@ inline TerrainGenerator Smoothed() {
 /// @brief `Rolling` with its craters cut to a datum fitted to the ground.
 /// @param datum The datum.
 /// @return The terrain.
-inline TerrainGenerator Datum(CraterDatum datum = CraterDatum::Plane) {
-    TerrainGenerator terrain = Rolling();
-    CraterLayerOptions options;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 50.0;
-    options.apply.datum = datum;
-    terrain.layers.back() = std::make_shared<CraterLayer>(PowerLawCraterModels(), options);
+inline Terrain Datum(CraterDatum datum = CraterDatum::Plane) {
+    Terrain terrain = Rolling();
+    CraterApplyOptions apply;
+    apply.datum = datum;
+    terrain.SetLayer(terrain.Layers().size() - 1, RollingCraters(apply));
     return terrain;
 }
 

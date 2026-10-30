@@ -190,10 +190,17 @@ TEST(Cli, GeneratesOnTheChosenBackend) {
     }
 }
 
-TEST(Cli, HasNoGui) {
-    EXPECT_EQ(Cli({"--help"}).out.find("--gui"), std::string::npos);
-    EXPECT_EQ(Cli({"--gui"}).code, kExitUsage);
-    EXPECT_EQ(Cli({"a.json", "--gui"}).code, kExitUsage);
+TEST(Cli, WarnsThatTheGuiIsNotAvailableYet) {
+    const std::string warning = "the GUI is still in work and not available yet";
+    EXPECT_NE(Cli({"--help"}).out.find("--gui"), std::string::npos);
+    const Result alone = Cli({"--gui"});
+    EXPECT_EQ(alone.code, kExitSuccess);
+    EXPECT_NE(alone.err.find(warning), std::string::npos);
+    const Result version = Cli({"--gui", "--version"});
+    EXPECT_EQ(version.code, kExitSuccess) << "the rest of the command still runs";
+    EXPECT_NE(version.err.find(warning), std::string::npos);
+    EXPECT_NE(version.out.find("TerrainGen"), std::string::npos);
+    EXPECT_EQ(Cli({"--version"}).err.find(warning), std::string::npos);
 }
 
 TEST(Cli, ValidatesAConfigAndReportsItsGridAndCraters) {

@@ -32,9 +32,9 @@ def figure(quick=False):
         for row, octaves in enumerate((1, 5)):
             noise = terraingen.Fractal(seed=5, wavelength=100.0, amplitude=10.0, octaves=octaves, basis=basis)
             relief = terraingen.NoiseLayer(noise)
-            terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
+            terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief])
             ax = axes[row, column]
-            heights = terraingen.evaluate(terrain).values
+            heights = terrain.evaluate().values
             if octaves == 1:
                 gallery.show_heights(ax, heights, pixel)
             else:

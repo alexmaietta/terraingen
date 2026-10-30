@@ -16,9 +16,9 @@ def list_boulders_from_a_config(output_folder):
     config = terraingen.TerrainGenConfig.from_dict(CONFIG)
 
     # --8<-- [start:list_boulders_from_a_config]
-    terrain = terraingen.build_generator(config)
+    terrain = terraingen.build_terrain(config)
     site = terraingen.RasterGrid.centered((0.0, 0.0), (100.0, 100.0), 0.5)  # meters
-    placed = terraingen.placed_boulders(terrain, site)
+    placed = terrain.boulders(site)
     table = placed.table  # NumPy columns x, y, ground, diameter, height, burial, yaw_deg, ...
     placed.write_list(output_folder / "boulders.json")
     # --8<-- [end:list_boulders_from_a_config]

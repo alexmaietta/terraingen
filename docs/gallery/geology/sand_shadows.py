@@ -31,7 +31,7 @@ def figure(quick=False):
     options.sizes = sizes
     boulders = terraingen.BoulderLayer(options)
     source = terraingen.FlatSource(size, size, pixel)
-    bare = terraingen.evaluate(terraingen.TerrainGenerator(source, [ground, boulders])).values
+    bare = terraingen.Terrain(source=source, layers=[ground, boulders]).evaluate().values
     light = LightSource(azdeg=180, altdeg=25)
 
     fig, axes = plt.subplots(2, len(RATIOS), figsize=(18, 9.4), layout="constrained")
@@ -41,7 +41,7 @@ def figure(quick=False):
             layers.append(
                 terraingen.SandShadowLayer(boulders, terraingen.SandShadowOptions(length_ratio=ratio))
             )
-        heights = terraingen.evaluate(terraingen.TerrainGenerator(source, layers)).values
+        heights = terraingen.Terrain(source=source, layers=layers).evaluate().values
         axes[0, column].imshow(light.hillshade(heights, dx=pixel, dy=pixel), cmap="gray", vmin=0, vmax=1)
         axes[0, column].set_axis_off()
         axes[0, column].set_title("No sand shadows" if ratio is None else f"Tails {ratio:g} times as long")

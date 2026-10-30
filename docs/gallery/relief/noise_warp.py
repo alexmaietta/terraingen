@@ -32,7 +32,7 @@ def figure(quick=False):
             warp_wavelength=150.0,
         )
         relief = terraingen.NoiseLayer([layer])
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief])
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
         ax.set_title("No warp" if warp == 0.0 else f"Warped up to {warp:g} m")
     return fig

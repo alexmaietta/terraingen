@@ -3,6 +3,7 @@
 #include "bindings.h"
 #include "common.h"
 
+#include "terraingen/io/report_json.h"
 #include "terraingen/pipeline/report.h"
 
 #include <cstdint>

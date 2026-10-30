@@ -12,11 +12,11 @@ namespace {
 /// by the second (0 for every hardware thread).
 void BM_EvaluateGrid(benchmark::State& state) {
     const auto side = static_cast<double>(state.range(0));
-    const TerrainGenerator terrain = LunarMare(side, 1.0);
-    const RasterGrid grid = terrain.source->Grid();
-    const EvaluationOptions options{0.0, static_cast<unsigned>(state.range(1))};
+    const Terrain terrain = LunarMare(side, 1.0);
+    const RasterGrid grid = SourceGrid(terrain);
+    const auto options = EvaluationOptions{}.Threads(static_cast<unsigned>(state.range(1)));
     for (auto _ : state) {
-        benchmark::DoNotOptimize(Evaluate(terrain, grid, options));
+        benchmark::DoNotOptimize(terrain.Evaluate(grid, options));
     }
     state.SetItemsProcessed(state.iterations() *
                             static_cast<std::int64_t>(grid.width * grid.height));
@@ -30,12 +30,12 @@ BENCHMARK(BM_EvaluateGrid)
 /// `BM_EvaluateGrid` on a lunar-sized sphere at the equator, 1 m cells along a meridian.
 void BM_EvaluateGridSphere(benchmark::State& state) {
     const auto side = static_cast<double>(state.range(0));
-    const TerrainGenerator terrain =
+    const Terrain terrain =
         LunarMare(side, 1.0, 200.0, 4000000, CraterDatum::None, Surface::Sphere(1737400.0));
-    const RasterGrid grid = terrain.source->Grid();
-    const EvaluationOptions options{0.0, static_cast<unsigned>(state.range(1))};
+    const RasterGrid grid = SourceGrid(terrain);
+    const auto options = EvaluationOptions{}.Threads(static_cast<unsigned>(state.range(1)));
     for (auto _ : state) {
-        benchmark::DoNotOptimize(Evaluate(terrain, grid, options));
+        benchmark::DoNotOptimize(terrain.Evaluate(grid, options));
     }
     state.SetItemsProcessed(state.iterations() *
                             static_cast<std::int64_t>(grid.width * grid.height));
@@ -68,13 +68,12 @@ void BM_EvaluateNoiseGrid(benchmark::State& state) {
     noise[2].basis = NoiseBasis::Simplex;
     noise[2].wavelength = 60.0f;
     noise[2].amplitude = 2.0f;
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(cells, cells, 1.0);
-    terrain.layers.push_back(std::make_shared<NoiseLayer>(noise));
-    const RasterGrid grid = terrain.source->Grid();
-    const EvaluationOptions options{0.0, 0, backend};
+    const Terrain terrain(Surface{}, std::make_shared<FlatSource>(cells, cells, 1.0),
+                          {std::make_shared<NoiseLayer>(noise)});
+    const RasterGrid grid = SourceGrid(terrain);
+    const auto options = EvaluationOptions{}.On(backend);
     for (auto _ : state) {
-        benchmark::DoNotOptimize(Evaluate(terrain, grid, options));
+        benchmark::DoNotOptimize(terrain.Evaluate(grid, options));
     }
     state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(cells * cells));
 }

@@ -34,8 +34,12 @@ terraingen::AlbedoContext OnGround(double spacing, const terraingen::Ground* gro
 class Tilted final : public terraingen::Ground {
   public:
     explicit Tilted(double degrees) : gradient_(std::tan(degrees * terraingen::kPi / 180.0)) {}
-    float HeightAt(double x, double, double) const override {
-        return static_cast<float>(gradient_ * x);
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = static_cast<float>(gradient_ * samples.Position(i).x);
+        }
     }
 
   private:
@@ -44,9 +48,12 @@ class Tilted final : public terraingen::Ground {
 
 /// A bowl whose walls steepen away from the origin.
 class Bowl final : public terraingen::Ground {
-  public:
-    float HeightAt(double x, double y, double) const override {
-        return static_cast<float>(0.02 * (x * x + y * y));
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const terraingen::Vec2d p = samples.Position(i);
+            samples.Height(i) = static_cast<float>(0.02 * (p.x * p.x + p.y * p.y));
+        }
     }
 };
 
@@ -123,4 +130,27 @@ TEST(SlopeAlbedo, RejectsBadOptions) {
         change(options);
         EXPECT_THROW(terraingen::ValidateSlopeAlbedoOptions(options), std::invalid_argument);
     }
+}
+
+TEST(SlopeAlbedo, ReadsSlopesInMetersOnTheGivenSurface) {
+    const terraingen::Surface sphere = terraingen::Surface::Sphere(1737400.0);
+    class EastSlope final : public terraingen::Ground {
+      public:
+        explicit EastSlope(const terraingen::Surface& surface) : surface_(surface) {}
+
+      protected:
+        void FillSamples(terraingen::SampleBlock& samples, double) const override {
+            for (std::size_t i = 0; i < samples.Size(); ++i) {
+                samples.Height(i) =
+                    static_cast<float>(0.5 * surface_.Offset({30.0, 60.0}, samples.Position(i)).x);
+            }
+        }
+
+      private:
+        const terraingen::Surface& surface_;
+    } ground(sphere);
+    const SlopeAlbedo slopes;
+    const double expected = std::atan(0.5) * 180.0 / terraingen::kPi;
+    EXPECT_NEAR(slopes.SlopeAt(30.0, 60.0, ground, sphere), expected, 0.5);
+    EXPECT_GT(slopes.SlopeAt(30.0, 60.0, ground), 80.0) << "degrees read as meters on a plane";
 }

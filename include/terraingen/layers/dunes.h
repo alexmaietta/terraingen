@@ -4,17 +4,14 @@
 /// @brief `DuneLayer`, dune fields of barchans, domes or crest-line dunes, with ripples on them.
 #pragma once
 
-#include "terraingen/layers/anchored_plane.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/fade.h"
-#include "terraingen/layers/field.h"
 #include "terraingen/layers/layer.h"
 #include "terraingen/layers/material.h"
 #include "terraingen/random/stream.h"
-#include "terraingen/sources/source.h"
-#include "terraingen/util/geometry.h"
 
 #include <cstdint>
-#include <memory>
 #include <optional>
 
 namespace terraingen {
@@ -193,25 +190,27 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
   public:
     /// Builds the layer; on a body dunes lie in the tangent frame of `options.anchor`.
     /// @throws std::invalid_argument as `ValidateDuneOptions`.
-    explicit DuneLayer(DuneOptions options, TerrainBase base = {});
+    explicit DuneLayer(DuneOptions options);
 
-    /// The dunes' height at world (x, y), without ripples (m).
-    double DuneHeightAt(double x, double y) const;
+    /// The dunes' height at world (x, y) on `surface`, without ripples (m).
+    double DuneHeightAt(double x, double y, const Surface& surface = {}) const;
 
     /// The options the layer was made with.
     const DuneOptions& Options() const {
         return options_;
     }
 
+    /// The layer with its seed `ReseedWord(seed, 0)`.
+    LayerPtr Reseeded(std::uint64_t seed) const override;
+
     MaterialClass Material() const override {
         return MaterialClass::Sand;
     }
     /// How fully dune sand covers (x, y): the dunes, and with ripples their `interduneCover`.
-    double MaterialCoverAt(double x, double y, double spacing, const Ground* ground) const override;
+    double MaterialCoverAt(double x, double y, const LayerContext& context) const override;
 
   protected:
-    float HeightAt(float height, double x, double y, double spacing,
-                   const Ground* ground) const override;
+    float HeightAt(float height, double x, double y, const LayerContext& context) const override;
 
   private:
     double Height(const Vec2d& q) const;
@@ -254,8 +253,6 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     void AddGrainflow(double& relief, RandomStream& random, double s, double n) const;
 
     DuneOptions options_;
-    std::shared_ptr<const SurfaceField> limit_;  ///< `SourceResolvedLimit`; null for none.
-    AnchoredPlane plane_;
     Vec2d wind_{1.0, 0.0};
     std::int64_t rings_ = 1;
     std::uint32_t defectSeed_ = 0;  ///< Seed of the noise of defects along crests.

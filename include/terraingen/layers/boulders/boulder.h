@@ -5,7 +5,7 @@
 /// one placed by hand.
 #pragma once
 
-#include "terraingen/util/geometry.h"
+#include "terraingen/geometry/geometry.h"
 
 #include <array>
 #include <cmath>

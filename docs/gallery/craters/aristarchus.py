@@ -72,8 +72,8 @@ def figure(quick=False):
     )
     crater = terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0, id=31)
     layer = terraingen.CraterLayer.manual([crater], models, apply=aristarchus_apply())
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [plains(), layer])
-    heights = terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[plains(), layer])
+    heights = terrain.evaluate().values
 
     fig, ax = plt.subplots(figsize=(7, 7), layout="constrained")
     gallery.show_low_sun(ax, heights, pixel, sun_elevation=12.0)

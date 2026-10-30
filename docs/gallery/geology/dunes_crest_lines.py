@@ -31,9 +31,9 @@ def figure(quick=False):
     fig, axes = plt.subplots(2, 3, figsize=(14, 9), layout="constrained")
     for ax, (title, fields) in zip(axes.flat, PANELS, strict=True):
         options = terraingen.DuneOptions(shape=terraingen.DuneShape.TRANSVERSE, seed=3, **fields)
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [terraingen.DuneLayer(options)]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[terraingen.DuneLayer(options)]
         )
-        gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel, cmap="copper")
+        gallery.show_heights(ax, terrain.evaluate().values, pixel, cmap="copper")
         ax.set_title(title)
     return fig

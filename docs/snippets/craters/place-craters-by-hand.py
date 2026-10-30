@@ -40,8 +40,8 @@ def figure(quick=False):
     pixel = 0.4 if quick else 0.1
     columns = int((REGION[2] - REGION[0]) / pixel) + 1
     rows = int((REGION[3] - REGION[1]) / pixel) + 1
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(columns, rows, pixel), [craters])
-    heights = terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(columns, rows, pixel), layers=[craters])
+    heights = terrain.evaluate().values
     labels = [f"{f + r:.1f} m deep" for f, r in zip(table["floor_depth"], table["rim_height"], strict=True)]
     fig, ax = plt.subplots(figsize=(7.5, 3.2), layout="constrained")
     gallery.show_crater_row(ax, heights, pixel, labels, 30.0)

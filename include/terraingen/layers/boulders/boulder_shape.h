@@ -91,9 +91,12 @@ struct BoulderShapeOptions {
     }
 };
 
-/// Checks boulder shape options.
-/// @throws std::invalid_argument for no styles, zero total weight, any field outside the range
-/// its comment gives, or a library mesh that is null, invalid or flat along an axis.
+/// Checks boulder shape options against their field ranges (`CheckRanges`) and what ties them
+/// together: ordered value ranges within their bounds, fracture counts in order and weights not
+/// all zero.
+/// @throws std::invalid_argument naming the first field out of its range, or for a value range
+/// out of order or bounds, zero total weight, or a library mesh that is null, invalid or flat
+/// along an axis.
 void ValidateBoulderShapeOptions(const BoulderShapeOptions& options);
 
 /// A boulder's shape in unit form, with the origin inside it.

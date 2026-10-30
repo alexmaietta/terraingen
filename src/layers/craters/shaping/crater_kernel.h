@@ -4,11 +4,11 @@
 /// @brief Prepared craters turned into the records the crater kernel shapes.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/prepared.h"
 #include "terraingen/layers/kernels/craters.h"
-#include "terraingen/util/surface.h"
 
 #include <cstdint>
 #include <memory>

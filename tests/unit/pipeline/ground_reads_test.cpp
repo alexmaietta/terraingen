@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "terraingen/layers/layer.h"
-#include "terraingen/pipeline/generator.h"
+#include "terraingen/pipeline/terrain.h"
 
 #include <gtest/gtest.h>
 
@@ -11,12 +11,12 @@
 #include <memory>
 #include <vector>
 
+using terraingen::EvaluationOptions;
 using terraingen::GeoTransform;
-using terraingen::Ground;
 using terraingen::LayerContext;
 using terraingen::RasterGrid;
 using terraingen::SampleBlock;
-using terraingen::TerrainGenerator;
+using terraingen::Terrain;
 using terraingen::Vec2d;
 
 namespace {
@@ -56,10 +56,10 @@ class Ring final : public terraingen::FormulaLayer {
     }
 
   protected:
-    float HeightAt(float height, double x, double y, double spacing,
-                   const Ground* ground) const override {
-        return After(height, x, y,
-                     [&](double px, double py) { return ground->HeightAt(px, py, spacing); });
+    float HeightAt(float height, double x, double y, const LayerContext& context) const override {
+        return After(height, x, y, [&](double px, double py) {
+            return context.ground->HeightAt(px, py, context.spacing);
+        });
     }
 };
 
@@ -70,7 +70,7 @@ float WaveGround(double x, double y) {
 
 struct Stack {
     std::shared_ptr<Wave> wave = std::make_shared<Wave>();
-    TerrainGenerator terrain{nullptr, {wave, std::make_shared<Ring>()}, {}};
+    Terrain terrain{terraingen::Surface{}, nullptr, {wave, std::make_shared<Ring>()}};
 };
 
 }  // namespace
@@ -78,7 +78,7 @@ struct Stack {
 TEST(GroundReads, AGridReadsTheGroundBeneathALayerInBatchesToTheSameBits) {
     const Stack stack;
     const RasterGrid grid{30, 30, GeoTransform::NorthUp(-30.0, 30.0, 2.0)};
-    const auto heights = terraingen::Evaluate(stack.terrain, grid, 2.0);
+    const auto heights = stack.terrain.Evaluate(grid, EvaluationOptions{}.Spacing(2.0));
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             const Vec2d c = heights.CellCenter(col, row);
@@ -96,16 +96,17 @@ TEST(GroundReads, PointsReadTheGroundBeneathALayerInBatchesToTheSameBits) {
     for (int i = 0; i < 1000; ++i) {
         points.push_back({0.37 * i - 150.0, 0.11 * (i % 97) - 5.0});
     }
-    const std::vector<float> heights = terraingen::HeightsAt(stack.terrain, points, 2.0, 1);
+    std::vector<float> heights(points.size());
+    stack.terrain.HeightsAt(points, heights, 2.0, 1);
     for (std::size_t i = 0; i < points.size(); ++i) {
         const Vec2d p = points[i];
         ASSERT_EQ(heights[i], Ring::After(WaveGround(p.x, p.y), p.x, p.y, WaveGround))
             << "point " << i;
     }
     EXPECT_LT(stack.wave->blocks.load(), 100u);
-    const auto grid =
-        terraingen::Evaluate(stack.terrain, {4, 3, GeoTransform::NorthUp(10.0, 20.0, 2.0)}, 2.0);
+    const auto grid = stack.terrain.Evaluate({4, 3, GeoTransform::NorthUp(10.0, 20.0, 2.0)},
+                                             EvaluationOptions{}.Spacing(2.0));
     const Vec2d c = grid.CellCenter(2, 1);
-    EXPECT_EQ(terraingen::HeightAt(stack.terrain, c.x, c.y, 2.0), grid(2, 1))
+    EXPECT_EQ(stack.terrain.HeightAt(c.x, c.y, 2.0), grid(2, 1))
         << "a point still equals the grid cell centered there";
 }

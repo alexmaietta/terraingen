@@ -24,7 +24,7 @@ def figure(quick=False):
     for ax, gain in zip(axes, GAINS, strict=True):
         noise = terraingen.Fractal(seed=5, wavelength=200.0, amplitude=20.0, octaves=8, gain=gain)
         relief = terraingen.NoiseLayer(noise)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
-        gallery.show_slopes(ax, terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief])
+        gallery.show_slopes(ax, terrain.evaluate().values, pixel)
         ax.set_title(f"Gain {gain:g}")
     return fig

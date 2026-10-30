@@ -36,8 +36,8 @@ def crater_heights(size, pixel, upslope_rim):
         slope.upslope_rim = upslope_rim
     apply.slope = slope
     crater = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)], apply=apply)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [hillside, crater])
-    return terraingen.evaluate(terrain).values
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[hillside, crater])
+    return terrain.evaluate().values
 
 
 def figure(quick=False):

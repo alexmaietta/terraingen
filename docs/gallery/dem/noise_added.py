@@ -31,7 +31,7 @@ OCTAVES_M = [16000.0, 8000.0, 4000.0, 2000.0, 1000.0]
 COLORS = ["#555555", "#d62728", "#1f77b4", "#2ca02c"]
 
 
-def octave_stack(moon, source, resolves):
+def octave_stack(resolves):
     """fBm octaves from 16 km to 1 km, 250 m high at 8 km, those `resolves` or more of the source's
     posts long left out (None keeps every octave)."""
     fractals = [
@@ -46,7 +46,7 @@ def octave_stack(moon, source, resolves):
     options = terraingen.NoiseLayerOptions()
     options.fractals = fractals
     options.source_resolves_px = resolves
-    return terraingen.NoiseLayer(options, terraingen.TerrainBase(moon, source))
+    return terraingen.NoiseLayer(options)
 
 
 def figure(quick=False):
@@ -75,13 +75,12 @@ def figure(quick=False):
     continuation = terraingen.SpectralContinuationLayer(
         terraingen.SpectralContinuationOptions(
             pixel_size=post_m, slope=fit.slope, octave_rms=fit.octave_rms, min_wavelength=pixel_m, seed=4
-        ),
-        terraingen.TerrainBase(moon, source),
+        )
     )
     panels = [
         ("LDEM_8, cubic", []),
-        ("fBm octaves everywhere", [octave_stack(moon, source, None)]),
-        ("Only octaves finer than 2 posts", [octave_stack(moon, source, 2.0)]),
+        ("fBm octaves everywhere", [octave_stack(None)]),
+        ("Only octaves finer than 2 posts", [octave_stack(2.0)]),
         (
             f"Spectral continuation, slope {fit.slope:.2f}" + (" (clipped)" if fit.clipped else ""),
             [continuation],
@@ -95,9 +94,7 @@ def figure(quick=False):
     grid = fig.add_gridspec(2, len(panels), height_ratios=[1, 0.75])
     spectrum_ax = fig.add_subplot(grid[1, :])
     for column, ((title, layers), color) in enumerate(zip(panels, COLORS, strict=True)):
-        refined = terraingen.evaluate(
-            terraingen.TerrainGenerator(source, layers, surface=moon), grid=window
-        ).values
+        refined = terraingen.Terrain(moon, source, layers).evaluate(window).values
         ax = fig.add_subplot(grid[0, column])
         gallery.show_hillshade(ax, refined, pixel_m, sun_elevation=20.0)
         ax.set_title(title, color=color)

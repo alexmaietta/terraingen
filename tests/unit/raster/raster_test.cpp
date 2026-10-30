@@ -93,18 +93,16 @@ TEST(Raster, KeepsNoData) {
 TEST(Raster, BorrowsACallersCellsAndCopiesIntoItsOwn) {
     std::vector<float> cells(6, 1.0f);
     Raster<float> view(3, 2, terraingen::Span<float>(cells));
-    EXPECT_TRUE(view.Borrows());
+    EXPECT_EQ(view.Values().data(), cells.data());
     view(2, 1) = 5.0f;
     EXPECT_EQ(cells[5], 5.0f) << "writes reach the caller's buffer";
     EXPECT_EQ(view.Row(1)[2], 5.0f);
     Raster<float> copy = view;
-    EXPECT_FALSE(copy.Borrows());
+    EXPECT_NE(copy.Values().data(), cells.data());
     copy(0, 0) = 7.0f;
     EXPECT_EQ(cells[0], 1.0f) << "a copy owns its cells";
     Raster<float> moved = std::move(view);
-    EXPECT_TRUE(moved.Borrows());
     EXPECT_EQ(moved.Values().data(), cells.data());
     EXPECT_TRUE(view.Empty());
-    EXPECT_FALSE(Raster<float>(2, 2).Borrows());
     EXPECT_THROW(Raster<float>(4, 2, terraingen::Span<float>(cells)), std::invalid_argument);
 }

@@ -4,11 +4,11 @@
 /// @brief Crater datums, the surfaces crater interiors are cut to, fitted to the ground.
 #pragma once
 
+#include "terraingen/geometry/plane_fit.h"
 #include "terraingen/layers/craters/profiles/profile.h"
 #include "terraingen/layers/craters/shaping/apply_options.h"
 #include "terraingen/layers/craters/shaping/prepared.h"
 #include "terraingen/layers/ground.h"
-#include "terraingen/util/plane_fit.h"
 
 #include <cstddef>
 #include <functional>

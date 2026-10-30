@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/roughness.h"
 
+#include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
 
 #include <gtest/gtest.h>
@@ -134,4 +135,15 @@ TEST(RoughnessLayer, LeavesMissingCellsAndRejectsBadSpacings) {
     layer.Apply(heights, {});
     EXPECT_EQ(heights(1, 2), -9999.0f);
     EXPECT_NE(heights(0, 0), 0.0f);
+}
+
+TEST(RoughnessLayer, ReseedsItsOctaves) {
+    const RoughnessLayer layer({});
+    const terraingen::LayerPtr a = layer.Reseeded(21);
+    EXPECT_EQ(dynamic_cast<const RoughnessLayer&>(*a).Options().seed,
+              terraingen::ReseedWord(21, 0));
+    const float h = a->ApplyAt(0.0f, 1.3, 2.7, {0.01});
+    EXPECT_EQ(h, layer.Reseeded(21)->ApplyAt(0.0f, 1.3, 2.7, {0.01}));
+    EXPECT_NE(h, layer.Reseeded(22)->ApplyAt(0.0f, 1.3, 2.7, {0.01}));
+    EXPECT_NE(h, layer.ApplyAt(0.0f, 1.3, 2.7, {0.01}));
 }

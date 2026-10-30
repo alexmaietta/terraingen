@@ -4,10 +4,10 @@
 /// @brief Irregular, non-circular crater outlines: elongation and rough rims.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/kernels/craters.h"
 #include "terraingen/random/value_distribution.h"
-#include "terraingen/util/surface.h"
 
 #include <cstdint>
 #include <optional>
@@ -92,8 +92,8 @@ struct CraterIrregularity {
 };
 
 /// Checks irregularity settings.
-/// @throws std::invalid_argument for any field outside the range its comment gives, or a
-/// roughness or mark amplitude large enough to fold the rim or wall.
+/// @throws std::invalid_argument for a field outside its range (`CheckRanges`), harmonics or marks
+/// out of order, or a roughness or mark amplitude large enough to fold the rim or wall.
 void ValidateCraterIrregularity(const CraterIrregularity& irregularity);
 
 /// One crater's outline: the factor its rim radius and profile are stretched by in each

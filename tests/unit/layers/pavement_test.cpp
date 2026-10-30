@@ -2,6 +2,7 @@
 
 #include "terraingen/layers/pavement.h"
 
+#include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
 
 #include <gtest/gtest.h>
@@ -33,17 +34,30 @@ PavementOptions Stepped() {
 class Tilted final : public terraingen::Ground {
   public:
     explicit Tilted(double slope) : slope_(slope) {}
-    float HeightAt(double x, double, double) const override {
-        return static_cast<float>(slope_ * x);
+
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = static_cast<float>(slope_ * samples.Position(i).x);
+        }
     }
 
   private:
     double slope_;
 };
 
-/// The pavement's relief at (x, y) with every octave and crack resolved.
-double Relief(const PavementLayer& layer, double x, double y) {
-    return static_cast<double>(layer.ApplyAt(0.0f, x, y, {1e-4}));
+/// The context of a point query at `spacing` meters on `surface` over `ground`.
+terraingen::LayerContext At(double spacing, const terraingen::Surface& surface,
+                            const terraingen::Ground* ground = nullptr) {
+    terraingen::LayerContext context{spacing, 1, ground};
+    context.surface = &surface;
+    return context;
+}
+
+/// The pavement's relief at (x, y) on `surface` with every octave and crack resolved.
+double Relief(const PavementLayer& layer, double x, double y,
+              const terraingen::Surface& surface = {}) {
+    return static_cast<double>(layer.ApplyAt(0.0f, x, y, At(1e-4, surface)));
 }
 
 }  // namespace
@@ -123,9 +137,9 @@ TEST(PavementLayer, ShowsOnExposedBedrockAndLaysIt) {
     const Tilted level(0.0);
     const Tilted steep(0.8);
     EXPECT_EQ(layer.Material(), terraingen::MaterialClass::Bedrock);
-    EXPECT_EQ(layer.MaterialCoverAt(0.3, 0.3, 0.01, &level), 0.0);
-    EXPECT_EQ(layer.MaterialCoverAt(0.3, 0.3, 0.01, &steep), 1.0);
-    EXPECT_THROW(layer.MaterialCoverAt(0.3, 0.3, 0.01, nullptr), std::invalid_argument);
+    EXPECT_EQ(layer.MaterialCoverAt(0.3, 0.3, {0.01, 1, &level}), 0.0);
+    EXPECT_EQ(layer.MaterialCoverAt(0.3, 0.3, {0.01, 1, &steep}), 1.0);
+    EXPECT_THROW(layer.MaterialCoverAt(0.3, 0.3, {0.01}), std::invalid_argument);
     double change = 0.0;
     for (double x = 0.0; x < 3.0; x += 0.013) {
         change = std::max(
@@ -135,7 +149,7 @@ TEST(PavementLayer, ShowsOnExposedBedrockAndLaysIt) {
     const float on = layer.ApplyAt(0.0f, 0.3, 0.3, {0.01, 1, &steep});
     EXPECT_EQ(on, PavementLayer(Stepped()).ApplyAt(0.0f, 0.3, 0.3, {0.01}));
     EXPECT_THROW(layer.ApplyAt(0.0f, 0.3, 0.3, {0.01}), std::invalid_argument);
-    EXPECT_EQ(PavementLayer(Stepped()).MaterialCoverAt(0.3, 0.3, 0.01, nullptr), 1.0);
+    EXPECT_EQ(PavementLayer(Stepped()).MaterialCoverAt(0.3, 0.3, {0.01}), 1.0);
 }
 
 TEST(PavementLayer, GridsAndPointsAgree) {
@@ -158,13 +172,28 @@ TEST(PavementLayer, LaysPlatesOutInTheAnchorsFrameOnABody) {
     const terraingen::Surface mars = terraingen::Surface::Sphere(3389500.0);
     PavementOptions options = Stepped();
     options.anchor = {137.4, -4.6};
-    const PavementLayer body(options, mars);
-    const PavementLayer plane(options);
+    const PavementLayer layer(options);
     const terraingen::Vec2d point{137.40001, -4.59998};
     const terraingen::Vec2d offset = mars.Offset(options.anchor, point);
-    EXPECT_NEAR(Relief(body, point.x, point.y), Relief(plane, offset.x, offset.y), 1e-7);
-    EXPECT_EQ(Relief(body, -42.6, 4.6), 0.0);
-    EXPECT_EQ(body.ApplyAt(2.0f, -42.6, 4.6, {0.01}), 2.0f);
+    EXPECT_NEAR(Relief(layer, point.x, point.y, mars), Relief(layer, offset.x, offset.y), 1e-7);
+    EXPECT_EQ(Relief(layer, -42.6, 4.6, mars), 0.0);
+    EXPECT_EQ(layer.ApplyAt(2.0f, -42.6, 4.6, At(0.01, mars)), 2.0f);
+    EXPECT_EQ(layer.MaterialCoverAt(-42.6, 4.6, At(0.01, mars)), 0.0);
+}
+
+TEST(PavementLayer, ReseedsItsPlates) {
+    const PavementLayer layer(Stepped());
+    const terraingen::LayerPtr a = layer.Reseeded(5);
+    const terraingen::LayerPtr b = layer.Reseeded(5);
+    const terraingen::LayerPtr c = layer.Reseeded(6);
+    double differ = 0.0;
+    for (double x = 0.0; x < 3.0; x += 0.05) {
+        const float ra = a->ApplyAt(0.0f, x, 0.37, {1e-4});
+        EXPECT_EQ(ra, b->ApplyAt(0.0f, x, 0.37, {1e-4}));
+        differ += std::fabs(static_cast<double>(ra - c->ApplyAt(0.0f, x, 0.37, {1e-4})));
+    }
+    EXPECT_GT(differ, 0.0);
+    EXPECT_EQ(dynamic_cast<const PavementLayer&>(*a).Options().seed, terraingen::ReseedWord(5, 0));
 }
 
 TEST(PavementLayer, OldSoakerRidgesAndRejectsBadOptions) {

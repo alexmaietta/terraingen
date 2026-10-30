@@ -5,19 +5,21 @@
 #include "layers/boulders/boulder_clusters.h"
 #include "layers/craters/generation/cell_cache.h"
 
+#include "terraingen/geometry/cells.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/source_resolved.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
-#include "terraingen/util/cells.h"
 #include "terraingen/util/parallel.h"
 #include "terraingen/util/span.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -36,19 +38,29 @@ class CandidateGround final : public Ground {
                     double spacing)
         : ground_(ground), points_(points), heights_(heights), spacing_(spacing) {}
 
-    float HeightAt(double x, double y, double spacing) const override {
+  protected:
+    void FillSamples(SampleBlock& samples, double spacing) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            const Vec2d p = samples.Position(i);
+            const std::optional<float> held = Held(p, spacing);
+            samples.Height(i) = held ? *held : ground_.HeightAt(p.x, p.y, spacing);
+        }
+    }
+
+  private:
+    /// The height read up front at `p` and `spacing`, if any.
+    std::optional<float> Held(const Vec2d& p, double spacing) const {
         if (spacing == spacing_) {
             for (std::size_t n = 0; n < points_.size(); ++n) {
-                if (BitCast<std::uint64_t>(points_[n].x) == BitCast<std::uint64_t>(x) &&
-                    BitCast<std::uint64_t>(points_[n].y) == BitCast<std::uint64_t>(y)) {
+                if (BitCast<std::uint64_t>(points_[n].x) == BitCast<std::uint64_t>(p.x) &&
+                    BitCast<std::uint64_t>(points_[n].y) == BitCast<std::uint64_t>(p.y)) {
                     return heights_[n];
                 }
             }
         }
-        return ground_.HeightAt(x, y, spacing);
+        return std::nullopt;
     }
 
-  private:
     const Ground& ground_;
     Span<const Vec2d> points_;
     Span<const float> heights_;
@@ -113,7 +125,7 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options,
     if (options_.cacheBoulders > 0) {
         cache_ = std::make_shared<CraterCellCache>(options_.cacheBoulders);
     }
-    exposure_ = LayerExposure(options_.bedrock.exposure, options_.groundSpacing, surface_,
+    exposure_ = LayerExposure(options_.bedrock.exposure, options_.groundSpacing,
                               "Boulders that read the exposure field");
     if (exposure_ && options_.densityMap) {
         SetUpBedrockMeans();
@@ -130,6 +142,24 @@ std::shared_ptr<BoulderLayer> BoulderLayer::Manual(std::vector<ManualBoulder> bo
     options.manual = std::move(boulders);
     return std::make_shared<BoulderLayer>(std::move(options), std::shared_ptr<const CraterLayer>{},
                                           std::move(base));
+}
+
+LayerPtr BoulderLayer::Reseeded(std::uint64_t seed) const {
+    BoulderLayerOptions options = options_;
+    options.seed = ReseedWord(seed, 0);
+    options.rendering.shapes.seed = ReseedWord(seed, 1);
+    return std::make_shared<BoulderLayer>(std::move(options), craters_, TerrainBase{surface_});
+}
+
+LayerPtr BoulderLayer::Rebound(const LayerReplacements& replaced) const {
+    std::vector<std::shared_ptr<const CraterLayer>> craters;
+    for (const std::shared_ptr<const CraterLayer>& layer : craters_) {
+        craters.push_back(Replacement(layer, replaced));
+    }
+    if (craters == craters_) {
+        return nullptr;
+    }
+    return std::make_shared<BoulderLayer>(options_, std::move(craters), TerrainBase{surface_});
 }
 
 double BoulderLayer::MaxFeatureDiameter() const {

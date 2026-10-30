@@ -12,14 +12,14 @@ def brighten_the_albedo_with_rocks():
     sizes.distribution = terraingen.sp8023_intercrater_blocks(terraingen.SpecificationCurve.MAXIMUM)
     options.sizes = sizes
     boulders = terraingen.BoulderLayer(options)
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(401, 401, PIXEL), [boulders])
+    terrain = terraingen.Terrain(source=terraingen.FlatSource(401, 401, PIXEL), layers=[boulders])
     # --8<-- [start:brighten_the_albedo_with_rocks]
     rocks = terraingen.RockAlbedo(
         terraingen.RockAlbedoOptions(seed=1, reflectance_ratio=2.5), terrain, layers=[0]
     )
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [rocks])
-    grid = terraingen.RasterGrid.from_raster(terraingen.evaluate(terrain))
-    (bands,) = terraingen.evaluate_albedo(albedo, grid, generator=terrain)
+    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
+    (bands,) = terraingen.evaluate_albedo(albedo, grid, ground=terrain)
     # --8<-- [end:brighten_the_albedo_with_rocks]
     return bands.values
 

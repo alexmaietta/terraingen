@@ -42,10 +42,10 @@ def figure(quick=False):
     fresh_ax.legend(loc="upper right")
 
     size = int(SIZE_M / (4.0 if quick else 1.0)) + 1
-    terrain = terraingen.TerrainGenerator(
-        terraingen.FlatSource(size, size, SIZE_M / (size - 1)), [terraingen.CraterLayer()]
+    terrain = terraingen.Terrain(
+        source=terraingen.FlatSource(size, size, SIZE_M / (size - 1)), layers=[terraingen.CraterLayer()]
     )
-    placed = terraingen.placed_craters(terrain)
+    placed = terrain.craters()
     craters = np.asarray(placed.table["diameter"])
     ratios = np.array([a.depth_ratio for a in placed.attributes])
     freshness = np.array([a.freshness for a in placed.attributes])

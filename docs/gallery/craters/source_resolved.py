@@ -29,9 +29,9 @@ def figure(quick=False):
             seed=21, generation=terraingen.CraterGenerationOptions(d_min=30.0, d_max=200.0)
         )
     )
-    dem = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(posts, posts, POST_SPACING), [relief, dem_craters])
-    )
+    dem = terraingen.Terrain(
+        source=terraingen.FlatSource(posts, posts, POST_SPACING), layers=[relief, dem_craters]
+    ).evaluate()
     half = 0.5 * (posts - 1) * POST_SPACING
     source = terraingen.RasterSource(
         np.ascontiguousarray(dem.values, dtype=np.float32),
@@ -57,7 +57,7 @@ def figure(quick=False):
     ]
     fig, axes = plt.subplots(1, len(panels), figsize=(16, 5.6), layout="constrained")
     for ax, (title, layers) in zip(axes, panels, strict=True):
-        heights = terraingen.evaluate(terraingen.TerrainGenerator(source, layers), grid=window).values
+        heights = terraingen.Terrain(source=source, layers=layers).evaluate(window).values
         gallery.show_hillshade(ax, heights, pixel)
         ax.set_title(title)
     return fig

@@ -27,13 +27,11 @@ TEST_F(SnippetTest, TerraceCraterWalls) {
     apply.terraces.onsetDiameter = 20000.0;  // meters
     apply.terraces.maxBenches = 4;
     const auto craters = CraterLayer::Manual({ManualCrater(0.0, 0.0, 60000.0)}, models, apply);
-    TerrainGenerator terrain;
-    terrain.source = std::make_shared<FlatSource>(221, 221, 400.0);
-    terrain.layers.push_back(craters);
-    const Raster<float> heights = Evaluate(terrain);
+    Terrain terrain(Surface{}, std::make_shared<FlatSource>(221, 221, 400.0), {craters});
+    const Raster<float> heights = terrain.Evaluate();
     // --8<-- [end:terrace_crater_walls]
-    terrain.layers = {CraterLayer::Manual({ManualCrater(0.0, 0.0, 60000.0)}, models, {})};
-    const Raster<float> plain = Evaluate(terrain);
+    terrain.SetLayer(0, CraterLayer::Manual({ManualCrater(0.0, 0.0, 60000.0)}, models, {}));
+    const Raster<float> plain = terrain.Evaluate();
     float largest = 0.0f;
     for (std::size_t i = 0; i < heights.Size(); ++i) {
         largest = std::fmax(largest, std::fabs(heights.Values()[i] - plain.Values()[i]));

@@ -27,9 +27,11 @@ def maps():
     x = (np.arange(cells) + 0.5) * MAP_PIXEL - 0.5 * SIZE_M
     east, _ = np.meshgrid(x, -x)
     noise = terraingen.NoiseLayer(seed=9, wavelength=250.0, amplitude=1.0, octaves=3)
-    pattern = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(cells, cells, MAP_PIXEL), [noise])
-    ).values
+    pattern = (
+        terraingen.Terrain(source=terraingen.FlatSource(cells, cells, MAP_PIXEL), layers=[noise])
+        .evaluate()
+        .values
+    )
     pattern = (pattern - pattern.min()) / (pattern.max() - pattern.min())
     return [
         ("Uniform", np.full((cells, cells), 0.3)),
@@ -64,10 +66,11 @@ def figure(quick=False):
             seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=60.0)
         )
         options.density_map = density_map
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [relief, terraingen.CraterLayer(models, options)]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel),
+            layers=[relief, terraingen.CraterLayer(models, options)],
         )
-        table = terraingen.placed_craters(terrain).table
+        table = terrain.craters().table
         diameters = np.asarray(table["diameter"])
         inside = (np.abs(table["x"]) <= half) & (np.abs(table["y"]) <= half)
         counted = inside & (diameters >= 5.0)
@@ -81,7 +84,7 @@ def figure(quick=False):
         )
         axes[0, column].grid(False)
         axes[0, column].set_title(title)
-        gallery.show_hillshade(axes[1, column], terraingen.evaluate(terrain).values, pixel)
+        gallery.show_hillshade(axes[1, column], terrain.evaluate().values, pixel)
         axes[1, column].set_title(f"{covered:.0%} covered, {values.mean():.0%} mapped")
     fig.colorbar(image, ax=axes[0], label="Ground covered by craters of 5 m to 60 m (%)", shrink=0.85)
     return fig

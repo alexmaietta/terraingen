@@ -2,10 +2,10 @@
 
 #include "terraingen/sources/diamond_square.h"
 
+#include "terraingen/analysis/variogram.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
-#include "terraingen/raster/variogram.h"
 #include "terraingen/sources/raster_source.h"
 #include "terraingen/util/bits.h"
 #include "util/fft.h"
@@ -703,4 +703,19 @@ TEST(EstimateMidpointScale, IsTheRmsOfGaussianResidualsAndZeroWithoutThem) {
         << "a cell minus the mean of four independent neighbors has a variance of 1 + 1/4";
     EXPECT_EQ(EstimateMidpointScale(Raster<float>(8, 8, 3.0f)), 0.0);
     EXPECT_EQ(EstimateMidpointScale(Raster<float>(2, 2, 1.0f)), 0.0);
+}
+
+TEST(DiamondSquareUpsampler, ReseedsOnlyItsSeed) {
+    DiamondSquareOptions options;
+    options.fractalDimension = 2.3;
+    options.scale = 0.7;
+    options.interp = DiamondSquareInterp::CatmullRom;
+    const DiamondSquareUpsampler upsampler(options);
+    const auto reseeded =
+        std::dynamic_pointer_cast<const DiamondSquareUpsampler>(upsampler.Reseeded(99));
+    ASSERT_NE(reseeded, nullptr);
+    DiamondSquareOptions expected = options;
+    expected.seed = terraingen::ReseedWord(99, 0);
+    EXPECT_EQ(reseeded->Options(), expected);
+    EXPECT_EQ(terraingen::KernelUpsampler().Reseeded(99), nullptr) << "a kernel has no seed";
 }

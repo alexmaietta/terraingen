@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief `TerrainBase`, the surface and source every layer of a terrain is built on.
+/// @brief `TerrainBase`, the surface and source crater and boulder layers are built on.
 #pragma once
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/sources/source.h"
-#include "terraingen/util/geometry.h"
-#include "terraingen/util/surface.h"
 
 #include <memory>
 #include <type_traits>
@@ -14,16 +14,17 @@
 
 namespace terraingen {
 
-/// What a terrain's layers are built on: the surface they lie on and the source whose heights
-/// they add to, if any. Every height and albedo layer takes one as its last argument, the same
-/// for each layer of a terrain and for its `TerrainGenerator`:
+/// What crater, secondary crater and boulder layers are built on: the surface they lie on and
+/// the source whose heights they add to, if any, the same as their `Terrain`'s:
 ///
 ///     const TerrainBase base{moon, dem};
 ///     auto craters = std::make_shared<CraterLayer>(models, options, base);
 ///     auto boulders = std::make_shared<BoulderLayer>(boulderOptions, craters, base);
 ///
-/// Layers read the source's measured data to leave out what it already resolves
-/// (`source_resolves_px`), and measure noise from its reference point.
+/// Only these take one, because they derive state from it when built: the cells their features
+/// are generated in, the inherited craters and the completeness the source's measured data
+/// resolves (`source_resolves_px`), and their caches. Every other layer reads the surface and
+/// source from its `LayerContext` when it is evaluated.
 struct TerrainBase {
     Surface surface{};  ///< What the terrain lies on; a plane by default.
     std::shared_ptr<const Source> source = nullptr;  ///< The starting heights; null for none.

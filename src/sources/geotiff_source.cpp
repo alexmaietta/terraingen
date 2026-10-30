@@ -46,6 +46,17 @@ PixelWindow CropCells(const RasterGrid& lattice, const Bounds2d& crop) {
     return cells;
 }
 
+/// The grid of the file `info` describes.
+RasterGrid FileLattice(const GeoTiffInfo& info) {
+    return {info.width, info.height, info.transform};
+}
+
+/// The cells of `lattice` a source covers: those that meet `crop`, or all without one.
+/// @throws std::invalid_argument as `CropCells`.
+PixelWindow CoveredCells(const RasterGrid& lattice, const std::optional<Bounds2d>& crop) {
+    return crop ? CropCells(lattice, *crop) : WholeWindow(lattice);
+}
+
 /// The scaled posts of a band of a GeoTIFF, decoded a block at a time as reads reach them and
 /// kept until the decoded blocks exceed the cache's bytes, those read longest ago going first.
 /// Posts beyond `window` repeat its edge, as `RasterPosts` of the window read whole does.
@@ -173,7 +184,13 @@ class GeoTiffPosts final : public PostLattice {
 }  // namespace
 
 GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options)
-    : path_(std::move(path)), options_(std::move(options)), info_(ReadGeoTiffInfo(path_)) {
+    : GeoTiffSource(path, std::move(options), ReadGeoTiffInfo(path)) {}
+
+GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options,
+                             GeoTiffInfo info)
+    : RasterHeightsSource(FileLattice(info), CoveredCells(FileLattice(info), options.crop),
+                          info.geoKeys),
+      path_(std::move(path)), options_(std::move(options)), info_(std::move(info)) {
     const std::size_t band = options_.band;
     if (band >= info_.bands) {
         throw std::invalid_argument("Band " + std::to_string(band) + " is missing; the file has " +
@@ -188,51 +205,30 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
     detail::ValidateRasterSourceOptions(SamplingOptions(options_));
     scaling_ = {scale.value_or(info_.bandScaling[band].scale),
                 offset.value_or(info_.bandScaling[band].offset)};
-    lattice_ = {info_.width, info_.height, info_.transform};
-    cells_ = options_.crop ? CropCells(lattice_, *options_.crop) : WholeWindow(lattice_);
 }
 
 const detail::RasterHeights& GeoTiffSource::Heights() const {
     std::call_once(loaded_, [this] {
         const RasterSourceOptions sampling = SamplingOptions(options_);
-        const bool wraps = detail::WrapsLongitude(info_.geoKeys, lattice_);
+        const RasterGrid& lattice = Lattice();
+        const bool wraps = detail::WrapsLongitude(info_.geoKeys, lattice);
         PixelWindow window = detail::NativeWindow(
-            lattice_, (sampling.upsampler ? sampling.upsampler : DefaultUpsampler())->Reach(),
-            cells_);
+            lattice, (sampling.upsampler ? sampling.upsampler : DefaultUpsampler())->Reach(),
+            Cells());
         if (wraps) {
             window.colBegin = 0;
-            window.colEnd = lattice_.width;
+            window.colEnd = lattice.width;
         }
         std::optional<float> noData;
         if (info_.noData) {
             noData = scaling_.Identity() ? static_cast<float>(*info_.noData)
                                          : std::numeric_limits<float>::quiet_NaN();
         }
-        heights_.emplace(std::make_shared<GeoTiffPosts>(path_, options_.band, scaling_, lattice_,
+        heights_.emplace(std::make_shared<GeoTiffPosts>(path_, options_.band, scaling_, lattice,
                                                         window, wraps, options_.cacheBytes),
-                         lattice_, noData, sampling, cells_, path_.string(), wraps);
+                         lattice, noData, sampling, Cells(), path_.string(), wraps);
     });
     return *heights_;
-}
-
-void GeoTiffSource::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
-    Heights().Fill(heights, spacing, threads);
-}
-
-float GeoTiffSource::HeightAt(double x, double y, double spacing) const {
-    return Heights().HeightAt(x, y, spacing);
-}
-
-void GeoTiffSource::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
-    Heights().HeightsAt(points, heights, spacing);
-}
-
-double GeoTiffSource::ResolutionAt(double x, double y) const {
-    return Heights().ResolutionAt(x, y);
-}
-
-double GeoTiffSource::PostSpacingAt(double x, double y) const {
-    return Heights().PostSpacingAt(x, y);
 }
 
 }  // namespace terraingen

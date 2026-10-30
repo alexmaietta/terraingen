@@ -4,8 +4,8 @@
 /// @brief A source of constant elevation, the start of a fully synthetic terrain.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/sources/source.h"
-#include "terraingen/util/surface.h"
 
 #include <cstddef>
 
@@ -15,8 +15,6 @@ namespace terraingen {
 /// `pixelSize` cells centered on `center`: the start of a fully synthetic terrain.
 class FlatSource final : public Source {
   public:
-    using Source::Fill;
-
     /// The flat source over the given grid.
     /// @param width Columns, at least 1.
     /// @param height Rows, at least 1.
@@ -44,13 +42,9 @@ class FlatSource final : public Source {
         return grid_;
     }
 
-    /// Sets every cell of `heights` to the elevation.
-    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
-
-    /// The elevation in meters, everywhere.
-    float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {
-        return elevation_;
-    }
+  protected:
+    /// Sets every sample to the elevation.
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
 
   private:
     RasterGrid grid_;

@@ -2,11 +2,11 @@
 
 #include "terraingen/layers/boulders/boulder_shape.h"
 
+#include "terraingen/layers/boulders/boulder_fields.h"
 #include "terraingen/noise/hash.h"
 #include "terraingen/noise/perlin.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/bits.h"
-#include "util/checks.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,7 +18,7 @@ namespace terraingen {
 namespace {
 
 /// Throws unless `low` <= `range.min` <= `range.max` <= `high`.
-void CheckRange(const ValueRange& range, double low, double high, const char* what) {
+void CheckStyleRange(const ValueRange& range, double low, double high, const char* what) {
     if (!(range.min >= low && range.min <= range.max && range.max <= high)) {
         throw std::invalid_argument(std::string("Boulder style ") + what + " must satisfy " +
                                     std::to_string(low) +
@@ -390,40 +390,21 @@ std::vector<BoulderStyle> DefaultBoulderStyles() {
 }
 
 void ValidateBoulderShapeOptions(const BoulderShapeOptions& options) {
-    if (options.styles.empty()) {
-        throw std::invalid_argument("Boulder shapes need at least one style");
-    }
+    CheckRanges(options);
     double total = 0.0;
     for (const BoulderStyle& style : options.styles) {
-        RequireNonNegative(style.weight, "Boulder style weights");
         total += style.weight;
-        CheckRange(style.intermediate, 1e-3, 1.0, "intermediate");
-        CheckRange(style.shortAxis, 1e-3, 1.0, "shortAxis");
-        CheckRange(style.rounding, 0.0, 1.0, "rounding");
-        CheckRange(style.fractureDepth, 1e-3, 1.0, "fractureDepth");
-        if (!(style.minFractures >= 0 && style.minFractures <= style.maxFractures &&
-              style.maxFractures <= 64)) {
-            throw std::invalid_argument(
-                "Boulder style fractures must satisfy 0 <= min <= max <= 64");
-        }
-        RequireUnitInterval(style.maxFractureTilt, "Boulder style maxFractureTilt");
-        CheckRange(style.edgeSoftness, 0.0, 0.5, "edgeSoftness");
-        if (!(style.faceRoughness >= 0.0 && style.faceRoughness <= 0.5)) {
-            throw std::invalid_argument("Boulder style faceRoughness must be in [0, 0.5]");
-        }
-        if (!(style.noiseAmplitude >= 0.0 && style.noiseAmplitude < 1.0 &&
-              IsPositive(style.noiseWavelength) && style.noiseOctaves > 0 &&
-              style.noiseOctaves <= 12)) {
-            throw std::invalid_argument("Boulder style noise needs an amplitude in [0, 1), a "
-                                        "positive wavelength and 1 to 12 octaves");
+        CheckStyleRange(style.intermediate, 1e-3, 1.0, "intermediate");
+        CheckStyleRange(style.shortAxis, 1e-3, 1.0, "shortAxis");
+        CheckStyleRange(style.rounding, 0.0, 1.0, "rounding");
+        CheckStyleRange(style.fractureDepth, 1e-3, 1.0, "fractureDepth");
+        CheckStyleRange(style.edgeSoftness, 0.0, 0.5, "edgeSoftness");
+        if (!(style.minFractures <= style.maxFractures)) {
+            throw std::invalid_argument("Boulder style fractures must satisfy min <= max");
         }
     }
     if (!(total > 0.0)) {
         throw std::invalid_argument("Boulder style weights must not all be zero");
-    }
-    RequireNonNegative(options.weathering, "Boulder weathering");
-    if (options.subdivisions < 0 || options.subdivisions > 6) {
-        throw std::invalid_argument("Boulder subdivisions must be between 0 and 6");
     }
     for (const auto& rock : options.library) {
         if (rock == nullptr) {

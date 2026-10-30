@@ -28,7 +28,9 @@ def figure(quick=False):
         options.field_size = 40.0
         options.seed = 5
         ripples = terraingen.BedformLayer(options)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief, ripples])
-        gallery.show_hillshade(ax, terraingen.evaluate(terrain).values, pixel, sun_elevation=25.0)
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel), layers=[relief, ripples]
+        )
+        gallery.show_hillshade(ax, terrain.evaluate().values, pixel, sun_elevation=25.0)
         ax.set_title(f"{cover:.0%} cover")
     return fig

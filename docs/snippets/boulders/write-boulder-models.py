@@ -22,12 +22,12 @@ def write_boulder_models(output_folder):
             ],
         }
     )
-    terrain = terraingen.build_generator(config)
+    terrain = terraingen.build_terrain(config)
     center = (30.0, -10.0)  # longitude and latitude in degrees
     site = terraingen.RasterGrid.centered(center, (0.004, 0.004), 0.0001)
-    models = terraingen.placed_boulders(terrain, site).models
+    models = terrain.boulders(site).models
     terraingen.write_boulder_models(
-        models, output_folder / "boulders.glb", surface=terrain.surface, site=center
+        models, output_folder / "boulders.glb", surface=terrain.surface(), site=center
     )
     # --8<-- [end:write_boulder_models]
     return models

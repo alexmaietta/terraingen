@@ -7,6 +7,7 @@
 #include "terraingen/raster/grid.h"
 #include "terraingen/sources/source.h"
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -81,8 +82,6 @@ RasterGrid SeamLattice(const RasterGrid& grid, const ChainSeams& seams);
 /// degrees of latitude. No-data inside the later source stays no-data.
 class SourceChain final : public Source {
   public:
-    using Source::Fill;
-
     /// The chain of `sources`, first first, joined as `seams` says.
     /// @throws std::invalid_argument for no sources or a null one, as `ValidateChainSeams`, or as
     /// `SeamLattice` for a seam at the edge of a source with bounds.
@@ -105,19 +104,6 @@ class SourceChain final : public Source {
         return sources_.front()->Keys();
     }
 
-    /// Fills from the first source, then each cell still without data from the next source
-    /// that has data there, matched by the seams, keeping the first source's no-data value; each
-    /// source upsamples its own posts.
-    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
-
-    /// The first height in meters at world point (`x`, `y`) that is not NaN, matched by the seams;
-    /// NaN if no source has one.
-    float HeightAt(double x, double y, double spacing) const override;
-
-    /// `HeightAt` each of `points`: the sources before the last over them all, then the last over
-    /// the points still without data.
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
-
     /// The resolution of the first source with a height at (`x`, `y`) at its coarsest, an
     /// infinite spacing; infinity if no source has one.
     double ResolutionAt(double x, double y) const override;
@@ -136,9 +122,24 @@ class SourceChain final : public Source {
         return seams_;
     }
 
+    /// A chain of the same seams whose source n is reseeded with
+    /// `JoinWords(ReseedWord(seed, 2 n), ReseedWord(seed, 2 n + 1))` (`Source::Reseeded`), keeping
+    /// the sources without seeds; null when no source has seeds.
+    std::shared_ptr<const Source> Reseeded(std::uint64_t seed) const override;
+
+  protected:
+    /// Fills from the sources before the last, then each sample still without data from the
+    /// last, matched by the seams; a grid keeps the first source's no-data value. Each source
+    /// upsamples its own posts.
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
+
   private:
     /// The correction added to the last source, solved on first use.
     const detail::SeamField& Seam() const;
+    /// Fills the cells of `heights` without data from the last source, filled as a grid.
+    void FillGridGaps(Raster<float>& heights, double spacing, unsigned threads) const;
+    /// Fills the `heights` without data at `points` from the last source, at those points.
+    void FillPointGaps(Span<const Vec2d> points, Span<float> heights, double spacing) const;
 
     std::vector<std::shared_ptr<const Source>> sources_;
     ChainSeams seams_;

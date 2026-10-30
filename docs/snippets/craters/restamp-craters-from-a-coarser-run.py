@@ -24,9 +24,11 @@ def crater_layer(base=None, inherited=None):
 
 def coarse_run(output_folder):
     """Heights at 8 m and the craters the coarse run placed, with their realized depths."""
-    terrain = terraingen.TerrainGenerator(terraingen.FlatSource(POSTS, POSTS, POST_SPACING), [crater_layer()])
-    heights = terraingen.evaluate(terrain).values
-    terraingen.placed_craters(terrain).write_list(output_folder / "coarse_craters.json")
+    terrain = terraingen.Terrain(
+        source=terraingen.FlatSource(POSTS, POSTS, POST_SPACING), layers=[crater_layer()]
+    )
+    heights = terrain.evaluate().values
+    terrain.craters().write_list(output_folder / "coarse_craters.json")
     half = 0.5 * POSTS * POST_SPACING
     dem = terraingen.RasterSource(
         np.ascontiguousarray(heights, np.float32), terraingen.GeoTransform.north_up(-half, half, POST_SPACING)
@@ -43,7 +45,7 @@ def restamp_craters_from_a_coarser_run(output_folder, restamp=True):
         max_source_px=None,  # restamp every crater the DEM resolves, however large
     )
     craters = crater_layer(base, inherited if restamp else None)  # the coarse run's layer, on its heights
-    heights = terraingen.evaluate(terraingen.TerrainGenerator(dem, [craters]), grid=WINDOW).values
+    heights = terraingen.Terrain(source=dem, layers=[craters]).evaluate(WINDOW).values
     # --8<-- [end:restamp_craters_from_a_coarser_run]
     return dem, craters, heights
 
@@ -70,7 +72,7 @@ def figure(quick=False):
     with tempfile.TemporaryDirectory() as folder:
         dem, _, blurred = restamp_craters_from_a_coarser_run(Path(folder), restamp=False)
         _, _, restamped = restamp_craters_from_a_coarser_run(Path(folder))
-    coarse = terraingen.evaluate(terraingen.TerrainGenerator(dem, []), grid=WINDOW).values
+    coarse = terraingen.Terrain(source=dem).evaluate(WINDOW).values
     fig, axes = plt.subplots(1, 3, figsize=(15, 5.2), layout="constrained")
     panels = (
         (coarse, "Coarse run, 8 m"),

@@ -6,21 +6,16 @@ terraingen_add_test_suite(
     arithmetic_test.cpp
     bits_test.cpp
     bisection_test.cpp
-    cells_test.cpp
     checks_test.cpp
     fft_test.cpp
     files_test.cpp
-    geometry_test.cpp
     log_test.cpp
     lru_cache_test.cpp
     overloaded_test.cpp
-    plane_fit_test.cpp
     quadrature_test.cpp
     parallel_test.cpp
-    radial_shape_test.cpp
     span_test.cpp
     special_functions_test.cpp
-    surface_test.cpp
     text_test.cpp
     version_test.cpp
     LIBRARIES

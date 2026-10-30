@@ -25,8 +25,9 @@ FlatSource::FlatSource(std::size_t width, std::size_t height, double pixelSize, 
     grid_ = {width, height, GeoTransform::NorthUp(center.x - halfX, center.y + halfY, pixelSize)};
 }
 
-void FlatSource::Fill(Raster<float>& heights, double /*spacing*/, unsigned /*threads*/) const {
-    std::fill(heights.Values().begin(), heights.Values().end(), elevation_);
+void FlatSource::FillSamples(SampleBlock& samples, double /*spacing*/, unsigned /*threads*/) const {
+    const Span<float> heights = samples.Heights();
+    std::fill(heights.begin(), heights.end(), elevation_);
 }
 
 }  // namespace terraingen

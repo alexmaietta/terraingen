@@ -5,12 +5,13 @@
 /// plane or a whole body.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/noise/fractals.h"
 #include "terraingen/noise/surface_noise.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/upsampling.h"
-#include "terraingen/util/surface.h"
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -26,8 +27,6 @@ namespace terraingen {
 /// An empty stack is flat at `elevation`.
 class SyntheticSource final : public Source {
   public:
-    using Source::Fill;
-
     /// @param fractals The noise stack, 0 to `kMaxFractals` fractals (`ValidateFractal` each).
     /// @param elevation Meters added everywhere; finite.
     /// @param pixelSize Spacing of the posts in meters, converted to the surface's units on a body
@@ -50,16 +49,6 @@ class SyntheticSource final : public Source {
     /// (0, 0) at the origin, or is a unit north-up transform at the origin without a `pixelSize`.
     RasterGrid Grid() const override;
 
-    /// The elevation plus the noise at each cell's center, or the posts upsampled at `spacing`.
-    void Fill(Raster<float>& heights, double spacing, unsigned threads) const override;
-
-    /// The elevation plus the noise at (`x`, `y`), or the posts upsampled at `spacing`.
-    float HeightAt(double x, double y, double spacing) const override;
-
-    /// `HeightAt` each of `points`, the noise evaluated over them all at once, or the points off
-    /// the posts upsampled at once.
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const override;
-
     /// The pixel size, or infinity without one. `ResolutionAt` stays infinite: generated heights
     /// hold no measured features.
     double PostSpacingAt(double x, double y) const override;
@@ -80,6 +69,17 @@ class SyntheticSource final : public Source {
         return upsampler_;
     }
 
+    /// A copy whose fractal n has seed `ReseedWord(seed, n)` and whose upsampler, if it has
+    /// seeds, is reseeded with `JoinWords(ReseedWord(seed, kMaxFractals),
+    /// ReseedWord(seed, kMaxFractals + 1))` and fitted to the new posts; null for an empty stack
+    /// without a seeded upsampler.
+    std::shared_ptr<const Source> Reseeded(std::uint64_t seed) const override;
+
+  protected:
+    /// The elevation plus the noise at each sample, a grid row by row over threads, or the posts
+    /// upsampled at `spacing`.
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
+
   private:
     /// The posts: the noise sampled `pixelSize` apart.
     class NoisePosts final : public PostLattice {
@@ -96,17 +96,16 @@ class SyntheticSource final : public Source {
         GeoTransform transform_;
     };
 
-    /// The elevation plus the noise at (`x`, `y`).
-    float NoiseAt(double x, double y) const;
-
-    /// `NoiseAt` each of `points`, into `heights` of the same size.
+    /// The elevation plus the noise at each of `points`, into `heights` of the same size.
     void NoiseAt(Span<const Vec2d> points, Span<float> heights) const;
 
     std::vector<Fractal> fractals_;
     float elevation_;
+    std::optional<double> givenPixelSize_;
     std::optional<double> pixelSize_;
     Surface surface_;
     std::optional<NoisePosts> posts_;
+    std::shared_ptr<const Upsampler> givenUpsampler_;
     std::shared_ptr<const Upsampler> upsampler_;
 };
 

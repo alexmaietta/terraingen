@@ -262,8 +262,8 @@ const PathCase kPathCases[] = {
      "layers[1].density"},
     {"PavementWithoutOctaves",
      [](ConfigSpec& c) {
-         terraingen::PavementLayerSpec pavement;
-         pavement.pavement.octaves = 0;
+         terraingen::PavementOptions pavement;
+         pavement.octaves = 0;
          c.layers.push_back(pavement);
      },
      "layers[2].octaves"},
@@ -272,15 +272,15 @@ const PathCase kPathCases[] = {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.exposure.reset();
          c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
-         c.layers.push_back(terraingen::PavementLayerSpec{});
+         c.layers.push_back(terraingen::PavementOptions{});
          c.outputs.push_back(terraingen::PhotometryOutput{
              {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
      },
      "materials.photometry.bedrock"},
     {"StrataBelowSharpnessOne",
      [](ConfigSpec& c) {
-         terraingen::StrataLayerSpec strata;
-         strata.strata.sharpness = 0.5;
+         terraingen::StrataOptions strata;
+         strata.sharpness = 0.5;
          c.layers.push_back(strata);
      },
      "layers[2].sharpness"},
@@ -289,18 +289,18 @@ const PathCase kPathCases[] = {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.exposure.reset();
          c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
-         c.layers.push_back(terraingen::StrataLayerSpec{});
+         c.layers.push_back(terraingen::StrataOptions{});
          c.outputs.push_back(terraingen::PhotometryOutput{
              {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
      },
      "materials.photometry.bedrock"},
     {"SandShadowWithoutBoulders",
-     [](ConfigSpec& c) { c.layers.push_back(terraingen::SandShadowLayerSpec{}); }, "layers[2]"},
+     [](ConfigSpec& c) { c.layers.push_back(terraingen::SandShadowOptions{}); }, "layers[2]"},
     {"SandShadowWithoutLength",
      [](ConfigSpec& c) {
          c.layers.push_back(terraingen::BoulderLayerSpec{});
-         terraingen::SandShadowLayerSpec shadows;
-         shadows.shadows.lengthRatio = 0.0;
+         terraingen::SandShadowOptions shadows;
+         shadows.lengthRatio = 0.0;
          c.layers.push_back(shadows);
      },
      "layers[3].length_ratio"},
@@ -408,7 +408,7 @@ const PathCase kPathCases[] = {
      },
      "layers[2].min_wavelength_m"},
     {"SandFillWithoutReach",
-     [](ConfigSpec& c) { c.layers.push_back(terraingen::SandFillLayerSpec{{0.0}}); },
+     [](ConfigSpec& c) { c.layers.push_back(terraingen::SandFillOptions{0.0}); },
      "layers[2].reach_m"},
     {"MaterialsOutputWithoutMaterials",
      [](ConfigSpec& c) {
@@ -457,7 +457,7 @@ const PathCase kPathCases[] = {
          c.materials = terraingen::MaterialsSpec{};
          c.materials->options.exposure.reset();
          c.materials->photometry.classes[0] = terraingen::HapkeParameters{0.7, 0.3, 0.5, 10.0};
-         c.layers.push_back(terraingen::DuneLayerSpec{});
+         c.layers.push_back(terraingen::DuneOptions{});
          c.outputs.push_back(terraingen::PhotometryOutput{
              {"p.tif", terraingen::TiffCompression::Lzw, 256, terraingen::testing::SmallRegion()}});
      },
@@ -480,16 +480,13 @@ const PathCase kPathCases[] = {
      "materials.photometry.dust.albedo"},
     {"DunesSteeperThanASlipFace",
      [](ConfigSpec& c) {
-         terraingen::DuneLayerSpec dunes{terraingen::MarsBarchans()};
-         dunes.dunes.stossSlopeDegrees =
-             (dunes.dunes.slipFaceAngleDegrees * terraingen::kDegree) * terraingen::kRadian;
+         terraingen::DuneOptions dunes = terraingen::MarsBarchans();
+         dunes.stossSlopeDegrees =
+             (dunes.slipFaceAngleDegrees * terraingen::kDegree) * terraingen::kRadian;
          c.layers.push_back(dunes);
      },
      "layers[2]"},
-    {"MarsDunesWithRipples",
-     [](ConfigSpec& c) {
-         c.layers.push_back(terraingen::DuneLayerSpec{terraingen::MarsBarchans()});
-     },
+    {"MarsDunesWithRipples", [](ConfigSpec& c) { c.layers.push_back(terraingen::MarsBarchans()); },
      "valid"},
     {"MarsMorphometryOnALunarSurface",
      [](ConfigSpec& c) { Craters(c).morphometry = terraingen::CraterMorphometryFit::Mars; },
@@ -540,15 +537,15 @@ const PathCase kPathCases[] = {
      "layers[0].source_resolves_px"},
     {"ZeroDuneSourceResolvedLimit",
      [](ConfigSpec& c) {
-         terraingen::DuneLayerSpec dunes;
-         dunes.dunes.sourceResolvesPixels = 0.0;
+         terraingen::DuneOptions dunes;
+         dunes.sourceResolvesPixels = 0.0;
          c.layers.push_back(dunes);
      },
      "layers[2].source_resolves_px"},
     {"ZeroBedformSourceResolvedLimit",
      [](ConfigSpec& c) {
-         terraingen::BedformLayerSpec bedforms;
-         bedforms.bedforms.sourceResolvesPixels = 0.0;
+         terraingen::BedformOptions bedforms;
+         bedforms.sourceResolvesPixels = 0.0;
          c.layers.push_back(bedforms);
      },
      "layers[2].source_resolves_px"},
@@ -848,9 +845,8 @@ TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
 TEST(ValidateConfig, ReportsBedformProblemsByPath) {
     terraingen::BedformOptions ridges = terraingen::MarsTransverseAeolianRidges();
     ridges.leeFraction = 2.0;
-    EXPECT_EQ(
-        ErrorPath([&](ConfigSpec& c) { c.layers.push_back(terraingen::BedformLayerSpec{ridges}); }),
-        "layers[2].lee_fraction");
+    EXPECT_EQ(ErrorPath([&](ConfigSpec& c) { c.layers.push_back(ridges); }),
+              "layers[2].lee_fraction");
 }
 
 TEST(ValidateConfig, ReportsTransformAndRegionProblemsByPath) {
@@ -1002,8 +998,8 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
     EXPECT_EQ(error([&](ConfigSpec& c) { craters(c).options.share = 2.0; }),
               "albedo.layers[0].share");
     EXPECT_EQ(error([](ConfigSpec& c) {
-                  terraingen::SplotchAlbedoSpec splotches;
-                  splotches.options.softness = 0.0;
+                  terraingen::SplotchAlbedoOptions splotches;
+                  splotches.softness = 0.0;
                   c.albedo->layers.push_back(splotches);
               }),
               "albedo.layers[1].softness");
@@ -1034,8 +1030,8 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
               }),
               "albedo.layers[1].reflectance_ratio");
     EXPECT_EQ(error([](ConfigSpec& c) {
-                  terraingen::SlopeAlbedoSpec slopes;
-                  slopes.options.baseline = 0.0;
+                  terraingen::SlopeAlbedoOptions slopes;
+                  slopes.baseline = 0.0;
                   c.albedo->layers.push_back(slopes);
               }),
               "albedo.layers[1].baseline_m");

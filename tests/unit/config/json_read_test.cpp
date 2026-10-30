@@ -185,10 +185,8 @@ TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
     EXPECT_EQ(spec.slopeMap->map.referenceDiameter, 2.0);
     EXPECT_EQ(boulders.sourceResolvesPixels, 5.0);
     EXPECT_EQ(std::get<terraingen::NoiseLayerSpec>(config.layers[3]).sourceResolvesPixels, 8.0);
-    EXPECT_FALSE(std::get<terraingen::DuneLayerSpec>(config.layers[4]).dunes.sourceResolvesPixels);
-    EXPECT_EQ(
-        std::get<terraingen::BedformLayerSpec>(config.layers[5]).bedforms.sourceResolvesPixels,
-        2.0);
+    EXPECT_FALSE(std::get<terraingen::DuneOptions>(config.layers[4]).sourceResolvesPixels);
+    EXPECT_EQ(std::get<terraingen::BedformOptions>(config.layers[5]).sourceResolvesPixels, 2.0);
     EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
 }
 
@@ -235,7 +233,7 @@ TEST(ConfigJson, ReadsDuneLayersByShapeAndRipples) {
          "anchor_x": 137.4, "anchor_y": -4.6,
          "defect_density": 0.003,
          "ripples": {"wavelength_m": 2.1, "height_m": 0.2, "defect_density": 0.25}}]})");
-    const auto& dunes = std::get<terraingen::DuneLayerSpec>(config.layers.at(0)).dunes;
+    const auto& dunes = std::get<terraingen::DuneOptions>(config.layers.at(0));
     EXPECT_EQ(dunes.shape, terraingen::DuneShape::Barchanoid);
     EXPECT_EQ(dunes.wavelength, 300.0);
     EXPECT_EQ(dunes.anchor.x, 137.4);

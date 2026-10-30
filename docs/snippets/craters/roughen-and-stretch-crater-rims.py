@@ -47,9 +47,11 @@ def figure(quick=False):
     craters, outlines = roughen_and_stretch_crater_rims()
     pixel = 4.0 if quick else 1.0
     size = int(3 * SPACING / pixel) + 1
-    heights = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [craters])
-    ).values
+    heights = (
+        terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[craters])
+        .evaluate()
+        .values
+    )
     labels = [f"ellipticity {outline.ellipticity:.2f}" for outline in outlines]
     fig, ax = plt.subplots(figsize=(6, 6), layout="constrained")
     gallery.show_crater_grid(ax, heights, pixel, labels, SPACING)

@@ -9,19 +9,22 @@
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/distribution/spliced.h"
 #include "terraingen/distribution/summed.h"
+#include "terraingen/geometry/cells.h"
 #include "terraingen/layers/craters/ages/steady_state.h"
+#include "terraingen/layers/craters/crater_fields.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
 #include "terraingen/layers/craters/degradation/diffusivities.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/profiles/martin_parkes_dunstan.h"
 #include "terraingen/layers/craters/shaping/morphometry.h"
 #include "terraingen/layers/source_resolved.h"
+#include "terraingen/random/stream.h"
 #include "terraingen/raster/grid.h"
-#include "terraingen/util/cells.h"
 #include "util/numerics.h"
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -100,6 +103,22 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, Terrai
     }
 }
 
+LayerPtr CraterLayer::Reseeded(std::uint64_t seed) const {
+    auto layer = std::make_shared<CraterLayer>(*this);
+    layer->options_.seed = ReseedWord(seed, 0);
+    CraterApplyOptions& apply = layer->options_.apply;
+    apply.irregularity.seed = ReseedWord(seed, 1);
+    apply.noise.seed = ReseedWord(seed, 2);
+    apply.texture.seed = ReseedWord(seed, 3);
+    apply.slope.seed = ReseedWord(seed, 4);
+    apply.terraces.seed = ReseedWord(seed, 5);
+    apply.peaks.seed = ReseedWord(seed, 6);
+    if (cache_) {
+        layer->cache_ = std::make_shared<CraterCellCache>(options_.cacheCraters);
+    }
+    return layer;
+}
+
 void CraterLayer::CountBands(CraterGenerationOptions& generation) const {
     if (bandCounts_.empty()) {
         return;
@@ -116,12 +135,11 @@ void CraterLayer::CountBands(CraterGenerationOptions& generation) const {
 }
 
 void ValidateInheritedCraters(const InheritedCraters& inherited) {
-    ValidateSourceResolvesPixels(inherited.minSourcePixels);
-    ValidateSourceResolvesPixels(inherited.maxSourcePixels);
+    CheckRanges(inherited);
     if (inherited.minSourcePixels && inherited.maxSourcePixels &&
         !(*inherited.maxSourcePixels > *inherited.minSourcePixels)) {
         throw std::invalid_argument(
-            "Inherited craters' maxSourcePixels must be above their minSourcePixels");
+            "Inherited craters' max_source_px must be above their min_source_px");
     }
 }
 

@@ -30,9 +30,9 @@ def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     posts = int(DEM_SIZE_M / POST_SPACING) + 1
     relief = terraingen.NoiseLayer(seed=4, wavelength=120.0, amplitude=10.0, octaves=6)
-    dem = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(posts, posts, POST_SPACING), [relief])
-    )
+    dem = terraingen.Terrain(
+        source=terraingen.FlatSource(posts, posts, POST_SPACING), layers=[relief]
+    ).evaluate()
     heights = np.ascontiguousarray(dem.values, dtype=np.float32)
     half = 0.5 * (posts - 1) * POST_SPACING
     transform = terraingen.GeoTransform.from_gdal(
@@ -47,7 +47,7 @@ def figure(quick=False):
     upsampled = []
     for ax, (name, method) in zip(map_axes, METHODS, strict=True):
         source = terraingen.RasterSource(heights, transform, upsampler=terraingen.KernelUpsampler(method))
-        values = terraingen.evaluate(terraingen.TerrainGenerator(source, []), grid=window).values
+        values = terraingen.Terrain(source=source).evaluate(window).values
         upsampled.append(values)
         image = gallery.show_slopes(ax, values, pixel, vmax=25.0, colorbar=False)
         ax.set_title(name)

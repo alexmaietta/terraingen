@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 # TerrainGen's modules, one library each, every module depending only on the ones before it:
-#   util          logging, version, build info header, geometry and surface cells
+#   util          logging, version, build info header, parallel loops, caches, checks, text, FFT
+#   geometry      vectors and bounds, surfaces (planes and bodies), cells, radial shapes, plane fits
 #   raster        rasters, geotransforms, interpolation and GeoTIFF files in geotiff/
-#   noise         noise kernels, header-only and portable to GPU shading languages, and their checks
+#   analysis      raster statistics, variograms and power spectra
+#   noise        noise kernels, header-only and portable to GPU shading languages, and their checks
 #   gpu           backend selection and the Vulkan, CUDA and Metal devices, opened at run time
 #   random        the Philox generator (portable to GPUs), random streams and samplers
 #   mesh          triangle meshes, base solids, subdivision and mesh files
@@ -12,7 +14,8 @@
 #   layers        relief added on top of a source: craters (populations, profiles, degradation)
 #   albedo        surface albedo: orbital maps upscaled, synthetic color and bright crater rays
 #   pipeline      terrains evaluated over grids, tiles, points and whole-body meshes
-#   config        JSON terrain configs: parsing, validation, building and writing outputs
+#   io            crater and boulder lists, boulder models and reports written as files
+#   config       JSON terrain configs: parsing, validation, building and writing outputs
 # Public headers sit in include/terraingen/<module>/ and are included as
 # "terraingen/<module>/<file>.h"; sources and the headers only TerrainGen itself uses sit here in
 # src/<module>/, included as "<module>/<file>.h" through terraingen_internal, which only the build
@@ -57,7 +60,9 @@ function(terraingen_add_library module)
 endfunction()
 
 add_subdirectory(util)
+add_subdirectory(geometry)
 add_subdirectory(raster)
+add_subdirectory(analysis)
 add_subdirectory(noise)
 add_subdirectory(gpu)
 add_subdirectory(random)
@@ -67,6 +72,7 @@ add_subdirectory(sources)
 add_subdirectory(layers)
 add_subdirectory(albedo)
 add_subdirectory(pipeline)
+add_subdirectory(io)
 add_subdirectory(config)
 
 get_property(modules GLOBAL PROPERTY TERRAINGEN_MODULES)

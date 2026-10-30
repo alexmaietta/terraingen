@@ -29,7 +29,7 @@ def figure(quick=False):
     fig, axes = plt.subplots(1, 5, figsize=(19, 3.6), layout="constrained")
     for ax, (title, shape) in zip(axes, SHAPES, strict=True):
         dunes = terraingen.DuneLayer(terraingen.DuneOptions(shape=shape, wind_azimuth_deg=0.0, seed=3))
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [dunes])
-        gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel, cmap="copper")
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[dunes])
+        gallery.show_heights(ax, terrain.evaluate().values, pixel, cmap="copper")
         ax.set_title(title)
     return fig

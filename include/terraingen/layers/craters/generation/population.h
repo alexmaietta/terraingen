@@ -5,12 +5,12 @@
 #pragma once
 
 #include "terraingen/distribution/size_frequency.h"
+#include "terraingen/geometry/cells.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/layers/craters/ages/age_model.h"
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/field.h"
-#include "terraingen/util/cells.h"
-#include "terraingen/util/surface.h"
 
 #include <cstddef>
 #include <cstdint>

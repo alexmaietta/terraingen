@@ -2,8 +2,8 @@
 
 #include "terraingen/layers/density_map.h"
 
+#include "terraingen/layers/layer_fields.h"
 #include "terraingen/util/bits.h"
-#include "util/checks.h"
 #include "util/numerics.h"
 
 #include <algorithm>
@@ -34,11 +34,11 @@ void ValidateDensityMap(const DensityMap& map) {
     if (!map.field) {
         throw std::invalid_argument("A density map needs a field");
     }
+    CheckRanges(map);
     if (map.measure != DensityMeasure::Scale &&
-        !(IsPositive(map.minDiameter) && map.maxDiameter > map.minDiameter)) {
+        !(map.minDiameter > 0.0 && map.maxDiameter > map.minDiameter)) {
         throw std::invalid_argument("A density map's diameters must satisfy 0 < min < max");
     }
-    RequirePositive(map.areaUnit, "Density map areaUnit");
 }
 
 double MapMeasure(const DensityMap& map, const SizeFrequencyDistribution& distribution) {
@@ -62,10 +62,9 @@ void ValidateSizeSlopeMap(const SizeSlopeMap& map) {
     if (!map.field) {
         throw std::invalid_argument("A size slope map needs a field");
     }
-    RequirePositive(map.referenceDiameter, "Size slope map referenceDiameter");
-    if (!(map.minExponent > 0.0 && map.maxExponent > map.minExponent &&
-          std::isfinite(map.maxExponent))) {
-        throw std::invalid_argument("A size slope map's exponents must satisfy 0 < min < max");
+    CheckRanges(map);
+    if (!(map.maxExponent > map.minExponent)) {
+        throw std::invalid_argument("A size slope map's exponents must satisfy min < max");
     }
 }
 

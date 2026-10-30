@@ -40,10 +40,11 @@ float Layer::ApplyAt(float height, double x, double y, const LayerContext& conte
 
 void FormulaLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     CheckContext(context);
-    const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
+    LayerContext resolved = context;
+    resolved.spacing = samples.ResolvedSpacing(context.spacing, context.SurfaceOrPlane());
     if (context.ground == nullptr) {
         MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
-            return HeightAt(height, p.x, p.y, spacing, nullptr);
+            return HeightAt(height, p.x, p.y, resolved);
         });
         return;
     }
@@ -53,8 +54,10 @@ void FormulaLayer::ApplySamples(SampleBlock& samples, const LayerContext& contex
             if (samples.IsNoData(i)) {
                 return samples.Height(i);
             }
+            LayerContext at = resolved;
+            at.ground = &ground;
             const Vec2d p = samples.Position(i);
-            return HeightAt(samples.Height(i), p.x, p.y, spacing, &ground);
+            return HeightAt(samples.Height(i), p.x, p.y, at);
         },
         [&](std::size_t i, float height) { samples.Height(i) = height; });
 }

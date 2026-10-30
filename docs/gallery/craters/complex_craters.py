@@ -45,10 +45,10 @@ def figure(quick=False):
         relief = terraingen.NoiseLayer(
             [terraingen.Fractal(seed=2, wavelength=diameter, amplitude=0.015 * diameter)]
         )
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(samples + 1, samples + 1, pixel), [relief, crater]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(samples + 1, samples + 1, pixel), layers=[relief, crater]
         )
-        heights = terraingen.evaluate(terrain).values
+        heights = terrain.evaluate().values
         gallery.show_hillshade(axes[0, column], heights, pixel, sun_elevation=25.0)
         axes[0, column].set_title(title)
         gallery.show_heights(axes[1, column], heights, pixel)

@@ -32,11 +32,10 @@ TEST_F(SnippetTest, UpsampleAShapeModel) {
         body, std::make_shared<KernelUpsampler>(ResampleMethod::Lanczos3));
     const auto rough = std::make_shared<ShapeModelSource>(
         body, std::make_shared<DiamondSquareUpsampler>());  // roughness fitted to the labels
-    TerrainGenerator terrain;
-    terrain.surface = body;
-    terrain.source = rough;
+    const Terrain terrain(body, rough, {});
     const RasterGrid site = RasterGrid::Covering({20.0, 10.0, 30.0, 20.0}, 0.05);  // degrees
-    const Raster<float> heights = Evaluate(terrain, site, 0.25);  // meters above the bilinear shape
+    // Meters above the bilinear shape.
+    const Raster<float> heights = terrain.Evaluate(site, EvaluationOptions{}.Spacing(0.25));
     // --8<-- [end:upsample_a_shape_model]
     EXPECT_NEAR(cubic->HeightAt(0.0, 0.0, 1.0), 0.0f, 1e-3f);
     EXPECT_NE(cubic->HeightAt(17.0, 23.0, 0.1), lanczos->HeightAt(17.0, 23.0, 0.1));

@@ -39,9 +39,7 @@ def figure(quick=False):
     craters = use_published_crater_models()
     pixel = 2.0 if quick else 1.0
     size = int(256 / pixel) + 1
-    heights = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [craters])
-    )
+    heights = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[craters]).evaluate()
     fig, ax = plt.subplots(figsize=(4.5, 4.5), layout="constrained")
     gallery.show_hillshade(ax, heights.values, pixel)
     ax.set_title("3.5 Gyr lunar mare")

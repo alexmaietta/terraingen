@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "config/build_steps.h"
-#include "config/spec.h"
+#include "config/terrain.h"
 #include "terraingen/config/json.h"
 
 #include <gtest/gtest.h>
@@ -628,7 +627,7 @@ TEST(ConfigCatalog, ListsTheNewDensitiesAndAges) {
 
 TEST(LayerType, NamesALayerAsItsJsonTypeAndAMaskedLayerByTheLayerInside) {
     EXPECT_EQ(terraingen::LayerType(terraingen::CraterLayerSpec{}), "craters");
-    EXPECT_EQ(terraingen::LayerType(terraingen::SandFillLayerSpec{}), "sand_fill");
+    EXPECT_EQ(terraingen::LayerType(terraingen::SandFillOptions{}), "sand_fill");
     EXPECT_EQ(terraingen::LayerType(terraingen::SpectralContinuationLayerSpec{}),
               "spectral_continuation");
     terraingen::MaskedLayerSpec masked;

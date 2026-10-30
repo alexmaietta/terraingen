@@ -191,9 +191,13 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
     options.generation.manual.Append({-20.0, -30.0, 2000.0, 1.0, 31u});
     const CraterLayer layer(Models(), options, Surface::Sphere(kMoon));
     class Tilted final : public terraingen::Ground {
-      public:
-        float HeightAt(double x, double y, double) const override {
-            return static_cast<float>(1000.0 * (x + 20.0) + 300.0 * (y + 30.0));
+      protected:
+        void FillSamples(terraingen::SampleBlock& samples, double) const override {
+            for (std::size_t i = 0; i < samples.Size(); ++i) {
+                const terraingen::Vec2d p = samples.Position(i);
+                samples.Height(i) =
+                    static_cast<float>(1000.0 * (p.x + 20.0) + 300.0 * (p.y + 30.0));
+            }
         }
     } ground;
     Raster<float> heights = Geographic(-20.05, -29.95, 0.002, 50);
@@ -217,9 +221,11 @@ namespace {
 
 /// A flat ground at height 0, which craters with a datum read beneath them.
 class FlatGround final : public terraingen::Ground {
-  public:
-    float HeightAt(double /*x*/, double /*y*/, double /*spacing*/) const override {
-        return 0.0f;
+  protected:
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+        for (std::size_t i = 0; i < samples.Size(); ++i) {
+            samples.Height(i) = 0.0f;
+        }
     }
 };
 

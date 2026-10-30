@@ -26,9 +26,11 @@ def maps():
     x = (np.arange(cells) + 0.5) * MAP_PIXEL - 0.5 * SIZE_M
     east, north = np.meshgrid(x, -x)
     noise = terraingen.NoiseLayer(seed=9, wavelength=250.0, amplitude=1.0, octaves=3)
-    pattern = terraingen.evaluate(
-        terraingen.TerrainGenerator(terraingen.FlatSource(cells, cells, MAP_PIXEL), [noise])
-    ).values
+    pattern = (
+        terraingen.Terrain(source=terraingen.FlatSource(cells, cells, MAP_PIXEL), layers=[noise])
+        .evaluate()
+        .values
+    )
     pattern = (pattern - pattern.min()) / (pattern.max() - pattern.min())
     boundary = np.where(north + 0.4 * east > 30.0 * np.sin(east / 40.0), 2.0, 0.3)
     radius = np.hypot(east, north)
@@ -60,16 +62,17 @@ def figure(quick=False):
             seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=60.0)
         )
         options.density_map = density_map
-        terrain = terraingen.TerrainGenerator(
-            terraingen.FlatSource(size, size, pixel), [relief, terraingen.CraterLayer(models, options)]
+        terrain = terraingen.Terrain(
+            source=terraingen.FlatSource(size, size, pixel),
+            layers=[relief, terraingen.CraterLayer(models, options)],
         )
-        count = len(terraingen.placed_craters(terrain).table["diameter"])
+        count = len(terrain.craters().table["diameter"])
         image = axes[0, column].imshow(
             values, cmap="viridis", vmin=0.0, vmax=3.0, extent=gallery.extent(values, MAP_PIXEL)
         )
         axes[0, column].grid(False)
         axes[0, column].set_title(title)
-        gallery.show_hillshade(axes[1, column], terraingen.evaluate(terrain).values, pixel)
+        gallery.show_hillshade(axes[1, column], terrain.evaluate().values, pixel)
         axes[1, column].set_title(f"{count} craters")
     fig.colorbar(image, ax=axes[0], label="Density scale", shrink=0.85)
     return fig

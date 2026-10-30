@@ -63,8 +63,8 @@ def figure(quick=False):
         ("Boulders in the rectangle", [relief, craters, masked_boulders], True),
     ]
     for ax, (title, layers, show_boulders) in zip(axes, panels, strict=True):
-        terrain = terraingen.TerrainGenerator(source, layers)
-        heights = terraingen.evaluate(terrain).values
+        terrain = terraingen.Terrain(source=source, layers=layers)
+        heights = terrain.evaluate().values
         ax.imshow(
             gallery.LIGHT.hillshade(heights, dx=pixel, dy=pixel),
             cmap="gray",
@@ -73,7 +73,7 @@ def figure(quick=False):
             extent=gallery.extent(heights, pixel),
         )
         if show_boulders:
-            table = terraingen.placed_boulders(terrain).table
+            table = terrain.boulders().table
             circles = gallery.show_boulders(
                 ax, table, region, table["height"], cmap="magma_r", vmin=0.0, vmax=1.0, colorbar=False
             )

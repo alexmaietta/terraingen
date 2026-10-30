@@ -3,13 +3,13 @@
 #include "bindings.h"
 #include "common.h"
 
+#include "terraingen/geometry/cells.h"
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/radial_shape.h"
+#include "terraingen/geometry/surface.h"
 #include "terraingen/util/build_info.h"
-#include "terraingen/util/cells.h"
-#include "terraingen/util/geometry.h"
 #include "terraingen/util/log.h"
-#include "terraingen/util/radial_shape.h"
 #include "terraingen/util/special_functions.h"
-#include "terraingen/util/surface.h"
 #include "terraingen/util/version.h"
 
 #include <memory>

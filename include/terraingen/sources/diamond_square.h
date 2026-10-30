@@ -96,15 +96,6 @@ class DiamondSquareUpsampler final : public Upsampler {
     /// @throws std::invalid_argument as `ValidateDiamondSquareOptions`.
     explicit DiamondSquareUpsampler(DiamondSquareOptions options = {});
 
-    /// @throws std::invalid_argument without a fractal dimension (`FitTo`), or without a scale
-    /// and a fit window, or for a rotated lattice.
-    float HeightAt(const PostLattice& posts, double x, double y, double spacing) const override;
-
-    /// Refines the nodes once for points close together (`detail::ExpandPoints`).
-    /// @throws std::invalid_argument as `HeightAt`.
-    void HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,
-                   double spacing) const override;
-
     /// Posts either side of a sample its nodes are refined from.
     int Reach() const override;
 
@@ -115,6 +106,10 @@ class DiamondSquareUpsampler final : public Upsampler {
     /// @throws std::invalid_argument as `EstimateMidpointRoughness`.
     std::shared_ptr<const Upsampler> FitTo(const PostLattice& posts) const override;
 
+    /// A copy whose `DiamondSquareOptions::seed` is `ReseedWord(seed, 0)`, keeping every other
+    /// option, fitted ones included.
+    std::shared_ptr<const Upsampler> Reseeded(std::uint64_t seed) const override;
+
     /// The levels refined at a sample spacing of `spacing` over posts `postSpacing` apart, both in
     /// the posts' units: enough to halve the node spacing to `spacing` or finer, at most down to
     /// `minPixelSize`.
@@ -124,6 +119,14 @@ class DiamondSquareUpsampler final : public Upsampler {
     const DiamondSquareOptions& Options() const {
         return options_;
     }
+
+  protected:
+    /// Refines the nodes once for samples close together (`detail::ExpandPoints`), a grid tile
+    /// by tile.
+    /// @throws std::invalid_argument without a fractal dimension (`FitTo`), or without a scale
+    /// and a fit window, or for a rotated lattice.
+    void FillSamples(const PostLattice& posts, SampleBlock& samples, double spacing,
+                     unsigned threads) const override;
 
   private:
     /// Node heights at one level over a box of node indices; NaN where the posts have no data.

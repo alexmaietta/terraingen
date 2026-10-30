@@ -23,12 +23,12 @@ void CoverWith(MaterialShares& shares, MaterialClass material, double cover) {
     shares[static_cast<std::size_t>(material)] += weight;
 }
 
-Raster<double> MaterialSource::MaterialCoverOver(const RasterGrid& grid, double spacing,
-                                                 const Ground* ground, unsigned threads) const {
+Raster<double> MaterialSource::MaterialCoverOver(const RasterGrid& grid,
+                                                 const LayerContext& context) const {
     Raster<double> cover(grid.width, grid.height);
     cover.SetTransform(grid.transform);
-    FillCells(cover, threads, [&](const Vec2d& center) {
-        return MaterialCoverAt(center.x, center.y, spacing, ground);
+    MapCells(cover, context.threads, [&](double, const Vec2d& center) {
+        return MaterialCoverAt(center.x, center.y, context);
     });
     return cover;
 }

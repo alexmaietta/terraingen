@@ -2,8 +2,8 @@
 
 #include "terraingen/sources/shape_model_source.h"
 
-#include "terraingen/util/radial_shape.h"
-#include "util/cube_faces.h"
+#include "geometry/cube_faces.h"
+#include "terraingen/geometry/radial_shape.h"
 
 #include <algorithm>
 #include <cmath>
@@ -90,9 +90,14 @@ RasterGrid ShapeModelSource::Grid() const {
     return {0, 0, GeoTransform::NorthUp(-180.0, 90.0, labelDegrees_)};
 }
 
-void ShapeModelSource::HeightsAt(Span<const Vec2d> points, Span<float> heights,
-                                 double spacing) const {
-    detail::RequireHeightPerPoint(points, heights);
+void ShapeModelSource::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
+    detail::FillByTiles(samples, threads, [&](Span<const Vec2d> points, Span<float> heights) {
+        FillPoints(points, heights, spacing);
+    });
+}
+
+void ShapeModelSource::FillPoints(Span<const Vec2d> points, Span<float> heights,
+                                  double spacing) const {
     const RadialShape& shape = *body_.Shape();
     const auto q = static_cast<double>(shape.Q());
     std::vector<Vec3d> directions(points.size());
@@ -127,8 +132,8 @@ void ShapeModelSource::HeightsAt(Span<const Vec2d> points, Span<float> heights,
             }
         }
         values.resize(onFace.size());
-        UpsampledHeights(*upsamplers_[face], *posts_[face], Span<const Vec2d>(onFace),
-                         Span<float>(values), spacing);
+        upsamplers_[face]->HeightsAt(*posts_[face], Span<const Vec2d>(onFace), Span<float>(values),
+                                     spacing);
         for (std::size_t k = 0; k < at.size(); ++k) {
             weighted[at[k]] += weights[k] * static_cast<double>(values[k]);
             total[at[k]] += weights[k];
@@ -138,20 +143,6 @@ void ShapeModelSource::HeightsAt(Span<const Vec2d> points, Span<float> heights,
         heights[i] =
             static_cast<float>(weighted[i] / total[i] + reference_ - shape.At(directions[i]));
     }
-}
-
-float ShapeModelSource::HeightAt(double x, double y, double spacing) const {
-    float height = 0.0f;
-    const Vec2d point{x, y};
-    HeightsAt(Span<const Vec2d>(&point, 1), Span<float>(&height, 1), spacing);
-    return height;
-}
-
-void ShapeModelSource::Fill(Raster<float>& heights, double spacing, unsigned threads) const {
-    detail::FillByTiles(heights, threads, [&](Span<const Vec2d> centers, Span<float> values) {
-        HeightsAt(centers, values, spacing);
-    });
-    MarkMissing(heights, std::nullopt);
 }
 
 double ShapeModelSource::ResolutionAt(double /*x*/, double /*y*/) const {

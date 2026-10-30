@@ -177,7 +177,7 @@ double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* groun
         background *= 1.0 - clusters.share + clusters.share * field / clusterMean_;
     }
     if (exposure_) {
-        const double bedrock = exposure_.At(x, y, ground);
+        const double bedrock = exposure_.At(x, y, ground, surface_);
         background *= 1.0 + bedrock * (options_.bedrock.abundance - 1.0);
         if (bedrockMeans_) {
             background /= BedrockMean(x, y, *ground);
@@ -205,7 +205,7 @@ double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const
                     const double py =
                         bedrockOrigin_.y +
                         (static_cast<double>(j) + (b + 0.5) / kSide) * bedrockCellSize_.y;
-                    sum += 1.0 + gain * exposure_.At(px, py, &ground);
+                    sum += 1.0 + gain * exposure_.At(px, py, &ground, surface_);
                 }
             }
             return sum / (kSide * kSide);

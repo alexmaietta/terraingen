@@ -24,7 +24,7 @@ def figure(quick=False):
     for ax, octaves in zip(axes, OCTAVES, strict=True):
         noise = terraingen.Fractal(seed=5, wavelength=200.0, amplitude=20.0, octaves=octaves)
         relief = terraingen.NoiseLayer(noise)
-        terrain = terraingen.TerrainGenerator(terraingen.FlatSource(size, size, pixel), [relief])
-        gallery.show_heights(ax, terraingen.evaluate(terrain).values, pixel)
+        terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief])
+        gallery.show_heights(ax, terrain.evaluate().values, pixel)
         ax.set_title(f"{octaves} octave{'s' if octaves > 1 else ''}")
     return fig

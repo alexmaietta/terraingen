@@ -53,6 +53,14 @@ std::shared_ptr<const SurfaceField> LayerResolvedLimit(const std::shared_ptr<con
     return SourceResolvedLimit(source, *pixelsAcross, surface);
 }
 
+double SourceResolvedSize(const Source* source, const std::optional<double>& pixelsAcross,
+                          const Surface& surface, double x, double y) {
+    if (source == nullptr || !pixelsAcross) {
+        return std::numeric_limits<double>::infinity();
+    }
+    return *pixelsAcross * surface.UnitLength() * source->ResolutionAt(x, y);
+}
+
 void ValidateSourceResolvesPixels(const std::optional<double>& pixelsAcross) {
     if (pixelsAcross) {
         RequirePositive(*pixelsAcross, "Source resolves pixels");

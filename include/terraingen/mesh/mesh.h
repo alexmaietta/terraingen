@@ -4,7 +4,7 @@
 /// @brief Triangle meshes, their measures, normals and rigid transforms.
 #pragma once
 
-#include "terraingen/util/geometry.h"
+#include "terraingen/geometry/geometry.h"
 
 #include <array>
 #include <cstdint>

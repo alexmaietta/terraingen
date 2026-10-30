@@ -7,10 +7,10 @@
 #include "arrays.h"
 #include "common.h"
 
+#include "terraingen/geometry/geometry.h"
 #include "terraingen/layers/boulders/boulder.h"
 #include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/shaping/attributes.h"
-#include "terraingen/util/geometry.h"
 
 #include <cstdint>
 #include <limits>

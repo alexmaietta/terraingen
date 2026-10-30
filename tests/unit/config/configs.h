@@ -4,13 +4,13 @@
 /// @brief Small configurations and raster fixtures shared by the pipeline tests.
 #pragma once
 
-#include "config/build_steps.h"
-#include "config/fields/json_io.h"
+#include "config/json_io.h"
+#include "config/terrain.h"
 #include "terraingen/config/build.h"
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
-#include "terraingen/pipeline/generator.h"
+#include "terraingen/pipeline/terrain.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 
 #include <cmath>
@@ -75,24 +75,24 @@ inline const std::vector<Raster<float>>& AlbedoOf(const GeneratedOutputs& genera
     return generated.grids.at(0).albedo;
 }
 
-/// The craters the generator's layers apply over the first grid.
+/// The craters the terrain's layers apply over the first grid.
 inline CraterFeatures CratersOf(const GeneratedOutputs& generated) {
-    return PlacedCraters(generated.generator, generated.grids.at(0).grid);
+    return generated.terrain.Craters(generated.grids.at(0).grid);
 }
 
-/// The boulders the generator's layers place over the first grid, and the models among them.
+/// The boulders the terrain's layers place over the first grid, and the models among them.
 inline BoulderFeatures BouldersOf(const GeneratedOutputs& generated) {
-    return PlacedBoulders(generated.generator, generated.grids.at(0).grid);
+    return generated.terrain.Boulders(generated.grids.at(0).grid);
 }
 
-/// The craters the generator's layers apply over `region`.
+/// The craters the terrain's layers apply over `region`.
 inline CraterFeatures CratersOf(const GeneratedOutputs& generated, const GridRegion& region) {
-    return PlacedCraters(generated.generator, region.Grid(generated.generator.surface));
+    return generated.terrain.Craters(region.Grid(generated.terrain.Surface()));
 }
 
-/// The boulders the generator's layers place over `region`.
+/// The boulders the terrain's layers place over `region`.
 inline BoulderFeatures BouldersOf(const GeneratedOutputs& generated, const GridRegion& region) {
-    return PlacedBoulders(generated.generator, region.Grid(generated.generator.surface));
+    return generated.terrain.Boulders(region.Grid(generated.terrain.Surface()));
 }
 
 /// The region of `Small`'s heightmap: 65 x 49 cells of 2 m.

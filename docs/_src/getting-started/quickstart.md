@@ -44,7 +44,7 @@ The same terrain can be built from library objects, one layer at a time. Python 
 
 ### Craters on a flat source
 
-A terrain generator is a source of starting heights and layers applied over it. Here the source is flat, 257 x 257 cells of 0.5 m, and one crater layer draws craters from the lunar production function, aged and worn.
+A terrain is a source of starting heights and layers applied over it, on a surface, a plane by default. Here the source is flat, 257 x 257 cells of 0.5 m, and one crater layer draws craters from the lunar production function, aged and worn.
 
 === "Python"
 

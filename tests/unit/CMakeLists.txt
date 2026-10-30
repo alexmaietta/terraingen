@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 add_subdirectory(util)
+add_subdirectory(geometry)
 add_subdirectory(raster)
+add_subdirectory(analysis)
 add_subdirectory(noise)
 add_subdirectory(gpu)
 add_subdirectory(random)
