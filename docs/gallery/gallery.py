@@ -336,6 +336,14 @@ def downloads_needed(path):
     return any(assets.cached(asset) is None for asset in getattr(load(path), "ASSETS", []))
 
 
+def fetch_assets(paths):
+    """Downloads the data files the scripts at `paths` read, once each, before any renders."""
+    import assets
+
+    for asset in {asset for path in paths for asset in getattr(load(path), "ASSETS", [])}:
+        assets.fetch(asset)
+
+
 def render(path, quick=False):
     """The figure the script at `path` makes."""
     module = load(path)
@@ -376,6 +384,7 @@ def main(argv=None):
             print("skipped", name, "(its data files are not downloaded; run docs/gallery/assets.py)")
             continue
         todo.append((path, image_path(name, args.output_dir), args.quick))
+    fetch_assets(path for path, _, _ in todo)
     if args.jobs == 1 or len(todo) <= 1:
         return [save(*job) for job in todo]
     context = multiprocessing.get_context("spawn")

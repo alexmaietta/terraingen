@@ -265,6 +265,10 @@ jobs:
           python -m pip install wheel/*.whl -r docs/requirements.txt
       - name: Build
         run: make -C docs build
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/terraingen/assets
+          key: gallery-assets-${{ hashFiles('docs/gallery/assets.py') }}
       - name: Gallery scripts run
         run: make -C docs gallery-check
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

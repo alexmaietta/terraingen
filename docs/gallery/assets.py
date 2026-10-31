@@ -15,6 +15,8 @@ import hashlib
 import os
 import pathlib
 import sys
+import time
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
@@ -82,6 +84,22 @@ def digest(path):
     return hasher.hexdigest()
 
 
+def download(url, path, attempts=4):
+    """Writes the file at `url` to `path`, retrying with backoff; raises RuntimeError naming the
+    URL when every attempt fails."""
+    request = urllib.request.Request(url, headers={"User-Agent": "terraingen-docs"})
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response, open(path, "wb") as file:
+                for block in iter(lambda: response.read(1 << 20), b""):
+                    file.write(block)
+            return
+        except (urllib.error.URLError, TimeoutError) as error:
+            if attempt + 1 == attempts:
+                raise RuntimeError(f"{url}: {error}") from None
+            time.sleep(5 * 2**attempt)
+
+
 def fetch(asset):
     """The path of `asset`, downloading it into the cache first when missing. The download goes
     to a .part file of this process, so gallery workers fetching the same asset at once do not
@@ -95,10 +113,7 @@ def fetch(asset):
     path.parent.mkdir(parents=True, exist_ok=True)
     partial = path.with_name(f"{path.name}.{os.getpid()}.part")
     print(f"downloading {asset.url} ({asset.size / 1e6:.1f} MB) to {path}", file=sys.stderr)
-    request = urllib.request.Request(asset.url, headers={"User-Agent": "terraingen-docs"})
-    with urllib.request.urlopen(request, timeout=60) as response, open(partial, "wb") as file:
-        for block in iter(lambda: response.read(1 << 20), b""):
-            file.write(block)
+    download(asset.url, partial)
     size = partial.stat().st_size
     if size != asset.size:
         partial.unlink()
