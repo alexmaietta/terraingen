@@ -68,17 +68,21 @@ class SizeFrequencyDistribution {
     /// @throws std::domain_error under the same conditions as `Cumulative`.
     double Incremental(double diameter) const;
 
-    /// Expected number of features with diameter in [`dMin`, `dMax`) meters over `area`.
+    /// Expected number of features with diameter in [`minDiameter`, `maxDiameter`) meters over
+    /// `area`.
     /// @param area Area in m^2 (or m^2 Gyr for a production rate), finite and >= 0.
-    /// @param dMax Largest diameter in meters; may be infinite.
-    /// @throws std::invalid_argument unless 0 < `dMin` < `dMax` and `area` >= 0 is finite.
+    /// @param maxDiameter Largest diameter in meters; may be infinite.
+    /// @throws std::invalid_argument unless 0 < `minDiameter` < `maxDiameter` and `area` >= 0 is
+    /// finite.
     /// @throws std::domain_error for a diameter outside the valid range without extrapolation.
-    double ExpectedCount(double area, double dMin, double dMax) const;
+    double ExpectedCount(double area, double minDiameter, double maxDiameter) const;
 
-    /// Draws a diameter in meters in [`dMin`, `dMax`) by inverting N(>=D); `dMax` may be infinite.
-    /// @throws std::invalid_argument unless 0 < `dMin` < `dMax`, or if N(dMin) = N(dMax).
+    /// Draws a diameter in meters in [`minDiameter`, `maxDiameter`) by inverting N(>=D);
+    /// `maxDiameter` may be infinite.
+    /// @throws std::invalid_argument unless 0 < `minDiameter` < `maxDiameter`, or if N(minDiameter)
+    /// = N(maxDiameter).
     /// @throws std::domain_error under the same conditions as `ExpectedCount`.
-    double SampleDiameter(RandomStream& random, double dMin, double dMax) const;
+    double SampleDiameter(RandomStream& random, double minDiameter, double maxDiameter) const;
 
   protected:
     /// Sets the kind and valid range.
@@ -91,11 +95,11 @@ class SizeFrequencyDistribution {
     /// -dN/dD without range checks; defaults to a central difference in log diameter.
     virtual double IncrementalAt(double diameter) const;
 
-    /// Diameter D in meters in [`dMin`, `dMax`] with N(>=D) = `target`; defaults to bisection in
-    /// log diameter.
-    /// @param target Cumulative count with N(dMax) <= `target` <= N(dMin).
-    /// @param dMax Largest diameter in meters; may be infinite.
-    virtual double InvertCumulative(double target, double dMin, double dMax) const;
+    /// Diameter D in meters in [`minDiameter`, `maxDiameter`] with N(>=D) = `target`; defaults to
+    /// bisection in log diameter.
+    /// @param target Cumulative count with N(maxDiameter) <= `target` <= N(minDiameter).
+    /// @param maxDiameter Largest diameter in meters; may be infinite.
+    virtual double InvertCumulative(double target, double minDiameter, double maxDiameter) const;
 
     /// Unchecked `CumulativeAt` of another distribution, for distributions built from others.
     static double UncheckedCumulative(const SizeFrequencyDistribution& distribution,
@@ -111,8 +115,8 @@ class SizeFrequencyDistribution {
 
     /// Unchecked `InvertCumulative` of another distribution.
     static double UncheckedInverse(const SizeFrequencyDistribution& distribution, double target,
-                                   double dMin, double dMax) {
-        return distribution.InvertCumulative(target, dMin, dMax);
+                                   double minDiameter, double maxDiameter) {
+        return distribution.InvertCumulative(target, minDiameter, maxDiameter);
     }
 
   private:

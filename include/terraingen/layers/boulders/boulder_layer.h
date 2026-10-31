@@ -119,8 +119,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         return options_;
     }
 
-    std::optional<Surface> LayerSurface() const override {
-        return surface_;
+    std::optional<TerrainBase> LayerBase() const override {
+        return TerrainBase{surface_, source_};
     }
 
     /// The crater layers whose craters throw blocks, which must come before this layer.
@@ -138,6 +138,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
 
     /// A copy reading the replacements of its crater layers; null when none is replaced.
     LayerPtr Rebound(const LayerReplacements& replaced) const override;
+
+    /// The layer built again from its options and crater layers on `base`.
+    /// @throws std::invalid_argument as the constructor.
+    LayerPtr Rebased(const TerrainBase& base) const override;
 
     /// The 3D shape of a boulder, shared between boulders with the same shape seed; for a
     /// fragment, its piece of its parent's shape.
@@ -182,7 +186,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// The boulders centered in `region` or reaching it, as `Boulders`, leaving out those and the
     /// pieces narrower than `smallest` meters (0 keeps every one) and marking models at `spacing`.
     std::vector<Boulder> PlaceBoulders(const Bounds2d& region, double spacing, double smallest,
-                                       const Ground* ground) const;
+                                       const Ground* ground, unsigned threads) const;
     /// The candidates of `region` at least `smallest` meters across (0 for all), before thinning;
     /// only the manual boulders reaching it without `generateRandom`.
     CraterList ScatterBoulderCandidates(const Bounds2d& region, double smallest) const;
@@ -215,7 +219,8 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// The boulders `candidates` give, in their order: those thinning keeps, their ground read in
     /// one pass (`Ground::HeightsAt`) and then placed.
     std::vector<Boulder> DrawBoulders(const CraterList& candidates, double spacing,
-                                      const Ground* ground, const EjectaIndex& ejecta) const;
+                                      const Ground* ground, const EjectaIndex& ejecta,
+                                      unsigned threads) const;
     /// Margin in radii a boulder's own relief and fillet reach beyond its center.
     double OwnMarginRadii() const;
     /// Margin in radii its pieces may scatter beyond that when boulders break.
@@ -240,7 +245,7 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// Sets the ground of the boulders `indices` of `boulders` from `ground`, read in one pass;
     /// unset without a ground or where it is missing.
     void ReadGrounds(std::vector<Boulder>& boulders, const std::vector<std::size_t>& indices,
-                     const Ground* ground) const;
+                     const Ground* ground, unsigned threads) const;
     /// How far a breaking boulder has come apart: its cracks' opening, 0 to 1 from `splitWear`
     /// to `rubbleWear`, and its pieces' scatter, 0 to 1 beyond.
     struct BreakStage {
@@ -319,10 +324,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     double ModelCover(const Boulder& boulder, const Vec2d& p, double spacing) const;
     /// `Boulders` as records, for the layer's own use.
     std::vector<Boulder> BoulderRecords(const Bounds2d& region, double spacing,
-                                        const Ground* ground) const;
+                                        const Ground* ground, unsigned threads) const;
     /// The boulders whose relief at `spacing` can reach `region`.
     std::vector<Boulder> ReliefBoulders(const Bounds2d& region, double spacing,
-                                        const Ground* ground) const;
+                                        const Ground* ground, unsigned threads) const;
     /// The boxes of `reliefs`, in order.
     static std::vector<Bounds2d> Boxes(const std::vector<Relief>& reliefs);
     /// The boulders of `boulders` resolved at `spacing` with relief or a fillet to draw, in order,
@@ -401,6 +406,9 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
     /// The manual boulders that fix any field, by the ID they are placed with.
     std::unordered_map<std::uint64_t, ManualBoulder> fixed_;
     Surface surface_;
+    std::shared_ptr<const Source> source_;
+    /// `options_.completeness`, the least with what the source resolves.
+    std::shared_ptr<const SurfaceField> completeness_;
     std::shared_ptr<const SurfaceCells> cells_;
 };
 

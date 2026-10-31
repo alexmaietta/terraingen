@@ -52,7 +52,7 @@ void CheckMaterials(const MaterialsSpec& materials, bool photometryOutput, const
     for (const MaterialClass material : PresentMaterials(materials.options, terrain)) {
         const auto index = static_cast<std::size_t>(material);
         if (!photometry[index]) {
-            throw ConfigError(Child("materials.photometry", kMaterialClassKeys[index]),
+            throw ConfigError(FieldPath("materials.photometry", kMaterialClassKeys[index]),
                               "required by the photometry output: the surface has some");
         }
     }

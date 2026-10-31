@@ -69,3 +69,8 @@ TEST(Geometry, BoundsAreFiniteOnlyWithEveryBoundFinite) {
     EXPECT_FALSE((terraingen::Bounds2d{-1.0, -2.0, INFINITY, 4.0}.IsFinite()));
     EXPECT_FALSE((terraingen::Bounds2d{-1.0, NAN, 3.0, 4.0}.IsFinite()));
 }
+
+TEST(Geometry, GivesTheCenterOfABox) {
+    const terraingen::Bounds2d box{-2.0, 1.0, 4.0, 5.0};
+    EXPECT_EQ(box.Center(), (Vec2d{1.0, 3.0}));
+}

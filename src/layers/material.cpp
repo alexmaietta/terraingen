@@ -25,8 +25,7 @@ void CoverWith(MaterialShares& shares, MaterialClass material, double cover) {
 
 Raster<double> MaterialSource::MaterialCoverOver(const RasterGrid& grid,
                                                  const LayerContext& context) const {
-    Raster<double> cover(grid.width, grid.height);
-    cover.SetTransform(grid.transform);
+    Raster<double> cover(grid);
     MapCells(cover, context.threads, [&](double, const Vec2d& center) {
         return MaterialCoverAt(center.x, center.y, context);
     });

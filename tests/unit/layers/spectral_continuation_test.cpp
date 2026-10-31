@@ -3,8 +3,8 @@
 #include "terraingen/layers/spectral_continuation.h"
 
 #include "analysis/radial_spectrum.h"
-#include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/sources/sample_block.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/span.h"
 
@@ -45,7 +45,7 @@ RasterGrid Grid(std::size_t size, double step, double x0 = -3.0, double y0 = 7.0
 /// The detail the layer adds over `grid` at its own spacing.
 Raster<float> Detail(const SpectralContinuationLayer& layer, const RasterGrid& grid,
                      double spacing = 0.0, unsigned threads = 1) {
-    Raster<float> heights = grid.MakeRaster();
+    Raster<float> heights(grid);
     terraingen::LayerContext context;
     context.spacing = spacing;
     context.threads = threads;
@@ -225,7 +225,7 @@ TEST(SpectralContinuationLayer, VariesWithTheSeedAndSkipsCellsWithoutData) {
     const Raster<float> b = Detail(SpectralContinuationLayer(other), Grid(32, 0.125));
     EXPECT_NE(a(10, 10), b(10, 10));
 
-    Raster<float> heights = Grid(32, 0.125).MakeRaster(1.0f);
+    Raster<float> heights(Grid(32, 0.125), 1.0f);
     heights.SetNoData(-9999.0f);
     heights(3, 4) = -9999.0f;
     heights(5, 6) = std::numeric_limits<float>::quiet_NaN();

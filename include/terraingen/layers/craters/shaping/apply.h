@@ -15,8 +15,8 @@
 #include "terraingen/layers/evaluation_cache.h"
 #include "terraingen/layers/ground.h"
 #include "terraingen/layers/layer.h"
-#include "terraingen/layers/sample_block.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/sources/sample_block.h"
 
 #include <functional>
 #include <memory>

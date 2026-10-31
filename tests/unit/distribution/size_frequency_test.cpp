@@ -117,13 +117,14 @@ TEST(SizeFrequencyDistribution, DefaultIncrementalAndInversionWorkForAnyCurve) {
     EXPECT_NEAR(decay.Incremental(5.0), 0.7 * std::exp(-0.5), 1e-8);
     RandomStream copy(9u, 9u);
     RandomStream stream(9u, 9u);
-    for (const double dMax : {30.0, kInf}) {
+    for (const double maxDiameter : {30.0, kInf}) {
         for (int i = 0; i < 20; ++i) {
             const double top = 7.0 * std::exp(-0.2);
-            const double bottom = std::isinf(dMax) ? 0.0 : 7.0 * std::exp(-dMax / 10.0);
+            const double bottom =
+                std::isinf(maxDiameter) ? 0.0 : 7.0 * std::exp(-maxDiameter / 10.0);
             const double target = top - copy.NextDouble() * (top - bottom);
-            const double d = decay.SampleDiameter(stream, 2.0, dMax);
-            EXPECT_NEAR(d, -10.0 * std::log(target / 7.0), 1e-9 * d) << dMax;
+            const double d = decay.SampleDiameter(stream, 2.0, maxDiameter);
+            EXPECT_NEAR(d, -10.0 * std::log(target / 7.0), 1e-9 * d) << maxDiameter;
         }
     }
     const std::unique_ptr<SizeFrequencyDistribution> base = std::make_unique<PowerLawSfd>(1.0, 2.0);

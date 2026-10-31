@@ -5,7 +5,6 @@
 #pragma once
 
 #include "terraingen/config/config.h"
-#include "terraingen/io/feature_lists.h"
 
 #include <filesystem>
 #include <stdexcept>
@@ -65,8 +64,5 @@ std::string ConfigCatalog(int indent = 2);
 /// optional, array, object, choice or ref) and, for fields, their description, unit, default and
 /// bounds.
 std::string ConfigSchema(int indent = 2);
-
-/// The format a list file's path implies: JSON for a .json path, else CSV.
-ListFormat InferListFormat(std::string_view path);
 
 }  // namespace terraingen

@@ -31,11 +31,11 @@ TEST_F(SnippetTest, BrightenTheAlbedoWithRocks) {
     RockSource rocks;
     rocks.layer = boulders;
     // Beneath the boulder layer, layer 0.
-    rocks.ground = std::make_shared<const Terrain>(terrain.Ground(0));
+    rocks.ground = std::make_shared<const Terrain>(terrain.Beneath(0));
     Albedo albedo;
     albedo.source = std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{});
     albedo.layers = {std::make_shared<RockAlbedo>(options, std::vector<RockSource>{rocks})};
-    const RasterGrid grid = RasterGrid::FromRaster(terrain.Evaluate());
+    const RasterGrid grid = terrain.Evaluate().Grid();
     const std::vector<Raster<float>> bands = EvaluateAlbedo(albedo, grid, {});
     // --8<-- [end:brighten_the_albedo_with_rocks]
     ASSERT_EQ(bands.size(), 1u);

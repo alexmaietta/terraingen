@@ -52,12 +52,12 @@ SyntheticAlbedo::SyntheticAlbedo(SyntheticAlbedoOptions options) : options_(std:
 }
 
 double SyntheticAlbedo::Noise(const std::vector<Fractal>& fractals, double x, double y,
-                              const AlbedoContext& context) {
+                              const LayerContext& context) {
     return static_cast<double>(
         FractalStackAt(fractals, context.ReferencePoint(), context.SurfaceOrPlane(), x, y));
 }
 
-AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const AlbedoContext& context) const {
+AlbedoSample SyntheticAlbedo::ValueAt(double x, double y, const LayerContext& context) const {
     const double value =
         std::clamp(options_.value * (1.0 + Noise(options_.valueNoise, x, y, context)), 0.0, 1.0);
     if (!options_.rgb) {

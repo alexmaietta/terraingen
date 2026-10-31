@@ -7,6 +7,7 @@
 #include "terraingen/geometry/geometry.h"
 
 #include <array>
+#include <cmath>
 #include <stdexcept>
 
 namespace terraingen {
@@ -46,6 +47,16 @@ struct GeoTransform {
     /// Whether rows or columns are rotated against the world axes.
     bool IsRotated() const {
         return rowRotation != 0.0 || colRotation != 0.0;
+    }
+
+    /// The length in world units of a cell's side along its row, from one column to the next.
+    double CellWidth() const {
+        return std::hypot(pixelWidth, colRotation);
+    }
+
+    /// The length in world units of a cell's side along its column, from one row to the next.
+    double CellHeight() const {
+        return std::hypot(rowRotation, pixelHeight);
     }
 
     /// Maps pixel coordinates, 0 at the first pixel's outer edge, to world coordinates.

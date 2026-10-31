@@ -57,12 +57,12 @@ const PathCase kPathCases[] = {
      "outputs[0].extent_m"},
     {"DegreesOnAPlane",
      [](ConfigSpec& c) {
-         Region(c).extentDeg = terraingen::ExtentSpec{{0.0, 0.0}, {1.0, 1.0}, {}, {}};
+         Region(c).extentDeg = terraingen::ExtentSpec{{{0.0, 0.0}}, {{1.0, 1.0}}, {}, {}};
      },
      "outputs[0].extent_deg"},
     {"EmptyExtent", [](ConfigSpec& c) { Region(c).extentM = terraingen::ExtentSpec{}; },
      "outputs[0].extent_m"},
-    {"CenterWithoutSize", [](ConfigSpec& c) { Region(c).extentM->size.clear(); },
+    {"CenterWithoutSize", [](ConfigSpec& c) { Region(c).extentM->size.reset(); },
      "outputs[0].extent_m.size"},
     {"CenterAndCorners",
      [](ConfigSpec& c) {
@@ -71,15 +71,13 @@ const PathCase kPathCases[] = {
      },
      "outputs[0].extent_m"},
     {"MaxWithoutMin",
-     [](ConfigSpec& c) { Region(c).extentM = terraingen::ExtentSpec{{}, {}, {}, {4.0, 4.0}}; },
+     [](ConfigSpec& c) { Region(c).extentM = terraingen::ExtentSpec{{}, {}, {}, {{4.0, 4.0}}}; },
      "outputs[0].extent_m.min"},
     {"ExtentMaxBelowMin",
      [](ConfigSpec& c) {
-         Region(c).extentM = terraingen::ExtentSpec{{}, {}, {0.0, 0.0}, {40.0, -40.0}};
+         Region(c).extentM = terraingen::ExtentSpec{{}, {}, {{0.0, 0.0}}, {{40.0, -40.0}}};
      },
      "outputs[0].extent_m.max"},
-    {"OneNumberCenter", [](ConfigSpec& c) { Region(c).extentM->center = {1.0}; },
-     "outputs[0].extent_m.center"},
     {"InfiniteCenter",
      [](ConfigSpec& c) {
          Region(c).extentM->center = {std::numeric_limits<double>::infinity(), 0.0};
@@ -87,7 +85,7 @@ const PathCase kPathCases[] = {
      "outputs[0].extent_m.center[0]"},
     {"CornersAreValid",
      [](ConfigSpec& c) {
-         Region(c).extentM = terraingen::ExtentSpec{{}, {}, {-65.0, -49.0}, {65.0, 49.0}};
+         Region(c).extentM = terraingen::ExtentSpec{{}, {}, {{-65.0, -49.0}}, {{65.0, 49.0}}};
      },
      "valid"},
     {"EmptyNoiseStack", [](ConfigSpec& c) { Noise(c).stack.clear(); }, "layers[0].stack"},
@@ -112,7 +110,7 @@ const PathCase kPathCases[] = {
     {"TerrainMeshCutoutWithoutMax",
      [](ConfigSpec& c) {
          terraingen::TerrainMeshOutput mesh{"t.glb", terraingen::testing::SmallRegion()};
-         mesh.cutouts = {terraingen::ExtentSpec{{}, {}, {0.0, 0.0}, {}}};
+         mesh.cutouts = {terraingen::ExtentSpec{{}, {}, {{0.0, 0.0}}, {}}};
          c.outputs = {mesh};
      },
      "outputs[0].cutouts[0].max"},
@@ -189,26 +187,29 @@ const PathCase kPathCases[] = {
     {"DeepCutoff",
      [](ConfigSpec& c) { Craters(c).degradation = terraingen::FreshnessDegradationSpec{0.5}; },
      "layers[1].degradation.cutoff_depth_ratio"},
-    {"SpacingRatioBelowOne", [](ConfigSpec& c) { Craters(c).spacing.diameterRatio = 0.5; },
+    {"SpacingRatioBelowOne",
+     [](ConfigSpec& c) { Craters(c).options.generation.spacing.diameterRatio = 0.5; },
      "layers[1].spacing.diameter_ratio"},
-    {"ReplacementAboveOne", [](ConfigSpec& c) { Craters(c).apply.interiorReplacement = 2.0; },
+    {"ReplacementAboveOne",
+     [](ConfigSpec& c) { Craters(c).options.apply.interiorReplacement = 2.0; },
      "layers[1].apply.interior_replacement"},
-    {"NegativeRimStrength", [](ConfigSpec& c) { Craters(c).apply.rimSmoothing.strength = -1.0; },
+    {"NegativeRimStrength",
+     [](ConfigSpec& c) { Craters(c).options.apply.rimSmoothing.strength = -1.0; },
      "layers[1].apply.rim_smoothing.strength"},
-    {"ZeroNoiseOctaves", [](ConfigSpec& c) { Craters(c).apply.noise.octaves = 0; },
+    {"ZeroNoiseOctaves", [](ConfigSpec& c) { Craters(c).options.apply.noise.octaves = 0; },
      "layers[1].apply.noise.octaves"},
-    {"ZeroMinDiameter", [](ConfigSpec& c) { Craters(c).minDiameter = 0.0; },
+    {"ZeroMinDiameter", [](ConfigSpec& c) { Craters(c).options.generation.minDiameter = 0.0; },
      "layers[1].min_diameter_m"},
-    {"MaxBelowMin", [](ConfigSpec& c) { Craters(c).maxDiameter = 5.0; },
+    {"MaxBelowMin", [](ConfigSpec& c) { Craters(c).options.generation.maxDiameter = 5.0; },
      "layers[1].max_diameter_m"},
-    {"InfiniteMax", [](ConfigSpec& c) { Craters(c).maxDiameter = kInfinity; },
+    {"InfiniteMax", [](ConfigSpec& c) { Craters(c).options.generation.maxDiameter = kInfinity; },
      "layers[1].max_diameter_m"},
-    {"TooManyCraters", [](ConfigSpec& c) { Craters(c).minDiameter = 2.0; },
+    {"TooManyCraters", [](ConfigSpec& c) { Craters(c).options.generation.minDiameter = 2.0; },
      "layers[1].min_diameter_m"},
     {"TooManyTraskCraters",
      [](ConfigSpec& c) {
          Craters(c).density = terraingen::TraskSpec{};
-         Craters(c).minDiameter = 0.001;
+         Craters(c).options.generation.minDiameter = 0.001;
      },
      "layers[1].min_diameter_m"},
     {"NegativeManualDiameter", [](ConfigSpec& c) { Craters(c).manual = {{0.0, 0.0, -1.0, 0.0}}; },
@@ -240,8 +241,8 @@ const PathCase kPathCases[] = {
      "layers[1].manual[0]"},
     {"ManualOnlyStillChecksDiameterRanges",
      [](ConfigSpec& c) {
-         Craters(c).generateRandom = false;
-         Craters(c).minDiameter = -1.0;
+         Craters(c).options.generateRandom = false;
+         Craters(c).options.generation.minDiameter = -1.0;
      },
      "layers[1].min_diameter_m"},
     {"CraterListWithoutPath",
@@ -403,7 +404,7 @@ const PathCase kPathCases[] = {
     {"SpectralContinuationZeroMinWavelength",
      [](ConfigSpec& c) {
          terraingen::SpectralContinuationLayerSpec layer = ExplicitSpectrum();
-         layer.minWavelength = 0.0;
+         layer.options.minWavelength = 0.0;
          c.layers.push_back(layer);
      },
      "layers[2].min_wavelength_m"},
@@ -522,13 +523,15 @@ const PathCase kPathCases[] = {
      },
      "layers[2].estimate_from_source"},
     {"SourceResolvedLimitWithoutABase",
-     [](ConfigSpec& c) { Craters(c).sourceResolvesPixels = 4.0; }, "valid"},
-    {"ZeroSourceResolvedLimit", [](ConfigSpec& c) { Craters(c).sourceResolvesPixels = 0.0; },
+     [](ConfigSpec& c) { Craters(c).options.sourceResolvesPixels = 4.0; }, "valid"},
+    {"ZeroSourceResolvedLimit",
+     [](ConfigSpec& c) { Craters(c).options.sourceResolvesPixels = 0.0; },
      "layers[1].source_resolves_px"},
-    {"NegativeSourceResolvedLimit", [](ConfigSpec& c) { Craters(c).sourceResolvesPixels = -3.0; },
+    {"NegativeSourceResolvedLimit",
+     [](ConfigSpec& c) { Craters(c).options.sourceResolvesPixels = -3.0; },
      "layers[1].source_resolves_px"},
     {"InfiniteSourceResolvedLimit",
-     [](ConfigSpec& c) { Craters(c).sourceResolvesPixels = kInfinity; },
+     [](ConfigSpec& c) { Craters(c).options.sourceResolvesPixels = kInfinity; },
      "layers[1].source_resolves_px"},
     {"ZeroNoiseSourceResolvedLimit",
      [](ConfigSpec& c) {
@@ -631,7 +634,7 @@ TEST(ValidateConfig, SummarisesTheGridsAndTheCratersExpected) {
     EXPECT_DOUBLE_EQ(*ValidateConfig(config).expectedCraters, 2.0 * expected)
         << "crater layers inside regions are not counted";
 
-    Craters(config).generateRandom = false;
+    Craters(config).options.generateRandom = false;
     config.layers.resize(2);
     EXPECT_FALSE(ValidateConfig(config).expectedCraters);
 }
@@ -662,7 +665,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
                   boulders.boulders.sizes.coverage = 0.0;
                   boulders.boulders.sizes.maxDiameter = 0.01;
                   boulders.boulders.ejecta.minCraterDiameter = 10.0;
-                  boulders.manual = {{1.0, 2.0, 1.5}};
+                  boulders.boulders.manual = {{1.0, 2.0, 1.5}};
                   c.layers.insert(c.layers.begin(), boulders);
               }),
               "valid")
@@ -670,7 +673,7 @@ TEST(ValidateConfig, ReportsBoulderLayerProblemsByPath) {
     EXPECT_EQ(ErrorPath([](ConfigSpec& c) {
                   terraingen::BoulderLayerSpec boulders;
                   boulders.boulders.generateRandom = false;
-                  boulders.manual = {{1.0, 2.0, -1.5}};
+                  boulders.boulders.manual = {{1.0, 2.0, -1.5}};
                   c.layers.push_back(boulders);
               }),
               "layers[2].manual[0].diameter_m")
@@ -703,8 +706,8 @@ TEST(ValidateConfig, ReportsManualBoulderProblemsByPath) {
         return ErrorPath([&](ConfigSpec& c) {
             terraingen::BoulderLayerSpec boulders;
             boulders.boulders.sizes.minDiameter = 1.0;
-            boulders.manual = {{1.0, 2.0, 1.5}, {-3.0, 4.0, 2.0}};
-            change(boulders.manual);
+            boulders.boulders.manual = {{1.0, 2.0, 1.5}, {-3.0, 4.0, 2.0}};
+            change(boulders.boulders.manual);
             c.layers.push_back(boulders);
         });
     };
@@ -830,7 +833,7 @@ TEST(ValidateConfig, NamesGolombekRappSizesForACoverage) {
 TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
     ConfigSpec config = Small();
     Craters(config).ages = terraingen::testing::LunarAgesSpec();
-    Craters(config).minDiameter = 1.0;
+    Craters(config).options.generation.minDiameter = 1.0;
     try {
         terraingen::ValidateConfig(config);
         ADD_FAILURE() << "validated";
@@ -838,7 +841,7 @@ TEST(ValidateConfig, RejectsSteadyStateAgesBelowTheProductionFunction) {
         EXPECT_EQ(error.Path(), "layers[1].min_diameter_m");
         EXPECT_NE(std::string(error.what()).find("2.5 m"), std::string::npos) << error.what();
     }
-    Craters(config).minDiameter = 2.5;
+    Craters(config).options.generation.minDiameter = 2.5;
     EXPECT_EQ(ValidationErrorPath(config), "valid");
 }
 
@@ -980,7 +983,8 @@ TEST(ValidateConfig, ReportsAlbedoProblemsByPath) {
         return std::get<terraingen::CraterAlbedoSpec>(c.albedo->layers.at(0));
     };
     EXPECT_EQ(error([](ConfigSpec&) {}), "valid");
-    EXPECT_EQ(error([&](ConfigSpec& c) { synthetic(c).value = 2.0; }), "albedo.source.value");
+    EXPECT_EQ(error([&](ConfigSpec& c) { synthetic(c).options.value = 2.0; }),
+              "albedo.source.value");
     EXPECT_EQ(error([&](ConfigSpec& c) {
                   synthetic(c).hueNoiseDegrees.assign(terraingen::kMaxFractals + 1, {});
               }),

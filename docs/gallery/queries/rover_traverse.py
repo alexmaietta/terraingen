@@ -24,7 +24,7 @@ def figure(quick=False):
     relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     craters = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
-            seed=4, generation=terraingen.CraterGenerationOptions(d_min=2.5, d_max=12.0)
+            seed=4, generation=terraingen.CraterGenerationOptions(min_diameter=2.5, max_diameter=12.0)
         )
     )
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(seed=4), craters)

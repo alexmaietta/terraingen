@@ -67,13 +67,13 @@ std::vector<Raster<float>> EvaluatePhotometry(const std::vector<Raster<float>>& 
         throw std::invalid_argument("Photometry needs one material raster per class");
     }
     ValidateMaterialPhotometry(photometry);
-    const RasterGrid grid = RasterGrid::FromRaster(materials[0]);
+    const RasterGrid grid = materials[0].Grid();
     for (const Raster<float>& band : materials) {
-        if (!(RasterGrid::FromRaster(band) == grid)) {
+        if (!(band.Grid() == grid)) {
             throw std::invalid_argument("Material rasters must share one grid");
         }
     }
-    std::vector<Raster<float>> bands(4, grid.MakeRaster());
+    std::vector<Raster<float>> bands(4, Raster<float>(grid));
     for (std::size_t i = 0; i < materials[0].Size(); ++i) {
         MaterialShares shares{};
         for (std::size_t k = 0; k < kMaterialClasses; ++k) {

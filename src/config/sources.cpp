@@ -60,14 +60,14 @@ std::shared_ptr<const Source> BuildRaster(const RasterSourceSpec& raster,
                                           const std::string& path, const Surface& surface) {
     GeoTiffSourceOptions read = raster.read;
     if (read.upsampler) {
-        throw ConfigError(Child(path, "upsampling"),
+        throw ConfigError(FieldPath(path, "upsampling"),
                           "gives the raster's upsampler; leave read.upsampler unset");
     }
-    const std::string filePath = Child(path, "path");
+    const std::string filePath = FieldPath(path, "path");
     CheckNonEmpty(raster.path, filePath);
     const std::filesystem::path file = Resolve(raster.path, directory);
     const GeoTiffInfo info = AtFile(filePath, [&] { return ReadGeoTiffInfo(file); });
-    CheckBand(read.band, info, Child(path, "band"));
+    CheckBand(read.band, info, FieldPath(path, "band"));
     if (info.geoKeys.IsGeographic() && !surface.IsBody()) {
         throw ConfigError(filePath,
                           "the raster's CRS is geographic (degrees); craters are sized in "
@@ -81,8 +81,8 @@ std::shared_ptr<const Source> BuildRaster(const RasterSourceSpec& raster,
     if (read.effectivePixelSize) {
         *read.effectivePixelSize /= surface.UnitLength();
     }
-    read.upsampler = BuildUpsampler(raster.upsampling, surface, Child(path, "upsampling"));
-    const std::string gridPath = read.crop ? Child(path, "crop") : filePath;
+    read.upsampler = BuildUpsampler(raster.upsampling, surface, FieldPath(path, "upsampling"));
+    const std::string gridPath = read.crop ? FieldPath(path, "crop") : filePath;
     std::shared_ptr<const Source> source =
         At(gridPath, [&] { return std::make_shared<GeoTiffSource>(file, read); });
     const RasterGrid grid = source->Grid();
@@ -95,13 +95,14 @@ std::shared_ptr<const Source> BuildRaster(const RasterSourceSpec& raster,
 std::shared_ptr<const Source> BuildChain(const ChainSourceSpec& chain,
                                          const std::filesystem::path& directory,
                                          const std::string& path, const Surface& surface) {
-    const std::string sources = Child(path, "sources");
+    const std::string sources = FieldPath(path, "sources");
     const ChainSeams seams = SurfaceSeams(chain.seams, surface);
-    const std::string reachPath = Child(
-        Child(path, "seams"), seams.mode == ChainSeamMode::Feather ? "width_m" : "decay_length_m");
+    const std::string reachPath =
+        FieldPath(FieldPath(path, "seams"),
+                  seams.mode == ChainSeamMode::Feather ? "width_m" : "decay_length_m");
     std::vector<std::shared_ptr<const Source>> members;
     for (std::size_t n = 0; n < chain.sources.size(); ++n) {
-        members.push_back(BuildSource(chain.sources[n], directory, Element(sources, n), surface));
+        members.push_back(BuildSource(chain.sources[n], directory, ItemPath(sources, n), surface));
         const std::optional<RasterGrid> grid = BoundedGrid(*members.back());
         if (grid && seams.mode != ChainSeamMode::None && n + 1 < chain.sources.size()) {
             const RasterGrid lattice = At(reachPath, [&] { return SeamLattice(*grid, seams); });
@@ -114,10 +115,10 @@ std::shared_ptr<const Source> BuildChain(const ChainSourceSpec& chain,
 /// Synthetic noise: its stack, and upsampling only with a pixel size.
 std::shared_ptr<const Source> BuildSynthetic(const SyntheticSourceSpec& synthetic,
                                              const std::string& path, const Surface& surface) {
-    CheckNoiseStack(synthetic.stack, Child(path, "stack"));
+    CheckNoiseStack(synthetic.stack, FieldPath(path, "stack"));
     std::shared_ptr<const Upsampler> upsampler;
     if (synthetic.upsampling) {
-        const std::string at = Child(path, "upsampling");
+        const std::string at = FieldPath(path, "upsampling");
         if (!synthetic.pixelSize) {
             throw ConfigError(at, "needs pixel_size_m: only noise sampled at posts is upsampled");
         }
@@ -134,7 +135,7 @@ std::shared_ptr<const Source> BuildSynthetic(const SyntheticSourceSpec& syntheti
 std::shared_ptr<const Source> BuildShapeModel(const ShapeModelSourceSpec& shape,
                                               const std::string& path, const Surface& surface) {
     const std::shared_ptr<const Upsampler> upsampler =
-        BuildUpsampler(shape.upsampling, surface, Child(path, "upsampling"));
+        BuildUpsampler(shape.upsampling, surface, FieldPath(path, "upsampling"));
     return At(path, [&] { return std::make_shared<ShapeModelSource>(surface, upsampler); });
 }
 

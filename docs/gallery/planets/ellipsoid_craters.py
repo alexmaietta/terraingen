@@ -34,7 +34,7 @@ def figure(quick=False):
     craters = terraingen.CraterLayer(
         models,
         terraingen.CraterLayerOptions(
-            seed=4, generation=terraingen.CraterGenerationOptions(d_min=D_MIN, d_max=D_MAX)
+            seed=4, generation=terraingen.CraterGenerationOptions(min_diameter=D_MIN, max_diameter=D_MAX)
         ),
         base=body,
     )

@@ -7,16 +7,15 @@
 #include "terraingen/geometry/geometry.h"
 #include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/geo_transform.h"
+#include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/sample_block.h"
 #include "terraingen/util/span.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -47,140 +46,18 @@ class PostLattice {
                       Span<float> heights) const = 0;
 };
 
-namespace detail {
+/// Where a raster that is a window of a larger one, such as a window read from a file, lies in
+/// it.
+struct RasterPlacement {
+    RasterGrid whole{};   ///< The larger raster's grid.
+    std::size_t col = 0;  ///< The window's first column in it.
+    std::size_t row = 0;  ///< The window's first row in it.
 
-/// An inclusive box of lattice indices, columns [`col0`, `col1`] and rows [`row0`, `row1`];
-/// empty until it includes a span.
-struct IndexBox {
-    std::int64_t col0 = std::numeric_limits<std::int64_t>::max();
-    std::int64_t row0 = std::numeric_limits<std::int64_t>::max();
-    std::int64_t col1 = std::numeric_limits<std::int64_t>::min();
-    std::int64_t row1 = std::numeric_limits<std::int64_t>::min();
-
-    /// Grows the box to hold columns [`first`, `last`] and rows [`top`, `bottom`].
-    void Include(std::int64_t first, std::int64_t last, std::int64_t top, std::int64_t bottom) {
-        col0 = std::min(col0, first);
-        col1 = std::max(col1, last);
-        row0 = std::min(row0, top);
-        row1 = std::max(row1, bottom);
-    }
-
-    /// Columns in a non-empty box.
-    std::size_t Columns() const {
-        return static_cast<std::size_t>(col1 - col0 + 1);
-    }
-
-    /// Rows in a non-empty box.
-    std::size_t Rows() const {
-        return static_cast<std::size_t>(row1 - row0 + 1);
-    }
-
-    /// The number of indices the box holds, as a double so that it cannot overflow.
-    double Area() const {
-        return static_cast<double>(col1 - col0 + 1) * static_cast<double>(row1 - row0 + 1);
+    /// A raster placed in itself.
+    static RasterPlacement Whole(const Raster<float>& raster) {
+        return {raster.Grid(), 0, 0};
     }
 };
-
-/// Values over an `IndexBox` of a lattice, row by row.
-template <typename T> struct LatticeWindow {
-    IndexBox box;
-    std::size_t width = 0;
-    std::vector<T> values;
-
-    /// The window over a non-empty `over`, every value `T{}`.
-    explicit LatticeWindow(const IndexBox& over)
-        : box(over), width(over.Columns()), values(over.Columns() * over.Rows()) {}
-
-    T& At(std::int64_t col, std::int64_t row) {
-        return values[static_cast<std::size_t>(row - box.row0) * width +
-                      static_cast<std::size_t>(col - box.col0)];
-    }
-    const T& At(std::int64_t col, std::int64_t row) const {
-        return values[static_cast<std::size_t>(row - box.row0) * width +
-                      static_cast<std::size_t>(col - box.col0)];
-    }
-};
-
-/// The posts of `posts` over `box`, NaN where they have no data.
-LatticeWindow<float> ReadPosts(const PostLattice& posts, const IndexBox& box);
-
-/// The index along an axis of the post a lattice read takes for index `at`: wrapped into
-/// [0, `count`) when `wrap`, as longitudes around a body are, then clamped to [`begin`, `end`),
-/// so reads beyond the posts held repeat their edge.
-inline std::size_t PostIndex(std::int64_t at, bool wrap, std::size_t count, std::size_t begin,
-                             std::size_t end) {
-    const auto n = static_cast<std::int64_t>(count);
-    const std::int64_t wrapped = wrap ? ((at % n) + n) % n : at;
-    return static_cast<std::size_t>(std::clamp<std::int64_t>(
-        wrapped, static_cast<std::int64_t>(begin), static_cast<std::int64_t>(end) - 1));
-}
-
-/// Where a grid on a lattice starts, in lattice cells.
-struct LatticeOffset {
-    std::int64_t col = 0;
-    std::int64_t row = 0;
-};
-
-/// The offset of a grid with transform `grid` on a lattice placed by `lattice`, if its cells are
-/// the lattice's cells: the same size and rotation, starting a whole number of cells away.
-std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& lattice, const GeoTransform& grid);
-
-/// Cells per side of the tiles `FillByTiles` hands out.
-inline constexpr std::size_t kFillTileCells = 128;
-
-/// Sets the samples of `samples` by `fill(positions, values)`, which sets `values`, one per
-/// position: a grid tile by tile, tiles split over threads, each tile's cell centers row by row;
-/// points all at once.
-/// @param threads Threads to fill a grid over; 0 for every hardware thread.
-template <typename FillPoints>
-void FillByTiles(SampleBlock& samples, unsigned threads, const FillPoints& fill) {
-    Raster<float>* grid = samples.Grid();
-    if (grid == nullptr) {
-        fill(samples.Points(), samples.Heights());
-        return;
-    }
-    Raster<float>& heights = *grid;
-    ForEachTile(heights.Width(), heights.Height(), kFillTileCells, threads,
-                [&](const PixelWindow& tile) {
-                    const std::size_t width = tile.colEnd - tile.colBegin;
-                    std::vector<Vec2d> centers;
-                    centers.reserve(width * (tile.rowEnd - tile.rowBegin));
-                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
-                        for (std::size_t col = tile.colBegin; col < tile.colEnd; ++col) {
-                            centers.push_back(heights.CellCenter(col, row));
-                        }
-                    }
-                    std::vector<float> values(centers.size());
-                    fill(Span<const Vec2d>(centers), Span<float>(values));
-                    for (std::size_t row = tile.rowBegin; row < tile.rowEnd; ++row) {
-                        std::copy_n(values.begin() +
-                                        static_cast<std::ptrdiff_t>((row - tile.rowBegin) * width),
-                                    width, heights.Row(row).begin() + tile.colBegin);
-                    }
-                });
-}
-
-/// Sets `heights`, one per point of `points`, by `expand(box, points, heights)`: once for them
-/// all when the box `readBox(points)` gives holds at most `perPoint` indices per point, so points
-/// close together read the lattice once, otherwise point by point with each point's own box.
-template <typename ReadBox, typename Expand>
-void ExpandPoints(Span<const Vec2d> points, Span<float> heights, double perPoint,
-                  const ReadBox& readBox, const Expand& expand) {
-    if (points.empty()) {
-        return;
-    }
-    const IndexBox box = readBox(points);
-    if (box.Area() <= perPoint * static_cast<double>(points.size())) {
-        expand(box, points, heights);
-        return;
-    }
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        const Span<const Vec2d> point = points.subspan(i, 1);
-        expand(readBox(point), point, heights.subspan(i, 1));
-    }
-}
-
-}  // namespace detail
 
 /// The posts of a raster that is a window of a larger lattice, such as a window read from a
 /// file: posts beyond the larger lattice repeat its edge, and those beyond the window its edge, so
@@ -234,7 +111,7 @@ class Upsampler {
     /// Sets every sample of `samples` to its height from `posts` at a sample spacing of
     /// `spacing`, NaN where it has none: a post's own where the sample is centered on one and the
     /// spacing is no finer than the posts (`AtPostSpacing`), otherwise `FillSamples`'. A grid on
-    /// the posts' lattice (`detail::OffsetOnLattice`) at their spacing or coarser copies them.
+    /// the posts' lattice at their spacing or coarser copies them.
     /// @param threads Threads to fill a grid over; 0 for every hardware thread.
     void Fill(const PostLattice& posts, SampleBlock& samples, double spacing,
               unsigned threads) const;
@@ -280,10 +157,6 @@ class Upsampler {
                              unsigned threads) const = 0;
 };
 
-/// Gives the NaN cells of `heights`, filled from a source with no-data value `noData`, that value
-/// (NaN without one), and `heights` the no-data value that leaves (`FilledNoData`).
-void MarkMissing(Raster<float>& heights, std::optional<float> noData);
-
 /// Interpolation of the posts with a kernel (`ResampleMethod`), at every spacing alike: `Cubic`,
 /// the default, gives the same bits as `SampleRaster` of the posts.
 class KernelUpsampler final : public Upsampler {
@@ -297,8 +170,8 @@ class KernelUpsampler final : public Upsampler {
 
   protected:
     /// The posts interpolated at each sample as `SampleRaster` interpolates a raster, NaN where a
-    /// post weighed holds no data. Points close together read the posts once
-    /// (`detail::ExpandPoints`), reusing a row's kernel weights in the rows below that share them.
+    /// post weighed holds no data. Points close together read the posts once,
+    /// reusing a row's kernel weights in the rows below that share them.
     /// @throws std::invalid_argument for a rotated lattice.
     void FillSamples(const PostLattice& posts, SampleBlock& samples, double spacing,
                      unsigned threads) const override;

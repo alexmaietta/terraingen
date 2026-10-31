@@ -45,7 +45,7 @@ RockAlbedo::RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> source
 namespace {
 
 /// The context `source`'s boulder layer is read in for an albedo evaluated in `context`.
-LayerContext LayerOn(const RockSource& source, const AlbedoContext& context) {
+LayerContext LayerOn(const RockSource& source, const LayerContext& context) {
     LayerContext layer;
     layer.spacing = context.spacing;
     layer.threads = context.threads;
@@ -63,7 +63,7 @@ double RockAlbedo::UnresolvedNormal(double x, double y, std::size_t source) cons
     return StandardNormal(random);
 }
 
-double RockAlbedo::ShareAt(double x, double y, const AlbedoContext& context) const {
+double RockAlbedo::ShareAt(double x, double y, const LayerContext& context) const {
     ValidateAlbedoContext(context);
     double bare = 1.0;
     for (std::size_t n = 0; n < sources_.size(); ++n) {
@@ -80,13 +80,13 @@ double RockAlbedo::ShareAt(double x, double y, const AlbedoContext& context) con
 }
 
 void RockAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                         const AlbedoContext& context) const {
+                         const LayerContext& context) const {
     ChangeBands(value, bands, ShareAt(x, y, context) * (options_.reflectanceRatio - 1.0));
 }
 
 std::vector<double> RockAlbedo::BareShares(const Raster<float>& first,
-                                           const AlbedoContext& context) const {
-    const RasterGrid grid = RasterGrid::FromRaster(first);
+                                           const LayerContext& context) const {
+    const RasterGrid grid = first.Grid();
     std::vector<double> bare(grid.width * grid.height, 1.0);
     for (std::size_t n = 0; n < sources_.size(); ++n) {
         const RockSource& source = sources_[n];
@@ -110,7 +110,7 @@ std::vector<double> RockAlbedo::BareShares(const Raster<float>& first,
     return bare;
 }
 
-void RockAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
+void RockAlbedo::Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const {
     if (bands.empty() || sources_.empty()) {
         return;
     }

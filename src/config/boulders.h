@@ -59,9 +59,7 @@ struct BoulderLayerSpec {
     std::vector<std::string> shapeFiles{};
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `boulders.densityMap`.
     std::optional<SizeSlopeMapSpec> slopeMap{};  ///< Gives `boulders.slopeMap`.
-    /// Catalog or hand-placed boulders in the surface's coordinates, as `boulders.manual`.
-    std::vector<ManualBoulder> manual{};
-    std::optional<FieldSpec> completeness{};  ///< Gives `boulders.completeness`.
+    std::optional<FieldSpec> completeness{};     ///< Gives `boulders.completeness`.
 };
 
 /// Description of the curve of an SP-8023 boulder size model.
@@ -137,7 +135,7 @@ template <typename IO> void BoulderInputFields(IO& io, BoulderLayerSpec& spec) {
        "Map of how steeply boulder counts fall with size, such as a mean diameter map, bending the "
        "sizes into a local power law through their count at its reference diameter; needs a size "
        "distribution. Unset keeps the sizes' shape everywhere.");
-    io("manual", spec.manual,
+    io("manual", spec.boulders.manual,
        "Catalog or hand-placed boulders placed as given and never thinned or left out; fields "
        "left unset are drawn as for generated boulders. Boulders fixing any field never break.");
     io("completeness", spec.completeness,

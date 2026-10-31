@@ -119,22 +119,24 @@ std::size_t PieceIndex(const std::vector<Piece>& pieces, double diameter) {
 }
 
 /// The first piece from `index` on that `holds(index, high)` accepts, with `high` the end of the
-/// piece's interval capped at `dMax` meters; the last piece if none does.
+/// piece's interval capped at `maxDiameter` meters; the last piece if none does.
 template <typename Piece, typename Holds>
-std::size_t WalkPieces(const std::vector<Piece>& pieces, std::size_t index, double dMax,
+std::size_t WalkPieces(const std::vector<Piece>& pieces, std::size_t index, double maxDiameter,
                        const Holds& holds) {
-    while (index + 1 < pieces.size() && !holds(index, std::fmin(dMax, pieces[index + 1].start))) {
+    while (index + 1 < pieces.size() &&
+           !holds(index, std::fmin(maxDiameter, pieces[index + 1].start))) {
         ++index;
     }
     return index;
 }
 
-/// The interval in meters of piece `index` within [`dMin`, `dMax`].
+/// The interval in meters of piece `index` within [`minDiameter`, `maxDiameter`].
 template <typename Piece>
 std::pair<double, double> PieceInterval(const std::vector<Piece>& pieces, std::size_t index,
-                                        double dMin, double dMax) {
-    const double high = index + 1 < pieces.size() ? std::fmin(dMax, pieces[index + 1].start) : dMax;
-    return {std::fmax(dMin, pieces[index].start), high};
+                                        double minDiameter, double maxDiameter) {
+    const double high =
+        index + 1 < pieces.size() ? std::fmin(maxDiameter, pieces[index + 1].start) : maxDiameter;
+    return {std::fmax(minDiameter, pieces[index].start), high};
 }
 
 }  // namespace terraingen::detail

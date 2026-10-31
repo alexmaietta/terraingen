@@ -24,7 +24,7 @@ namespace {
 /// A 200 x 120 grid at 0.5 m spacing around the origin, heights rising to the east.
 terraingen::Raster<float> Slope() {
     const terraingen::RasterGrid grid{200, 120, GeoTransform::NorthUp(-50.0, 30.0, 0.5)};
-    auto heights = grid.MakeRaster();
+    terraingen::Raster<float> heights(grid);
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             heights(col, row) = static_cast<float>(0.1 * heights.CellCenter(col, row).x);
@@ -276,14 +276,18 @@ TEST(MaskedLayer, SkipsTheInnerLayerAwayFromTheRegion) {
     EXPECT_GE(*calls, 15) << "16 cells in the region, one without data";
 }
 
-TEST(MaskedLayer, ForwardsSurfaceSeedsAndDependenciesToItsInnerLayer) {
+TEST(MaskedLayer, ForwardsBaseSeedsAndDependenciesToItsInnerLayer) {
     const RegionShape box = RegionShape::Rectangle({-5.0, -5.0, 5.0, 5.0});
-    EXPECT_FALSE(MaskedLayer(std::make_shared<terraingen::ScaleLayer>(2.0), box).LayerSurface());
+    EXPECT_FALSE(MaskedLayer(std::make_shared<terraingen::ScaleLayer>(2.0), box).LayerBase());
     EXPECT_EQ(MaskedLayer(std::make_shared<terraingen::ScaleLayer>(2.0), box).Reseeded(1), nullptr)
         << "an inner layer without seeds";
     const auto craters = ManualCraters();
     const MaskedLayer masked(craters, box, 2.0);
-    EXPECT_EQ(masked.LayerSurface(), craters->LayerSurface());
+    EXPECT_EQ(masked.LayerBase()->surface, craters->LayerBase()->surface);
+    const auto source = std::make_shared<terraingen::FlatSource>(8, 8, 1.0);
+    const terraingen::LayerPtr rebased = masked.Rebased({terraingen::Surface{}, source});
+    ASSERT_NE(rebased, nullptr);
+    EXPECT_EQ(rebased->LayerBase()->source, source) << "the inner layer rebuilt on the base";
     const terraingen::LayerPtr reseeded = masked.Reseeded(3);
     ASSERT_NE(reseeded, nullptr);
     const auto& confining = dynamic_cast<const MaskedLayer&>(*reseeded);

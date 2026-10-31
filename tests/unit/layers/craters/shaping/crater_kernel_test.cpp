@@ -238,8 +238,9 @@ TEST(CraterKernel, ShapesGridsOnEveryAvailableGpuToWithinFloatRounding) {
         diffused, std::make_shared<terraingen::DiffusionDegradation>(
                       terraingen::LunarFreshCraterMorphometry,
                       terraingen::Fassett2022HartmannDiffusivity(), diffused)};
-    terraingen::Raster<float> base(300, 300, 0.0f);
-    base.SetTransform(terraingen::GeoTransform::NorthUp(-600.0, 600.0, 4.0));
+    terraingen::Raster<float> base(
+        terraingen::RasterGrid{300, 300, terraingen::GeoTransform::NorthUp(-600.0, 600.0, 4.0)},
+        0.0f);
     for (std::size_t i = 0; i < base.Size(); ++i) {
         base.Values()[i] = 0.01f * static_cast<float>(i % 300);
     }
@@ -292,8 +293,9 @@ TEST(CraterKernel, FitsDatumsOnEveryAvailableGpuAsOnTheCpu) {
                         6.0 + std::fmod(29.0 * i, 240.0), 0.002 * (i % 40),
                         static_cast<std::uint64_t>(i + 1)});
     }
-    terraingen::Raster<float> base(256, 256, 0.0f);
-    base.SetTransform(terraingen::GeoTransform::NorthUp(-512.0, 512.0, 4.0));
+    terraingen::Raster<float> base(
+        terraingen::RasterGrid{256, 256, terraingen::GeoTransform::NorthUp(-512.0, 512.0, 4.0)},
+        0.0f);
     for (std::size_t row = 0; row < 256; ++row) {
         for (std::size_t col = 0; col < 256; ++col) {
             base.Values()[row * 256 + col] =
@@ -376,10 +378,10 @@ terraingen::CraterList BodyCraters(const BodySurface& body, std::size_t side, in
 
 /// A longitude-latitude grid of `side` cells centered on `body`'s center, sloping east.
 terraingen::Raster<float> BodyGrid(const BodySurface& body, std::size_t side) {
-    terraingen::Raster<float> grid(side, side, 0.0f);
     const double half = 0.5 * static_cast<double>(side) * body.step;
-    grid.SetTransform(
-        terraingen::GeoTransform::NorthUp(body.center.x - half, body.center.y + half, body.step));
+    terraingen::Raster<float> grid(terraingen::RasterGrid{
+        side, side,
+        terraingen::GeoTransform::NorthUp(body.center.x - half, body.center.y + half, body.step)});
     for (std::size_t i = 0; i < grid.Size(); ++i) {
         grid.Values()[i] = 0.02f * static_cast<float>(i % side);
     }

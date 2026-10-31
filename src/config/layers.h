@@ -75,17 +75,12 @@ struct RoughnessLayerSpec {
 /// spectrum (`SpectralContinuationLayer`), fitted to the source (`EstimatePowerLawSpectrum`) on its
 /// own grid wherever the slope or amplitude is not given.
 struct SpectralContinuationLayerSpec {
+    /// The layer's options; the pixel size, slope and amplitude below stand in for theirs.
+    SpectralContinuationOptions options{};
     std::optional<double> pixelSize{};  ///< Meters; unset for the source's cell size.
     std::optional<double> slope{};      ///< Spectral slope beta; unset to fit from the source.
     std::optional<double> octaveRms{};  ///< Meters; unset to fit from the source.
     SpectrumFitBand fit{};              ///< Wavelengths the source's spectrum is fitted over.
-    double minWavelength = 0.05;        ///< Meters.
-    double taperOctaves = 1.0;
-    std::uint32_t seed = 1;
-    ResolutionFade fade{};
-
-    /// The layer's options, the defaults in place of an unset pixel size, slope and amplitude.
-    SpectralContinuationOptions Options() const;
 };
 
 /// Layer "scale": height * `scale` + `offset` (`ScaleLayer`).
@@ -100,13 +95,8 @@ struct ClampLayerSpec {
     std::optional<double> max;  ///< Meters; unset for no upper bound.
 };
 
-/// Region shape "rectangle": [`minX`, `maxX`] x [`minY`, `maxY`] in surface coordinates.
-struct RectangleRegionSpec {
-    double minX = 0.0;
-    double minY = 0.0;
-    double maxX = 0.0;
-    double maxY = 0.0;
-};
+/// Region shape "rectangle": a box in surface coordinates.
+struct RectangleRegionSpec : Bounds2d {};
 /// Region shape "circle": centered on (`x`, `y`) in surface coordinates.
 struct CircleRegionSpec {
     double x = 0.0;
@@ -149,11 +139,9 @@ template <> struct SpecName<NoiseLayerSpec> {
 template <typename IO> void Fields(IO& io, NoiseLayerSpec& layer) {
     io("stack", layer.stack, std::string(kNoiseStackHelp), "", NoiseStackLength(1));
     io("estimate_from_source", layer.estimateFromSource,
-       "Continues the source's roughness into the noise: each layer's unset hurst becomes the "
-       "Hurst exponent of the source's variogram at its native cell size, and each unset "
-       "amplitude gives the layer the RMS height difference that variogram extrapolates to at "
-       "a lag of the layer's wavelength. Meant for wavelengths at or below the source's cell "
-       "size; needs a source with posts.");
+       "Takes each layer's unset hurst and amplitude from the source's variogram, continued to "
+       "the layer's wavelength; for wavelengths at or below the source's cell size. Needs a "
+       "source with posts.");
     SourceResolvesField(io, layer.sourceResolvesPixels, "noise layers of the stack",
                         "wavelength, the longest of each layer's octaves");
 }
@@ -176,11 +164,9 @@ template <typename IO> void Fields(IO& io, RoughnessLayerSpec& spec) {
            " Unset is 0.8, or with estimate_from_source the source's.",
        "", AboveUpTo(0.0, 1.0));
     io("estimate_from_source", spec.estimateFromSource,
-       "Continues the source's roughness below its resolution: fits the Hurst exponent and RMS "
-       "height difference to the source's variogram at lags of 1 to 8 native cells, over up to "
-       "512 cells about its center, and extrapolates the RMS slope to the baseline. Set "
-       "rms_slope or hurst to override an estimate. Needs a source with posts and relief; keep "
-       "max_wavelength_m near the source's cell size.");
+       "Fits unset rms_slope and hurst to the source's variogram at lags of 1 to 8 cells and "
+       "continues it to the baseline; keep max_wavelength_m near the source's cell size. Needs a "
+       "source with posts.");
     RoughnessOctaveFields(io, spec.roughness);
 }
 
@@ -252,7 +238,8 @@ template <typename IO> void Fields(IO& io, SpectralContinuationLayerSpec& spec) 
        "Longest wavelength, in source pixels, the source's spectrum is fitted over; 0 for a "
        "quarter of the window the spectrum is measured on (at most 512 cells a side).",
        "", AtLeast(0.0));
-    SpectralSynthesisFields(io, spec.minWavelength, spec.taperOctaves, spec.seed, spec.fade);
+    SpectralSynthesisFields(io, spec.options.minWavelength, spec.options.taperOctaves,
+                            spec.options.seed, spec.options.fade);
 }
 
 template <> struct SpecName<ScaleLayerSpec> {
@@ -287,17 +274,11 @@ template <typename IO> void Fields(IO& io, ClampLayerSpec& spec) {
 template <> struct SpecName<RectangleRegionSpec> {
     static constexpr std::string_view kName = "rectangle";
     static constexpr std::string_view kDescription =
-        "An axis-aligned rectangle in the surface's coordinates.";
+        "An axis-aligned rectangle in the surface's coordinates: meters on a plane, longitude and "
+        "latitude in degrees on a body.";
 };
 template <typename IO> void Fields(IO& io, RectangleRegionSpec& spec) {
-    io("min_x", spec.minX,
-       "Lower edge along x in the surface's coordinates; the longitude in degrees on a sphere.");
-    io("min_y", spec.minY,
-       "Lower edge along y in the surface's coordinates; the latitude in degrees on a sphere.");
-    io("max_x", spec.maxX,
-       "Upper edge along x in the surface's coordinates; the longitude in degrees on a sphere.");
-    io("max_y", spec.maxY,
-       "Upper edge along y in the surface's coordinates; the latitude in degrees on a sphere.");
+    Fields(io, static_cast<Bounds2d&>(spec));
 }
 
 template <> struct SpecName<CircleRegionSpec> {
@@ -322,10 +303,8 @@ template <> struct SpecName<PolygonRegionSpec> {
 };
 template <typename IO> void Fields(IO& io, PolygonRegionSpec& spec) {
     io("points", spec.points,
-       "Vertices of the outline as [x, y] pairs, x east and y north in the surface's coordinates "
-       "(longitude and latitude in degrees on a sphere), closed from the last back to the first, "
-       "so the first is not repeated. Points inside an odd number of outlines and holes are "
-       "inside.",
+       "Vertices of the outline as [x, y] pairs in the surface's coordinates, closed from the last "
+       "back to the first; points inside an odd number of outlines and holes are inside.",
        "", MinLength(3));
     io("holes", spec.holes,
        "Outlines cut out of the polygon, each a list of at least 3 [x, y] vertices as `points`; "
@@ -400,10 +379,10 @@ struct BuiltLayers {
 };
 
 /// Checks every layer spec, then builds each layer in order on `surface` and checks it against
-/// what it built, over the outputs' `extents`.
+/// what it built, over the outputs' grids.
 /// @throws ConfigError under "layers" for an invalid layer.
 BuiltLayers BuildLayers(const std::vector<LayerSpec>& layers,
-                        const std::vector<OutputExtent>& extents, const LayerSources& sources,
+                        const std::vector<OutputGrid>& outputs, const LayerSources& sources,
                         const std::filesystem::path& directory, const Surface& surface);
 
 }  // namespace config

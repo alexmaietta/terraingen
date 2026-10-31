@@ -22,6 +22,12 @@ const ConfigSpec& TerrainGenConfig::Spec() const {
     return *spec_;
 }
 
+namespace config {
+
+namespace {
+
+/// The source `config` gives, else a "shape_model" source on a shape-model body; none on other
+/// bodies, which then start from the default synthetic source.
 std::optional<SourceSpec> EffectiveSource(const ConfigSpec& config) {
     if (config.source) {
         return config.source;
@@ -31,10 +37,6 @@ std::optional<SourceSpec> EffectiveSource(const ConfigSpec& config) {
     }
     return std::nullopt;
 }
-
-namespace config {
-
-namespace {
 
 /// The terrain's source, the configuration's or the default synthetic noise unless the caller
 /// gives one, and what the layers are built on.
@@ -69,11 +71,14 @@ CheckedTerrain BuildCheckedTerrain(const ConfigSpec& config, const std::filesyst
     Surface surface = BuildSurface(config.body, directory);
     const LayerSources sources = BuildLayerSources(config, directory, external, surface, summary);
     const OutputNeeds needs{config.albedo.has_value(), config.materials.has_value()};
-    const std::vector<OutputExtent> extents = CheckOutputs(config.outputs, needs, surface, summary);
-    BuiltLayers built = BuildLayers(config.layers, extents, sources, directory, surface);
+    std::vector<OutputGrid> outputs = CheckOutputs(config.outputs, needs, surface, summary.source);
+    for (const OutputGrid& output : outputs) {
+        summary.outputGrids.push_back(output.grid);
+    }
+    BuiltLayers built = BuildLayers(config.layers, outputs, sources, directory, surface);
     summary.expectedCraters = built.expectedCraters;
     CheckedTerrain checked{Terrain(std::move(surface), sources.terrain, std::move(built.layers)),
-                           std::move(summary)};
+                           std::move(summary), std::move(outputs)};
     if (config.albedo) {
         CheckAlbedo(*config.albedo, config.layers, directory);
     }

@@ -152,7 +152,7 @@ TEST(CheckValueRanges, WalksOptionalsListsAndStructs) {
     EXPECT_EQ(Message([&] { CheckValueRanges(output, "output", {}, {}); }),
               "output.pixel_size_m: must be positive, got -1");
     output.area.pixelSize = 1.0;
-    output.area.extentM = terraingen::ExtentSpec{{0.0, 0.0}, {4.0, -4.0}, {}, {}};
+    output.area.extentM = terraingen::ExtentSpec{{{0.0, 0.0}}, {{4.0, -4.0}}, {}, {}};
     EXPECT_EQ(Message([&] { CheckValueRanges(output, "output", {}, {}); }),
               "output.extent_m.size[1]: must be positive, got -4");
 }
@@ -170,7 +170,7 @@ TEST(CheckConfigRanges, ReportsTheFirstNumberOutOfRangeByItsPath) {
     terraingen::testing::Region(config).pixelSize = 0.0;
     EXPECT_EQ(RangeErrorPath(config), "outputs[0].pixel_size_m");
     config = terraingen::testing::Small();
-    terraingen::testing::Craters(config).spacing.diameterRatio = 0.5;
+    terraingen::testing::Craters(config).options.generation.spacing.diameterRatio = 0.5;
     EXPECT_EQ(RangeErrorPath(config), "layers[1].spacing.diameter_ratio");
     config = terraingen::testing::Small();
     terraingen::testing::Noise(config).stack[0].fractal.octaves = 0;

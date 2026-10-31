@@ -43,7 +43,7 @@ def figure(quick=False):
     )
     terrain = terraingen.Terrain(source=terraingen.FlatSource(columns, rows, pixel), layers=[relief, craters])
     heights = terrain.evaluate().values
-    ground = terrain.ground(1).evaluate().values
+    ground = terrain.beneath(1).evaluate().values
 
     fig = plt.figure(figsize=(15, 9), layout="constrained")
     top, bottom = fig.subfigures(2, 1, height_ratios=[1, 0.8])

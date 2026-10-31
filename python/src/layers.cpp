@@ -22,6 +22,7 @@
 #include "terraingen/layers/sand_fill.h"
 #include "terraingen/layers/spectral_continuation.h"
 #include "terraingen/layers/strata.h"
+#include "terraingen/layers/terrain_base.h"
 #include "terraingen/layers/transforms.h"
 #include "terraingen/noise/structure_function.h"
 
@@ -72,26 +73,28 @@ class PyLayer : public Layer {
   private:
     /// `apply` on a raster of one cell of side `context.spacing` centered at `p`.
     float ApplyToOneCell(float height, const Vec2d& p, const LayerContext& context) const {
-        Raster<float> cell(1, 1, height);
-        cell.SetTransform(GeoTransform::NorthUp(p.x - 0.5 * context.spacing,
-                                                p.y + 0.5 * context.spacing, context.spacing));
+        Raster<float> cell(
+            RasterGrid{1, 1,
+                       GeoTransform::NorthUp(p.x - 0.5 * context.spacing,
+                                             p.y + 0.5 * context.spacing, context.spacing)},
+            height);
         CallOverrideIgnoringResult(nb_trampoline, "apply", ByReference<Raster<float>>{cell},
                                    context);
         return cell(0, 0);
     }
 };
 
-/// @brief A ground written in Python: `fill_samples(samples, spacing)` sets every height of a
-/// SampleBlock.
+/// @brief A ground written in Python: `fill_samples(samples, spacing, threads)` sets every height
+/// of a SampleBlock.
 class PyGround : public Ground {
   public:
     NB_TRAMPOLINE(Ground);
 
   protected:
-    void FillSamples(SampleBlock& samples, double spacing) const override {
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override {
         CallRequired(
             nb_trampoline, "fill_samples", [](nb::handle /*result*/) {},
-            ByReference<SampleBlock>{samples}, spacing);
+            ByReference<SampleBlock>{samples}, spacing, threads);
     }
 };
 
@@ -99,8 +102,9 @@ void BindGround(nb::module_& m) {
     nb::class_<Ground, PyGround>(
         m, "Ground",
         "The terrain beneath a layer, readable anywhere: a Terrain, or a prefix of one "
-        "(`Terrain.ground`). Subclass it and implement `fill_samples(samples, spacing)`, which "
-        "sets every height of a SampleBlock (NaN where there is no data), for a ground of your "
+        "(`Terrain.beneath`). Subclass it and implement `fill_samples(samples, spacing, "
+        "threads)`, which sets every height of a SampleBlock (NaN where there is no data), for a "
+        "ground of your "
         "own.")
         .def(nb::init<>())
         .def("height_at", &Ground::HeightAt, "x"_a, "y"_a, "spacing"_a,
@@ -109,20 +113,23 @@ void BindGround(nb::module_& m) {
              "equal to the cell centered there of a grid.")
         .def(
             "heights_at",
-            [](const Ground& ground, const CpuMatrix<double>& points, double spacing) {
-                std::vector<Vec2d> positions;
-                for (const auto& row : Rows<2>(points)) {
-                    positions.push_back({row[0], row[1]});
-                }
+            [](const Ground& ground, const CpuMatrix<double>& points, double spacing,
+               unsigned threads) {
+                const Span<const Vec2d> positions = PointSpan(points);
                 std::vector<float> heights(positions.size());
                 {
                     const nb::gil_scoped_release release;
-                    ground.HeightsAt(Span<const Vec2d>(positions), Span<float>(heights), spacing);
+                    ground.HeightsAt(positions, Span<float>(heights), spacing, threads);
                 }
                 return Column(std::move(heights));
             },
-            "points"_a, "spacing"_a,
-            "`height_at` each row of `points`, an array of shape (n, 2), as a float32 array.");
+            "points"_a, "spacing"_a, "threads"_a = 0,
+            "`height_at` each row of `points`, an array of shape (n, 2), as a float32 array, on "
+            "up to `threads` threads (0 for every hardware thread). A terrain takes the points in "
+            "batches of nearby points, much faster than one call per point.")
+        .def("context", &Ground::Context, "spacing"_a, "threads"_a = 1, nb::keep_alive<0, 1>(),
+             "The LayerContext a layer reads this ground in at `spacing` meters on `threads` "
+             "threads: on this ground, with the surface and source of a Terrain.");
 }
 
 void BindLayerContext(nb::module_& m) {
@@ -188,10 +195,12 @@ void BindLayerBase(nb::module_& m) {
             },
             "heights"_a, "context"_a, nb::call_guard<nb::gil_scoped_release>())
         .def("apply_at", &Layer::ApplyAt, "height"_a, "x"_a, "y"_a, "context"_a)
-        .def("layer_surface", &Layer::LayerSurface,
-             "The surface a layer that derives state from it when built (craters, boulders) was "
-             "built for, which a terrain's must be; None for a layer that reads it from its "
-             "context.")
+        .def("layer_base", &Layer::LayerBase,
+             "The TerrainBase a layer that derives state from it when built (craters, boulders) "
+             "was built on, whose surface and source a terrain's must be; None for a layer that "
+             "reads them from its context.")
+        .def("rebased", &Layer::Rebased, "base"_a,
+             "A copy of a layer built on a base rebuilt on `base`; None for a layer without one.")
         .def("reseeded", &Layer::Reseeded, "seed"_a,
              "A copy of the layer whose seeds draw from `seed`; None for a layer without seeds.")
         .def(
@@ -202,6 +211,20 @@ void BindLayerBase(nb::module_& m) {
             "replaced"_a,
             "A copy of the layer reading the replacement in each (layer, replacement) pair of "
             "`replaced` in place of that layer; None when it reads none of them.");
+    nb::class_<TerrainBase>(m, "TerrainBase",
+                            "The `surface` and `source` crater, secondary crater and boulder "
+                            "layers are built on, as `base`; a Surface or a Source alone converts "
+                            "to one.")
+        .def(nb::init<Surface, std::shared_ptr<const Source>>(), "surface"_a = Surface{},
+             "source"_a.none() = nb::none())
+        .def(nb::init_implicit<Surface>())
+        .def("__init__",
+             [](TerrainBase* self, std::shared_ptr<const Source> source) {
+                 new (self) TerrainBase(Surface{}, std::move(source));
+             })
+        .def_rw("surface", &TerrainBase::surface)
+        .def_rw("source", &TerrainBase::source, nb::arg("value").none());
+    nb::implicitly_convertible<std::shared_ptr<const Source>, TerrainBase>();
 }
 
 void BindFades(nb::module_& m) {
@@ -349,13 +372,13 @@ void BindExposure(nb::module_& m) {
                 "fill",
                 [](const ExposureField& field, const Ground& ground, const RasterGrid& grid,
                    double spacing, unsigned threads) {
-                    Raster<float> exposure = grid.MakeRaster();
+                    Raster<float> exposure(grid);
                     field.Fill(exposure, ground, spacing, threads);
                     return exposure;
                 },
                 "ground"_a, "grid"_a, "spacing"_a, "threads"_a = 0,
                 nb::call_guard<nb::gil_scoped_release>(),
-                "The exposure over `grid` of `ground`, such as `terrain.ground(n)` beneath layer "
+                "The exposure over `grid` of `ground`, such as `terrain.beneath(n)` beneath layer "
                 "n of a Terrain, sampled every `spacing` meters.");
     BindGroundQuery<ExposureField>(
         exposureField, "exposure",

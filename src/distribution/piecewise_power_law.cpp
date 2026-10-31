@@ -45,14 +45,16 @@ double PiecewisePowerLawSfd::IncrementalAt(double diameter) const {
     return SegmentAt(diameter).Incremental(diameter);
 }
 
-double PiecewisePowerLawSfd::InvertCumulative(double target, double dMin, double dMax) const {
+double PiecewisePowerLawSfd::InvertCumulative(double target, double minDiameter,
+                                              double maxDiameter) const {
     const std::size_t index =
-        detail::WalkPieces(segments_, 0, dMax, [&](std::size_t i, double high) {
+        detail::WalkPieces(segments_, 0, maxDiameter, [&](std::size_t i, double high) {
             const PowerLawSegment& segment = segments_[i];
-            return std::fmax(dMin, segment.start) < high && target >= segment.Cumulative(high);
+            return std::fmax(minDiameter, segment.start) < high &&
+                   target >= segment.Cumulative(high);
         });
     const PowerLawSegment& segment = segments_[index];
-    const double low = std::fmax(dMin, segment.start);
+    const double low = std::fmax(minDiameter, segment.start);
     if (target > segment.Cumulative(low)) {
         return low;
     }

@@ -26,7 +26,8 @@ class Mound final : public terraingen::Ground {
     Mound(double depth, double width) : depth_(depth), width_(width) {}
 
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
             const double r2 = (p.x * p.x + p.y * p.y) / (width_ * width_);

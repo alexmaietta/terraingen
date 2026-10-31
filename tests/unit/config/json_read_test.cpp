@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <limits>
 #include <optional>
 #include <string>
@@ -30,7 +31,8 @@ TEST(ConfigJson, ReadsInfiniteBoundsAsUnset) {
     const ConfigSpec parsed = ParseConfig(
         R"({"schema_version": 1, "layers": [{"type": "craters", "apply": {"irregularity":
             {"max_diameter_m": 30, "roughness": {"min": -1, "max": null}}}}]})");
-    const auto& irregularity = std::get<CraterLayerSpec>(parsed.layers[0]).apply.irregularity;
+    const auto& irregularity =
+        std::get<CraterLayerSpec>(parsed.layers[0]).options.apply.irregularity;
     EXPECT_EQ(irregularity.selection.maxDiameter, 30.0);
     EXPECT_EQ(irregularity.roughness.min, -1.0);
     EXPECT_EQ(irregularity.roughness.max, std::numeric_limits<double>::infinity());
@@ -50,8 +52,8 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
         "outputs": [{"type": "heightmap", "path": "h.tif", "extent_m": {"size": [64, 32]}}]
     })");
     const auto& area = std::get<terraingen::HeightmapOutput>(partial.outputs.at(0)).area;
-    EXPECT_EQ(area.extentM->size, (std::vector<double>{64.0, 32.0}));
-    EXPECT_TRUE(area.extentM->center.empty());
+    EXPECT_EQ(area.extentM->size, (std::array<double, 2>{64.0, 32.0}));
+    EXPECT_FALSE(area.extentM->center);
     EXPECT_FALSE(area.pixelSize);
     EXPECT_FALSE(area.extentDeg);
     ASSERT_EQ(partial.layers.size(), 2u);
@@ -60,8 +62,8 @@ TEST(ConfigJson, OmittedKeysTakeDefaultsAndOmittedListsAreEmpty) {
     EXPECT_EQ(noise.stack.at(0).hurst, 0.7f);
     const auto& craters = std::get<CraterLayerSpec>(partial.layers[1]);
     EXPECT_TRUE(std::holds_alternative<terraingen::TraskSpec>(craters.density));
-    EXPECT_EQ(craters.minDiameter, 2.5);
-    EXPECT_EQ(craters.apply.rimSmoothing, terraingen::RimSmoothing{});
+    EXPECT_EQ(craters.options.generation.minDiameter, 2.5);
+    EXPECT_EQ(craters.options.apply.rimSmoothing, terraingen::RimSmoothing{});
 }
 
 TEST(ConfigJson, ReadsBoulderLayersWithOptionalExposure) {
@@ -146,14 +148,14 @@ TEST(ConfigJson, ReadsSizeKeysWithUnitsAndFadePixels) {
         {"type": "dunes", "source_resolves_px": null},
         {"type": "bedforms", "source_resolves_px": 2}]})");
     const auto& craters = std::get<CraterLayerSpec>(config.layers[0]);
-    EXPECT_EQ(craters.minDiameter, 3.0);
-    EXPECT_EQ(craters.maxDiameter, 90.0);
-    EXPECT_EQ(craters.apply.fade.startSamples, 1.5);
-    EXPECT_EQ(craters.apply.fade.endSamples, 6.0);
-    EXPECT_EQ(craters.apply.fade.shape, terraingen::BlendShape::Linear);
+    EXPECT_EQ(craters.options.generation.minDiameter, 3.0);
+    EXPECT_EQ(craters.options.generation.maxDiameter, 90.0);
+    EXPECT_EQ(craters.options.apply.fade.startSamples, 1.5);
+    EXPECT_EQ(craters.options.apply.fade.endSamples, 6.0);
+    EXPECT_EQ(craters.options.apply.fade.shape, terraingen::BlendShape::Linear);
     EXPECT_EQ(craters.densityMap->map.minDiameter, 2.0);
     EXPECT_EQ(craters.densityMap->map.maxDiameter, 50.0);
-    EXPECT_FALSE(craters.sourceResolvesPixels) << "null holds none";
+    EXPECT_FALSE(craters.options.sourceResolvesPixels) << "null holds none";
     const auto& secondaries = std::get<terraingen::SecondaryLayerSpec>(config.layers[1]);
     EXPECT_EQ(secondaries.secondaries.minDiameter, 0.5);
     EXPECT_EQ(secondaries.secondaries.maxDiameter, 20.0);

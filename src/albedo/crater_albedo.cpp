@@ -523,7 +523,7 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
 }
 
 void CraterAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                           const AlbedoContext& context) const {
+                           const LayerContext& context) const {
     const Surface& surface = craters_->Options().apply.surface;
     double excess = 0.0;
     double change = 0.0;
@@ -534,14 +534,14 @@ void CraterAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, dou
     Brighten(value, bands, excess, change, options_);
 }
 
-void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
+void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const {
     if (bands.empty()) {
         return;
     }
     const Surface& surface = craters_->Options().apply.surface;
     const Raster<float>& first = bands.front();
     const std::vector<Prepared> prepared =
-        Gather(RasterGrid::FromRaster(first).Bounds(), context.spacing, context.ground);
+        Gather(first.Grid().Bounds(), context.spacing, context.ground);
     const std::size_t count = bands.size();
     ForEachAlbedoBlock(bands, context.threads, kBlockRows, [&](std::size_t row0, std::size_t row1) {
         std::vector<const Prepared*> near = NearRows(prepared, first, row0, row1, surface);

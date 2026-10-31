@@ -50,18 +50,6 @@ RoughnessOptions RoughnessLayerSpec::EstimatedOptions(BaseRoughness source) cons
     return options;
 }
 
-SpectralContinuationOptions SpectralContinuationLayerSpec::Options() const {
-    SpectralContinuationOptions options;
-    options.pixelSize = pixelSize.value_or(options.pixelSize);
-    options.slope = slope.value_or(options.slope);
-    options.octaveRms = octaveRms.value_or(options.octaveRms);
-    options.minWavelength = minWavelength;
-    options.taperOctaves = taperOctaves;
-    options.seed = seed;
-    options.fade = fade;
-    return options;
-}
-
 std::string LayerType(const LayerSpec& layer) {
     return std::visit(
         [](const auto& spec) {
@@ -98,12 +86,11 @@ BaseRoughness SourceRoughness(const LayerInputs& inputs) {
 }
 
 void CheckSpec(const NoiseLayerSpec& spec, const std::string& path, LayerChecks& checks) {
-    CheckNoiseStack(spec.stack, Child(path, "stack"));
+    CheckNoiseStack(spec.stack, FieldPath(path, "stack"));
     CheckEstimateSource(spec.estimateFromSource, path, checks);
 }
 
 void CheckSpec(const RoughnessLayerSpec& spec, const std::string& path, LayerChecks& checks) {
-    At(path, [&] { ValidateRoughnessOptions(spec.Options()); });
     CheckEstimateSource(spec.estimateFromSource, path, checks);
 }
 
@@ -113,10 +100,7 @@ void CheckSpec(const SpectralContinuationLayerSpec& spec, const std::string& pat
         throw ConfigError(path, "without a source with posts to fit its spectrum to needs "
                                 "pixel_size_m, slope and octave_rms_m");
     }
-    At(path, [&] {
-        ValidateSpectrumFitBand(spec.fit);
-        ValidateSpectralContinuationOptions(spec.Options());
-    });
+    At(path, [&] { ValidateSpectrumFitBand(spec.fit); });
 }
 
 void CheckSpec(const SandShadowOptions& /*spec*/, const std::string& path, LayerChecks& checks) {
@@ -126,7 +110,7 @@ void CheckSpec(const SandShadowOptions& /*spec*/, const std::string& path, Layer
 }
 
 void CheckSpec(const MaskedLayerSpec& spec, const std::string& path, LayerChecks& checks) {
-    At(Child(path, "shape"), [&] { ValidateRegionShape(BuildRegionShape(spec.shape)); });
+    At(FieldPath(path, "shape"), [&] { ValidateRegionShape(BuildRegionShape(spec.shape)); });
     const bool empty = std::visit(
         Overloaded{
             [](const RectangleRegionSpec& r) { return !(r.maxX > r.minX && r.maxY > r.minY); },
@@ -135,98 +119,92 @@ void CheckSpec(const MaskedLayerSpec& spec, const std::string& path, LayerChecks
         },
         spec.shape);
     if (empty) {
-        throw ConfigError(Child(path, "shape"),
+        throw ConfigError(FieldPath(path, "shape"),
                           "required: the shape has no area; give the rectangle's bounds or the "
                           "circle's radius");
     }
     LayerChecks inner = checks;
-    CheckLayer(*spec.layer, Child(path, "layer"), inner);
+    CheckLayer(*spec.layer, FieldPath(path, "layer"), inner);
 }
 
 void CheckBuilt(const MaskedLayerSpec& spec, const Layer& built, const std::string& path,
                 LayerChecks& checks) {
     LayerChecks inner = checks;
     CheckBuiltLayer(*spec.layer, dynamic_cast<const MaskedLayer&>(built).Inner(),
-                    Child(path, "layer"), inner);
+                    FieldPath(path, "layer"), inner);
 }
 
-LayerPtr BuildSpec(const NoiseLayerSpec& spec, const std::string& path, const LayerInputs& inputs) {
-    const std::vector<Fractal> fractals = At(path, [&] {
-        return spec.estimateFromSource ? spec.EstimatedFractals(SourceRoughness(inputs))
-                                       : spec.Fractals();
-    });
-    return At(path, [&] {
-        return std::make_shared<NoiseLayer>(NoiseLayerOptions{fractals, spec.sourceResolvesPixels});
-    });
-}
-
-LayerPtr BuildSpec(const RoughnessLayerSpec& spec, const std::string& path,
+LayerPtr BuildSpec(const NoiseLayerSpec& spec, const std::string& /*path*/,
                    const LayerInputs& inputs) {
-    const RoughnessOptions options = At(path, [&] {
-        return spec.estimateFromSource ? spec.EstimatedOptions(SourceRoughness(inputs))
-                                       : spec.Options();
-    });
+    const std::vector<Fractal> fractals =
+        spec.estimateFromSource ? spec.EstimatedFractals(SourceRoughness(inputs)) : spec.Fractals();
+    return std::make_shared<NoiseLayer>(NoiseLayerOptions{fractals, spec.sourceResolvesPixels});
+}
+
+LayerPtr BuildSpec(const RoughnessLayerSpec& spec, const std::string& /*path*/,
+                   const LayerInputs& inputs) {
+    const RoughnessOptions options =
+        spec.estimateFromSource ? spec.EstimatedOptions(SourceRoughness(inputs)) : spec.Options();
     return std::make_shared<RoughnessLayer>(options);
 }
 
 /// A spectral continuation layer, fitted to the source wherever the spec gives no slope or
 /// amplitude; a valid configuration has a source whenever the spec leaves one out.
-LayerPtr BuildSpec(const SpectralContinuationLayerSpec& spec, const std::string& path,
+LayerPtr BuildSpec(const SpectralContinuationLayerSpec& spec, const std::string& /*path*/,
                    const LayerInputs& inputs) {
     const Surface& surface = inputs.base.surface;
-    SpectralContinuationOptions options = spec.Options();
+    SpectralContinuationOptions options = spec.options;
     const RasterGrid grid = inputs.source ? inputs.source->Grid() : RasterGrid{};
     options.pixelSize = spec.pixelSize.value_or(grid.PixelSize() * surface.UnitLength());
+    PowerLawSpectrum fit{options.slope, options.octaveRms};
     if (!(spec.slope && spec.octaveRms)) {
-        const PowerLawSpectrum fit = At(path, [&] {
-            const Raster<float> heights =
-                SampleSourceWindow(*inputs.source, options.pixelSize / surface.UnitLength(),
-                                   grid.transform.PixelToWorld(0.5, 0.5));
-            return EstimatePowerLawSpectrum(heights, spec.fit);
-        });
-        options.slope = spec.slope.value_or(fit.slope);
-        options.octaveRms = spec.octaveRms.value_or(fit.octaveRms);
+        fit = EstimatePowerLawSpectrum(SampleSourceWindow(*inputs.source,
+                                                          options.pixelSize / surface.UnitLength(),
+                                                          grid.transform.PixelToWorld(0.5, 0.5)),
+                                       spec.fit);
     }
+    options.slope = spec.slope.value_or(fit.slope);
+    options.octaveRms = spec.octaveRms.value_or(fit.octaveRms);
     return std::make_shared<SpectralContinuationLayer>(options);
 }
 
 LayerPtr BuildSpec(const MaskedLayerSpec& spec, const std::string& path,
                    const LayerInputs& inputs) {
-    return std::make_shared<MaskedLayer>(BuildLayer(*spec.layer, Child(path, "layer"), inputs),
+    return std::make_shared<MaskedLayer>(BuildLayer(*spec.layer, FieldPath(path, "layer"), inputs),
                                          BuildRegionShape(spec.shape), spec.feather, spec.blend);
 }
 
-LayerPtr BuildSpec(const DuneOptions& spec, const std::string& path, const LayerInputs&) {
-    return At(path, [&] { return std::make_shared<DuneLayer>(spec); });
+LayerPtr BuildSpec(const DuneOptions& spec, const std::string& /*path*/, const LayerInputs&) {
+    return std::make_shared<DuneLayer>(spec);
 }
 
-LayerPtr BuildSpec(const BedformOptions& spec, const std::string& path, const LayerInputs&) {
-    return At(path, [&] { return std::make_shared<BedformLayer>(spec); });
+LayerPtr BuildSpec(const BedformOptions& spec, const std::string& /*path*/, const LayerInputs&) {
+    return std::make_shared<BedformLayer>(spec);
 }
 
-LayerPtr BuildSpec(const PavementOptions& spec, const std::string& path, const LayerInputs&) {
-    return At(path, [&] { return std::make_shared<PavementLayer>(spec); });
+LayerPtr BuildSpec(const PavementOptions& spec, const std::string& /*path*/, const LayerInputs&) {
+    return std::make_shared<PavementLayer>(spec);
 }
 
-LayerPtr BuildSpec(const StrataOptions& spec, const std::string& path, const LayerInputs&) {
-    return At(path, [&] { return std::make_shared<StrataLayer>(spec); });
+LayerPtr BuildSpec(const StrataOptions& spec, const std::string& /*path*/, const LayerInputs&) {
+    return std::make_shared<StrataLayer>(spec);
 }
 
-LayerPtr BuildSpec(const SandShadowOptions& spec, const std::string& path,
+LayerPtr BuildSpec(const SandShadowOptions& spec, const std::string& /*path*/,
                    const LayerInputs& inputs) {
-    return At(path, [&] { return std::make_shared<SandShadowLayer>(inputs.boulders, spec); });
+    return std::make_shared<SandShadowLayer>(inputs.boulders, spec);
 }
 
-LayerPtr BuildSpec(const SandFillOptions& spec, const std::string& path, const LayerInputs&) {
-    return At(path, [&] { return std::make_shared<SandFillLayer>(spec); });
+LayerPtr BuildSpec(const SandFillOptions& spec, const std::string& /*path*/, const LayerInputs&) {
+    return std::make_shared<SandFillLayer>(spec);
 }
 
-LayerPtr BuildSpec(const ScaleLayerSpec& spec, const std::string& path, const LayerInputs&) {
-    return At(path, [&] { return std::make_shared<ScaleLayer>(spec.scale, spec.offset); });
+LayerPtr BuildSpec(const ScaleLayerSpec& spec, const std::string& /*path*/, const LayerInputs&) {
+    return std::make_shared<ScaleLayer>(spec.scale, spec.offset);
 }
 
-LayerPtr BuildSpec(const ClampLayerSpec& spec, const std::string& path, const LayerInputs&) {
-    return At(path, [&] { return std::make_shared<ClampLayer>(spec.min, spec.max); });
+LayerPtr BuildSpec(const ClampLayerSpec& spec, const std::string& /*path*/, const LayerInputs&) {
+    return std::make_shared<ClampLayer>(spec.min, spec.max);
 }
 
 /// The secondaries the secondary layers after the crater layer `layers[index]` throw from it, up
@@ -253,7 +231,9 @@ void CheckLayer(const LayerSpec& spec, const std::string& path, LayerChecks& che
 }
 
 LayerPtr BuildLayer(const LayerSpec& spec, const std::string& path, const LayerInputs& inputs) {
-    return std::visit([&](const auto& layer) { return BuildSpec(layer, path, inputs); }, spec);
+    return At(path, [&] {
+        return std::visit([&](const auto& layer) { return BuildSpec(layer, path, inputs); }, spec);
+    });
 }
 
 void CheckBuiltLayer(const LayerSpec& spec, const Layer& built, const std::string& path,
@@ -263,7 +243,7 @@ void CheckBuiltLayer(const LayerSpec& spec, const Layer& built, const std::strin
 
 void CheckEstimateSource(bool estimate, const std::string& path, const LayerChecks& checks) {
     if (estimate && !checks.posts) {
-        throw ConfigError(Child(path, "estimate_from_source"),
+        throw ConfigError(FieldPath(path, "estimate_from_source"),
                           "needs a source with posts to estimate from, a raster or synthetic noise "
                           "with a pixel size; without one give the values instead");
     }
@@ -272,9 +252,7 @@ void CheckEstimateSource(bool estimate, const std::string& path, const LayerChec
 RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
     return std::visit(
         Overloaded{
-            [](const RectangleRegionSpec& s) {
-                return RegionShape::Rectangle({s.minX, s.minY, s.maxX, s.maxY});
-            },
+            [](const RectangleRegionSpec& s) { return RegionShape::Rectangle(s); },
             [](const CircleRegionSpec& s) { return RegionShape::Circle({s.x, s.y}, s.radius); },
             [](const PolygonRegionSpec& s) {
                 const auto vertices = [](const std::vector<std::array<double, 2>>& pairs) {
@@ -297,18 +275,18 @@ RegionShape BuildRegionShape(const RegionShapeSpec& spec) {
 }
 
 BuiltLayers BuildLayers(const std::vector<LayerSpec>& layers,
-                        const std::vector<OutputExtent>& extents, const LayerSources& sources,
+                        const std::vector<OutputGrid>& outputs, const LayerSources& sources,
                         const std::filesystem::path& directory, const Surface& surface) {
-    LayerChecks checks{extents};
+    LayerChecks checks{outputs};
     checks.posts = sources.posts;
     for (std::size_t i = 0; i < layers.size(); ++i) {
-        CheckLayer(layers[i], Element("layers", i), checks);
+        CheckLayer(layers[i], ItemPath("layers", i), checks);
     }
     BuiltLayers built;
     std::vector<std::shared_ptr<const CraterLayer>> craters;
     std::shared_ptr<const BoulderLayer> boulders;
     for (std::size_t i = 0; i < layers.size(); ++i) {
-        const std::string path = Element("layers", i);
+        const std::string path = ItemPath("layers", i);
         const LayerInputs inputs{TerrainBase{surface, sources.measured},
                                  directory,
                                  craters,

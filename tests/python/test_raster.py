@@ -86,8 +86,10 @@ def test_from_array_rejects_wrong_dimensions():
 
 
 def test_georeference_and_nodata_round_trip():
-    raster = terraingen.Raster(10, 10)
-    raster.transform = terraingen.GeoTransform.north_up(100.0, 200.0, 2.0)
+    raster = terraingen.Raster(
+        terraingen.RasterGrid(10, 10, terraingen.GeoTransform.north_up(100.0, 200.0, 2.0))
+    )
+    assert raster.grid == terraingen.RasterGrid(10, 10, raster.transform)
     raster.no_data = -9999.0
     assert raster.cell_center(1, 2) == (103.0, 195.0)
     assert not hasattr(raster, "crs")
@@ -124,6 +126,13 @@ def test_north_up_geotransform_maps_corners_and_centers():
     assert t.pixel_to_world(0.0, 0.0) == (1000.0, 2000.0)
     assert t.pixel_to_world(0.5, 0.5) == (1002.5, 1997.5)
     assert (t.pixel_width, t.pixel_height) == (5.0, -5.0)
+
+
+def test_geotransform_measures_the_sides_of_its_cells():
+    t = terraingen.GeoTransform.from_gdal((0.0, 3.0, -4.0, 0.0, 4.0, 3.0))
+    assert t.cell_width() == pytest.approx(5.0)
+    assert t.cell_height() == pytest.approx(5.0)
+    assert terraingen.GeoTransform.north_up(0.0, 0.0, 2.0).cell_height() == 2.0
 
 
 def test_world_to_pixel_inverts_pixel_to_world():
@@ -176,7 +185,9 @@ def test_grid_on_a_plane_has_its_flat_area_and_spacing():
 
 
 def test_grid_makes_filled_rasters():
-    assert terraingen.RasterGrid.centered((0, 0), (20.0, 40.0), 2.0).make_raster(3.0).values.mean() == 3.0
+    assert (
+        terraingen.Raster(terraingen.RasterGrid.centered((0, 0), (20.0, 40.0), 2.0), 3.0).values.mean() == 3.0
+    )
 
 
 def test_grid_covering_snaps_a_box_outward_from_its_min_corner():
@@ -203,7 +214,7 @@ def test_geotiff_info_reports_the_write_options(tmp_path):
     options = terraingen.GeoTiffWriteOptions(compression=terraingen.TiffCompression.DEFLATE, tile_size=16)
     terraingen.write_geotiff(tmp_path / "a.tif", ramp_raster(), keys, options)
     info = terraingen.read_geotiff_info(tmp_path / "a.tif")
-    assert (info.width, info.height, info.bands) == (8, 8, 1)
+    assert (info.grid.width, info.grid.height, info.bands) == (8, 8, 1)
     assert info.compression == terraingen.TiffCompression.DEFLATE and info.tiled
     assert info.sample_format == terraingen.TiffSampleFormat.FLOAT and info.geo_keys == keys
 

@@ -26,9 +26,8 @@ TEST(ResolvedSpacing, RaisesARequestedSpacingToTheGrids) {
 }
 
 TEST(RasterGrid, DescribesARastersCellsAndExtent) {
-    Raster<float> raster(4, 3);
-    raster.SetTransform(GeoTransform::NorthUp(100.0, 50.0, 2.5));
-    const RasterGrid grid = RasterGrid::FromRaster(raster);
+    Raster<float> raster(RasterGrid{4, 3, GeoTransform::NorthUp(100.0, 50.0, 2.5)});
+    const RasterGrid grid = raster.Grid();
     EXPECT_EQ(grid.width, 4u);
     EXPECT_EQ(grid.height, 3u);
     EXPECT_EQ(grid.transform, raster.Transform());
@@ -43,12 +42,12 @@ TEST(RasterGrid, DescribesARastersCellsAndExtent) {
 
 TEST(RasterGrid, MakesRastersOnTheGrid) {
     const RasterGrid grid{3, 2, GeoTransform::NorthUp(-1.0, 1.0, 1.0)};
-    const Raster<float> raster = grid.MakeRaster(7.0f);
-    EXPECT_EQ(RasterGrid::FromRaster(raster), grid);
+    const Raster<float> raster(grid, 7.0f);
+    EXPECT_EQ(raster.Grid(), grid);
     for (const float value : raster.Values()) {
         EXPECT_EQ(value, 7.0f);
     }
-    EXPECT_EQ(grid.MakeRaster()(2, 1), 0.0f);
+    EXPECT_EQ(Raster<float>(grid)(2, 1), 0.0f);
 }
 
 TEST(RasterGrid, MeasuresSpacingAndAreaOnASphere) {

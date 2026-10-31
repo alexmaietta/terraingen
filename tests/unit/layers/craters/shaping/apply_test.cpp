@@ -23,6 +23,7 @@ using terraingen::FassettThomsonProfile;
 using terraingen::GeoTransform;
 using terraingen::NoDegradation;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 
 namespace {
 
@@ -43,10 +44,8 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters,
 
 /// A `size` x `size` north-up raster of 1 m pixels centered on the origin.
 Raster<float> Flat(std::size_t size, float value = 0.0f) {
-    Raster<float> raster(size, size, value);
     const double half = 0.5 * static_cast<double>(size);
-    raster.SetTransform(GeoTransform::NorthUp(-half, half, 1.0));
-    return raster;
+    return Raster<float>(RasterGrid{size, size, GeoTransform::NorthUp(-half, half, 1.0)}, value);
 }
 
 CraterList One(double x, double y, double diameter, double age = 0.0, std::uint64_t id = 1) {
@@ -227,8 +226,9 @@ TEST(ApplyCraters, RejectsInvalidOptionsAndTransforms) {
                  std::invalid_argument);
     EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile, {}, -1.0),
                  std::invalid_argument);
-    raster.SetTransform(GeoTransform{0.0, 0.0, 0.0, 0.0, 0.0, 1.0});
-    EXPECT_THROW(ApplyCraters(raster, One(0.0, 0.0, 4.0), profile), std::domain_error);
+    Raster<float> singular(
+        RasterGrid{raster.Width(), raster.Height(), GeoTransform{0.0, 0.0, 0.0, 0.0, 0.0, 1.0}});
+    EXPECT_THROW(ApplyCraters(singular, One(0.0, 0.0, 4.0), profile), std::domain_error);
 }
 
 TEST(ApplyCraters, LogsAppliedAndSkippedCounts) {
@@ -678,7 +678,8 @@ TEST(ApplyCraterTo, BuriesOlderReliefUnderTheEjectaByTheDatum) {
 
 TEST(SamplingFrom, CarriesTheLayerContext) {
     struct Flat final : terraingen::Ground {
-        void FillSamples(terraingen::SampleBlock& samples, double spacing) const override {
+        void FillSamples(terraingen::SampleBlock& samples, double spacing,
+                         unsigned /*threads*/) const override {
             for (std::size_t i = 0; i < samples.Size(); ++i) {
                 samples.Height(i) = static_cast<float>(samples.Position(i).x + spacing);
             }

@@ -27,7 +27,7 @@ TEST_F(SnippetTest, WriteAnAlbedoSource) {
             return 1;
         }
 
-        AlbedoSample ValueAt(double x, double y, const AlbedoContext& /*context*/) const override {
+        AlbedoSample ValueAt(double x, double y, const LayerContext& /*context*/) const override {
             const double share = 0.5 * (1.0 + std::tanh((x - 20.0 * std::sin(y / 60.0)) / 20.0));
             return {static_cast<float>(0.09 + 0.07 * share), 0.0f, 0.0f};
         }

@@ -29,6 +29,7 @@ using terraingen::GeoTiffError;
 using terraingen::GeoTiffWriteOptions;
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 using terraingen::ReadGeoTiff;
 using terraingen::ReadGeoTiffInfo;
 using terraingen::TiffCompression;
@@ -47,8 +48,9 @@ std::filesystem::path WriteBytes(const std::string& name, const std::vector<std:
 }
 
 /// A test raster with a slope, a ridge and fractional values.
-Raster<float> Sample(std::size_t width, std::size_t height) {
-    Raster<float> raster(width, height);
+Raster<float> Sample(std::size_t width, std::size_t height,
+                     const GeoTransform& transform = GeoTransform::NorthUp(-1000.25, 2500.5, 0.5)) {
+    Raster<float> raster(RasterGrid{width, height, transform});
     for (std::size_t row = 0; row < height; ++row) {
         for (std::size_t col = 0; col < width; ++col) {
             raster(col, row) = static_cast<float>(
@@ -56,7 +58,6 @@ Raster<float> Sample(std::size_t width, std::size_t height) {
                 50.0 * std::sin(0.13 * static_cast<double>(col * row)));
         }
     }
-    raster.SetTransform(GeoTransform::NorthUp(-1000.25, 2500.5, 0.5));
     return raster;
 }
 
@@ -122,8 +123,8 @@ TEST(ReadGeoTiff, MatchesGdalForEveryFixtureLayout) {
         SCOPED_TRACE(fixture->name);
         const auto path = WriteBytes(std::string("gdal_") + fixture->name + ".tif", fixture->bytes);
         const auto info = ReadGeoTiffInfo(path);
-        EXPECT_EQ(info.width, fixture->width);
-        EXPECT_EQ(info.height, fixture->height);
+        EXPECT_EQ(info.grid.width, fixture->width);
+        EXPECT_EQ(info.grid.height, fixture->height);
         EXPECT_EQ(info.bands, fixture->bands);
         EXPECT_EQ(info.georeferenced, fixture->georeferenced);
         ASSERT_EQ(info.bandScaling.size(), fixture->bands);
@@ -174,8 +175,7 @@ void ExpectWindowsCropTheImage(const std::filesystem::path& path, std::size_t ba
         ASSERT_EQ(part.raster.Width(), colEnd - window.colBegin);
         ASSERT_EQ(part.raster.Height(), rowEnd - window.rowBegin);
         const terraingen::RasterGrid expected =
-            terraingen::Subgrid(terraingen::RasterGrid::FromRaster(full),
-                                {window.colBegin, colEnd, window.rowBegin, rowEnd});
+            terraingen::Subgrid(full.Grid(), {window.colBegin, colEnd, window.rowBegin, rowEnd});
         EXPECT_EQ(part.raster.Transform(), expected.transform);
         EXPECT_EQ(part.raster.NoData().has_value(), full.NoData().has_value());
         EXPECT_EQ(part.geoKeys, whole.geoKeys);
@@ -245,8 +245,7 @@ namespace {
 void ExpectBlocksTileTheImage(const std::filesystem::path& path, std::size_t band) {
     const Raster<float> full = ReadGeoTiff(path, band).raster;
     const terraingen::GeoTiffBlockReader reader(path, band);
-    EXPECT_EQ(reader.Info().width, full.Width());
-    EXPECT_EQ(reader.Info().height, full.Height());
+    EXPECT_EQ(reader.Info().grid, full.Grid());
     const std::size_t blockWidth = reader.BlockWidth();
     const std::size_t blockHeight = reader.BlockHeight();
     const std::size_t across = (full.Width() + blockWidth - 1) / blockWidth;
@@ -259,9 +258,8 @@ void ExpectBlocksTileTheImage(const std::filesystem::path& path, std::size_t ban
             const std::size_t row0 = by * blockHeight;
             ASSERT_EQ(block.Width(), std::min(blockWidth, full.Width() - col0));
             ASSERT_EQ(block.Height(), std::min(blockHeight, full.Height() - row0));
-            const terraingen::RasterGrid expected =
-                terraingen::Subgrid(terraingen::RasterGrid::FromRaster(full),
-                                    {col0, col0 + block.Width(), row0, row0 + block.Height()});
+            const terraingen::RasterGrid expected = terraingen::Subgrid(
+                full.Grid(), {col0, col0 + block.Width(), row0, row0 + block.Height()});
             EXPECT_EQ(block.Transform(), expected.transform);
             EXPECT_EQ(block.NoData().has_value(), full.NoData().has_value());
             for (std::size_t row = 0; row < block.Height(); ++row) {
@@ -440,9 +438,10 @@ TEST(WriteGeoTiff, KeepsPixelIsPointAndRotatedTransforms) {
 }
 
 TEST(WriteGeoTiff, WritesSeveralBandsOneAfterAnother) {
-    std::vector<Raster<float>> bands{Sample(21, 19), Sample(21, 19), Sample(21, 19)};
+    const GeoTransform transform = GeoTransform::NorthUp(100.0, 200.0, 2.0);
+    std::vector<Raster<float>> bands{Sample(21, 19, transform), Sample(21, 19, transform),
+                                     Sample(21, 19, transform)};
     for (std::size_t band = 0; band < bands.size(); ++band) {
-        bands[band].SetTransform(GeoTransform::NorthUp(100.0, 200.0, 2.0));
         bands[band].SetNoData(-1.0f);
         for (float& value : bands[band].Values()) {
             value += 10.0f * static_cast<float>(band);
@@ -464,8 +463,7 @@ TEST(WriteGeoTiff, WritesSeveralBandsOneAfterAnother) {
     EXPECT_THROW(WriteGeoTiff(path, std::vector<Raster<float>>{}), GeoTiffError);
     bands[1] = Sample(20, 19);
     EXPECT_THROW(WriteGeoTiff(path, bands), GeoTiffError);
-    bands[1] = bands[0];
-    bands[1].SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
+    bands[1] = Sample(21, 19, GeoTransform::NorthUp(0.0, 0.0, 1.0));
     EXPECT_THROW(WriteGeoTiff(path, bands), GeoTiffError);
 }
 
@@ -475,8 +473,7 @@ TEST(GeographicSphereKeys, DescribeLongitudeAndLatitudeOnTheBody) {
     EXPECT_FALSE(keys.PixelIsPoint());
     EXPECT_EQ(terraingen::detail::ShortGeoKey(keys, 2054), 9102);
     EXPECT_EQ(keys.doubleParams, (std::vector<double>{3389500.0, 3389500.0}));
-    Raster<float> raster = Sample(17, 9);
-    raster.SetTransform(GeoTransform::NorthUp(-10.0, 5.0, 0.25));
+    const Raster<float> raster = Sample(17, 9, GeoTransform::NorthUp(-10.0, 5.0, 0.25));
     const auto path = TempPath("sphere.tif");
     WriteGeoTiff(path, raster, keys);
     const auto read = ReadGeoTiff(path);

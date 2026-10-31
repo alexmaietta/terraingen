@@ -6,7 +6,7 @@
 
 #include "terraingen/geometry/geometry.h"
 #include "terraingen/geometry/surface.h"
-#include "terraingen/layers/ground.h"
+#include "terraingen/layers/layer.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/raster.h"
 #include "terraingen/sources/source.h"
@@ -25,36 +25,9 @@ inline constexpr std::size_t kMaxAlbedoBands = 3;
 /// An albedo at one point: the first `Bands()` values are used, the rest are 0.
 using AlbedoSample = std::array<float, kMaxAlbedoBands>;
 
-/// How an albedo is evaluated.
-struct AlbedoContext {
-    /// Sample spacing in meters, positive and finite: detail that cannot be resolved at it is left
-    /// out.
-    double spacing = 1.0;
-    /// Threads a grid may be split over; 0 for every hardware thread. The result does not depend
-    /// on it.
-    unsigned threads = 1;
-    /// The terrain's heights, for layers shaped by the ground; null leaves it flat. It must outlive
-    /// the evaluation.
-    const Ground* ground = nullptr;
-    const Surface* surface = nullptr;  ///< What the terrain lies on; null for a plane.
-    const Source* source = nullptr;    ///< The terrain's starting heights; null for none.
-
-    /// The surface the terrain lies on: `*surface`, or a plane without one.
-    const Surface& SurfaceOrPlane() const {
-        static const Surface plane{};
-        return surface != nullptr ? *surface : plane;
-    }
-
-    /// Where noise on a plane is measured from: the source's `ReferencePoint`, or the origin
-    /// without a source.
-    Vec2d ReferencePoint() const {
-        return source != nullptr ? source->ReferencePoint() : Vec2d{};
-    }
-};
-
 /// Checks an evaluation context.
 /// @throws std::invalid_argument if `context.spacing` is not positive and finite.
-void ValidateAlbedoContext(const AlbedoContext& context);
+void ValidateAlbedoContext(const LayerContext& context);
 
 /// Where an albedo starts: a map from orbit, a synthetic color, or a source of your own.
 /// Values are reflectances (normal albedo, or reflectance at a wavelength), one per band.
@@ -69,12 +42,12 @@ class AlbedoSource {
     virtual std::size_t Bands() const = 0;
 
     /// The albedo at world point (`x`, `y`); NaN in every band where the source has no data.
-    virtual AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const = 0;
+    virtual AlbedoSample ValueAt(double x, double y, const LayerContext& context) const = 0;
 
     /// Sets every cell of each band to `ValueAt` at its center; the default does exactly
     /// that, cell by cell, on `context.threads` threads.
     /// @param bands `Bands()` rasters on one grid.
-    virtual void Fill(std::vector<Raster<float>>& bands, const AlbedoContext& context) const;
+    virtual void Fill(std::vector<Raster<float>>& bands, const LayerContext& context) const;
 };
 
 /// A change to an albedo: bright ejecta around fresh craters, or a layer of your own.
@@ -88,11 +61,11 @@ class AlbedoLayer {
     /// Applies the layer in place to `value`, the albedo at world point (`x`, `y`); NaN stays NaN.
     /// @param bands Bands of `value` in use.
     virtual void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                         const AlbedoContext& context) const = 0;
+                         const LayerContext& context) const = 0;
 
     /// Applies the layer in place to every cell of `bands` (one raster per band on one grid); the
     /// default calls `ApplyAt` at each cell center on `context.threads` threads.
-    virtual void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const;
+    virtual void Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const;
 };
 
 /// An albedo as a composition: values from `source`, then each of `layers` in order.
@@ -109,12 +82,12 @@ struct Albedo {
 /// @throws std::invalid_argument if `albedo` has no source, holds a null layer, the source has a
 /// band count other than 1 or 3, `grid` is empty, or the spacing is negative or not finite.
 std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid& grid,
-                                          AlbedoContext context);
+                                          LayerContext context);
 
 /// The albedo at world point (`x`, `y`): the cell centered there of `EvaluateAlbedo` over a grid
 /// of `context.spacing`, to the same bits; a null `context.surface` reads the albedo's.
 /// @throws std::invalid_argument as `EvaluateAlbedo`.
-AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y, AlbedoContext context);
+AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y, LayerContext context);
 
 /// Visits the albedo at one cell center: `visit(value, x, y)` may change `value`.
 using AlbedoCellVisitor = std::function<void(AlbedoSample& value, double x, double y)>;

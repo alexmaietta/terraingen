@@ -180,12 +180,12 @@ class SecondaryDensity {
     /// The secondaries `primary` throws under `options`; none when its selection leaves it out.
     SecondaryDensity(const Crater& primary, const SecondaryCraterOptions& options);
 
-    /// Secondaries per m^2 with diameters in [`dMin`, `dMax`) meters at `offset` meters east and
-    /// north of the primary's center, in its local frame.
-    double At(const Vec2d& offset, double dMin, double dMax) const;
+    /// Secondaries per m^2 with diameters in [`minDiameter`, `maxDiameter`) meters at `offset`
+    /// meters east and north of the primary's center, in its local frame.
+    double At(const Vec2d& offset, double minDiameter, double maxDiameter) const;
 
     /// The share of ground covered by those secondaries, their areas pi d^2 / 4 summed per m^2.
-    double CoverAt(const Vec2d& offset, double dMin, double dMax) const;
+    double CoverAt(const Vec2d& offset, double minDiameter, double maxDiameter) const;
 
     /// The farthest a secondary lands from the primary's center, in meters; 0 when it throws none.
     double Reach() const {
@@ -222,8 +222,9 @@ class SecondaryDensity {
     double SizeShare(double low, double high) const;
 
   private:
-    /// The count, or with `cover` the covered share, per m^2 in [`dMin`, `dMax`) at `offset`.
-    double Measure(const Vec2d& offset, double dMin, double dMax, bool cover) const;
+    /// The count, or with `cover` the covered share, per m^2 in [`minDiameter`, `maxDiameter`) at
+    /// `offset`.
+    double Measure(const Vec2d& offset, double minDiameter, double maxDiameter, bool cover) const;
 
     double sizeSlope_ = 4.0;
     double minSize_ = 0.0;

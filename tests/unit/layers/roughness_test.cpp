@@ -85,8 +85,8 @@ TEST(RoughnessLayer, GivesPointsTheSameBitsAsGridsOnAnyThreads) {
     const RoughnessLayer layer(options);
     const terraingen::RasterGrid grid{
         64, 48, terraingen::GeoTransform::NorthUp(350000.25, 4100000.5, 0.02)};
-    auto one = grid.MakeRaster();
-    auto many = grid.MakeRaster();
+    terraingen::Raster<float> one(grid);
+    terraingen::Raster<float> many(grid);
     layer.Apply(one, {0.0, 1});
     layer.Apply(many, {0.0, 4});
     double sumSquares = 0.0;
@@ -129,7 +129,7 @@ TEST(RoughnessLayer, LeavesMissingCellsAndRejectsBadSpacings) {
     EXPECT_TRUE(std::isnan(layer.ApplyAt(std::nanf(""), 0.0, 0.0, {0.1})));
     EXPECT_THROW(layer.ApplyAt(0.0f, 0.0, 0.0, {0.0}), std::invalid_argument);
     const terraingen::RasterGrid grid{4, 4, terraingen::GeoTransform::NorthUp(0.0, 4.0, 0.01)};
-    auto heights = grid.MakeRaster();
+    terraingen::Raster<float> heights(grid);
     heights.SetNoData(-9999.0f);
     heights(1, 2) = -9999.0f;
     layer.Apply(heights, {});

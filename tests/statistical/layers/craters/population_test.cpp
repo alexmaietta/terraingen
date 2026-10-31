@@ -22,11 +22,11 @@ using terraingen::testing::KolmogorovSmirnovCritical;
 
 namespace {
 
-/// The default generation options with diameters from `dMin` to `dMax` (m).
-terraingen::CraterGenerationOptions Diameters(double dMin, double dMax) {
+/// The default generation options with diameters from `minDiameter` to `maxDiameter` (m).
+terraingen::CraterGenerationOptions Diameters(double minDiameter, double maxDiameter) {
     terraingen::CraterGenerationOptions options;
-    options.dMin = dMin;
-    options.dMax = dMax;
+    options.minDiameter = minDiameter;
+    options.maxDiameter = maxDiameter;
     return options;
 }
 

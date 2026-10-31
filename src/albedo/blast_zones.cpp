@@ -85,7 +85,7 @@ double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y, const 
 }
 
 void BlastZoneAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                              const AlbedoContext& context) const {
+                              const LayerContext& context) const {
     double change = 0.0;
     for (const BlastZone& zone : zones_) {
         change += Change(zone, x, y, context.SurfaceOrPlane());

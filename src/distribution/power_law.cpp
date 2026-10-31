@@ -25,7 +25,8 @@ double PowerLawSfd::IncrementalAt(double diameter) const {
     return law_.Incremental(diameter);
 }
 
-double PowerLawSfd::InvertCumulative(double target, double /*dMin*/, double /*dMax*/) const {
+double PowerLawSfd::InvertCumulative(double target, double /*minDiameter*/,
+                                     double /*maxDiameter*/) const {
     return law_.Invert(target);
 }
 

@@ -18,15 +18,10 @@
 
 namespace terraingen {
 
-/// Where a terrain's heights come from: a DEM, synthetic noise, or a source of your own. A source
-/// only loads or generates heights; how its posts become heights at finer sample spacings is its
-/// upsampler's job (`Upsampler`). Layers add relief to what the source gives, then filters
-/// transform the result.
+/// Where a terrain's heights come from: a DEM, synthetic noise, or your own.
 ///
-/// Heights are a function of position and sample spacing only, so points, tiles and grids at the
-/// same spacing agree: every query goes through `FillSamples`, the one method a source
-/// evaluates. Sources must be deterministic and thread safe: a terrain may be evaluated tile by
-/// tile, in parallel.
+/// Heights depend only on position and spacing; every query goes through `FillSamples`.
+/// Implementations must be deterministic and thread-safe.
 class Source {
   public:
     virtual ~Source() = default;
@@ -68,7 +63,7 @@ class Source {
     /// `Fill` at the grid's own spacing, its cell size (`RasterGrid::PixelSize`), on every
     /// hardware thread.
     void Fill(Raster<float>& heights) const {
-        Fill(heights, RasterGrid::FromRaster(heights).PixelSize(), 0);
+        Fill(heights, heights.Grid().PixelSize(), 0);
     }
 
     /// `Fill` of the cells of `grid` straight into `heights`, row-major from row 0, NaN where the
@@ -116,6 +111,14 @@ class Source {
     /// data is set to NaN, or a grid's cell to the no-data value the source gives its raster.
     /// @param threads Threads to split a grid over; 0 for every hardware thread.
     virtual void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const = 0;
+
+    /// `FillSamples` of `source`, for a source filling from others, which leaves a grid's cells
+    /// without data to its own `Fill` to mark once.
+    /// @param threads Threads to split a grid over; 0 for every hardware thread.
+    static void FillUnmarked(const Source& source, SampleBlock& samples, double spacing,
+                             unsigned threads) {
+        source.FillSamples(samples, spacing, threads);
+    }
 };
 
 /// The grid `source` covers, or none for a source without bounds (a grid without cells).
@@ -125,6 +128,12 @@ inline std::optional<RasterGrid> BoundedGrid(const Source& source) {
         return std::nullopt;
     }
     return grid;
+}
+
+/// Where noise on a plane is measured from: `source`'s `ReferencePoint`, or the origin when it is
+/// null.
+inline Vec2d ReferencePoint(const Source* source) {
+    return source != nullptr ? source->ReferencePoint() : Vec2d{};
 }
 
 }  // namespace terraingen

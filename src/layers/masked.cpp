@@ -47,7 +47,7 @@ PixelWindow MergeWindows(const std::vector<PixelWindow>& windows) {
 
 /// The cells of `window` of `heights` as a raster of their own, on the same lattice.
 Raster<float> CopyWindow(const Raster<float>& heights, const PixelWindow& window) {
-    Raster<float> copy = Subgrid(RasterGrid::FromRaster(heights), window).MakeRaster();
+    Raster<float> copy(Subgrid(heights.Grid(), window));
     copy.SetNoData(heights.NoData());
     for (std::size_t row = window.rowBegin; row < window.rowEnd; ++row) {
         for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {
@@ -251,6 +251,10 @@ LayerPtr MaskedLayer::Rebound(const LayerReplacements& replaced) const {
     return Confining(inner_->Rebound(replaced));
 }
 
+LayerPtr MaskedLayer::Rebased(const TerrainBase& base) const {
+    return Confining(inner_->Rebased(base));
+}
+
 double MaskedLayer::Weight(double x, double y, const Surface& surface) const {
     const double distance = shape_.DistanceOutside(x, y, surface);
     if (distance <= 0.0) {
@@ -282,7 +286,7 @@ std::optional<RasterGrid> MaskedLayer::InnerGrid(const RasterGrid& grid,
 
 CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) const {
     const auto* placer = dynamic_cast<const CraterPlacer*>(inner_.get());
-    const Surface surface = LayerSurface().value_or(Surface{});
+    const Surface surface = LayerBase().value_or(TerrainBase{}).surface;
     const std::optional<RasterGrid> inner = InnerGrid(grid, surface);
     CraterFeatures held;
     if (placer == nullptr || !inner) {
@@ -302,7 +306,7 @@ CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) 
 BoulderFeatures MaskedLayer::BouldersOver(const RasterGrid& grid, double spacing,
                                           const Ground* ground) const {
     const auto* placer = dynamic_cast<const BoulderPlacer*>(inner_.get());
-    const Surface surface = LayerSurface().value_or(Surface{});
+    const Surface surface = LayerBase().value_or(TerrainBase{}).surface;
     const std::optional<RasterGrid> inner = InnerGrid(grid, surface);
     BoulderFeatures held;
     if (placer == nullptr || !inner) {
@@ -353,7 +357,7 @@ void MaskedLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& contex
 
 void MaskedLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& context) const {
     const Surface& surface = context.SurfaceOrPlane();
-    const PixelWindow window = InnerWindow(RasterGrid::FromRaster(heights), surface);
+    const PixelWindow window = InnerWindow(heights.Grid(), surface);
     if (window.Empty()) {
         return;
     }

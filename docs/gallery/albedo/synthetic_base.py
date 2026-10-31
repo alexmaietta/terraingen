@@ -24,7 +24,7 @@ def figure(quick=False):
     pixel = 4.0 if quick else 1.0
     size = int(SIZE_M / pixel) + 1
     terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel))
-    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
+    grid = terrain.evaluate().grid
     panels = [
         ("Plain 0.11", terraingen.SyntheticAlbedo(value=0.11)),
         ("150 m noise, 0.2", terraingen.SyntheticAlbedo(value=0.11, value_noise=noise(8, 150.0, 0.2))),

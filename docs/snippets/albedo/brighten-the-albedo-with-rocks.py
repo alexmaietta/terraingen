@@ -18,7 +18,7 @@ def brighten_the_albedo_with_rocks():
         terraingen.RockAlbedoOptions(seed=1, reflectance_ratio=2.5), terrain, layers=[0]
     )
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [rocks])
-    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
+    grid = terrain.evaluate().grid
     (bands,) = terraingen.evaluate_albedo(albedo, grid, ground=terrain)
     # --8<-- [end:brighten_the_albedo_with_rocks]
     return bands.values

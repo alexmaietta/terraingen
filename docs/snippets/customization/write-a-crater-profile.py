@@ -25,7 +25,7 @@ def write_a_crater_profile():
         ConeProfile(),
     )
     options = terraingen.CraterLayerOptions(
-        seed=1, generation=terraingen.CraterGenerationOptions(d_min=6.0, d_max=60.0)
+        seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=60.0)
     )
     craters = terraingen.CraterLayer(models, options)
     heights = terraingen.Terrain(source=terraingen.FlatSource(129, 129, 1.0), layers=[craters]).evaluate()

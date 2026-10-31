@@ -115,7 +115,7 @@ def test_point_queries_give_the_same_bits_every_time(small_config):
     points = np.column_stack([np.linspace(-20.0, 20.0, 40), np.linspace(15.0, -15.0, 40)])
     fresh = terrain.heights_at(points, 0.5)
     np.testing.assert_array_equal(terrain.heights_at(points, 0.5, threads=2), fresh)
-    np.testing.assert_array_equal(terrain.ground(len(terrain.layers())).heights_at(points, 0.5), fresh)
+    np.testing.assert_array_equal(terrain.beneath(len(terrain.layers())).heights_at(points, 0.5), fresh)
     for (x, y), height in zip(points[::7], fresh[::7], strict=True):
         assert terrain.height_at(x, y, 0.5) == height
 
@@ -249,7 +249,7 @@ def test_a_terrain_is_checked_once_when_built(moon, paraboloid):
 def lunar_site(moon, lunar_models, noise_layer):
     """Noise and 20 to 300 km craters on a 65 x 65 site at 4 km near Mons Mouton's longitude."""
     noise = noise_layer(1, 400000.0, 3000.0)
-    generation = terraingen.CraterGenerationOptions(d_min=20000.0, d_max=300000.0)
+    generation = terraingen.CraterGenerationOptions(min_diameter=20000.0, max_diameter=300000.0)
     craters = terraingen.CraterLayer(
         lunar_models(3.8), terraingen.CraterLayerOptions(generation=generation), moon
     )
@@ -421,88 +421,120 @@ def test_each_ground_of_a_terrain_is_the_terrain_of_its_first_layers(generated):
     layers = terrain.layers()
     assert len(layers) >= 2
     for stages in range(len(layers) + 1):
-        ground = terrain.ground(stages)
+        ground = terrain.beneath(stages)
         built = terraingen.Terrain(terrain.surface(), terrain.source(), layers[:stages])
         assert isinstance(ground, terraingen.Ground) and len(ground.layers()) == stages
         assert_same_bits(ground.evaluate(grid, threads=2), built.evaluate(grid, threads=2))
-    assert_same_bits(terrain.ground(len(layers)).evaluate(grid), terrain.evaluate(grid))
+    assert_same_bits(terrain.beneath(len(layers)).evaluate(grid), terrain.evaluate(grid))
     with pytest.raises(ValueError):
-        terrain.ground(len(layers) + 1)
+        terrain.beneath(len(layers) + 1)
 
 
-def test_a_stage_cache_restarts_an_evaluation_from_its_layer(generated):
+def test_a_terrain_view_restarts_an_evaluation_from_its_stage(generated):
     terrain = generated.terrain
     grid = generated.grids[0].grid
     expected = terrain.evaluate(grid, threads=2)
-    cache = terraingen.StageCache(2)
-    assert cache.stage() == 2 and cache.empty()
-    assert_same_bits(terrain.evaluate(grid, threads=2, stage_cache=cache), expected)
-    assert not cache.empty()
-    assert_same_bits(terrain.evaluate(grid, threads=2, stage_cache=cache), expected)
-    out = np.empty((grid.height, grid.width), dtype=np.float32)
-    terrain.fill(grid, out, threads=2, stage_cache=cache)
-    assert_same_bits(out, expected)
-    cache.clear()
-    assert cache.empty()
+    view = terraingen.TerrainView(grid, threads=2, stage=2)
+    assert view.grid() == grid
+    assert_same_bits(view.update(terrain), expected)
+    assert_same_bits(view.update(terrain), expected)
+    view.clear()
+    assert_same_bits(view.update(terrain), expected)
     with pytest.raises(ValueError):
-        terrain.evaluate(grid, stage_cache=terraingen.StageCache(len(terrain.layers()) + 1))
+        terraingen.TerrainView(grid, stage=len(terrain.layers()) + 1).update(terrain)
 
 
-def test_a_stage_cache_applies_a_replaced_layer_to_the_bits_of_a_fresh_terrain(generated):
+def test_a_terrain_view_applies_a_replaced_layer_to_the_bits_of_a_fresh_terrain(generated):
     terrain = generated.terrain
     grid = generated.grids[0].grid
-    cache = terraingen.StageCache(2)
-    terrain.evaluate(grid, threads=2, stage_cache=cache)
+    view = terraingen.TerrainView(grid, threads=2, stage=2)
+    view.update(terrain)
     scale = terraingen.ScaleLayer(2.0, 1.0)
     terrain.set_layer(2, scale)
     fresh = terraingen.Terrain(terrain.surface(), terrain.source(), terrain.layers()[:2] + [scale])
-    assert_same_bits(terrain.evaluate(grid, threads=2, stage_cache=cache), fresh.evaluate(grid, threads=2))
+    assert_same_bits(view.update(terrain), fresh.evaluate(grid, threads=2))
     terrain.set_layer(1, terraingen.ScaleLayer(1.0))
     assert_same_bits(
-        terrain.evaluate(grid, threads=2, stage_cache=cache),
+        view.update(terrain),
         terraingen.Terrain(terrain.surface(), terrain.source(), terrain.layers()).evaluate(grid, threads=2),
     )
 
 
-def test_set_layer_renews_the_versions_of_the_layer_and_those_reading_it(
+def test_apply_from_finishes_the_heights_beneath_a_layer(generated):
+    terrain = generated.terrain
+    grid = generated.grids[0].grid
+    heights = terrain.beneath(1).evaluate(grid, threads=2)
+    terrain.apply_from(1, heights, threads=2)
+    assert_same_bits(heights, terrain.evaluate(grid, threads=2))
+
+
+def test_set_layer_replaces_the_layer_and_rebinds_those_reading_it(
     ejecta_terrain, lunar_models, crater_layer
 ):
     terrain = ejecta_terrain
-    versions = [terrain.layer_version(n) for n in range(3)]
-    source_version = terrain.source_version()
+    before = terrain.layers()
     noise = terraingen.NoiseLayer(seed=9, wavelength=20.0, amplitude=0.5)
     terrain.set_layer(0, noise)
     assert terrain.layers()[0] is noise
-    assert terrain.layer_version(0) != versions[0]
-    assert [terrain.layer_version(n) for n in (1, 2)] == versions[1:]
-    old_boulders = terrain.layers()[2]
+    assert terrain.layers()[1] is before[1] and terrain.layers()[2] is before[2]
     terrain.set_layer(1, crater_layer(lunar_models(), 3.0, 15.0, seed=5))
-    assert terrain.layer_version(1) != versions[1] and terrain.layer_version(2) != versions[2]
-    assert terrain.layers()[2] is not old_boulders, "rebound to the new craters"
-    assert terrain.source_version() == source_version
+    assert terrain.layers()[2] is not before[2], "rebound to the new craters"
     with pytest.raises(ValueError):
         terrain.set_layer(3, noise)
-    with pytest.raises(IndexError):
-        terrain.layer_version(3)
 
 
 def test_set_layer_leaves_the_terrain_unchanged_when_it_fails(moon, generated):
     terrain = generated.terrain
-    before = terrain.layer_version(1)
+    before = terrain.layers()[1]
     with pytest.raises(ValueError):
         terrain.set_layer(1, terraingen.CraterLayer(None, terraingen.CraterLayerOptions(), moon))
-    assert terrain.layer_version(1) == before
+    assert terrain.layers()[1] is before
 
 
-def test_set_source_renews_the_source_version(paraboloid):
+def test_set_source_replaces_the_source(paraboloid):
     terrain = terraingen.Terrain(source=paraboloid, layers=[terraingen.ScaleLayer(2.0)])
-    version = terrain.source_version()
-    layer_version = terrain.layer_version(0)
+    scale = terrain.layers()[0]
     terrain.set_source(terraingen.FlatSource(65, 65, 2.0, 1.5))
-    assert terrain.source_version() != version and terrain.layer_version(0) == layer_version
+    assert terrain.layers()[0] is scale
     assert (terrain.evaluate().values == 3.0).all()
     terrain.set_source(None)
     assert terrain.source() is None and terrain.grid() is None
+
+
+def level_raster(cell):
+    """A level raster source over the 1600 m square from the origin in cells of `cell` meters."""
+    side = int(1600 / cell)
+    return terraingen.RasterSource(
+        np.zeros((side, side), np.float32), terraingen.GeoTransform.north_up(0.0, 1600.0, cell)
+    )
+
+
+def craters_on(source, models):
+    """20 to 150 m craters of `models` built on `source`."""
+    generation = terraingen.CraterGenerationOptions(min_diameter=20.0, max_diameter=150.0)
+    return terraingen.CraterLayer(models, terraingen.CraterLayerOptions(generation=generation), source)
+
+
+def test_set_source_rebuilds_the_craters_built_on_the_old_source(lunar_models):
+    models = lunar_models(0.5)
+    fine, coarse = level_raster(10.0), level_raster(40.0)
+    terrain = terraingen.Terrain(source=fine, layers=[craters_on(fine, models)])
+    grid = fine.grid()
+    resolved = len(terrain.craters().craters)
+    terrain.set_source(coarse)
+    assert terrain.layers()[0].layer_base().source is coarse
+    built = terraingen.Terrain(source=coarse, layers=[craters_on(coarse, models)])
+    assert len(terrain.craters(grid).craters) == len(built.craters(grid).craters) > resolved
+    assert_same_bits(terrain.evaluate(grid), built.evaluate(grid))
+    with pytest.raises(ValueError):
+        terraingen.Terrain(source=coarse, layers=[craters_on(fine, models)])
+
+
+def test_reseeding_keeps_measured_heights_and_unseeded_layers(paraboloid):
+    terrain = terraingen.Terrain(source=paraboloid, layers=[terraingen.ScaleLayer(2.0)])
+    reseeded = terrain.reseed(3)
+    assert_same_bits(reseeded.evaluate(), terrain.evaluate())
+    assert reseeded.source() is paraboloid and reseeded.layers()[0] is terrain.layers()[0]
 
 
 def test_reseeding_draws_every_seeded_part_again(generated):
@@ -513,15 +545,6 @@ def test_reseeding_draws_every_seeded_part_again(generated):
     other = terrain.reseed(8).evaluate(grid, threads=2)
     assert np.asarray(first.evaluate(grid, threads=2)).tobytes() != np.asarray(other).tobytes()
     assert_same_bits(terrain.evaluate(grid, threads=2), generated.grids[0].heights)
-
-
-def test_reseeding_keeps_measured_heights_and_unseeded_layers(paraboloid):
-    terrain = terraingen.Terrain(source=paraboloid, layers=[terraingen.ScaleLayer(2.0)])
-    reseeded = terrain.reseed(3)
-    assert_same_bits(reseeded.evaluate(), terrain.evaluate())
-    assert reseeded.source() is paraboloid and reseeded.layers()[0] is terrain.layers()[0]
-    assert reseeded.source_version() == terrain.source_version()
-    assert reseeded.layer_version(0) == terrain.layer_version(0)
 
 
 def test_layers_and_sources_say_how_they_reseed_and_rebind(ejecta_terrain):
@@ -539,7 +562,7 @@ def test_layers_and_sources_say_how_they_reseed_and_rebind(ejecta_terrain):
 class Tilt(terraingen.Ground):
     """A ground rising 1 m per meter east."""
 
-    def fill_samples(self, samples, spacing):
+    def fill_samples(self, samples, spacing, threads):
         samples.heights()[:] = samples.positions()[:, 0]
 
 
@@ -549,6 +572,10 @@ def test_grounds_written_in_python_answer_point_queries():
     heights = ground.heights_at(np.array([[1.0, 0.0], [-2.0, 5.0]]), 1.0)
     assert heights.dtype == np.float32
     np.testing.assert_array_equal(heights, [1.0, -2.0])
+    columns = np.array([[1.0, -2.0], [0.0, 5.0]]).T
+    assert not columns.flags.c_contiguous
+    np.testing.assert_array_equal(ground.heights_at(columns, 1.0, threads=2), [1.0, -2.0])
+    assert ground.context(2.0).ground is not None and ground.context(2.0).surface is None
 
 
 def test_python_sources_give_a_terrain_its_heights(paraboloid):

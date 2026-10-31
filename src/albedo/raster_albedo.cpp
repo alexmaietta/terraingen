@@ -101,7 +101,7 @@ void RasterAlbedo::MeasureRoughness() {
 double RasterAlbedo::DetailSum(double x, double y, double spacing, const Surface& surface) const {
     const AlbedoDetail& detail = options_.detail;
     const Vec2d origin = bands_.front().CellCenter(0, 0);
-    const double cell = RasterGrid::FromRaster(bands_.front()).Spacing(surface);
+    const double cell = bands_.front().Grid().Spacing(surface);
     double sum = 0.0;
     for (int octave = 0; octave < detail.octaves; ++octave) {
         const double wavelength = cell / std::exp2(octave + 1);
@@ -124,7 +124,7 @@ double RasterAlbedo::DetailSum(double x, double y, double spacing, const Surface
     return sum;
 }
 
-AlbedoSample RasterAlbedo::ValueAt(double x, double y, const AlbedoContext& context) const {
+AlbedoSample RasterAlbedo::ValueAt(double x, double y, const LayerContext& context) const {
     AlbedoSample value{};
     for (std::size_t band = 0; band < bands_.size(); ++band) {
         value[band] = SampleRaster(bands_[band], x, y, options_.method);

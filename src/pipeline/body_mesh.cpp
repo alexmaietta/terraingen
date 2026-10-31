@@ -2,15 +2,11 @@
 
 #include "terraingen/pipeline/body_mesh.h"
 
-#include "geometry/cube_faces.h"
-#include "terraingen/geometry/cells.h"
 #include "terraingen/geometry/geometry.h"
 #include "terraingen/util/span.h"
 #include "util/checks.h"
 
-#include <array>
 #include <cmath>
-#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -54,48 +50,12 @@ std::vector<Vec3d> BodyPositions(const Terrain& terrain, Span<const Vec3d> direc
     return positions;
 }
 
-/// Two triangles for each of the `cells` x `cells` quads of each face of a cube grid of
-/// `cells + 1` vertices per edge.
-std::vector<std::array<std::uint32_t, 3>> CubeTriangles(std::size_t cells) {
-    const std::size_t side = cells + 1;
-    std::vector<std::array<std::uint32_t, 3>> triangles;
-    for (std::size_t face = 0; face < 6; ++face) {
-        const auto base = static_cast<std::uint32_t>(face * side * side);
-        for (std::size_t j = 0; j < cells; ++j) {
-            for (std::size_t i = 0; i < cells; ++i) {
-                const auto a = static_cast<std::uint32_t>(base + j * side + i);
-                const auto b = a + 1u;
-                const auto c = static_cast<std::uint32_t>(a + side);
-                const auto d = c + 1u;
-                triangles.push_back({a, b, d});
-                triangles.push_back({a, d, c});
-            }
-        }
-    }
-    return triangles;
-}
-
 }  // namespace
 
 TriangleMesh BodyMesh(const Terrain& terrain, std::size_t cellsPerFace, double spacing,
                       unsigned threads) {
     CheckBodyRequest(terrain, cellsPerFace, spacing, "A body mesh", "at least one cell per face");
-    const double quarter = detail::kQuarter;
-    const double step = 2.0 * quarter / static_cast<double>(cellsPerFace);
-    const double sampled = spacing > 0.0 ? spacing : terrain.Surface().Radius() * step;
-    const std::size_t side = cellsPerFace + 1;
-    std::vector<Vec3d> directions(6 * side * side);
-    for (std::size_t v = 0; v < directions.size(); ++v) {
-        const auto face = static_cast<int>(v / (side * side));
-        const std::size_t i = v % side;
-        const std::size_t j = (v / side) % side;
-        directions[v] = CubeSphereCells::Direction(face, -quarter + static_cast<double>(i) * step,
-                                                   -quarter + static_cast<double>(j) * step);
-    }
-    TriangleMesh mesh;
-    mesh.positions = BodyPositions(terrain, directions, sampled, threads);
-    mesh.triangles = CubeTriangles(cellsPerFace);
-    return mesh;
+    return IcqToMesh(BodyIcq(terrain, cellsPerFace, spacing, threads));
 }
 
 IcqModel BodyIcq(const Terrain& terrain, std::size_t q, double spacing, unsigned threads) {

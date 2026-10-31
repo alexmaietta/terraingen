@@ -4,6 +4,7 @@
 
 #include "analysis/radial_spectrum.h"
 #include "terraingen/geometry/plane_fit.h"
+#include "terraingen/raster/cell_loops.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/util/bits.h"
@@ -53,23 +54,15 @@ double Hann(std::size_t i, std::size_t n) {
 }
 
 /// The centered power-of-2 window of a raster.
-struct Window {
-    std::size_t col0 = 0;
-    std::size_t row0 = 0;
-    std::size_t width = 0;
-    std::size_t height = 0;
-};
-
-Window CenteredWindow(const Raster<float>& heights) {
-    Window window;
-    window.width = FloorPowerOfTwo(std::max<std::size_t>(heights.Width(), 1));
-    window.height = FloorPowerOfTwo(std::max<std::size_t>(heights.Height(), 1));
+PixelWindow CenteredWindow(const Raster<float>& heights) {
     if (heights.Width() < kMinWindow || heights.Height() < kMinWindow) {
         throw std::invalid_argument("A power spectrum needs a raster at least 8 cells a side");
     }
-    window.col0 = (heights.Width() - window.width) / 2;
-    window.row0 = (heights.Height() - window.height) / 2;
-    return window;
+    const std::size_t width = FloorPowerOfTwo(heights.Width());
+    const std::size_t height = FloorPowerOfTwo(heights.Height());
+    const std::size_t col0 = (heights.Width() - width) / 2;
+    const std::size_t row0 = (heights.Height() - height) / 2;
+    return {col0, col0 + width, row0, row0 + height};
 }
 
 /// The offset of cell `i` of `n` from their center, in cells.
@@ -80,13 +73,13 @@ double Centered(std::size_t i, std::size_t n) {
 /// The least-squares plane through the cells of `window` holding data, in cells from the
 /// window's center.
 /// @throws std::invalid_argument for a window without data.
-Plane FitPlane(const Raster<float>& heights, const Window& window) {
+Plane FitPlane(const Raster<float>& heights, const PixelWindow& window) {
     PlaneFit fit;
-    for (std::size_t row = 0; row < window.height; ++row) {
-        for (std::size_t col = 0; col < window.width; ++col) {
-            const float value = heights(window.col0 + col, window.row0 + row);
+    for (std::size_t row = 0; row < window.Height(); ++row) {
+        for (std::size_t col = 0; col < window.Width(); ++col) {
+            const float value = heights(window.colBegin + col, window.rowBegin + row);
             if (!heights.IsMissing(value)) {
-                fit.Add(Centered(col, window.width), Centered(row, window.height),
+                fit.Add(Centered(col, window.Width()), Centered(row, window.Height()),
                         static_cast<double>(value));
             }
         }
@@ -100,25 +93,26 @@ Plane FitPlane(const Raster<float>& heights, const Window& window) {
 /// The window's heights minus their plane, zero without data, times the 2D Hann window; and the
 /// window's summed squared weights.
 std::pair<std::vector<std::complex<double>>, double> TaperedWindow(const Raster<float>& heights,
-                                                                   const Window& window) {
+                                                                   const PixelWindow& window) {
     const Plane plane = FitPlane(heights, window);
-    std::vector<std::complex<double>> values(window.width * window.height);
+    std::vector<std::complex<double>> values(window.Width() * window.Height());
     double energyX = 0.0;
     double energyY = 0.0;
-    for (std::size_t col = 0; col < window.width; ++col) {
-        energyX += Hann(col, window.width) * Hann(col, window.width);
+    for (std::size_t col = 0; col < window.Width(); ++col) {
+        energyX += Hann(col, window.Width()) * Hann(col, window.Width());
     }
-    for (std::size_t row = 0; row < window.height; ++row) {
-        energyY += Hann(row, window.height) * Hann(row, window.height);
-        for (std::size_t col = 0; col < window.width; ++col) {
-            const float value = heights(window.col0 + col, window.row0 + row);
+    for (std::size_t row = 0; row < window.Height(); ++row) {
+        energyY += Hann(row, window.Height()) * Hann(row, window.Height());
+        for (std::size_t col = 0; col < window.Width(); ++col) {
+            const float value = heights(window.colBegin + col, window.rowBegin + row);
             if (heights.IsMissing(value)) {
                 continue;
             }
-            const double trend = plane.a + plane.b * Centered(col, window.width) +
-                                 plane.c * Centered(row, window.height);
-            values[row * window.width + col] = (static_cast<double>(value) - trend) *
-                                               Hann(col, window.width) * Hann(row, window.height);
+            const double trend = plane.a + plane.b * Centered(col, window.Width()) +
+                                 plane.c * Centered(row, window.Height());
+            values[row * window.Width() + col] = (static_cast<double>(value) - trend) *
+                                                 Hann(col, window.Width()) *
+                                                 Hann(row, window.Height());
         }
     }
     return {std::move(values), energyX * energyY};
@@ -173,23 +167,24 @@ std::vector<SpectrumBin> RadialPowerSpectrum(const Raster<float>& heights) {
     if (transform.IsRotated()) {
         throw std::invalid_argument("A power spectrum needs an unrotated raster");
     }
-    const Window window = CenteredWindow(heights);
+    const PixelWindow window = CenteredWindow(heights);
     auto [values, energy] = TaperedWindow(heights, window);
-    Fft2(values, window.width, window.height, -1.0);
+    Fft2(values, window.Width(), window.Height(), -1.0);
     const double dx = std::fabs(transform.pixelWidth);
     const double dy = std::fabs(transform.pixelHeight);
-    const double fundamental = 1.0 / std::max(static_cast<double>(window.width) * dx,
-                                              static_cast<double>(window.height) * dy);
+    const double fundamental = 1.0 / std::max(static_cast<double>(window.Width()) * dx,
+                                              static_cast<double>(window.Height()) * dy);
     const double nyquist = 0.5 / std::max(dx, dy);
     const auto bins = static_cast<std::size_t>(
         std::floor(kBinsPerOctave * std::log2(nyquist / fundamental) + 1e-9) + 1.0);
     std::vector<SpectrumBin> sums(bins);
     const double scale = dx * dy / energy;
-    for (std::size_t v = 0; v < window.height; ++v) {
-        const double fy = SignedIndex(v, window.height) / (static_cast<double>(window.height) * dy);
-        for (std::size_t u = 0; u < window.width; ++u) {
+    for (std::size_t v = 0; v < window.Height(); ++v) {
+        const double fy =
+            SignedIndex(v, window.Height()) / (static_cast<double>(window.Height()) * dy);
+        for (std::size_t u = 0; u < window.Width(); ++u) {
             const double fx =
-                SignedIndex(u, window.width) / (static_cast<double>(window.width) * dx);
+                SignedIndex(u, window.Width()) / (static_cast<double>(window.Width()) * dx);
             const double f = std::hypot(fx, fy);
             if (f == 0.0 || f > nyquist * (1.0 + 1e-12)) {
                 continue;
@@ -198,7 +193,7 @@ std::vector<SpectrumBin> RadialPowerSpectrum(const Raster<float>& heights) {
                 std::clamp(std::floor(kBinsPerOctave * std::log2(f / fundamental) + 1e-9), 0.0,
                            static_cast<double>(bins - 1)));
             sums[bin].frequency += f;
-            sums[bin].power += std::norm(values[v * window.width + u]) * scale;
+            sums[bin].power += std::norm(values[v * window.Width() + u]) * scale;
             ++sums[bin].count;
         }
     }
@@ -227,11 +222,12 @@ void ValidateSpectrumFitBand(const SpectrumFitBand& band) {
 PowerLawSpectrum EstimatePowerLawSpectrum(const Raster<float>& heights,
                                           const SpectrumFitBand& band) {
     ValidateSpectrumFitBand(band);
-    const double pixel = RasterGrid::FromRaster(heights).PixelSize();
-    const Window window = CenteredWindow(heights);
+    const double pixel = heights.Grid().PixelSize();
+    const PixelWindow window = CenteredWindow(heights);
     const double maxPixels =
-        band.maxPixels > 0.0 ? band.maxPixels
-                             : 0.25 * static_cast<double>(std::min(window.width, window.height));
+        band.maxPixels > 0.0
+            ? band.maxPixels
+            : 0.25 * static_cast<double>(std::min(window.Width(), window.Height()));
     const double low = 1.0 / (maxPixels * pixel) * (1.0 - 1e-9);
     const double high = 1.0 / (band.minPixels * pixel) * (1.0 + 1e-9);
     std::vector<SpectrumBin> bins;

@@ -327,4 +327,9 @@ Bounds2d Surface::Expand(const Bounds2d& region, double meters) const {
     return expanded;
 }
 
+const Surface& SurfaceOrPlane(const Surface* surface) {
+    static const Surface plane{};
+    return surface != nullptr ? *surface : plane;
+}
+
 }  // namespace terraingen

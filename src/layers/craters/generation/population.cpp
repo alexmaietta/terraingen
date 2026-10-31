@@ -34,9 +34,9 @@ std::uint64_t CraterId(std::uint32_t seed, const CraterBand& band, const CellInd
 
 void ValidateCraterGenerationOptions(const CraterGenerationOptions& options) {
     ValidateCraterSpacing(options.spacing);
-    RequirePositive(options.dMin, "dMin");
-    if (!(options.dMax > options.dMin)) {
-        throw std::invalid_argument("dMax must exceed dMin");
+    RequirePositive(options.minDiameter, "minDiameter");
+    if (!(options.maxDiameter > options.minDiameter)) {
+        throw std::invalid_argument("maxDiameter must exceed minDiameter");
     }
     RequireNonNegative(options.marginRadii, "marginRadii");
     RequirePositive(options.cellSizeFactor, "cellSizeFactor");
@@ -77,12 +77,12 @@ class Generation {
         if (density.Kind() != SfdKind::Density) {
             throw std::invalid_argument("Craters are generated from a Density distribution");
         }
-        dMax_ = ResolveDMax(options.dMax, density);
-        if (std::isinf(dMax_)) {
-            throw std::invalid_argument("An unbounded density needs a finite dMax");
+        maxDiameter_ = ResolveMaxDiameter(options.maxDiameter, density);
+        if (std::isinf(maxDiameter_)) {
+            throw std::invalid_argument("An unbounded density needs a finite maxDiameter");
         }
-        if (!(dMax_ > options.dMin)) {
-            throw std::invalid_argument("dMax must exceed dMin");
+        if (!(maxDiameter_ > options.minDiameter)) {
+            throw std::invalid_argument("maxDiameter must exceed minDiameter");
         }
     }
 
@@ -113,8 +113,8 @@ class Generation {
         }
         const bool spaced = options_.spacing.Enabled();
         const std::size_t manual = options_.manual.Size();
-        LogDebug(options_.logName, "Generated ", kept, " ", options_.logName, " (", options_.dMin,
-                 "-", dMax_, " m, ", counts.bands, " bands, ",
+        LogDebug(options_.logName, "Generated ", kept, " ", options_.logName, " (",
+                 options_.minDiameter, "-", maxDiameter_, " m, ", counts.bands, " bands, ",
                  static_cast<long long>(std::llround(counts.expected)), " expected",
                  spaced ? ", " + std::to_string(counts.removed) + " removed by spacing" : "",
                  manual > 0 ? ", " + std::to_string(manual) + " manual supplied" : "",
@@ -132,8 +132,9 @@ class Generation {
         if (!spacing.Enabled()) {
             return 0.5 * options_.marginRadii * diameter;
         }
-        const double neighbor = std::fmin(spacing.diameterRatio * diameter, dMax_);
-        return SpacingReach(diameter, dMax_, spacing) + 0.5 * options_.marginRadii * neighbor;
+        const double neighbor = std::fmin(spacing.diameterRatio * diameter, maxDiameter_);
+        return SpacingReach(diameter, maxDiameter_, spacing) +
+               0.5 * options_.marginRadii * neighbor;
     }
 
     /// Whether `crater` is centered in the region or within its margin of it.
@@ -146,7 +147,8 @@ class Generation {
         const double skipBelow =
             options_.minResolvedDiameter / (spacing.Enabled() ? spacing.diameterRatio : 1.0);
         std::vector<BandPlan> plan;
-        for (const CraterBand& band : CraterBands(options_.dMin, dMax_, options_.cellSizeFactor)) {
+        for (const CraterBand& band :
+             CraterBands(options_.minDiameter, maxDiameter_, options_.cellSizeFactor)) {
             const bool tooLarge =
                 !spacing.Enabled() && !options_.maxCraters && band.low > options_.maxBandDiameter;
             if (band.high <= skipBelow || tooLarge) {
@@ -338,16 +340,16 @@ class Generation {
     std::uint32_t seed_;
     const CraterGenerationOptions& options_;
     const Surface& surface_;
-    double dMax_ = 0.0;
+    double maxDiameter_ = 0.0;
 };
 
 }  // namespace
 
-std::vector<CraterBand> CraterBands(double dMin, double dMax, double cellSizeFactor) {
+std::vector<CraterBand> CraterBands(double minDiameter, double maxDiameter, double cellSizeFactor) {
     std::vector<CraterBand> bands;
-    for (int k = std::ilogb(dMin); std::ldexp(1.0, k) < dMax; ++k) {
-        const double low = std::fmax(dMin, std::ldexp(1.0, k));
-        const double high = std::fmin(dMax, std::ldexp(1.0, k + 1));
+    for (int k = std::ilogb(minDiameter); std::ldexp(1.0, k) < maxDiameter; ++k) {
+        const double low = std::fmax(minDiameter, std::ldexp(1.0, k));
+        const double high = std::fmin(maxDiameter, std::ldexp(1.0, k + 1));
         bands.push_back({k, low, high, cellSizeFactor * std::ldexp(1.0, k + 1)});
     }
     return bands;
@@ -405,8 +407,8 @@ CraterList GenerateCellCraters(const SurfaceCells& cells, const CraterBand& band
     return craters;
 }
 
-double ResolveDMax(double dMax, const SizeFrequencyDistribution& density) {
-    return std::isinf(dMax) ? density.ValidRange().max : dMax;
+double ResolveMaxDiameter(double maxDiameter, const SizeFrequencyDistribution& density) {
+    return std::isinf(maxDiameter) ? density.ValidRange().max : maxDiameter;
 }
 
 CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
@@ -422,17 +424,17 @@ CraterList GenerateCraters(const SurfaceCells& cells, const Bounds2d& region,
 }
 
 double CountLimitDiameter(const SizeFrequencyDistribution& density, double area, double count,
-                          double dMin, double dMax) {
+                          double minDiameter, double maxDiameter) {
     RequirePositive(count, "Count");
     RequirePositive(area, "Area");
-    if (!(IsPositive(dMin) && dMax > dMin && std::isfinite(dMax))) {
-        throw std::invalid_argument("Diameter interval must satisfy 0 < dMin < dMax");
+    if (!(IsPositive(minDiameter) && maxDiameter > minDiameter && std::isfinite(maxDiameter))) {
+        throw std::invalid_argument("Diameter interval must satisfy 0 < minDiameter < maxDiameter");
     }
-    if (density.ExpectedCount(area, dMin, dMax) <= count) {
-        return dMin;
+    if (density.ExpectedCount(area, minDiameter, maxDiameter) <= count) {
+        return minDiameter;
     }
-    return BisectLog(dMin, dMax, 200, 1e-12, [&](double diameter) {
-        return !(density.ExpectedCount(area, diameter, dMax) > count);
+    return BisectLog(minDiameter, maxDiameter, 200, 1e-12, [&](double diameter) {
+        return !(density.ExpectedCount(area, diameter, maxDiameter) > count);
     });
 }
 

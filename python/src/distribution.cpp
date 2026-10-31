@@ -69,8 +69,8 @@ class PySizeFrequencyDistribution : public Sfd {
         NB_OVERRIDE_NAME("incremental_at", IncrementalAt, diameter);
     }
 
-    double InvertCumulative(double target, double dMin, double dMax) const override {
-        NB_OVERRIDE_NAME("invert_cumulative", InvertCumulative, target, dMin, dMax);
+    double InvertCumulative(double target, double minDiameter, double maxDiameter) const override {
+        NB_OVERRIDE_NAME("invert_cumulative", InvertCumulative, target, minDiameter, maxDiameter);
     }
 };
 
@@ -97,7 +97,8 @@ void BindBase(nb::module_& m) {
         "A cumulative size-frequency distribution N(>= D) per square meter (or per square meter "
         "per Gyr for a production rate), diameters in meters, valid between `min_diameter` and "
         "`max_diameter`. Subclass it and implement `cumulative_at(diameter)` (and optionally "
-        "`incremental_at(diameter)`, -dN/dD, and `invert_cumulative(target, d_min, d_max)`) for "
+        "`incremental_at(diameter)`, -dN/dD, and `invert_cumulative(target, min_diameter, "
+        "max_diameter)`) for "
         "a distribution of your own.")
         .def(nb::init<SfdKind, double, double>(), "kind"_a = SfdKind::Density,
              "min_diameter"_a = 0.0, "max_diameter"_a = kInfinity)
@@ -105,7 +106,8 @@ void BindBase(nb::module_& m) {
              "N(>= diameter) without range checks; override it in a subclass.")
         .def("incremental_at", &Py::UncheckedIncremental, "diameter"_a,
              "-dN/dD without range checks; numerical unless overridden.")
-        .def("invert_cumulative", &Py::UncheckedInverse, "target"_a, "d_min"_a, "d_max"_a,
+        .def("invert_cumulative", &Py::UncheckedInverse, "target"_a, "min_diameter"_a,
+             "max_diameter"_a,
              "The diameter between the two where N(>= D) is `target`; numerical unless "
              "overridden.")
         .def_prop_ro("kind", &Sfd::Kind)
@@ -115,10 +117,10 @@ void BindBase(nb::module_& m) {
         .def_prop_rw("allows_extrapolation", &Sfd::AllowsExtrapolation, &Sfd::SetAllowExtrapolation)
         .def("cumulative", &Sfd::Cumulative, "diameter"_a, "N(>= diameter).")
         .def("incremental", &Sfd::Incremental, "diameter"_a, "-dN/dD at `diameter`.")
-        .def("expected_count", &Sfd::ExpectedCount, "area"_a, "d_min"_a, "d_max"_a,
+        .def("expected_count", &Sfd::ExpectedCount, "area"_a, "min_diameter"_a, "max_diameter"_a,
              "Expected number over `area` square meters between the diameters.")
-        .def("sample_diameter", &Sfd::SampleDiameter, "random"_a, "d_min"_a, "d_max"_a,
-             "A diameter drawn from the distribution between the two.");
+        .def("sample_diameter", &Sfd::SampleDiameter, "random"_a, "min_diameter"_a,
+             "max_diameter"_a, "A diameter drawn from the distribution between the two.");
 }
 
 void BindPowerLaws(nb::module_& m) {

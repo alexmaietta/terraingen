@@ -40,7 +40,7 @@ def figure(quick=False):
         density, terraingen.FreshAges(), terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry)
     )
     options = terraingen.CraterLayerOptions(
-        seed=5, generation=terraingen.CraterGenerationOptions(d_min=D_MIN, d_max=D_MAX)
+        seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=D_MIN, max_diameter=D_MAX)
     )
     density_map = terraingen.DensityMap()
     density_map.field = terraingen.RasterField(raster)

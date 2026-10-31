@@ -215,7 +215,8 @@ namespace {
 struct Tilted final : terraingen::Ground {
     double grade = 0.0;
     explicit Tilted(double degrees) : grade(std::tan(degrees * terraingen::kPi / 180.0)) {}
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = static_cast<float>(grade * samples.Position(i).x);
         }
@@ -261,7 +262,7 @@ TEST(SplotchAlbedo, SteepSlopesCanFavorBrightSplotches) {
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params),
                         {std::make_shared<SplotchAlbedo>(options)}};
     const RasterGrid grid{64, 64, GeoTransform::NorthUp(0.0, 64.0, 1.0)};
-    terraingen::AlbedoContext onSteepGround;
+    terraingen::LayerContext onSteepGround;
     onSteepGround.spacing = 1.0;
     onSteepGround.ground = &steep;
     const auto values = EvaluateAlbedo(albedo, grid, onSteepGround);

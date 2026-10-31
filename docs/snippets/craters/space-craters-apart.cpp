@@ -25,8 +25,8 @@ TEST_F(SnippetTest, SpaceCratersApart) {
     // --8<-- [start:space_craters_apart]
     CraterLayerOptions options;
     options.seed = 4;
-    options.generation.dMin = 5.0;
-    options.generation.dMax = 60.0;
+    options.generation.minDiameter = 5.0;
+    options.generation.maxDiameter = 60.0;
     options.generation.spacing.diameterRatio = 2.0;
     options.generation.spacing.separation = 1.0;  // in larger diameters
     const CraterList spaced = CraterLayer(models, options).Craters(region);

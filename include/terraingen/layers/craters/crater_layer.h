@@ -15,7 +15,7 @@
 #include "terraingen/layers/craters/shaping/attributes.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/layer.h"
-#include "terraingen/sources/terrain_base.h"
+#include "terraingen/layers/terrain_base.h"
 
 #include <cstdint>
 #include <limits>
@@ -80,8 +80,8 @@ struct CraterLayerOptions {
     /// reach. By default 2.5 m, where the extended Neukum production function begins, to 250 m.
     CraterGenerationOptions generation = [] {
         CraterGenerationOptions options;
-        options.dMin = 2.5;
-        options.dMax = 250.0;
+        options.minDiameter = 2.5;
+        options.maxDiameter = 250.0;
         return options;
     }();
     /// How the craters are shaped into the terrain; by default `DefaultCraterApply`.
@@ -131,8 +131,8 @@ class CraterLayer final : public Layer, public CraterPlacer {
                                                CraterApplyOptions apply = DefaultCraterApply(),
                                                TerrainBase base = {});
 
-    /// `dMax` (the density's largest valid diameter when unbounded) or the largest manual crater,
-    /// in meters.
+    /// `maxDiameter` (the density's largest valid diameter when unbounded) or the largest manual
+    /// crater, in meters.
     double MaxFeatureDiameter() const;
 
     /// The craters this layer applies to a grid covering `region` (surface coordinates).
@@ -155,14 +155,18 @@ class CraterLayer final : public Layer, public CraterPlacer {
         return options_;
     }
 
-    std::optional<Surface> LayerSurface() const override {
-        return surface_;
+    std::optional<TerrainBase> LayerBase() const override {
+        return TerrainBase{surface_, source_};
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)` and the apply seeds of the irregularity,
     /// noise, texture, slope, terraces and peaks `ReseedWord(seed, 1)` to `ReseedWord(seed, 6)`,
     /// sharing its models and craters but not its cached cells.
     LayerPtr Reseeded(std::uint64_t seed) const override;
+
+    /// The layer built again from its models and options on `base`.
+    /// @throws std::invalid_argument as the constructor.
+    LayerPtr Rebased(const TerrainBase& base) const override;
 
   protected:
     /// Generates and applies the craters reaching the samples. Datums are fitted to
@@ -173,9 +177,11 @@ class CraterLayer final : public Layer, public CraterPlacer {
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
-    /// Adds the inherited craters `source` resolves to the manual ones, replacing, and drops the
-    /// generated craters they stand in for.
-    void Inherit(const std::shared_ptr<const Source>& source);
+    /// Drops the generated craters the source resolves, adds the inherited craters it resolves to
+    /// the manual ones, replacing, and drops the generated craters they stand in for.
+    void FollowSource();
+    /// Counts the bands generation draws into `bandCounts_`.
+    void SetUpBandCounts();
     /// Draws craters at the density map's largest scale and thins them by the map, taking the
     /// secondaries out of a `total` map.
     void FollowDensityMap();
@@ -200,7 +206,10 @@ class CraterLayer final : public Layer, public CraterPlacer {
 
     CraterModels models_;
     CraterLayerOptions options_;
+    /// The options as given, before the source's completeness and inherited craters.
+    std::shared_ptr<const CraterLayerOptions> given_;
     Surface surface_;
+    std::shared_ptr<const Source> source_;
     std::shared_ptr<const SurfaceCells> cells_;
     std::shared_ptr<CraterCellCache> cache_;
     /// The density craters are drawn at: `models_.density`, times the map's largest scale.

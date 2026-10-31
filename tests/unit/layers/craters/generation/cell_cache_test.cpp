@@ -100,8 +100,8 @@ TEST(GenerateCachedCraters, GeneratesTheSameCratersWithOrWithoutACache) {
     const terraingen::PowerLawSfd density(0.05, 2.0);
     const terraingen::UniformAges ages(1.0);
     terraingen::CraterGenerationOptions options;
-    options.dMin = 4.0;
-    options.dMax = 16.0;
+    options.minDiameter = 4.0;
+    options.maxDiameter = 16.0;
     const terraingen::Bounds2d region{-50.0, -50.0, 50.0, 50.0};
     const CraterList plain = terraingen::GenerateCraters(cells, region, density, ages, 4u, options);
     ASSERT_GT(plain.Size(), 0u);

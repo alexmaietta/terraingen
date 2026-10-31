@@ -43,7 +43,7 @@ def figure(quick=False):
         ("Steady state", surface.ages()),
     ]
     options = terraingen.CraterLayerOptions(
-        seed=11, generation=terraingen.CraterGenerationOptions(d_min=2.5, d_max=150.0)
+        seed=11, generation=terraingen.CraterGenerationOptions(min_diameter=2.5, max_diameter=150.0)
     )
 
     fig, axes = plt.subplots(2, len(panels), figsize=(17, 8.6), layout="constrained", height_ratios=[1, 0.7])

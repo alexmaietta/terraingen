@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief Minimum, maximum, mean and standard deviation of a raster's valid cells.
+/// @brief Minimum, maximum, mean and standard deviation of a raster's valid cells, and slope
+/// statistics of a raster of heights.
 #pragma once
 
+#include "terraingen/geometry/surface.h"
 #include "terraingen/raster/raster.h"
 
-#include <cmath>
 #include <cstddef>
 #include <limits>
 
@@ -23,32 +24,22 @@ struct RasterStats {
 
 /// Statistics over the cells that are finite and not the raster's no-data value; NaN with a
 /// count of 0 when no cell is valid.
-/// @tparam T Cell type, convertible to `double`.
-template <typename T> RasterStats ComputeStats(const Raster<T>& raster) {
-    RasterStats stats;
-    const auto forEachValid = [&](const auto& visit) {
-        for (const T value : raster.Values()) {
-            if (!raster.IsMissing(value)) {
-                visit(static_cast<double>(value));
-            }
-        }
-    };
-    double sum = 0.0;
-    forEachValid([&](double v) {
-        stats.min = stats.validCount == 0 ? v : std::fmin(stats.min, v);
-        stats.max = stats.validCount == 0 ? v : std::fmax(stats.max, v);
-        sum += v;
-        ++stats.validCount;
-    });
-    if (stats.validCount == 0) {
-        return stats;
-    }
-    const auto count = static_cast<double>(stats.validCount);
-    stats.mean = sum / count;
-    double squares = 0.0;
-    forEachValid([&](double v) { squares += (v - stats.mean) * (v - stats.mean); });
-    stats.stddev = std::sqrt(squares / count);
-    return stats;
-}
+RasterStats ComputeStats(const Raster<float>& raster);
+
+/// Slope statistics of a raster of heights, in degrees.
+struct SlopeStats {
+    double mean = std::numeric_limits<double>::quiet_NaN();    ///< NaN if no slope is taken.
+    double median = std::numeric_limits<double>::quiet_NaN();  ///< NaN if no slope is taken.
+    /// The 95th percentile, interpolated between the nearest ranks; NaN if no slope is taken.
+    double p95 = std::numeric_limits<double>::quiet_NaN();
+    std::size_t validCount = 0;  ///< Cells a slope is taken at.
+};
+
+/// Slopes of `heights` on `surface` from central differences (one-sided at edges and beside
+/// no-data cells) against the east and north offsets in meters between cell centers; cells
+/// without data, or without a neighbor with data along a grid axis, are skipped.
+/// @param threads Threads to use; 0 for every hardware thread. The result does not depend on it.
+SlopeStats ComputeSlopeStats(const Raster<float>& heights, const Surface& surface,
+                             unsigned threads = 0);
 
 }  // namespace terraingen

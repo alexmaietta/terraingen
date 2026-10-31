@@ -84,8 +84,8 @@ TEST(Craters, KeepsOnlyTheCratersARegionHolds) {
 
 TEST(Craters, ListsAtASpacingFinerThanTheGrid) {
     terraingen::CraterLayerOptions options;
-    options.generation.dMin = 0.5;
-    options.generation.dMax = 20.0;
+    options.generation.minDiameter = 0.5;
+    options.generation.maxDiameter = 20.0;
     const Terrain terrain =
         Flat({std::make_shared<terraingen::CraterLayer>(PowerLawCraterModels(), options)});
     const RasterGrid grid = SourceGrid(terrain);
@@ -138,8 +138,9 @@ namespace {
 /// `top`).
 std::shared_ptr<const terraingen::RasterSource> Dem(std::size_t cells, double size, double left,
                                                     double top) {
-    terraingen::Raster<float> heights(cells, cells, 3.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(left, top, size));
+    terraingen::Raster<float> heights(
+        terraingen::RasterGrid{cells, cells, terraingen::GeoTransform::NorthUp(left, top, size)},
+        3.0f);
     return std::make_shared<terraingen::RasterSource>(heights);
 }
 
@@ -149,8 +150,8 @@ terraingen::CraterList DemCraters(const std::shared_ptr<const terraingen::Source
                                   const RasterGrid& grid, bool limited) {
     terraingen::CraterLayerOptions options;
     options.seed = 7;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 40.0;
+    options.generation.minDiameter = 6.0;
+    options.generation.maxDiameter = 40.0;
     if (limited) {
         options.generation.completeness = terraingen::SourceResolvedLimit(source, 4.0);
     }

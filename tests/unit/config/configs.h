@@ -57,11 +57,11 @@ struct GridRegion {
         return Area();
     }
 
-    /// The grid an output over the region covers on `surface` (`config::OutputGrid`).
+    /// The grid an output over the region covers on `surface` (`config::CheckOutputs`).
     RasterGrid Grid(const Surface& surface = {}) const {
         HeightmapOutput output;
         output.area = Area(surface);
-        return *config::OutputGrid(output, std::nullopt, surface);
+        return *config::CheckOutputs({output}, {}, surface, std::nullopt).front().grid;
     }
 };
 
@@ -166,12 +166,12 @@ inline ConfigSpec Small() {
     noise.stack[0].fractal.wavelength = 200.0f;
     noise.stack[0].amplitude = 10.0f;
     CraterLayerSpec craters;
-    craters.minDiameter = 8.0;
-    craters.maxDiameter = 60.0;
+    craters.options.generation.minDiameter = 8.0;
+    craters.options.generation.maxDiameter = 60.0;
     craters.density = LunarDensitySpec();
     craters.ages = LunarAgesSpec();
     craters.degradation = terraingen::FreshnessDegradationSpec{};
-    craters.apply.irregularity.enabled = false;
+    craters.options.apply.irregularity.enabled = false;
     config.layers = {noise, craters};
     return config;
 }
@@ -183,8 +183,8 @@ inline ConfigSpec WithAlbedo() {
     ConfigSpec config = Small();
     Craters(config).manual = {{10.0, -8.0, 30.0, 0.0, 77u, true}};
     SyntheticAlbedoSpec synthetic;
-    synthetic.rgb = true;
-    synthetic.saturation = 0.05;
+    synthetic.options.rgb = true;
+    synthetic.options.saturation = 0.05;
     synthetic.valueNoise = {terraingen::AlbedoFractalSpec{}};
     synthetic.valueNoise[0].amplitude = 0.2f;
     synthetic.valueNoise[0].fractal.wavelength = 40.0f;
@@ -278,8 +278,7 @@ inline GeoKeys Keys(bool geographic = false) {
 /// @return The raster written.
 inline Raster<float> WriteDem(const std::filesystem::path& folder, const std::string& name,
                               const GeoKeys& keys = Keys()) {
-    Raster<float> dem(40, 30);
-    dem.SetTransform(GeoTransform::NorthUp(1000.0, 2000.0, 5.0));
+    Raster<float> dem(RasterGrid{40, 30, GeoTransform::NorthUp(1000.0, 2000.0, 5.0)});
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
             dem(col, row) = static_cast<float>(10.0 * std::sin(0.2 * static_cast<double>(col)) +

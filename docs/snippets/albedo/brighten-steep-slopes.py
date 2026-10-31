@@ -13,7 +13,7 @@ def brighten_steep_slopes():
     slopes = terraingen.SlopeAlbedo(terraingen.SlopeAlbedoOptions(onset_deg=20.0))
     albedo = terraingen.Albedo(terraingen.SyntheticAlbedo(value=0.11), [slopes])
     heights = terrain.evaluate()
-    grid = terraingen.RasterGrid.from_raster(heights)
+    grid = heights.grid
     (bands,) = terraingen.evaluate_albedo(albedo, grid, ground=terrain)  # slopes read on terrain
     # --8<-- [end:brighten_steep_slopes]
     return heights.values, bands.values

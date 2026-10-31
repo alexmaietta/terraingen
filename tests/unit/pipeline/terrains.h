@@ -22,22 +22,30 @@ inline CraterModels PowerLawCraterModels() {
                         std::make_shared<FassettThomsonProfile>()};
 }
 
+/// The 96 x 64 flat source of 2 m cells at 5 m of `Rolling`, one for every call.
+inline std::shared_ptr<const Source> RollingSource() {
+    static const std::shared_ptr<const Source> source =
+        std::make_shared<FlatSource>(96, 64, 2.0, 5.0f);
+    return source;
+}
+
 /// The 6 to 50 m craters of `Rolling`, shaped with `apply`.
 inline LayerPtr RollingCraters(const CraterApplyOptions& apply = {}) {
     CraterLayerOptions options;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 50.0;
+    options.generation.minDiameter = 6.0;
+    options.generation.maxDiameter = 50.0;
     options.apply = apply;
-    return std::make_shared<CraterLayer>(PowerLawCraterModels(), options);
+    options.sourceResolvesPixels = std::nullopt;
+    return std::make_shared<CraterLayer>(PowerLawCraterModels(), options,
+                                         TerrainBase{Surface{}, RollingSource()});
 }
 
-/// A 96 x 64 flat source of 2 m cells at 5 m, rolling noise, then 6 to 50 m craters shaped with
-/// `apply`.
+/// `RollingSource`, rolling noise, then 6 to 50 m craters shaped with `apply`.
 inline Terrain Rolling(const CraterApplyOptions& apply = {}) {
     std::vector<Fractal> noise{Fractal{}};
     noise[0].wavelength = 80.0f;
     noise[0].amplitude = 6.0f;
-    return Terrain(Surface{}, std::make_shared<FlatSource>(96, 64, 2.0, 5.0f),
+    return Terrain(Surface{}, RollingSource(),
                    {std::make_shared<NoiseLayer>(noise), RollingCraters(apply)});
 }
 

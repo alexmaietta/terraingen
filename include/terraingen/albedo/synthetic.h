@@ -70,7 +70,7 @@ class SyntheticAlbedo final : public AlbedoSource {
     }
 
     /// The color with noise at world point (`x`, `y`).
-    AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const override;
+    AlbedoSample ValueAt(double x, double y, const LayerContext& context) const override;
 
     /// The color and its noise.
     const SyntheticAlbedoOptions& Options() const {
@@ -79,7 +79,7 @@ class SyntheticAlbedo final : public AlbedoSource {
 
   private:
     static double Noise(const std::vector<Fractal>& fractals, double x, double y,
-                        const AlbedoContext& context);
+                        const LayerContext& context);
 
     SyntheticAlbedoOptions options_;
 };

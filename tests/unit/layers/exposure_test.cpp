@@ -24,7 +24,8 @@ class Analytic final : public terraingen::Ground {
     explicit Analytic(std::function<float(double, double)> height) : height_(std::move(height)) {}
 
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
             samples.Height(i) = height_(p.x, p.y);
@@ -91,8 +92,8 @@ TEST(ExposureField, FillsGridsWithThePointValues) {
     const ExposureField field;
     const Analytic ridge(
         [](double x, double) { return static_cast<float>(3.0 * std::cos(x / 15.0)); });
-    terraingen::Raster<float> raster(20, 8);
-    raster.SetTransform(terraingen::GeoTransform::NorthUp(-50.0, 10.0, 5.0));
+    terraingen::Raster<float> raster(
+        terraingen::RasterGrid{20, 8, terraingen::GeoTransform::NorthUp(-50.0, 10.0, 5.0)});
     field.Fill(raster, ridge, 5.0, 3);
     for (std::size_t row = 0; row < raster.Height(); ++row) {
         for (std::size_t col = 0; col < raster.Width(); ++col) {

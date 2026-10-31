@@ -17,6 +17,7 @@ using terraingen::GeoTransform;
 using terraingen::Raster;
 using terraingen::RasterField;
 using terraingen::RasterFieldOptions;
+using terraingen::RasterGrid;
 using terraingen::ResampleMethod;
 
 namespace {
@@ -26,8 +27,7 @@ constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 /// A 4 x 2 raster of 10 m cells from x = 0 and y = 20 down, holding 10 col + row, with one NaN
 /// and one no-data cell.
 Raster<float> Cells() {
-    Raster<float> raster(4, 2);
-    raster.SetTransform(GeoTransform::NorthUp(0.0, 20.0, 10.0));
+    Raster<float> raster(RasterGrid{4, 2, GeoTransform::NorthUp(0.0, 20.0, 10.0)});
     for (std::size_t row = 0; row < 2; ++row) {
         for (std::size_t col = 0; col < 4; ++col) {
             raster(col, row) = static_cast<float>(10 * col + row);
@@ -112,8 +112,7 @@ TEST(RasterField, FallsBackWhereItHasNoValue) {
 }
 
 TEST(RasterField, WrapsLongitudes) {
-    Raster<float> raster(4, 2, 1.0f);
-    raster.SetTransform(GeoTransform::NorthUp(0.0, 10.0, 90.0));
+    Raster<float> raster(RasterGrid{4, 2, GeoTransform::NorthUp(0.0, 10.0, 90.0)}, 1.0f);
     raster(3, 0) = 7.0f;
     raster(3, 1) = 7.0f;
     const RasterField plain(raster, WithMethod(ResampleMethod::Nearest));
@@ -129,10 +128,10 @@ TEST(RasterField, RejectsWhatItCannotRead) {
     EXPECT_THROW(RasterField(Raster<float>{}), std::invalid_argument);
     EXPECT_THROW(RasterField(Cells(), WithMethod(ResampleMethod::Cubic)), std::invalid_argument);
     EXPECT_THROW(RasterField(Cells(), WithScale(0.0)), std::invalid_argument);
-    Raster<float> rotated = Cells();
-    GeoTransform transform = rotated.Transform();
-    transform.rowRotation = 0.1;
-    rotated.SetTransform(transform);
+    Raster<float> cells = Cells();
+    RasterGrid turned = cells.Grid();
+    turned.transform.rowRotation = 0.1;
+    const Raster<float> rotated(turned, cells.Values());
     EXPECT_THROW(RasterField{rotated}, std::invalid_argument);
 }
 

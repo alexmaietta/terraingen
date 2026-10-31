@@ -25,7 +25,7 @@ def figure(quick=False):
     pixel = 2.0 if quick else 0.5
     size = int(SIZE_M / pixel) + 1
     terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel))
-    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
+    grid = terrain.evaluate().grid
     base = terraingen.SyntheticAlbedo(value=0.11)
     x = (np.arange(size) - 0.5 * (size - 1)) * pixel
 

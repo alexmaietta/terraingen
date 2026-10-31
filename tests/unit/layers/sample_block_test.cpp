@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/layers/sample_block.h"
+#include "terraingen/sources/sample_block.h"
 
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/layers/craters/ages/age_model.h"
@@ -19,12 +19,13 @@
 #include <vector>
 
 using terraingen::Raster;
+using terraingen::RasterGrid;
 using terraingen::SampleBlock;
 using terraingen::Vec2d;
 
 TEST(SampleBlock, ListsAGridsCellCentersRowByRow) {
-    Raster<float> heights(3, 2, 1.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(10.0, 20.0, 2.0));
+    Raster<float> heights(RasterGrid{3, 2, terraingen::GeoTransform::NorthUp(10.0, 20.0, 2.0)},
+                          1.0f);
     const SampleBlock samples(heights);
     EXPECT_TRUE(samples.IsGrid());
     EXPECT_EQ(samples.Grid(), &heights);
@@ -61,8 +62,7 @@ TEST(SampleBlock, HoldsScatteredPointsAndTheirBounds) {
 }
 
 TEST(SampleBlock, RaisesTheSpacingToAGridsCells) {
-    Raster<float> heights(4, 4, 0.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 0.0, 2.0));
+    Raster<float> heights(RasterGrid{4, 4, terraingen::GeoTransform::NorthUp(0.0, 0.0, 2.0)}, 0.0f);
     const SampleBlock grid(heights);
     const terraingen::Surface plane;
     EXPECT_EQ(grid.ResolvedSpacing(0.5, plane), 2.0);
@@ -75,8 +75,8 @@ TEST(SampleBlock, RaisesTheSpacingToAGridsCells) {
 TEST(SampleBlock, AppliesALayerToManyPointsAsToEachAlone) {
     terraingen::CraterLayerOptions options;
     options.seed = 9;
-    options.generation.dMin = 4.0;
-    options.generation.dMax = 120.0;
+    options.generation.minDiameter = 4.0;
+    options.generation.maxDiameter = 120.0;
     const auto layer = std::make_shared<terraingen::CraterLayer>(
         terraingen::CraterModels{
             std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
@@ -102,8 +102,8 @@ TEST(FunctionLayer, PassesTheSpacingInMetersOnASphere) {
         seen = spacing;
         return height;
     });
-    Raster<float> heights(1, 1, 0.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 0.001, 0.001));
+    Raster<float> heights(RasterGrid{1, 1, terraingen::GeoTransform::NorthUp(0.0, 0.001, 0.001)},
+                          0.0f);
     terraingen::LayerContext context;
     context.surface = &moon;
     layer.Apply(heights, context);
@@ -111,8 +111,7 @@ TEST(FunctionLayer, PassesTheSpacingInMetersOnASphere) {
 }
 
 TEST(MapSamples, MapsCellsAndPointsHoldingData) {
-    Raster<float> grid(3, 2, 1.0f);
-    grid.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 2.0, 1.0));
+    Raster<float> grid(RasterGrid{3, 2, terraingen::GeoTransform::NorthUp(0.0, 2.0, 1.0)}, 1.0f);
     grid(1, 0) = NAN;
     SampleBlock cells(grid);
     terraingen::MapSamples(
@@ -134,8 +133,7 @@ TEST(DrawFeatures, DrawsEachFeatureOverItsBoxFromTheHeightBefore) {
     const auto draw = [](float height, float base, const Vec2d& /*p*/, std::size_t n) {
         return std::max(height, base + static_cast<float>(n + 1));
     };
-    Raster<float> heights(4, 4, 1.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 4.0, 1.0));
+    Raster<float> heights(RasterGrid{4, 4, terraingen::GeoTransform::NorthUp(0.0, 4.0, 1.0)}, 1.0f);
     SampleBlock grid(heights);
     terraingen::DrawFeatures(grid, 2, boxes, terraingen::Surface{}, draw);
     EXPECT_EQ(heights(0, 3), 2.0f);

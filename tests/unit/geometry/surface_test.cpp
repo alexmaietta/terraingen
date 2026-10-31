@@ -732,3 +732,9 @@ TEST(LocalFrame, ComponentsAreTheEastNorthAndUpProjections) {
     EXPECT_NEAR(c.y, -3.0, 1e-12);
     EXPECT_NEAR(c.z, 5.0, 1e-12);
 }
+
+TEST(Surface, SurfaceOrPlaneFallsBackToAPlane) {
+    const Surface moon = Surface::Sphere(1737400.0);
+    EXPECT_EQ(&terraingen::SurfaceOrPlane(&moon), &moon);
+    EXPECT_EQ(terraingen::SurfaceOrPlane(nullptr), Surface::Plane());
+}

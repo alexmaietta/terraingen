@@ -23,7 +23,7 @@ def figure(quick=False):
     rows = int(1.2 * SPACING / pixel) + 1
     older = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
-            seed=6, generation=terraingen.CraterGenerationOptions(d_min=3.0, d_max=25.0)
+            seed=6, generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=25.0)
         )
     )
     relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)

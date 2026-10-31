@@ -75,8 +75,8 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
         return options_;
     }
 
-    std::optional<Surface> LayerSurface() const override {
-        return apply_.surface;
+    std::optional<TerrainBase> LayerBase() const override {
+        return TerrainBase{apply_.surface, source_};
     }
 
     /// The primaries, which must come before this layer.
@@ -91,6 +91,10 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
     /// A copy reading the replacement of its primaries; null when they are not replaced.
     LayerPtr Rebound(const LayerReplacements& replaced) const override;
 
+    /// The layer built again from its models and options on `base`.
+    /// @throws std::invalid_argument as the constructor.
+    LayerPtr Rebased(const TerrainBase& base) const override;
+
   protected:
     /// Applies the secondaries reaching the samples.
     /// @throws std::invalid_argument if more than `maxExpected` secondaries are expected.
@@ -101,6 +105,7 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
     CraterShapeModels models_;
     SecondaryCraterOptions options_;
     CraterApplyOptions apply_;
+    std::shared_ptr<const Source> source_;
     std::shared_ptr<const SurfaceField> limit_;
 };
 

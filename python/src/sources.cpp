@@ -15,8 +15,8 @@
 #include "terraingen/sources/shape_model_source.h"
 #include "terraingen/sources/source.h"
 #include "terraingen/sources/source_chain.h"
+#include "terraingen/sources/sources_fields.h"
 #include "terraingen/sources/synthetic_source.h"
-#include "terraingen/sources/terrain_base.h"
 #include "terraingen/sources/upsampling.h"
 
 #include <nanobind/operators.h>
@@ -143,9 +143,8 @@ void BindSampleBlock(nb::module_& m) {
 /// A raster of heights from a 2D array of shape (height, width).
 Raster<float> HeightsFromArray(const CpuMatrix<float>& array, const GeoTransform& transform,
                                std::optional<float> noData) {
-    Raster<float> raster(array.shape(1), array.shape(0));
+    Raster<float> raster(RasterGrid{array.shape(1), array.shape(0), transform});
     std::copy(array.data(), array.data() + array.size(), raster.Values().begin());
-    raster.SetTransform(transform);
     raster.SetNoData(noData);
     return raster;
 }
@@ -162,7 +161,7 @@ RasterSourceOptions SamplingOptions(std::optional<double> effectivePixelSize,
 /// `fill` with a spacing, or the grid's own without one.
 void FillAt(const Source& source, Raster<float>& heights, std::optional<double> spacing,
             unsigned threads) {
-    source.Fill(heights, spacing ? *spacing : RasterGrid::FromRaster(heights).PixelSize(), threads);
+    source.Fill(heights, spacing ? *spacing : heights.Grid().PixelSize(), threads);
 }
 
 /// `fill` of `grid` into an array of shape (height, width), at a spacing or the grid's own.
@@ -179,22 +178,13 @@ void FillArray(const Source& source, const RasterGrid& grid, CpuOutMatrix<float>
                 spacing ? *spacing : grid.PixelSize(), threads);
 }
 
-/// The rows of `points`, an array of shape (n, 2), as points.
-std::vector<Vec2d> Positions(const CpuMatrix<double>& points) {
-    std::vector<Vec2d> positions;
-    for (const auto& row : Rows<2>(points)) {
-        positions.push_back({row[0], row[1]});
-    }
-    return positions;
-}
-
 /// `heights_at` the rows of `points`, an array of shape (n, 2), as a float32 array.
 nb::object HeightsAtArray(const Source& source, const CpuMatrix<double>& points, double spacing) {
-    const std::vector<Vec2d> positions = Positions(points);
+    const Span<const Vec2d> positions = PointSpan(points);
     std::vector<float> heights(positions.size());
     {
         const nb::gil_scoped_release release;
-        source.HeightsAt(Span<const Vec2d>(positions), Span<float>(heights), spacing);
+        source.HeightsAt(positions, Span<float>(heights), spacing);
     }
     return Column(std::move(heights));
 }
@@ -244,23 +234,6 @@ void BindSourceBase(nb::module_& m) {
         .def_prop_ro("width", [](const Source& source) { return source.Grid().width; })
         .def_prop_ro("height", [](const Source& source) { return source.Grid().height; })
         .def_prop_ro("transform", [](const Source& source) { return source.Grid().transform; });
-    nb::class_<TerrainBase>(m, "TerrainBase",
-                            "What layers that derive state from it when built are built on: the "
-                            "`surface` they lie on and the `source` whose heights they add to, if "
-                            "any. Crater, secondary crater and boulder layers take one as `base`; "
-                            "a Surface or a Source alone converts to one.")
-        .def(nb::init<Surface, std::shared_ptr<const Source>>(), "surface"_a = Surface{},
-             "source"_a.none() = nb::none())
-        .def(nb::init_implicit<Surface>())
-        .def("__init__",
-             [](TerrainBase* self, std::shared_ptr<const Source> source) {
-                 new (self) TerrainBase(Surface{}, std::move(source));
-             })
-        .def_rw("surface", &TerrainBase::surface)
-        .def_rw("source", &TerrainBase::source, nb::arg("value").none())
-        .def("reference_point", &TerrainBase::ReferencePoint,
-             "Where noise on a plane is measured from: the source's reference point.");
-    nb::implicitly_convertible<std::shared_ptr<const Source>, TerrainBase>();
 }
 
 /// The posts [`col0`, `col0` + `width`) x [`row0`, `row0` + `height`) as an array of shape
@@ -321,12 +294,11 @@ void BindKernelUpsampler(nb::module_& m) {
             "heights_at",
             [](const Upsampler& upsampler, const PostLattice& posts,
                const CpuMatrix<double>& points, double spacing) {
-                const std::vector<Vec2d> positions = Positions(points);
+                const Span<const Vec2d> positions = PointSpan(points);
                 std::vector<float> heights(positions.size());
                 {
                     const nb::gil_scoped_release release;
-                    upsampler.HeightsAt(posts, Span<const Vec2d>(positions), Span<float>(heights),
-                                        spacing);
+                    upsampler.HeightsAt(posts, positions, Span<float>(heights), spacing);
                 }
                 return Column(std::move(heights));
             },
@@ -357,27 +329,37 @@ void BindKernelUpsampler(nb::module_& m) {
         .def(nb::init<ResampleMethod>(), "method"_a = ResampleMethod::Cubic);
 }
 
+void BindChainSeams(nb::module_& m) {
+    BindEnum<ChainSeamMode>(m, "ChainSeamMode",
+                            "How a source chain joins a source to the gaps of those before it.");
+    BindOptions<ChainSeams>(
+        m, "ChainSeams",
+        "How a source chain matches each source to the gaps of those before it: `mode`, the "
+        "feather band's `width` and the `decay_length` over which height and slope fade out "
+        "beyond an open edge, both in the sources' units (meters on a plane, degrees on a body).",
+        {&ValidateChainSeams, "validate_chain_seams", "seams"})
+        .def(nb::self == nb::self);
+    m.def("seam_reach", &SeamReach, "seams"_a,
+          "The distance from a gap's edge, in the sources' units, over which `seams` change the "
+          "later source.");
+    m.def("seam_lattice", &SeamLattice, "grid"_a, "seams"_a,
+          "The lattice a seam at the edge of a source covering `grid` is solved on: its posts, "
+          "widened by the seam's reach and 3 more posts.");
+    m.attr("SEAM_REACH_DECAYS") = kSeamReachDecays;
+}
+
 void BindDiamondSquare(nb::module_& m) {
     BindEnum<DiamondSquareInterp>(m, "DiamondSquareInterp",
                                   "How diamond-square fills new nodes and reads between them.");
-    auto options = nb::class_<DiamondSquareOptions>(
+    BindOptions<DiamondSquareOptions>(
         m, "DiamondSquareOptions",
         "The fractal diamond-square refines posts with: `fractal_dimension` and `scale` (meters; "
-        "None estimates them from the posts), `fit_window` (side in posts of the overlapping "
+        "None estimates them from the posts), `fit_window_px` (side in posts of the overlapping "
         "windows a None scale is fitted over, so each region follows its own roughness; 0 fits "
         "one scale to the posts), `interp`, `min_pixel_size` (posts' units, 0 for no limit) and "
-        "`seed`.");
-    BindKwargsInit<DiamondSquareOptions>(options);
-    options.def_rw("fractal_dimension", &DiamondSquareOptions::fractalDimension)
-        .def_rw("scale", &DiamondSquareOptions::scale)
-        .def_rw("fit_window", &DiamondSquareOptions::fitWindow)
-        .def_rw("interp", &DiamondSquareOptions::interp)
-        .def_rw("min_pixel_size", &DiamondSquareOptions::minPixelSize)
-        .def_rw("seed", &DiamondSquareOptions::seed)
-        .def("validate", &ValidateDiamondSquareOptions, kValidateDoc)
+        "`seed`.",
+        {&ValidateDiamondSquareOptions, "validate_diamond_square_options", "options"})
         .def(nb::self == nb::self);
-    m.def("validate_diamond_square_options", &ValidateDiamondSquareOptions, "options"_a,
-          kValidateDoc);
     nb::class_<MidpointRoughness>(m, "MidpointRoughness",
                                   "The displacement scale and fractal dimension a raster shows.")
         .def_ro("scale", &MidpointRoughness::scale)
@@ -591,17 +573,12 @@ void BindFields(nb::module_& m) {
         "such as a catalog's completeness limit and `source_resolved_limit`.")
         .def(nb::init<std::shared_ptr<const SurfaceField>, std::shared_ptr<const SurfaceField>>(),
              "a"_a, "b"_a);
-    auto options = nb::class_<RasterFieldOptions>(
+    BindOptions<RasterFieldOptions>(
         m, "RasterFieldOptions",
         "How a raster field is read: `method` (nearest or bilinear), `scale` multiplying every "
-        "cell, the `fallback` where the raster has no value (NaN for none), and whether x is a "
-        "`periodic_longitude`.");
-    BindKwargsInit<RasterFieldOptions>(options);
-    options.def_rw("method", &RasterFieldOptions::method)
-        .def_rw("scale", &RasterFieldOptions::scale)
-        .def_rw("fallback", &RasterFieldOptions::fallback)
-        .def_rw("periodic_longitude", &RasterFieldOptions::periodicLongitude);
-    m.def("validate_raster_field_options", &ValidateRasterFieldOptions, "options"_a, kValidateDoc);
+        "cell, the `fallback` where the raster has no value (None for none), and whether x is a "
+        "`periodic_longitude`.",
+        {&ValidateRasterFieldOptions, "validate_raster_field_options", "options"});
     nb::class_<RasterField, SurfaceField>(
         m, "RasterField", "A field interpolated from a raster in the surface's coordinates.")
         .def(nb::init<Raster<float>, RasterFieldOptions>(), "raster"_a,
@@ -615,6 +592,7 @@ void BindFields(nb::module_& m) {
 }  // namespace
 
 void BindSources(nb::module_& m) {
+    BindChainSeams(m);
     BindSourceBase(m);
     BindPosts(m);
     BindKernelUpsampler(m);

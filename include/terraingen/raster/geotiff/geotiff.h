@@ -89,21 +89,19 @@ struct BandScaling {
 
 /// The layout and georeferencing of a GeoTIFF's first image.
 struct GeoTiffInfo {
-    std::size_t width = 0;   ///< Columns.
-    std::size_t height = 0;  ///< Rows.
-    std::size_t bands = 0;   ///< Samples per pixel.
-    int bitsPerSample = 0;   ///< Bits of each sample.
+    /// Size and pixel-to-world transform, the identity without one; for PixelIsPoint the transform
+    /// is shifted half a pixel to name the first pixel's corner, as GDAL does.
+    RasterGrid grid;
+    std::size_t bands = 0;  ///< Samples per pixel.
+    int bitsPerSample = 0;  ///< Bits of each sample.
     /// How samples are stored.
     TiffSampleFormat sampleFormat = TiffSampleFormat::UnsignedInteger;
     /// How the image data is compressed.
     TiffCompression compression = TiffCompression::None;
-    int predictor = 1;       ///< 1 none, 2 horizontal differencing, 3 floating point.
-    bool tiled = false;      ///< Tiles rather than strips.
-    bool bigTiff = false;    ///< BigTIFF rather than classic TIFF.
-    bool bigEndian = false;  ///< Big-endian ("MM") byte order.
-    /// Pixel-to-world transform, the identity without one; for PixelIsPoint shifted half a pixel
-    /// to name the first pixel's corner, as GDAL does.
-    GeoTransform transform{};
+    int predictor = 1;             ///< 1 none, 2 horizontal differencing, 3 floating point.
+    bool tiled = false;            ///< Tiles rather than strips.
+    bool bigTiff = false;          ///< BigTIFF rather than classic TIFF.
+    bool bigEndian = false;        ///< Big-endian ("MM") byte order.
     bool georeferenced = false;    ///< Whether the file has a transform.
     std::optional<double> noData;  ///< From the GDAL_NODATA tag (42113).
     /// One per band, from the GDAL_METADATA tag (42112); `ReadGeoTiff` returns raw samples.

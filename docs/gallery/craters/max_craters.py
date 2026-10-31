@@ -40,7 +40,7 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, len(CAPS), figsize=(16, 5.6), layout="constrained")
     for ax, cap in zip(axes, CAPS, strict=True):
-        generation = terraingen.CraterGenerationOptions(d_min=4.0, d_max=300.0)
+        generation = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=300.0)
         generation.max_craters = cap
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=1, generation=generation))
         terrain = terraingen.Terrain(

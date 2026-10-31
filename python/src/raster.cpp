@@ -66,6 +66,12 @@ void BindGeoTransform(nb::module_& m) {
             "Coefficients in GDAL's order.")
         .def("pixel_to_world", &GeoTransform::PixelToWorld, "col"_a, "row"_a,
              "Map pixel coordinates to world coordinates (x, y).")
+        .def("cell_width", &GeoTransform::CellWidth,
+             "The length in world units of a cell's side along its row, from one column to the "
+             "next.")
+        .def("cell_height", &GeoTransform::CellHeight,
+             "The length in world units of a cell's side along its column, from one row to the "
+             "next.")
         .def("world_to_pixel", &GeoTransform::WorldToPixel, "x"_a, "y"_a,
              "Map world coordinates to pixel coordinates (col, row). Raises ValueError if the "
              "transform is not invertible.")
@@ -74,9 +80,8 @@ void BindGeoTransform(nb::module_& m) {
 }
 
 RasterF RasterFromArray(const CpuMatrix<float>& array, const GeoTransform& transform) {
-    RasterF raster(array.shape(1), array.shape(0));
+    RasterF raster(RasterGrid{array.shape(1), array.shape(0), transform});
     std::copy(array.data(), array.data() + array.size(), raster.Values().begin());
-    raster.SetTransform(transform);
     return raster;
 }
 
@@ -110,6 +115,8 @@ void BindRasterClass(nb::module_& m) {
                                "top. Shares memory with NumPy and any DLPack consumer without "
                                "copying.");
     raster.def(nb::init<std::size_t, std::size_t, float>(), "width"_a, "height"_a, "fill"_a = 0.0f)
+        .def(nb::init<const RasterGrid&, float>(), "grid"_a, "fill"_a = 0.0f,
+             "A raster over `grid`, every cell set to `fill`.")
         .def_static("from_array", &RasterFromArray, "array"_a, "transform"_a = GeoTransform{},
                     "Copy a 2D array of shape (height, width) from NumPy, DLPack or the buffer "
                     "protocol.")
@@ -119,7 +126,8 @@ void BindRasterClass(nb::module_& m) {
                      [](const RasterF& r) { return nb::make_tuple(r.Height(), r.Width()); })
         .def_prop_ro("values", &MakeView<NumpyView>,
                      "Writeable NumPy view of shape (height, width) that keeps the raster alive.")
-        .def_prop_rw("transform", &RasterF::Transform, &RasterF::SetTransform)
+        .def_prop_ro("grid", &RasterF::Grid, "The raster's size and pixel-to-world transform.")
+        .def_prop_ro("transform", &RasterF::Transform)
         .def_prop_rw("no_data", &RasterF::NoData, &RasterF::SetNoData)
         .def("cell_center", &RasterF::CellCenter, "col"_a, "row"_a,
              "World coordinates of a cell's center.")
@@ -142,7 +150,7 @@ void BindStats(nb::module_& m) {
                    ", mean=" + std::to_string(s.mean) +
                    ", valid_count=" + std::to_string(s.validCount) + ")";
         });
-    m.def("compute_stats", &ComputeStats<float>, "raster"_a,
+    m.def("compute_stats", &ComputeStats, "raster"_a,
           "Statistics over cells that are finite and not the nodata value.");
     nb::class_<DeviogramFit>(m, "DeviogramFit",
                              "A line fitted to a deviogram's log2 RMS height difference by log2 "
@@ -168,13 +176,12 @@ void BindGrid(nb::module_& m) {
                 new (self) RasterGrid{width, height, transform};
             },
             "width"_a, "height"_a, "transform"_a)
+        .def(nb::self == nb::self)
         .def_static("covering", &RasterGrid::Covering, "box"_a, "pixel_size"_a,
                     "The north-up grid of square cells covering `box`, from its min corner, "
                     "snapped outward to whole cells.")
         .def_static("centered", &RasterGrid::Centered, "center"_a, "size"_a, "pixel_size"_a,
                     "The grid covering the box `size` across centered on `center`.")
-        .def_static("from_raster", &RasterGrid::FromRaster, "raster"_a,
-                    "The grid `raster` covers: its size and transform.")
         .def_rw("width", &RasterGrid::width)
         .def_rw("height", &RasterGrid::height)
         .def_rw("transform", &RasterGrid::transform)
@@ -184,9 +191,7 @@ void BindGrid(nb::module_& m) {
         .def("surface_area", &RasterGrid::SurfaceArea, "surface"_a,
              "The area the grid covers on `surface`, in square meters.")
         .def("spacing", &RasterGrid::Spacing, "surface"_a,
-             "The sample spacing in meters on `surface`.")
-        .def("make_raster", &RasterGrid::MakeRaster, "fill"_a = 0.0f,
-             "A raster on this grid filled with `fill`.");
+             "The sample spacing in meters on `surface`.");
 }
 
 void BindResampling(nb::module_& m) {
@@ -222,8 +227,7 @@ void BindGeoKeys(nb::module_& m) {
 
 void BindGeoTiffInfo(nb::module_& m) {
     nb::class_<GeoTiffInfo>(m, "GeoTiffInfo", "What a GeoTIFF's header says.")
-        .def_ro("width", &GeoTiffInfo::width)
-        .def_ro("height", &GeoTiffInfo::height)
+        .def_ro("grid", &GeoTiffInfo::grid, "Size and pixel-to-world transform.")
         .def_ro("bands", &GeoTiffInfo::bands)
         .def_ro("bits_per_sample", &GeoTiffInfo::bitsPerSample)
         .def_ro("sample_format", &GeoTiffInfo::sampleFormat)
@@ -232,7 +236,6 @@ void BindGeoTiffInfo(nb::module_& m) {
         .def_ro("tiled", &GeoTiffInfo::tiled)
         .def_ro("big_tiff", &GeoTiffInfo::bigTiff)
         .def_ro("big_endian", &GeoTiffInfo::bigEndian)
-        .def_ro("transform", &GeoTiffInfo::transform)
         .def_ro("georeferenced", &GeoTiffInfo::georeferenced)
         .def_ro("no_data", &GeoTiffInfo::noData)
         .def_ro("band_scaling", &GeoTiffInfo::bandScaling)

@@ -8,8 +8,9 @@
 #include "terraingen/geometry/surface.h"
 #include "terraingen/gpu/backend.h"
 #include "terraingen/layers/ground.h"
-#include "terraingen/layers/sample_block.h"
+#include "terraingen/layers/terrain_base.h"
 #include "terraingen/raster/raster.h"
+#include "terraingen/sources/sample_block.h"
 #include "terraingen/sources/source.h"
 
 #include <cstdint>
@@ -23,13 +24,14 @@ namespace terraingen {
 
 class EvaluationCache;
 
-/// How a layer is evaluated: where, at what spacing, and on what terrain.
+/// How a layer or an albedo is evaluated: where, at what spacing, and on what terrain, as
+/// `Ground::Context` gives it.
 struct LayerContext {
     /// Sample spacing in world units; features unresolvable at it are left out. At least the cell
     /// size in `Layer::Apply`; positive in `Layer::ApplyAt`.
     double spacing = 0.0;
     unsigned threads = 1;  ///< Worker threads, 0 for all; the result does not depend on it.
-    const Ground* ground = nullptr;  ///< The terrain beneath the layer; null where none is needed.
+    const Ground* ground = nullptr;  ///< The terrain beneath; null where none is needed.
     /// Where grids are evaluated, already resolved to `Cpu` or `Vulkan`. Layers whose relief is a
     /// kernel follow it; other layers, and every point query, run on the CPU.
     Backend backend = Backend::Cpu;
@@ -40,14 +42,13 @@ struct LayerContext {
 
     /// The surface the terrain lies on: `*surface`, or a plane without one.
     const Surface& SurfaceOrPlane() const {
-        static const Surface plane{};
-        return surface != nullptr ? *surface : plane;
+        return terraingen::SurfaceOrPlane(surface);
     }
 
     /// Where noise on a plane is measured from: the source's `ReferencePoint`, or the origin
     /// without a source.
     Vec2d ReferencePoint() const {
-        return source != nullptr ? source->ReferencePoint() : Vec2d{};
+        return terraingen::ReferencePoint(source);
     }
 };
 
@@ -83,9 +84,10 @@ class Layer {
     /// @throws std::invalid_argument without a positive `context.spacing`.
     float ApplyAt(float height, double x, double y, const LayerContext& context) const;
 
-    /// The surface a layer that derives state from it when built (craters, boulders) was built
-    /// for, which must be its terrain's; unset for a layer that reads it from its context.
-    virtual std::optional<Surface> LayerSurface() const {
+    /// The base a layer that derives state from it when built (craters, boulders) was built on,
+    /// whose surface and source must be its terrain's; unset for a layer that reads them from
+    /// its context.
+    virtual std::optional<TerrainBase> LayerBase() const {
         return std::nullopt;
     }
 
@@ -104,6 +106,13 @@ class Layer {
     /// (`Replacement`); null when it reads none of them, as for a layer without
     /// `Dependencies` (the default), which `Terrain::SetLayer` and `Terrain::Reseed` keep.
     virtual LayerPtr Rebound(const LayerReplacements& /*replaced*/) const {
+        return nullptr;
+    }
+
+    /// A copy of a layer built on a base (`LayerBase`) rebuilt from its models and options on
+    /// `base`; null for a layer without one (the default), which `Terrain::SetSource` and
+    /// `Terrain::Reseed` keep.
+    virtual LayerPtr Rebased(const TerrainBase& /*base*/) const {
         return nullptr;
     }
 

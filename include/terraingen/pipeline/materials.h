@@ -25,14 +25,6 @@ struct MaterialOptions {
     double dustCover = 0.0;   ///< About the share of the surface under dust patches, in [0, 1).
     double dustPatch = 50.0;  ///< Typical width of a dust patch (m).
     std::uint32_t seed = 0;   ///< Varies the dust patches.
-
-    bool operator==(const MaterialOptions& other) const {
-        return exposure == other.exposure && dustCover == other.dustCover &&
-               dustPatch == other.dustPatch && seed == other.seed;
-    }
-    bool operator!=(const MaterialOptions& other) const {
-        return !(*this == other);
-    }
 };
 
 /// Checks material options.

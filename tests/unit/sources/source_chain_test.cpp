@@ -154,7 +154,7 @@ TEST(SourceChain, FillsEachGapFromTheNextSourceWithData) {
     const SourceChain partial({east, north});
     EXPECT_EQ(partial.Grid(), kGrid);
     EXPECT_EQ(partial.ReferencePoint().x, 7.0);
-    Raster<float> heights = kGrid.MakeRaster();
+    Raster<float> heights(kGrid);
     partial.Fill(heights);
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
@@ -196,7 +196,7 @@ TEST(SourceChain, FillsNaNGapsOfSourcesWithoutANoDataValue) {
     };
     const SourceChain chain(
         {std::make_shared<Unmarked>(), std::make_shared<terraingen::FlatSource>(2, 2, 1.0, -5.0f)});
-    Raster<float> heights = kGrid.MakeRaster();
+    Raster<float> heights(kGrid);
     chain.Fill(heights);
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
@@ -210,19 +210,17 @@ TEST(SourceChain, FillsNaNGapsOfSourcesWithoutANoDataValue) {
 TEST(SourceChain, StopsOnceEveryCellHasData) {
     const auto full = std::make_shared<Patchy>([](double, double) { return true; }, -1.0f, kGrid);
     const auto spare = std::make_shared<Patchy>([](double, double) { return true; }, -1.0f, kGrid);
-    Raster<float> heights = kGrid.MakeRaster();
+    Raster<float> heights(kGrid);
     SourceChain({full, spare}).Fill(heights);
     EXPECT_EQ(full->fills, 1);
     EXPECT_EQ(spare->fills, 0);
 }
 
 TEST(SourceChain, ResolvesWhatTheMemberGivingTheHeightResolves) {
-    Raster<float> fine(20, 20, 1.0f);
-    fine.SetTransform(GeoTransform::NorthUp(0.0, 20.0, 1.0));
+    Raster<float> fine(RasterGrid{20, 20, GeoTransform::NorthUp(0.0, 20.0, 1.0)}, 1.0f);
     fine.SetNoData(-1.0f);
     fine(5, 5) = -1.0f;
-    Raster<float> coarse(10, 10, 2.0f);
-    coarse.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 8.0));
+    Raster<float> coarse(RasterGrid{10, 10, GeoTransform::NorthUp(-40.0, 40.0, 8.0)}, 2.0f);
     const auto site = std::make_shared<terraingen::RasterSource>(fine);
     const auto region = std::make_shared<terraingen::RasterSource>(coarse);
     const SourceChain chain({site, region, std::make_shared<terraingen::FlatSource>(1, 1, 1.0)});
@@ -242,12 +240,10 @@ TEST(SourceChain, ResolvesWhatTheMemberGivingTheHeightResolves) {
 }
 
 TEST(SourceChain, GivesBatchesOfPointsTheBitsOfEachPoint) {
-    Raster<float> fine(20, 20, 1.0f);
-    fine.SetTransform(GeoTransform::NorthUp(0.0, 20.0, 1.0));
+    Raster<float> fine(RasterGrid{20, 20, GeoTransform::NorthUp(0.0, 20.0, 1.0)}, 1.0f);
     fine.SetNoData(-1.0f);
     fine(5, 5) = -1.0f;
-    Raster<float> coarse(10, 10, 2.0f);
-    coarse.SetTransform(GeoTransform::NorthUp(-40.0, 40.0, 8.0));
+    Raster<float> coarse(RasterGrid{10, 10, GeoTransform::NorthUp(-40.0, 40.0, 8.0)}, 2.0f);
     const SourceChain chain({std::make_shared<terraingen::RasterSource>(fine),
                              std::make_shared<terraingen::RasterSource>(coarse)});
     const std::vector<terraingen::Vec2d> points{
@@ -266,13 +262,11 @@ TEST(SourceChain, GivesBatchesOfPointsTheBitsOfEachPoint) {
 }
 
 TEST(SourceChain, UpsamplesEachMemberAsItSays) {
-    Raster<float> site(16, 16);
-    site.SetTransform(GeoTransform::NorthUp(0.0, 16.0, 1.0));
+    Raster<float> site(RasterGrid{16, 16, GeoTransform::NorthUp(0.0, 16.0, 1.0)});
     for (std::size_t i = 0; i < site.Size(); ++i) {
         site.Values()[i] = static_cast<float>(std::sin(0.3 * static_cast<double>(i)));
     }
-    Raster<float> regional(8, 8, 0.0f);
-    regional.SetTransform(GeoTransform::NorthUp(-16.0, 32.0, 6.0));
+    Raster<float> regional(RasterGrid{8, 8, GeoTransform::NorthUp(-16.0, 32.0, 6.0)}, 0.0f);
     for (std::size_t i = 0; i < regional.Size(); ++i) {
         regional.Values()[i] = static_cast<float>(i % 5);
     }
@@ -288,11 +282,11 @@ TEST(SourceChain, UpsamplesEachMemberAsItSays) {
     const auto second = std::make_shared<terraingen::RasterSource>(regional, fractal);
     const SourceChain chain({first, second});
     const RasterGrid grid{60, 60, GeoTransform::NorthUp(-10.0, 25.0, 0.5)};
-    Raster<float> heights = grid.MakeRaster();
+    Raster<float> heights(grid);
     chain.Fill(heights, 0.5);
-    Raster<float> fromFirst = grid.MakeRaster();
+    Raster<float> fromFirst(grid);
     first->Fill(fromFirst, 0.5);
-    Raster<float> fromSecond = grid.MakeRaster();
+    Raster<float> fromSecond(grid);
     second->Fill(fromSecond, 0.5);
     std::size_t firsts = 0;
     std::size_t seconds = 0;
@@ -325,9 +319,9 @@ TEST(SourceChainSeams, NoneKeepsTheFirstHeightWithDataToTheBit) {
     EXPECT_EQ(plain.Seams().mode, ChainSeamMode::None);
     const auto none = Chain(earlier, later, Seams(ChainSeamMode::None, 7.0, 3.0));
     const RasterGrid grid{96, 96, GeoTransform::NorthUp(-24.0, 24.0, 0.5)};
-    Raster<float> fromPlain = grid.MakeRaster();
+    Raster<float> fromPlain(grid);
     plain.Fill(fromPlain, 0.5);
-    Raster<float> fromNone = grid.MakeRaster();
+    Raster<float> fromNone(grid);
     none->Fill(fromNone, 0.5);
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
@@ -349,13 +343,13 @@ TEST(SourceChainSeams, PointsTilesAndGridsAgreeToTheBit) {
     for (const ChainSeamMode mode :
          {ChainSeamMode::Feather, ChainSeamMode::Height, ChainSeamMode::Slope}) {
         const auto tiled = Chain(earlier, later, Seams(mode, 3.0, 4.0));
-        Raster<float> tiles = grid.MakeRaster();
+        Raster<float> tiles(grid);
         for (std::size_t tileRow = 0; tileRow < 2; ++tileRow) {
             for (std::size_t tileCol = 0; tileCol < 2; ++tileCol) {
-                Raster<float> tile(48, 48);
-                tile.SetTransform(GeoTransform::NorthUp(-24.0 + 24.0 * static_cast<double>(tileCol),
-                                                        24.0 - 24.0 * static_cast<double>(tileRow),
-                                                        0.5));
+                Raster<float> tile(RasterGrid{
+                    48, 48,
+                    GeoTransform::NorthUp(-24.0 + 24.0 * static_cast<double>(tileCol),
+                                          24.0 - 24.0 * static_cast<double>(tileRow), 0.5)});
                 tiled->Fill(tile, 0.5);
                 for (std::size_t row = 0; row < 48; ++row) {
                     for (std::size_t col = 0; col < 48; ++col) {
@@ -366,9 +360,9 @@ TEST(SourceChainSeams, PointsTilesAndGridsAgreeToTheBit) {
         }
         const auto whole = Chain(earlier, later, Seams(mode, 3.0, 4.0));
         const auto points = Chain(earlier, later, Seams(mode, 3.0, 4.0));
-        Raster<float> heights = grid.MakeRaster();
+        Raster<float> heights(grid);
         whole->Fill(heights, 0.5);
-        Raster<float> serial = grid.MakeRaster();
+        Raster<float> serial(grid);
         Chain(earlier, later, Seams(mode, 3.0, 4.0))->Fill(serial, 0.5, 1);
         std::size_t matched = 0;
         for (std::size_t row = 0; row < grid.height; ++row) {
@@ -494,8 +488,7 @@ TEST(SourceChainSeams, MatchesEachSourceToTheChainBeforeIt) {
     EXPECT_LT(std::abs(at(32.001) - at(31.999)), 0.7f) << "of the 7 m step from the region";
     EXPECT_EQ(at(-29.5), 2.0f) << "the region beyond the site's seam";
     EXPECT_EQ(at(60.0), -5.0f) << "the datum beyond the region's seam";
-    Raster<float> heights(40, 2);
-    heights.SetTransform(GeoTransform::NorthUp(-40.0, 0.5, 2.0));
+    Raster<float> heights(RasterGrid{40, 2, GeoTransform::NorthUp(-40.0, 0.5, 2.0)});
     chain.Fill(heights, 0.5);
     for (std::size_t col = 0; col < heights.Width(); ++col) {
         const auto center = heights.CellCenter(col, 0);

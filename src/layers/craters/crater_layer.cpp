@@ -38,10 +38,25 @@ namespace {
 /// about where Singer et al.'s largest secondary stops growing with the primary.
 constexpr double kLargestThrower = 5e5;
 
+/// Sets the seed of `options` and the seeds of its apply options to `ReseedWord(seed, 0)` to
+/// `ReseedWord(seed, 6)`.
+void ReseedCraterOptions(CraterLayerOptions& options, std::uint64_t seed) {
+    options.seed = ReseedWord(seed, 0);
+    CraterApplyOptions& apply = options.apply;
+    apply.irregularity.seed = ReseedWord(seed, 1);
+    apply.noise.seed = ReseedWord(seed, 2);
+    apply.texture.seed = ReseedWord(seed, 3);
+    apply.slope.seed = ReseedWord(seed, 4);
+    apply.terraces.seed = ReseedWord(seed, 5);
+    apply.peaks.seed = ReseedWord(seed, 6);
+}
+
 }  // namespace
 
 CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, TerrainBase base)
-    : models_(std::move(models)), options_(std::move(options)), surface_(base.surface) {
+    : models_(std::move(models)), options_(std::move(options)),
+      given_(std::make_shared<const CraterLayerOptions>(options_)),
+      surface_(std::move(base.surface)), source_(std::move(base.source)) {
     if (!models_.degradation) {
         throw std::invalid_argument("A crater layer needs a degradation model");
     }
@@ -58,14 +73,7 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, Terrai
     ValidateCraterSpacing(options_.generation.spacing);
     ValidateCraterApplyOptions(options_.apply);
     options_.apply = SeededCraterApply(std::move(options_.apply), options_.seed);
-    ValidateSourceResolvesPixels(options_.sourceResolvesPixels);
-    if (auto limit = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, surface_)) {
-        std::shared_ptr<const SurfaceField>& completeness = options_.generation.completeness;
-        completeness = completeness ? std::make_shared<const MinimumField>(completeness, limit)
-                                    : std::move(limit);
-    }
-    ValidateInheritedCraters(options_.inherited);
-    Inherit(base.source);
+    FollowSource();
     options_.generation.marginRadii = CraterReachRadii(*models_.profile, options_.apply) *
                                       MaxOutlineScale(options_.apply.irregularity);
     const CraterList& manual = options_.generation.manual;
@@ -89,14 +97,19 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, Terrai
     if (options_.densityMap) {
         FollowDensityMap();
     }
+    SetUpBandCounts();
+}
+
+void CraterLayer::SetUpBandCounts() {
     const CraterGenerationOptions& generation = options_.generation;
     if (!options_.generateRandom || !candidates_) {
         return;
     }
-    const double dMax = ResolveDMax(generation.dMax, *candidates_);
-    if (std::isfinite(dMax) && dMax > generation.dMin && generation.dMin > 0.0) {
+    const double maxDiameter = ResolveMaxDiameter(generation.maxDiameter, *candidates_);
+    if (std::isfinite(maxDiameter) && maxDiameter > generation.minDiameter &&
+        generation.minDiameter > 0.0) {
         for (const CraterBand& band :
-             CraterBands(generation.dMin, dMax, generation.cellSizeFactor)) {
+             CraterBands(generation.minDiameter, maxDiameter, generation.cellSizeFactor)) {
             bandCounts_.push_back(
                 {band.low, band.high, candidates_->ExpectedCount(1.0, band.low, band.high)});
         }
@@ -105,18 +118,18 @@ CraterLayer::CraterLayer(CraterModels models, CraterLayerOptions options, Terrai
 
 LayerPtr CraterLayer::Reseeded(std::uint64_t seed) const {
     auto layer = std::make_shared<CraterLayer>(*this);
-    layer->options_.seed = ReseedWord(seed, 0);
-    CraterApplyOptions& apply = layer->options_.apply;
-    apply.irregularity.seed = ReseedWord(seed, 1);
-    apply.noise.seed = ReseedWord(seed, 2);
-    apply.texture.seed = ReseedWord(seed, 3);
-    apply.slope.seed = ReseedWord(seed, 4);
-    apply.terraces.seed = ReseedWord(seed, 5);
-    apply.peaks.seed = ReseedWord(seed, 6);
+    ReseedCraterOptions(layer->options_, seed);
+    auto given = std::make_shared<CraterLayerOptions>(*given_);
+    ReseedCraterOptions(*given, seed);
+    layer->given_ = std::move(given);
     if (cache_) {
         layer->cache_ = std::make_shared<CraterCellCache>(options_.cacheCraters);
     }
     return layer;
+}
+
+LayerPtr CraterLayer::Rebased(const TerrainBase& base) const {
+    return std::make_shared<CraterLayer>(models_, *given_, base);
 }
 
 void CraterLayer::CountBands(CraterGenerationOptions& generation) const {
@@ -143,16 +156,23 @@ void ValidateInheritedCraters(const InheritedCraters& inherited) {
     }
 }
 
-void CraterLayer::Inherit(const std::shared_ptr<const Source>& source) {
+void CraterLayer::FollowSource() {
+    ValidateSourceResolvesPixels(options_.sourceResolvesPixels);
+    if (auto limit = LayerResolvedLimit(source_, options_.sourceResolvesPixels, surface_)) {
+        std::shared_ptr<const SurfaceField>& completeness = options_.generation.completeness;
+        completeness = completeness ? std::make_shared<const MinimumField>(completeness, limit)
+                                    : std::move(limit);
+    }
+    ValidateInheritedCraters(options_.inherited);
     const InheritedCraters& inherited = options_.inherited;
     if (inherited.craters.Empty()) {
         return;
     }
-    const auto from = LayerResolvedLimit(source,
+    const auto from = LayerResolvedLimit(source_,
                                          inherited.minSourcePixels ? inherited.minSourcePixels
                                                                    : options_.sourceResolvesPixels,
                                          surface_);
-    const auto upTo = LayerResolvedLimit(source, inherited.maxSourcePixels, surface_);
+    const auto upTo = LayerResolvedLimit(source_, inherited.maxSourcePixels, surface_);
     const CraterList stamped = FilterCraters(inherited.craters, [&](std::size_t, const Crater& c) {
         return (!from || InSource(from.get(), c.diameter, c.x, c.y)) &&
                !InSource(upTo.get(), c.diameter, c.x, c.y);
@@ -229,7 +249,7 @@ double CraterLayer::SmallestThrower(const DensityMap& map,
 
 CraterList CraterLayer::Throwers(const Bounds2d& region) const {
     CraterGenerationOptions large = options_.generation;
-    large.dMin = std::fmax(large.dMin, throwFrom_);
+    large.minDiameter = std::fmax(large.minDiameter, throwFrom_);
     large.minResolvedDiameter = 0.0;
     CountBands(large);
     double reach = 0.0;
@@ -237,7 +257,7 @@ CraterList CraterLayer::Throwers(const Bounds2d& region) const {
         reach = std::fmax(reach, SecondaryOuterRange(MaxFeatureDiameter(), secondaries));
     }
     const Bounds2d around = surface_.Expand(region, reach);
-    if (large.dMin < ResolveDMax(large.dMax, *candidates_)) {
+    if (large.minDiameter < ResolveMaxDiameter(large.maxDiameter, *candidates_)) {
         return GenerateCachedCraters(cache_.get(), *cells_, around, *candidates_, *models_.ages,
                                      options_.seed, large);
     }
@@ -349,7 +369,9 @@ CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) 
 
 double CraterLayer::MaxFeatureDiameter() const {
     const CraterGenerationOptions& generation = options_.generation;
-    double largest = options_.generateRandom ? ResolveDMax(generation.dMax, *models_.density) : 0.0;
+    double largest = options_.generateRandom
+                         ? ResolveMaxDiameter(generation.maxDiameter, *models_.density)
+                         : 0.0;
     for (std::size_t n = 0; n < generation.manual.Size(); ++n) {
         largest = std::fmax(largest, generation.manual.At(n).diameter);
     }

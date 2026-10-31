@@ -53,7 +53,7 @@ TEST(Photometry, MixesPancamParametersByShare) {
 TEST(Photometry, EvaluatesFourBandsFromMaterialRasters) {
     const terraingen::RasterGrid grid{4, 3, terraingen::GeoTransform::NorthUp(0.0, 3.0, 1.0)};
     std::vector<terraingen::Raster<float>> materials(terraingen::kMaterialClasses,
-                                                     grid.MakeRaster());
+                                                     terraingen::Raster<float>(grid));
     for (std::size_t i = 0; i < materials[0].Size(); ++i) {
         materials[Index(MaterialClass::Soil)].Values()[i] = 0.5f;
         materials[Index(MaterialClass::Sand)].Values()[i] = 0.5f;
@@ -65,7 +65,7 @@ TEST(Photometry, EvaluatesFourBandsFromMaterialRasters) {
     EXPECT_FLOAT_EQ(bands[3](2, 0), 12.0f);
     EXPECT_THROW(terraingen::EvaluatePhotometry({}, terraingen::MarsPancamPhotometry()),
                  std::invalid_argument);
-    materials[2] = terraingen::RasterGrid{2, 2, {}}.MakeRaster();
+    materials[2] = terraingen::Raster<float>(terraingen::RasterGrid{2, 2, {}});
     EXPECT_THROW(terraingen::EvaluatePhotometry(materials, terraingen::MarsPancamPhotometry()),
                  std::invalid_argument);
 }

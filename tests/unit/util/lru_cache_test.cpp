@@ -36,3 +36,26 @@ TEST(LruCache, ComputesOnceAndEvictsWithinTheBudget) {
     EXPECT_THROW((LruCache<int, int>(0, [](const int&) { return std::size_t{1}; })),
                  std::invalid_argument);
 }
+
+TEST(LruCache, OneShardEvictsInStrictOrderOfUse) {
+    LruCache<int, std::string> cache(
+        8, [](const std::string& value) { return value.size(); }, {}, 1);
+    int calls = 0;
+    const auto get = [&](int key) {
+        return cache.Get(key, [&] {
+            ++calls;
+            return std::string(4, 'x');
+        });
+    };
+    get(1);
+    get(2);
+    get(1);
+    get(3);
+    EXPECT_EQ(calls, 3);
+    EXPECT_NE(cache.Find(1), nullptr) << "used since 2";
+    EXPECT_EQ(cache.Find(2), nullptr) << "the least recently used goes first";
+    EXPECT_NE(cache.Find(3), nullptr);
+    EXPECT_THROW((LruCache<int, int>(
+                     4, [](const int&) { return std::size_t{1}; }, {}, 0)),
+                 std::invalid_argument);
+}

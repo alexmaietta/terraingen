@@ -132,8 +132,9 @@ def test_source_chain_seams_shift_the_later_source_to_meet_the_earlier_one():
     for x, y in [(0.5, 0.5), (-2.5, 1.5), (2.5, -2.5)]:
         assert chain.height_at(x, y, 1.0) == pytest.approx(0.1 * x + 0.05 * y + 8.0, abs=0.05)
     assert chain.height_at(90.0, 0.0, 1.0) == 7.5, "nothing beyond the reach of the open edge"
-    raster = terraingen.Raster(40, 40)
-    raster.transform = terraingen.GeoTransform.north_up(-20.0, 20.0, 1.0)
+    raster = terraingen.Raster(
+        terraingen.RasterGrid(40, 40, terraingen.GeoTransform.north_up(-20.0, 20.0, 1.0))
+    )
     chain.fill(raster, 0.5)
     centers = [(-19.5 + col, 19.5 - row) for row in range(40) for col in range(40)]
     expected = np.array([chain.height_at(x, y, 0.5) for x, y in centers], dtype=np.float32)
@@ -176,8 +177,9 @@ def test_python_source_fills_the_heights(paraboloid):
 
 def test_synthetic_source_samples_the_fractals_at_cell_centers():
     fractals = synthetic_fractals()
-    raster = terraingen.Raster(17, 9)
-    raster.transform = terraingen.GeoTransform.north_up(-12.75, 6.75, 1.5)
+    raster = terraingen.Raster(
+        terraingen.RasterGrid(17, 9, terraingen.GeoTransform.north_up(-12.75, 6.75, 1.5))
+    )
     terraingen.SyntheticSource(fractals).fill(raster)
     cols, rows = np.meshgrid(np.arange(17), np.arange(9))
     x = (-12.75 + (cols + 0.5) * 1.5).astype(np.float32)
@@ -231,8 +233,7 @@ def test_python_sources_fill_grids_and_points_through_one_method():
             samples.heights()[:] = p[:, 0] + 10.0 * p[:, 1]
 
     ramp = Ramp()
-    raster = terraingen.Raster(4, 3)
-    raster.transform = ramp.grid().transform
+    raster = terraingen.Raster(ramp.grid())
     ramp.fill(raster)
     assert blocks[-1] == (True, 12, True)
     assert raster.values[0, 1] == 1.5 + 25.0
@@ -272,10 +273,10 @@ def test_fills_written_in_python_take_the_threads_and_python_fills_run_on_thread
 
     heights = np.arange(64, dtype=np.float32).reshape(8, 8)
     posts = terraingen.RasterPosts(terraingen.Raster.from_array(heights))
-    serial = terraingen.Raster(32, 32)
-    serial.transform = terraingen.GeoTransform.north_up(0.0, 8.0, 0.25)
-    every = terraingen.Raster(32, 32)
-    every.transform = serial.transform
+    serial = terraingen.Raster(
+        terraingen.RasterGrid(32, 32, terraingen.GeoTransform.north_up(0.0, 8.0, 0.25))
+    )
+    every = terraingen.Raster(serial.grid)
     Lifted().fill(posts, serial, 0.25, threads=1)
     Lifted().fill(posts, every, 0.25)
     np.testing.assert_array_equal(serial.values, every.values)
@@ -297,12 +298,20 @@ def test_kernel_upsamplers_match_sample_raster():
 
 
 def test_raster_fields_interpolate_and_fall_back():
-    raster = terraingen.Raster.from_array(np.array([[1.0, 3.0], [5.0, np.nan]], dtype=np.float32))
-    raster.transform = terraingen.GeoTransform.north_up(0.0, 2.0, 1.0)
+    raster = terraingen.Raster.from_array(
+        np.array([[1.0, 3.0], [5.0, np.nan]], dtype=np.float32),
+        terraingen.GeoTransform.north_up(0.0, 2.0, 1.0),
+    )
     field = terraingen.RasterField(raster, terraingen.RasterFieldOptions(fallback=-1.0))
     assert field.value_at(1.0, 1.5) == pytest.approx(2.0)
     assert field.value_at(9.0, 9.0) == -1.0 and field.max() == 5.0
     assert terraingen.ConstantField(2.0).value_at(0.0, 0.0) == 2.0
+    unset = terraingen.RasterFieldOptions()
+    assert unset.fallback is None and unset.scale == 1.0
+    assert (
+        terraingen.RasterFieldOptions(terraingen.ResampleMethod.NEAREST).method
+        == terraingen.ResampleMethod.NEAREST
+    )
 
 
 def test_fields_can_be_written_in_python():
@@ -313,7 +322,7 @@ def test_fields_can_be_written_in_python():
         def max(self):
             return 1.0
 
-    options = terraingen.CraterGenerationOptions(d_min=4.0, d_max=32.0)
+    options = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=32.0)
     east = East()
     options.keep_share = lambda crater: east.value_at(crater.x, crater.y)
     craters = terraingen.generate_craters(
@@ -393,7 +402,7 @@ def test_source_resolved_limit_drops_the_craters_a_dem_resolves():
     assert limit.value_at(0.0, 0.0) == 20.0 and limit.value_at(1e6, 0.0) == float("inf")
     both = terraingen.MinimumField(limit, terraingen.ConstantField(12.0))
     assert both.value_at(0.0, 0.0) == 12.0 and both.value_at(1e6, 0.0) == 12.0
-    options = terraingen.CraterGenerationOptions(d_min=6.0, d_max=40.0)
+    options = terraingen.CraterGenerationOptions(min_diameter=6.0, max_diameter=40.0)
     region = (-60.0, -60.0, 60.0, 60.0)
     density = terraingen.PowerLawSfd(0.05, 2.0)
 
@@ -455,13 +464,15 @@ def test_sources_give_heights_at_points_and_fill_arrays_in_place():
         grid = terraingen.RasterGrid(16, 8, terraingen.GeoTransform.north_up(-8.0, 4.0, 1.0))
         filled = np.full((8, 16), -1.0, dtype=np.float32)
         source.fill(grid, filled, threads=2)
-        raster = grid.make_raster()
+        raster = terraingen.Raster(grid)
         source.fill(raster)
         np.testing.assert_array_equal(filled, raster.values)
         assert filled[0, 0] == source.height_at(-7.5, 3.5, 1.0)
         with pytest.raises(ValueError):
             source.fill(grid, np.zeros((16, 8), dtype=np.float32))
-    raster = terraingen.RasterGrid(12, 9, terraingen.GeoTransform.north_up(-6.0, 30.0, 3.0)).make_raster(1.5)
+    raster = terraingen.Raster(
+        terraingen.RasterGrid(12, 9, terraingen.GeoTransform.north_up(-6.0, 30.0, 3.0)), 1.5
+    )
     posts = terraingen.RasterPosts(raster)
     upsampler = terraingen.DiamondSquareUpsampler(
         terraingen.DiamondSquareOptions(fractal_dimension=2.4, scale=0.5)

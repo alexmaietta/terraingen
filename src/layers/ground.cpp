@@ -2,21 +2,31 @@
 
 #include "terraingen/layers/ground.h"
 
+#include "terraingen/layers/layer.h"
+
+#include "sources/lattice.h"
+
 #include <cmath>
 
 namespace terraingen {
 
 float Ground::HeightAt(double x, double y, double spacing) const {
-    const Vec2d point{x, y};
-    float height = 0.0f;
-    SampleBlock samples({&point, 1}, {&height, 1});
-    FillSamples(samples, spacing);
-    return height;
+    return detail::PointHeight(x, y,
+                               [&](SampleBlock& samples) { FillSamples(samples, spacing, 1); });
 }
 
-void Ground::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const {
+void Ground::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing,
+                       unsigned threads) const {
     SampleBlock samples(points, heights);
-    FillSamples(samples, spacing);
+    FillSamples(samples, spacing, threads);
+}
+
+LayerContext Ground::Context(double spacing, unsigned threads) const {
+    LayerContext context;
+    context.spacing = spacing;
+    context.threads = threads;
+    context.ground = this;
+    return context;
 }
 
 std::array<Vec2d, 4> GradientPoints(const Surface& surface, const Vec2d& center, double step) {

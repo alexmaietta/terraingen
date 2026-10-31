@@ -26,7 +26,6 @@ using terraingen::EvaluationOptions;
 using terraingen::GeoTransform;
 using terraingen::LayerPtr;
 using terraingen::RasterGrid;
-using terraingen::StageCache;
 using terraingen::Surface;
 using terraingen::Terrain;
 using terraingen::Vec2d;
@@ -60,24 +59,40 @@ bool Differ(const terraingen::Raster<float>& a, const terraingen::Raster<float>&
     return !std::equal(a.Values().begin(), a.Values().end(), b.Values().begin());
 }
 
-/// A crater layer of one manual crater, built for `surface`.
-std::shared_ptr<terraingen::CraterLayer> ManualCraters(const Surface& surface = {}) {
+/// A crater layer of one manual crater, built on `surface` and `source`.
+std::shared_ptr<terraingen::CraterLayer>
+ManualCraters(const Surface& surface = {},
+              std::shared_ptr<const terraingen::Source> source = nullptr) {
     return terraingen::CraterLayer::Manual(
         {terraingen::ManualCrater(0.0, 0.0, 4.0)}, terraingen::DefaultCraterModels(),
-        terraingen::DefaultCraterApply(), terraingen::TerrainBase{surface});
+        terraingen::DefaultCraterApply(), terraingen::TerrainBase{surface, std::move(source)});
 }
 
-/// A plane terrain of random 2 to 12 m craters, then boulders thrown from them.
-Terrain CratersAndBoulders() {
+/// A level raster source over the 32 m square from the origin in cells of `cell` meters.
+std::shared_ptr<const terraingen::Source> LevelRaster(double cell) {
+    const auto side = static_cast<std::size_t>(32.0 / cell);
+    return std::make_shared<terraingen::RasterSource>(terraingen::Raster<float>(
+        RasterGrid{side, side, GeoTransform::NorthUp(0.0, 32.0, cell)}, 0.0f));
+}
+
+/// `LevelRaster` of 1 m cells, one for every call.
+std::shared_ptr<const terraingen::Source> FineSource() {
+    static const std::shared_ptr<const terraingen::Source> source = LevelRaster(1.0);
+    return source;
+}
+
+/// A plane terrain on `source` of random 2 to 12 m craters, then boulders thrown from them, both
+/// built on it.
+Terrain CratersAndBoulders(std::shared_ptr<const terraingen::Source> source = FineSource()) {
+    const terraingen::TerrainBase base{Surface{}, source};
     terraingen::CraterLayerOptions options;
-    options.generation.dMin = 2.0;
-    options.generation.dMax = 12.0;
+    options.generation.minDiameter = 2.0;
+    options.generation.maxDiameter = 12.0;
     const auto craters = std::make_shared<terraingen::CraterLayer>(
-        terraingen::testing::PowerLawCraterModels(), options);
-    const auto boulders =
-        std::make_shared<terraingen::BoulderLayer>(terraingen::BoulderLayerOptions{}, craters);
-    return Terrain(Surface{}, std::make_shared<terraingen::FlatSource>(32, 32, 1.0),
-                   {craters, boulders});
+        terraingen::testing::PowerLawCraterModels(), options, base);
+    const auto boulders = std::make_shared<terraingen::BoulderLayer>(
+        terraingen::BoulderLayerOptions{}, craters, base);
+    return Terrain(Surface{}, source, {craters, boulders});
 }
 
 /// A plane terrain of synthetic noise heights and a noise layer.
@@ -142,8 +157,8 @@ TEST(Terrain, RejectsNullLayersLayersOfAnotherSurfaceAndDependenciesOutOfOrder) 
 }
 
 TEST(Terrain, RejectsSourcesWhoseCoordinatesDoNotSuitTheSurface) {
-    terraingen::Raster<float> heights(4, 4, 1.0f);
-    heights.SetTransform(GeoTransform::NorthUp(10.0, 20.0, 0.25));
+    terraingen::Raster<float> heights(
+        terraingen::RasterGrid{4, 4, GeoTransform::NorthUp(10.0, 20.0, 0.25)}, 1.0f);
     const Surface moon = Surface::Sphere(1737400.0);
     const auto degrees = std::make_shared<terraingen::RasterSource>(
         heights, terraingen::RasterSourceOptions{}, terraingen::GeographicSphereKeys(1737400.0));
@@ -172,8 +187,8 @@ TEST(Terrain, GivesItsPartsGridAndKeys) {
 TEST(Evaluate, RunsTheSourceThenLayersOverTheSourcesGrid) {
     const Terrain terrain = Rolling();
     const auto whole = terrain.Evaluate();
-    EXPECT_EQ(RasterGrid::FromRaster(whole), terrain.Source()->Grid());
-    EXPECT_GT(terrain.Craters(RasterGrid::FromRaster(whole)).craters.Size(), 0u);
+    EXPECT_EQ(whole.Grid(), terrain.Source()->Grid());
+    EXPECT_GT(terrain.Craters(whole.Grid()).craters.Size(), 0u);
     const auto again = terrain.Evaluate(SourceGrid(terrain), At(1.0));
     for (std::size_t i = 0; i < whole.Size(); ++i) {
         ASSERT_EQ(again.Values()[i], whole.Values()[i])
@@ -464,8 +479,8 @@ TEST(Evaluate, ReadsTheGroundBeneathALayerOnTheEvaluationsThreads) {
 }
 
 TEST(HeightsAt, EqualsGridsOverAnUpsampledDemAtTheirSpacing) {
-    terraingen::Raster<float> dem(16, 16);
-    dem.SetTransform(GeoTransform::NorthUp(-32.0, 32.0, 4.0));
+    terraingen::Raster<float> dem(
+        terraingen::RasterGrid{16, 16, GeoTransform::NorthUp(-32.0, 32.0, 4.0)});
     for (std::size_t i = 0; i < dem.Size(); ++i) {
         dem.Values()[i] = static_cast<float>(std::sin(0.37 * static_cast<double>(i)));
     }
@@ -569,9 +584,9 @@ TEST(HeightAt, KeepsDatumsPerTerrainSoALayerSharedOverOtherGroundRefitsThem) {
 
 TEST(Ground, IsTheSourceAndTheLayersBeneath) {
     const Terrain terrain = Datum();
-    const Terrain source = terrain.Ground(0);
-    const Terrain noise = terrain.Ground(1);
-    const Terrain all = terrain.Ground(2);
+    const Terrain source = terrain.Beneath(0);
+    const Terrain noise = terrain.Beneath(1);
+    const Terrain all = terrain.Beneath(2);
     EXPECT_EQ(source.HeightAt(3.0, 4.0, 2.0), 5.0f);
     terraingen::LayerContext context;
     context.spacing = 2.0;
@@ -579,8 +594,8 @@ TEST(Ground, IsTheSourceAndTheLayersBeneath) {
     context.source = terrain.Source().get();
     EXPECT_EQ(noise.HeightAt(3.0, 4.0, 2.0), terrain.Layers()[0]->ApplyAt(5.0f, 3.0, 4.0, context));
     EXPECT_EQ(all.HeightAt(3.0, 4.0, 2.0), terrain.HeightAt(3.0, 4.0, 2.0));
-    EXPECT_EQ(noise.LayerVersion(0), terrain.LayerVersion(0)) << "prefixes share versions";
-    EXPECT_EQ(noise.SourceVersion(), terrain.SourceVersion());
+    EXPECT_EQ(noise.Layers()[0], terrain.Layers()[0]) << "prefixes share parts";
+    EXPECT_EQ(noise.Source(), terrain.Source());
     const std::vector<Vec2d> points{{3.0, 4.0}, {-7.5, 2.25}, {11.0, -6.0}};
     std::vector<float> heights(points.size());
     all.HeightsAt(points, heights, 2.0);
@@ -588,7 +603,7 @@ TEST(Ground, IsTheSourceAndTheLayersBeneath) {
         EXPECT_EQ(heights[i], all.HeightAt(points[i].x, points[i].y, 2.0))
             << "one pass, same heights";
     }
-    EXPECT_THROW(terrain.Ground(3), std::invalid_argument);
+    EXPECT_THROW(terrain.Beneath(3), std::invalid_argument);
     EXPECT_EQ(Terrain().HeightAt(3.0, 4.0, 2.0), 0.0f) << "the datum without a source";
 }
 
@@ -599,14 +614,14 @@ TEST(Ground, EqualsATerrainOfTheFirstLayers) {
         const auto end = terrain.Layers().begin() + static_cast<std::ptrdiff_t>(k);
         const std::vector<LayerPtr> first(terrain.Layers().begin(), end);
         const Terrain built(terrain.Surface(), terrain.Source(), first);
-        ExpectSameRaster(terrain.Ground(k).Evaluate(grid), built.Evaluate(grid));
-        EXPECT_EQ(terrain.Ground(k).Layers().size(), k);
+        ExpectSameRaster(terrain.Beneath(k).Evaluate(grid), built.Evaluate(grid));
+        EXPECT_EQ(terrain.Beneath(k).Layers().size(), k);
     }
 }
 
 TEST(Ground, PrefixesShareTheTerrainsPointQueryValues) {
     const Terrain terrain = Datum(terraingen::CraterDatum::Plane);
-    const Terrain cached = terrain.Ground(2);
+    const Terrain cached = terrain.Beneath(2);
     const Terrain fresh = Datum(terraingen::CraterDatum::Plane);
     std::vector<Vec2d> points;
     for (int i = 0; i < 600; ++i) {
@@ -628,8 +643,8 @@ TEST(Ground, OutlivesTheTerrainItWasMadeFrom) {
     float expected = 0.0f;
     {
         const Terrain terrain = Rolling();
-        expected = terrain.Ground(1).HeightAt(3.0, 4.0, 1.0);
-        ground = std::make_shared<const Terrain>(terrain.Ground(1));
+        expected = terrain.Beneath(1).HeightAt(3.0, 4.0, 1.0);
+        ground = std::make_shared<const Terrain>(terrain.Beneath(1));
     }
     EXPECT_EQ(ground->HeightAt(3.0, 4.0, 1.0), expected);
     std::vector<float> heights(1);
@@ -710,74 +725,93 @@ TEST(HeightsAt, GivesEachPointItsOwnHeightInAnyOrder) {
 }
 
 TEST(EvaluationOptions, SetsItsFieldsByName) {
-    StageCache cache(1);
-    const auto options =
-        EvaluationOptions{}.Spacing(0.5).Threads(3).On(terraingen::Backend::Cpu).Keep(cache);
+    const auto options = EvaluationOptions{}.Spacing(0.5).Threads(3).On(terraingen::Backend::Cpu);
     EXPECT_EQ(options.spacing, 0.5);
     EXPECT_EQ(options.threads, 3u);
     EXPECT_EQ(options.backend, terraingen::Backend::Cpu);
-    EXPECT_EQ(options.stageCache, &cache);
 }
 
-TEST(SetLayer, ChangesTheVersionOfThatLayerOnly) {
+TEST(Context, IsOnTheTerrainWithItsSurfaceAndSource) {
+    const Terrain terrain = Rolling();
+    const terraingen::LayerContext context = terrain.Context(2.0, 3);
+    EXPECT_EQ(context.spacing, 2.0);
+    EXPECT_EQ(context.threads, 3u);
+    EXPECT_EQ(context.ground, &terrain);
+    EXPECT_EQ(context.surface, &terrain.Surface());
+    EXPECT_EQ(context.source, terrain.Source().get());
+    EXPECT_EQ(context.backend, terraingen::Backend::Cpu);
+}
+
+TEST(ApplyFrom, FinishesTheHeightsOfTheGroundBeneathALayer) {
+    const Terrain terrain = Rolling();
+    const RasterGrid grid = SourceGrid(terrain);
+    terraingen::Raster<float> heights = terrain.Beneath(1).Evaluate(grid);
+    terrain.ApplyFrom(1, heights);
+    ExpectSameRaster(heights, terrain.Evaluate(grid));
+    EXPECT_THROW(terrain.ApplyFrom(3, heights), std::invalid_argument);
+}
+
+TEST(Features, DefaultToTheSourceGrid) {
+    const Terrain terrain = CratersAndBoulders();
+    const RasterGrid grid = SourceGrid(terrain);
+    EXPECT_EQ(terrain.Craters().craters.Size(), terrain.Craters(grid).craters.Size());
+    EXPECT_EQ(terrain.Boulders(0.5).boulders.Size(), terrain.Boulders(grid, 0.5).boulders.Size());
+    EXPECT_THROW(Terrain().Craters(), std::invalid_argument);
+    EXPECT_THROW(Terrain().Boulders(), std::invalid_argument);
+}
+
+TEST(SetLayer, ReplacesThatLayerOnly) {
     Terrain terrain = Rolling();
-    const std::uint64_t noise = terrain.LayerVersion(0);
-    const std::uint64_t craters = terrain.LayerVersion(1);
-    const std::uint64_t source = terrain.SourceVersion();
     const Terrain before = terrain;
     const LayerPtr smoothed = Smoothed().Layers()[1];
     terrain.SetLayer(1, smoothed);
     EXPECT_EQ(terrain.Layers()[1], smoothed);
     EXPECT_EQ(terrain.Layers()[0], before.Layers()[0]);
-    EXPECT_EQ(terrain.LayerVersion(0), noise);
-    EXPECT_NE(terrain.LayerVersion(1), craters);
-    EXPECT_EQ(terrain.SourceVersion(), source);
-    EXPECT_EQ(before.LayerVersion(1), craters) << "a copy keeps its own parts";
+    EXPECT_EQ(terrain.Source(), before.Source());
+    EXPECT_NE(before.Layers()[1], smoothed) << "a copy keeps its own parts";
     ExpectSameRaster(terrain.Evaluate(), Smoothed().Evaluate());
-    EXPECT_THROW(terrain.LayerVersion(2), std::out_of_range);
 }
 
 TEST(SetLayer, RejectsABadIndexOrLayerLeavingTheTerrainUnchanged) {
     Terrain terrain = Rolling();
     const LayerPtr noise = terrain.Layers()[0];
     const LayerPtr craters = terrain.Layers()[1];
-    const std::uint64_t version = terrain.LayerVersion(1);
     EXPECT_THROW(terrain.SetLayer(2, craters), std::invalid_argument);
     EXPECT_THROW(terrain.SetLayer(1, nullptr), std::invalid_argument);
     EXPECT_THROW(terrain.SetLayer(0, ManualCraters(Surface::Sphere(1000.0))),
                  std::invalid_argument);
+    EXPECT_THROW(terrain.SetLayer(1, ManualCraters(Surface{}, FineSource())), std::invalid_argument)
+        << "built on another source";
     ASSERT_EQ(terrain.Layers().size(), 2u);
     EXPECT_EQ(terrain.Layers()[0], noise);
     EXPECT_EQ(terrain.Layers()[1], craters);
-    EXPECT_EQ(terrain.LayerVersion(1), version);
 }
 
 TEST(SetLayer, RebindsALaterLayerThatReadsTheReplacedOne) {
     Terrain terrain = CratersAndBoulders();
-    const std::uint64_t boulders = terrain.LayerVersion(1);
-    const auto craters = ManualCraters();
+    const LayerPtr boulders = terrain.Layers()[1];
+    const auto craters = ManualCraters(Surface{}, terrain.Source());
     terrain.SetLayer(0, craters);
-    EXPECT_NE(terrain.LayerVersion(1), boulders) << "the boulders were rebound";
+    EXPECT_NE(terrain.Layers()[1], boulders) << "the boulders were rebound";
     EXPECT_EQ(terrain.Layers()[1]->Dependencies(),
               std::vector<const terraingen::Layer*>{craters.get()});
 
     Terrain rolling = Rolling();
-    const std::uint64_t kept = rolling.LayerVersion(1);
+    const LayerPtr kept = rolling.Layers()[1];
     rolling.SetLayer(0, rolling.Layers()[0]);
-    EXPECT_EQ(rolling.LayerVersion(1), kept) << "a layer that reads no other keeps its version";
+    EXPECT_EQ(rolling.Layers()[1], kept) << "a layer that reads no other is kept";
 }
 
-TEST(SetSource, ChangesTheSourceVersionOnly) {
+TEST(SetSource, ReplacesTheSourceAndKeepsLayersReadingItFromTheContext) {
     Terrain terrain = Rolling();
-    const std::uint64_t source = terrain.SourceVersion();
-    const std::uint64_t noise = terrain.LayerVersion(0);
+    const LayerPtr noise = terrain.Layers()[0];
     const auto higher = std::make_shared<terraingen::FlatSource>(96, 64, 2.0, 9.0f);
     terrain.SetSource(higher);
     EXPECT_EQ(terrain.Source(), higher);
-    EXPECT_NE(terrain.SourceVersion(), source);
-    EXPECT_EQ(terrain.LayerVersion(0), noise);
-    terraingen::Raster<float> degrees(4, 4, 1.0f);
-    degrees.SetTransform(GeoTransform::NorthUp(10.0, 20.0, 0.25));
+    EXPECT_EQ(terrain.Layers()[0], noise);
+    EXPECT_EQ(terrain.Layers()[1]->LayerBase()->source, higher);
+    terraingen::Raster<float> degrees(
+        terraingen::RasterGrid{4, 4, GeoTransform::NorthUp(10.0, 20.0, 0.25)}, 1.0f);
     EXPECT_THROW(
         terrain.SetSource(std::make_shared<terraingen::RasterSource>(
             degrees, terraingen::RasterSourceOptions{}, terraingen::GeographicSphereKeys(1000.0))),
@@ -785,70 +819,98 @@ TEST(SetSource, ChangesTheSourceVersionOnly) {
     EXPECT_EQ(terrain.Source(), higher) << "unchanged after a rejected source";
 }
 
-TEST(StageCache, KeepsTheHeightsBeforeItsStageAndRestartsFromThem) {
+TEST(SetSource, RebuildsLayersBuiltOnTheOldSourceOnTheNewOne) {
+    const std::shared_ptr<const terraingen::Source> coarse = LevelRaster(4.0);
+    Terrain terrain = CratersAndBoulders();
+    const RasterGrid grid = SourceGrid(terrain);
+    const std::size_t fine = terrain.Craters(grid).craters.Size();
+    terrain.SetSource(coarse);
+    const Terrain built = CratersAndBoulders(coarse);
+    for (const LayerPtr& layer : terrain.Layers()) {
+        EXPECT_EQ(layer->LayerBase()->source, coarse);
+    }
+    EXPECT_EQ(terrain.Layers()[1]->Dependencies(),
+              std::vector<const terraingen::Layer*>{terrain.Layers()[0].get()});
+    EXPECT_EQ(terrain.Craters(grid).craters.Size(), built.Craters(grid).craters.Size());
+    EXPECT_GT(built.Craters(grid).craters.Size(), fine)
+        << "the finer source resolved the larger craters";
+    EXPECT_EQ(terrain.Boulders(grid).boulders.Size(), built.Boulders(grid).boulders.Size());
+    ExpectSameRaster(terrain.Evaluate(grid), built.Evaluate(grid));
+}
+
+TEST(Terrain, RejectsALayerBuiltOnAnotherSource) {
+    const std::vector<LayerPtr> layers = CratersAndBoulders().Layers();
+    EXPECT_THROW(Terrain(Surface{}, std::make_shared<terraingen::FlatSource>(32, 32, 1.0), layers),
+                 std::invalid_argument);
+    EXPECT_THROW(Terrain(Surface{}, nullptr, layers), std::invalid_argument);
+    EXPECT_NO_THROW(Terrain(Surface{}, layers[0]->LayerBase()->source, layers));
+    EXPECT_NO_THROW(Terrain(Surface{}, FineSource(), {ManualCraters(Surface{}, nullptr)}))
+        << "a layer built on no source applies no source limits";
+}
+
+TEST(TerrainView, KeepsTheHeightsBeforeItsStageAndRestartsFromThem) {
     Terrain terrain = Rolling();
     const RasterGrid grid = SourceGrid(terrain);
-    StageCache cache(1);
-    EXPECT_EQ(cache.Stage(), 1u);
-    EXPECT_TRUE(cache.Empty());
     std::vector<std::size_t> applied;
-    ExpectSameRaster(terrain.Evaluate(grid, Recording(applied).Keep(cache)),
-                     terrain.Evaluate(grid));
-    EXPECT_FALSE(cache.Empty()) << "the first evaluation fills it";
+    terraingen::TerrainView view(grid, Recording(applied), 1);
+    EXPECT_EQ(view.Grid(), grid);
+    ExpectSameRaster(view.Update(terrain), terrain.Evaluate(grid));
     EXPECT_EQ(applied, (std::vector<std::size_t>{0, 1}));
 
-    terrain.SetLayer(1, Smoothed().Layers()[1]);
     applied.clear();
-    const auto restarted = terrain.Evaluate(grid, Recording(applied).Keep(cache));
-    EXPECT_EQ(applied, (std::vector<std::size_t>{1})) << "the noise is not applied again";
-    ExpectSameRaster(restarted, terrain.Evaluate(grid));
+    view.Update(terrain);
+    EXPECT_TRUE(applied.empty()) << "an unchanged terrain is not evaluated again";
 
-    terrain.SetLayer(0, terrain.Layers()[0]);
+    terrain.SetLayer(1, Smoothed().Layers()[1]);
+    ExpectSameRaster(view.Update(terrain), terrain.Evaluate(grid));
+    EXPECT_EQ(applied, (std::vector<std::size_t>{1})) << "the noise is not applied again";
+
+    terrain.SetLayer(0, Rolling().Layers()[0]);
     applied.clear();
-    terrain.Evaluate(grid, Recording(applied).Keep(cache));
+    ExpectSameRaster(view.Update(terrain), terrain.Evaluate(grid));
     EXPECT_EQ(applied, (std::vector<std::size_t>{0, 1})) << "a layer before the stage changed";
 
-    cache.Clear();
-    EXPECT_TRUE(cache.Empty());
-    EXPECT_EQ(cache.Stage(), 1u);
+    view.Clear();
+    applied.clear();
+    view.Update(terrain);
+    EXPECT_EQ(applied, (std::vector<std::size_t>{0, 1})) << "nothing kept after Clear";
 }
 
-TEST(StageCache, IsRefreshedForAnotherGridSpacingOrSource) {
+TEST(TerrainView, KeepsTheHeightsBeforeTheLastLayerByDefault) {
     Terrain terrain = Rolling();
-    const RasterGrid grid = SourceGrid(terrain);
-    StageCache cache(1);
     std::vector<std::size_t> applied;
-    terrain.Evaluate(grid, Recording(applied).Keep(cache));
-
-    const RasterGrid tile{20, 10, grid.transform};
+    terraingen::TerrainView view(SourceGrid(terrain), Recording(applied).Spacing(5.0));
+    view.Update(terrain);
+    terrain.SetLayer(1, Smoothed().Layers()[1]);
     applied.clear();
-    ExpectSameRaster(terrain.Evaluate(tile, Recording(applied).Keep(cache)),
-                     terrain.Evaluate(tile));
-    EXPECT_EQ(applied, (std::vector<std::size_t>{0, 1})) << "another grid";
+    ExpectSameRaster(view.Update(terrain), terrain.Evaluate(SourceGrid(terrain), At(5.0)));
+    EXPECT_EQ(applied, (std::vector<std::size_t>{1}));
+}
 
-    applied.clear();
-    ExpectSameRaster(terrain.Evaluate(tile, Recording(applied).Keep(cache).Spacing(5.0)),
-                     terrain.Evaluate(tile, At(5.0)));
-    EXPECT_EQ(applied, (std::vector<std::size_t>{0, 1})) << "another spacing";
-
+TEST(TerrainView, EvaluatesTheWholeTerrainForAnotherSource) {
+    Terrain terrain = Rolling();
+    const RasterGrid tile{20, 10, SourceGrid(terrain).transform};
+    std::vector<std::size_t> applied;
+    terraingen::TerrainView view(tile, Recording(applied), 0);
+    view.Update(terrain);
     terrain.SetSource(std::make_shared<terraingen::FlatSource>(96, 64, 2.0, 9.0f));
     applied.clear();
-    ExpectSameRaster(terrain.Evaluate(tile, Recording(applied).Keep(cache).Spacing(5.0)),
-                     terrain.Evaluate(tile, At(5.0)));
+    ExpectSameRaster(view.Update(terrain), terrain.Evaluate(tile));
     EXPECT_EQ(applied, (std::vector<std::size_t>{0, 1})) << "another source";
 
+    terrain.SetLayer(0, Rolling().Layers()[0]);
     applied.clear();
-    terrain.Evaluate(tile, Recording(applied).Keep(cache).Spacing(5.0));
-    EXPECT_EQ(applied, (std::vector<std::size_t>{1})) << "current again";
+    ExpectSameRaster(view.Update(terrain), terrain.Evaluate(tile));
+    EXPECT_EQ(applied, (std::vector<std::size_t>{0, 1})) << "restarted from the source's heights";
 }
 
-TEST(StageCache, RejectsAStagePastTheLastLayer) {
+TEST(TerrainView, RejectsAStagePastTheLastLayer) {
     const Terrain terrain = Rolling();
-    StageCache last(2);
-    EXPECT_NO_THROW(terrain.Evaluate(SourceGrid(terrain), EvaluationOptions{}.Keep(last)));
-    StageCache past(3);
-    EXPECT_THROW(terrain.Evaluate(SourceGrid(terrain), EvaluationOptions{}.Keep(past)),
-                 std::invalid_argument);
+    EXPECT_NO_THROW(terraingen::TerrainView(SourceGrid(terrain), {}, 2).Update(terrain));
+    terraingen::TerrainView past(SourceGrid(terrain), {}, 3);
+    EXPECT_THROW(past.Update(terrain), std::invalid_argument);
+    EXPECT_NO_THROW(terraingen::TerrainView(SourceGrid(terrain)).Update(Terrain()))
+        << "a terrain without layers keeps its source's heights";
 }
 
 TEST(Reseed, GivesTheSameHeightsForTheSameSeedAndOthersForAnother) {
@@ -858,8 +920,8 @@ TEST(Reseed, GivesTheSameHeightsForTheSameSeedAndOthersForAnother) {
     ExpectSameRaster(terrain.Reseed(1).Evaluate(kNoisyGrid), first);
     EXPECT_TRUE(Differ(terrain.Reseed(2).Evaluate(kNoisyGrid), first));
     EXPECT_TRUE(Differ(terrain.Evaluate(kNoisyGrid), first));
-    EXPECT_NE(one.SourceVersion(), terrain.SourceVersion());
-    EXPECT_NE(one.LayerVersion(0), terrain.LayerVersion(0));
+    EXPECT_NE(one.Source(), terrain.Source());
+    EXPECT_NE(one.Layers()[0], terrain.Layers()[0]);
     EXPECT_EQ(one.Grid(), terrain.Grid());
 }
 
@@ -869,9 +931,20 @@ TEST(Reseed, KeepsMeasuredDataAndUnseededLayers) {
     const Terrain reseeded = terrain.Reseed(42);
     EXPECT_EQ(reseeded.Source(), terrain.Source());
     EXPECT_EQ(reseeded.Layers()[0], terrain.Layers()[0]);
-    EXPECT_EQ(reseeded.SourceVersion(), terrain.SourceVersion());
-    EXPECT_EQ(reseeded.LayerVersion(0), terrain.LayerVersion(0));
     ExpectSameRaster(reseeded.Evaluate(), terrain.Evaluate());
+}
+
+TEST(Reseed, RebuildsLayersBuiltOnAReseededSource) {
+    const Terrain noisy = Noisy();
+    const Terrain terrain = CratersAndBoulders(noisy.Source());
+    const Terrain reseeded = terrain.Reseed(3);
+    ASSERT_NE(reseeded.Source(), terrain.Source()) << "synthetic noise has a seed";
+    for (const LayerPtr& layer : reseeded.Layers()) {
+        EXPECT_EQ(layer->LayerBase()->source, reseeded.Source());
+    }
+    EXPECT_EQ(reseeded.Layers()[1]->Dependencies(),
+              std::vector<const terraingen::Layer*>{reseeded.Layers()[0].get()});
+    ExpectSameRaster(terrain.Reseed(3).Evaluate(kNoisyGrid), reseeded.Evaluate(kNoisyGrid));
 }
 
 TEST(Reseed, RebindsALayerReadingAReseededLayer) {

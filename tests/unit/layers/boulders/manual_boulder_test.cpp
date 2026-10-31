@@ -35,7 +35,8 @@ class Ramp final : public terraingen::Ground {
     explicit Ramp(double rise = 0.0) : rise_(rise) {}
 
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = static_cast<float>(3.0 + rise_ * samples.Position(i).x);
         }
@@ -412,8 +413,8 @@ TEST(ManualOnlyBoulderLayer, NeedsNoSizesCraterLayerOrGroundAndHasNoAbundance) {
 }
 
 TEST(ManualOnlyBoulderLayer, DrawsTheManualBouldersIntoTheHeights) {
-    terraingen::Raster<float> heights(41, 41, 0.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(-2.05, 2.05, 0.1));
+    terraingen::Raster<float> heights(
+        terraingen::RasterGrid{41, 41, terraingen::GeoTransform::NorthUp(-2.05, 2.05, 0.1)}, 0.0f);
     BoulderLayer::Manual({Plain(0.0, 0.0, 1.0)})->Apply(heights, {0.1});
     EXPECT_GT(heights(20, 20), 0.2f) << "the boulder at the center";
     EXPECT_EQ(heights(0, 0), 0.0f) << "and nothing else";

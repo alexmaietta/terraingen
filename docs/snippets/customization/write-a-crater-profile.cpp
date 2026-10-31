@@ -39,8 +39,8 @@ TEST_F(SnippetTest, WriteACraterProfile) {
                               std::make_shared<ConeProfile>()};
     CraterLayerOptions options;
     options.seed = 1;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 60.0;
+    options.generation.minDiameter = 6.0;
+    options.generation.maxDiameter = 60.0;
     const Terrain terrain(Surface{}, std::make_shared<FlatSource>(129, 129, 1.0),
                           {std::make_shared<CraterLayer>(models, options)});
     const Raster<float> heights = terrain.Evaluate();

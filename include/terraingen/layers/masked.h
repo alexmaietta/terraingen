@@ -108,9 +108,9 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
         return *inner_;
     }
 
-    /// The confined layer's surface, if it was built for one.
-    std::optional<Surface> LayerSurface() const override {
-        return inner_->LayerSurface();
+    /// The confined layer's base, if it was built on one.
+    std::optional<TerrainBase> LayerBase() const override {
+        return inner_->LayerBase();
     }
 
     /// The layers the confined layer reads.
@@ -124,6 +124,9 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
     /// The layer confining the confined layer rebound to `replaced`; null when it reads none of
     /// them.
     LayerPtr Rebound(const LayerReplacements& replaced) const override;
+
+    /// The layer confining the confined layer rebuilt on `base`; null when it was built on none.
+    LayerPtr Rebased(const TerrainBase& base) const override;
 
     /// Whether a feature centered at (x, y) on `surface` belongs to the region: within it or its
     /// feather.

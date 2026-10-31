@@ -30,7 +30,8 @@ class Counted final : public Ground {
     mutable std::atomic<std::size_t> batched{0};  ///< Points read.
 
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double spacing) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double spacing,
+                     unsigned /*threads*/) const override {
         ++batches;
         batched += samples.Size();
         for (std::size_t i = 0; i < samples.Size(); ++i) {

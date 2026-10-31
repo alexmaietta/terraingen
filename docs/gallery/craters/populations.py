@@ -64,7 +64,7 @@ def figure(quick=False):
     )
     relief = terraingen.NoiseLayer(seed=2, wavelength=400.0, amplitude=12.0)
     options = terraingen.CraterLayerOptions(
-        seed=11, generation=terraingen.CraterGenerationOptions(d_min=D_MIN, d_max=D_MAX)
+        seed=11, generation=terraingen.CraterGenerationOptions(min_diameter=D_MIN, max_diameter=D_MAX)
     )
 
     fig = plt.figure(figsize=(12, 10.4), layout="constrained")

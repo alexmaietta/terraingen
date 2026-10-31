@@ -17,6 +17,7 @@ using terraingen::Layer;
 using terraingen::LayerContext;
 using terraingen::RandomStream;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 using terraingen::Surface;
 using terraingen::Vec2d;
 
@@ -29,8 +30,9 @@ const Surface kSphere = Surface::Sphere(kMoon);
 /// corner is at (`lon`, `lat`), filled with `fill`.
 Raster<float> Geographic(double lon, double lat, double meters, std::size_t side,
                          float fill = 0.0f) {
-    Raster<float> raster(side, side, fill);
-    raster.SetTransform(GeoTransform::NorthUp(lon, lat, meters / kSphere.UnitLength()));
+    Raster<float> raster(
+        RasterGrid{side, side, GeoTransform::NorthUp(lon, lat, meters / kSphere.UnitLength())},
+        fill);
     return raster;
 }
 
@@ -67,7 +69,8 @@ Raster<float> CheckGridAndPoints(const Layer& layer, Raster<float> raster, doubl
 
 class Flat final : public terraingen::Ground {
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = 0.0f;
         }
@@ -111,7 +114,8 @@ TEST(SphereLayers, NoiseOnASphereIsThe3DNoiseItWasBuiltWithBefore) {
 TEST(SphereLayers, ExposureReadsTheSurroundingsInMeters) {
     class EastSlope final : public terraingen::Ground {
       protected:
-        void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        void FillSamples(terraingen::SampleBlock& samples, double,
+                         unsigned /*threads*/) const override {
             for (std::size_t i = 0; i < samples.Size(); ++i) {
                 samples.Height(i) =
                     static_cast<float>(0.5 * kSphere.Offset({30.0, 60.0}, samples.Position(i)).x);
@@ -215,8 +219,8 @@ TEST(SphereLayers, BouldersHaveThePlaneDensityAndPlaceModelsLocally) {
         highest = std::max(highest, value);
     }
     EXPECT_GT(highest, 0.05f);
-    const auto boulders = terraingen::testing::Records(
-        sphere.Boulders(terraingen::RasterGrid::FromRaster(heights).Bounds(), 0.1, &flat));
+    const auto boulders =
+        terraingen::testing::Records(sphere.Boulders(heights.Grid().Bounds(), 0.1, &flat));
     for (const auto& boulder : sphere.Models(boulders)) {
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.x), 1e-9);
         EXPECT_LT(std::fabs(boulder.placement.pose.translation.y), 1e-9);

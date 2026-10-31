@@ -2,6 +2,7 @@
 
 #include "terraingen/sources/source_chain.h"
 
+#include "sources/lattice.h"
 #include "sources/seam_field.h"
 #include "terraingen/random/stream.h"
 #include "terraingen/util/parallel.h"
@@ -9,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -29,6 +31,28 @@ constexpr double kMaxSeamLatticeSide = 2147483647.0;
 /// `value` shifted by `correction`, or `value` itself where the correction is 0.
 float Seamed(float value, double correction) {
     return correction == 0.0 ? value : static_cast<float>(static_cast<double>(value) + correction);
+}
+
+/// The smallest window holding every cell of `heights` without data; empty without one.
+PixelWindow MissingWindow(const Raster<float>& heights) {
+    PixelWindow window{heights.Width(), 0, heights.Height(), 0};
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        const Span<const float> values = heights.Row(row);
+        const auto missing = [&](float value) { return heights.IsMissing(value); };
+        const float* first = std::find_if(values.begin(), values.end(), missing);
+        if (first == values.end()) {
+            continue;
+        }
+        const auto last = std::find_if(std::make_reverse_iterator(values.end()),
+                                       std::make_reverse_iterator(first), missing);
+        window.colBegin =
+            std::min(window.colBegin, static_cast<std::size_t>(first - values.begin()));
+        window.colEnd =
+            std::max(window.colEnd, static_cast<std::size_t>(last.base() - values.begin()));
+        window.rowBegin = std::min(window.rowBegin, row);
+        window.rowEnd = row + 1;
+    }
+    return window;
 }
 
 /// `measure` of the first of `sources` with a height at (`x`, `y`) at an infinite spacing, or
@@ -70,8 +94,7 @@ double SeamReach(const ChainSeams& seams) {
 RasterGrid SeamLattice(const RasterGrid& grid, const ChainSeams& seams) {
     ValidateChainSeams(seams);
     const GeoTransform& transform = grid.transform;
-    const double side = std::min(std::hypot(transform.pixelWidth, transform.colRotation),
-                                 std::hypot(transform.rowRotation, transform.pixelHeight));
+    const double side = std::min(transform.CellWidth(), transform.CellHeight());
     if (!IsPositive(side)) {
         throw std::invalid_argument("A seam needs grid cells of a positive, finite size");
     }
@@ -130,10 +153,10 @@ const detail::SeamField& SourceChain::Seam() const {
 
 void SourceChain::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
     if (!prefix_) {
-        sources_.front()->Fill(samples, spacing, threads);
+        FillUnmarked(*sources_.front(), samples, spacing, threads);
         return;
     }
-    prefix_->Fill(samples, spacing, threads);
+    FillUnmarked(*prefix_, samples, spacing, threads);
     if (Raster<float>* grid = samples.Grid()) {
         FillGridGaps(*grid, spacing, threads);
     } else {
@@ -142,19 +165,25 @@ void SourceChain::FillSamples(SampleBlock& samples, double spacing, unsigned thr
 }
 
 void SourceChain::FillGridGaps(Raster<float>& heights, double spacing, unsigned threads) const {
-    const auto values = heights.Values();
-    if (std::none_of(values.begin(), values.end(),
-                     [&](float value) { return heights.IsMissing(value); })) {
+    const PixelWindow gaps = MissingWindow(heights);
+    if (gaps.Empty()) {
         return;
     }
-    Raster<float> next(heights.Width(), heights.Height());
-    next.SetTransform(heights.Transform());
-    sources_.back()->Fill(next, spacing, threads);
-    ParallelFor(heights.Height(), threads, [&](std::size_t row) {
+    if (!heights.NoData()) {
+        heights.SetNoData(std::numeric_limits<float>::quiet_NaN());
+    }
+    const RasterGrid grid = heights.Grid();
+    const std::optional<RasterGrid> part = detail::ExactSubgrid(grid, gaps);
+    const PixelWindow window = part ? gaps : WholeWindow(grid);
+    Raster<float> next((part ? *part : grid));
+    SampleBlock samples(next);
+    FillUnmarked(*sources_.back(), samples, spacing, threads);
+    ParallelFor(window.Height(), threads, [&](std::size_t r) {
+        const std::size_t row = window.rowBegin + r;
         const detail::SeamField* seam = nullptr;
-        for (std::size_t col = 0; col < heights.Width(); ++col) {
+        for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {
             float& cell = heights(col, row);
-            const float value = next(col, row);
+            const float value = next(col - window.colBegin, r);
             if (!heights.IsMissing(cell) || next.IsMissing(value)) {
                 continue;
             }
@@ -169,23 +198,18 @@ void SourceChain::FillGridGaps(Raster<float>& heights, double spacing, unsigned 
 
 void SourceChain::FillPointGaps(Span<const Vec2d> points, Span<float> heights,
                                 double spacing) const {
-    std::vector<Vec2d> gaps;
-    std::vector<std::size_t> at;
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        if (std::isnan(heights[i])) {
-            gaps.push_back(points[i]);
-            at.push_back(i);
-        }
-    }
-    if (gaps.empty()) {
-        return;
-    }
-    std::vector<float> later(gaps.size());
-    sources_.back()->HeightsAt(Span<const Vec2d>(gaps), Span<float>(later), spacing);
-    for (std::size_t k = 0; k < at.size(); ++k) {
-        heights[at[k]] =
-            std::isnan(later[k]) ? later[k] : Seamed(later[k], Seam().At(gaps[k].x, gaps[k].y));
-    }
+    detail::EvaluateChosen(
+        points.size(),
+        [&](std::size_t i) {
+            return std::isnan(heights[i]) ? std::optional<Vec2d>(points[i]) : std::nullopt;
+        },
+        [&](Span<const Vec2d> gaps, Span<float> later) {
+            sources_.back()->HeightsAt(gaps, later, spacing);
+        },
+        [&](std::size_t i, float later) {
+            heights[i] =
+                std::isnan(later) ? later : Seamed(later, Seam().At(points[i].x, points[i].y));
+        });
 }
 
 double SourceChain::ResolutionAt(double x, double y) const {

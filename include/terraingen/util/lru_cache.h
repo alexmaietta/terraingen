@@ -5,7 +5,6 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <functional>
 #include <list>
@@ -14,15 +13,16 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace terraingen {
 
 /// A thread-safe cache of recomputable values, holding about `capacity` units of cost and
 /// evicting the least recently used.
 ///
-/// Keys are spread over 16 shards with even shares of the capacity; a shard always keeps its
-/// newest value, so it can exceed its share by one value. If two threads compute the same key at
-/// once, both get the first value stored.
+/// Keys are spread over shards, 16 unless given, with even shares of the capacity; a shard always
+/// keeps its newest value, so it can exceed its share by one value. If two threads compute the same
+/// key at once, both get the first value stored.
 template <typename Key, typename Value, typename Hash = std::hash<Key>> class LruCache {
   public:
     /// Measures a value's cost (a count or bytes).
@@ -33,11 +33,14 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
     /// An empty cache.
     /// @param capacity The total cost held, in `cost` units.
     /// @param onEvict If given, told how many values a store evicted, outside any lock.
-    /// @throws std::invalid_argument if `capacity` is zero.
-    LruCache(std::size_t capacity, Cost cost, OnEvict onEvict = {})
-        : capacity_(capacity), cost_(std::move(cost)), onEvict_(std::move(onEvict)) {
-        if (capacity_ == 0) {
-            throw std::invalid_argument("A cache needs a positive capacity");
+    /// @param shards The shards keys are spread over; one evicts in strict order of use.
+    /// @throws std::invalid_argument if `capacity` or `shards` is zero.
+    LruCache(std::size_t capacity, Cost cost, OnEvict onEvict = {},
+             std::size_t shards = kDefaultShards)
+        : capacity_(capacity), cost_(std::move(cost)), onEvict_(std::move(onEvict)),
+          shards_(shards) {
+        if (capacity_ == 0 || shards == 0) {
+            throw std::invalid_argument("A cache needs a positive capacity and shards");
         }
     }
 
@@ -55,7 +58,7 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         }
         auto value = std::make_shared<const Value>(compute());
         const std::size_t cost = cost_(*value);
-        const std::size_t budget = std::max<std::size_t>(1, capacity_ / kShards);
+        const std::size_t budget = std::max<std::size_t>(1, capacity_ / shards_.size());
         std::size_t evicted = 0;
         {
             const std::lock_guard lock(shard.mutex);
@@ -101,10 +104,10 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         std::unordered_map<Key, Entry, Hash> entries;
         std::size_t cost = 0;
     };
-    static constexpr std::size_t kShards = 16;
+    static constexpr std::size_t kDefaultShards = 16;
 
     Shard& ShardHolding(const Key& key) {
-        return shards_[Hash{}(key) % kShards];
+        return shards_[Hash{}(key) % shards_.size()];
     }
 
     /// The value `shard` holds for a key, marked most recently used; null when it is not held.
@@ -121,7 +124,7 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
     std::size_t capacity_;
     Cost cost_;
     OnEvict onEvict_;
-    std::array<Shard, kShards> shards_;
+    std::vector<Shard> shards_;
 };
 
 }  // namespace terraingen

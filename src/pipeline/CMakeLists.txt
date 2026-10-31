@@ -5,9 +5,9 @@ terraingen_add_library(
     SOURCES
     body_mesh.cpp
     materials.cpp
-    mesh_build.cpp
     report.cpp
     terrain.cpp
+    terrain_view.cpp
     PUBLIC
     terraingen_analysis
     terraingen_distribution

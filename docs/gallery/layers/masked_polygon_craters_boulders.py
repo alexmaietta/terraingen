@@ -36,7 +36,7 @@ def figure(quick=False):
     craters = terraingen.MaskedLayer(
         terraingen.CraterLayer(
             options=terraingen.CraterLayerOptions(
-                seed=8, generation=terraingen.CraterGenerationOptions(d_min=3.0, d_max=30.0)
+                seed=8, generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=30.0)
             )
         ),
         terraingen.RegionShape.polygon(PLAINS),

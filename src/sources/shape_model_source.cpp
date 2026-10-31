@@ -3,10 +3,12 @@
 #include "terraingen/sources/shape_model_source.h"
 
 #include "geometry/cube_faces.h"
+#include "sources/lattice.h"
 #include "terraingen/geometry/radial_shape.h"
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -29,6 +31,28 @@ double ExtendedGnomonic(double s, double q) {
 /// half a post beyond either edge and a half on it.
 double EdgeWeight(double s, double q) {
     return std::clamp(std::min(s, q - s) + 0.5, 0.0, 1.0);
+}
+
+/// Where a direction lies on a face: its equiangular coordinates `s` and `t` and the face's weight
+/// there.
+struct FacePoint {
+    double s = 0.0;
+    double t = 0.0;
+    double weight = 0.0;
+};
+
+/// Where unit `direction` lies on ICQ face `face` of `q` intervals per edge, if the face weighs it.
+std::optional<FacePoint> OnFace(const Vec3d& direction, std::size_t face, double q) {
+    const detail::CubeFace& f = detail::kIcqFaces[face];
+    const double along = Dot(direction, f.normal);
+    if (along <= 0.0) {
+        return std::nullopt;
+    }
+    FacePoint at;
+    at.s = detail::EquiangularCoordinate(Dot(direction, f.u) / along, q);
+    at.t = detail::EquiangularCoordinate(Dot(direction, f.v) / along, q);
+    at.weight = EdgeWeight(at.s, q) * EdgeWeight(at.t, q);
+    return at.weight > 0.0 ? std::optional<FacePoint>(at) : std::nullopt;
 }
 
 }  // namespace
@@ -106,38 +130,27 @@ void ShapeModelSource::FillPoints(Span<const Vec2d> points, Span<float> heights,
     }
     std::vector<double> weighted(points.size(), 0.0);
     std::vector<double> total(points.size(), 0.0);
-    std::vector<Vec2d> onFace;
-    std::vector<std::size_t> at;
-    std::vector<double> weights;
-    std::vector<float> values;
+    std::vector<double> weights(points.size(), 0.0);
     for (std::size_t face = 0; face < detail::kIcqFaces.size(); ++face) {
-        const detail::CubeFace& f = detail::kIcqFaces[face];
-        onFace.clear();
-        at.clear();
-        weights.clear();
-        for (std::size_t i = 0; i < points.size(); ++i) {
-            const double along = Dot(directions[i], f.normal);
-            if (along <= 0.0) {
-                continue;
-            }
-            const double s = detail::EquiangularCoordinate(Dot(directions[i], f.u) / along, q);
-            const double t = detail::EquiangularCoordinate(Dot(directions[i], f.v) / along, q);
-            const double weight = EdgeWeight(s, q) * EdgeWeight(t, q);
-            if (weight > 0.0) {
+        detail::EvaluateChosen(
+            points.size(),
+            [&](std::size_t i) -> std::optional<Vec2d> {
+                const std::optional<FacePoint> at = OnFace(directions[i], face, q);
+                if (!at) {
+                    return std::nullopt;
+                }
+                weights[i] = at->weight;
                 const double column =
-                    s + static_cast<double>(face) * static_cast<double>(kFaceColumns);
-                onFace.push_back({column * labelDegrees_, -t * labelDegrees_});
-                at.push_back(i);
-                weights.push_back(weight);
-            }
-        }
-        values.resize(onFace.size());
-        upsamplers_[face]->HeightsAt(*posts_[face], Span<const Vec2d>(onFace), Span<float>(values),
-                                     spacing);
-        for (std::size_t k = 0; k < at.size(); ++k) {
-            weighted[at[k]] += weights[k] * static_cast<double>(values[k]);
-            total[at[k]] += weights[k];
-        }
+                    at->s + static_cast<double>(face) * static_cast<double>(kFaceColumns);
+                return Vec2d{column * labelDegrees_, -at->t * labelDegrees_};
+            },
+            [&](Span<const Vec2d> onFace, Span<float> values) {
+                upsamplers_[face]->HeightsAt(*posts_[face], onFace, values, spacing);
+            },
+            [&](std::size_t i, float value) {
+                weighted[i] += weights[i] * static_cast<double>(value);
+                total[i] += weights[i];
+            });
     }
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[i] =

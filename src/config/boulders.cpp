@@ -61,10 +61,10 @@ void CheckGolombekRappTerms(const BoulderLayerSpec& spec, const std::string& pat
         }
     };
     const char* const layerFix = R"("sizes": {"type": "golombek_rapp"})";
-    check(layer, sizes.coverage, Child(path, "coverage"), layerFix);
-    check(layer || ejecta, sizes.qConstant, Child(path, "qa"), layerFix);
-    check(layer || ejecta, sizes.qCoverageCoefficient, Child(path, "qb"), layerFix);
-    check(ejecta, spec.boulders.ejecta.coverage, Child(Child(path, "ejecta"), "coverage"),
+    check(layer, sizes.coverage, FieldPath(path, "coverage"), layerFix);
+    check(layer || ejecta, sizes.qConstant, FieldPath(path, "qa"), layerFix);
+    check(layer || ejecta, sizes.qCoverageCoefficient, FieldPath(path, "qb"), layerFix);
+    check(ejecta, spec.boulders.ejecta.coverage, FieldPath(FieldPath(path, "ejecta"), "coverage"),
           R"("ejecta_sizes": {"type": "golombek_rapp"})");
 }
 
@@ -77,14 +77,40 @@ void CheckBoulderOptions(const BoulderLayerSpec& spec, const BoulderLayerOptions
     }
     CheckGolombekRappTerms(spec, path);
     if (IsGolombekRapp(spec.sizes) && !(options.sizes.Coverage() > 0.0)) {
-        throw ConfigError(Child(path, "coverage"),
+        throw ConfigError(FieldPath(path, "coverage"),
                           "must be above 0 to generate random boulders; set generate_random to "
                           "false to place only the manual ones");
     }
     if (options.ejecta.ThrowingDiameter() && !cratersBefore) {
-        throw ConfigError(Child(Child(path, "ejecta"), "min_crater_diameter_m"),
+        throw ConfigError(FieldPath(FieldPath(path, "ejecta"), "min_crater_diameter_m"),
                           "ejecta need a crater layer before this one");
     }
+}
+
+/// The distribution a boulder size spec at `path` names, extrapolated when `extrapolate` is set,
+/// or null for Golombek-Rapp sizes.
+/// @throws ConfigError at `path` for an invalid distribution.
+std::shared_ptr<SizeFrequencyDistribution> BuildSizes(const BoulderSizesSpec& spec,
+                                                      bool extrapolate, const std::string& path) {
+    auto built = At(path, [&] { return BuildBoulderSizes(spec); });
+    if (built && extrapolate) {
+        built->SetAllowExtrapolation(true);
+    }
+    return built;
+}
+
+/// The rock meshes of a layer's shape files, read in order.
+/// @throws ConfigError at `path`[i] for an unreadable mesh.
+std::vector<std::shared_ptr<const SceneMesh>>
+ReadShapeFiles(const std::vector<std::string>& files, const std::string& path,
+               const std::filesystem::path& directory) {
+    std::vector<std::shared_ptr<const SceneMesh>> meshes;
+    for (std::size_t i = 0; i < files.size(); ++i) {
+        meshes.push_back(AtFile(ItemPath(path, i), [&] {
+            return std::make_shared<const SceneMesh>(ReadMesh(Resolve(files[i], directory)));
+        }));
+    }
+    return meshes;
 }
 
 }  // namespace
@@ -94,51 +120,40 @@ BoulderLayerOptions BuildBoulderOptions(const BoulderLayerSpec& spec, const std:
     BoulderLayerOptions options = spec.boulders;
     if (options.sizes.distribution != DefaultBoulderSizes() ||
         options.ejecta.distribution != DefaultBoulderSizes()) {
-        throw ConfigError(Child(path, "sizes"),
+        throw ConfigError(FieldPath(path, "sizes"),
                           "gives the boulder sizes; leave boulders.sizes.distribution and "
                           "boulders.ejecta.distribution at their defaults and set sizes and "
                           "ejecta_sizes instead");
     }
-    const auto sizes = [&](const BoulderSizesSpec& named, const std::string& key) {
-        auto built = At(Child(path, key), [&] { return BuildBoulderSizes(named); });
-        if (built && spec.extrapolate) {
-            built->SetAllowExtrapolation(true);
-        }
-        return built;
-    };
-    options.sizes.distribution = sizes(spec.sizes, "sizes");
-    options.ejecta.distribution = sizes(spec.ejectaSizes.value_or(spec.sizes), "ejecta_sizes");
-    for (std::size_t i = 0; i < spec.shapeFiles.size(); ++i) {
-        options.rendering.shapes.library.push_back(
-            AtFile(Element(Child(path, "shape_files"), i), [&] {
-                return std::make_shared<const SceneMesh>(
-                    ReadMesh(Resolve(spec.shapeFiles[i], directory)));
-            }));
-    }
+    options.sizes.distribution = BuildSizes(spec.sizes, spec.extrapolate, FieldPath(path, "sizes"));
+    options.ejecta.distribution = BuildSizes(spec.ejectaSizes.value_or(spec.sizes),
+                                             spec.extrapolate, FieldPath(path, "ejecta_sizes"));
+    std::vector<std::shared_ptr<const SceneMesh>> meshes =
+        ReadShapeFiles(spec.shapeFiles, FieldPath(path, "shape_files"), directory);
+    std::vector<std::shared_ptr<const SceneMesh>>& library = options.rendering.shapes.library;
+    library.insert(library.end(), meshes.begin(), meshes.end());
     if (spec.densityMap) {
-        options.densityMap =
-            BuildDensityMap(*spec.densityMap, Child(path, "density_map"), directory);
+        options.densityMap = BuildMap(*spec.densityMap, FieldPath(path, "density_map"), directory);
     }
     if (spec.slopeMap) {
-        options.slopeMap = BuildSizeSlopeMap(*spec.slopeMap, Child(path, "slope_map"), directory);
+        options.slopeMap = BuildMap(*spec.slopeMap, FieldPath(path, "slope_map"), directory);
     }
-    options.manual = spec.manual;
     if (spec.completeness) {
         options.completeness =
-            BuildField(*spec.completeness, Child(path, "completeness"), directory);
+            BuildField(*spec.completeness, FieldPath(path, "completeness"), directory);
     }
     return options;
 }
 
 void CheckSpec(const BoulderLayerSpec& spec, const std::string& path, LayerChecks& checks) {
-    const std::string manualPath = Child(path, "manual");
+    const std::string manualPath = FieldPath(path, "manual");
     std::unordered_map<std::uint64_t, std::size_t> ids;
-    for (std::size_t n = 0; n < spec.manual.size(); ++n) {
-        At(Element(manualPath, n), [&] { ValidateManualBoulder(spec.manual[n]); });
-        const auto added = ids.emplace(ManualBoulderId(spec.manual[n]), n);
+    for (std::size_t n = 0; n < spec.boulders.manual.size(); ++n) {
+        At(ItemPath(manualPath, n), [&] { ValidateManualBoulder(spec.boulders.manual[n]); });
+        const auto added = ids.emplace(ManualBoulderId(spec.boulders.manual[n]), n);
         if (!added.second) {
-            throw ConfigError(Element(manualPath, n),
-                              "shares its ID with " + Element(manualPath, added.first->second));
+            throw ConfigError(ItemPath(manualPath, n),
+                              "shares its ID with " + ItemPath(manualPath, added.first->second));
         }
     }
     checks.boulders = true;
@@ -149,12 +164,9 @@ LayerPtr BuildSpec(const BoulderLayerSpec& spec, const std::string& path,
     BoulderLayerOptions options = BuildBoulderOptions(spec, path, inputs.directory);
     CheckBoulderOptions(spec, options, path, !inputs.craters.empty());
     const bool throws = options.generateRandom && options.ejecta.ThrowingDiameter().has_value();
-    return At(path, [&] {
-        return std::make_shared<BoulderLayer>(
-            std::move(options),
-            throws ? inputs.craters : std::vector<std::shared_ptr<const CraterLayer>>{},
-            inputs.base);
-    });
+    return std::make_shared<BoulderLayer>(
+        std::move(options),
+        throws ? inputs.craters : std::vector<std::shared_ptr<const CraterLayer>>{}, inputs.base);
 }
 
 void CheckBuilt(const BoulderLayerSpec& /*spec*/, const Layer& built, const std::string& path,
@@ -164,18 +176,21 @@ void CheckBuilt(const BoulderLayerSpec& /*spec*/, const Layer& built, const std:
         return;
     }
     const BoulderSizes& sizes = boulders.sizes;
-    for (const OutputExtent& extent : checks.extents) {
+    for (const OutputGrid& output : checks.outputs) {
+        if (!output.grid) {
+            continue;
+        }
         const double minDiameter =
-            extent.listed
+            output.listed
                 ? sizes.minDiameter
-                : std::fmax(sizes.minDiameter, boulders.fade.startSamples * extent.spacing);
+                : std::fmax(sizes.minDiameter, boulders.fade.startSamples * output.spacing);
         if (minDiameter >= sizes.maxDiameter) {
             continue;
         }
         const double expected =
-            BoulderCandidates(boulders)->ExpectedCount(extent.area, minDiameter, sizes.maxDiameter);
+            BoulderCandidates(boulders)->ExpectedCount(output.area, minDiameter, sizes.maxDiameter);
         CheckExpectedCount(expected, "candidate boulders", "raise min_diameter_m or lower coverage",
-                           Child(path, "min_diameter_m"));
+                           FieldPath(path, "min_diameter_m"));
     }
 }
 

@@ -44,19 +44,3 @@ TEST(ComputeStats, IsNaNWithoutValidCells) {
     EXPECT_TRUE(std::isnan(stats.max));
     EXPECT_TRUE(std::isnan(stats.mean));
 }
-
-TEST(ComputeStats, WorksForIntegerRasters) {
-    Raster<int> raster(3, 1);
-    raster(0, 0) = 1;
-    raster(1, 0) = 2;
-    raster(2, 0) = 6;
-    EXPECT_DOUBLE_EQ(ComputeStats(raster).mean, 3.0);
-}
-
-TEST(ComputeStats, SkipsNoDataInIntegerRasters) {
-    Raster<int> raster(2, 1, -1);
-    raster.SetNoData(-1);
-    EXPECT_EQ(ComputeStats(raster).validCount, 0u);
-    raster(1, 0) = 4;
-    EXPECT_DOUBLE_EQ(ComputeStats(raster).mean, 4.0);
-}

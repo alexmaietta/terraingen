@@ -2,6 +2,8 @@
 
 #include "terraingen/sources/diamond_square.h"
 
+#include "raster/kernels.h"
+#include "sources/lattice.h"
 #include "terraingen/analysis/variogram.h"
 #include "terraingen/random/samplers.h"
 #include "terraingen/random/stream.h"
@@ -28,9 +30,6 @@ constexpr int kMaxLevels = 30;
 
 /// Most node reads per point at which the points of a batch are refined over one box of nodes.
 constexpr double kNodesPerPoint = 64.0;
-
-/// How close to a node, in node spacings, a sample takes the node's height.
-constexpr double kOnNode = 1e-7;
 
 /// Largest side, in posts, of the window the roughness is estimated from.
 constexpr std::size_t kEstimateSide = 512;
@@ -62,11 +61,10 @@ bool IsOdd(std::int64_t value) {
     return (value & 1) != 0;
 }
 
-/// The node at or below `u` and the share of the way to the next, 0 within `kOnNode` of a node.
+/// The node at or below `u` and the share of the way to the next; 0 on a node.
 std::pair<std::int64_t, double> NodeAndShare(double u) {
-    const double nearest = std::round(u);
-    if (std::fabs(u - nearest) < kOnNode) {
-        return {static_cast<std::int64_t>(nearest), 0.0};
+    if (const std::optional<std::int64_t> node = detail::NearestWhole(u)) {
+        return {*node, 0.0};
     }
     const double below = std::floor(u);
     return {static_cast<std::int64_t>(below), u - below};
@@ -176,6 +174,73 @@ Raster<float> PostRaster(const detail::LatticeWindow<float>& posts, std::int64_t
     return raster;
 }
 
+/// Whether `options` give a fractal dimension, and a scale or a fit window.
+bool Fitted(const DiamondSquareOptions& options) {
+    return options.fractalDimension && (options.scale || options.fitWindow > 0);
+}
+
+/// Node heights at one level over a box of node indices; NaN where the posts have no data.
+using Nodes = detail::LatticeWindow<double>;
+
+/// Where the nodes lie: post (0, 0) and the node steps of level 0 along x and y.
+struct NodeFrame {
+    double originX = 0.0;
+    double originY = 0.0;
+    double stepX = 1.0;
+    double stepY = 1.0;
+};
+
+/// The scales Se over the nodes being refined: one given value, or the fit of each window of
+/// posts, by window center (`DiamondSquareOptions::fitWindow`).
+struct ScaleField {
+    double uniform = 0.0;
+    std::int64_t step = 0;  ///< Posts between window centers; 0 for a uniform scale.
+    std::optional<detail::LatticeWindow<double>> windows;
+};
+
+/// The refinement of posts by fitted diamond-square options, whose displacement shrinks by
+/// `stepFactor` per step.
+class Refinement {
+  public:
+    Refinement(const DiamondSquareOptions& options, double stepFactor)
+        : options_(options), stepFactor_(stepFactor) {}
+
+    /// The node frame of `posts`.
+    /// @throws std::invalid_argument for a rotated lattice.
+    static NodeFrame Frame(const PostLattice& posts);
+    /// The posts as nodes of level 0 over `box`.
+    static Nodes BaseNodes(const PostLattice& posts, const detail::IndexBox& box);
+    /// The scales of every node that refining `box` of `level` displaces, each window's the
+    /// `EstimateMidpointScale` of the posts in it, read as every read is, so one reaching past a
+    /// bounded lattice reads its edge posts repeated.
+    ScaleField Scales(const PostLattice& posts, int level, const detail::IndexBox& box) const;
+    /// The scale of node (`col`, `row`) of `level` from `scales`.
+    static double ScaleAt(const ScaleField& scales, std::int64_t col, std::int64_t row, int level);
+    /// The nodes of `level` over `box`, the posts refined `level` times and displaced by `scales`.
+    Nodes Refine(const PostLattice& posts, int level, const detail::IndexBox& box,
+                 const ScaleField& scales) const;
+    /// The Gaussian displacement of node (`col`, `row`) made by the square (`diamond` false) or
+    /// diamond step of `level`, for a scale Se of `scale`.
+    double Displacement(std::int64_t col, std::int64_t row, int level, bool diamond,
+                        double scale) const;
+    /// The kept coarser nodes and the displaced square-step nodes of `level` over `box`; diamond
+    /// nodes left 0.
+    Nodes SquareStep(const Nodes& parents, int level, const detail::IndexBox& box,
+                     const ScaleField& scales) const;
+    /// The nodes of `level` over `box`, adding the displaced diamond-step nodes to `squares`.
+    Nodes DiamondStep(const Nodes& squares, int level, const detail::IndexBox& box,
+                      const ScaleField& scales) const;
+    /// The box of nodes of `level` that the samples at `positions` read.
+    detail::IndexBox ReadBox(const NodeFrame& frame, int level, Span<const Vec2d> positions) const;
+    /// The height at (`x`, `y`) from nodes of `level` covering it.
+    double Interpolate(const NodeFrame& frame, const Nodes& nodes, int level, double x,
+                       double y) const;
+
+  private:
+    const DiamondSquareOptions& options_;
+    double stepFactor_ = 1.0;
+};
+
 }  // namespace
 
 void ValidateDiamondSquareOptions(const DiamondSquareOptions& options) {
@@ -221,10 +286,6 @@ DiamondSquareUpsampler::DiamondSquareUpsampler(DiamondSquareOptions options)
     ValidateDiamondSquareOptions(options_);
 }
 
-bool DiamondSquareUpsampler::Fitted() const {
-    return options_.fractalDimension && (options_.scale || options_.fitWindow > 0);
-}
-
 int DiamondSquareUpsampler::Levels(double postSpacing, double spacing) const {
     const double ratio = postSpacing / spacing;
     if (!(ratio > 1.0)) {
@@ -238,7 +299,7 @@ int DiamondSquareUpsampler::Levels(double postSpacing, double spacing) const {
     return static_cast<int>(std::min(std::ceil(std::log2(ratio) - 1e-9), most));
 }
 
-DiamondSquareUpsampler::NodeFrame DiamondSquareUpsampler::Frame(const PostLattice& posts) {
+NodeFrame Refinement::Frame(const PostLattice& posts) {
     const GeoTransform transform = posts.Transform();
     if (transform.IsRotated()) {
         throw std::invalid_argument("Diamond-square cannot refine a rotated lattice of posts");
@@ -247,8 +308,7 @@ DiamondSquareUpsampler::NodeFrame DiamondSquareUpsampler::Frame(const PostLattic
     return {first.x, first.y, transform.pixelWidth, -transform.pixelHeight};
 }
 
-DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::BaseNodes(const PostLattice& posts,
-                                                                const detail::IndexBox& box) {
+Nodes Refinement::BaseNodes(const PostLattice& posts, const detail::IndexBox& box) {
     const detail::LatticeWindow<float> read =
         detail::ReadPosts(posts, Box(box.col0, -box.row1, box.col1, -box.row0));
     Nodes nodes(box);
@@ -260,9 +320,8 @@ DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::BaseNodes(const PostLattic
     return nodes;
 }
 
-DiamondSquareUpsampler::ScaleField
-DiamondSquareUpsampler::Scales(const PostLattice& posts, int level,
-                               const detail::IndexBox& box) const {
+ScaleField Refinement::Scales(const PostLattice& posts, int level,
+                              const detail::IndexBox& box) const {
     ScaleField scales;
     if (options_.scale || options_.fitWindow == 0) {
         scales.uniform = options_.scale.value_or(0.0);
@@ -295,8 +354,8 @@ DiamondSquareUpsampler::Scales(const PostLattice& posts, int level,
     return scales;
 }
 
-double DiamondSquareUpsampler::ScaleAt(const ScaleField& scales, std::int64_t col, std::int64_t row,
-                                       int level) {
+double Refinement::ScaleAt(const ScaleField& scales, std::int64_t col, std::int64_t row,
+                           int level) {
     if (!scales.windows) {
         return scales.uniform;
     }
@@ -320,8 +379,8 @@ double DiamondSquareUpsampler::ScaleAt(const ScaleField& scales, std::int64_t co
     return first * (1.0 - t) + second * t;
 }
 
-double DiamondSquareUpsampler::Displacement(std::int64_t col, std::int64_t row, int level,
-                                            bool diamond, double scale) const {
+double Refinement::Displacement(std::int64_t col, std::int64_t row, int level, bool diamond,
+                                double scale) const {
     RandomStream random(options_.seed, kMidpointDisplacementStream, static_cast<std::uint32_t>(col),
                         static_cast<std::uint32_t>(row),
                         static_cast<std::uint32_t>(level) |
@@ -330,9 +389,8 @@ double DiamondSquareUpsampler::Displacement(std::int64_t col, std::int64_t row, 
     return step * StandardNormal(random);
 }
 
-DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::SquareStep(const Nodes& parents, int level,
-                                                                 const detail::IndexBox& box,
-                                                                 const ScaleField& scales) const {
+Nodes Refinement::SquareStep(const Nodes& parents, int level, const detail::IndexBox& box,
+                             const ScaleField& scales) const {
     const bool spline = options_.interp == DiamondSquareInterp::CatmullRom;
     Nodes squares(box);
     for (std::int64_t row = box.row0; row <= box.row1; ++row) {
@@ -349,9 +407,8 @@ DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::SquareStep(const Nodes& pa
     return squares;
 }
 
-DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::DiamondStep(const Nodes& squares, int level,
-                                                                  const detail::IndexBox& box,
-                                                                  const ScaleField& scales) const {
+Nodes Refinement::DiamondStep(const Nodes& squares, int level, const detail::IndexBox& box,
+                              const ScaleField& scales) const {
     const bool spline = options_.interp == DiamondSquareInterp::CatmullRom;
     Nodes nodes(box);
     for (std::int64_t row = box.row0; row <= box.row1; ++row) {
@@ -366,9 +423,8 @@ DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::DiamondStep(const Nodes& s
     return nodes;
 }
 
-DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::Refine(const PostLattice& posts, int level,
-                                                             const detail::IndexBox& box,
-                                                             const ScaleField& scales) const {
+Nodes Refinement::Refine(const PostLattice& posts, int level, const detail::IndexBox& box,
+                         const ScaleField& scales) const {
     if (level <= 0) {
         return BaseNodes(posts, box);
     }
@@ -386,8 +442,8 @@ DiamondSquareUpsampler::Nodes DiamondSquareUpsampler::Refine(const PostLattice& 
     return DiamondStep(squares, level, box, scales);
 }
 
-detail::IndexBox DiamondSquareUpsampler::ReadBox(const NodeFrame& frame, int level,
-                                                 Span<const Vec2d> positions) const {
+detail::IndexBox Refinement::ReadBox(const NodeFrame& frame, int level,
+                                     Span<const Vec2d> positions) const {
     const double stepX = std::ldexp(frame.stepX, -level);
     const double stepY = std::ldexp(frame.stepY, -level);
     const std::int64_t before = options_.interp == DiamondSquareInterp::CatmullRom ? 1 : 0;
@@ -402,27 +458,18 @@ detail::IndexBox DiamondSquareUpsampler::ReadBox(const NodeFrame& frame, int lev
     return box;
 }
 
-double DiamondSquareUpsampler::Interpolate(const NodeFrame& frame, const Nodes& nodes, int level,
-                                           double x, double y) const {
+double Refinement::Interpolate(const NodeFrame& frame, const Nodes& nodes, int level, double x,
+                               double y) const {
     const auto [col, u] = NodeAndShare((x - frame.originX) / std::ldexp(frame.stepX, -level));
     const auto [row, v] = NodeAndShare((y - frame.originY) / std::ldexp(frame.stepY, -level));
     if (options_.interp == DiamondSquareInterp::CatmullRom) {
-        const std::array<double, 6> wx = KernelWeights(ResampleMethod::Cubic, u);
-        const std::array<double, 6> wy = KernelWeights(ResampleMethod::Cubic, v);
-        double sum = 0.0;
-        for (std::int64_t j = -1; j <= 2; ++j) {
-            const double weightY = wy[static_cast<std::size_t>(j + 1)];
-            if (weightY == 0.0) {
-                continue;
-            }
-            for (std::int64_t i = -1; i <= 2; ++i) {
-                const double weightX = wx[static_cast<std::size_t>(i + 1)];
-                if (weightX != 0.0) {
-                    sum += weightX * weightY * nodes.At(col + i, row + j);
-                }
-            }
-        }
-        return sum;
+        const auto node = [&](double i, double j) {
+            return nodes.At(static_cast<std::int64_t>(i), static_cast<std::int64_t>(j));
+        };
+        return *InterpolateLatticeWeights(
+            static_cast<double>(col), static_cast<double>(row),
+            KernelWeights(ResampleMethod::Cubic, u), KernelWeights(ResampleMethod::Cubic, v),
+            KernelRadius(ResampleMethod::Cubic), node, [](double) { return false; });
     }
     double value = nodes.At(col, row);
     if (u > 0.0) {
@@ -440,22 +487,24 @@ double DiamondSquareUpsampler::Interpolate(const NodeFrame& frame, const Nodes& 
 
 void DiamondSquareUpsampler::FillSamples(const PostLattice& posts, SampleBlock& samples,
                                          double spacing, unsigned threads) const {
-    if (!Fitted()) {
+    if (!Fitted(options_)) {
         throw std::invalid_argument("Diamond-square needs a fractal dimension, and a scale or a "
                                     "fit window, given or estimated from the posts");
     }
-    const NodeFrame frame = Frame(posts);
+    const NodeFrame frame = Refinement::Frame(posts);
     const int level = Levels(PostSpacing(posts.Transform()), spacing);
+    const Refinement refinement(options_, stepFactor_);
     detail::FillByTiles(samples, threads, [&](Span<const Vec2d> points, Span<float> heights) {
         detail::ExpandPoints(
             points, heights, kNodesPerPoint,
-            [&](Span<const Vec2d> at) { return ReadBox(frame, level, at); },
+            [&](Span<const Vec2d> at) { return refinement.ReadBox(frame, level, at); },
             [&](const detail::IndexBox& box, Span<const Vec2d> at, Span<float> values) {
-                const Nodes nodes =
-                    Refine(posts, level, box, level > 0 ? Scales(posts, level, box) : ScaleField{});
+                const Nodes nodes = refinement.Refine(
+                    posts, level, box,
+                    level > 0 ? refinement.Scales(posts, level, box) : ScaleField{});
                 for (std::size_t i = 0; i < at.size(); ++i) {
-                    values[i] =
-                        static_cast<float>(Interpolate(frame, nodes, level, at[i].x, at[i].y));
+                    values[i] = static_cast<float>(
+                        refinement.Interpolate(frame, nodes, level, at[i].x, at[i].y));
                 }
             });
     });
@@ -466,7 +515,7 @@ int DiamondSquareUpsampler::Reach() const {
 }
 
 std::shared_ptr<const Upsampler> DiamondSquareUpsampler::FitTo(const PostLattice& posts) const {
-    if (Fitted()) {
+    if (Fitted(options_)) {
         return nullptr;
     }
     detail::IndexBox box;

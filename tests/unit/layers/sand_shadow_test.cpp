@@ -120,7 +120,7 @@ TEST(SandShadowLayer, GridsAndPointsAgreeAndCoverIsSand) {
     const Boulder b = Isolated(*boulders, 12.0);
     const terraingen::RasterGrid grid{48, 32,
                                       terraingen::GeoTransform::NorthUp(b.x - 4.0, b.y + 3.2, 0.2)};
-    terraingen::Raster<float> heights = grid.MakeRaster();
+    terraingen::Raster<float> heights(grid);
     layer.Apply(heights, {0.2, 2});
     double deepest = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
@@ -153,7 +153,7 @@ TEST(SandShadowLayer, FollowsTheBoulderFramesOnABody) {
     terraingen::LayerContext onMars;
     onMars.surface = &mars;
     EXPECT_GT(layer.ThicknessAt(behind.x, behind.y, onMars), 0.0);
-    EXPECT_FALSE(layer.LayerSurface()) << "read from the context";
+    EXPECT_FALSE(layer.LayerBase()) << "read from the context";
 }
 
 TEST(SandShadowLayer, RebindsToAReplacedBoulderLayer) {

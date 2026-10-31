@@ -20,6 +20,7 @@ using terraingen::FassettThomsonProfile;
 using terraingen::GeoTransform;
 using terraingen::NoDegradation;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 
 namespace {
 
@@ -44,8 +45,7 @@ double Ground(double x, double y) {
 
 /// A 200 x 200 raster of 1 m pixels centered on the origin, on `Ground`.
 Raster<float> Tilted() {
-    Raster<float> raster(200, 200, 0.0f);
-    raster.SetTransform(GeoTransform::NorthUp(-100.0, 100.0, 1.0));
+    Raster<float> raster(RasterGrid{200, 200, GeoTransform::NorthUp(-100.0, 100.0, 1.0)}, 0.0f);
     for (std::size_t row = 0; row < raster.Height(); ++row) {
         for (std::size_t col = 0; col < raster.Width(); ++col) {
             const auto world = raster.Transform().PixelToWorld(static_cast<double>(col) + 0.5,

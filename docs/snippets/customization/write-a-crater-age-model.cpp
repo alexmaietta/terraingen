@@ -38,8 +38,8 @@ TEST_F(SnippetTest, WriteACraterAgeModel) {
         std::make_shared<MartinParkesDunstanProfile>()};
     CraterLayerOptions options;
     options.seed = 4;
-    options.generation.dMin = 4.0;
-    options.generation.dMax = 200.0;
+    options.generation.minDiameter = 4.0;
+    options.generation.maxDiameter = 200.0;
     const CraterList craters = CraterLayer(models, options).Craters({-250.0, -250.0, 250.0, 250.0});
     // --8<-- [end:write_a_crater_age_model]
     ASSERT_GT(craters.Size(), 0u);

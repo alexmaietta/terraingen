@@ -20,6 +20,7 @@ using terraingen::CraterModels;
 using terraingen::CubeSphereCells;
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 using terraingen::Surface;
 
 namespace {
@@ -37,16 +38,15 @@ CraterModels Models() {
 CraterLayerOptions SphereOptions() {
     CraterLayerOptions options;
     options.seed = 5;
-    options.generation.dMin = 150.0;
-    options.generation.dMax = 1200.0;
+    options.generation.minDiameter = 150.0;
+    options.generation.maxDiameter = 1200.0;
     return options;
 }
 
 /// A longitude-latitude raster of `side` cells of `step` degrees from (`lon`, `lat`) at its
 /// north-west corner.
 Raster<float> Geographic(double lon, double lat, double step, std::size_t side) {
-    Raster<float> raster(side, side, 0.0f);
-    raster.SetTransform(GeoTransform::NorthUp(lon, lat, step));
+    Raster<float> raster(RasterGrid{side, side, GeoTransform::NorthUp(lon, lat, step)}, 0.0f);
     return raster;
 }
 
@@ -162,9 +162,8 @@ TEST(SphereCraterLayer, GridsEqualPointsAndThreadsAcrossTheAntimeridian) {
         changed += one.Values()[i] != 0.0f ? 1 : 0;
     }
     EXPECT_GT(changed, 1000);
-    const double spacing =
-        terraingen::RasterGrid::FromRaster(one).Spacing(layer.Options().apply.surface);
-    EXPECT_GT(layer.Craters(terraingen::RasterGrid::FromRaster(one).Bounds(), spacing).Size(), 1u);
+    const double spacing = one.Grid().Spacing(layer.Options().apply.surface);
+    EXPECT_GT(layer.Craters(one.Grid().Bounds(), spacing).Size(), 1u);
     EXPECT_NEAR(spacing, 0.001 * layer.Options().apply.surface.UnitLength(), 1e-9);
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{50, 50},
@@ -192,7 +191,8 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
     const CraterLayer layer(Models(), options, Surface::Sphere(kMoon));
     class Tilted final : public terraingen::Ground {
       protected:
-        void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        void FillSamples(terraingen::SampleBlock& samples, double,
+                         unsigned /*threads*/) const override {
             for (std::size_t i = 0; i < samples.Size(); ++i) {
                 const terraingen::Vec2d p = samples.Position(i);
                 samples.Height(i) =
@@ -208,8 +208,7 @@ TEST(SphereCraterLayer, FitsDatumsOnTheSphere) {
         }
     }
     const Raster<float> before = heights;
-    const double spacing =
-        terraingen::RasterGrid::FromRaster(heights).Spacing(layer.Options().apply.surface);
+    const double spacing = heights.Grid().Spacing(layer.Options().apply.surface);
     layer.Apply(heights, {spacing, 1, &ground});
     const auto center = heights.CellCenter(25, 25);
     EXPECT_EQ(heights(25, 25),
@@ -222,7 +221,8 @@ namespace {
 /// A flat ground at height 0, which craters with a datum read beneath them.
 class FlatGround final : public terraingen::Ground {
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = 0.0f;
         }
@@ -270,7 +270,7 @@ void ExpectGridsTilesAndPointsAgree(const CraterLayer& layer, const BodyCase& bo
     const double half = 48.0 * body.step;
     Raster<float> whole = Geographic(body.crater.x - half, body.crater.y + half, body.step, 96);
     Raster<float> threaded = whole;
-    const double spacing = terraingen::RasterGrid::FromRaster(whole).Spacing(body.surface);
+    const double spacing = whole.Grid().Spacing(body.surface);
     layer.Apply(whole, {spacing, 1, ground});
     layer.Apply(threaded, {spacing, 0, ground});
     for (std::size_t i = 0; i < whole.Size(); ++i) {

@@ -15,8 +15,8 @@ def test_read_the_ground_beneath_a_layer():
             terraingen.CraterLayer(),
         ],
     )
-    hills = terrain.ground(1).evaluate()  # the source and the noise
+    hills = terrain.beneath(1).evaluate()  # the source and the noise
     crater_relief = terrain.evaluate().values - hills.values
     # --8<-- [end:read_the_ground_beneath_a_layer]
-    assert len(terrain.ground(1).layers()) == 1
+    assert len(terrain.beneath(1).layers()) == 1
     assert np.any(crater_relief != 0.0)

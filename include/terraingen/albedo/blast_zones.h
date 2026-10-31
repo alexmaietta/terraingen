@@ -60,7 +60,7 @@ class BlastZoneAlbedo final : public AlbedoLayer {
     /// Changes the albedo at one point on the context's surface by the zones over it; NaN stays
     /// NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                 const AlbedoContext& context) const override;
+                 const LayerContext& context) const override;
 
     /// The relative reflectance change `zone` gives (`x`, `y`) on `surface`.
     static double Change(const BlastZone& zone, double x, double y, const Surface& surface = {});

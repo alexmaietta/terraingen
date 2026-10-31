@@ -341,12 +341,13 @@ SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> pr
     if (apply_.datum != CraterDatum::None) {
         throw std::invalid_argument("Secondary craters are additive; datums are not supported");
     }
-    if (!(primaries_->LayerSurface() == base.surface)) {
+    if (!(primaries_->LayerBase()->surface == base.surface)) {
         throw std::invalid_argument(
             "Secondary craters must be built on the surface of their primaries");
     }
-    apply_.surface = base.surface;
-    limit_ = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, apply_.surface);
+    apply_.surface = std::move(base.surface);
+    source_ = std::move(base.source);
+    limit_ = LayerResolvedLimit(source_, options_.sourceResolvesPixels, apply_.surface);
 }
 
 SecondaryCraterLayer::SecondaryCraterLayer(std::shared_ptr<const CraterLayer> primaries,
@@ -375,6 +376,10 @@ LayerPtr SecondaryCraterLayer::Rebound(const LayerReplacements& replaced) const 
     auto layer = std::make_shared<SecondaryCraterLayer>(*this);
     layer->primaries_ = std::move(primaries);
     return layer;
+}
+
+LayerPtr SecondaryCraterLayer::Rebased(const TerrainBase& base) const {
+    return std::make_shared<SecondaryCraterLayer>(primaries_, models_, options_, apply_, base);
 }
 
 double SecondaryCraterLayer::OuterRange(double diameter) const {

@@ -137,9 +137,9 @@ class SplotchAlbedo final : public AlbedoLayer {
     explicit SplotchAlbedo(SplotchAlbedoOptions options = {});
 
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                 const AlbedoContext& context) const override;
+                 const LayerContext& context) const override;
 
-    void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
+    void Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const override;
 
     /// The splotches on `surface` resolved at `spacing` meters reaching `region`, youngest first;
     /// with `ground`, those on steep slopes follow `steepBrightShare`.

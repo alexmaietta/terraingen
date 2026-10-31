@@ -119,7 +119,7 @@ TEST(GenerateCraters, TilesJoinToTheWholeRegion) {
     ExpectSameCraters(whole, joined);
 }
 
-TEST(GenerateCraters, LoweringDMinKeepsLargerBandsInPlace) {
+TEST(GenerateCraters, LoweringMinDiameterKeepsLargerBandsInPlace) {
     const auto density = terraingen::testing::LunarCraterDensity(3.5);
     const auto ages = terraingen::testing::LunarCraterAges(3.5);
     const Bounds2d region{0.0, 0.0, 400.0, 400.0};
@@ -161,7 +161,7 @@ TEST(GenerateCraters, MarginKeepsCratersReachingIntoTheRegion) {
     EXPECT_GT(outside, 0u);
 }
 
-TEST(GenerateCraters, UsesTheDensitysRangeForAnInfiniteDMax) {
+TEST(GenerateCraters, UsesTheDensitysRangeForAnInfiniteMaxDiameter) {
     const PowerLawSfd bounded(0.1, 2.0, SfdKind::Density, {0.0, 20.0});
     const CraterList craters =
         GenerateCraters(kCells, {0.0, 0.0, 300.0, 300.0}, bounded, FreshAges(), 2u, {5.0});
@@ -607,13 +607,13 @@ TEST(GenerateCraters, SkippingLargeBandsKeepsEverySmallerCraterUnlessTheyInterac
         std::invalid_argument);
 }
 
-TEST(ResolveDMax, FallsBackToTheTopOfTheDensitysRange) {
+TEST(ResolveMaxDiameter, FallsBackToTheTopOfTheDensitysRange) {
     const terraingen::PowerLawSfd unbounded(0.05, 2.0);
-    EXPECT_EQ(terraingen::ResolveDMax(50.0, unbounded), 50.0);
+    EXPECT_EQ(terraingen::ResolveMaxDiameter(50.0, unbounded), 50.0);
     constexpr double kInf = std::numeric_limits<double>::infinity();
-    EXPECT_TRUE(std::isinf(terraingen::ResolveDMax(kInf, unbounded)));
+    EXPECT_TRUE(std::isinf(terraingen::ResolveMaxDiameter(kInf, unbounded)));
     const terraingen::PowerLawSfd bounded(0.05, 2.0, terraingen::SfdKind::Density, {1.0, 300.0});
-    EXPECT_EQ(terraingen::ResolveDMax(kInf, bounded), 300.0);
+    EXPECT_EQ(terraingen::ResolveMaxDiameter(kInf, bounded), 300.0);
 }
 
 TEST(FilterCraters, KeepsWhatThePredicateAcceptsInOrder) {
@@ -714,9 +714,9 @@ TEST(GenerateCraters, LetsACompleteCatalogStandInForGeneratedCraters) {
 TEST(ValidateCraterGenerationOptions, RejectsBadRangesAndAcceptsDefaults) {
     terraingen::CraterGenerationOptions options{4.0, 250.0};
     EXPECT_NO_THROW(terraingen::ValidateCraterGenerationOptions(options));
-    options.dMax = 4.0;
+    options.maxDiameter = 4.0;
     EXPECT_THROW(terraingen::ValidateCraterGenerationOptions(options), std::invalid_argument);
-    options.dMax = 250.0;
+    options.maxDiameter = 250.0;
     options.cellSizeFactor = 0.0;
     EXPECT_THROW(terraingen::ValidateCraterGenerationOptions(options), std::invalid_argument);
     options.cellSizeFactor = 8.0;

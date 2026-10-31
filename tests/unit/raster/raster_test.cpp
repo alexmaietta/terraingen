@@ -11,6 +11,7 @@
 
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 
 TEST(Raster, IsMissingForNonFiniteValuesAndTheNoDataValue) {
     Raster<float> raster(1, 1);
@@ -63,8 +64,7 @@ TEST(Raster, AtChecksBounds) {
 }
 
 TEST(Raster, CellCenterUsesTransform) {
-    Raster<float> raster(10, 10);
-    raster.SetTransform(GeoTransform::NorthUp(100.0, 200.0, 2.0));
+    Raster<float> raster(RasterGrid{10, 10, GeoTransform::NorthUp(100.0, 200.0, 2.0)});
     const auto center = raster.CellCenter(1, 2);
     EXPECT_DOUBLE_EQ(center.x, 103.0);
     EXPECT_DOUBLE_EQ(center.y, 195.0);
@@ -92,7 +92,9 @@ TEST(Raster, KeepsNoData) {
 
 TEST(Raster, BorrowsACallersCellsAndCopiesIntoItsOwn) {
     std::vector<float> cells(6, 1.0f);
-    Raster<float> view(3, 2, terraingen::Span<float>(cells));
+    const RasterGrid grid{3, 2, GeoTransform::NorthUp(0.0, 2.0, 1.0)};
+    Raster<float> view(grid, terraingen::Span<float>(cells));
+    EXPECT_EQ(view.Grid(), grid);
     EXPECT_EQ(view.Values().data(), cells.data());
     view(2, 1) = 5.0f;
     EXPECT_EQ(cells[5], 5.0f) << "writes reach the caller's buffer";
@@ -103,6 +105,8 @@ TEST(Raster, BorrowsACallersCellsAndCopiesIntoItsOwn) {
     EXPECT_EQ(cells[0], 1.0f) << "a copy owns its cells";
     Raster<float> moved = std::move(view);
     EXPECT_EQ(moved.Values().data(), cells.data());
+    EXPECT_EQ(moved.Grid(), grid);
     EXPECT_TRUE(view.Empty());
-    EXPECT_THROW(Raster<float>(4, 2, terraingen::Span<float>(cells)), std::invalid_argument);
+    EXPECT_THROW(Raster<float>(RasterGrid{4, 2, {}}, terraingen::Span<float>(cells)),
+                 std::invalid_argument);
 }

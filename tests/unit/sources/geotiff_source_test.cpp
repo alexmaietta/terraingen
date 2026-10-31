@@ -42,8 +42,7 @@ GeoKeys Keys(bool geographic = false) {
 
 /// Writes a 20 x 10 DEM of 4 m cells with its origin at (1000, 2000) and returns it.
 Raster<float> WriteDem(const std::filesystem::path& path, const GeoKeys& keys = Keys()) {
-    Raster<float> dem(20, 10);
-    dem.SetTransform(GeoTransform::NorthUp(1000.0, 2000.0, 4.0));
+    Raster<float> dem(RasterGrid{20, 10, GeoTransform::NorthUp(1000.0, 2000.0, 4.0)});
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
             dem(col, row) = static_cast<float>(col) + 100.0f * static_cast<float>(row);
@@ -59,11 +58,11 @@ TEST(GeoTiffSource, FillsItsGridWithTheFile) {
     const auto path = TempPath("geotiff_source_full.tif");
     const Raster<float> dem = WriteDem(path);
     const GeoTiffSource source(path);
-    EXPECT_EQ(source.Grid(), RasterGrid::FromRaster(dem));
+    EXPECT_EQ(source.Grid(), dem.Grid());
     EXPECT_EQ(source.ReferencePoint().x, 1000.0);
     EXPECT_EQ(source.ReferencePoint().y, 2000.0);
     EXPECT_EQ(source.Keys(), Keys());
-    auto heights = source.Grid().MakeRaster();
+    Raster<float> heights(source.Grid());
     source.Fill(heights);
     for (std::size_t i = 0; i < dem.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], dem.Values()[i]) << i;
@@ -76,7 +75,7 @@ TEST(GeoTiffSource, FillsTilesOnItsLatticeAndNoDataBeyondTheFile) {
     const Raster<float> dem = WriteDem(path);
     const GeoTiffSource source(path);
     RasterGrid tile{4, 3, GeoTransform::NorthUp(1000.0 + 4.0 * 18, 2000.0 - 4.0 * 8, 4.0)};
-    auto heights = tile.MakeRaster();
+    Raster<float> heights(tile);
     source.Fill(heights);
     EXPECT_EQ(heights(0, 0), dem(18, 8));
     EXPECT_EQ(heights(1, 1), dem(19, 9));
@@ -86,7 +85,7 @@ TEST(GeoTiffSource, FillsTilesOnItsLatticeAndNoDataBeyondTheFile) {
     EXPECT_TRUE(heights.IsNoData(heights(3, 2)));
 
     RasterGrid rotated{2, 2, GeoTransform{1000.0, 4.0, 0.5, 2000.0, 0.5, -4.0}};
-    auto turned = rotated.MakeRaster();
+    Raster<float> turned(rotated);
     EXPECT_THROW(source.Fill(turned), std::invalid_argument);
 }
 
@@ -99,7 +98,7 @@ TEST(GeoTiffSource, InterpolatesOntoGridsOffItsLattice) {
     for (const RasterGrid& grid : {RasterGrid{6, 4, GeoTransform::NorthUp(1001.0, 1999.0, 4.0)},
                                    RasterGrid{8, 6, GeoTransform::NorthUp(1000.0, 2000.0, 2.0)},
                                    RasterGrid{5, 5, GeoTransform::NorthUp(990.0, 2010.0, 8.0)}}) {
-        auto heights = grid.MakeRaster();
+        Raster<float> heights(grid);
         source.Fill(heights);
         for (std::size_t row = 0; row < grid.height; ++row) {
             for (std::size_t col = 0; col < grid.width; ++col) {
@@ -126,7 +125,7 @@ TEST(GeoTiffSource, UpsamplesOntoFinerGridsAsResamplingDoes) {
     const GeoTiffSource source(path, options);
     EXPECT_EQ(source.Grid().width, 20u);
     EXPECT_EQ(source.Grid().height, 10u);
-    auto heights = terraingen::testing::ResampledGrid(source.Grid(), 2.0).MakeRaster();
+    Raster<float> heights(terraingen::testing::ResampledGrid(source.Grid(), 2.0));
     source.Fill(heights);
     const Raster<float> expected =
         terraingen::testing::Resample(dem, 2.0, ResampleMethod::Bilinear);
@@ -148,8 +147,7 @@ TEST(GeoTiffSource, RejectsUnusableFiles) {
     const auto degrees = TempPath("geotiff_source_degrees.tif");
     WriteDem(degrees, Keys(true));
     EXPECT_NO_THROW(GeoTiffSource{degrees});
-    Raster<float> rotated(4, 4, 1.0f);
-    rotated.SetTransform(GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
+    Raster<float> rotated(RasterGrid{4, 4, GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0}}, 1.0f);
     const auto turned = TempPath("geotiff_source_rotated.tif");
     terraingen::WriteGeoTiff(turned, rotated, Keys());
     EXPECT_NO_THROW(GeoTiffSource{turned});
@@ -191,7 +189,7 @@ TEST(GeoTiffSource, ScalesSamplesByTheBandsMetadataOrOverrides) {
     const GdalFixture& single = terraingen::testing::int16_scaled_nodata;
     const auto expect = [&](const GeoTiffSource& source, const GdalFixture& fixture, double scale,
                             double offset) {
-        auto heights = source.Grid().MakeRaster();
+        Raster<float> heights(source.Grid());
         source.Fill(heights);
         for (std::size_t i = 0; i < heights.Size(); ++i) {
             const float raw = fixture.values[i];
@@ -212,7 +210,7 @@ TEST(GeoTiffSource, ScalesSamplesByTheBandsMetadataOrOverrides) {
     GeoTiffSourceOptions unshifted;
     unshifted.offset = 0.0;
     expect(GeoTiffSource(path, unshifted), single, 0.5, 0.0);
-    auto heights = GeoTiffSource(path).Grid().MakeRaster();
+    Raster<float> heights(GeoTiffSource(path).Grid());
     GeoTiffSource(path).Fill(heights);
     ASSERT_TRUE(heights.NoData().has_value());
     EXPECT_TRUE(std::isnan(*heights.NoData()));
@@ -242,7 +240,7 @@ TEST(GeoTiffSource, RefinesWithDiamondSquareKeepingTheCells) {
     fractal.scale = 0.5;
     options.upsampler = std::make_shared<terraingen::DiamondSquareUpsampler>(fractal);
     const GeoTiffSource source(path, options);
-    auto fine = terraingen::testing::ResampledGrid(source.Grid(), 1.0).MakeRaster();
+    Raster<float> fine(terraingen::testing::ResampledGrid(source.Grid(), 1.0));
     source.Fill(fine);
     const Raster<float> smooth = terraingen::testing::Resample(dem, 1.0, ResampleMethod::Bilinear);
     double change = 0.0;
@@ -260,8 +258,7 @@ namespace {
 /// Writes a 60 x 45 DEM of uneven heights in 4 m cells, with its origin at (1000, 2000), a
 /// no-data hole and 16-pixel tiles.
 void WriteLargeDem(const std::filesystem::path& path) {
-    Raster<float> dem(60, 45);
-    dem.SetTransform(GeoTransform::NorthUp(1000.0, 2000.0, 4.0));
+    Raster<float> dem(RasterGrid{60, 45, GeoTransform::NorthUp(1000.0, 2000.0, 4.0)});
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
             dem(col, row) = static_cast<float>(
@@ -312,8 +309,8 @@ TEST(GeoTiffSource, ACropGivesTheSameBitsOverItsGridAndNoDataBeyond) {
                                                                          full.Grid(), region)));
                     EXPECT_EQ(part.ReferencePoint().x, full.ReferencePoint().x);
                     EXPECT_EQ(part.ReferencePoint().y, full.ReferencePoint().y);
-                    auto mine = grid.MakeRaster();
-                    auto theirs = grid.MakeRaster();
+                    Raster<float> mine(grid);
+                    Raster<float> theirs(grid);
                     part.Fill(mine, spacing);
                     EXPECT_LT(terraingen::detail::DecodedChunkCount() - before, 12u)
                         << "only a window of the 4 x 3 tiles is read";
@@ -342,14 +339,14 @@ TEST(GeoTiffSource, ACropGivesTheSameBitsOverItsGridAndNoDataBeyond) {
                     const double side = std::min(box.maxX - box.minX, box.maxY - box.minY) / 6.0;
                     const RasterGrid offLattice{
                         5, 4, GeoTransform::NorthUp(box.minX + 0.7, box.maxY - 0.3, side)};
-                    auto offMine = offLattice.MakeRaster();
-                    auto offTheirs = offLattice.MakeRaster();
+                    Raster<float> offMine(offLattice);
+                    Raster<float> offTheirs(offLattice);
                     part.Fill(offMine, spacing);
                     full.Fill(offTheirs, spacing);
                     for (std::size_t i = 0; i < offMine.Size(); ++i) {
                         ASSERT_TRUE(SameBits(offMine.Values()[i], offTheirs.Values()[i])) << i;
                     }
-                    auto everything = full.Grid().MakeRaster();
+                    Raster<float> everything(full.Grid());
                     part.Fill(everything, spacing);
                     ASSERT_TRUE(everything.NoData().has_value());
                     const terraingen::PixelWindow inside =
@@ -415,8 +412,7 @@ TEST(GeoTiffSource, ResolvesTheFilesCellsOrItsEffectivePixelSize) {
 
 TEST(GeoTiffSource, ReadsLongitudeAndLatitudeForATerrainOnABody) {
     const auto path = TempPath("geotiff_source_lonlat.tif");
-    Raster<float> dem(8, 4);
-    dem.SetTransform(GeoTransform::NorthUp(-180.0, 90.0, 45.0));
+    Raster<float> dem(RasterGrid{8, 4, GeoTransform::NorthUp(-180.0, 90.0, 45.0)});
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
             dem(col, row) = static_cast<float>(col) - 10.0f * static_cast<float>(row);
@@ -430,7 +426,7 @@ TEST(GeoTiffSource, ReadsLongitudeAndLatitudeForATerrainOnABody) {
     EXPECT_EQ(source.HeightAt(-157.5, 67.5, 45.0), dem(0, 0));
     EXPECT_EQ(source.HeightAt(157.5, -67.5, 45.0), dem(7, 3));
 
-    auto filled = source.Grid().MakeRaster();
+    Raster<float> filled(source.Grid());
     source.Fill(filled);
     for (std::size_t i = 0; i < dem.Size(); ++i) {
         ASSERT_EQ(filled.Values()[i], dem.Values()[i]) << i;
@@ -439,8 +435,7 @@ TEST(GeoTiffSource, ReadsLongitudeAndLatitudeForATerrainOnABody) {
 
 TEST(GeoTiffSource, WrapsAGlobeInLongitudeWithOrWithoutACrop) {
     const auto path = TempPath("geotiff_source_globe.tif");
-    Raster<float> globe(24, 12);
-    globe.SetTransform(GeoTransform::NorthUp(0.0, 90.0, 15.0));
+    Raster<float> globe(RasterGrid{24, 12, GeoTransform::NorthUp(0.0, 90.0, 15.0)});
     for (std::size_t row = 0; row < globe.Height(); ++row) {
         for (std::size_t col = 0; col < globe.Width(); ++col) {
             globe(col, row) = static_cast<float>(col) + 100.0f * static_cast<float>(row);
@@ -453,8 +448,7 @@ TEST(GeoTiffSource, WrapsAGlobeInLongitudeWithOrWithoutACrop) {
         const GeoTiffSource source(path, options);
         EXPECT_EQ(source.HeightAt(-172.5, 7.5, 15.0), globe(12, 5));
         EXPECT_EQ(source.HeightAt(352.5, 7.5, 15.0), globe(23, 5));
-        Raster<float> seam(8, 2);
-        seam.SetTransform(GeoTransform::NorthUp(-30.0, 15.0, 7.5));
+        Raster<float> seam(RasterGrid{8, 2, GeoTransform::NorthUp(-30.0, 15.0, 7.5)});
         source.Fill(seam, 7.5);
         for (std::size_t col = 0; col < seam.Width(); ++col) {
             const terraingen::Vec2d center = seam.CellCenter(col, 0);
@@ -471,7 +465,7 @@ TEST(GeoTiffSource, ReadsOnlyTheTilesNearWhatItIsAskedWithoutACrop) {
     const GeoTiffSource source(path);
     EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 0u) << "nothing read up front";
     const RasterGrid corner{6, 5, GeoTransform::NorthUp(1000.0 + 4.0 * 2, 2000.0 - 4.0 * 2, 4.0)};
-    auto heights = corner.MakeRaster();
+    Raster<float> heights(corner);
     source.Fill(heights);
     EXPECT_EQ(terraingen::detail::DecodedChunkCount() - before, 1u) << "the one tile it lies in";
     const std::size_t afterFill = terraingen::detail::DecodedChunkCount();
@@ -482,7 +476,7 @@ TEST(GeoTiffSource, ReadsOnlyTheTilesNearWhatItIsAskedWithoutACrop) {
         << "cubic taps across the edge of the first tile read the next";
     GeoTiffSourceOptions cropped;
     cropped.crop = corner.Bounds();
-    auto again = corner.MakeRaster();
+    Raster<float> again(corner);
     GeoTiffSource(path, cropped).Fill(again, 1.5);
     for (std::size_t i = 0; i < heights.Size(); ++i) {
         ASSERT_TRUE(SameBits(heights.Values()[i], again.Values()[i])) << i;
@@ -502,7 +496,7 @@ TEST(GeoTiffSource, KeepsOnlyTheTilesItsCacheHolds) {
         const std::size_t before = terraingen::detail::DecodedChunkCount();
         for (int pass = 0; pass < 3; ++pass) {
             for (const RasterGrid& grid : {first, second}) {
-                auto heights = grid.MakeRaster();
+                Raster<float> heights(grid);
                 source.Fill(heights);
             }
         }
@@ -510,8 +504,8 @@ TEST(GeoTiffSource, KeepsOnlyTheTilesItsCacheHolds) {
     };
     EXPECT_EQ(decodes(cached), 2u);
     EXPECT_EQ(decodes(uncached), 6u) << "only the tile read last is kept";
-    auto mine = first.MakeRaster();
-    auto theirs = first.MakeRaster();
+    Raster<float> mine(first);
+    Raster<float> theirs(first);
     uncached.Fill(mine);
     cached.Fill(theirs);
     for (std::size_t i = 0; i < mine.Size(); ++i) {
@@ -553,8 +547,7 @@ TEST(GeoTiffSource, GivesTheSameHeightsFromSeveralThreads) {
 
 TEST(GeoTiffSource, WrapsAGlobeReadingOnlyTheTilesAtTheSeam) {
     const auto path = TempPath("geotiff_source_globe_tiles.tif");
-    Raster<float> globe(96, 48);
-    globe.SetTransform(GeoTransform::NorthUp(0.0, 90.0, 3.75));
+    Raster<float> globe(RasterGrid{96, 48, GeoTransform::NorthUp(0.0, 90.0, 3.75)});
     for (std::size_t row = 0; row < globe.Height(); ++row) {
         for (std::size_t col = 0; col < globe.Width(); ++col) {
             globe(col, row) = static_cast<float>(col) + 100.0f * static_cast<float>(row);
@@ -565,8 +558,7 @@ TEST(GeoTiffSource, WrapsAGlobeReadingOnlyTheTilesAtTheSeam) {
     terraingen::WriteGeoTiff(path, globe, terraingen::GeographicSphereKeys(1737400.0), tiles);
     const GeoTiffSource source(path);
     const std::size_t before = terraingen::detail::DecodedChunkCount();
-    Raster<float> seam(4, 2);
-    seam.SetTransform(GeoTransform::NorthUp(-7.5, 45.0, 3.75));
+    Raster<float> seam(RasterGrid{4, 2, GeoTransform::NorthUp(-7.5, 45.0, 3.75)});
     source.Fill(seam, 3.75);
     EXPECT_EQ(seam(0, 0), globe(94, 12));
     EXPECT_EQ(seam(3, 1), globe(1, 13));

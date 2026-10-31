@@ -22,7 +22,7 @@ def write_a_size_distribution():
         terraingen.FassettThomsonProfile(),
     )
     options = terraingen.CraterLayerOptions(
-        seed=3, generation=terraingen.CraterGenerationOptions(d_min=2.0, d_max=60.0)
+        seed=3, generation=terraingen.CraterGenerationOptions(min_diameter=2.0, max_diameter=60.0)
     )
     table = terraingen.CraterLayer(models, options).craters((-100.0, -100.0, 100.0, 100.0))
     # --8<-- [end:write_a_size_distribution]

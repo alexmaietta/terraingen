@@ -9,7 +9,7 @@
 #include "terraingen/albedo/albedo_fields.h"
 #include "terraingen/albedo/photometry.h"
 #include "terraingen/pipeline/materials.h"
-#include "terraingen/pipeline/pipeline_fields.h"
+#include "terraingen/pipeline/materials_fields.h"
 #include "terraingen/pipeline/terrain.h"
 
 #include <array>

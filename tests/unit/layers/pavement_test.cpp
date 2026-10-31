@@ -36,7 +36,8 @@ class Tilted final : public terraingen::Ground {
     explicit Tilted(double slope) : slope_(slope) {}
 
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = static_cast<float>(slope_ * samples.Position(i).x);
         }
@@ -158,7 +159,7 @@ TEST(PavementLayer, GridsAndPointsAgree) {
     options.maxTiltDegrees = 0.05 * terraingen::kRadian;
     const PavementLayer layer(options);
     const terraingen::RasterGrid grid{40, 30, terraingen::GeoTransform::NorthUp(-1.0, 2.0, 0.02)};
-    terraingen::Raster<float> heights = grid.MakeRaster();
+    terraingen::Raster<float> heights(grid);
     layer.Apply(heights, {0.02, 2});
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {

@@ -28,6 +28,7 @@
 using terraingen::GeoTransform;
 using terraingen::LayerResolvedLimit;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 using terraingen::RasterSource;
 using terraingen::Source;
 using terraingen::SourceResolvedLimit;
@@ -39,8 +40,7 @@ constexpr double kInf = std::numeric_limits<double>::infinity();
 /// A flat source of `cells` x `cells` cells of `size` meters with its top-left corner at
 /// (`left`, `top`).
 std::shared_ptr<const Source> Dem(std::size_t cells, double size, double left, double top) {
-    Raster<float> heights(cells, cells, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(left, top, size));
+    Raster<float> heights(RasterGrid{cells, cells, GeoTransform::NorthUp(left, top, size)}, 0.0f);
     return std::make_shared<RasterSource>(heights);
 }
 
@@ -83,8 +83,7 @@ TEST(SourceResolvedLimit, GivesEachSourceOfAChainItsOwnLimit) {
 }
 
 TEST(SourceResolvedLimit, IsInfiniteInNoDataHoles) {
-    Raster<float> heights(8, 8, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(0.0, 80.0, 10.0));
+    Raster<float> heights(RasterGrid{8, 8, GeoTransform::NorthUp(0.0, 80.0, 10.0)}, 0.0f);
     heights.SetNoData(-9999.0f);
     for (std::size_t row = 2; row < 6; ++row) {
         for (std::size_t col = 2; col < 6; ++col) {
@@ -217,8 +216,7 @@ TEST(NoiseLayer, LeavesOutTheNoiseLayersTheSourceResolves) {
                   all.ApplyAt(0.0f, x, 300.0, Over(nullptr, 1.0)))
             << "nothing resolved without a source";
     }
-    Raster<float> grid(16, 16, 0.0f);
-    grid.SetTransform(GeoTransform::NorthUp(100.0, 900.0, 25.0));
+    Raster<float> grid(RasterGrid{16, 16, GeoTransform::NorthUp(100.0, 900.0, 25.0)}, 0.0f);
     held.Apply(grid, Over(dem, 25.0));
     for (std::size_t row = 0; row < 16; ++row) {
         for (std::size_t col = 0; col < 16; ++col) {
@@ -240,8 +238,8 @@ TEST(CraterLayer, DropsGeneratedCratersTheSourceResolvesWithoutACatalog) {
         std::make_shared<terraingen::FassettThomsonProfile>()};
     terraingen::CraterLayerOptions options;
     options.seed = 3;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 40.0;
+    options.generation.minDiameter = 6.0;
+    options.generation.maxDiameter = 40.0;
     const terraingen::CraterLayer every(models, options);
     options.generation.completeness = SourceResolvedLimit(dem, 4.0);
     const terraingen::CraterLayer limited(models, options);

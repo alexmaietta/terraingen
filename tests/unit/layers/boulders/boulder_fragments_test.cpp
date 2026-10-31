@@ -26,6 +26,7 @@ using terraingen::BoulderLayerOptions;
 using terraingen::FragmentBoulderShape;
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 
 namespace {
 
@@ -149,8 +150,7 @@ TEST(BoulderLayer, ScattersRubbleFurtherAndSinksIt) {
 
 TEST(BoulderLayer, DrawsPiecesThatPointQueriesMatch) {
     const BoulderLayer layer(Breaking(1.0));
-    Raster<float> heights(60, 60, 1.0f);
-    heights.SetTransform(GeoTransform::NorthUp(-7.5, 7.5, 0.25));
+    Raster<float> heights(RasterGrid{60, 60, GeoTransform::NorthUp(-7.5, 7.5, 0.25)}, 1.0f);
     layer.Apply(heights, {0.25, 4});
     bool raised = false;
     for (std::size_t row = 0; row < heights.Height(); ++row) {
@@ -201,7 +201,8 @@ namespace {
 
 class Level final : public terraingen::Ground {
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = 3.0f;
         }

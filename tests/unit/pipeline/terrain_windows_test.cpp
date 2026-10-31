@@ -9,9 +9,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <limits>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <utility>
@@ -127,8 +128,8 @@ TEST(Evaluate, SphereWindowsAndPointsEqualTheWholeTerrain) {
     noise[0].amplitude = 6.0f;
     terraingen::CraterLayerOptions options;
     options.seed = 4;
-    options.generation.dMin = 12.0;
-    options.generation.dMax = 80.0;
+    options.generation.minDiameter = 12.0;
+    options.generation.maxDiameter = 80.0;
     options.apply.rimSmoothing.sigmaRadii = 0.05;
     const Terrain terrain(
         moon, std::make_shared<terraingen::FlatSource>(96, 64, step, 0.0f),
@@ -156,8 +157,8 @@ TEST(Evaluate, WholeBodyGridsAgreeAcrossTheAntimeridianAndAtThePole) {
     const Surface moon = Surface::Sphere(1737400.0);
     terraingen::CraterLayerOptions options;
     options.seed = 6;
-    options.generation.dMin = 300.0;
-    options.generation.dMax = 1500.0;
+    options.generation.minDiameter = 300.0;
+    options.generation.maxDiameter = 1500.0;
     options.apply.rimSmoothing.sigmaRadii = 0.05;
     const Terrain terrain = OnBody(
         moon, 0.0f, {std::make_shared<terraingen::CraterLayer>(LunarModels(0.5), options, moon)});
@@ -199,7 +200,7 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
     const Terrain terrain = OnBody(moon, 100.0f, {std::make_shared<terraingen::NoiseLayer>(noise)});
     const std::size_t n = 8;
     const terraingen::TriangleMesh mesh = terraingen::BodyMesh(terrain, n, 0.0, 2);
-    ASSERT_EQ(mesh.positions.size(), 6 * (n + 1) * (n + 1));
+    ASSERT_EQ(mesh.positions.size(), 6 * n * n + 2) << "the faces share their edges";
     ASSERT_EQ(mesh.triangles.size(), 6 * n * n * 2);
     const double step = 1737400.0 * (terraingen::kPi / 2.0) / static_cast<double>(n);
     for (std::size_t k = 0; k < mesh.positions.size(); k += 7) {
@@ -219,16 +220,20 @@ TEST(BodyMesh, CoversTheBodyWithOutwardTrianglesAtTheTerrainsHeights) {
                                        u.x * v.y - u.y * v.x};
         EXPECT_GT(normal.x * a.x + normal.y * a.y + normal.z * a.z, 0.0);
     }
-    const auto corner = [&](std::size_t face, std::size_t i, std::size_t j) {
-        return mesh.positions[face * (n + 1) * (n + 1) + j * (n + 1) + i];
-    };
-    const auto pxEdge = corner(0, n, n / 2);
-    double nearest = std::numeric_limits<double>::infinity();
-    for (std::size_t k = 2 * (n + 1) * (n + 1); k < 3 * (n + 1) * (n + 1); ++k) {
-        const auto& q = mesh.positions[k];
-        nearest = std::fmin(nearest, std::hypot(q.x - pxEdge.x, q.y - pxEdge.y, q.z - pxEdge.z));
+    std::map<std::pair<std::uint32_t, std::uint32_t>, int> edges;
+    for (const auto& t : mesh.triangles) {
+        for (std::size_t e = 0; e < 3; ++e) {
+            const std::uint32_t a = t[e];
+            const std::uint32_t b = t[(e + 1) % 3];
+            ++edges[{std::min(a, b), std::max(a, b)}];
+        }
     }
-    EXPECT_LT(nearest, 1e-3);
+    EXPECT_TRUE(std::all_of(edges.begin(), edges.end(), [](const auto& e) {
+        return e.second == 2;
+    })) << "closed: every edge has two triangles";
+    const terraingen::TriangleMesh icq =
+        terraingen::IcqToMesh(terraingen::BodyIcq(terrain, n, 0.0, 2));
+    EXPECT_EQ(mesh.triangles, icq.triangles);
 
     const Terrain flat(Surface{}, terrain.Source(), terrain.Layers());
     EXPECT_THROW(terraingen::BodyMesh(flat, 4), std::invalid_argument);

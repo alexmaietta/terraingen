@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -114,13 +116,23 @@ TEST(TiffCodecs, FloatPredictorRoundTripsAndGroupsBytePlanes) {
         std::vector<std::uint8_t> row(samples.size() * 4);
         std::memcpy(row.data(), samples.data(), row.size());
         const std::vector<std::uint8_t> original = row;
-        terraingen::detail::EncodeFloatPredictorRow(row.data(), 4, samples.size(), stride);
+        terraingen::detail::EncodeFloatPredictor(row.data(), 1, 4, samples.size(), stride);
         EXPECT_NE(row, original);
         if (stride == 1) {
             EXPECT_EQ(row[0], original[3]) << "the first plane holds the most significant bytes";
         }
-        terraingen::detail::DecodeFloatPredictorRow(row.data(), 4, samples.size(), stride);
+        terraingen::detail::DecodeFloatPredictor(row.data(), 1, 4, samples.size(), stride);
         EXPECT_EQ(row, original);
+        std::vector<std::uint8_t> rows = original;
+        rows.insert(rows.end(), original.begin(), original.end());
+        terraingen::detail::EncodeFloatPredictor(rows.data(), 2, 4, samples.size(), stride);
+        EXPECT_TRUE(std::equal(rows.begin() + static_cast<std::ptrdiff_t>(original.size()),
+                               rows.end(), rows.begin()))
+            << "each row is predicted on its own";
+        terraingen::detail::DecodeFloatPredictor(rows.data(), 2, 4, samples.size(), stride);
+        EXPECT_TRUE(std::equal(original.begin(), original.end(), rows.begin()));
+        EXPECT_TRUE(std::equal(original.begin(), original.end(),
+                               rows.begin() + static_cast<std::ptrdiff_t>(original.size())));
     }
 }
 

@@ -30,7 +30,8 @@ namespace {
 /// Level ground at height 0.
 class Level final : public terraingen::Ground {
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = 0.0f;
         }
@@ -135,7 +136,7 @@ TEST(RockAlbedo, BrightensSamplesByTheRockThatCoversThem) {
         RockAlbedoOptions{}, std::vector<terraingen::RockSource>{{layer, ground}});
     const Albedo albedo = Gray(speckled);
     const auto coarse = terraingen::EvaluateAlbedo(albedo, grid, {0.2});
-    terraingen::AlbedoContext onGround;
+    terraingen::LayerContext onGround;
     onGround.spacing = 0.2;
     onGround.ground = ground.get();
     double brighter = 0;

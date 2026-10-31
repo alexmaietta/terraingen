@@ -684,8 +684,8 @@ TEST(CraterAlbedo, TextureStreaksBreakTheBrightProximalZoneIntoFilaments) {
 
 TEST(CraterAlbedo, ReflectanceZonesGatherSmallCratersFromAsFarAsTheyReach) {
     terraingen::CraterLayerOptions layerOptions;
-    layerOptions.generation.dMin = 4.0;
-    layerOptions.generation.dMax = 64.0;
+    layerOptions.generation.minDiameter = 4.0;
+    layerOptions.generation.maxDiameter = 64.0;
     const auto craters = std::make_shared<terraingen::CraterLayer>(
         terraingen::CraterModels{std::make_shared<terraingen::PowerLawSfd>(0.001, 2.0),
                                  std::make_shared<terraingen::FreshAges>(),
@@ -717,7 +717,8 @@ namespace {
 
 /// Flat ground with a ridge 5 m high from x = 100 to 110 m.
 struct Ridge final : terraingen::Ground {
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const double x = samples.Position(i).x;
             samples.Height(i) = x >= 100.0 && x < 110.0 ? 5.0f : 0.0f;
@@ -755,7 +756,7 @@ TEST(CraterAlbedo, RisesShadowTheDistalZonesBehindThem) {
     const Albedo albedo = Gray(shared);
     const RasterGrid whole{40, 40, GeoTransform::NorthUp(80.0, 100.0, 5.0)};
     const RasterGrid tile{8, 8, GeoTransform::NorthUp(120.0, 60.0, 5.0)};
-    terraingen::AlbedoContext onRidge;
+    terraingen::LayerContext onRidge;
     onRidge.spacing = 1.0;
     onRidge.ground = &ridge;
     const auto grid = EvaluateAlbedo(albedo, whole, onRidge);
@@ -788,7 +789,8 @@ namespace {
 
 /// Flat ground with no data from x = 100 to 110 m.
 struct Gap final : terraingen::Ground {
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const double x = samples.Position(i).x;
             samples.Height(i) = x >= 100.0 && x < 110.0 ? NAN : 0.0f;

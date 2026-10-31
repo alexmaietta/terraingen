@@ -66,7 +66,7 @@ Raster<float> PowerLawSurface(double slope, double coefficient, std::size_t size
 }  // namespace
 
 TEST(RadialPowerSpectrum, PeaksAtAWaveAndIntegratesToTheVariance) {
-    Raster<float> heights = Grid(64, 0.5).MakeRaster();
+    Raster<float> heights(Grid(64, 0.5));
     for (std::size_t row = 0; row < 64; ++row) {
         for (std::size_t col = 0; col < 64; ++col) {
             heights(col, row) = static_cast<float>(
@@ -87,13 +87,13 @@ TEST(RadialPowerSpectrum, PeaksAtAWaveAndIntegratesToTheVariance) {
 }
 
 TEST(RadialPowerSpectrum, RejectsSmallRotatedOrEmptyRasters) {
-    EXPECT_THROW(terraingen::RadialPowerSpectrum(Grid(7, 1.0).MakeRaster()), std::invalid_argument);
-    Raster<float> rotated = Grid(16, 1.0).MakeRaster();
-    GeoTransform transform = rotated.Transform();
-    transform.rowRotation = 0.1;
-    rotated.SetTransform(transform);
+    EXPECT_THROW(terraingen::RadialPowerSpectrum(Raster<float>(Grid(7, 1.0))),
+                 std::invalid_argument);
+    RasterGrid turned = Grid(16, 1.0);
+    turned.transform.rowRotation = 0.1;
+    const Raster<float> rotated(turned);
     EXPECT_THROW(terraingen::RadialPowerSpectrum(rotated), std::invalid_argument);
-    Raster<float> empty = Grid(16, 1.0).MakeRaster(std::numeric_limits<float>::quiet_NaN());
+    Raster<float> empty(Grid(16, 1.0), std::numeric_limits<float>::quiet_NaN());
     EXPECT_THROW(terraingen::RadialPowerSpectrum(empty), std::invalid_argument);
 }
 
@@ -141,7 +141,7 @@ TEST(EstimatePowerLawSpectrum, ReportsSlopesClampedToItsRange) {
 
 TEST(EstimatePowerLawSpectrum, HandlesFlatRastersHolesAndBadBands) {
     const terraingen::PowerLawSpectrum flat =
-        terraingen::EstimatePowerLawSpectrum(Grid(64, 1.0).MakeRaster(4.0f));
+        terraingen::EstimatePowerLawSpectrum(Raster<float>(Grid(64, 1.0), 4.0f));
     EXPECT_EQ(flat.slope, 3.0);
     EXPECT_EQ(flat.octaveRms, 0.0);
     EXPECT_FALSE(flat.clipped);

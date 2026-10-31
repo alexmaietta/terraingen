@@ -23,7 +23,7 @@ def figure(quick=False):
     crater = terraingen.CraterLayer.manual([terraingen.Crater(-60.0, 40.0, 90.0, age_gyr=0.0)])
     terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[hills, crater])
     heights = terrain.evaluate()
-    grid = terraingen.RasterGrid.from_raster(heights)
+    grid = heights.grid
     base = terraingen.SyntheticAlbedo(value=0.11)
 
     fig, axes = plt.subplots(1, len(ONSETS) + 1, figsize=(17, 4.3), layout="constrained")

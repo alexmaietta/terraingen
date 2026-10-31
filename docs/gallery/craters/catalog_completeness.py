@@ -34,7 +34,7 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 6.6), layout="constrained")
     for ax, with_catalog in zip(axes, (False, True), strict=True):
-        generation = terraingen.CraterGenerationOptions(d_min=4.0, d_max=300.0)
+        generation = terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=300.0)
         if with_catalog:
             generation.manual = terraingen.CraterList.from_table(CATALOG)
             generation.completeness = terraingen.ConstantField(COMPLETE_FROM_M)

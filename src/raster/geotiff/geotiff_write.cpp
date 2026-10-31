@@ -123,23 +123,19 @@ bool NeedsBigTiff(const TileGrid& tiles, std::size_t bands) {
 /// `fill`.
 std::vector<std::uint8_t> EncodeTile(const Raster<float>& band, std::size_t tx, std::size_t ty,
                                      std::size_t tile, float fill, TiffCompression compression) {
-    std::vector<float> samples(tile * tile);
+    std::vector<std::uint8_t> bytes(tile * tile * sizeof(float));
     for (std::size_t y = 0; y < tile; ++y) {
         for (std::size_t x = 0; x < tile; ++x) {
             const std::size_t col = tx * tile + x;
             const std::size_t row = ty * tile + y;
-            samples[y * tile + x] =
-                col < band.Width() && row < band.Height() ? band(col, row) : fill;
+            const float value = col < band.Width() && row < band.Height() ? band(col, row) : fill;
+            std::memcpy(bytes.data() + (y * tile + x) * sizeof(float), &value, sizeof(float));
         }
     }
-    std::vector<std::uint8_t> bytes(samples.size() * 4);
-    std::memcpy(bytes.data(), samples.data(), bytes.size());
     if (compression == TiffCompression::None) {
         return bytes;
     }
-    for (std::size_t row = 0; row < tile; ++row) {
-        EncodeFloatPredictorRow(bytes.data() + row * tile * 4, 4, tile, 1);
-    }
+    EncodeFloatPredictor(bytes.data(), tile, sizeof(float), tile, 1);
     return compression == TiffCompression::Lzw ? EncodeLzw(bytes) : EncodeDeflate(bytes);
 }
 

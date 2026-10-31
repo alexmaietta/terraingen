@@ -124,19 +124,20 @@ TEST(FreshnessAges, CraterLayersAgreeOnGridsTilesAndPoints) {
     const auto profile = std::make_shared<terraingen::FassettThomsonProfile>();
     terraingen::CraterLayerOptions options;
     options.seed = 11;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 60.0;
+    options.generation.minDiameter = 6.0;
+    options.generation.maxDiameter = 60.0;
     const terraingen::CraterLayer layer({std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0), ages,
                                          std::make_shared<terraingen::FreshnessDegradation>(
                                              ages, terraingen::LunarFreshCraterMorphometry),
                                          profile},
                                         options);
-    terraingen::Raster<float> whole(96, 96, 0.0f);
-    whole.SetTransform(terraingen::GeoTransform::NorthUp(-96.0, 96.0, 2.0));
+    terraingen::Raster<float> whole(
+        terraingen::RasterGrid{96, 96, terraingen::GeoTransform::NorthUp(-96.0, 96.0, 2.0)}, 0.0f);
     layer.Apply(whole, {2.0, 0});
-    terraingen::Raster<float> tile(40, 40, 0.0f);
-    tile.SetTransform(
-        terraingen::GeoTransform::NorthUp(-96.0 + 48.0 * 2.0, 96.0 - 48.0 * 2.0, 2.0));
+    terraingen::Raster<float> tile(
+        terraingen::RasterGrid{
+            40, 40, terraingen::GeoTransform::NorthUp(-96.0 + 48.0 * 2.0, 96.0 - 48.0 * 2.0, 2.0)},
+        0.0f);
     layer.Apply(tile, {2.0, 1});
     for (std::size_t row = 0; row < 40; ++row) {
         for (std::size_t col = 0; col < 40; ++col) {
@@ -149,8 +150,8 @@ TEST(FreshnessAges, CraterLayersAgreeOnGridsTilesAndPoints) {
         const auto center = whole.CellCenter(col, row);
         EXPECT_EQ(layer.ApplyAt(0.0f, center.x, center.y, {2.0}), whole(col, row));
     }
-    const auto all = layer.Craters(terraingen::RasterGrid::FromRaster(whole).Bounds(), 2.0);
-    const auto part = layer.Craters(terraingen::RasterGrid::FromRaster(tile).Bounds(), 2.0);
+    const auto all = layer.Craters(whole.Grid().Bounds(), 2.0);
+    const auto part = layer.Craters(tile.Grid().Bounds(), 2.0);
     ASSERT_GT(part.Size(), 3u);
     std::size_t matched = 0;
     for (std::size_t i = 0; i < part.Size(); ++i) {

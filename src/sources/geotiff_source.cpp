@@ -2,19 +2,20 @@
 
 #include "terraingen/sources/geotiff_source.h"
 
+#include "sources/lattice.h"
+#include "sources/raster_heights.h"
 #include "terraingen/util/bits.h"
+#include "terraingen/util/lru_cache.h"
 #include "util/checks.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <list>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -46,11 +47,6 @@ PixelWindow CropCells(const RasterGrid& lattice, const Bounds2d& crop) {
     return cells;
 }
 
-/// The grid of the file `info` describes.
-RasterGrid FileLattice(const GeoTiffInfo& info) {
-    return {info.width, info.height, info.transform};
-}
-
 /// The cells of `lattice` a source covers: those that meet `crop`, or all without one.
 /// @throws std::invalid_argument as `CropCells`.
 PixelWindow CoveredCells(const RasterGrid& lattice, const std::optional<Bounds2d>& crop) {
@@ -66,8 +62,10 @@ class GeoTiffPosts final : public PostLattice {
                  const RasterGrid& lattice, const PixelWindow& window, bool wrapColumns,
                  std::size_t cacheBytes)
         : reader_(path, band), scaling_(scaling), lattice_(lattice), window_(window),
-          wrapColumns_(wrapColumns), cacheBytes_(cacheBytes),
-          across_(CeilDiv(lattice.width, reader_.BlockWidth())) {}
+          wrapColumns_(wrapColumns), across_(CeilDiv(lattice.width, reader_.BlockWidth())),
+          blocks_(
+              std::max<std::size_t>(cacheBytes, 1),
+              [](const Raster<float>& block) { return block.Size() * sizeof(float); }, {}, 1) {}
 
     GeoTransform Transform() const override {
         return lattice_.transform;
@@ -79,11 +77,10 @@ class GeoTiffPosts final : public PostLattice {
 
     void Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
               Span<float> heights) const override {
-        std::vector<std::size_t> cols(width);
-        for (std::size_t c = 0; c < width; ++c) {
-            cols[c] = detail::PostIndex(col0 + static_cast<std::int64_t>(c), wrapColumns_,
-                                        lattice_.width, window_.colBegin, window_.colEnd);
-        }
+        const std::vector<std::size_t> cols = detail::PostIndices(
+            col0, width, wrapColumns_, lattice_.width, window_.colBegin, window_.colEnd);
+        const std::vector<std::size_t> rows = detail::PostIndices(
+            row0, height, false, lattice_.height, window_.rowBegin, window_.rowEnd);
         const std::size_t blockWidth = reader_.BlockWidth();
         const std::size_t blockHeight = reader_.BlockHeight();
         std::vector<std::pair<std::size_t, std::shared_ptr<const Raster<float>>>> held;
@@ -94,15 +91,12 @@ class GeoTiffPosts final : public PostLattice {
                     return *entry.second;
                 }
             }
-            held.emplace_back(key, Block(bx, by, key));
+            held.emplace_back(key, blocks_.Get(key, [&] { return Decode(bx, by); }));
             return *held.back().second;
         };
         for (std::size_t r = 0; r < height; ++r) {
-            const std::size_t row =
-                detail::PostIndex(row0 + static_cast<std::int64_t>(r), false, lattice_.height,
-                                  window_.rowBegin, window_.rowEnd);
-            const std::size_t by = row / blockHeight;
-            const std::size_t blockRow = row - by * blockHeight;
+            const std::size_t by = rows[r] / blockHeight;
+            const std::size_t blockRow = rows[r] - by * blockHeight;
             const Raster<float>* current = nullptr;
             std::size_t currentBx = 0;
             for (std::size_t c = 0; c < width; ++c) {
@@ -117,41 +111,6 @@ class GeoTiffPosts final : public PostLattice {
     }
 
   private:
-    /// A decoded block and where it stands among those used.
-    struct Cached {
-        std::shared_ptr<const Raster<float>> raster;
-        std::list<std::size_t>::iterator use;
-    };
-
-    /// Block (`bx`, `by`), numbered `key`, from the cache or decoded into it.
-    std::shared_ptr<const Raster<float>> Block(std::size_t bx, std::size_t by,
-                                               std::size_t key) const {
-        {
-            const std::lock_guard<std::mutex> lock(mutex_);
-            const auto found = cache_.find(key);
-            if (found != cache_.end()) {
-                uses_.splice(uses_.begin(), uses_, found->second.use);
-                return found->second.raster;
-            }
-        }
-        auto decoded = std::make_shared<const Raster<float>>(Decode(bx, by));
-        const std::lock_guard<std::mutex> lock(mutex_);
-        const auto [entry, inserted] = cache_.try_emplace(key);
-        if (!inserted) {
-            return entry->second.raster;
-        }
-        uses_.push_front(key);
-        entry->second = {decoded, uses_.begin()};
-        bytes_ += decoded->Size() * sizeof(float);
-        while (bytes_ > cacheBytes_ && uses_.size() > 1) {
-            const auto oldest = cache_.find(uses_.back());
-            bytes_ -= oldest->second.raster->Size() * sizeof(float);
-            cache_.erase(oldest);
-            uses_.pop_back();
-        }
-        return decoded;
-    }
-
     /// Block (`bx`, `by`) scaled, NaN where it has no data.
     Raster<float> Decode(std::size_t bx, std::size_t by) const {
         Raster<float> block = reader_.ReadBlock(bx, by);
@@ -173,12 +132,8 @@ class GeoTiffPosts final : public PostLattice {
     RasterGrid lattice_;
     PixelWindow window_;
     bool wrapColumns_ = false;
-    std::size_t cacheBytes_ = 0;
     std::size_t across_ = 0;
-    mutable std::mutex mutex_;
-    mutable std::unordered_map<std::size_t, Cached> cache_;
-    mutable std::list<std::size_t> uses_;
-    mutable std::size_t bytes_ = 0;
+    mutable LruCache<std::size_t, Raster<float>> blocks_;
 };
 
 }  // namespace
@@ -188,8 +143,7 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
 
 GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options,
                              GeoTiffInfo info)
-    : RasterHeightsSource(FileLattice(info), CoveredCells(FileLattice(info), options.crop),
-                          info.geoKeys),
+    : RasterHeightsSource(info.grid, CoveredCells(info.grid, options.crop), info.geoKeys),
       path_(std::move(path)), options_(std::move(options)), info_(std::move(info)) {
     const std::size_t band = options_.band;
     if (band >= info_.bands) {
@@ -224,9 +178,10 @@ const detail::RasterHeights& GeoTiffSource::Heights() const {
             noData = scaling_.Identity() ? static_cast<float>(*info_.noData)
                                          : std::numeric_limits<float>::quiet_NaN();
         }
-        heights_.emplace(std::make_shared<GeoTiffPosts>(path_, options_.band, scaling_, lattice,
-                                                        window, wraps, options_.cacheBytes),
-                         lattice, noData, sampling, Cells(), path_.string(), wraps);
+        heights_ = std::make_shared<const detail::RasterHeights>(
+            std::make_shared<GeoTiffPosts>(path_, options_.band, scaling_, lattice, window, wraps,
+                                           options_.cacheBytes),
+            lattice, noData, sampling, Cells(), path_.string(), wraps);
     });
     return *heights_;
 }

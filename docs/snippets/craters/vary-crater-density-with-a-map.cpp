@@ -17,21 +17,20 @@ namespace {
 
 TEST_F(SnippetTest, VaryCraterDensityWithAMap) {
     const std::size_t cells = 100;
-    Raster<float> scale(cells, cells);
+    Raster<float> scale(RasterGrid{cells, cells, GeoTransform::NorthUp(-200.0, 200.0, 4.0)});
     for (std::size_t row = 0; row < cells; ++row) {
         for (std::size_t column = 0; column < cells; ++column) {
             scale(column, row) = 0.1f + 2.9f * (static_cast<float>(column) + 0.5f) / cells;
         }
     }
-    scale.SetTransform(GeoTransform::NorthUp(-200.0, 200.0, 4.0));
     // --8<-- [start:vary_crater_density_with_a_map]
     DensityMap densityMap;
     densityMap.field = std::make_shared<RasterField>(scale);
     densityMap.measure = DensityMeasure::Scale;  // times the layer's own density
     CraterLayerOptions options;
     options.seed = 5;
-    options.generation.dMin = 4.0;
-    options.generation.dMax = 60.0;
+    options.generation.minDiameter = 4.0;
+    options.generation.maxDiameter = 60.0;
     options.densityMap = densityMap;
     const CraterLayer craters(DefaultCraterModels(), options);
     const CraterList list = craters.Craters({-200.0, -200.0, 200.0, 200.0});

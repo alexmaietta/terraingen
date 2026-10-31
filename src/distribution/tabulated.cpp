@@ -68,7 +68,8 @@ double TabulatedSfd::IncrementalAt(double diameter) const {
     return -slopes_[IntervalAt(diameter)] * CumulativeAt(diameter) / diameter;
 }
 
-double TabulatedSfd::InvertCumulative(double target, double /*dMin*/, double /*dMax*/) const {
+double TabulatedSfd::InvertCumulative(double target, double /*minDiameter*/,
+                                      double /*maxDiameter*/) const {
     const auto above = std::partition_point(cumulative_.begin(), cumulative_.end(),
                                             [target](double value) { return value > target; });
     const auto index = static_cast<std::size_t>(above - cumulative_.begin());

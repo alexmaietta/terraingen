@@ -49,10 +49,10 @@ class SlopeAlbedo final : public AlbedoLayer {
 
     /// Moves `value` to the maturity of the slope at (`x`, `y`); NaN stays NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                 const AlbedoContext& context) const override;
+                 const LayerContext& context) const override;
 
     /// `ApplyAt` at every cell center, the lattice read once.
-    void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
+    void Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const override;
 
     /// The slope in degrees at (`x`, `y`) on `ground` lying on `surface`, interpolated between
     /// lattice nodes.

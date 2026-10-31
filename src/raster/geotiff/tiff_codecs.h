@@ -39,16 +39,16 @@ std::vector<std::uint8_t> EncodeDeflate(Span<const std::uint8_t> data);
 /// @throws GeoTiffError for corrupt or short data.
 std::vector<std::uint8_t> DecodePackBits(Span<const std::uint8_t> data, std::size_t size);
 
-/// Applies TIFF's floating-point predictor (3) to one row in place: the samples' bytes regrouped
-/// into planes, most significant first, then each byte replaced by its difference from the one
-/// `stride` bytes before.
-/// @param row `rowSamples` little-endian samples of `sampleBytes` bytes.
+/// Applies TIFF's floating-point predictor (3) in place to each of `rows` rows: the samples' bytes
+/// regrouped into planes, most significant first, then each byte replaced by its difference from
+/// the one `stride` bytes before.
+/// @param data `rows` rows of `rowSamples` little-endian samples of `sampleBytes` bytes.
 /// @param stride Bytes between differenced bytes: the samples per pixel.
-void EncodeFloatPredictorRow(std::uint8_t* row, std::size_t sampleBytes, std::size_t rowSamples,
-                             std::size_t stride);
+void EncodeFloatPredictor(std::uint8_t* data, std::size_t rows, std::size_t sampleBytes,
+                          std::size_t rowSamples, std::size_t stride);
 
-/// Reverses `EncodeFloatPredictorRow`.
-void DecodeFloatPredictorRow(std::uint8_t* row, std::size_t sampleBytes, std::size_t rowSamples,
-                             std::size_t stride);
+/// Reverses `EncodeFloatPredictor`.
+void DecodeFloatPredictor(std::uint8_t* data, std::size_t rows, std::size_t sampleBytes,
+                          std::size_t rowSamples, std::size_t stride);
 
 }  // namespace terraingen::detail

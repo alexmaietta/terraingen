@@ -2,6 +2,7 @@
 
 #include "sources/seam_field.h"
 
+#include "raster/kernels.h"
 #include "terraingen/raster/resample.h"
 
 #include <algorithm>
@@ -78,12 +79,11 @@ Sampled SampleSources(const Source& earlier, const Source& later, const Posts& p
                     std::vector<float>(posts.Size(), std::numeric_limits<float>::quiet_NaN())};
     for (std::size_t top = 0; top < posts.height; top += kStripRows) {
         const std::size_t rows = std::min(kStripRows, posts.height - top);
-        Raster<float> above(posts.width, rows);
         GeoTransform transform = posts.transform;
         const Vec2d origin = posts.transform.PixelToWorld(0.0, static_cast<double>(top));
         transform.originX = origin.x;
         transform.originY = origin.y;
-        above.SetTransform(transform);
+        Raster<float> above(RasterGrid{posts.width, rows, transform});
         earlier.Fill(above, spacing);
         bool any = false;
         for (std::size_t row = 0; row < rows; ++row) {
@@ -96,8 +96,7 @@ Sampled SampleSources(const Source& earlier, const Source& later, const Posts& p
         if (!any) {
             continue;
         }
-        Raster<float> below(posts.width, rows);
-        below.SetTransform(transform);
+        Raster<float> below(RasterGrid{posts.width, rows, transform});
         later.Fill(below, spacing);
         for (std::size_t row = 0; row < rows; ++row) {
             for (std::size_t col = 0; col < posts.width; ++col) {
@@ -668,9 +667,8 @@ SeamField BuildSeamField(const Source& earlier, const Source& later, const Raste
     }
     const RasterGrid lattice = SeamLattice(grid, seams);
     const GeoTransform& transform = lattice.transform;
-    const Posts posts{lattice.width, lattice.height,
-                      std::hypot(transform.pixelWidth, transform.colRotation),
-                      std::hypot(transform.rowRotation, transform.pixelHeight), transform};
+    const Posts posts{lattice.width, lattice.height, transform.CellWidth(), transform.CellHeight(),
+                      transform};
     const double spacing = grid.PixelSize();
     const Sampled sampled = SampleSources(earlier, later, posts, spacing);
     const std::vector<std::uint8_t>& data = sampled.data;

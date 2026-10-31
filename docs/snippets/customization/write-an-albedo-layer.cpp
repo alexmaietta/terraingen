@@ -22,7 +22,7 @@ TEST_F(SnippetTest, WriteAnAlbedoLayer) {
     class RoverTracks final : public AlbedoLayer {
       public:
         void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                     const AlbedoContext& /*context*/) const override {
+                     const LayerContext& /*context*/) const override {
             const double middle = 3.0 * std::sin(x / 8.0);
             if (std::abs(y - middle + 0.9) < 0.2 || std::abs(y - middle - 0.9) < 0.2) {
                 for (std::size_t band = 0; band < bands; ++band) {

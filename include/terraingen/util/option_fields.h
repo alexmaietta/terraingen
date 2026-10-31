@@ -146,11 +146,6 @@ inline FieldRange UnitInterval() {
     return Between(0.0, 1.0);
 }
 
-/// "lowest to highest", as messages give the counts a value allows.
-inline std::string CountText(std::size_t lowest, std::size_t highest) {
-    return std::to_string(lowest) + " to " + std::to_string(highest);
-}
-
 /// What a range allows, as an error message says it: "positive", "from 1 to 4096 deg".
 /// @param unit The unit symbol given after the bounds, or empty.
 std::string DescribeRange(const FieldRange& range, std::string_view unit = {});
@@ -218,9 +213,9 @@ struct BindsNativeTrait<IO, std::enable_if_t<IO::kBindsNative>> : std::true_type
 /// written flat, which returns false to have them visited flat.
 template <typename IO> inline constexpr bool BindsNative = BindsNativeTrait<IO>::value;
 
-/// Visits a bound that is unset when infinite as an optional field.
+/// Visits a bound that is unset when not finite as an optional field.
 /// @param unit The bound's unit symbol, or empty.
-/// @param unset The bound when the field is unset: +infinity or -infinity.
+/// @param unset The bound when the field is unset: +infinity, -infinity or NaN.
 template <typename IO>
 void OptionalBound(IO& io, std::string_view key, double& bound, std::string_view description,
                    std::string_view unit = {},
@@ -236,112 +231,6 @@ void OptionalBound(IO& io, std::string_view key, double& bound, std::string_view
     }
     io(key, value, description, unit, range);
     bound = value.value_or(unset);
-}
-
-/// The fields of a resolution fade (`ResolutionFade`) as "fade_px", its start and end sample
-/// counts as a list of two in output samples (pixels), and "fade_shape", the curve between them.
-/// @param description What the counts mean for the features that fade.
-template <typename IO, typename Fade>
-void FadePixelFields(IO& io, Fade& fade, std::string_view description) {
-    if constexpr (BindsNative<IO>) {
-        if (io.Group("fade", fade, description)) {
-            return;
-        }
-    }
-    std::array<double, 2> pixels{fade.startSamples, fade.endSamples};
-    io("fade_px", pixels, description, "px", AtLeast(0.0));
-    fade.startSamples = pixels[0];
-    fade.endSamples = pixels[1];
-    io("fade_shape", fade.shape, "Curve of the fade between the two sample counts of fade_px.");
-}
-
-/// The field "source_resolves_px": source cells across from which the source's measured data
-/// already holds the `features`, measured by their `size`, so only smaller ones are added.
-template <typename IO>
-void SourceResolvesField(IO& io, std::optional<double>& pixels, std::string_view features,
-                         std::string_view size) {
-    io("source_resolves_px", pixels,
-       "Source cells across from which the source's data already holds the " +
-           std::string(features) + ", by their " + std::string(size) +
-           ": only smaller ones are added, each raster of a chain giving its own limit. "
-           "Ignored on synthetic sources and where no raster has data; null adds them all.",
-       "px", Above(0.0));
-}
-
-/// The keys of a crater selection's fields.
-struct SelectionKeys {
-    std::string_view minDiameter = "min_diameter_m";
-    std::string_view maxDiameter = "max_diameter_m";
-    std::string_view minAge = "min_age_gyr";
-    std::string_view maxAge = "max_age_gyr";
-    std::string_view manual = "manual";
-};
-
-/// The fields of a crater selection (`CraterSelection`): the diameters and ages of the craters
-/// selected, and whether manual craters are.
-/// @param craters What the selected craters are, such as "craters made irregular".
-/// @param manualHelp The description of the manual flag.
-template <typename IO, typename Selection>
-void SelectionFields(IO& io, Selection& selection, std::string_view craters,
-                     std::string_view manualHelp, const SelectionKeys& keys = {}) {
-    if constexpr (BindsNative<IO>) {
-        if (io.Group("selection", selection,
-                     "The selection of " + std::string(craters) +
-                         ": their diameters and ages, and whether manual craters count.")) {
-            return;
-        }
-    }
-    const std::string of = ", of " + std::string(craters);
-    io(keys.minDiameter, selection.minDiameter, "Smallest diameter, in meters" + of + ".", "m",
-       AtLeast(0.0));
-    OptionalBound(io, keys.maxDiameter, selection.maxDiameter,
-                  "Largest diameter, in meters" + of + "; unset has no upper limit.", "m",
-                  std::numeric_limits<double>::infinity(), AtLeast(0.0));
-    io(keys.minAge, selection.minAgeGyr, "Youngest age, in Gyr" + of + ".", "Gyr", AtLeast(0.0));
-    OptionalBound(io, keys.maxAge, selection.maxAgeGyr,
-                  "Oldest age, in Gyr" + of + "; unset has no upper limit.", "Gyr",
-                  std::numeric_limits<double>::infinity(), AtLeast(0.0));
-    io(keys.manual, selection.manual, manualHelp);
-}
-
-/// The description of a wind azimuth: where `wind`, such as "wind", blows toward, and the
-/// `effect` it has, such as "slip faces face it".
-inline std::string WindAzimuthHelp(std::string_view wind, std::string_view effect) {
-    return "Direction the " + std::string(wind) +
-           " blows toward, in degrees counter-clockwise from +x (local east on a body); " +
-           std::string(effect) + ".";
-}
-
-/// The fields of the anchor of a layer laid out in a tangent frame: the longitude and latitude,
-/// on a body, of the point whose tangent frame `what`, such as "the plates are laid out in".
-/// @param prefix The keys' prefix, to which "_x" and "_y" are added.
-template <typename IO, typename Anchor>
-void AnchorFields(IO& io, Anchor& anchor, std::string_view what,
-                  std::string_view prefix = "anchor") {
-    if constexpr (BindsNative<IO>) {
-        if (io.Group(prefix, anchor,
-                     "On a body, the longitude and latitude in degrees of the point whose tangent "
-                     "frame " +
-                         std::string(what) + ".")) {
-            return;
-        }
-    }
-    io(std::string(prefix) + "_x", anchor.x,
-       "On a body, the longitude in degrees of the point whose tangent frame " + std::string(what) +
-           ".");
-    io(std::string(prefix) + "_y", anchor.y, "On a body, the latitude in degrees of the anchor.");
-}
-
-/// The fields of an exposure field a layer reads on the ground beneath it, and the spacing in
-/// meters it reads the ground at.
-/// @param exposureHelp The description of the exposure field.
-/// @param prefix The exposure's key, to which "_spacing_m" is added for the spacing's.
-template <typename IO, typename Exposure>
-void ExposureFields(IO& io, Exposure& exposure, double& spacing, std::string_view exposureHelp,
-                    std::string_view prefix = "exposure") {
-    io(std::string(prefix), exposure, exposureHelp);
-    io(std::string(prefix) + "_spacing_m", spacing,
-       "Spacing in meters the ground is read at for the exposure field.", "m", Above(0.0));
 }
 
 /// The path `path.key` of a field, or just `key` when `path` is empty.

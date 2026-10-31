@@ -23,10 +23,10 @@ template <typename Check> std::string ErrorOf(Check check) {
 }  // namespace
 
 TEST(ConfigChecks, BuildsJsonPaths) {
-    EXPECT_EQ(config::Child("", "surface"), "surface");
-    EXPECT_EQ(config::Child("surface", "radius"), "surface.radius");
-    EXPECT_EQ(config::Element("layers", 2), "layers[2]");
-    EXPECT_EQ(config::Child(config::Element("layers", 0), "hurst"), "layers[0].hurst");
+    EXPECT_EQ(terraingen::FieldPath("", "surface"), "surface");
+    EXPECT_EQ(terraingen::FieldPath("surface", "radius"), "surface.radius");
+    EXPECT_EQ(terraingen::ItemPath("layers", 2), "layers[2]");
+    EXPECT_EQ(terraingen::FieldPath(terraingen::ItemPath("layers", 0), "hurst"), "layers[0].hurst");
 }
 
 TEST(ConfigChecks, PassValidValues) {

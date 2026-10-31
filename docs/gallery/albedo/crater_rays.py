@@ -20,7 +20,7 @@ def figure(quick=False):
     pixel = 20.0 if quick else 5.0
     size = int(SIZE_M / pixel) + 1
     terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel))
-    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
+    grid = terrain.evaluate().grid
     base = terraingen.SyntheticAlbedo(value=0.11)
 
     def options(patchiness=None, streaks=0.0, lobes=0.0):

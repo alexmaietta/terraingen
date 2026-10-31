@@ -32,7 +32,7 @@ class PyArrayLayer(terraingen.Layer):
     """The same relief over the whole raster with NumPy."""
 
     def apply(self, heights, context):
-        grid = terraingen.RasterGrid.from_raster(heights)
+        grid = heights.grid
         x0, step = grid.transform.origin_x, grid.transform.pixel_width
         y0 = grid.transform.origin_y
         xs = x0 + step * (np.arange(heights.width) + 0.5)
@@ -77,7 +77,7 @@ def crater_layer(density, profile, degradation):
     ages = terraingen.FreshAges()
     models = terraingen.CraterModels(density, ages, degradation, profile)
     options = terraingen.CraterLayerOptions(
-        seed=1, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=60.0)
+        seed=1, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=60.0)
     )
     return terraingen.CraterLayer(models, options)
 

@@ -307,7 +307,7 @@ def test_boulder_abundance_follows_exposed_bedrock(noise_layer):
     ground = terraingen.Terrain(source=terraingen.FlatSource(64, 64, 0.5), layers=[noise_layer(3, 60.0, 5.0)])
     abundances = [boulders.abundance_at(x, 0.0, ground)[0] for x in np.linspace(-15.0, 15.0, 31)]
     assert min(abundances) < max(abundances) <= 4.0 + 1e-9
-    assert abundances[3] == boulders.abundance_at(-12.0, 0.0, ground=ground.ground(1))[0]
+    assert abundances[3] == boulders.abundance_at(-12.0, 0.0, ground=ground.beneath(1))[0]
 
 
 def test_boulder_ejecta_defaults_to_freshness_aging():

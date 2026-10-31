@@ -30,7 +30,7 @@ class RecordingGround final : public Ground {
     explicit RecordingGround(std::vector<GroundRead>& reads) : reads_(reads) {}
 
   protected:
-    void FillSamples(SampleBlock& samples, double spacing) const override;
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
 
   private:
     std::vector<GroundRead>& reads_;
@@ -41,8 +41,9 @@ class RecordingGround final : public Ground {
 /// read's found by its point and spacing. Thread-safe.
 class GroundReads {
   public:
-    /// Reads `ground` at `reads`; `ground` must outlive it.
-    GroundReads(const Ground& ground, Span<const GroundRead> reads);
+    /// Reads `ground` at `reads` on `threads` threads (0 for every hardware thread); `ground` must
+    /// outlive it.
+    GroundReads(const Ground& ground, Span<const GroundRead> reads, unsigned threads = 1);
 
     /// The ground read.
     const Ground& Read() const {
@@ -96,7 +97,7 @@ class ReplayedGround final : public Ground {
     }
 
   protected:
-    void FillSamples(SampleBlock& samples, double spacing) const override;
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
 
   private:
     /// The height of the next recorded read if it is at (`x`, `y`) and `spacing`, else of any
@@ -152,7 +153,7 @@ void MapReadingGround(std::size_t count, unsigned threads, const Ground& ground,
                 all.insert(all.end(), some.begin(), some.end());
                 some = {};
             }
-            const GroundReads held(ground, all);
+            const GroundReads held(ground, all, threads);
             ParallelFor(tasks, threads, [&](std::size_t task) {
                 const std::size_t reads = first[task + 1] - first[task];
                 const ReplayedGround replay(

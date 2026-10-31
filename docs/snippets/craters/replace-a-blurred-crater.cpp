@@ -18,8 +18,7 @@ namespace terraingen {
 namespace {
 
 TEST_F(SnippetTest, ReplaceABlurredCrater) {
-    Raster<float> posts(101, 101);
-    posts.SetTransform(GeoTransform::NorthUp(-202.0, 202.0, 4.0));
+    Raster<float> posts(RasterGrid{101, 101, GeoTransform::NorthUp(-202.0, 202.0, 4.0)});
     Crater worn = ManualCrater(0.0, 0.0, 40.0);
     worn.depth = 2.0;
     CraterLayer::Manual({worn})->Apply(posts, {4.0});

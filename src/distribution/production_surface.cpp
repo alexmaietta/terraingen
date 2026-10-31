@@ -31,8 +31,9 @@ double ProductionSurface::IncrementalAt(double diameter) const {
     return scale_ * UncheckedIncremental(*production_, diameter);
 }
 
-double ProductionSurface::InvertCumulative(double target, double dMin, double dMax) const {
-    return UncheckedInverse(*production_, target / scale_, dMin, dMax);
+double ProductionSurface::InvertCumulative(double target, double minDiameter,
+                                           double maxDiameter) const {
+    return UncheckedInverse(*production_, target / scale_, minDiameter, maxDiameter);
 }
 
 namespace detail {

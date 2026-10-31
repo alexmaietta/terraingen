@@ -43,7 +43,7 @@ class SplicedSfd final : public SizeFrequencyDistribution {
   protected:
     double CumulativeAt(double diameter) const override;
     double IncrementalAt(double diameter) const override;
-    double InvertCumulative(double target, double dMin, double dMax) const override;
+    double InvertCumulative(double target, double minDiameter, double maxDiameter) const override;
 
   private:
     std::size_t PieceAt(double diameter) const;

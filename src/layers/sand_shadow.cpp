@@ -116,8 +116,7 @@ double SandShadowLayer::MaterialCoverAt(double x, double y, const LayerContext& 
 Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid,
                                                   const LayerContext& context) const {
     const Surface& surface = context.SurfaceOrPlane();
-    Raster<double> cover(grid.width, grid.height);
-    cover.SetTransform(grid.transform);
+    Raster<double> cover(grid);
     const std::vector<Shadow> shadows =
         ShadowsOver(grid.Bounds(), context.spacing, context.ground, surface);
     ForEachFeatureCell(

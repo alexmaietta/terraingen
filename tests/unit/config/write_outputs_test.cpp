@@ -140,8 +140,8 @@ TEST(WriteOutputs, WritesHeightmapsWithTheSourceProjection) {
 TEST(WriteOutputs, WritesARasterAlbedoUpscaledWithTheSourceProjection) {
     const auto folder = TempPath("terraingen_albedo");
     WriteDem(folder, "dem.tif");
-    terraingen::Raster<float> map(10, 8);
-    map.SetTransform(terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 20.0));
+    terraingen::Raster<float> map(
+        terraingen::RasterGrid{10, 8, terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 20.0)});
     for (std::size_t i = 0; i < map.Size(); ++i) {
         map.Values()[i] = static_cast<float>(1000 + 37 * (i % 11));
     }
@@ -320,8 +320,8 @@ TEST(WriteOutputs, WritesWholeBodyListsAndRejectsGridsItDidNotGenerate) {
     ConfigSpec config;
     config.body = terraingen::SphereSurfaceSpec{50000.0};
     terraingen::CraterLayerSpec craters;
-    craters.minDiameter = 2000.0;
-    craters.maxDiameter = 20000.0;
+    craters.options.generation.minDiameter = 2000.0;
+    craters.options.generation.maxDiameter = 20000.0;
     craters.density = terraingen::testing::LunarDensitySpec();
     craters.ages = terraingen::testing::LunarAgesSpec();
     config.layers = {craters};

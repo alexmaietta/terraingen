@@ -3,6 +3,7 @@
 #include "support/raster_equality.h"
 #include "terraingen/sources/upsampling.h"
 
+#include "sources/lattice.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/sources/raster_source.h"
 
@@ -15,6 +16,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -34,8 +36,7 @@ namespace {
 
 /// A 12 x 9 raster of uneven heights in 3 m cells.
 Raster<float> Heights() {
-    Raster<float> raster(12, 9);
-    raster.SetTransform(GeoTransform::NorthUp(-6.0, 30.0, 3.0));
+    Raster<float> raster(RasterGrid{12, 9, GeoTransform::NorthUp(-6.0, 30.0, 3.0)});
     for (std::size_t row = 0; row < raster.Height(); ++row) {
         for (std::size_t col = 0; col < raster.Width(); ++col) {
             raster(col, row) = static_cast<float>(std::cos(0.7 * static_cast<double>(col)) +
@@ -119,7 +120,7 @@ TEST(RasterPosts, ReadsTheWindowRepeatingTheEdgesAndNoDataAsNan) {
     EXPECT_EQ(corner[0], raster(11, 8));
 
     const auto window = std::make_shared<const Raster<float>>(3, 2, 5.0f);
-    const RasterPosts placed(window, {RasterGrid::FromRaster(raster), 4, 6});
+    const RasterPosts placed(window, {raster.Grid(), 4, 6});
     EXPECT_EQ(*placed.Extent(), (terraingen::PixelWindow{4, 7, 6, 8}));
     EXPECT_THROW(RasterPosts(nullptr, {}), std::invalid_argument);
 }
@@ -141,8 +142,7 @@ TEST(RasterPosts, WrappingColumnsRepeatWithTheLatticesWidth) {
     EXPECT_EQ(values[0], raster(0, 0)) << "rows still repeat their edge";
 
     const auto window = std::make_shared<const Raster<float>>(3, 2, 5.0f);
-    EXPECT_THROW(RasterPosts(window, {RasterGrid::FromRaster(raster), 4, 6}, true),
-                 std::invalid_argument);
+    EXPECT_THROW(RasterPosts(window, {raster.Grid(), 4, 6}, true), std::invalid_argument);
 }
 
 TEST(KernelUpsampler, GivesSampleRastersBitsForEveryKernel) {
@@ -161,7 +161,7 @@ TEST(KernelUpsampler, GivesSampleRastersBitsForEveryKernel) {
             }
         }
         const RasterGrid grid{40, 30, GeoTransform::NorthUp(-5.3, 29.1, 0.77)};
-        Raster<float> filled = grid.MakeRaster();
+        Raster<float> filled(grid);
         upsampler.Fill(posts, filled, 0.77, 0);
         for (std::size_t row = 0; row < filled.Height(); ++row) {
             for (std::size_t col = 0; col < filled.Width(); ++col) {
@@ -177,7 +177,7 @@ TEST(KernelUpsampler, ReadsCellByCellWhenTheGridIsMuchCoarserThanThePosts) {
     const CountingPosts posts;
     const KernelUpsampler cubic;
     const RasterGrid coarse{6, 5, GeoTransform::NorthUp(-1000.0, 1000.0, 400.0)};
-    Raster<float> filled = coarse.MakeRaster();
+    Raster<float> filled(coarse);
     cubic.Fill(posts, filled, 400.0, 0);
     for (std::size_t row = 0; row < filled.Height(); ++row) {
         for (std::size_t col = 0; col < filled.Width(); ++col) {
@@ -189,8 +189,7 @@ TEST(KernelUpsampler, ReadsCellByCellWhenTheGridIsMuchCoarserThanThePosts) {
 }
 
 TEST(KernelUpsampler, RejectsARotatedLattice) {
-    Raster<float> raster(4, 4, 1.0f);
-    raster.SetTransform(GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
+    Raster<float> raster(RasterGrid{4, 4, GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0}}, 1.0f);
     const RasterPosts posts = Posts(raster);
     EXPECT_THROW(static_cast<void>(KernelUpsampler{}.HeightAt(posts, 1.0, -1.0, 0.1)),
                  std::invalid_argument);
@@ -207,7 +206,7 @@ TEST(Upsampler, GivesThePostsOwnHeightAtTheirSpacingOrCoarser) {
     EXPECT_EQ(mean.HeightAt(posts, 3.5, -5.0, 2.0), MeanUpsampler::Mean(posts, 3.5, -5.0));
     const RasterGrid grid{5, 4, GeoTransform::NorthUp(0.0, 0.0, 2.0)};
     for (const double spacing : {2.0, 0.5}) {
-        Raster<float> filled = grid.MakeRaster();
+        Raster<float> filled(grid);
         mean.Fill(posts, filled, spacing, 0);
         for (std::size_t row = 0; row < filled.Height(); ++row) {
             for (std::size_t col = 0; col < filled.Width(); ++col) {
@@ -259,11 +258,11 @@ TEST(Upsampler, FillsOnTheThreadsGivenToTheSameBits) {
     const CountingPosts posts;
     const RasterGrid grid{40, 30, GeoTransform::NorthUp(1.0, -1.0, 0.5)};
     ThreadNotingUpsampler serial;
-    Raster<float> one = grid.MakeRaster();
+    Raster<float> one(grid);
     serial.Fill(posts, one, 0.5, 1);
     EXPECT_EQ(serial.Threads(), std::set<std::thread::id>{std::this_thread::get_id()});
     ThreadNotingUpsampler parallel;
-    Raster<float> every = grid.MakeRaster();
+    Raster<float> every(grid);
     parallel.Fill(posts, every, 0.5, 0);
     terraingen::testing::ExpectSameRaster(one, every);
     const Raster<float> heights = Heights();
@@ -271,8 +270,8 @@ TEST(Upsampler, FillsOnTheThreadsGivenToTheSameBits) {
     const RasterGrid fine{60, 40, GeoTransform::NorthUp(-6.0, 30.0, 0.6)};
     for (const ResampleMethod method : {ResampleMethod::Cubic, ResampleMethod::Lanczos3}) {
         const KernelUpsampler kernel(method);
-        Raster<float> a = fine.MakeRaster();
-        Raster<float> b = fine.MakeRaster();
+        Raster<float> a(fine);
+        Raster<float> b(fine);
         kernel.Fill(lattice, a, 0.6, 1);
         kernel.Fill(lattice, b, 0.6, 0);
         terraingen::testing::ExpectSameRaster(a, b);
@@ -282,8 +281,7 @@ TEST(Upsampler, FillsOnTheThreadsGivenToTheSameBits) {
 TEST(KernelUpsampler, FillsARotatedGridCellByCellToTheBitsOfItsPoints) {
     const Raster<float> heights = Heights();
     const RasterPosts lattice = Posts(heights);
-    Raster<float> rotated(20, 14);
-    rotated.SetTransform(GeoTransform{2.0, 0.5, 0.2, 20.0, 0.15, -0.5});
+    Raster<float> rotated(RasterGrid{20, 14, GeoTransform{2.0, 0.5, 0.2, 20.0, 0.15, -0.5}});
     for (const ResampleMethod method : {ResampleMethod::Cubic, ResampleMethod::Lanczos3}) {
         const KernelUpsampler kernel(method);
         kernel.Fill(lattice, rotated, 0.5, 0);
@@ -303,7 +301,7 @@ TEST(Upsampler, FillsAGridToTheBitsOfItsPointsAndFitsNothing) {
     const MeanUpsampler mean;
     EXPECT_EQ(mean.Reach(), 2);
     EXPECT_EQ(mean.FitTo(posts), nullptr);
-    Raster<float> filled = RasterGrid{3, 3, GeoTransform::NorthUp(1.0, -1.0, 1.0)}.MakeRaster();
+    Raster<float> filled(RasterGrid{3, 3, GeoTransform::NorthUp(1.0, -1.0, 1.0)});
     mean.Fill(posts, filled, 1.0, 0);
     EXPECT_EQ(filled(1, 1), mean.HeightAt(posts, 2.5, -2.5, 1.0));
 }
@@ -389,6 +387,73 @@ TEST(PostIndex, WrapsThenClampsToThePostsHeld) {
     EXPECT_EQ(terraingen::detail::PostIndex(23, true, 10, 0, 10), 3u);
 }
 
+TEST(PostIndices, GivesThePostIndexOfEachIndexRead) {
+    EXPECT_EQ(terraingen::detail::PostIndices(-2, 5, false, 10, 1, 4),
+              (std::vector<std::size_t>{1, 1, 1, 1, 2}));
+    EXPECT_EQ(terraingen::detail::PostIndices(8, 4, true, 10, 0, 10),
+              (std::vector<std::size_t>{8, 9, 0, 1}));
+}
+
+TEST(EvaluateChosen, EvaluatesTheChosenSamplesAtOnceAndPlacesThem) {
+    const std::vector<terraingen::Vec2d> points{{1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0}, {4.0, 0.0}};
+    std::vector<float> heights(points.size(), -1.0f);
+    int calls = 0;
+    terraingen::detail::EvaluateChosen(
+        points.size(),
+        [&](std::size_t i) {
+            return i % 2 == 1 ? std::optional<terraingen::Vec2d>(points[i]) : std::nullopt;
+        },
+        [&](terraingen::Span<const terraingen::Vec2d> chosen, terraingen::Span<float> values) {
+            ++calls;
+            for (std::size_t k = 0; k < chosen.size(); ++k) {
+                values[k] = static_cast<float>(10.0 * chosen[k].x);
+            }
+        },
+        [&](std::size_t i, float value) { heights[i] = value; });
+    EXPECT_EQ(calls, 1);
+    EXPECT_EQ(heights, (std::vector<float>{-1.0f, 20.0f, -1.0f, 40.0f}));
+    terraingen::detail::EvaluateChosen(
+        points.size(), [](std::size_t) { return std::optional<terraingen::Vec2d>(); },
+        [&](terraingen::Span<const terraingen::Vec2d>, terraingen::Span<float>) { ++calls; },
+        [](std::size_t, float) {});
+    EXPECT_EQ(calls, 1) << "nothing chosen evaluates nothing";
+}
+
+TEST(PointHeight, FillsABlockOfOnePoint) {
+    const float height =
+        terraingen::detail::PointHeight(3.0, 4.0, [](terraingen::SampleBlock& samples) {
+            ASSERT_EQ(samples.Size(), 1u);
+            samples.Height(0) = static_cast<float>(samples.Position(0).x + samples.Position(0).y);
+        });
+    EXPECT_EQ(height, 7.0f);
+}
+
+TEST(ExactSubgrid, GivesASubgridOnlyWhereItsCentersMatchToTheBit) {
+    const RasterGrid whole{100, 80, GeoTransform::NorthUp(1000.0, 2000.0, 0.5)};
+    const auto part = terraingen::detail::ExactSubgrid(whole, {10, 30, 5, 25});
+    ASSERT_TRUE(part.has_value());
+    EXPECT_EQ(part->width, 20u);
+    EXPECT_EQ(part->height, 20u);
+    const RasterGrid uneven{100, 80, GeoTransform::NorthUp(1003.1, 1996.3, 0.7)};
+    bool inexact = false;
+    for (std::size_t first = 1; first < 40; ++first) {
+        const auto cut = terraingen::detail::ExactSubgrid(uneven, {first, 60, first, 60});
+        if (!cut) {
+            inexact = true;
+            continue;
+        }
+        for (std::size_t k = 0; k < cut->width; ++k) {
+            const double partX = cut->transform.PixelToWorld(static_cast<double>(k) + 0.5, 0.5).x;
+            ASSERT_EQ(partX,
+                      uneven.transform.PixelToWorld(static_cast<double>(first + k) + 0.5, 0.5).x);
+        }
+    }
+    EXPECT_TRUE(inexact) << "some cuts of an uneven grid move its centers";
+    EXPECT_FALSE(terraingen::detail::ExactSubgrid(whole, {5, 5, 0, 3}));
+    const RasterGrid turned{10, 10, GeoTransform{0.0, 1.0, 0.1, 0.0, 0.1, -1.0}};
+    EXPECT_FALSE(terraingen::detail::ExactSubgrid(turned, {1, 3, 1, 3}));
+}
+
 TEST(OffsetOnLattice, FindsGridsOnTheLatticesCells) {
     const GeoTransform lattice = GeoTransform::NorthUp(-6.0, 30.0, 3.0);
     const auto on =
@@ -439,7 +504,7 @@ TEST(Upsampler, CopiesTheLatticesPostsWithoutUpsampling) {
     const Raster<float> raster = Heights();
     const RasterPosts posts = Posts(raster);
     const ThreadNotingUpsampler noting;
-    Raster<float> filled = RasterGrid{6, 4, GeoTransform::NorthUp(0.0, 27.0, 3.0)}.MakeRaster();
+    Raster<float> filled(RasterGrid{6, 4, GeoTransform::NorthUp(0.0, 27.0, 3.0)});
     noting.Fill(posts, filled, 3.0, 0);
     EXPECT_TRUE(noting.Threads().empty()) << "no cell is upsampled";
     for (std::size_t row = 0; row < filled.Height(); ++row) {

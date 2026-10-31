@@ -76,12 +76,10 @@ class RefinedNodes {
         const GeoTransform transform = posts.Transform();
         const terraingen::Vec2d first = transform.PixelToWorld(0.5, 0.5);
         const double step = std::ldexp(transform.pixelWidth, -level);
-        heights_ = RasterGrid{static_cast<std::size_t>(col1 - col0 + 1),
-                              static_cast<std::size_t>(row1 - row0 + 1),
-                              GeoTransform::NorthUp(
-                                  first.x + (static_cast<double>(col0) - 0.5) * step,
-                                  first.y + (static_cast<double>(row1) + 0.5) * step, step)}
-                       .MakeRaster();
+        heights_ = Raster<float>(RasterGrid{
+            static_cast<std::size_t>(col1 - col0 + 1), static_cast<std::size_t>(row1 - row0 + 1),
+            GeoTransform::NorthUp(first.x + (static_cast<double>(col0) - 0.5) * step,
+                                  first.y + (static_cast<double>(row1) + 0.5) * step, step)});
         DiamondSquareUpsampler(options).Fill(posts, heights_, step, 0);
     }
 
@@ -156,7 +154,7 @@ RasterGrid NodeGrid(double step, std::int64_t col0, std::int64_t rowTop, std::si
 /// `grid` filled by `upsampler` from `posts` at the grid's spacing.
 Raster<float> Fill(const DiamondSquareUpsampler& upsampler, const terraingen::PostLattice& posts,
                    const RasterGrid& grid) {
-    Raster<float> heights = grid.MakeRaster();
+    Raster<float> heights(grid);
     upsampler.Fill(posts, heights, grid.PixelSize(), 0);
     return heights;
 }
@@ -164,8 +162,7 @@ Raster<float> Fill(const DiamondSquareUpsampler& upsampler, const terraingen::Po
 /// The 40 x 30 DEM of 4 m cells the midpoint displacement layer this upsampler replaces was
 /// checked against.
 Raster<float> GoldenDem() {
-    Raster<float> dem(40, 30);
-    dem.SetTransform(GeoTransform::NorthUp(100.0, 500.0, 4.0));
+    Raster<float> dem(RasterGrid{40, 30, GeoTransform::NorthUp(100.0, 500.0, 4.0)});
     for (std::size_t row = 0; row < 30; ++row) {
         for (std::size_t col = 0; col < 40; ++col) {
             const terraingen::Vec2d p = dem.CellCenter(col, row);
@@ -219,8 +216,7 @@ Raster<float> FractionalBrownianSurface(double dimension) {
     const double count = static_cast<double>(spectrum.size());
     const double mean = sum / count;
     const double deviation = std::sqrt(squares / count - mean * mean);
-    Raster<float> heights(kSize, kSize);
-    heights.SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
+    Raster<float> heights(RasterGrid{kSize, kSize, GeoTransform::NorthUp(0.0, 0.0, 1.0)});
     for (std::size_t i = 0; i < spectrum.size(); ++i) {
         heights(i % kSize, i / kSize) = static_cast<float>((spectrum[i].real() - mean) / deviation);
     }
@@ -367,8 +363,8 @@ TEST(DiamondSquareUpsampler, FillsTheSameBitsOnOneThreadAsOnEvery) {
     const FunctionPosts posts(Hills);
     const DiamondSquareUpsampler upsampler(Options());
     const RasterGrid grid = NodeGrid(0.5, -40, -30, 150, 110);
-    Raster<float> one = grid.MakeRaster();
-    Raster<float> every = grid.MakeRaster();
+    Raster<float> one(grid);
+    Raster<float> every(grid);
     upsampler.Fill(posts, one, grid.PixelSize(), 1);
     upsampler.Fill(posts, every, grid.PixelSize(), 0);
     for (std::size_t i = 0; i < one.Size(); ++i) {
@@ -516,8 +512,7 @@ TEST(DiamondSquareUpsampler, NeedsItsRoughnessAndAnUnrotatedLattice) {
     windowed.fitWindow = 0;
     EXPECT_THROW(static_cast<void>(DiamondSquareUpsampler(windowed).HeightAt(posts, 1.3, 1.1, 1.0)),
                  std::invalid_argument);
-    Raster<float> rotated(8, 8, 1.0f);
-    rotated.SetTransform(GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
+    Raster<float> rotated(RasterGrid{8, 8, GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0}}, 1.0f);
     const auto shared = std::make_shared<const Raster<float>>(rotated);
     const terraingen::RasterPosts turned(shared, terraingen::RasterPlacement::Whole(*shared));
     EXPECT_THROW(
@@ -538,8 +533,10 @@ TEST(DiamondSquareUpsampler, FitsAnUnsetRoughnessToThePosts) {
         const FunctionPosts flat([](double, double) { return 0.0f; });
         constexpr int kLevels = 6;
         const RefinedNodes nodes(source, flat, kLevels, 0, 0, 511, 511);
-        auto raster = std::make_shared<Raster<float>>(nodes.Heights());
-        raster->SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
+        const Raster<float>& refined = nodes.Heights();
+        auto raster = std::make_shared<Raster<float>>(
+            RasterGrid{refined.Width(), refined.Height(), GeoTransform::NorthUp(0.0, 0.0, 1.0)});
+        std::copy(refined.Values().begin(), refined.Values().end(), raster->Values().begin());
         const terraingen::RasterPosts expanded(raster, terraingen::RasterPlacement::Whole(*raster));
         DiamondSquareOptions unset;
         unset.fitWindow = 0;
@@ -623,7 +620,7 @@ TEST(DiamondSquareUpsampler, MatchesTheMidpointDisplacementLayerItReplaces) {
     sampling.upsampler = std::make_shared<DiamondSquareUpsampler>(options);
     const terraingen::RasterSource source(GoldenDem(), sampling);
 
-    Raster<float> first = RasterGrid{24, 20, GeoTransform::NorthUp(130.0, 470.0, 1.0)}.MakeRaster();
+    Raster<float> first(RasterGrid{24, 20, GeoTransform::NorthUp(130.0, 470.0, 1.0)});
     source.Fill(first, 1.0);
     double sum = 0.0;
     for (const float value : first.Values()) {
@@ -635,8 +632,7 @@ TEST(DiamondSquareUpsampler, MatchesTheMidpointDisplacementLayerItReplaces) {
     EXPECT_EQ(first(18, 7), 1.48185813f);
     EXPECT_EQ(first(9, 14), 1.27179337f);
 
-    Raster<float> second =
-        RasterGrid{30, 25, GeoTransform::NorthUp(131.3, 471.9, 0.7)}.MakeRaster();
+    Raster<float> second(RasterGrid{30, 25, GeoTransform::NorthUp(131.3, 471.9, 0.7)});
     source.Fill(second, 0.7);
     sum = 0.0;
     for (const float value : second.Values()) {

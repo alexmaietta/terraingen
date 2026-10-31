@@ -27,15 +27,11 @@ void AppendEffective(const std::vector<AlbedoFractalSpec>& stack, Layers& layers
 }  // namespace
 
 SyntheticAlbedoOptions SyntheticAlbedoSpec::Options() const {
-    SyntheticAlbedoOptions options;
-    options.rgb = rgb;
-    options.hueDegrees = hueDegrees;
-    options.saturation = saturation;
-    options.value = value;
-    AppendEffective(hueNoiseDegrees, options.hueNoiseDegrees);
-    AppendEffective(saturationNoise, options.saturationNoise);
-    AppendEffective(valueNoise, options.valueNoise);
-    return options;
+    SyntheticAlbedoOptions built = options;
+    AppendEffective(hueNoiseDegrees, built.hueNoiseDegrees);
+    AppendEffective(saturationNoise, built.saturationNoise);
+    AppendEffective(valueNoise, built.valueNoise);
+    return built;
 }
 
 namespace config {
@@ -50,25 +46,25 @@ struct AlbedoChecks {
 
 void CheckAlbedoSource(const SyntheticAlbedoSpec& spec, const std::filesystem::path& /*directory*/,
                        const std::string& path) {
-    CheckNoiseStack(spec.hueNoiseDegrees, Child(path, "hue_noise_deg"));
-    CheckNoiseStack(spec.saturationNoise, Child(path, "saturation_noise"));
-    CheckNoiseStack(spec.valueNoise, Child(path, "value_noise"));
+    CheckNoiseStack(spec.hueNoiseDegrees, FieldPath(path, "hue_noise_deg"));
+    CheckNoiseStack(spec.saturationNoise, FieldPath(path, "saturation_noise"));
+    CheckNoiseStack(spec.valueNoise, FieldPath(path, "value_noise"));
     At(path, [&] { ValidateSyntheticAlbedoOptions(spec.Options()); });
 }
 
 void CheckAlbedoSource(const RasterAlbedoSpec& spec, const std::filesystem::path& directory,
                        const std::string& path) {
-    const std::string file = Child(path, "path");
+    const std::string file = FieldPath(path, "path");
     CheckNonEmpty(spec.path, file);
     const GeoTiffInfo info =
         AtFile(file, [&] { return ReadGeoTiffInfo(Resolve(spec.path, directory)); });
     for (const std::size_t band : spec.bands) {
-        CheckBand(band, info, Child(path, "bands"));
+        CheckBand(band, info, FieldPath(path, "bands"));
     }
-    if (info.transform.IsRotated()) {
+    if (info.grid.transform.IsRotated()) {
         throw ConfigError(file, "rotated albedo maps are not supported");
     }
-    At(Child(path, "detail"), [&] { ValidateAlbedoDetail(spec.options.detail); });
+    At(FieldPath(path, "detail"), [&] { ValidateAlbedoDetail(spec.options.detail); });
 }
 
 void CheckAlbedoLayer(const CraterAlbedoSpec& craters, const std::string& path,
@@ -77,7 +73,7 @@ void CheckAlbedoLayer(const CraterAlbedoSpec& craters, const std::string& path,
         throw ConfigError(path, "crater albedo needs a crater layer");
     }
     if (craters.craterLayer && *craters.craterLayer >= checks.craterLayers) {
-        throw ConfigError(Child(path, "crater_layer"),
+        throw ConfigError(FieldPath(path, "crater_layer"),
                           "there are " + std::to_string(checks.craterLayers) + " crater layers");
     }
     At(path, [&] { ValidateCraterAlbedoOptions(craters.options); });
@@ -89,7 +85,7 @@ void CheckAlbedoLayer(const RockAlbedoSpec& rocks, const std::string& path,
         throw ConfigError(path, "rock albedo needs a top-level boulder layer");
     }
     if (rocks.boulderLayer && *rocks.boulderLayer >= checks.boulderLayers) {
-        throw ConfigError(Child(path, "boulder_layer"),
+        throw ConfigError(FieldPath(path, "boulder_layer"),
                           "there are " + std::to_string(checks.boulderLayers) + " boulder layers");
     }
     At(path, [&] { ValidateRockAlbedoOptions(rocks.options); });
@@ -103,7 +99,7 @@ void CheckAlbedoLayer(const SplotchAlbedoOptions& splotches, const std::string& 
 void CheckAlbedoLayer(const BlastZoneAlbedoSpec& zones, const std::string& path,
                       const AlbedoChecks&) {
     for (std::size_t z = 0; z < zones.zones.size(); ++z) {
-        At(Element(Child(path, "zones"), z), [&] { ValidateBlastZone(zones.zones[z]); });
+        At(ItemPath(FieldPath(path, "zones"), z), [&] { ValidateBlastZone(zones.zones[z]); });
     }
 }
 
@@ -164,7 +160,7 @@ std::shared_ptr<const T> TerrainLayer(const AlbedoInputs& inputs, std::size_t in
     std::shared_ptr<const T> layer =
         index < layers.size() ? std::dynamic_pointer_cast<const T>(layers[index]) : nullptr;
     if (!layer) {
-        throw ConfigError(Element("layers", index),
+        throw ConfigError(ItemPath("layers", index),
                           "the terrain's layer here is not the one the configuration builds; "
                           "pass the terrain BuildTerrain built from this configuration");
     }
@@ -185,7 +181,7 @@ void AddAlbedoLayer(const RockAlbedoSpec& rocks, const AlbedoInputs& inputs, Alb
     std::vector<RockSource> sources;
     for (const std::size_t i : LayerIndices<BoulderLayerSpec>(inputs.layers)) {
         sources.push_back({TerrainLayer<BoulderLayer>(inputs, i),
-                           std::make_shared<const Terrain>(inputs.terrain.Ground(i))});
+                           std::make_shared<const Terrain>(inputs.terrain.Beneath(i))});
     }
     if (rocks.boulderLayer) {
         sources = {sources[*rocks.boulderLayer]};
@@ -214,7 +210,7 @@ void CheckAlbedo(const AlbedoSpec& albedo, const std::vector<LayerSpec>& layers,
     const AlbedoChecks checks{CountLayers<CraterLayerSpec>(layers),
                               CountLayers<BoulderLayerSpec>(layers)};
     for (std::size_t i = 0; i < albedo.layers.size(); ++i) {
-        const std::string path = Element("albedo.layers", i);
+        const std::string path = ItemPath("albedo.layers", i);
         std::visit([&](const auto& layer) { CheckAlbedoLayer(layer, path, checks); },
                    albedo.layers[i]);
     }

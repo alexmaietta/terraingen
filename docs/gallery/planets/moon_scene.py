@@ -43,7 +43,7 @@ def figure(quick=False):
     )
     field = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
-            seed=6, generation=terraingen.CraterGenerationOptions(d_min=2.5, d_max=80.0)
+            seed=6, generation=terraingen.CraterGenerationOptions(min_diameter=2.5, max_diameter=80.0)
         )
     )
     apply = terraingen.CraterApplyOptions()
@@ -80,9 +80,8 @@ def figure(quick=False):
         terraingen.CraterAlbedo(fresh, bright_rays()),
         terraingen.RockAlbedo(terraingen.RockAlbedoOptions(seed=2), terrain, [4]),
     ]
-    albedo = terraingen.evaluate_albedo(
-        terraingen.Albedo(base, albedo_layers), terraingen.RasterGrid.from_raster(raster), ground=terrain
-    )[0].values
+    bands = terraingen.evaluate_albedo(terraingen.Albedo(base, albedo_layers), raster.grid, ground=terrain)
+    albedo = bands[0].values
 
     light = LightSource(azdeg=90, altdeg=15)
     shade = light.hillshade(heights, dx=pixel, dy=pixel, fraction=1.0)

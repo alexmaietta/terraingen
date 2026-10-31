@@ -150,13 +150,14 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
         const SecondaryCraterLayer layer(Primaries(primary, surface), Models(), Options(30.0, 6.0),
                                          {}, surface);
         const double step = 4.0 / unit;
-        terraingen::Raster<float> whole(96, 96, 0.0f);
-        whole.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 / unit, 400.0 / unit, step));
+        terraingen::Raster<float> whole(
+            terraingen::RasterGrid{
+                96, 96, terraingen::GeoTransform::NorthUp(3300.0 / unit, 400.0 / unit, step)},
+            0.0f);
         terraingen::Raster<float> threaded = whole;
         layer.Apply(whole, {4.0, 1});
         layer.Apply(threaded, {4.0, 0});
-        const auto secondaries =
-            layer.Secondaries(terraingen::RasterGrid::FromRaster(whole).Bounds(), 4.0);
+        const auto secondaries = layer.Secondaries(whole.Grid().Bounds(), 4.0);
         ASSERT_GT(secondaries.Size(), 3u);
         EXPECT_LE(Models().Attributes(secondaries.At(0)).freshness, 1.0);
         int changed = 0;
@@ -165,9 +166,12 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
             changed += whole.Values()[i] != 0.0f ? 1 : 0;
         }
         EXPECT_GT(changed, 50);
-        terraingen::Raster<float> tile(32, 32, 0.0f);
-        tile.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 / unit + 32.0 * step,
-                                                            400.0 / unit - 32.0 * step, step));
+        terraingen::Raster<float> tile(
+            terraingen::RasterGrid{32, 32,
+                                   terraingen::GeoTransform::NorthUp(3300.0 / unit + 32.0 * step,
+                                                                     400.0 / unit - 32.0 * step,
+                                                                     step)},
+            0.0f);
         layer.Apply(tile, {4.0, 1});
         for (std::size_t row = 0; row < 32; ++row) {
             for (std::size_t col = 0; col < 32; ++col) {
@@ -187,8 +191,9 @@ TEST(SecondaryCraterLayer, GridsTilesThreadsAndPointsAgree) {
 TEST(SecondaryCraterLayer, ShapesGridsOnTheContextsBackend) {
     const Crater primary{0.0, 0.0, 1500.0, 0.1, 4u, true};
     const SecondaryCraterLayer layer(Primaries(primary), Models(), Options(30.0, 6.0));
-    terraingen::Raster<float> cpu(96, 96, 0.0f);
-    cpu.SetTransform(terraingen::GeoTransform::NorthUp(3300.0, 400.0, 4.0));
+    terraingen::Raster<float> cpu(
+        terraingen::RasterGrid{96, 96, terraingen::GeoTransform::NorthUp(3300.0, 400.0, 4.0)},
+        0.0f);
     const terraingen::Raster<float> base = cpu;
     layer.Apply(cpu, {4.0});
     int ran = 0;
@@ -417,16 +422,19 @@ TEST(SecondaryCraterLayer, RaysAndShapesKeepGridsTilesAndPointsInStep) {
     options.rays.enabled = true;
     options.shapes.elongatedShare = 0.8;
     const SecondaryCraterLayer layer(Primaries(primary), Models(), options);
-    terraingen::Raster<float> whole(96, 96, 0.0f);
-    whole.SetTransform(terraingen::GeoTransform::NorthUp(3300.0, 400.0, 4.0));
+    terraingen::Raster<float> whole(
+        terraingen::RasterGrid{96, 96, terraingen::GeoTransform::NorthUp(3300.0, 400.0, 4.0)},
+        0.0f);
     layer.Apply(whole, {4.0, 0});
     int changed = 0;
     for (const float v : whole.Values()) {
         changed += v != 0.0f ? 1 : 0;
     }
     EXPECT_GT(changed, 20);
-    terraingen::Raster<float> tile(32, 32, 0.0f);
-    tile.SetTransform(terraingen::GeoTransform::NorthUp(3300.0 + 128.0, 400.0 - 128.0, 4.0));
+    terraingen::Raster<float> tile(
+        terraingen::RasterGrid{
+            32, 32, terraingen::GeoTransform::NorthUp(3300.0 + 128.0, 400.0 - 128.0, 4.0)},
+        0.0f);
     layer.Apply(tile, {4.0, 1});
     for (std::size_t row = 0; row < 32; ++row) {
         for (std::size_t col = 0; col < 32; ++col) {
@@ -531,8 +539,8 @@ TEST(CraterLayer, TakesTheSecondariesItThrowsOutOfATotalMap) {
     const double total = 2.0 * 0.05 * (1.0 / 100.0 - 1.0 / 1600.0);
     CraterLayerOptions options;
     options.seed = 4;
-    options.generation.dMin = 10.0;
-    options.generation.dMax = 40.0;
+    options.generation.minDiameter = 10.0;
+    options.generation.maxDiameter = 40.0;
     options.generation.manual.Append(primary);
     options.densityMap = terraingen::DensityMap{std::make_shared<terraingen::ConstantField>(total),
                                                 terraingen::DensityMeasure::Count, 10.0, 40.0};
@@ -580,8 +588,9 @@ TEST(CraterLayer, TakesTheSecondariesItThrowsOutOfATotalMap) {
 }
 
 TEST(SecondaryCraterLayer, LeavesOutTheSecondariesTheSourceResolves) {
-    terraingen::Raster<float> heights(200, 400, 0.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 20000.0, 100.0));
+    terraingen::Raster<float> heights(
+        terraingen::RasterGrid{200, 400, terraingen::GeoTransform::NorthUp(0.0, 20000.0, 100.0)},
+        0.0f);
     const auto dem = std::make_shared<terraingen::RasterSource>(heights);
     const auto primaries = Primaries({0.0, 0.0, 2000.0, 0.0, 9u, true});
     SecondaryCraterOptions options = Options();
@@ -615,13 +624,13 @@ TEST(SecondaryCraterLayer, LeavesOutTheSecondariesTheSourceResolves) {
 }
 
 TEST(CraterLayer, DropsTheCratersTheSourceResolvesWithTheCatalog) {
-    terraingen::Raster<float> heights(64, 64, 0.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 320.0, 5.0));
+    terraingen::Raster<float> heights(
+        terraingen::RasterGrid{64, 64, terraingen::GeoTransform::NorthUp(0.0, 320.0, 5.0)}, 0.0f);
     const auto dem = std::make_shared<terraingen::RasterSource>(heights);
     const auto models = Primaries({0.0, 0.0, 10.0, 0.0, 1u, true})->Models();
     CraterLayerOptions options;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 60.0;
+    options.generation.minDiameter = 6.0;
+    options.generation.maxDiameter = 60.0;
     const CraterLayer free(models, options);
     EXPECT_EQ(
         CraterLayer(models, options, dem).Options().generation.completeness->ValueAt(5.0, 5.0),

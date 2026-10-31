@@ -24,6 +24,7 @@
 using terraingen::GeoTransform;
 using terraingen::NoiseLayer;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 
 namespace {
 
@@ -52,11 +53,9 @@ struct Measured {
 }  // namespace
 
 TEST(NoiseLayer, AddsTheSyntheticTerrainAtTheOrigin) {
-    Raster<float> heights(24, 16, 10.0f);
-    heights.SetTransform(GeoTransform::NorthUp(-24.0, 16.0, 2.0));
+    Raster<float> heights(RasterGrid{24, 16, GeoTransform::NorthUp(-24.0, 16.0, 2.0)}, 10.0f);
     NoiseLayer(Params()).Apply(heights, {2.0});
-    Raster<float> expected(24, 16);
-    expected.SetTransform(heights.Transform());
+    Raster<float> expected(RasterGrid{24, 16, heights.Transform()});
     terraingen::SyntheticSource(Params()).Fill(expected);
     for (std::size_t i = 0; i < expected.Size(); ++i) {
         ASSERT_EQ(heights.Values()[i], 10.0f + expected.Values()[i]) << i;
@@ -64,8 +63,7 @@ TEST(NoiseLayer, AddsTheSyntheticTerrainAtTheOrigin) {
 }
 
 TEST(NoiseLayer, MeasuresPositionsFromItsOriginAndSkipsNoData) {
-    Raster<float> heights(4, 4, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(500000.0, 4000000.0, 1.0));
+    Raster<float> heights(RasterGrid{4, 4, GeoTransform::NorthUp(500000.0, 4000000.0, 1.0)}, 0.0f);
     heights.SetNoData(std::numeric_limits<float>::quiet_NaN());
     heights(1, 2) = std::numeric_limits<float>::quiet_NaN();
     const std::vector<terraingen::Fractal> params = Params();
@@ -83,8 +81,7 @@ TEST(NoiseLayer, RejectsInvalidParameters) {
 }
 
 TEST(NoiseLayer, PointQueriesMatchCellsAndKeepNoData) {
-    Raster<float> heights(8, 8, 3.0f);
-    heights.SetTransform(GeoTransform::NorthUp(-8.0, 8.0, 2.0));
+    Raster<float> heights(RasterGrid{8, 8, GeoTransform::NorthUp(-8.0, 8.0, 2.0)}, 3.0f);
     const NoiseLayer relief(Params());
     const Measured from({1.0, -2.0});
     relief.Apply(heights, from.At(2.0));
@@ -186,8 +183,8 @@ TEST(NoiseLayer, MatchesTheCpuOnEachGpuBackendAndSkipsNoData) {
     for (const terraingen::Backend backend : gpus) {
         SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
         for (const float noData : {std::numeric_limits<float>::quiet_NaN(), -9999.0f}) {
-            Raster<float> cpu(203, 77, 12.5f);
-            cpu.SetTransform(GeoTransform::NorthUp(498000.0, 4001000.0, 5.0));
+            Raster<float> cpu(RasterGrid{203, 77, GeoTransform::NorthUp(498000.0, 4001000.0, 5.0)},
+                              12.5f);
             cpu.SetNoData(noData);
             cpu(3, 4) = noData;
             cpu(202, 76) = noData;
@@ -208,11 +205,11 @@ TEST(NoiseLayer, GpuGridsAreTheSameWhateverTheTiling) {
     const NoiseLayer relief(GpuParams());
     for (const terraingen::Backend backend : gpus) {
         SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
-        Raster<float> whole(96, 64, 0.0f);
-        whole.SetTransform(GeoTransform::NorthUp(-96.0, 64.0, 2.0));
+        Raster<float> whole(RasterGrid{96, 64, GeoTransform::NorthUp(-96.0, 64.0, 2.0)}, 0.0f);
         relief.Apply(whole, On(backend, 2.0));
-        Raster<float> part(23, 29, 0.0f);
-        part.SetTransform(GeoTransform::NorthUp(-96.0 + 2.0 * 17, 64.0 - 2.0 * 11, 2.0));
+        Raster<float> part(
+            RasterGrid{23, 29, GeoTransform::NorthUp(-96.0 + 2.0 * 17, 64.0 - 2.0 * 11, 2.0)},
+            0.0f);
         relief.Apply(part, On(backend, 2.0));
         for (std::size_t row = 0; row < part.Height(); ++row) {
             for (std::size_t col = 0; col < part.Width(); ++col) {
@@ -232,8 +229,7 @@ TEST(NoiseLayer, SplitsLargeGridsIntoStripsOnEachGpuBackend) {
     const NoiseLayer relief(params);
     for (const terraingen::Backend backend : gpus) {
         SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
-        Raster<float> heights(4096, 4097, 1.0f);
-        heights.SetTransform(GeoTransform::NorthUp(0.0, 0.0, 1.0));
+        Raster<float> heights(RasterGrid{4096, 4097, GeoTransform::NorthUp(0.0, 0.0, 1.0)}, 1.0f);
         relief.Apply(heights, On(backend, 1.0));
         for (const std::size_t row : {std::size_t{0}, std::size_t{4095}, std::size_t{4096}}) {
             for (const std::size_t col : {std::size_t{0}, std::size_t{1234}, std::size_t{4095}}) {
@@ -268,11 +264,9 @@ TEST(NoiseLayer, FallsBackToTheCpuOnSpheresAndRotatedOrVeryWideGrids) {
             }
         };
         const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-        Raster<float> lonLat(16, 8, 0.0f);
-        lonLat.SetTransform(GeoTransform::NorthUp(10.0, 20.0, 0.01));
+        Raster<float> lonLat(RasterGrid{16, 8, GeoTransform::NorthUp(10.0, 20.0, 0.01)}, 0.0f);
         expectSame(NoiseLayer(GpuParams()), lonLat, 300.0, &moon);
-        Raster<float> rotated(16, 8, 0.0f);
-        rotated.SetTransform(GeoTransform{0.0, 2.0, 0.5, 0.0, 0.5, -2.0});
+        Raster<float> rotated(RasterGrid{16, 8, GeoTransform{0.0, 2.0, 0.5, 0.0, 0.5, -2.0}}, 0.0f);
         expectSame(NoiseLayer(GpuParams()), rotated, 2.0, nullptr);
         Raster<float> wide(16 * 65535 + 1, 1, 0.0f);
         expectSame(NoiseLayer(Params()), wide, 1.0, nullptr);
@@ -284,8 +278,7 @@ TEST(NoiseLayer, SkipsDisabledLayersAsTheFullStackDoes) {
     params[1].enabled = false;
     const terraingen::NoiseLayerKernel kernel = terraingen::MakeNoiseLayerKernel(params);
     EXPECT_EQ(kernel.stack.count, 2u);
-    Raster<float> heights(9, 7, 2.0f);
-    heights.SetTransform(GeoTransform::NorthUp(30.0, 40.0, 3.0));
+    Raster<float> heights(RasterGrid{9, 7, GeoTransform::NorthUp(30.0, 40.0, 3.0)}, 2.0f);
     NoiseLayer(params).Apply(heights, Measured({10.0, 5.0}).At(3.0));
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
@@ -317,8 +310,7 @@ TEST(NoiseLayer, RunsOnEachGpuBackendItselfAndNotWithoutItsCompiledForm) {
     const auto bytes = terraingen::AsBytes(terraingen::Span(&kernel, 1));
     const terraingen::KernelProgram program =
         terraingen::CompiledKernel<terraingen::NoiseLayerKernel>();
-    Raster<float> heights(33, 17, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(0.0, 0.0, 2.0));
+    Raster<float> heights(RasterGrid{33, 17, GeoTransform::NorthUp(0.0, 0.0, 2.0)}, 0.0f);
     EXPECT_FALSE(terraingen::RunKernel(terraingen::Backend::Cpu, program, bytes, heights, {}));
     EXPECT_FALSE(terraingen::RunKernel(terraingen::Backend::Vulkan, {}, bytes, heights, {}));
     EXPECT_FALSE(terraingen::RunKernel(terraingen::Backend::Cuda, {}, bytes, heights, {}));
@@ -328,8 +320,7 @@ TEST(NoiseLayer, RunsOnEachGpuBackendItselfAndNotWithoutItsCompiledForm) {
     EXPECT_FALSE(program.spirv.empty());
     for (const terraingen::Backend backend : GpuBackends()) {
         SCOPED_TRACE(std::string(terraingen::BackendName(backend)));
-        Raster<float> gpu(33, 17, 0.0f);
-        gpu.SetTransform(heights.Transform());
+        Raster<float> gpu(RasterGrid{33, 17, heights.Transform()}, 0.0f);
         ASSERT_TRUE(terraingen::RunKernel(backend, program, bytes, gpu, {}));
         EXPECT_NE(gpu(5, 5), 0.0f);
     }

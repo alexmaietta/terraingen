@@ -110,7 +110,7 @@ void SlopeAlbedo::Mature(AlbedoSample& value, std::size_t bands, double slopeDeg
 }
 
 void SlopeAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                          const AlbedoContext& context) const {
+                          const LayerContext& context) const {
     if (context.ground != nullptr) {
         Mature(value, bands, SlopeAt(x, y, *context.ground, context.SurfaceOrPlane()));
     }
@@ -138,7 +138,7 @@ Bounds2d CellCenterBounds(const Raster<float>& raster) {
 
 }  // namespace
 
-void SlopeAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
+void SlopeAlbedo::Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const {
     if (context.ground == nullptr || bands.empty()) {
         return;
     }

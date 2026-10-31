@@ -5,6 +5,7 @@
 /// reference that sources' upsampling is checked against in tests.
 #pragma once
 
+#include "raster/kernels.h"
 #include "terraingen/raster/grid.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/util/bits.h"
@@ -52,7 +53,7 @@ inline Raster<float> Resample(const Raster<float>& raster, double pixelSize,
     if (raster.Empty() || raster.Transform().IsRotated()) {
         throw std::invalid_argument("Cannot resample an empty or rotated raster");
     }
-    Raster<float> result = ResampledGrid(RasterGrid::FromRaster(raster), pixelSize).MakeRaster();
+    Raster<float> result(ResampledGrid(raster.Grid(), pixelSize));
     result.SetNoData(raster.NoData());
     const double scaleX = std::fabs(raster.Transform().pixelWidth) / pixelSize;
     const double scaleY = std::fabs(raster.Transform().pixelHeight) / pixelSize;

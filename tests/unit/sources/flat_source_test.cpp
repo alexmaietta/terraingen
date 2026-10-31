@@ -30,7 +30,7 @@ TEST(FlatSource, ResolvesNothing) {
 TEST(FlatSource, FillsAnyGridWithItsElevation) {
     const FlatSource source(10, 6, 2.0, -3.5f);
     terraingen::RasterGrid tile{3, 2, GeoTransform::NorthUp(500.0, 500.0, 2.0)};
-    auto heights = tile.MakeRaster(1.0f);
+    terraingen::Raster<float> heights(tile, 1.0f);
     source.Fill(heights);
     for (const float value : heights.Values()) {
         EXPECT_EQ(value, -3.5f);

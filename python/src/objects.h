@@ -6,56 +6,28 @@
 
 #include "common.h"
 
-#include "terraingen/albedo/albedo.h"
 #include "terraingen/layers/layer.h"
-#include "terraingen/pipeline/terrain.h"
 
 #include <string>
 #include <string_view>
 
 namespace terraingen::python {
 
-/// `ground` as a terrain, or null for another ground or none.
-inline const Terrain* AsTerrain(const Ground* ground) {
-    return dynamic_cast<const Terrain*>(ground);
-}
-
-/// A layer context at `spacing` meters on `ground`, with its surface and source when it is a
-/// `Terrain`.
+/// The context at `spacing` meters on `ground` (`Ground::Context`), or one without a ground.
 inline LayerContext GroundContext(double spacing, const Ground* ground, unsigned threads = 1) {
+    if (ground != nullptr) {
+        return ground->Context(spacing, threads);
+    }
     LayerContext context;
     context.spacing = spacing;
     context.threads = threads;
-    context.ground = ground;
-    if (const Terrain* terrain = AsTerrain(ground)) {
-        context.surface = &terrain->Surface();
-        context.source = terrain->Source().get();
-    }
-    return context;
-}
-
-/// An albedo context at `spacing` meters on `ground`, with its source when it is a `Terrain`,
-/// and on `surface`, or the terrain's surface when null.
-inline AlbedoContext GroundAlbedoContext(double spacing, unsigned threads, const Ground* ground,
-                                         const Surface* surface = nullptr) {
-    AlbedoContext context;
-    context.spacing = spacing;
-    context.threads = threads;
-    context.ground = ground;
-    context.surface = surface;
-    if (const Terrain* terrain = AsTerrain(ground)) {
-        context.source = terrain->Source().get();
-        if (surface == nullptr) {
-            context.surface = &terrain->Surface();
-        }
-    }
     return context;
 }
 
 /// What the arguments of a method that reads the ground mean, for its docstring.
 inline constexpr const char* kGroundDoc =
     "`spacing` is the sample spacing in meters; what reads the ground beneath needs a positive "
-    "one and `ground`, such as `terrain.ground(n)` beneath layer n of a Terrain, which also "
+    "one and `ground`, such as `terrain.beneath(n)` beneath layer n of a Terrain, which also "
     "gives the surface and source.";
 
 /// Binds `name(x, y, spacing=0.0, ground=None)` on `cls`, the class of `Self`, as

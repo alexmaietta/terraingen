@@ -5,7 +5,7 @@
 
 #include "support/resample.h"
 
-#include "raster/kernel_weight.h"
+#include "raster/kernels.h"
 #include "terraingen/util/bits.h"
 
 #include <gtest/gtest.h>
@@ -18,6 +18,7 @@
 
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 using terraingen::ResampleMethod;
 using terraingen::testing::Resample;
 using terraingen::testing::SameBits;
@@ -26,8 +27,7 @@ namespace {
 
 /// A `width` x `height` raster of 2 m cells with value a + b x + c y at each cell center.
 Raster<float> Plane(std::size_t width, std::size_t height, double a, double b, double c) {
-    Raster<float> raster(width, height);
-    raster.SetTransform(GeoTransform::NorthUp(-10.0, 20.0, 2.0));
+    Raster<float> raster(RasterGrid{width, height, GeoTransform::NorthUp(-10.0, 20.0, 2.0)});
     for (std::size_t row = 0; row < height; ++row) {
         for (std::size_t col = 0; col < width; ++col) {
             const auto p = raster.CellCenter(col, row);
@@ -65,8 +65,7 @@ TEST(Resample, BilinearAndCubicReproduceLinearSurfacesAwayFromTheEdge) {
 }
 
 TEST(Resample, CubicIsCloserThanBilinearOnASmoothCurve) {
-    Raster<float> source(32, 32);
-    source.SetTransform(GeoTransform::NorthUp(0.0, 32.0, 1.0));
+    Raster<float> source(RasterGrid{32, 32, GeoTransform::NorthUp(0.0, 32.0, 1.0)});
     const auto curve = [](double x, double y) { return std::sin(0.3 * x) * std::cos(0.2 * y); };
     for (std::size_t row = 0; row < 32; ++row) {
         for (std::size_t col = 0; col < 32; ++col) {
@@ -112,14 +111,12 @@ TEST(Resample, RejectsInvalidInputs) {
     EXPECT_THROW(Resample(source, std::numeric_limits<double>::infinity(), ResampleMethod::Nearest),
                  std::invalid_argument);
     EXPECT_THROW(Resample(source, 1e-12, ResampleMethod::Nearest), std::invalid_argument);
-    Raster<float> rotated = source;
-    rotated.SetTransform(GeoTransform{0.0, 1.0, 0.1, 0.0, 0.0, -1.0});
+    const Raster<float> rotated(RasterGrid{4, 4, GeoTransform{0.0, 1.0, 0.1, 0.0, 0.0, -1.0}});
     EXPECT_THROW(Resample(rotated, 1.0, ResampleMethod::Nearest), std::invalid_argument);
 }
 
 TEST(SampleRaster, InterpolatesAtWorldPositions) {
-    Raster<float> raster(4, 3);
-    raster.SetTransform(GeoTransform::NorthUp(10.0, 30.0, 2.0));
+    Raster<float> raster(RasterGrid{4, 3, GeoTransform::NorthUp(10.0, 30.0, 2.0)});
     for (std::size_t row = 0; row < 3; ++row) {
         for (std::size_t col = 0; col < 4; ++col) {
             raster(col, row) = static_cast<float>(col * 10 + row);
@@ -137,18 +134,11 @@ TEST(SampleRaster, InterpolatesAtWorldPositions) {
 }
 
 TEST(SampleRaster, RejectsEmptyAndRotatedRasters) {
-    Raster<float> raster(4, 4, 5.0f);
+    const Raster<float> raster(RasterGrid{4, 4, GeoTransform{0.0, 2.0, 0.3, 8.0, 0.3, -2.0}}, 5.0f);
     EXPECT_THROW(terraingen::SampleRaster(Raster<float>(), 1.0, 1.0, ResampleMethod::Cubic),
                  std::invalid_argument);
-    raster.SetTransform(GeoTransform{0.0, 2.0, 0.3, 8.0, 0.3, -2.0});
     EXPECT_THROW(terraingen::SampleRaster(raster, 1.0, 1.0, ResampleMethod::Cubic),
                  std::invalid_argument);
-}
-
-TEST(FilledNoData, KeepsTheSourceValueOrMarksMissingCellsNan) {
-    EXPECT_EQ(terraingen::FilledNoData(-5.0f, true), -5.0f);
-    EXPECT_FALSE(terraingen::FilledNoData(std::nullopt, false).has_value());
-    EXPECT_TRUE(std::isnan(*terraingen::FilledNoData(std::nullopt, true)));
 }
 
 namespace {

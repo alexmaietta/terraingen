@@ -6,6 +6,9 @@
 
 #include "common.h"
 
+#include "terraingen/geometry/geometry.h"
+#include "terraingen/util/span.h"
+
 #include <nanobind/ndarray.h>
 
 #include <array>
@@ -63,6 +66,16 @@ template <std::size_t N, typename T> std::vector<std::array<T, N>> Rows(const Cp
         }
     }
     return rows;
+}
+
+/// The rows of `points`, an array of shape (n, 2), as points, without a copy.
+/// @throws std::invalid_argument for another number of columns.
+inline Span<const Vec2d> PointSpan(const CpuMatrix<double>& points) {
+    static_assert(sizeof(Vec2d) == 2 * sizeof(double), "Vec2d is two packed doubles");
+    if (points.shape(1) != 2) {
+        throw std::invalid_argument("Expected an array of shape (n, 2)");
+    }
+    return {reinterpret_cast<const Vec2d*>(points.data()), points.shape(0)};
 }
 
 /// The shape of `array`.

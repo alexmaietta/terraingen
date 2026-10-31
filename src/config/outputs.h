@@ -10,9 +10,10 @@
 #include "terraingen/config/validate.h"
 #include "terraingen/geometry/surface.h"
 #include "terraingen/io/io_fields.h"
-#include "terraingen/pipeline/pipeline_fields.h"
+#include "terraingen/pipeline/materials_fields.h"
 #include "terraingen/raster/geotiff/geotiff.h"
 #include "terraingen/raster/grid.h"
+#include "terraingen/raster/raster_fields.h"
 
 #include <algorithm>
 #include <array>
@@ -26,24 +27,15 @@
 
 namespace terraingen {
 
-template <> struct EnumNames<TiffCompression> {
-    static constexpr std::array<EnumEntry<TiffCompression>, 4> kValues{{
-        {"none", TiffCompression::None, "Uncompressed: the largest files."},
-        {"lzw", TiffCompression::Lzw, "Lossless LZW compression, widely supported."},
-        {"deflate", TiffCompression::Deflate, "Lossless Deflate (zlib) compression."},
-        {"packbits", TiffCompression::PackBits,
-         "PackBits run-length compression; read only, so outputs cannot use it."},
-    }};
-};
-
 /// A box in surface coordinates, given by its `center` and `size` or by its `min` and `max`
-/// corners, each an [x, y] pair; a pair left empty is unset. Surface coordinates are meters on a
-/// plane, and longitude and latitude in degrees on a body.
+/// corners, each an [x, y] pair. Surface coordinates are meters on a plane, and longitude and
+/// latitude in degrees on a body.
 struct ExtentSpec {
-    std::vector<double> center{};  ///< [x, y] of the box's center.
-    std::vector<double> size{};    ///< [width, height], both positive.
-    std::vector<double> min{};     ///< [x, y] of the lower corner.
-    std::vector<double> max{};     ///< [x, y] of the upper corner, above `min` along both axes.
+    std::optional<std::array<double, 2>> center{};  ///< [x, y] of the box's center.
+    std::optional<std::array<double, 2>> size{};    ///< [width, height], both positive.
+    std::optional<std::array<double, 2>> min{};     ///< [x, y] of the lower corner.
+    /// [x, y] of the upper corner, above `min` along both axes.
+    std::optional<std::array<double, 2>> max{};
 
     bool operator==(const ExtentSpec& other) const {
         return center == other.center && size == other.size && min == other.min && max == other.max;
@@ -53,7 +45,7 @@ struct ExtentSpec {
     }
 };
 
-/// The area an output covers and its resolution, snapped to a grid by `config::OutputGrid`.
+/// The area an output covers and its resolution, snapped to a grid when its output is checked.
 struct OutputAreaSpec {
     /// Cell size in meters; on a body, meters along a meridian, the same in degrees of longitude.
     std::optional<double> pixelSize{};
@@ -119,9 +111,9 @@ struct TerrainMeshOutput {
     /// Depth in meters of the skirt hung below every boundary edge, inner ones included, to hide
     /// gaps between meshes; 0 for none.
     double skirt = 0.0;
-    /// [longitude, latitude] in degrees of the frame's site on a body (`BuildMesh`); empty for the
+    /// [longitude, latitude] in degrees of the frame's site on a body (`BuildMesh`); unset for the
     /// grid's center.
-    std::vector<double> siteDeg{};
+    std::optional<std::array<double, 2>> siteDeg{};
 };
 
 /// Output "materials": the share of each material class, one band per `MaterialClass` in its
@@ -142,18 +134,11 @@ using OutputSpec = std::variant<HeightmapOutput, CraterListOutput, BoulderListOu
                                 BoulderModelsOutput, AlbedoOutput, MeshOutput, TerrainMeshOutput,
                                 MaterialsOutput, PhotometryOutput, ReportOutput>;
 
-/// An [x, y] pair given as a list: empty for unset, or two numbers.
-inline FieldRange PairLength() {
-    return LengthEither(0, 2);
-}
-
 template <typename IO> void Fields(IO& io, ExtentSpec& extent) {
-    io("center", extent.center, "[x, y] of the box's center; give it with size.", "", PairLength());
-    io("size", extent.size, "[width, height] of the box; give it with center.", "",
-       Above(0.0).LengthEither(0, 2));
-    io("min", extent.min, "[x, y] of the box's lower corner; give it with max.", "", PairLength());
-    io("max", extent.max, "[x, y] of the box's upper corner, above min; give it with min.", "",
-       PairLength());
+    io("center", extent.center, "[x, y] of the box's center; give it with size.");
+    io("size", extent.size, "[width, height] of the box; give it with center.", "", Above(0.0));
+    io("min", extent.min, "[x, y] of the box's lower corner; give it with max.");
+    io("max", extent.max, "[x, y] of the box's upper corner, above min; give it with min.");
 }
 
 /// The fields of the area an output covers: its pixel size and its extent.
@@ -165,10 +150,8 @@ template <typename IO> void AreaFields(IO& io, OutputAreaSpec& area, std::string
            "source's cell size; required without a raster or chain source.",
        "m", Above(0.0));
     io("extent_m", area.extentM,
-       "Box the output covers on a plane, in meters: {\"center\": [x, y], \"size\": [w, h]} or "
-       "{\"min\": [x, y], \"max\": [x, y]}. The grid starts at its min corner and is snapped "
-       "outward to whole cells of pixel_size_m, sampled at cell centers. Unset for the source's "
-       "extent; required without a raster or chain source.");
+       "Box the output covers on a plane in meters, snapped outward from its min corner to whole "
+       "cells; unset for the source's extent, required without a raster or chain source.");
     io("extent_deg", area.extentDeg,
        "As extent_m on a body, in degrees of longitude (x) and latitude (y).");
 }
@@ -309,10 +292,8 @@ template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
        config::OutputPathHelp("File to write, ending in .glb, .gltf, .obj or .stl"));
     AreaFields(io, output.area, "Cell size in meters of the mesh, the spacing of its vertices");
     io("cutouts", output.cutouts,
-       "Boxes in surface coordinates (meters on a plane, degrees on a body) whose quads are left "
-       "out, a quad when all four corners lie in one, such as where a finer mesh covers the "
-       "ground: each {\"min\": [x, y], \"max\": [x, y]} or {\"center\": [x, y], \"size\": [w, "
-       "h]}.");
+       "Boxes in surface coordinates whose quads, all four corners inside one, are left out, such "
+       "as where a finer mesh covers the ground.");
     io("skirt_m", output.skirt,
        "Depth in meters of a skirt hung below every boundary edge, around cutouts too, hiding "
        "gaps between meshes; 0 for none.",
@@ -320,7 +301,7 @@ template <typename IO> void Fields(IO& io, TerrainMeshOutput& output) {
     io("site_deg", output.siteDeg,
        "[longitude, latitude] in degrees of the site on a body the mesh's frame is centered on; "
        "unset for the grid's center. Only on a body.",
-       "deg", PairLength());
+       "deg");
 }
 
 template <> struct SpecName<ReportOutput> {
@@ -336,50 +317,12 @@ template <typename IO> void Fields(IO& io, ReportOutput& output) {
 
 namespace config {
 
-/// The box an extent describes, unchecked: its `min` and `max` corners, or else `center` -
-/// `size` / 2 to `center` + `size` / 2. None when neither pair has two numbers each.
-std::optional<Bounds2d> ExtentBox(const ExtentSpec& extent);
+/// The box a checked extent describes: its `min` and `max` corners, or else `center` - `size` / 2
+/// to `center` + `size` / 2.
+Bounds2d ExtentBox(const ExtentSpec& extent);
 
 /// The area an output covers, or null for one without an area, a body mesh or a report.
 const OutputAreaSpec* OutputArea(const OutputSpec& output);
-
-/// The extent an area gives on `surface`: `extentDeg` on a body, `extentM` on a plane.
-const std::optional<ExtentSpec>& SurfaceExtent(const OutputAreaSpec& area, const Surface& surface);
-
-/// Whether an output lists features: a crater or boulder list, or boulder models.
-bool ListsFeatures(const OutputSpec& output);
-
-/// The whole of a body in longitude and latitude, in square cells of at most `spacing` meters
-/// along a meridian, for listing features over it.
-/// @param spacing In meters; positive.
-RasterGrid WholeBodyGrid(const Surface& surface, double spacing);
-
-/// The box an output area covers and the side of its square cells, in the surface's units.
-struct AreaCells {
-    Bounds2d box{};
-    double cell = 0.0;
-};
-
-/// What an area covers, unchecked: its extent, or else `source`'s bounds, in cells of its pixel
-/// size, or else of `source`'s cell size. None when the area and `source` leave either unknown.
-/// @param source The source's grid; none without a raster or chain source.
-std::optional<AreaCells> CoveredCells(const OutputAreaSpec& area,
-                                      const std::optional<RasterGrid>& source,
-                                      const Surface& surface);
-
-/// The grid an output covers: its `CoveredCells` snapped outward by `RasterGrid::Covering`, or
-/// `source` itself when the area gives neither an extent nor a pixel size. A feature list without
-/// an extent or `source` on a body covers the whole body at its pixel size (`WholeBodyGrid`). None
-/// for an output without an area, or for one without a grid to cover, which `ValidateConfig`
-/// rejects.
-std::optional<RasterGrid> OutputGrid(const OutputSpec& output,
-                                     const std::optional<RasterGrid>& source,
-                                     const Surface& surface);
-
-/// The sample spacing in meters an output lists features at: its pixel size for a list over the
-/// whole body, otherwise 0 for its grid's own.
-double OutputSpacing(const OutputSpec& output, const std::optional<RasterGrid>& source,
-                     const Surface& surface);
 
 /// Whether any of `outputs` is of the kinds `Kinds`.
 template <typename... Kinds> bool HasOutput(const std::vector<OutputSpec>& outputs) {
@@ -393,12 +336,15 @@ struct OutputNeeds {
     bool materials = false;  ///< Whether the configuration has a material map.
 };
 
-/// Checks each output and its grid, records the grids in `summary` (whose `source` is set), and
-/// returns where each output with a grid evaluates the layers.
+/// Checks each output and the grid its area snaps to, and returns one record per output: its
+/// extent snapped outward to whole cells of its pixel size (`RasterGrid::Covering`), or of
+/// `source`'s, or `source` itself without either, and for a feature list on a body without an
+/// extent or source the whole body at its pixel size.
+/// @param source The source's grid; none without a raster or chain source.
 /// @throws ConfigError under "outputs" for an invalid output.
-std::vector<OutputExtent> CheckOutputs(const std::vector<OutputSpec>& outputs,
-                                       const OutputNeeds& needs, const Surface& surface,
-                                       ConfigSummary& summary);
+std::vector<OutputGrid> CheckOutputs(const std::vector<OutputSpec>& outputs,
+                                     const OutputNeeds& needs, const Surface& surface,
+                                     const std::optional<RasterGrid>& source);
 
 }  // namespace config
 

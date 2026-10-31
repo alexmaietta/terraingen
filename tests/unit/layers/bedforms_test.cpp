@@ -16,6 +16,7 @@ using terraingen::BedformLayer;
 using terraingen::BedformOptions;
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 
 namespace {
 
@@ -34,7 +35,8 @@ class Level final : public terraingen::Ground {
     explicit Level(double slope) : slope_(slope) {}
 
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = static_cast<float>(slope_ * samples.Position(i).x);
         }
@@ -48,8 +50,7 @@ class Level final : public terraingen::Ground {
 
 TEST(BedformLayer, GivesPointsTheSameBitsAsGridsOnAnyThreads) {
     const BedformLayer layer(Field());
-    Raster<float> one(120, 100, 1.0f);
-    one.SetTransform(GeoTransform::NorthUp(-30.0, 25.0, 0.5));
+    Raster<float> one(RasterGrid{120, 100, GeoTransform::NorthUp(-30.0, 25.0, 0.5)}, 1.0f);
     Raster<float> many = one;
     layer.Apply(one, {0.5, 1});
     layer.Apply(many, {0.5, 4});

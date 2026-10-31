@@ -39,12 +39,12 @@ inline double ChiSquareCritical(double degrees) {
 namespace terraingen::testing {
 
 /// Maximum-likelihood exponent of an untruncated cumulative power law N(>=D) proportional to
-/// D^-alpha with lower bound `dMin`: alpha_hat = n / sum(ln(D_i / dMin)) (Clauset, Shalizi and
-/// Newman 2009; Robbins et al. 2018).
-inline double PowerLawExponentMle(const std::vector<double>& diameters, double dMin) {
+/// D^-alpha with lower bound `minDiameter`: alpha_hat = n / sum(ln(D_i / minDiameter)) (Clauset,
+/// Shalizi and Newman 2009; Robbins et al. 2018).
+inline double PowerLawExponentMle(const std::vector<double>& diameters, double minDiameter) {
     double sum = 0.0;
     for (const double d : diameters) {
-        sum += std::log(d / dMin);
+        sum += std::log(d / minDiameter);
     }
     return static_cast<double>(diameters.size()) / sum;
 }

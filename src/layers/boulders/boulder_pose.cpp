@@ -219,8 +219,8 @@ void BoulderLayer::Settle(Boulder& boulder, const Ground* ground,
 }
 
 void BoulderLayer::ReadGrounds(std::vector<Boulder>& boulders,
-                               const std::vector<std::size_t>& indices,
-                               const Ground* ground) const {
+                               const std::vector<std::size_t>& indices, const Ground* ground,
+                               unsigned threads) const {
     std::vector<Vec2d> points;
     points.reserve(indices.size());
     for (const std::size_t n : indices) {
@@ -231,7 +231,7 @@ void BoulderLayer::ReadGrounds(std::vector<Boulder>& boulders,
         return;
     }
     std::vector<float> heights(points.size());
-    ground->HeightsAt(points, heights, options_.groundSpacing);
+    ground->HeightsAt(points, heights, options_.groundSpacing, threads);
     for (std::size_t k = 0; k < indices.size(); ++k) {
         if (!std::isnan(heights[k])) {
             boulders[indices[k]].ground = heights[k];

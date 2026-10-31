@@ -67,3 +67,12 @@ TEST(GeoTransform, EqualityComparesEveryCoefficient) {
             << "coefficient " << i;
     }
 }
+
+TEST(GeoTransform, MeasuresTheSidesOfItsCells) {
+    const GeoTransform oblong{0.0, 2.0, 0.0, 0.0, 0.0, -5.0};
+    EXPECT_EQ(oblong.CellWidth(), 2.0);
+    EXPECT_EQ(oblong.CellHeight(), 5.0);
+    const GeoTransform turned{0.0, 3.0, -4.0, 0.0, 4.0, 3.0};
+    EXPECT_DOUBLE_EQ(turned.CellWidth(), 5.0);
+    EXPECT_DOUBLE_EQ(turned.CellHeight(), 5.0);
+}

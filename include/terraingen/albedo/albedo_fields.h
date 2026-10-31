@@ -11,6 +11,7 @@
 #include "terraingen/albedo/rock_albedo.h"
 #include "terraingen/albedo/slope_albedo.h"
 #include "terraingen/albedo/splotches.h"
+#include "terraingen/albedo/synthetic.h"
 #include "terraingen/layers/craters/crater_fields.h"
 #include "terraingen/random/random_fields.h"
 #include "terraingen/util/option_fields.h"
@@ -419,6 +420,21 @@ template <typename IO> void Fields(IO& io, RockAlbedoOptions& options) {
     io("unresolved", options.unresolved,
        "Brightens each sample by the share of it covered by boulders too small to resolve, drawn "
        "about the expected share with the scatter of randomly placed rocks: bright speckle.");
+}
+
+/// The fields of a synthetic albedo's base color, its noise stacks given apart.
+template <typename IO> void SyntheticAlbedoColorFields(IO& io, SyntheticAlbedoOptions& options) {
+    io("rgb", options.rgb,
+       "Gives three bands, red, green and blue, from the color; off gives one band of the value "
+       "alone, ignoring hue and saturation.");
+    io("hue_deg", options.hueDegrees,
+       "Hue of the base color in degrees, wrapping around; used with rgb only.", "deg");
+    io("saturation", options.saturation,
+       "Saturation of the base color, 0 for gray; used with rgb only.", "", UnitInterval());
+    io("value", options.value,
+       "Reflectance of the brightest band; the one band's value without rgb. Higher values give a "
+       "brighter surface.",
+       "", UnitInterval());
 }
 
 template <typename IO> void Fields(IO& io, SlopeAlbedoOptions& options) {

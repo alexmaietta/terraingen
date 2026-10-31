@@ -24,7 +24,7 @@ def figure(quick=False):
     relief = terraingen.NoiseLayer(seed=3, wavelength=700.0, amplitude=40.0, octaves=5)
     crater = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, DIAMETER, age_gyr=0.0)])
     terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[relief, crater])
-    grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
+    grid = terrain.evaluate().grid
     base = terraingen.SyntheticAlbedo(value=0.11)
     x = (np.arange(size) - 0.5 * (size - 1)) * pixel
 

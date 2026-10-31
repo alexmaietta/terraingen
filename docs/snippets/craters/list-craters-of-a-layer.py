@@ -7,7 +7,7 @@ import terraingen
 def list_craters_of_a_layer():
     # --8<-- [start:list_craters_of_a_layer]
     options = terraingen.CraterLayerOptions(
-        seed=7, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=120.0)
+        seed=7, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=120.0)
     )
     craters = terraingen.CraterLayer(options=options)
     table = craters.craters((-200.0, -200.0, 200.0, 200.0))  # min_x, min_y, max_x, max_y in meters

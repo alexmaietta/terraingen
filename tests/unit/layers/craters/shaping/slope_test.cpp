@@ -111,8 +111,9 @@ TEST(ApplyCraters, OffsetsFloorsDownslopeAndLowersRimsUpslopeOnSlopingGround) {
         profile,
         std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry)};
     const double rise = std::tan(15.0 * terraingen::kPi / 180.0);
-    terraingen::Raster<float> base(201, 201, 0.0f);
-    base.SetTransform(terraingen::GeoTransform::NorthUp(-100.5, 100.5, 1.0));
+    terraingen::Raster<float> base(
+        terraingen::RasterGrid{201, 201, terraingen::GeoTransform::NorthUp(-100.5, 100.5, 1.0)},
+        0.0f);
     for (std::size_t row = 0; row < base.Height(); ++row) {
         for (std::size_t col = 0; col < base.Width(); ++col) {
             base(col, row) = static_cast<float>(rise * base.CellCenter(col, row).y);
@@ -198,8 +199,9 @@ TEST(ApplyCraters, WearsCratersOnSteepGroundFaster) {
         diffused, std::make_shared<terraingen::DiffusionDegradation>(
                       terraingen::LunarFreshCraterMorphometry,
                       terraingen::Fassett2022HartmannDiffusivity(), diffused)};
-    terraingen::Raster<float> base(161, 161, 0.0f);
-    base.SetTransform(terraingen::GeoTransform::NorthUp(-80.5, 80.5, 1.0));
+    terraingen::Raster<float> base(
+        terraingen::RasterGrid{161, 161, terraingen::GeoTransform::NorthUp(-80.5, 80.5, 1.0)},
+        0.0f);
     for (std::size_t row = 0; row < base.Height(); ++row) {
         for (std::size_t col = 0; col < base.Width(); ++col) {
             base(col, row) = static_cast<float>(0.4 * base.CellCenter(col, row).y);
@@ -231,8 +233,9 @@ TEST(ApplyCraters, FitsDatumsToTheSlopeShapedReliefSoNoCraterStandsAsAMesa) {
         profile,
         std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry)};
     const double rise = std::tan(15.0 * terraingen::kPi / 180.0);
-    terraingen::Raster<float> base(241, 241, 0.0f);
-    base.SetTransform(terraingen::GeoTransform::NorthUp(-120.5, 120.5, 1.0));
+    terraingen::Raster<float> base(
+        terraingen::RasterGrid{241, 241, terraingen::GeoTransform::NorthUp(-120.5, 120.5, 1.0)},
+        0.0f);
     for (std::size_t row = 0; row < base.Height(); ++row) {
         for (std::size_t col = 0; col < base.Width(); ++col) {
             base(col, row) = static_cast<float>(rise * base.CellCenter(col, row).y);
@@ -272,8 +275,9 @@ TEST(ApplyCraters, ReadsTheGroundBeneathInBatchesToTheSameHeights) {
     const terraingen::CraterShapeModels models{
         std::make_shared<terraingen::FassettThomsonProfile>(),
         std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry)};
-    terraingen::Raster<float> base(121, 121, 0.0f);
-    base.SetTransform(terraingen::GeoTransform::NorthUp(-60.5, 60.5, 1.0));
+    terraingen::Raster<float> base(
+        terraingen::RasterGrid{121, 121, terraingen::GeoTransform::NorthUp(-60.5, 60.5, 1.0)},
+        0.0f);
     terraingen::CraterList craters;
     for (std::uint32_t n = 0; n < 12; ++n) {
         craters.Append({-40.0 + 7.0 * n, 30.0 - 5.0 * n, 6.0 + n, 0.1, n + 1});

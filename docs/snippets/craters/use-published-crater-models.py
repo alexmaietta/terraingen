@@ -20,7 +20,7 @@ def use_published_crater_models():
         terraingen.FassettThomsonProfile(),
     )
     options = terraingen.CraterLayerOptions(
-        seed=7, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=120.0)
+        seed=7, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=120.0)
     )
     craters = terraingen.CraterLayer(models, options)
     # --8<-- [end:use_published_crater_models]

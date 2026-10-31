@@ -16,8 +16,8 @@ void BM_GenerateCraters(benchmark::State& state) {
     const double half = 0.5 * static_cast<double>(state.range(0));
     const Bounds2d region{-half, -half, half, half};
     CraterGenerationOptions options;
-    options.dMin = 2.5;
-    options.dMax = 200.0;
+    options.minDiameter = 2.5;
+    options.maxDiameter = 200.0;
     std::size_t craters = 0;
     for (auto _ : state) {
         CraterList list = GenerateCraters(PlanarCells(), region, *density, *ages, 1u, options);
@@ -37,16 +37,15 @@ void BM_ApplyCraters(benchmark::State& state) {
     const auto side = static_cast<std::size_t>(state.range(0));
     const double half = 0.5 * static_cast<double>(side);
     CraterGenerationOptions options;
-    options.dMin = 2.5;
-    options.dMax = 200.0;
+    options.minDiameter = 2.5;
+    options.maxDiameter = 200.0;
     options.marginRadii = 1.5;
     const CraterList craters =
         GenerateCraters(PlanarCells(), {-half, -half, half, half}, *density, *ages, 1u, options);
     const terraingen::CraterShapeModels models{
         std::make_shared<FassettThomsonProfile>(),
         std::make_shared<FreshnessDegradation>(ages, LunarFreshCraterMorphometry)};
-    Raster<float> heights(side, side, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(-half, half, 1.0));
+    Raster<float> heights(RasterGrid{side, side, GeoTransform::NorthUp(-half, half, 1.0)}, 0.0f);
     for (auto _ : state) {
         ApplyCraters(heights, craters, models, {}, {0.0, static_cast<unsigned>(state.range(1))});
     }

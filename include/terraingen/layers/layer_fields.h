@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief The field lists of fades, exposure, density maps, roughness and spectral continuation,
-/// and the names of their enums.
+/// @brief Field lists shared by layers: fades, exposure, selections, anchors, raster fields,
+/// density maps, roughness and spectral continuation, and the names of their enums.
 #pragma once
 
 #include "terraingen/layers/density_map.h"
@@ -10,6 +10,7 @@
 #include "terraingen/layers/fade.h"
 #include "terraingen/layers/roughness.h"
 #include "terraingen/layers/spectral_continuation.h"
+#include "terraingen/raster/raster_fields.h"
 #include "terraingen/util/option_fields.h"
 
 #include <array>
@@ -53,6 +54,112 @@ template <> struct EnumNames<SizeSlopeMeasure> {
     }};
 };
 
+/// The fields of a resolution fade (`ResolutionFade`) as "fade_px", its start and end sample
+/// counts as a list of two in output samples (pixels), and "fade_shape", the curve between them.
+/// @param description What the counts mean for the features that fade.
+template <typename IO>
+void FadePixelFields(IO& io, ResolutionFade& fade, std::string_view description) {
+    if constexpr (BindsNative<IO>) {
+        if (io.Group("fade", fade, description)) {
+            return;
+        }
+    }
+    std::array<double, 2> pixels{fade.startSamples, fade.endSamples};
+    io("fade_px", pixels, description, "px", AtLeast(0.0));
+    fade.startSamples = pixels[0];
+    fade.endSamples = pixels[1];
+    io("fade_shape", fade.shape, "Curve of the fade between the two sample counts of fade_px.");
+}
+
+/// The field "source_resolves_px": source cells across from which the source's measured data
+/// already holds the `features`, measured by their `size`, so only smaller ones are added.
+template <typename IO>
+void SourceResolvesField(IO& io, std::optional<double>& pixels, std::string_view features,
+                         std::string_view size) {
+    io("source_resolves_px", pixels,
+       "Source cells across from which the source's data already holds the " +
+           std::string(features) + ", by their " + std::string(size) +
+           ": only smaller ones are added, each raster of a chain giving its own limit. "
+           "Ignored on synthetic sources and where no raster has data; null adds them all.",
+       "px", Above(0.0));
+}
+
+/// The keys of a crater selection's fields.
+struct SelectionKeys {
+    std::string_view minDiameter = "min_diameter_m";
+    std::string_view maxDiameter = "max_diameter_m";
+    std::string_view minAge = "min_age_gyr";
+    std::string_view maxAge = "max_age_gyr";
+    std::string_view manual = "manual";
+};
+
+/// The fields of a crater selection (`CraterSelection`): the diameters and ages of the craters
+/// selected, and whether manual craters are.
+/// @param craters What the selected craters are, such as "craters made irregular".
+/// @param manualHelp The description of the manual flag.
+template <typename IO, typename Selection>
+void SelectionFields(IO& io, Selection& selection, std::string_view craters,
+                     std::string_view manualHelp, const SelectionKeys& keys = {}) {
+    if constexpr (BindsNative<IO>) {
+        if (io.Group("selection", selection,
+                     "The selection of " + std::string(craters) +
+                         ": their diameters and ages, and whether manual craters count.")) {
+            return;
+        }
+    }
+    const std::string of = ", of " + std::string(craters);
+    io(keys.minDiameter, selection.minDiameter, "Smallest diameter, in meters" + of + ".", "m",
+       AtLeast(0.0));
+    OptionalBound(io, keys.maxDiameter, selection.maxDiameter,
+                  "Largest diameter, in meters" + of + "; unset has no upper limit.", "m",
+                  std::numeric_limits<double>::infinity(), AtLeast(0.0));
+    io(keys.minAge, selection.minAgeGyr, "Youngest age, in Gyr" + of + ".", "Gyr", AtLeast(0.0));
+    OptionalBound(io, keys.maxAge, selection.maxAgeGyr,
+                  "Oldest age, in Gyr" + of + "; unset has no upper limit.", "Gyr",
+                  std::numeric_limits<double>::infinity(), AtLeast(0.0));
+    io(keys.manual, selection.manual, manualHelp);
+}
+
+/// The description of a wind azimuth: where `wind`, such as "wind", blows toward, and the
+/// `effect` it has, such as "slip faces face it".
+inline std::string WindAzimuthHelp(std::string_view wind, std::string_view effect) {
+    return "Direction the " + std::string(wind) +
+           " blows toward, in degrees counter-clockwise from +x (local east on a body); " +
+           std::string(effect) + ".";
+}
+
+/// The fields of the anchor of a layer laid out in a tangent frame: the longitude and latitude,
+/// on a body, of the point whose tangent frame `what`, such as "the plates are laid out in".
+/// @param prefix The keys' prefix, to which "_x" and "_y" are added.
+template <typename IO, typename Anchor>
+void AnchorFields(IO& io, Anchor& anchor, std::string_view what,
+                  std::string_view prefix = "anchor") {
+    if constexpr (BindsNative<IO>) {
+        if (io.Group(prefix, anchor,
+                     "On a body, the longitude and latitude in degrees of the point whose tangent "
+                     "frame " +
+                         std::string(what) + ".")) {
+            return;
+        }
+    }
+    io(std::string(prefix) + "_x", anchor.x,
+       "On a body, the longitude in degrees of the point whose tangent frame " + std::string(what) +
+           ".");
+    io(std::string(prefix) + "_y", anchor.y, "On a body, the latitude in degrees of the anchor.");
+}
+
+/// The fields of an exposure field a layer reads on the ground beneath it, and the spacing in
+/// meters it reads the ground at.
+/// @param exposureHelp The description of the exposure field.
+/// @param prefix The exposure's key, to which "_spacing_m" is added for the spacing's.
+template <typename IO, typename Exposure>
+void ExposureFields(IO& io, Exposure& exposure, double& spacing, std::string_view exposureHelp,
+                    std::string_view prefix = "exposure") {
+    io(std::string(prefix), exposure, exposureHelp);
+    io(std::string(prefix) + "_spacing_m", spacing,
+       "Spacing in meters the ground is read at for the exposure field.", "m", Above(0.0));
+}
+
 template <typename IO> void Fields(IO& io, ResolutionFade& fade) {
     io("start_samples", fade.startSamples,
        "Samples across a feature's diameter up to which it is left out entirely.", "",
@@ -86,6 +193,20 @@ template <typename IO> void Fields(IO& io, ExposureParams& exposure) {
     io("floor_patch_m", exposure.floorPatch,
        "Width of the bedrock patches on level ground, in meters.", "m", Above(0.0));
     io("seed", exposure.seed, "Seed of the bedrock patches on level ground.");
+}
+
+template <typename IO> void Fields(IO& io, RasterFieldOptions& options) {
+    io("method", options.method,
+       "How the raster is interpolated: nearest or bilinear, which stay within the cells read.");
+    io("scale", options.scale,
+       "Multiplies every cell, such as 0.001 for a map stored in thousandths.", "", Above(0.0));
+    OptionalBound(io, "fallback", options.fallback,
+                  "Value outside the raster and where its cells are no-data or NaN; unset leaves "
+                  "none, and the layer then keeps its own setting there.",
+                  "", std::numeric_limits<double>::quiet_NaN());
+    io("periodic_longitude", options.periodicLongitude,
+       "The raster's x is longitude repeating every 360 degrees, so a map from 0 to 360 serves "
+       "-180 to 180.");
 }
 
 /// The fields of a density map but its field, which is given apart.

@@ -27,7 +27,6 @@
 namespace terraingen {
 
 class EvaluationCache;
-class StageCache;
 
 /// How to evaluate a terrain over a grid.
 struct EvaluationOptions {
@@ -37,16 +36,12 @@ struct EvaluationOptions {
     /// Threads to split each layer over; 0 for every hardware thread. The result does not
     /// depend on it.
     unsigned threads = 0;
-    /// Where the grid is evaluated; empty for `DefaultBackend()`. `Gpu` picks the best GPU backend
-    /// available and `Auto` the same or the CPU. Results on a GPU match the CPU to within float
-    /// rounding, not to the bit, and point queries always run on the CPU.
+    /// Where the grid is evaluated; empty for `DefaultBackend()`. GPU results match the CPU to
+    /// float rounding; point queries always run on the CPU.
     std::optional<Backend> backend = std::nullopt;
     /// Called after each layer is applied with its index and the milliseconds it took, reads of
     /// the ground beneath it included; may be empty.
     std::function<void(std::size_t layer, double milliseconds)> onLayer{};
-    /// Heights kept before one layer, which the evaluation restarts from when they are still
-    /// current and refreshes otherwise; null keeps none. It must outlive the evaluation.
-    StageCache* stageCache = nullptr;
 
     /// Sets the sample spacing in meters, for chaining: `EvaluationOptions{}.Spacing(0.5)`.
     EvaluationOptions& Spacing(double meters) {
@@ -63,56 +58,13 @@ struct EvaluationOptions {
         backend = where;
         return *this;
     }
-    /// Sets the stage cache the evaluation restarts from and refreshes.
-    EvaluationOptions& Keep(StageCache& cache) {
-        stageCache = &cache;
-        return *this;
-    }
 };
 
-/// The heights a terrain held before one of its layers when it was last evaluated over a grid,
-/// so evaluating the same grid at the same spacing again after `Terrain::SetLayer` of that layer
-/// or a later one applies only the layers from there on. It holds one grid of floats, and the
-/// caller owns it; one evaluation may use it at a time.
-class StageCache {
-  public:
-    /// A cache of the heights before layer `stage`: the source's heights for 0, the finished
-    /// heights for the terrain's layer count.
-    explicit StageCache(std::size_t stage) : stage_(stage) {}
-
-    /// The index of the layer whose input the cache keeps.
-    std::size_t Stage() const {
-        return stage_;
-    }
-
-    /// Whether the cache holds heights.
-    bool Empty() const {
-        return heights_.empty();
-    }
-
-    /// Drops the heights held, freeing their memory.
-    void Clear();
-
-  private:
-    friend class Terrain;
-
-    std::size_t stage_;
-    RasterGrid grid_{};
-    double spacing_ = 0.0;
-    Backend backend_ = Backend::Cpu;
-    std::vector<std::uint64_t> versions_;
-    std::vector<float> heights_;
-};
-
-/// A terrain: heights from a source (the datum, 0 m, without one), plus each of its layers in
-/// order, on a surface.
+/// A surface, a source (0 m without one) and layers applied in order.
 ///
-/// Every part is a pure function of where it is evaluated, so a terrain can be evaluated over
-/// any grid at any sample spacing, or at scattered points, to the same bits. On a body, grids
-/// are in longitude and latitude and spacings in meters (`RasterGrid::Spacing`), which reach the
-/// source in its units, divided by `Surface::UnitLength`. A terrain is a `Ground`, and so is each
-/// of its prefixes (`Ground`). Copies share their parts, which are immutable; `SetLayer` and
-/// `SetSource` replace a part of one terrain only. Evaluation is thread-safe; updates are not.
+/// Grids, tiles and points give the same bits. On a body, grids are in longitude and latitude
+/// and spacings in meters. Copies share their immutable parts; evaluation is thread-safe, updates
+/// are not.
 class Terrain final : public Ground {
   public:
     /// A terrain on a plane without a source or layers.
@@ -120,9 +72,9 @@ class Terrain final : public Ground {
 
     /// A terrain on `surface` with `source` as its starting heights, if any, and `layers`.
     /// @throws std::invalid_argument for a source in longitude and latitude on a plane or a
-    /// projected source on a body (`Source::Keys`), a null layer, a layer built for another
-    /// surface (`Layer::LayerSurface`), or a layer whose `Layer::Dependencies` do not all come
-    /// before it.
+    /// projected source on a body (`Source::Keys`), a null layer, a layer built on another surface
+    /// or on a source other than the terrain's (`Layer::LayerBase`; one built on none applies no
+    /// source limits), or a layer whose `Layer::Dependencies` do not all come before it.
     Terrain(terraingen::Surface surface, std::shared_ptr<const terraingen::Source> source,
             std::vector<LayerPtr> layers);
 
@@ -148,9 +100,12 @@ class Terrain final : public Ground {
     /// geographic keys on its body (`GeographicSphereKeys`) without one.
     GeoKeys Keys() const;
 
+    /// The context a layer reads the terrain in: its surface and source, on this terrain.
+    LayerContext Context(double spacing, unsigned threads) const override;
+
     /// The heights over `grid`, evaluated on several threads to the same bits as one.
-    /// @throws std::invalid_argument for a negative or non-finite spacing, or a stage cache of a
-    /// layer past the last; and whatever the parts throw.
+    /// @throws std::invalid_argument for a negative or non-finite spacing; and whatever the parts
+    /// throw.
     /// @throws std::runtime_error when a GPU backend is requested but unavailable
     /// (`ResolveBackend`).
     Raster<float> Evaluate(const RasterGrid& grid, const EvaluationOptions& options = {}) const;
@@ -158,7 +113,8 @@ class Terrain final : public Ground {
     /// The heights over the source's grid (`Grid`).
     /// @throws std::invalid_argument as `Evaluate` over a grid, or for a terrain without a
     /// bounded source.
-    Raster<float> Evaluate() const;
+    /// @throws std::runtime_error as `Evaluate` over a grid.
+    Raster<float> Evaluate(const EvaluationOptions& options = {}) const;
 
     /// `Evaluate` over `grid` straight into a caller buffer, to the same bits.
     /// @param heights grid.width * grid.height heights in meters, row-major with row 0 first
@@ -168,21 +124,22 @@ class Terrain final : public Ground {
     void Fill(const RasterGrid& grid, Span<float> heights,
               const EvaluationOptions& options = {}) const;
 
-    using terraingen::Ground::HeightsAt;
-
-    /// `HeightsAt` split over `threads` threads (0 for every hardware thread); the ground's own
-    /// `HeightsAt` uses every one. Points are taken in batches of nearby points, which share
-    /// values such as crater datums with every point query of this terrain.
-    /// @param spacing Sample spacing in meters; positive and finite.
-    /// @throws std::invalid_argument for spans of different sizes or a spacing that is not
-    /// positive and finite.
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing,
-                   unsigned threads) const;
+    /// Applies the layers from `first` on to `heights`, which hold the heights of
+    /// `Beneath(first)` over their grid evaluated with `options`, to the bits of `Evaluate`.
+    /// @throws std::invalid_argument for a `first` past the layer count, or as `Evaluate`.
+    /// @throws std::runtime_error as `Evaluate`.
+    void ApplyFrom(std::size_t first, Raster<float>& heights,
+                   const EvaluationOptions& options = {}) const;
 
     /// The craters the layers apply over `grid` (`CraterPlacer::CratersOver`).
     /// @param spacing The sample spacing in meters, finer than the grid's or not; 0 for the
     /// grid's.
     CraterFeatures Craters(const RasterGrid& grid, double spacing = 0.0) const;
+
+    /// The craters the layers apply over the source's grid (`Grid`).
+    /// @param spacing As for `Craters` over a grid.
+    /// @throws std::invalid_argument for a terrain without a bounded source.
+    CraterFeatures Craters(double spacing = 0.0) const;
 
     /// The boulders the layers place over `grid`, each read on the ground beneath its layer
     /// (`BoulderPlacer::BouldersOver`), and the boulder models among them.
@@ -190,10 +147,15 @@ class Terrain final : public Ground {
     /// grid's.
     BoulderFeatures Boulders(const RasterGrid& grid, double spacing = 0.0) const;
 
-    /// The terrain beneath layer `stages`: the source and the first `stages` layers, sharing
-    /// their versions and point-query values with this terrain.
-    /// @throws std::invalid_argument for more stages than layers.
-    Terrain Ground(std::size_t stages) const;
+    /// The boulders the layers place over the source's grid (`Grid`).
+    /// @param spacing As for `Boulders` over a grid.
+    /// @throws std::invalid_argument for a terrain without a bounded source.
+    BoulderFeatures Boulders(double spacing = 0.0) const;
+
+    /// The terrain beneath layer `layers`: the source and the first `layers` layers, sharing
+    /// their point-query values with this terrain.
+    /// @throws std::invalid_argument for more layers than the terrain has.
+    Terrain Beneath(std::size_t layers) const;
 
     /// Replaces layer `index` with `layer`; later layers that read the old one are rebound to
     /// it (`Layer::Rebound`).
@@ -201,51 +163,39 @@ class Terrain final : public Ground {
     /// the terrain is then unchanged.
     void SetLayer(std::size_t index, LayerPtr layer);
 
-    /// Replaces the source; null for none.
+    /// Replaces the source, null for none; layers built on the old one are rebuilt on the new
+    /// (`Layer::Rebased`) and later layers reading them rebound to them.
     /// @throws std::invalid_argument as the constructor; the terrain is then unchanged.
     void SetSource(std::shared_ptr<const terraingen::Source> source);
 
-    /// A stamp that changes whenever layer `index` is replaced, unique among the parts of every
-    /// terrain built; copies and prefixes share it.
-    /// @throws std::out_of_range for an index past the last layer.
-    std::uint64_t LayerVersion(std::size_t index) const;
-
-    /// A stamp that changes whenever the source is replaced, as `LayerVersion`.
-    std::uint64_t SourceVersion() const {
-        return sourceVersion_;
-    }
-
     /// A copy whose seeded layers (`Layer::Reseeded`) and source (`Source::Reseeded`) draw from
     /// `seed`, each part from its own seed derived from it, for domain randomization without
-    /// reading any data again; layers reading a reseeded layer are rebound to it.
+    /// reading any data again; layers are rebased on a reseeded source and rebound to reseeded
+    /// layers they read.
     /// @throws std::invalid_argument as the constructor.
     Terrain Reseed(std::uint64_t seed) const;
 
   protected:
-    /// The heights at `samples` on every hardware thread, as `HeightsAt`.
-    void FillSamples(SampleBlock& samples, double spacing) const override;
+    /// The heights at `samples`, as `HeightsAt`: points in batches of nearby points, which share
+    /// values such as crater datums with every point query of this terrain.
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
 
   private:
-    /// Evaluates the terrain into every cell of `heights`, placed by its transform.
-    void EvaluateInto(Raster<float>& heights, const EvaluationOptions& options) const;
+    /// The replacement of layer `index` of the terrain, `layer`; null keeps it.
+    using LayerReplacer = std::function<LayerPtr(std::size_t index, const LayerPtr& layer)>;
 
-    /// Applies layers [`first`, `last`) to `heights` at `spacing` meters.
-    void ApplyLayers(std::size_t first, std::size_t last, Raster<float>& heights, double spacing,
-                     Backend backend, const EvaluationOptions& options) const;
+    /// Replaces each layer `replace` gives a replacement of and the source with `source`,
+    /// rebases the layers built on the old source (`Layer::Rebased`) and rebinds those reading a
+    /// replaced layer, then checks the terrain, which is unchanged when that throws.
+    void Replace(std::shared_ptr<const terraingen::Source> source, const LayerReplacer& replace);
 
-    /// The versions the heights before layer `stage` depend on: the source's and those of the
-    /// layers before it.
-    std::vector<std::uint64_t> StageVersions(std::size_t stage) const;
-
-    /// Checks the parts, then gives fresh versions to the source if `sourceChanged` and to the
-    /// layers at `changed`, and drops the point-query values.
-    void Commit(bool sourceChanged, const std::vector<std::size_t>& changed);
+    /// The grid of the source.
+    /// @throws std::invalid_argument for a terrain without a bounded source.
+    RasterGrid SourceGrid() const;
 
     terraingen::Surface surface_{};
     std::shared_ptr<const terraingen::Source> source_;
     std::vector<LayerPtr> layers_;
-    std::uint64_t sourceVersion_ = 0;
-    std::vector<std::uint64_t> layerVersions_;
     std::shared_ptr<EvaluationCache> cache_;
 };
 

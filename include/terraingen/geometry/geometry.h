@@ -137,6 +137,11 @@ struct Bounds2d {
                std::isfinite(maxY);
     }
 
+    /// The center of the box.
+    Vec2d Center() const {
+        return {0.5 * (minX + maxX), 0.5 * (minY + maxY)};
+    }
+
     /// Whether the half-open box holds the point (`x`, `y`).
     bool Contains(double x, double y) const {
         return x >= minX && x < maxX && y >= minY && y < maxY;

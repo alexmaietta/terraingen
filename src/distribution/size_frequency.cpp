@@ -22,9 +22,9 @@ void CheckRange(const DiameterRange& range) {
     }
 }
 
-void CheckInterval(double dMin, double dMax) {
-    if (!(IsPositive(dMin) && dMax > dMin) || std::isnan(dMax)) {
-        throw std::invalid_argument("Diameter interval must satisfy 0 < dMin < dMax");
+void CheckInterval(double minDiameter, double maxDiameter) {
+    if (!(IsPositive(minDiameter) && maxDiameter > minDiameter) || std::isnan(maxDiameter)) {
+        throw std::invalid_argument("Diameter interval must satisfy 0 < minDiameter < maxDiameter");
     }
 }
 
@@ -94,11 +94,12 @@ double SizeFrequencyDistribution::IncrementalAt(double diameter) const {
     return (CumulativeAt(low) - CumulativeAt(high)) / (high - low);
 }
 
-double SizeFrequencyDistribution::InvertCumulative(double target, double dMin, double dMax) const {
+double SizeFrequencyDistribution::InvertCumulative(double target, double minDiameter,
+                                                   double maxDiameter) const {
     const auto cumulative = [this](double diameter) { return CumulativeAt(diameter); };
-    double low = std::log(dMin);
-    double high = std::isinf(dMax) ? low + 1.0 : std::log(dMax);
-    while (std::isinf(dMax) && CumulativeAt(std::exp(high)) > target) {
+    double low = std::log(minDiameter);
+    double high = std::isinf(maxDiameter) ? low + 1.0 : std::log(maxDiameter);
+    while (std::isinf(maxDiameter) && CumulativeAt(std::exp(high)) > target) {
         high += 1.0;
     }
     if (target > 0.0) {
@@ -112,29 +113,30 @@ double SizeFrequencyDistribution::InvertCumulative(double target, double dMin, d
     return std::exp(0.5 * (found.low + found.high));
 }
 
-double SizeFrequencyDistribution::ExpectedCount(double area, double dMin, double dMax) const {
-    CheckInterval(dMin, dMax);
+double SizeFrequencyDistribution::ExpectedCount(double area, double minDiameter,
+                                                double maxDiameter) const {
+    CheckInterval(minDiameter, maxDiameter);
     RequireNonNegative(area, "Area");
     double upper = 0.0;
-    if (std::isinf(dMax)) {
+    if (std::isinf(maxDiameter)) {
         if (!extrapolate_ && !std::isinf(range_.max)) {
-            throw std::domain_error("An infinite dMax needs an unbounded valid range");
+            throw std::domain_error("An infinite maxDiameter needs an unbounded valid range");
         }
     } else {
-        upper = Cumulative(dMax);
+        upper = Cumulative(maxDiameter);
     }
-    return area * (Cumulative(dMin) - upper);
+    return area * (Cumulative(minDiameter) - upper);
 }
 
-double SizeFrequencyDistribution::SampleDiameter(RandomStream& random, double dMin,
-                                                 double dMax) const {
-    const double count = ExpectedCount(1.0, dMin, dMax);
+double SizeFrequencyDistribution::SampleDiameter(RandomStream& random, double minDiameter,
+                                                 double maxDiameter) const {
+    const double count = ExpectedCount(1.0, minDiameter, maxDiameter);
     if (!(count > 0.0)) {
         throw std::invalid_argument("The distribution has no mass in the diameter interval");
     }
-    const double top = Cumulative(dMin);
+    const double top = Cumulative(minDiameter);
     const double target = top - random.NextDouble() * count;
-    return std::clamp(InvertCumulative(target, dMin, dMax), dMin, dMax);
+    return std::clamp(InvertCumulative(target, minDiameter, maxDiameter), minDiameter, maxDiameter);
 }
 
 }  // namespace terraingen

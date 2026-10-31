@@ -78,7 +78,7 @@ Raster<float> SampleSourceWindow(const Source& source, double cellSize, const Ve
     const RasterGrid grid{static_cast<std::size_t>(width), static_cast<std::size_t>(height),
                           GeoTransform::NorthUp(origin.x + (col0 - 0.5) * cellSize,
                                                 origin.y + (rowTop + 0.5) * cellSize, cellSize)};
-    Raster<float> heights = grid.MakeRaster();
+    Raster<float> heights(grid);
     source.Fill(heights, cellSize);
     return heights;
 }

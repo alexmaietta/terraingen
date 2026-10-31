@@ -24,10 +24,8 @@ namespace terraingen {
 /// Albedo source "synthetic": `SyntheticAlbedo`, a base color with a noise stack per channel (each
 /// 0 to `kMaxFractals` layers), measured from the source's reference point.
 struct SyntheticAlbedoSpec {
-    bool rgb = false;
-    double hueDegrees = 0.0;
-    double saturation = 0.0;
-    double value = kDefaultSyntheticAlbedoValue;
+    /// The color; the noise stacks below, each layer with its Hurst exponent, give its noise.
+    SyntheticAlbedoOptions options{};
     std::vector<AlbedoFractalSpec> hueNoiseDegrees;
     std::vector<AlbedoFractalSpec> saturationNoise;
     std::vector<AlbedoFractalSpec> valueNoise;
@@ -91,17 +89,7 @@ template <> struct SpecName<SyntheticAlbedoSpec> {
         "without data.";
 };
 template <typename IO> void Fields(IO& io, SyntheticAlbedoSpec& spec) {
-    io("rgb", spec.rgb,
-       "Gives three bands, red, green and blue, from the color; off gives one band of the value "
-       "alone, ignoring hue and saturation.");
-    io("hue_deg", spec.hueDegrees,
-       "Hue of the base color in degrees, wrapping around; used with rgb only.", "deg");
-    io("saturation", spec.saturation,
-       "Saturation of the base color, 0 for gray; used with rgb only.", "", UnitInterval());
-    io("value", spec.value,
-       "Reflectance of the brightest band; the one band's value without rgb. Higher values give a "
-       "brighter surface.",
-       "", UnitInterval());
+    SyntheticAlbedoColorFields(io, spec.options);
     io("hue_noise_deg", spec.hueNoiseDegrees,
        "Noise layers whose sum in degrees is added to the hue; used with rgb only.", "",
        NoiseStackLength(0));

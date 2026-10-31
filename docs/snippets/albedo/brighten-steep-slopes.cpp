@@ -28,9 +28,9 @@ TEST_F(SnippetTest, BrightenSteepSlopes) {
     Albedo albedo;
     albedo.source = std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{});
     albedo.layers = {std::make_shared<SlopeAlbedo>(options)};
-    AlbedoContext context;
+    LayerContext context;
     context.ground = &terrain;  // after every layer
-    const RasterGrid grid = RasterGrid::FromRaster(terrain.Evaluate());
+    const RasterGrid grid = terrain.Evaluate().Grid();
     const std::vector<Raster<float>> bands = EvaluateAlbedo(albedo, grid, context);
     // --8<-- [end:brighten_steep_slopes]
     ASSERT_EQ(bands.size(), 1u);

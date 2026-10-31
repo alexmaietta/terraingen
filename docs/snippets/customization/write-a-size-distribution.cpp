@@ -34,8 +34,8 @@ TEST_F(SnippetTest, WriteASizeDistribution) {
                               std::make_shared<FassettThomsonProfile>()};
     CraterLayerOptions options;
     options.seed = 3;
-    options.generation.dMin = 2.0;
-    options.generation.dMax = 60.0;
+    options.generation.minDiameter = 2.0;
+    options.generation.maxDiameter = 60.0;
     const CraterList craters = CraterLayer(models, options).Craters({-100.0, -100.0, 100.0, 100.0});
     // --8<-- [end:write_a_size_distribution]
     EXPECT_GT(craters.Size(), 0u);

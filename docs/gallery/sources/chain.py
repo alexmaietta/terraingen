@@ -34,7 +34,7 @@ COLORS = ["#7f7f7f", "#ff7f0e", "#1f77b4", "#2ca02c"]
 def figure(quick=False):
     craters = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
-            seed=2, generation=terraingen.CraterGenerationOptions(d_min=8.0, d_max=60.0)
+            seed=2, generation=terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=60.0)
         )
     )
     ground = terraingen.SyntheticSource([terraingen.Fractal(seed=7, wavelength=300.0, amplitude=20.0)])

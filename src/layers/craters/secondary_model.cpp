@@ -197,14 +197,15 @@ SecondaryDensity::SecondaryDensity(const Crater& primary, const SecondaryCraterO
     rays_ = SecondaryRayField::Make(primary, options.rays);
 }
 
-double SecondaryDensity::Measure(const Vec2d& offset, double dMin, double dMax, bool cover) const {
+double SecondaryDensity::Measure(const Vec2d& offset, double minDiameter, double maxDiameter,
+                                 bool cover) const {
     const double range = std::hypot(offset.x, offset.y);
     if (!(range >= onset_ && range < outer_)) {
         return 0.0;
     }
-    const double low = std::fmax(dMin, minSize_);
+    const double low = std::fmax(minDiameter, minSize_);
     const double high =
-        std::fmin(std::fmin(dMax, maxSize_), SingerMaxSecondaryDiameter(diameter_, range));
+        std::fmin(std::fmin(maxDiameter, maxSize_), SingerMaxSecondaryDiameter(diameter_, range));
     if (!(high > low)) {
         return 0.0;
     }
@@ -220,12 +221,13 @@ double SecondaryDensity::Measure(const Vec2d& offset, double dMin, double dMax, 
     return rays_ ? density * rays_->Density(range, std::atan2(offset.y, offset.x)) : density;
 }
 
-double SecondaryDensity::At(const Vec2d& offset, double dMin, double dMax) const {
-    return Measure(offset, dMin, dMax, false);
+double SecondaryDensity::At(const Vec2d& offset, double minDiameter, double maxDiameter) const {
+    return Measure(offset, minDiameter, maxDiameter, false);
 }
 
-double SecondaryDensity::CoverAt(const Vec2d& offset, double dMin, double dMax) const {
-    return Measure(offset, dMin, dMax, true);
+double SecondaryDensity::CoverAt(const Vec2d& offset, double minDiameter,
+                                 double maxDiameter) const {
+    return Measure(offset, minDiameter, maxDiameter, true);
 }
 
 double SecondaryDensity::SizeShare(double low, double high) const {

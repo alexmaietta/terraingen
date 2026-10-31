@@ -25,6 +25,7 @@ terraingen_add_test_suite(
     sand_shadow_test.cpp
     spectral_continuation_test.cpp
     strata_test.cpp
+    terrain_base_test.cpp
     sample_block_test.cpp
     sphere_layers_test.cpp
     transforms_test.cpp

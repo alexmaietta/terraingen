@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "support/boulder_records.h"
+#include "support/temp_path.h"
 #include "terraingen/distribution/power_law.h"
 #include "terraingen/geometry/geometry.h"
 #include "terraingen/io/report_json.h"
@@ -11,9 +12,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iterator>
 #include <limits>
 #include <numeric>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 using terraingen::Boulder;
@@ -48,7 +52,7 @@ Raster<float> PlaneRaster(std::size_t width, std::size_t height, double pixelSiz
     const RasterGrid grid{
         width, height,
         GeoTransform::NorthUp(0.0, static_cast<double>(height) * pixelSize, pixelSize)};
-    Raster<float> raster = grid.MakeRaster();
+    Raster<float> raster(grid);
     for (std::size_t row = 0; row < height; ++row) {
         for (std::size_t col = 0; col < width; ++col) {
             const terraingen::Vec2d center = raster.CellCenter(col, row);
@@ -87,7 +91,7 @@ CraterFeatures CratersWithDiameters(const std::vector<double>& diameters) {
 TEST(ReportGrid, AFlatGridHasOneHeightAndNoSlope) {
     const Raster<float> flat = PlaneRaster(8, 6, 2.0, [](double, double) { return 5.0; });
     const GridReport report = Report(flat);
-    EXPECT_EQ(report.grid, RasterGrid::FromRaster(flat));
+    EXPECT_EQ(report.grid, flat.Grid());
     EXPECT_EQ(report.heightMin, 5.0);
     EXPECT_EQ(report.heightMax, 5.0);
     EXPECT_EQ(report.heightMean, 5.0);
@@ -183,7 +187,7 @@ TEST(ReportGrid, SlopesOnABodyUseMetersOnTheSurface) {
     const double radius = 1737400.0;
     const Surface moon = Surface::Sphere(radius);
     const RasterGrid grid{16, 12, GeoTransform::NorthUp(10.0, 5.0, 0.01)};
-    Raster<float> heights = grid.MakeRaster();
+    Raster<float> heights(grid);
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             const double latitude = heights.CellCenter(col, row).y;
@@ -303,4 +307,15 @@ TEST(ReportToJson, WritesOneLineForANegativeIndent) {
     const std::string text = ReportToJson(TerrainReport{}, -1);
     EXPECT_EQ(text.find('\n'), std::string::npos);
     EXPECT_NE(ReportToJson(TerrainReport{}).find("\n  \"backend\""), std::string::npos);
+}
+
+TEST(WriteReport, WritesTheJsonWithANewline) {
+    TerrainReport report;
+    report.backend = "cpu";
+    const auto path = terraingen::testing::TempPath("write_report.json");
+    terraingen::WriteReport(path, report);
+    std::ifstream file(path, std::ios::binary);
+    const std::string text{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    EXPECT_EQ(text, ReportToJson(report) + "\n");
+    EXPECT_THROW(terraingen::WriteReport(path / "missing" / "r.json", report), std::runtime_error);
 }

@@ -24,7 +24,7 @@ def figure(quick=False):
     relief = terraingen.NoiseLayer(seed=3, wavelength=60.0, amplitude=3.0, octaves=6)
     older = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
-            seed=6, generation=terraingen.CraterGenerationOptions(d_min=3.0, d_max=25.0)
+            seed=6, generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=25.0)
         )
     )
     layers = [relief, older]

@@ -55,18 +55,18 @@ class RockAlbedo final : public AlbedoLayer {
     RockAlbedo(RockAlbedoOptions options, std::vector<RockSource> sources);
 
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                 const AlbedoContext& context) const override;
+                 const LayerContext& context) const override;
 
-    void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
+    void Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const override;
 
     /// The share of the sample at (`x`, `y`) rock covers, over every layer.
-    double ShareAt(double x, double y, const AlbedoContext& context) const;
+    double ShareAt(double x, double y, const LayerContext& context) const;
 
   private:
     /// The standard normal drawn for unresolved rock of source `source` at (`x`, `y`).
     double UnresolvedNormal(double x, double y, std::size_t source) const;
     /// The share of each cell of the grid of `first` that no source's rock covers, row-major.
-    std::vector<double> BareShares(const Raster<float>& first, const AlbedoContext& context) const;
+    std::vector<double> BareShares(const Raster<float>& first, const LayerContext& context) const;
 
     RockAlbedoOptions options_;
     std::vector<RockSource> sources_;

@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace terraingen {
@@ -28,6 +29,16 @@ struct PixelWindow {
     /// Whether the window holds no cell, either range being empty.
     bool Empty() const {
         return colBegin >= colEnd || rowBegin >= rowEnd;
+    }
+
+    /// The number of columns; 0 for none.
+    std::size_t Width() const {
+        return colEnd > colBegin ? colEnd - colBegin : 0;
+    }
+
+    /// The number of rows; 0 for none.
+    std::size_t Height() const {
+        return rowEnd > rowBegin ? rowEnd - rowBegin : 0;
     }
 
     /// Memberwise equality.
@@ -54,6 +65,29 @@ inline PixelWindow WholeWindow(const RasterGrid& grid) {
 /// first cell, and is `grid`'s own when that is the first cell of `grid`.
 RasterGrid Subgrid(const RasterGrid& grid, const PixelWindow& cells);
 
+/// The cells of tile (`tx`, `ty`) of `tileWidth` x `tileHeight` cells that lie in `window`.
+inline PixelWindow TileWindow(std::size_t tx, std::size_t ty, std::size_t tileWidth,
+                              std::size_t tileHeight, const PixelWindow& window) {
+    return {
+        std::max(window.colBegin, tx * tileWidth), std::min(window.colEnd, (tx + 1) * tileWidth),
+        std::max(window.rowBegin, ty * tileHeight), std::min(window.rowEnd, (ty + 1) * tileHeight)};
+}
+
+/// Calls `visit(tx, ty, cells)` for each tile (`tx`, `ty`) of `tileWidth` x `tileHeight` cells
+/// that a non-empty `window` meets, row by row of tiles, with its cells in the window
+/// (`TileWindow`).
+template <typename Visit>
+void ForEachTileIn(const PixelWindow& window, std::size_t tileWidth, std::size_t tileHeight,
+                   const Visit& visit) {
+    for (std::size_t ty = window.rowBegin / tileHeight; ty <= (window.rowEnd - 1) / tileHeight;
+         ++ty) {
+        for (std::size_t tx = window.colBegin / tileWidth; tx <= (window.colEnd - 1) / tileWidth;
+             ++tx) {
+            visit(tx, ty, TileWindow(tx, ty, tileWidth, tileHeight, window));
+        }
+    }
+}
+
 /// Calls `visit(tile)` for each tile of up to `side` x `side` cells of a `width` x `height` grid,
 /// row by row of tiles, the tiles split over threads.
 /// @param threads Threads to split the tiles over; 0 for every hardware thread.
@@ -62,10 +96,7 @@ void ForEachTile(std::size_t width, std::size_t height, std::size_t side, unsign
                  const Visit& visit) {
     const std::size_t tilesX = CeilDiv(width, side);
     ParallelFor(tilesX * CeilDiv(height, side), threads, [&](std::size_t tile) {
-        const std::size_t colBegin = (tile % tilesX) * side;
-        const std::size_t rowBegin = (tile / tilesX) * side;
-        visit(PixelWindow{colBegin, std::min(colBegin + side, width), rowBegin,
-                          std::min(rowBegin + side, height)});
+        visit(TileWindow(tile % tilesX, tile / tilesX, side, side, {0, width, 0, height}));
     });
 }
 
@@ -80,37 +111,43 @@ std::vector<PixelWindow> PixelWindowsIn(const RasterGrid& grid, const Bounds2d& 
 /// One cell `ForEachFeatureCell` visits.
 struct FeatureCell {
     std::size_t feature = 0;  ///< Index of the feature.
-    std::size_t window = 0;   ///< Index of the window among the feature's.
     std::size_t col = 0;      ///< Column of the cell.
     std::size_t row = 0;      ///< Row of the cell.
     Vec2d center{};           ///< World coordinates of the cell's center.
 };
 
-/// Visits the cells holding data of each feature's windows, feature by feature, in bands of rows
-/// over several threads, so every cell sees the features in the same order whatever `threads` is.
-/// @param threads Threads to split the bands over; 0 for every hardware thread.
-/// @param featureWindows `featureWindows(n)` gives feature n's non-overlapping windows as a
-/// `std::vector<PixelWindow>` (`PixelWindowsIn`).
+/// Side in cells of the tiles `ForEachFeatureCell` sorts features into.
+inline constexpr std::size_t kFeatureTileCells = 32;
+
+/// Visits the cells holding data of each feature's box (`PixelWindowsIn` on `surface`), feature by
+/// feature: the boxes are sorted into tiles of `kFeatureTileCells` cells, which run over several
+/// threads and visit their features in order, so every cell sees the features in the same order
+/// whatever `threads` is.
+/// @param threads Threads to split the tiles over; 0 for every hardware thread.
 /// @param visit `visit(cell, at)`, `cell` the value to read and update and `at` its `FeatureCell`.
-template <typename T, typename FeatureWindows, typename Visit>
-void ForEachFeatureCell(Raster<T>& raster, unsigned threads, std::size_t featureCount,
-                        const FeatureWindows& featureWindows, const Visit& visit) {
-    constexpr std::size_t kBandRows = 32;
-    const std::size_t bands = CeilDiv(raster.Height(), kBandRows);
-    ParallelFor(bands, threads, [&](std::size_t band) {
-        const std::size_t bandBegin = band * kBandRows;
-        const std::size_t bandEnd = std::min(raster.Height(), bandBegin + kBandRows);
-        for (std::size_t n = 0; n < featureCount; ++n) {
-            const std::vector<PixelWindow>& windows = featureWindows(n);
-            for (std::size_t w = 0; w < windows.size(); ++w) {
-                const PixelWindow& window = windows[w];
-                const std::size_t rowEnd = std::min(bandEnd, window.rowEnd);
-                for (std::size_t row = std::max(bandBegin, window.rowBegin); row < rowEnd; ++row) {
-                    for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {
-                        T& cell = raster(col, row);
-                        if (!raster.IsNoData(cell)) {
-                            visit(cell, FeatureCell{n, w, col, row, raster.CellCenter(col, row)});
-                        }
+template <typename T, typename Visit>
+void ForEachFeatureCell(Raster<T>& raster, unsigned threads, const std::vector<Bounds2d>& boxes,
+                        const Surface& surface, const Visit& visit) {
+    constexpr std::size_t kSide = kFeatureTileCells;
+    const RasterGrid& grid = raster.Grid();
+    const std::size_t tilesX = CeilDiv(raster.Width(), kSide);
+    std::vector<std::vector<std::pair<std::size_t, PixelWindow>>> tiles(
+        tilesX * CeilDiv(raster.Height(), kSide));
+    for (std::size_t n = 0; n < boxes.size(); ++n) {
+        for (const PixelWindow& window : PixelWindowsIn(grid, boxes[n], surface)) {
+            ForEachTileIn(window, kSide, kSide,
+                          [&](std::size_t tx, std::size_t ty, const PixelWindow& cells) {
+                              tiles[ty * tilesX + tx].emplace_back(n, cells);
+                          });
+        }
+    }
+    ParallelFor(tiles.size(), threads, [&](std::size_t tile) {
+        for (const auto& [feature, cells] : tiles[tile]) {
+            for (std::size_t row = cells.rowBegin; row < cells.rowEnd; ++row) {
+                for (std::size_t col = cells.colBegin; col < cells.colEnd; ++col) {
+                    T& cell = raster(col, row);
+                    if (!raster.IsNoData(cell)) {
+                        visit(cell, FeatureCell{feature, col, row, raster.CellCenter(col, row)});
                     }
                 }
             }
@@ -118,41 +155,16 @@ void ForEachFeatureCell(Raster<T>& raster, unsigned threads, std::size_t feature
     });
 }
 
-/// `ForEachFeatureCell` over the cells of each feature's box (`PixelWindowsIn` on `surface`).
-template <typename T, typename Visit>
-void ForEachFeatureCell(Raster<T>& raster, unsigned threads, const std::vector<Bounds2d>& boxes,
-                        const Surface& surface, const Visit& visit) {
-    const RasterGrid grid{raster.Width(), raster.Height(), raster.Transform()};
-    std::vector<std::vector<PixelWindow>> windows;
-    windows.reserve(boxes.size());
-    for (const Bounds2d& box : boxes) {
-        windows.push_back(PixelWindowsIn(grid, box, surface));
-    }
-    ForEachFeatureCell(
-        raster, threads, boxes.size(),
-        [&](std::size_t n) -> const std::vector<PixelWindow>& { return windows[n]; }, visit);
-}
-
-/// Calls `visit(cell, center)` for every cell of `raster`, `cell` the value to read and update
-/// and `center` its world coordinates, rows over several threads.
-/// @param threads Threads to split the rows over; 0 for every hardware thread.
-template <typename T, typename Visit>
-void ForEachCell(Raster<T>& raster, unsigned threads, const Visit& visit) {
-    ParallelFor(raster.Height(), threads, [&](std::size_t row) {
-        for (std::size_t col = 0; col < raster.Width(); ++col) {
-            visit(raster(col, row), raster.CellCenter(col, row));
-        }
-    });
-}
-
-/// Sets each cell of `raster` holding data to `map(value, center)` of its value and center, rows
-/// over several threads; a fresh raster holds data in every cell.
+/// Sets each cell of `raster` holding data to `map(value, center)`, rows over several threads.
 /// @param threads Threads to split the rows over; 0 for every hardware thread.
 template <typename T, typename Map>
 void MapCells(Raster<T>& raster, unsigned threads, const Map& map) {
-    ForEachCell(raster, threads, [&](T& cell, const Vec2d& center) {
-        if (!raster.IsNoData(cell)) {
-            cell = static_cast<T>(map(cell, center));
+    ParallelFor(raster.Height(), threads, [&](std::size_t row) {
+        for (std::size_t col = 0; col < raster.Width(); ++col) {
+            T& cell = raster(col, row);
+            if (!raster.IsNoData(cell)) {
+                cell = static_cast<T>(map(cell, raster.CellCenter(col, row)));
+            }
         }
     });
 }

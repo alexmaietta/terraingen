@@ -7,7 +7,6 @@
 #include "terraingen/geometry/geometry.h"
 #include "terraingen/geometry/surface.h"
 #include "terraingen/raster/geo_transform.h"
-#include "terraingen/raster/raster.h"
 
 #include <cstddef>
 
@@ -20,11 +19,6 @@ struct RasterGrid {
     std::size_t width = 0;     ///< Columns.
     std::size_t height = 0;    ///< Rows.
     GeoTransform transform{};  ///< Pixel-to-world transform.
-
-    /// The size and transform of a raster.
-    static RasterGrid FromRaster(const Raster<float>& raster) {
-        return {raster.Width(), raster.Height(), raster.Transform()};
-    }
 
     /// The north-up grid of square cells of side `pixelSize` covering `box`, snapped outward to
     /// whole cells: it starts at the box's min corner and has `SnappedCells` cells along each axis,
@@ -54,9 +48,6 @@ struct RasterGrid {
     /// The grid's sample spacing in meters on a surface: `PixelSize` on a plane, on a sphere the
     /// latitude step of a cell (its largest side).
     double Spacing(const Surface& surface) const;
-
-    /// A raster with this grid's size and transform, every cell `fill`, and no no-data value.
-    Raster<float> MakeRaster(float fill = 0.0f) const;
 
     /// Memberwise equality.
     bool operator==(const RasterGrid& other) const {

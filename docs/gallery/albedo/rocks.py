@@ -35,7 +35,7 @@ def figure(quick=False):
         pixel = max(pixel, 0.4) if quick else pixel
         size = int(SIZE_M / pixel) + 1
         terrain = terraingen.Terrain(source=terraingen.FlatSource(size, size, pixel), layers=[boulders])
-        grid = terraingen.RasterGrid.from_raster(terrain.evaluate())
+        grid = terrain.evaluate().grid
         rocks = terraingen.RockAlbedo(
             terraingen.RockAlbedoOptions(seed=1, reflectance_ratio=ratio, unresolved=unresolved), terrain, [0]
         )

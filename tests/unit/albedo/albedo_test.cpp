@@ -15,13 +15,13 @@
 #include <vector>
 
 using terraingen::Albedo;
-using terraingen::AlbedoContext;
 using terraingen::AlbedoSample;
 using terraingen::EvaluateAlbedo;
 using terraingen::EvaluateAlbedoAt;
 using terraingen::Fractal;
 using terraingen::GeoTransform;
 using terraingen::HsvToRgb;
+using terraingen::LayerContext;
 using terraingen::Raster;
 using terraingen::RasterAlbedo;
 using terraingen::RasterAlbedoOptions;
@@ -53,7 +53,7 @@ class TwoBands final : public terraingen::AlbedoSource {
     std::size_t Bands() const override {
         return 2;
     }
-    AlbedoSample ValueAt(double, double, const AlbedoContext&) const override {
+    AlbedoSample ValueAt(double, double, const LayerContext&) const override {
         return {};
     }
 };
@@ -61,7 +61,7 @@ class TwoBands final : public terraingen::AlbedoSource {
 class Doubling final : public terraingen::AlbedoLayer {
   public:
     void ApplyAt(AlbedoSample& value, std::size_t bands, double, double,
-                 const AlbedoContext&) const override {
+                 const LayerContext&) const override {
         for (std::size_t band = 0; band < bands; ++band) {
             value[band] *= 2.0f;
         }
@@ -70,8 +70,8 @@ class Doubling final : public terraingen::AlbedoLayer {
 
 /// A map whose log brightness rises by `gradient` per cell along rows and columns.
 Raster<float> Ramp(std::size_t side, double gradient) {
-    Raster<float> map(side, side);
-    map.SetTransform(GeoTransform::NorthUp(0.0, static_cast<double>(side) * 10.0, 10.0));
+    Raster<float> map(
+        RasterGrid{side, side, GeoTransform::NorthUp(0.0, static_cast<double>(side) * 10.0, 10.0)});
     for (std::size_t row = 0; row < side; ++row) {
         for (std::size_t col = 0; col < side; ++col) {
             map(col, row) =
@@ -129,7 +129,7 @@ TEST(SyntheticAlbedo, ColorAndNoiseVaryEachChannel) {
     params.valueNoise = {Noise(0.5f, 20.0f, 3)};
     const Albedo albedo{std::make_shared<SyntheticAlbedo>(params), {}};
     const terraingen::testing::ReferencedSource origin({5.0, 5.0});
-    AlbedoContext context{1.0, 4};
+    LayerContext context{1.0, 4};
     context.source = &origin;
     const auto bands = EvaluateAlbedo(albedo, Grid(64, 1.0), context);
     ASSERT_EQ(bands.size(), 3u);
@@ -205,7 +205,7 @@ TEST(EvaluateAlbedo, PointsEqualGridCellsAndThreadsDoNotMatter) {
         }
     }
     const auto single = EvaluateAlbedoAt(
-        Albedo{std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{}), {}}, 0.0, 0.0, {});
+        Albedo{std::make_shared<SyntheticAlbedo>(SyntheticAlbedoOptions{}), {}}, 0.0, 0.0, {1.0});
     EXPECT_FLOAT_EQ(single[0], 0.110f);
     EXPECT_EQ(single[1], 0.0f);
 }
@@ -228,8 +228,7 @@ TEST(RasterAlbedo, MeasuresTheHurstExponentAndRoughness) {
     EXPECT_NEAR(ramp.Hurst(), 1.0, 1e-3);
     EXPECT_NEAR(ramp.CellRoughness(), 0.01 / std::sqrt(2.0), 1e-5);
 
-    Raster<float> white(64, 64);
-    white.SetTransform(GeoTransform::NorthUp(0.0, 640.0, 10.0));
+    Raster<float> white(RasterGrid{64, 64, GeoTransform::NorthUp(0.0, 640.0, 10.0)});
     terraingen::RandomStream random(1, 2);
     for (float& value : white.Values()) {
         value = 0.1f + 0.05f * terraingen::HashToUnitFloat(random.NextU32());
@@ -254,11 +253,11 @@ TEST(RasterAlbedo, InterpolatesAndAddsDetailOnlyBelowItsResolution) {
     plain.detail.enabled = false;
     const RasterAlbedo smooth({map}, plain);
     const RasterAlbedo detailed({map});
-    const AlbedoContext coarse{10.0};
+    const LayerContext coarse{10.0};
     EXPECT_EQ(detailed.ValueAt(105.0, 205.0, coarse)[0], smooth.ValueAt(105.0, 205.0, coarse)[0]);
     EXPECT_FLOAT_EQ(smooth.ValueAt(105.0, 205.0, coarse)[0], map(10, 11));
 
-    const AlbedoContext fine{0.25};
+    const LayerContext fine{0.25};
     double sum = 0.0;
     int count = 0;
     for (double y = 60.0; y < 260.0; y += 0.37) {
@@ -309,8 +308,9 @@ TEST(RasterAlbedo, PointsEqualGridCellsAndOutsideIsNoData) {
 TEST(RasterAlbedo, RejectsInvalidMaps) {
     EXPECT_THROW(RasterAlbedo({Ramp(4, 0.1), Ramp(4, 0.1)}), std::invalid_argument);
     EXPECT_THROW(RasterAlbedo({Raster<float>()}), std::invalid_argument);
-    Raster<float> rotated = Ramp(4, 0.1);
-    rotated.SetTransform(GeoTransform{0.0, 1.0, 0.5, 0.0, 0.0, -1.0});
+    Raster<float> ramp = Ramp(4, 0.1);
+    const Raster<float> rotated(RasterGrid{4, 4, GeoTransform{0.0, 1.0, 0.5, 0.0, 0.0, -1.0}},
+                                ramp.Values());
     EXPECT_THROW(RasterAlbedo({rotated}), std::invalid_argument);
     EXPECT_THROW(RasterAlbedo({Ramp(4, 0.1), Ramp(5, 0.1), Ramp(4, 0.1)}), std::invalid_argument);
     RasterAlbedoOptions options;
@@ -335,7 +335,7 @@ TEST(SyntheticAlbedo, UsesSeamlessNoiseOnASphere) {
     params.valueNoise = {Noise(0.3f, 2000.0f, 3)};
     params.hueNoiseDegrees = {Noise(20.0f, 5000.0f, 4)};
     const SyntheticAlbedo albedo(params);
-    AlbedoContext context{10.0};
+    LayerContext context{10.0};
     context.surface = &moon;
     const AlbedoSample east = albedo.ValueAt(180.0, 3.0, context);
     const AlbedoSample west = albedo.ValueAt(-180.0, 3.0, context);
@@ -359,10 +359,9 @@ TEST(SyntheticAlbedo, MeasuresNoiseFromTheContextsReferencePoint) {
     SyntheticAlbedoOptions params;
     params.valueNoise = {Noise(0.3f, 50.0f, 3)};
     const SyntheticAlbedo albedo(params);
-    Raster<float> heights(4, 4, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(1000.0, 2000.0, 1.0));
+    Raster<float> heights(RasterGrid{4, 4, GeoTransform::NorthUp(1000.0, 2000.0, 1.0)}, 0.0f);
     const terraingen::RasterSource dem(heights);
-    AlbedoContext context{1.0};
+    LayerContext context{1.0};
     const float origin = albedo.ValueAt(1001.0, 1999.0, context)[0];
     context.source = &dem;
     const float referenced = albedo.ValueAt(1001.0, 1999.0, context)[0];
@@ -376,9 +375,10 @@ TEST(SyntheticAlbedo, MeasuresNoiseFromTheContextsReferencePoint) {
 
 TEST(RasterAlbedo, AddsDetailInMetersOnASphere) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
-    Raster<float> map = Ramp(32, 0.02);
+    Raster<float> ramp = Ramp(32, 0.02);
     const double step = 100.0 / moon.UnitLength();
-    map.SetTransform(GeoTransform::NorthUp(40.0, 10.0, step));
+    const Raster<float> map(RasterGrid{32, 32, GeoTransform::NorthUp(40.0, 10.0, step)},
+                            ramp.Values());
     RasterAlbedoOptions plain;
     plain.detail.enabled = false;
     const RasterAlbedo smooth({map}, plain);
@@ -386,7 +386,7 @@ TEST(RasterAlbedo, AddsDetailInMetersOnASphere) {
     const double lon = 40.0 + 10.3 * step;
     const double lat = 10.0 - 12.7 * step;
     const auto on = [&](double spacing) {
-        AlbedoContext context{spacing};
+        LayerContext context{spacing};
         context.surface = &moon;
         return context;
     };

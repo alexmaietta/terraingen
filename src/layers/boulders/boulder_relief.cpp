@@ -286,14 +286,15 @@ double BoulderLayer::ModelCover(const Boulder& boulder, const Vec2d& p, double s
 }
 
 std::vector<Boulder> BoulderLayer::ReliefBoulders(const Bounds2d& region, double spacing,
-                                                  const Ground* ground) const {
+                                                  const Ground* ground, unsigned threads) const {
     const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
-    return BoulderRecords(surface_.Expand(region, rim), spacing, ground);
+    return BoulderRecords(surface_.Expand(region, rim), spacing, ground, threads);
 }
 
 double BoulderLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
     const double spacing = context.spacing;
-    const std::vector<Boulder> boulders = ReliefBoulders({x, y, x, y}, spacing, context.ground);
+    const std::vector<Boulder> boulders =
+        ReliefBoulders({x, y, x, y}, spacing, context.ground, context.threads);
     double cover = 0.0;
     for (const Relief& relief : PrepareRelief(boulders, spacing, false)) {
         cover = std::fmax(cover, RockCover(relief, {x, y}));
@@ -308,9 +309,9 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid,
                                                const LayerContext& context) const {
     const double spacing = context.spacing;
     const unsigned threads = context.threads;
-    Raster<double> cover(grid.width, grid.height);
-    cover.SetTransform(grid.transform);
-    const std::vector<Boulder> boulders = ReliefBoulders(grid.Bounds(), spacing, context.ground);
+    Raster<double> cover(grid);
+    const std::vector<Boulder> boulders =
+        ReliefBoulders(grid.Bounds(), spacing, context.ground, context.threads);
     std::vector<Relief> reliefs = PrepareRelief(boulders, spacing, false);
     reliefs.erase(std::remove_if(reliefs.begin(), reliefs.end(),
                                  [](const Relief& relief) { return !relief.rock; }),
@@ -426,7 +427,8 @@ void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& contex
         return;
     }
     const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
-    const std::vector<Boulder> boulders = ReliefBoulders(samples.Bounds(), spacing, context.ground);
+    const std::vector<Boulder> boulders =
+        ReliefBoulders(samples.Bounds(), spacing, context.ground, context.threads);
     const std::vector<Relief> reliefs = PrepareRelief(boulders, spacing, true);
     DrawFeatures(samples, context.threads, Boxes(reliefs), surface_,
                  [&](float height, float base, const Vec2d& p, std::size_t n) {

@@ -22,8 +22,8 @@ TEST_F(SnippetTest, WriteTheWholeBodyAsAMesh) {
         32, [](const Vec3d& u) { return 220.0 + 80.0 * u.x * u.x + 15.0 * u.y * u.z; })));
     CraterLayerOptions options;
     options.seed = 6;
-    options.generation.dMin = 3.0;
-    options.generation.dMax = 40.0;
+    options.generation.minDiameter = 3.0;
+    options.generation.maxDiameter = 40.0;
     const Terrain terrain(body, nullptr,
                           {std::make_shared<CraterLayer>(DefaultCraterModels(), options, body)});
     // --8<-- [start:write_the_whole_body_as_a_mesh]

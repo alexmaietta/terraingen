@@ -235,4 +235,7 @@ class Surface {
 /// Both angles are in degrees.
 Vec3d UnitVector(double lonDeg, double latDeg);
 
+/// `*surface`, or a plane when `surface` is null.
+const Surface& SurfaceOrPlane(const Surface* surface);
+
 }  // namespace terraingen

@@ -11,12 +11,16 @@
 #include "terraingen/layers/craters/crater_placer.h"
 
 #include <filesystem>
+#include <string_view>
 #include <vector>
 
 namespace terraingen {
 
 /// Formats for crater and boulder lists.
 enum class ListFormat { Csv, Json };
+
+/// The format a list file's path implies: JSON for a .json path, else CSV.
+ListFormat InferListFormat(std::string_view path);
 
 /// Largest crease angle of boulder models, in degrees.
 inline constexpr double kMaxCreaseAngle = 180.0;

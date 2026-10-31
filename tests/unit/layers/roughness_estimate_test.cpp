@@ -18,6 +18,7 @@
 using terraingen::BaseRoughness;
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 
 namespace {
 
@@ -66,9 +67,9 @@ class SelfAffineSurface {
 
     /// The surface over `size` x `size` cells of `cellSize` meters.
     Raster<float> Sample(std::size_t size, double cellSize) const {
-        Raster<float> heights(size, size);
-        heights.SetTransform(
-            GeoTransform::NorthUp(0.0, cellSize * static_cast<double>(size), cellSize));
+        Raster<float> heights(
+            RasterGrid{size, size,
+                       GeoTransform::NorthUp(0.0, cellSize * static_cast<double>(size), cellSize)});
         for (std::size_t row = 0; row < size; ++row) {
             for (std::size_t col = 0; col < size; ++col) {
                 const auto center = heights.CellCenter(col, row);
@@ -107,9 +108,13 @@ double LayerDeviation(const terraingen::Fractal& layer) {
 
 /// `EstimateSourceRoughness` of `heights` read as a raster source of `cellSize` cells.
 BaseRoughness Estimate(Raster<float> heights, double cellSize) {
-    heights.SetTransform(
-        GeoTransform::NorthUp(0.0, cellSize * static_cast<double>(heights.Height()), cellSize));
-    return terraingen::EstimateSourceRoughness(terraingen::RasterSource(heights));
+    Raster<float> placed(
+        RasterGrid{
+            heights.Width(), heights.Height(),
+            GeoTransform::NorthUp(0.0, cellSize * static_cast<double>(heights.Height()), cellSize)},
+        heights.Values());
+    placed.SetNoData(heights.NoData());
+    return terraingen::EstimateSourceRoughness(terraingen::RasterSource(placed));
 }
 
 }  // namespace

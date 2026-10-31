@@ -72,7 +72,7 @@ class RasterAlbedo final : public AlbedoSource {
 
     /// The map interpolated at world (`x`, `y`) (longitude and latitude on a sphere), with detail
     /// resolved at `context.spacing`; NaN outside the map or where it has no data.
-    AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const override;
+    AlbedoSample ValueAt(double x, double y, const LayerContext& context) const override;
 
     /// The Hurst exponent the detail uses: `detail.hurst`, or the one measured.
     double Hurst() const {

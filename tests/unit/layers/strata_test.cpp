@@ -26,7 +26,8 @@ class Level final : public terraingen::Ground {
     explicit Level(double height) : height_(height) {}
 
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = static_cast<float>(height_);
         }
@@ -170,7 +171,7 @@ TEST(StrataLayer, GridsAndPointsAgree) {
     options.dipAzimuthDegrees = 1.1 * terraingen::kRadian;
     const StrataLayer layer(options);
     const terraingen::RasterGrid grid{40, 30, terraingen::GeoTransform::NorthUp(-10.0, 20.0, 0.5)};
-    terraingen::Raster<float> heights = grid.MakeRaster();
+    terraingen::Raster<float> heights(grid);
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             heights(col, row) = static_cast<float>(0.3 * static_cast<double>(col + row));

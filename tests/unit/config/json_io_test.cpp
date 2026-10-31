@@ -66,32 +66,32 @@ ConfigSpec Everything() {
     noise.stack.push_back(second);
     noise.estimateFromSource = true;
     CraterLayerSpec craters;
-    craters.generateRandom = false;
+    craters.options.generateRandom = false;
     craters.morphometry = terraingen::CraterMorphometryFit::Mars;
-    craters.seed = 99;
+    craters.options.seed = 99;
     craters.density = terraingen::PiecewisePowerLawSpec{{{1.0, 0.2, 2.0}, {50.0, 10.0, 3.0}}};
     craters.ages = terraingen::SteadyStateAgesSpec{2.0, terraingen::ProductionFunction::Ivanov,
                                                    terraingen::EquilibriumModel::Hartmann,
                                                    terraingen::ChronologyModel::Ivanov};
-    craters.minDiameter = 2.0;
-    craters.maxDiameter = 90.0;
-    craters.spacing = {2.0, 0.75};
-    craters.maxCraters = 1234;
+    craters.options.generation.minDiameter = 2.0;
+    craters.options.generation.maxDiameter = 90.0;
+    craters.options.generation.spacing = {2.0, 0.75};
+    craters.options.generation.maxCraters = 1234;
     craters.manual = {{1.5, -2.25, 30.0, 0.1, 7u},
                       {6.0, 4.0, 6.0, 0.0, 0u, false, 0.9, 0.25, true}};
     craters.replaceInheritedCraters =
         terraingen::InheritedCratersSpec{"coarse.json", {{}, 2.0, 40.0}};
     craters.profile = terraingen::ComplexProfileSpec{terraingen::MartinParkesDunstanSpec{}};
     craters.degradation = terraingen::NoDegradationSpec{0.17};
-    craters.apply = terraingen::CraterApplyOptions{};
-    craters.apply.order = terraingen::CraterOrder::LargestFirst;
-    craters.apply.fade = {1.0, 3.0, terraingen::BlendShape::Linear};
-    craters.apply.datum = terraingen::CraterDatum::Plane;
-    craters.apply.datumFitRadii = 1.5;
-    craters.apply.interiorReplacement = 0.5;
-    craters.apply.blend = {0.7, 1.3, terraingen::BlendShape::Gaussian};
-    craters.apply.replacement = {0.9, 1.4, 0.5};
-    terraingen::CraterIrregularity& irregularity = craters.apply.irregularity;
+    craters.options.apply = terraingen::CraterApplyOptions{};
+    craters.options.apply.order = terraingen::CraterOrder::LargestFirst;
+    craters.options.apply.fade = {1.0, 3.0, terraingen::BlendShape::Linear};
+    craters.options.apply.datum = terraingen::CraterDatum::Plane;
+    craters.options.apply.datumFitRadii = 1.5;
+    craters.options.apply.interiorReplacement = 0.5;
+    craters.options.apply.blend = {0.7, 1.3, terraingen::BlendShape::Gaussian};
+    craters.options.apply.replacement = {0.9, 1.4, 0.5};
+    terraingen::CraterIrregularity& irregularity = craters.options.apply.irregularity;
     irregularity.enabled = true;
     irregularity.seed = 4;
     irregularity.selection = terraingen::CraterSelection{};
@@ -112,50 +112,50 @@ ConfigSpec Everything() {
                                 2.23};
     irregularity.headingDegrees = 0.3 * terraingen::kRadian;
     irregularity.headingSpreadDegrees = 10.0;
-    craters.apply.rimSmoothing.sigmaRadii = 0.1;
-    craters.apply.rimSmoothing.strength = 0.5;
-    craters.apply.noise.amplitude = 0.01;
-    craters.apply.noise.octaves = 3;
-    craters.apply.noise.rimAmplitude = 0.02;
-    craters.apply.noise.seed = 5;
-    craters.apply.irregularity.marksShare = 0.4;
-    craters.apply.irregularity.marksAmplitude = {terraingen::ValueDistribution::Kind::Uniform, 0.0,
-                                                 0.01};
-    craters.apply.irregularity.marksKnots = 30;
-    craters.apply.irregularity.marksInnerRadii = 0.35;
-    craters.apply.irregularity.marksOuterRadii = 0.8;
-    craters.apply.irregularity.marksFadeRadii = 0.12;
-    craters.apply.slope.asymmetric = true;
-    craters.apply.slope.seed = 6;
-    craters.apply.slope.floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1};
-    craters.apply.slope.upslopeRim = 0.2;
-    craters.apply.slope.fullSlopeDegrees = 6.0;
-    craters.apply.slope.criticalGradient = 0.7;
-    craters.apply.slope.maxWearRate = 5.0;
-    craters.apply.terraces.onsetDiameter = 15000.0;
-    craters.apply.terraces.maxBenches = 6;
-    craters.apply.terraces.benchSlopeDegrees = 4.0;
-    craters.apply.terraces.arcShare = 0.8;
-    craters.apply.terraces.blockOffset = 0.3;
-    craters.apply.terraces.blockGaps = 0.1;
-    craters.apply.terraces.seed = 9;
-    craters.apply.terraces.scarpSlopeDegrees = 30.0;
-    craters.apply.peaks.enabled = true;
-    craters.apply.peaks.maxMassifs = 5;
-    craters.apply.peaks.spreadRadii = 1.5;
-    craters.apply.peaks.sharpness = 0.9;
-    craters.apply.peaks.lopsidedness = 0.7;
-    craters.apply.peaks.roughnessWavelength = 0.2;
-    craters.apply.peaks.seed = 10;
-    craters.apply.peaks.heightScale = 1.5;
-    craters.apply.peaks.widthScale = 1.2;
+    craters.options.apply.rimSmoothing.sigmaRadii = 0.1;
+    craters.options.apply.rimSmoothing.strength = 0.5;
+    craters.options.apply.noise.amplitude = 0.01;
+    craters.options.apply.noise.octaves = 3;
+    craters.options.apply.noise.rimAmplitude = 0.02;
+    craters.options.apply.noise.seed = 5;
+    craters.options.apply.irregularity.marksShare = 0.4;
+    craters.options.apply.irregularity.marksAmplitude = {
+        terraingen::ValueDistribution::Kind::Uniform, 0.0, 0.01};
+    craters.options.apply.irregularity.marksKnots = 30;
+    craters.options.apply.irregularity.marksInnerRadii = 0.35;
+    craters.options.apply.irregularity.marksOuterRadii = 0.8;
+    craters.options.apply.irregularity.marksFadeRadii = 0.12;
+    craters.options.apply.slope.asymmetric = true;
+    craters.options.apply.slope.seed = 6;
+    craters.options.apply.slope.floorOffset = {terraingen::ValueDistribution::Kind::Constant, 0.1};
+    craters.options.apply.slope.upslopeRim = 0.2;
+    craters.options.apply.slope.fullSlopeDegrees = 6.0;
+    craters.options.apply.slope.criticalGradient = 0.7;
+    craters.options.apply.slope.maxWearRate = 5.0;
+    craters.options.apply.terraces.onsetDiameter = 15000.0;
+    craters.options.apply.terraces.maxBenches = 6;
+    craters.options.apply.terraces.benchSlopeDegrees = 4.0;
+    craters.options.apply.terraces.arcShare = 0.8;
+    craters.options.apply.terraces.blockOffset = 0.3;
+    craters.options.apply.terraces.blockGaps = 0.1;
+    craters.options.apply.terraces.seed = 9;
+    craters.options.apply.terraces.scarpSlopeDegrees = 30.0;
+    craters.options.apply.peaks.enabled = true;
+    craters.options.apply.peaks.maxMassifs = 5;
+    craters.options.apply.peaks.spreadRadii = 1.5;
+    craters.options.apply.peaks.sharpness = 0.9;
+    craters.options.apply.peaks.lopsidedness = 0.7;
+    craters.options.apply.peaks.roughnessWavelength = 0.2;
+    craters.options.apply.peaks.seed = 10;
+    craters.options.apply.peaks.heightScale = 1.5;
+    craters.options.apply.peaks.widthScale = 1.2;
     terraingen::DensityMapSpec craterMap;
     craterMap.field.path = "map.tif";
     craterMap.field.band = 1;
-    craterMap.field.method = terraingen::ResampleMethod::Nearest;
-    craterMap.field.scale = 0.001;
-    craterMap.field.fallback = 2.0;
-    craterMap.field.periodicLongitude = true;
+    craterMap.field.read.method = terraingen::ResampleMethod::Nearest;
+    craterMap.field.read.scale = 0.001;
+    craterMap.field.read.fallback = 2.0;
+    craterMap.field.read.periodicLongitude = true;
     craterMap.map.measure = terraingen::DensityMeasure::Count;
     craterMap.map.minDiameter = 4.5;
     craterMap.map.maxDiameter = 1000.0;
@@ -165,7 +165,7 @@ ConfigSpec Everything() {
     terraingen::FieldSpec craterCompleteness;
     craterCompleteness.value = 1500.0;
     craters.completeness = craterCompleteness;
-    craters.sourceResolvesPixels = 3.0;
+    craters.options.sourceResolvesPixels = 3.0;
     terraingen::BoulderLayerSpec boulders;
     boulders.boulders = terraingen::BoulderLayerOptions{};
     terraingen::BoulderLayerOptions& options = boulders.boulders;
@@ -257,7 +257,7 @@ ConfigSpec Everything() {
     posed.wear = 0.4;
     posed.rest = terraingen::BoulderRest::End;
     posed.shapeSeed = 42u;
-    synthterrain.manual = {{3.0, -4.0, 2.5}, posed};
+    synthterrain.boulders.manual = {{3.0, -4.0, 2.5}, posed};
     terraingen::FieldSpec boulderCompleteness;
     boulderCompleteness.path = "complete.tif";
     synthterrain.completeness = boulderCompleteness;
@@ -302,7 +302,11 @@ ConfigSpec Everything() {
         terraingen::ScaleLayerSpec{1.5, -20.0},
         terraingen::ClampLayerSpec{std::nullopt, 12.5},
         terraingen::SpectralContinuationLayerSpec{
-            2.0, 2.8, 0.15, {3.0, 40.0}, 0.1, 0.5, 9u, {1.5, 5.0, terraingen::BlendShape::Linear}},
+            {1.0, 3.0, 0.1, 0.1, 0.5, 9u, {1.5, 5.0, terraingen::BlendShape::Linear}},
+            2.0,
+            2.8,
+            0.15,
+            {3.0, 40.0}},
         terraingen::SpectralContinuationLayerSpec{},
         terraingen::MaskedLayerSpec{terraingen::CircleRegionSpec{3.0, -4.0, 50.0}, 7.5,
                                     terraingen::BlendShape::Gaussian, craters},
@@ -314,7 +318,7 @@ ConfigSpec Everything() {
         terraingen::testing::GridRegion{33, 21, 0.5, 30.0, -45.0};
     terraingen::OutputAreaSpec corners;
     corners.pixelSize = 4.0;
-    corners.extentDeg = terraingen::ExtentSpec{{}, {}, {10.0, -20.0}, {11.0, -19.0}};
+    corners.extentDeg = terraingen::ExtentSpec{{}, {}, {{10.0, -20.0}}, {{11.0, -19.0}}};
     terraingen::OutputAreaSpec whole;
     whole.pixelSize = 100.0;
     config.outputs = {
@@ -326,11 +330,12 @@ ConfigSpec Everything() {
         terraingen::BoulderModelsOutput{"boulders.glb", 20.0, corners},
         terraingen::MeshOutput{"body.icq", 64, 300.0},
         terraingen::TerrainMeshOutput{"site.glb", region},
-        terraingen::TerrainMeshOutput{"holed.obj",
-                                      region,
-                                      {terraingen::ExtentSpec{{}, {}, {-1.0, -2.0}, {3.0, 4.0}}},
-                                      2.5,
-                                      {30.0, -45.0}},
+        terraingen::TerrainMeshOutput{
+            "holed.obj",
+            region,
+            {terraingen::ExtentSpec{{}, {}, {{-1.0, -2.0}}, {{3.0, 4.0}}}},
+            2.5,
+            {{30.0, -45.0}}},
         terraingen::MaterialsOutput{
             {"materials.tif", terraingen::TiffCompression::Deflate, 64, region}},
         terraingen::PhotometryOutput{{"hapke.tif", terraingen::TiffCompression::Lzw, 256, region}},
@@ -387,13 +392,13 @@ TEST(ConfigJson, ReadsGeoTiffCropsAndSourceResolvedLimits) {
     EXPECT_EQ(raster.read.effectivePixelSize, 20.0);
     EXPECT_EQ(SpecJson(raster.upsampling), SpecJson(terraingen::UpsamplingSpec{}))
         << "cubic by default";
-    EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).sourceResolvesPixels, 3.5);
+    EXPECT_EQ(std::get<CraterLayerSpec>(config.layers.at(0)).options.sourceResolvesPixels, 3.5);
     EXPECT_EQ(ParseConfig(ConfigToJson(config)), config);
     const ConfigSpec unset = ParseConfig(R"({"schema_version": 1,
         "source": {"type": "raster", "path": "dem.tif"}, "layers": [{"type": "craters"}]})");
     EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.source).read.crop);
     EXPECT_FALSE(std::get<terraingen::RasterSourceSpec>(*unset.source).read.effectivePixelSize);
-    EXPECT_EQ(std::get<CraterLayerSpec>(unset.layers.at(0)).sourceResolvesPixels, 4.0);
+    EXPECT_EQ(std::get<CraterLayerSpec>(unset.layers.at(0)).options.sourceResolvesPixels, 4.0);
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "source": {"type": "raster",
         "path": "dem.tif", "crop": {"min_x": 0, "west": 1}}})"),
               "source.crop.west");
@@ -540,10 +545,10 @@ TEST(ConfigJson, RoundTripsEveryModelType) {
 TEST(ConfigJson, RoundTripsAlbedos) {
     ConfigSpec config;
     terraingen::SyntheticAlbedoSpec synthetic;
-    synthetic.rgb = true;
-    synthetic.hueDegrees = 30.0;
-    synthetic.saturation = 0.1;
-    synthetic.value = 0.2;
+    synthetic.options.rgb = true;
+    synthetic.options.hueDegrees = 30.0;
+    synthetic.options.saturation = 0.1;
+    synthetic.options.value = 0.2;
     synthetic.valueNoise = {terraingen::AlbedoFractalSpec{{{}, 0.8f, {}}}};
     synthetic.hueNoiseDegrees = {terraingen::AlbedoFractalSpec{}};
     terraingen::CraterAlbedoSpec craters;
@@ -674,7 +679,7 @@ TEST(ConfigJson, RoundTripsBodiesBasesAndRegions) {
     EXPECT_EQ(std::get<terraingen::MeshOutput>(based.outputs.at(0)).cellsPerFace, 64u);
     const auto& area = std::get<terraingen::HeightmapOutput>(based.outputs.at(1)).area;
     EXPECT_EQ(area.pixelSize, 4.0);
-    EXPECT_EQ(area.extentM, (terraingen::ExtentSpec{{30.0, -45.0}, {40.0, 80.0}, {}, {}}));
+    EXPECT_EQ(area.extentM, (terraingen::ExtentSpec{{{30.0, -45.0}}, {{40.0, 80.0}}, {}, {}}));
     EXPECT_EQ(std::get<terraingen::ReportOutput>(based.outputs.at(2)).path, "");
     EXPECT_EQ(ParseConfig(ConfigToJson(based)), based);
     EXPECT_EQ(ParseErrorPath(R"({"schema_version": 1, "outputs": [{"type": "heightmap",
@@ -755,8 +760,8 @@ TEST(ConfigJson, DefaultsCraterLayersToASteadyStateSurfaceBelowTrask) {
     EXPECT_FALSE(craters.ages);
     EXPECT_EQ(SpecJson(terraingen::config::LayerAges(craters)), SpecJson(AgesSpec{ages}));
     EXPECT_TRUE(std::holds_alternative<terraingen::DiffusionDegradationSpec>(craters.degradation));
-    EXPECT_TRUE(craters.apply.irregularity.enabled);
-    EXPECT_EQ(craters.minDiameter, 2.5);
+    EXPECT_TRUE(craters.options.apply.irregularity.enabled);
+    EXPECT_EQ(craters.options.generation.minDiameter, 2.5);
     EXPECT_EQ(craters.morphometry, terraingen::CraterMorphometryFit::Lunar);
     const ConfigSpec surface = ParseConfig(R"({"schema_version": 1, "layers": [{"type":
         "craters", "density": {"type": "production_surface"}}]})");

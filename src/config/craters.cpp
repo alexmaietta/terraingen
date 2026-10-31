@@ -165,8 +165,8 @@ void AddDegradation(const CraterLayerSpec& craters, CraterModels& models) {
 InheritedCraters BuildInheritedCraters(const InheritedCratersSpec& spec, const std::string& path,
                                        const std::filesystem::path& directory) {
     InheritedCraters inherited = spec.inherited;
-    inherited.craters =
-        AtFile(Child(path, "path"), [&] { return ReadCraterList(Resolve(spec.path, directory)); });
+    inherited.craters = AtFile(FieldPath(path, "path"),
+                               [&] { return ReadCraterList(Resolve(spec.path, directory)); });
     return inherited;
 }
 
@@ -181,12 +181,12 @@ std::string Meters(double value) {
 void CheckModelRange(const CraterLayerSpec& craters, const CraterModels& models,
                      const std::string& path) {
     try {
-        models.density->Cumulative(craters.minDiameter);
-        models.ages->LifetimeGyr(craters.minDiameter);
+        models.density->Cumulative(craters.options.generation.minDiameter);
+        models.ages->LifetimeGyr(craters.options.generation.minDiameter);
     } catch (const std::domain_error&) {
         const DiameterRange& density = models.density->ValidRange();
-        std::string message =
-            "the density or ages are not defined at " + Meters(craters.minDiameter) + " m";
+        std::string message = "the density or ages are not defined at " +
+                              Meters(craters.options.generation.minDiameter) + " m";
         const AgesSpec ages = LayerAges(craters);
         if (const auto* steady = std::get_if<SteadyStateAgesSpec>(&ages)) {
             message += "; steady-state ages need the production function's diameters, from " +
@@ -209,7 +209,7 @@ void CheckMatchingAges(const CraterLayerSpec& craters, const std::string& path) 
     }
     if (matching->production != steady->production || matching->chronology != steady->chronology ||
         matching->ageGyr != steady->ageGyr || matching->equilibrium != steady->equilibrium) {
-        throw ConfigError(Child(path, "ages"),
+        throw ConfigError(FieldPath(path, "ages"),
                           "steady-state ages must name the production function, chronology, "
                           "age_gyr and equilibrium of the density's production surface and "
                           "equilibrium, or be left out to follow them");
@@ -220,7 +220,7 @@ void CheckMatchingAges(const CraterLayerSpec& craters, const std::string& path) 
 void CheckManualCraters(const std::vector<Crater>& manual, const std::string& path) {
     for (std::size_t n = 0; n < manual.size(); ++n) {
         if (!manual[n].depth && manual[n].rimHeight) {
-            throw ConfigError(Child(Element(path, n), "rim_height_m"), "needs a depth");
+            throw ConfigError(FieldPath(ItemPath(path, n), "rim_height_m"), "needs a depth");
         }
     }
 }
@@ -229,31 +229,23 @@ void CheckManualCraters(const std::vector<Crater>& manual, const std::string& pa
 /// read and checked.
 CraterLayerOptions BuildCraterOptions(const CraterLayerSpec& craters, const std::string& path,
                                       const LayerInputs& inputs) {
-    CraterLayerOptions options;
+    CraterLayerOptions options = craters.options;
     options.secondaries = inputs.thrown;
-    options.generateRandom = craters.generateRandom;
-    options.seed = craters.seed;
-    options.generation.dMin = craters.minDiameter;
-    options.generation.dMax = craters.maxDiameter;
-    options.generation.spacing = craters.spacing;
-    options.generation.maxCraters = craters.maxCraters;
     for (Crater crater : craters.manual) {
         crater.manual = true;
         options.generation.manual.Append(crater);
     }
-    options.apply = craters.apply;
     if (craters.densityMap) {
         options.densityMap =
-            BuildDensityMap(*craters.densityMap, Child(path, "density_map"), inputs.directory);
+            BuildMap(*craters.densityMap, FieldPath(path, "density_map"), inputs.directory);
     }
     if (craters.completeness) {
         options.generation.completeness =
-            BuildField(*craters.completeness, Child(path, "completeness"), inputs.directory);
+            BuildField(*craters.completeness, FieldPath(path, "completeness"), inputs.directory);
     }
-    options.sourceResolvesPixels = craters.sourceResolvesPixels;
     if (const auto& inherited = craters.replaceInheritedCraters) {
         options.inherited = BuildInheritedCraters(
-            *inherited, Child(path, "replace_inherited_craters"), inputs.directory);
+            *inherited, FieldPath(path, "replace_inherited_craters"), inputs.directory);
     }
     return options;
 }
@@ -352,17 +344,19 @@ AgesSpec LayerAges(const CraterLayerSpec& craters) {
 }
 
 void CheckSpec(const CraterLayerSpec& spec, const std::string& path, LayerChecks& checks) {
-    CheckManualCraters(spec.manual, Child(path, "manual"));
-    At(Child(path, "spacing"), [&] { ValidateCraterSpacing(spec.spacing); });
-    At(Child(path, "apply"), [&] { ValidateCraterApplyOptions(spec.apply); });
+    CheckManualCraters(spec.manual, FieldPath(path, "manual"));
+    At(FieldPath(path, "spacing"), [&] { ValidateCraterSpacing(spec.options.generation.spacing); });
+    At(FieldPath(path, "apply"), [&] { ValidateCraterApplyOptions(spec.options.apply); });
     const auto* diffusion = std::get_if<DiffusionDegradationSpec>(&spec.degradation);
     if (diffusion && diffusion->diffusivity == DiffusivityModel::PowerLaw) {
-        At(Child(path, "degradation"), [&] { ValidatePowerLawDiffusivity(diffusion->powerLaw); });
+        At(FieldPath(path, "degradation"),
+           [&] { ValidatePowerLawDiffusivity(diffusion->powerLaw); });
     }
     CheckMatchingAges(spec, path);
     checks.craters = true;
-    if (spec.generateRandom && !(spec.maxDiameter > spec.minDiameter)) {
-        throw ConfigError(Child(path, "max_diameter_m"), "must exceed min_diameter_m");
+    if (spec.options.generateRandom &&
+        !(spec.options.generation.maxDiameter > spec.options.generation.minDiameter)) {
+        throw ConfigError(FieldPath(path, "max_diameter_m"), "must exceed min_diameter_m");
     }
 }
 
@@ -377,12 +371,10 @@ LayerPtr BuildSpec(const CraterLayerSpec& spec, const std::string& path,
                    const LayerInputs& inputs) {
     CraterLayerOptions options = BuildCraterOptions(spec, path, inputs);
     CraterModels models = BuildCraterModels(spec, path);
-    if (spec.generateRandom) {
-        CheckModelRange(spec, models, Child(path, "min_diameter_m"));
+    if (spec.options.generateRandom) {
+        CheckModelRange(spec, models, FieldPath(path, "min_diameter_m"));
     }
-    return At(path, [&] {
-        return std::make_shared<CraterLayer>(std::move(models), std::move(options), inputs.base);
-    });
+    return std::make_shared<CraterLayer>(std::move(models), std::move(options), inputs.base);
 }
 
 LayerPtr BuildSpec(const SecondaryLayerSpec& spec, const std::string& /*path*/,
@@ -398,22 +390,26 @@ LayerPtr BuildSpec(const SecondaryLayerSpec& spec, const std::string& /*path*/,
 void CheckBuilt(const CraterLayerSpec& spec, const Layer& built, const std::string& path,
                 LayerChecks& checks) {
     const CraterModels& models = dynamic_cast<const CraterLayer&>(built).Models();
-    const std::string manualPath = Child(path, "manual");
+    const std::string manualPath = FieldPath(path, "manual");
     for (std::size_t n = 0; n < spec.manual.size(); ++n) {
         if (spec.manual[n].depth) {
-            At(Element(manualPath, n),
+            At(ItemPath(manualPath, n),
                [&] { ResolvedCraterState(models.Shape(), spec.manual[n]); });
         }
     }
-    if (!spec.generateRandom) {
+    if (!spec.options.generateRandom) {
         return;
     }
-    const std::string minPath = Child(path, "min_diameter_m");
-    checks.expectedCraters.resize(checks.extents.size(), 0.0);
-    for (std::size_t i = 0; i < checks.extents.size(); ++i) {
+    const std::string minPath = FieldPath(path, "min_diameter_m");
+    checks.expectedCraters.resize(checks.outputs.size(), 0.0);
+    for (std::size_t i = 0; i < checks.outputs.size(); ++i) {
+        if (!checks.outputs[i].grid) {
+            continue;
+        }
         const double expected = At(minPath, [&] {
-            return models.density->ExpectedCount(checks.extents[i].area, spec.minDiameter,
-                                                 spec.maxDiameter);
+            return models.density->ExpectedCount(checks.outputs[i].area,
+                                                 spec.options.generation.minDiameter,
+                                                 spec.options.generation.maxDiameter);
         });
         CheckExpectedCount(expected, "craters", "raise min_diameter_m or set max_craters", minPath);
         checks.expectedCraters[i] += expected;
@@ -424,15 +420,14 @@ void CheckBuilt(const CraterLayerSpec& spec, const Layer& built, const std::stri
 
 CraterModels BuildCraterModels(const CraterLayerSpec& craters, const std::string& path) {
     using config::At;
-    using config::Child;
     CraterModels models;
     models.density =
-        At(Child(path, "density"), [&] { return config::BuildDensity(craters.density); });
+        At(FieldPath(path, "density"), [&] { return config::BuildDensity(craters.density); });
     models.ages =
-        At(Child(path, "ages"), [&] { return config::BuildAges(config::LayerAges(craters)); });
-    models.profile = At(Child(path, "profile"),
+        At(FieldPath(path, "ages"), [&] { return config::BuildAges(config::LayerAges(craters)); });
+    models.profile = At(FieldPath(path, "profile"),
                         [&] { return config::BuildProfile(craters.profile, craters.morphometry); });
-    At(Child(path, "degradation"), [&] { config::AddDegradation(craters, models); });
+    At(FieldPath(path, "degradation"), [&] { config::AddDegradation(craters, models); });
     return models;
 }
 

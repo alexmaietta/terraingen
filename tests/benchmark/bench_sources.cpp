@@ -30,8 +30,7 @@ std::shared_ptr<const Upsampler> UpsamplerNumbered(std::int64_t n) {
 /// the upsampler the first argument numbers (`UpsamplerNumbered`), on the number of threads given
 /// by the second (0 for every hardware thread).
 void BM_FillRasterSource(benchmark::State& state) {
-    Raster<float> dem(512, 512);
-    dem.SetTransform(GeoTransform::NorthUp(-1024.0, 1024.0, 4.0));
+    Raster<float> dem(RasterGrid{512, 512, GeoTransform::NorthUp(-1024.0, 1024.0, 4.0)});
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
             const Vec2d p = dem.CellCenter(col, row);
@@ -44,7 +43,7 @@ void BM_FillRasterSource(benchmark::State& state) {
     options.upsampler = UpsamplerNumbered(state.range(0));
     const RasterSource source(std::move(dem), options);
     const RasterGrid grid{2048, 2048, GeoTransform::NorthUp(-1024.0, 1024.0, 1.0)};
-    Raster<float> heights = grid.MakeRaster();
+    Raster<float> heights(grid);
     const auto threads = static_cast<unsigned>(state.range(1));
     for (auto _ : state) {
         source.Fill(heights, 1.0, threads);

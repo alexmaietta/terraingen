@@ -259,7 +259,7 @@ TEST(DuneLayer, GridsAndPointsAgreeAndCoarseSpacingsFadeTheDunesOut) {
     options.ripples = terraingen::MarsDuneRipples();
     const DuneLayer layer(options);
     const terraingen::RasterGrid grid{64, 48, terraingen::GeoTransform::NorthUp(-40.0, 300.0, 0.5)};
-    terraingen::Raster<float> heights = grid.MakeRaster();
+    terraingen::Raster<float> heights(grid);
     layer.Apply(heights, {0.5, 2});
     double relief = 0.0;
     for (std::size_t row = 0; row < grid.height; ++row) {
@@ -416,7 +416,7 @@ TEST(DuneLayer, GrainflowsCutScarpsAndLayLobesOnlyOnSlipFaces) {
             << "too narrow for a 2 m spacing";
     }
     const terraingen::RasterGrid grid{60, 40, terraingen::GeoTransform::NorthUp(180.0, 8.0, 0.1)};
-    terraingen::Raster<float> heights = grid.MakeRaster();
+    terraingen::Raster<float> heights(grid);
     with.Apply(heights, {0.1, 2});
     for (std::size_t row = 0; row < grid.height; ++row) {
         for (std::size_t col = 0; col < grid.width; ++col) {

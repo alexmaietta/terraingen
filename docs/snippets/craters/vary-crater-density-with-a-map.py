@@ -20,7 +20,7 @@ def vary_crater_density_with_a_map():
     density_map.field = terraingen.RasterField(terraingen.Raster.from_array(scale, transform))
     density_map.measure = terraingen.DensityMeasure.SCALE  # times the layer's own density
     options = terraingen.CraterLayerOptions(
-        seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=60.0)
+        seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=60.0)
     )
     options.density_map = density_map
     craters = terraingen.CraterLayer(options=options)

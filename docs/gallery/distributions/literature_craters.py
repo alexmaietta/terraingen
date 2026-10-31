@@ -71,21 +71,22 @@ def figure(quick=False):
         shown = diameters[(diameters >= low) & (diameters <= high)]
         curves.plot(shown, [density.cumulative_at(d) for d in shown], color=color, lw=1.8, label=name)
 
-        d_min = max(D_MIN, low)
+        min_diameter = max(D_MIN, low)
         models = terraingen.CraterModels(
             density,
             terraingen.FreshAges(),
             terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
         )
         options = terraingen.CraterLayerOptions(
-            seed=8, generation=terraingen.CraterGenerationOptions(d_min=d_min, d_max=D_MAX)
+            seed=8,
+            generation=terraingen.CraterGenerationOptions(min_diameter=min_diameter, max_diameter=D_MAX),
         )
         terrain = terraingen.Terrain(
             source=terraingen.FlatSource(size, size, pixel),
             layers=[relief, terraingen.CraterLayer(models, options)],
         )
         gallery.show_hillshade(ax, terrain.evaluate().values, pixel)
-        count = round(density.expected_count(SIZE_M**2, d_min, D_MAX))
+        count = round(density.expected_count(SIZE_M**2, min_diameter, D_MAX))
         ax.set_title(f"{name}: {count} craters", color=color)
     curves.axvspan(
         D_MIN, D_MAX, color="#e3e2de", alpha=0.6, lw=0, label=f"Placed below, {D_MIN:g} to {D_MAX:g} m"

@@ -39,7 +39,7 @@ def figure(quick=False):
     craters = terraingen.CraterLayer(
         terraingen.CraterModels(density, ages, degradation, profile),
         terraingen.CraterLayerOptions(
-            seed=7, generation=terraingen.CraterGenerationOptions(d_min=D_MIN, d_max=D_MAX)
+            seed=7, generation=terraingen.CraterGenerationOptions(min_diameter=D_MIN, max_diameter=D_MAX)
         ),
     )
     relief = terraingen.NoiseLayer(seed=2, wavelength=SIZE_M, amplitude=0.03 * SIZE_M)

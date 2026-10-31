@@ -15,7 +15,7 @@ def space_craters_apart():
         terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
     )
     # --8<-- [start:space_craters_apart]
-    generation = terraingen.CraterGenerationOptions(d_min=5.0, d_max=60.0)
+    generation = terraingen.CraterGenerationOptions(min_diameter=5.0, max_diameter=60.0)
     generation.spacing = terraingen.CraterSpacing(diameter_ratio=2.0, separation=1.0)
     options = terraingen.CraterLayerOptions(seed=4, generation=generation)
     spaced = terraingen.CraterLayer(models, options).craters(REGION)
@@ -23,7 +23,7 @@ def space_craters_apart():
     crowded = terraingen.CraterLayer(
         models,
         terraingen.CraterLayerOptions(
-            seed=4, generation=terraingen.CraterGenerationOptions(d_min=5.0, d_max=60.0)
+            seed=4, generation=terraingen.CraterGenerationOptions(min_diameter=5.0, max_diameter=60.0)
         ),
     ).craters(REGION)
     return crowded, spaced

@@ -60,7 +60,7 @@ class PyAlbedoSource : public AlbedoSource {
         return CallRequiredAs<std::size_t>(nb_trampoline, "bands");
     }
 
-    AlbedoSample ValueAt(double x, double y, const AlbedoContext& context) const override {
+    AlbedoSample ValueAt(double x, double y, const LayerContext& context) const override {
         return CallRequired(nb_trampoline, "value_at", &ToSample, x, y, context);
     }
 };
@@ -72,48 +72,13 @@ class PyAlbedoLayer : public AlbedoLayer {
     NB_TRAMPOLINE(AlbedoLayer);
 
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                 const AlbedoContext& context) const override {
+                 const LayerContext& context) const override {
         value = CallRequired(nb_trampoline, "apply_at", &ToSample, Bands(value, bands), bands, x, y,
                              context);
     }
 };
 
 void BindBases(nb::module_& m) {
-    nb::class_<AlbedoContext>(
-        m, "AlbedoContext",
-        "How an albedo is evaluated: the sample spacing (m), threads, the terrain's `ground` "
-        "(None leaves it flat), the `surface` it lies on (None for a plane) and its `source` "
-        "(None for none). The context keeps what it is given alive.")
-        .def(
-            "__init__",
-            [](AlbedoContext* self, double spacing, unsigned threads, const Ground* ground,
-               const Surface* surface, const Source* source) {
-                new (self) AlbedoContext{};
-                self->spacing = spacing;
-                self->threads = threads;
-                self->ground = ground;
-                self->surface = surface;
-                self->source = source;
-            },
-            "spacing"_a = 1.0, "threads"_a = 1, "ground"_a = nb::none(), "surface"_a = nb::none(),
-            "source"_a = nb::none(), nb::keep_alive<1, 4>(), nb::keep_alive<1, 5>(),
-            nb::keep_alive<1, 6>())
-        .def_ro("spacing", &AlbedoContext::spacing)
-        .def_ro("threads", &AlbedoContext::threads)
-        .def_prop_ro(
-            "ground", [](const AlbedoContext& c) { return c.ground; }, nb::rv_policy::reference,
-            "The terrain's heights; None leaves it flat.")
-        .def_prop_ro(
-            "surface", [](const AlbedoContext& c) { return c.surface; }, nb::rv_policy::reference,
-            "What the terrain lies on; None for a plane.")
-        .def_prop_ro(
-            "source", [](const AlbedoContext& c) { return c.source; }, nb::rv_policy::reference,
-            "The terrain's starting heights; None for none.")
-        .def("surface_or_plane", &AlbedoContext::SurfaceOrPlane,
-             "The surface the terrain lies on, or a plane without one.")
-        .def("reference_point", &AlbedoContext::ReferencePoint,
-             "Where noise on a plane is measured from: the source's reference point, or the "
-             "origin without a source.");
     m.def("validate_albedo_context", &ValidateAlbedoContext, "context"_a, kValidateDoc);
     nb::class_<AlbedoSource, PyAlbedoSource>(
         m, "AlbedoSource",
@@ -130,7 +95,7 @@ void BindBases(nb::module_& m) {
         .def(
             "apply_at",
             [](const AlbedoLayer& layer, const std::vector<float>& value, std::size_t bands,
-               double x, double y, const AlbedoContext& context) {
+               double x, double y, const LayerContext& context) {
                 AlbedoSample sample{};
                 for (std::size_t band = 0; band < value.size() && band < sample.size(); ++band) {
                     sample[band] = value[band];
@@ -373,8 +338,9 @@ void BindEvaluation(nb::module_& m) {
     m.def(
         "evaluate_albedo_at",
         [](const Albedo& albedo, double x, double y, double spacing, const Ground* ground) {
-            const AlbedoSample sample = EvaluateAlbedoAt(
-                albedo, x, y, GroundAlbedoContext(spacing, 1, ground, &albedo.surface));
+            LayerContext context = GroundContext(spacing, ground);
+            context.surface = &albedo.surface;
+            const AlbedoSample sample = EvaluateAlbedoAt(albedo, x, y, context);
             return Bands(sample, albedo.source ? albedo.source->Bands() : 1);
         },
         "albedo"_a, "x"_a, "y"_a, "spacing"_a, "ground"_a = nb::none(),
@@ -385,12 +351,13 @@ void BindEvaluation(nb::module_& m) {
         "evaluate_albedo",
         [](const Albedo& albedo, const RasterGrid& grid, double spacing, unsigned threads,
            const Ground* ground) {
-            return EvaluateAlbedo(albedo, grid,
-                                  GroundAlbedoContext(spacing, threads, ground, &albedo.surface));
+            LayerContext context = GroundContext(spacing, ground, threads);
+            context.surface = &albedo.surface;
+            return EvaluateAlbedo(albedo, grid, context);
         },
         "albedo"_a, "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "ground"_a = nb::none(),
         nb::call_guard<nb::gil_scoped_release>(),
-        "The albedo's bands over `grid` (such as `RasterGrid.from_raster(heights)` or a source's "
+        "The albedo's bands over `grid` (such as `heights.grid` or a source's "
         "`grid()`), sampled every `spacing` meters (0 for the grid's), one Raster per band; layers "
         "shaped by the ground read `ground` (such as a Terrain), which also gives noise its "
         "source's reference point.");
@@ -409,7 +376,7 @@ std::vector<RockSource> RockSources(const Terrain& terrain,
         if (!layer) {
             throw std::invalid_argument("Layer " + std::to_string(n) + " is not a boulder layer");
         }
-        sources.push_back({std::move(layer), std::make_shared<const Terrain>(terrain.Ground(n))});
+        sources.push_back({std::move(layer), std::make_shared<const Terrain>(terrain.Beneath(n))});
     }
     return sources;
 }
@@ -434,7 +401,7 @@ void BindRocks(nb::module_& m) {
         .def(
             "share_at",
             [](const RockAlbedo& rocks, double x, double y, double spacing) {
-                return rocks.ShareAt(x, y, AlbedoContext{spacing});
+                return rocks.ShareAt(x, y, LayerContext{spacing});
             },
             "x"_a, "y"_a, "spacing"_a = 1.0,
             "The share of the sample `spacing` meters across at (x, y) that rock covers.");
@@ -460,9 +427,7 @@ void BindSlopes(nb::module_& m) {
         .def(
             "slope_at",
             [](const SlopeAlbedo& slopes, double x, double y, const Ground& ground) {
-                const Terrain* terrain = AsTerrain(&ground);
-                return slopes.SlopeAt(x, y, ground,
-                                      terrain != nullptr ? terrain->Surface() : Surface{});
+                return slopes.SlopeAt(x, y, ground, ground.Context(0.0, 1).SurfaceOrPlane());
             },
             "x"_a, "y"_a, "ground"_a, nb::call_guard<nb::gil_scoped_release>(),
             "The slope in degrees at (x, y) on `ground`, such as a Terrain, read on its surface "

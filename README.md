@@ -14,19 +14,24 @@ A high-performance scientific terrain generation tool for interplanetary bodies.
 
 *Blue Moon MK1 SN101 lander at Connecting Ridge near the lunar south pole, with Mons Malapert in the background. Left: the 5 m/px LOLA elevation models as they are. Right: the same terrain upscaled by TerrainGen.*
 
+For more images, see our [gallery](https://alexmaietta.github.io/terraingen/gallery).
+
 TerrainGen can:
 
 - Generate synthetic terrain from scratch, or add fine detail to existing elevation models.
 - Populate craters and boulders from cumulative size-frequency distributions.
 - Model each crater's profile, age, degradation, irregularity.
-- Bake small boulders into the heightmap, and generate procedural 3D boulder models for the large ones.
+- Bake small boulders into the heightmap, and generate procedural 3D boulder models.
 - Produce synthetic albedo maps with crater ejecta and rays that fade with crater age.
 - Read GeoTIFF elevation and albedo maps, and ICQ, OBJ, glTF and STL shape models.
 - Write GeoTIFF heightmaps and albedo, material and photometry maps, crater and boulder lists as CSV or JSON, and terrain, boulder and body meshes as glTF, OBJ or STL.
-- Model complex geologic features such as complex and secondary craters, boulder ejecta fields, dunes and wind ripples, layered strata terraced into benches and cliffs, fractured bedrock pavement, wind-carved ventifacts, and sand pooled in lows or trailing behind boulders.
-- Be extended through base classes in C++ or Python with custom size-frequency distributions, crater ages, profiles and degradation, albedo, sources, and layers.
-- Run noise and crater shaping on the GPU (Vulkan, CUDA or Metal), with everything else on the CPU.
+- Model complex geologic features
+    - Secondary craters, craters with central peaks and terraced rims
+    - Boulder ejecta fields, weathered/aged boulders affecting the 3D model, burial, crater-related placements, clustered distributions
+    - Dunes and wind ripples, layered strata terraced into benches and cliffs, fractured bedrock pavement, wind-carved ventifacts, and sand pooled in lows or trailing behind boulders
+- Run noise and crater shaping on the GPU (Vulkan, CUDA or Metal), with more to come.
 - Generate deterministic results for the same seed on any grid, point query or thread count.
+- Be extended through base classes in C++ or Python with custom size-frequency distributions, crater ages, profiles and degradation, albedo, sources, and layers.
 - Integrate into simulations and other external workflows.
 
 We also provide:
@@ -37,9 +42,8 @@ We also provide:
 - A GUI for editing configurations and viewing the results in 3D, rendered with Ernie (in work).
 - A standalone demo that streams TerrainGen detail into a planetary-scale renderer on the GPU while navigating around the Moon (in work).
 - Example integrations with third-party tools such as Project Chrono, NASA Trick, IsaacLab, and Newton (in work).
-- A broad and comprehensive [gallery](https://alexmaietta.github.io/terraingen/gallery) showcasing the various features and capabilities of TerrainGen.
 
-For more features, examples, guides, and snippets to building terrains and using TerrainGen, see our latest [documentation](https://alexmaietta.github.io/terraingen) and notably our [guides](https://alexmaietta.github.io/terraingen/guides).
+For more features, examples, snippets, and guides to building terrains and using TerrainGen, see our latest [documentation](https://alexmaietta.github.io/terraingen) and notably our [guides](https://alexmaietta.github.io/terraingen/guides) section.
 
 Looking for a theoretical background behind TerrainGen, see our [concepts](https://alexmaietta.github.io/terraingen/concepts) and [features](https://alexmaietta.github.io/terraingen/features) documentation pages (in work).
 

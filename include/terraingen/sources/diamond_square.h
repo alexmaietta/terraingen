@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <vector>
 
 namespace terraingen {
 
@@ -121,66 +120,13 @@ class DiamondSquareUpsampler final : public Upsampler {
     }
 
   protected:
-    /// Refines the nodes once for samples close together (`detail::ExpandPoints`), a grid tile
-    /// by tile.
+    /// Refines the nodes once for samples close together, a grid tile by tile.
     /// @throws std::invalid_argument without a fractal dimension (`FitTo`), or without a scale
     /// and a fit window, or for a rotated lattice.
     void FillSamples(const PostLattice& posts, SampleBlock& samples, double spacing,
                      unsigned threads) const override;
 
   private:
-    /// Node heights at one level over a box of node indices; NaN where the posts have no data.
-    using Nodes = detail::LatticeWindow<double>;
-
-    /// Where the nodes lie: post (0, 0) and the node steps of level 0 along x and y.
-    struct NodeFrame {
-        double originX = 0.0;
-        double originY = 0.0;
-        double stepX = 1.0;
-        double stepY = 1.0;
-    };
-
-    /// The scales Se over the nodes being refined: one given value, or the fit of each window of
-    /// posts, by window center (`DiamondSquareOptions::fitWindow`).
-    struct ScaleField {
-        double uniform = 0.0;
-        std::int64_t step = 0;  ///< Posts between window centers; 0 for a uniform scale.
-        std::optional<detail::LatticeWindow<double>> windows;
-    };
-
-    /// Whether the options give a fractal dimension, and a scale or a fit window.
-    bool Fitted() const;
-    /// The node frame of `posts`.
-    /// @throws std::invalid_argument for a rotated lattice.
-    static NodeFrame Frame(const PostLattice& posts);
-    /// The posts as nodes of level 0 over `box`.
-    static Nodes BaseNodes(const PostLattice& posts, const detail::IndexBox& box);
-    /// The scales of every node that refining `box` of `level` displaces, each window's the
-    /// `EstimateMidpointScale` of the posts in it, read as every read is, so one reaching past a
-    /// bounded lattice reads its edge posts repeated.
-    ScaleField Scales(const PostLattice& posts, int level, const detail::IndexBox& box) const;
-    /// The scale of node (`col`, `row`) of `level` from `scales`.
-    static double ScaleAt(const ScaleField& scales, std::int64_t col, std::int64_t row, int level);
-    /// The nodes of `level` over `box`, the posts refined `level` times and displaced by `scales`.
-    Nodes Refine(const PostLattice& posts, int level, const detail::IndexBox& box,
-                 const ScaleField& scales) const;
-    /// The Gaussian displacement of node (`col`, `row`) made by the square (`diamond` false) or
-    /// diamond step of `level`, for a scale Se of `scale`.
-    double Displacement(std::int64_t col, std::int64_t row, int level, bool diamond,
-                        double scale) const;
-    /// The kept coarser nodes and the displaced square-step nodes of `level` over `box`; diamond
-    /// nodes left 0.
-    Nodes SquareStep(const Nodes& parents, int level, const detail::IndexBox& box,
-                     const ScaleField& scales) const;
-    /// The nodes of `level` over `box`, adding the displaced diamond-step nodes to `squares`.
-    Nodes DiamondStep(const Nodes& squares, int level, const detail::IndexBox& box,
-                      const ScaleField& scales) const;
-    /// The box of nodes of `level` that the samples at `positions` read.
-    detail::IndexBox ReadBox(const NodeFrame& frame, int level, Span<const Vec2d> positions) const;
-    /// The height at (`x`, `y`) from nodes of `level` covering it.
-    double Interpolate(const NodeFrame& frame, const Nodes& nodes, int level, double x,
-                       double y) const;
-
     DiamondSquareOptions options_;
     double stepFactor_ = 1.0;
 };

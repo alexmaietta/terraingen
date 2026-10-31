@@ -182,33 +182,24 @@ struct InheritedCratersSpec {
 
 /// Layer "craters": craters generated over the grid and applied to it (`CraterLayer`).
 struct CraterLayerSpec {
+    /// The layer's options; the specs below give its manual craters, density map, completeness
+    /// and inherited craters, and the secondary layers after it its secondaries.
+    CraterLayerOptions options{};
     CraterMorphometryFit morphometry = CraterMorphometryFit::Lunar;
-    /// Draws random craters from `density`; off places only the `manual` craters.
-    bool generateRandom = true;
-    std::uint32_t seed = 1;
     /// By default a 3.5 Gyr extended Neukum production surface capped by Hartmann equilibrium
     /// (Fassett 2022, https://doi.org/10.1029/2022JE007510).
     DensitySpec density{MinimumSpec{{ProductionSurfaceSpec{}, HartmannSpec{}}}};
     /// Unset gives steady-state ages matching the density (`LayerAges`).
     std::optional<AgesSpec> ages{};
-    /// Meters; by default 2.5, where the extended Neukum production function begins.
-    double minDiameter = 2.5;
-    double maxDiameter = 250.0;  ///< Meters.
-    CraterSpacing spacing{};
-    /// Keep at most this many generated craters; unset keeps all.
-    std::optional<std::size_t> maxCraters{};
     /// Manual craters, in the surface's coordinates; parsing sets their `manual` flag.
     std::vector<Crater> manual{};
     ProfileSpec profile{MartinParkesDunstanSpec{}};
     /// By default diffusion matched to those ages.
     DegradationSpec degradation{DiffusionDegradationSpec{}};
-    CraterApplyOptions apply{DefaultCraterApply()};
     std::optional<DensityMapSpec> densityMap{};  ///< Gives `CraterLayerOptions::densityMap`.
     /// Gives `generation.completeness`: where `manual` is a complete catalog, from which diameter.
     std::optional<FieldSpec> completeness{};
-    /// Gives `CraterLayerOptions::sourceResolvesPixels`; unset generates every crater.
-    std::optional<double> sourceResolvesPixels = 4.0;
-    /// Craters of a coarser level stamped again sharp where the source softened them.
+    /// Gives `CraterLayerOptions::inherited`.
     std::optional<InheritedCratersSpec> replaceInheritedCraters{};
 };
 
@@ -549,13 +540,11 @@ template <> struct SpecName<CraterLayerSpec> {
         "Impact craters generated from a density and age model, or placed by hand, and cut into "
         "the terrain.";
 };
-template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
-    io("morphometry", craters.morphometry,
-       "Published fits of fresh crater depth, rim height and complex crater shape the craters "
-       "are shaped with.");
-    io("generate_random", craters.generateRandom,
+/// The fields of which craters a crater layer generates: its seed, density, ages and range.
+template <typename IO> void CraterDrawFields(IO& io, CraterLayerSpec& craters) {
+    io("generate_random", craters.options.generateRandom,
        "Draws random craters from the size distribution; off places only the manual craters.");
-    io("seed", craters.seed,
+    io("seed", craters.options.seed,
        "Seed the craters are generated with; changing it gives a different crater field of the "
        "same statistics.");
     io("density", craters.density,
@@ -564,26 +553,22 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
     io("ages", craters.ages,
        "How generated craters are given ages, which the degradation model wears them down by; "
        "unset gives steady-state ages on the density's production surface and equilibrium.");
-    io("min_diameter_m", craters.minDiameter,
-       "Smallest crater generated, in meters; lower values add many more small craters.", "m",
-       Above(0.0));
-    io("max_diameter_m", craters.maxDiameter,
-       "Largest crater generated, in meters; above the smallest.", "m", Above(0.0));
-    io("spacing", craters.spacing,
-       "Keeps craters of similar size apart by removing conflicting ones, which lowers the density "
-       "below the model's.");
-    io("max_craters", craters.maxCraters,
-       "Most generated craters kept, the largest first; unset keeps all. Manual craters are always "
-       "kept, and a cap means tiles no longer match the whole grid.");
-    io("manual", craters.manual,
-       "Craters placed by hand in the surface's coordinates, added to any generated ones.");
+    CraterRangeFields(io, craters.options.generation);
+}
+
+/// The fields of how a crater layer's craters are shaped and cut into the terrain.
+template <typename IO> void CraterShapeFields(IO& io, CraterLayerSpec& craters) {
     io("profile", craters.profile,
        "Shape of a fresh crater's cross-section, scaled to each crater's diameter.");
     io("degradation", craters.degradation,
        "How craters wear down from their fresh shape with age.");
-    io("apply", craters.apply,
+    io("apply", craters.options.apply,
        "How craters are cut into the terrain: their order, datum, blending, fading and irregular "
        "outlines.");
+}
+
+/// The fields of the maps, catalogs and source a crater layer reads.
+template <typename IO> void CraterInputFields(IO& io, CraterLayerSpec& craters) {
     io("density_map", craters.densityMap,
        "Map that sets the crater density point by point, scaling the density's size distribution "
        "to what it measures; unset keeps the density the same everywhere.");
@@ -591,13 +576,24 @@ template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
        "Where the manual craters are a complete catalog: the diameter in meters from which they "
        "stand in for generated craters, infinite or no value where there is no catalog. Unset "
        "keeps every generated crater.");
-    SourceResolvesField(io, craters.sourceResolvesPixels,
+    SourceResolvesField(io, craters.options.sourceResolvesPixels,
                         "craters (the smaller of this and completeness when both are set)",
                         "diameter");
     io("replace_inherited_craters", craters.replaceInheritedCraters,
        "Craters of a coarser level, such as a coarser run whose heights are the source, stamped "
        "again sharp with their IDs, ages, depths and rims where the source's upsampling softened "
        "them; null for none.");
+}
+
+template <typename IO> void Fields(IO& io, CraterLayerSpec& craters) {
+    io("morphometry", craters.morphometry,
+       "Published fits of fresh crater depth, rim height and complex crater shape the craters "
+       "are shaped with.");
+    CraterDrawFields(io, craters);
+    io("manual", craters.manual,
+       "Craters placed by hand in the surface's coordinates, added to any generated ones.");
+    CraterShapeFields(io, craters);
+    CraterInputFields(io, craters);
 }
 
 template <> struct SpecName<SecondaryLayerSpec> {

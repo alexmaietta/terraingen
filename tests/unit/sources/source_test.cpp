@@ -2,6 +2,7 @@
 
 #include "terraingen/sources/source.h"
 
+#include "support/referenced_source.h"
 #include "terraingen/raster/geo_transform.h"
 #include "terraingen/sources/flat_source.h"
 #include "terraingen/sources/sample_block.h"
@@ -55,8 +56,7 @@ TEST(SourceSampleBlock, GivesItsPointsHeightsAndPositions) {
     EXPECT_EQ(samples.Heights().data(), heights.data());
     EXPECT_EQ(samples.Positions()[1].y, 4.0);
 
-    Raster<float> grid(2, 2, 0.0f);
-    grid.SetTransform(GeoTransform::NorthUp(0.0, 2.0, 1.0));
+    Raster<float> grid(RasterGrid{2, 2, GeoTransform::NorthUp(0.0, 2.0, 1.0)}, 0.0f);
     const SampleBlock cells(grid);
     EXPECT_TRUE(cells.Points().empty());
     EXPECT_EQ(cells.Heights().size(), 4u);
@@ -68,7 +68,7 @@ TEST(SourceSampleBlock, GivesItsPointsHeightsAndPositions) {
 
 TEST(Source, AnswersGridsAndPointsThroughOneMethodToTheSameBits) {
     const HalfRamp ramp;
-    Raster<float> heights = ramp.Grid().MakeRaster();
+    Raster<float> heights(ramp.Grid());
     ramp.Fill(heights);
     EXPECT_EQ(ramp.grids, 1);
     for (std::size_t row = 0; row < heights.Height(); ++row) {
@@ -86,7 +86,7 @@ TEST(Source, AnswersGridsAndPointsThroughOneMethodToTheSameBits) {
 
 TEST(Source, KeepsAGridsNoDataValue) {
     const HalfRamp ramp;
-    Raster<float> heights = ramp.Grid().MakeRaster();
+    Raster<float> heights(ramp.Grid());
     heights.SetNoData(-9999.0f);
     ramp.Fill(heights, 1.0, 1);
     EXPECT_EQ(heights(0, 0), -9999.0f);
@@ -102,4 +102,12 @@ TEST(Source, HeightsAtNeedOneHeightPerPoint) {
     std::vector<float> one(1);
     EXPECT_THROW(flat.HeightsAt(Span<const Vec2d>(points), Span<float>(one), 1.0),
                  std::invalid_argument);
+}
+
+TEST(Source, ReferencePointIsTheSourcesOrTheOrigin) {
+    const terraingen::testing::ReferencedSource source(Vec2d{7.0, -3.0});
+    EXPECT_EQ(terraingen::ReferencePoint(&source).x, 7.0);
+    EXPECT_EQ(terraingen::ReferencePoint(&source).y, -3.0);
+    EXPECT_EQ(terraingen::ReferencePoint(nullptr).x, 0.0);
+    EXPECT_EQ(terraingen::ReferencePoint(nullptr).y, 0.0);
 }

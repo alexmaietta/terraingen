@@ -39,7 +39,7 @@ def figure(quick=False):
             terraingen.PowerLawSfd(0.05, 2.0), terraingen.FreshAges(), defaults.degradation, defaults.profile
         ),
         terraingen.CraterLayerOptions(
-            seed=6, generation=terraingen.CraterGenerationOptions(d_min=3.0, d_max=40.0)
+            seed=6, generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=40.0)
         ),
         base=body,
     )
@@ -85,7 +85,7 @@ def figure(quick=False):
         ax.set_box_aspect(high - low, zoom=1.05)
     stages = [
         (terraingen.Terrain(body), "Gaskell's model, bilinear"),
-        (terrain.ground(0), "Upsampled by diamond-square"),
+        (terrain.beneath(0), "Upsampled by diamond-square"),
         (terrain, "With relief, craters and boulders"),
     ]
     for ax, (stage, title) in zip(insets, stages, strict=True):

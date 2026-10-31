@@ -30,7 +30,7 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, len(SETTINGS), figsize=(18, 4.9), layout="constrained")
     for ax, setting in zip(axes, SETTINGS, strict=True):
-        generation = terraingen.CraterGenerationOptions(d_min=5.0, d_max=60.0)
+        generation = terraingen.CraterGenerationOptions(min_diameter=5.0, max_diameter=60.0)
         if setting is not None:
             ratio, separation = setting
             generation.spacing = terraingen.CraterSpacing(diameter_ratio=ratio, separation=separation)

@@ -47,15 +47,16 @@ TEST(SplicedSfd, MatchesTheEquivalentPiecewisePowerLaw) {
         EXPECT_NEAR(spliced.Incremental(d), piecewise.Incremental(d),
                     1e-12 * piecewise.Incremental(d));
     }
-    for (const auto& [dMin, dMax] : {std::pair{1.0, 1000.0}, std::pair{150.0, kInf},
-                                     std::pair{2.0, 50.0}, std::pair{50.0, 100.0}}) {
+    for (const auto& [minDiameter, maxDiameter] : {std::pair{1.0, 1000.0}, std::pair{150.0, kInf},
+                                                   std::pair{2.0, 50.0}, std::pair{50.0, 100.0}}) {
         RandomStream splicedStream(7u, 7u);
         RandomStream piecewiseStream(7u, 7u);
         for (int i = 0; i < 50; ++i) {
-            const double expected = piecewise.SampleDiameter(piecewiseStream, dMin, dMax);
-            EXPECT_NEAR(spliced.SampleDiameter(splicedStream, dMin, dMax), expected,
+            const double expected =
+                piecewise.SampleDiameter(piecewiseStream, minDiameter, maxDiameter);
+            EXPECT_NEAR(spliced.SampleDiameter(splicedStream, minDiameter, maxDiameter), expected,
                         1e-9 * expected)
-                << dMin << " " << dMax;
+                << minDiameter << " " << maxDiameter;
         }
     }
 }

@@ -23,6 +23,11 @@
 
 namespace terraingen {
 
+ListFormat InferListFormat(std::string_view path) {
+    return HasExtension(std::filesystem::path(path), {".json"}) ? ListFormat::Json
+                                                                : ListFormat::Csv;
+}
+
 namespace {
 
 using Json = nlohmann::ordered_json;

@@ -70,12 +70,13 @@ TEST(ValidateConfig, ReportsRasterSourceProblems) {
               0u);
     EXPECT_EQ(error([](ConfigSpec& c) {
                   CraterLayerSpec craters;
-                  craters.minDiameter = 0.0;
+                  craters.options.generation.minDiameter = 0.0;
                   c.layers = {craters};
               }).rfind("layers[0].min_diameter_m", 0),
               0u);
-    terraingen::Raster<float> rotated(8, 8, 1.0f);
-    rotated.SetTransform(terraingen::GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
+    terraingen::Raster<float> rotated(
+        terraingen::RasterGrid{8, 8, terraingen::GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0}},
+        1.0f);
     terraingen::WriteGeoTiff(folder / "rotated.tif", rotated, terraingen::testing::Keys());
     EXPECT_EQ(error([](ConfigSpec& c) { RasterSpec(c).path = "rotated.tif"; }), "valid");
     terraingen::WriteGeoTiff(folder / "tiny.tif", terraingen::Raster<float>(1, 1, 0.0f),
@@ -175,7 +176,7 @@ TEST(ValidateConfig, ReportsOutputGridProblemsByPath) {
     EXPECT_EQ(error(finer, dem), "valid") << "the source's extent at 2 m";
     EXPECT_EQ(error(finer, unchanged), "outputs[0].extent_m") << "synthetic noise has no extent";
     terraingen::HeightmapOutput boxed;
-    boxed.area.extentM = terraingen::ExtentSpec{{}, {}, {1010.0, 1900.0}, {1050.0, 1950.0}};
+    boxed.area.extentM = terraingen::ExtentSpec{{}, {}, {{1010.0, 1900.0}}, {{1050.0, 1950.0}}};
     EXPECT_EQ(error(boxed, dem), "valid") << "an extent at the source's 5 m";
     EXPECT_EQ(error(boxed, unchanged), "outputs[0].pixel_size_m") << "nor a cell size";
     EXPECT_EQ(error(terraingen::testing::Heightmap("h.tif", {{0, 4, 1.0}}), unchanged),
@@ -215,8 +216,9 @@ TEST(ValidateConfig, ReportsOutputGridProblemsByPath) {
 TEST(ValidateConfig, ReportsRasterAlbedoProblemsByPath) {
     const auto folder = TempPath("terraingen_albedo_errors");
     terraingen::testing::WriteDem(folder, "dem.tif");
-    terraingen::Raster<float> map(10, 8, 1000.0f);
-    map.SetTransform(terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 20.0));
+    terraingen::Raster<float> map(
+        terraingen::RasterGrid{10, 8, terraingen::GeoTransform::NorthUp(1000.0, 2000.0, 20.0)},
+        1000.0f);
     terraingen::WriteGeoTiff(folder / "map.tif", map, terraingen::testing::Keys());
     const auto rejected = [&](terraingen::RasterAlbedoSpec spec) {
         ConfigSpec config = terraingen::testing::RasterConfig("dem.tif");
@@ -230,8 +232,9 @@ TEST(ValidateConfig, ReportsRasterAlbedoProblemsByPath) {
     terraingen::RasterAlbedoSpec detail{"map.tif", {0}, {}, {}, {}};
     detail.options.detail.octaves = 0;
     EXPECT_EQ(rejected(detail), "albedo.source.detail.octaves");
-    terraingen::Raster<float> rotated = map;
-    rotated.SetTransform({1000.0, 20.0, 1.0, 2000.0, 0.0, -20.0});
+    const terraingen::Raster<float> rotated(
+        terraingen::RasterGrid{map.Width(), map.Height(), {1000.0, 20.0, 1.0, 2000.0, 0.0, -20.0}},
+        map.Values());
     terraingen::WriteGeoTiff(folder / "rotated.tif", rotated, terraingen::testing::Keys());
     EXPECT_EQ(rejected({"rotated.tif", {0}, {}, {}, {}}), "albedo.source.path");
 }

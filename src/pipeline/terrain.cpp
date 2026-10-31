@@ -10,10 +10,8 @@
 #include "util/checks.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cmath>
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -28,11 +26,11 @@ namespace {
 /// Values the point queries of a terrain and its copies keep, such as fitted crater datums.
 constexpr std::size_t kPointQueryValues = std::size_t{1} << 17U;
 
-/// A stamp never given before, for a part of a terrain that is new or replaced.
-std::uint64_t NextVersion() {
-    static std::atomic<std::uint64_t> next{1};
-    return next.fetch_add(1, std::memory_order_relaxed);
-}
+/// Points evaluated together, sharing the features they prepare.
+constexpr std::size_t kBatch = 256;
+
+/// The side in cells of the tiles a grid read of the ground is evaluated in, `kBatch` cells each.
+constexpr std::size_t kTileSide = 16;
 
 /// The 64-bit seed of part `part` of a terrain reseeded with `seed`: 0 the source, n + 1 layer n.
 std::uint64_t PartSeed(std::uint64_t seed, std::size_t part) {
@@ -40,58 +38,56 @@ std::uint64_t PartSeed(std::uint64_t seed, std::size_t part) {
     return JoinWords(ReseedWord(seed, word), ReseedWord(seed, word + 1));
 }
 
-/// The context of a layer of `terrain`.
-LayerContext TerrainContext(const Terrain& terrain, double spacing, unsigned threads,
-                            const Ground* ground, Backend backend, EvaluationCache* cache) {
-    return LayerContext{
-        spacing, threads, ground, backend, cache, &terrain.Surface(), terrain.Source().get()};
+/// The sample spacing in meters `options` evaluate `grid` at on `surface`.
+/// @throws std::invalid_argument for a negative or non-finite spacing.
+double EvaluatedSpacing(const RasterGrid& grid, const EvaluationOptions& options,
+                        const Surface& surface) {
+    RequireNonNegative(options.spacing, "Sample spacing");
+    return ResolvedSpacing(grid, options.spacing, surface);
 }
 
-void EvaluateBatched(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
-                     Span<float> heights, double spacing, unsigned threads, EvaluationCache* cache);
+void ReadStack(const Terrain& terrain, std::size_t layers, SampleBlock& samples, double spacing,
+               unsigned threads, EvaluationCache* cache);
 
-/// The ground beneath layer `layers` of a terrain during one evaluation: its batches share
-/// `cache` and split over `threads` threads.
+/// The ground beneath layer `layers` of a terrain during one evaluation, whose reads share
+/// `cache`.
 class StackGround final : public Ground {
   public:
-    StackGround(const Terrain& terrain, std::size_t layers, EvaluationCache* cache,
-                unsigned threads)
-        : terrain_(terrain), layers_(layers), cache_(cache), threads_(threads) {}
+    StackGround(const Terrain& terrain, std::size_t layers, EvaluationCache* cache)
+        : terrain_(terrain), layers_(layers), cache_(cache) {}
+
+    LayerContext Context(double spacing, unsigned threads) const override {
+        LayerContext context = terrain_.Context(spacing, threads);
+        context.ground = this;
+        return context;
+    }
 
   protected:
-    void FillSamples(SampleBlock& samples, double spacing) const override {
-        if (samples.IsGrid()) {
-            const std::vector<Vec2d> positions = samples.Positions();
-            EvaluateBatched(terrain_, layers_, positions, samples.Heights(), spacing, threads_,
-                            cache_);
-            return;
-        }
-        EvaluateBatched(terrain_, layers_, samples.Points(), samples.Heights(), spacing, threads_,
-                        cache_);
+    void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override {
+        ReadStack(terrain_, layers_, samples, spacing, threads, cache_);
     }
 
   private:
     const Terrain& terrain_;
     std::size_t layers_;
     EvaluationCache* cache_;
-    unsigned threads_;
 };
 
 /// Sets `heights` to the terrain's source at `points`, then applies its first `layers` layers to
-/// them all at once, each on the ground beneath it, which shares `cache` and reads in batches over
-/// `threads` threads.
+/// them all at once, each on the ground beneath it, which shares `cache`.
 void EvaluateStack(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
-                   Span<float> heights, double spacing, EvaluationCache* cache, unsigned threads) {
+                   Span<float> heights, double spacing, EvaluationCache* cache) {
     if (terrain.Source()) {
         terrain.Source()->HeightsAt(points, heights, spacing / terrain.Surface().UnitLength());
     } else {
         std::fill(heights.begin(), heights.end(), 0.0f);
     }
     for (std::size_t n = 0; n < layers; ++n) {
-        const StackGround ground(terrain, n, cache, threads);
+        const StackGround ground(terrain, n, cache);
         SampleBlock samples(points, heights);
-        terrain.Layers()[n]->Apply(
-            samples, TerrainContext(terrain, spacing, 1, &ground, Backend::Cpu, cache));
+        LayerContext context = ground.Context(spacing, 1);
+        context.cache = cache;
+        terrain.Layers()[n]->Apply(samples, context);
     }
 }
 
@@ -112,30 +108,20 @@ std::uint32_t MortonKey(const Vec2d& point, const Bounds2d& bounds) {
            (spread(quantize(point.y, bounds.minY, bounds.maxY)) << 1u);
 }
 
-/// The indices of `points` sorted by their Morton codes over the points' bounds, ties by index.
+/// The indices of `points`, fewer than 2^32, sorted by their Morton codes over the points'
+/// bounds, ties by index.
 std::vector<std::size_t> MortonOrder(Span<const Vec2d> points) {
     Bounds2d bounds{points[0].x, points[0].y, points[0].x, points[0].y};
     for (const Vec2d& p : points) {
         bounds = {std::fmin(bounds.minX, p.x), std::fmin(bounds.minY, p.y),
                   std::fmax(bounds.maxX, p.x), std::fmax(bounds.maxY, p.y)};
     }
-    std::vector<std::size_t> order(points.size());
-    if (points.size() > std::numeric_limits<std::uint32_t>::max()) {
-        std::vector<std::pair<std::uint32_t, std::size_t>> keyed(points.size());
-        for (std::size_t i = 0; i < points.size(); ++i) {
-            keyed[i] = {MortonKey(points[i], bounds), i};
-        }
-        std::sort(keyed.begin(), keyed.end());
-        for (std::size_t i = 0; i < points.size(); ++i) {
-            order[i] = keyed[i].second;
-        }
-        return order;
-    }
     std::vector<std::uint64_t> keyed(points.size());
     for (std::size_t i = 0; i < points.size(); ++i) {
         keyed[i] = (std::uint64_t{MortonKey(points[i], bounds)} << 32U) | std::uint64_t{i};
     }
     std::sort(keyed.begin(), keyed.end());
+    std::vector<std::size_t> order(points.size());
     for (std::size_t i = 0; i < points.size(); ++i) {
         order[i] = static_cast<std::size_t>(keyed[i] & 0xFFFFFFFFU);
     }
@@ -143,14 +129,11 @@ std::vector<std::size_t> MortonOrder(Span<const Vec2d> points) {
 }
 
 /// `EvaluateStack` over `points` in batches on `threads` threads, the points taken in Morton order
-/// so each batch covers a small area and prepares only the features there; the batches share
-/// `cache`, or one of their own when it is null.
-void EvaluateBatched(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
-                     Span<float> heights, double spacing, unsigned threads,
-                     EvaluationCache* cache) {
-    constexpr std::size_t kBatch = 256;
+/// so each batch covers a small area and prepares only the features there.
+void EvaluatePoints(const Terrain& terrain, std::size_t layers, Span<const Vec2d> points,
+                    Span<float> heights, double spacing, unsigned threads, EvaluationCache* cache) {
     if (points.size() <= kBatch) {
-        EvaluateStack(terrain, layers, points, heights, spacing, cache, threads);
+        EvaluateStack(terrain, layers, points, heights, spacing, cache);
         return;
     }
     const std::vector<std::size_t> order = MortonOrder(points);
@@ -159,46 +142,92 @@ void EvaluateBatched(const Terrain& terrain, std::size_t layers, Span<const Vec2
         sorted[i] = points[order[i]];
     }
     std::vector<float> values(points.size());
-    std::optional<EvaluationCache> own;
-    EvaluationCache* shared = cache != nullptr ? cache : &own.emplace();
     ParallelFor(CeilDiv(points.size(), kBatch), threads, [&](std::size_t batch) {
         const std::size_t begin = batch * kBatch;
         const std::size_t count = std::min(kBatch, points.size() - begin);
         EvaluateStack(terrain, layers, Span<const Vec2d>(sorted).subspan(begin, count),
-                      Span<float>(values).subspan(begin, count), spacing, shared, threads);
+                      Span<float>(values).subspan(begin, count), spacing, cache);
     });
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[order[i]] = values[i];
     }
 }
 
+/// `EvaluateStack` over the cells of the grid block `samples` in tiles of `kTileSide` squared
+/// cells, which are already near each other, on `threads` threads.
+void EvaluateTiles(const Terrain& terrain, std::size_t layers, const SampleBlock& samples,
+                   double spacing, unsigned threads, EvaluationCache* cache) {
+    const std::size_t width = samples.Grid()->Width();
+    const std::size_t height = samples.Grid()->Height();
+    const std::size_t across = CeilDiv(width, kTileSide);
+    ParallelFor(across * CeilDiv(height, kTileSide), threads, [&](std::size_t tile) {
+        const std::size_t col = (tile % across) * kTileSide;
+        const std::size_t row = (tile / across) * kTileSide;
+        const std::size_t cols = std::min(kTileSide, width - col);
+        const std::size_t rows = std::min(kTileSide, height - row);
+        std::vector<Vec2d> points(cols * rows);
+        for (std::size_t k = 0; k < points.size(); ++k) {
+            points[k] = samples.Position((row + k / cols) * width + col + k % cols);
+        }
+        std::vector<float> values(points.size());
+        EvaluateStack(terrain, layers, points, values, spacing, cache);
+        for (std::size_t k = 0; k < points.size(); ++k) {
+            samples.Height((row + k / cols) * width + col + k % cols) = values[k];
+        }
+    });
+}
+
+/// Sets `samples` to the terrain's source and first `layers` layers on `threads` threads; the
+/// reads share `cache`, or one of their own when it is null.
+void ReadStack(const Terrain& terrain, std::size_t layers, SampleBlock& samples, double spacing,
+               unsigned threads, EvaluationCache* cache) {
+    std::optional<EvaluationCache> own;
+    EvaluationCache* shared = cache != nullptr ? cache : &own.emplace();
+    if (samples.IsGrid()) {
+        EvaluateTiles(terrain, layers, samples, spacing, threads, shared);
+    } else {
+        EvaluatePoints(terrain, layers, samples.Points(), samples.Heights(), spacing, threads,
+                       shared);
+    }
+}
+
+/// Checks that `source` can be the source of a terrain on `surface`.
+void ValidateSource(const Surface& surface, const Source* source) {
+    if (source == nullptr) {
+        return;
+    }
+    const GeoKeys keys = source->Keys();
+    if (keys.IsGeographic() && !surface.IsBody()) {
+        throw std::invalid_argument(
+            "The source is in longitude and latitude (a geographic CRS); craters are sized in "
+            "meters, so reproject it first, for example with gdalwarp -t_srs, or set the "
+            "terrain's surface to a sphere or ellipsoid");
+    }
+    if (surface.IsBody() && !keys.Empty() && !keys.IsGeographic()) {
+        throw std::invalid_argument(
+            "On a body the source must be in longitude and latitude (a geographic CRS)");
+    }
+}
+
 /// Checks that `layers` on `surface` over `source` can be evaluated.
-void Validate(const Surface& surface, const Source* source, const std::vector<LayerPtr>& layers) {
-    if (std::any_of(layers.begin(), layers.end(), [](const LayerPtr& l) { return !l; })) {
-        throw std::invalid_argument("A terrain's layers must not be null");
-    }
-    if (source != nullptr) {
-        const GeoKeys keys = source->Keys();
-        if (keys.IsGeographic() && !surface.IsBody()) {
-            throw std::invalid_argument(
-                "The source is in longitude and latitude (a geographic CRS); craters are sized in "
-                "meters, so reproject it first, for example with gdalwarp -t_srs, or set the "
-                "terrain's surface to a sphere or ellipsoid");
-        }
-        if (surface.IsBody() && !keys.Empty() && !keys.IsGeographic()) {
-            throw std::invalid_argument(
-                "On a body the source must be in longitude and latitude (a geographic CRS)");
-        }
-    }
+void Validate(const Surface& surface, const std::shared_ptr<const Source>& source,
+              const std::vector<LayerPtr>& layers) {
+    ValidateSource(surface, source.get());
     for (std::size_t i = 0; i < layers.size(); ++i) {
-        const Layer& layer = *layers[i];
-        const std::optional<Surface> built = layer.LayerSurface();
-        if (built && !(*built == surface)) {
+        if (!layers[i]) {
+            throw std::invalid_argument("A terrain's layers must not be null");
+        }
+        const std::optional<TerrainBase> base = layers[i]->LayerBase();
+        if (base && !(base->surface == surface)) {
             throw std::invalid_argument("Layer " + std::to_string(i) +
-                                        " was built for another surface than the terrain's");
+                                        " was built on another surface than the terrain's");
+        }
+        if (base && base->source && base->source != source) {
+            throw std::invalid_argument("Layer " + std::to_string(i) +
+                                        " was built on another source than the terrain's");
         }
         const auto before = layers.begin() + static_cast<std::ptrdiff_t>(i);
-        for (const Layer* dependency : layer.Dependencies()) {
+        for (const Layer* dependency : layers[i]->Dependencies()) {
             if (std::none_of(layers.begin(), before,
                              [dependency](const LayerPtr& l) { return l.get() == dependency; })) {
                 throw std::invalid_argument(
@@ -209,52 +238,29 @@ void Validate(const Surface& surface, const Source* source, const std::vector<La
     }
 }
 
-/// Rebinds layers of `layers` from `first` on that read a layer of `replaced`
-/// (`Layer::Rebound`), adding each one rebound to `replaced` and its index to `changed`.
-void RebindFrom(std::size_t first, std::vector<LayerPtr>& layers, LayerReplacements& replaced,
-                std::vector<std::size_t>& changed) {
-    for (std::size_t n = first; n < layers.size(); ++n) {
-        if (LayerPtr rebound = layers[n]->Rebound(replaced)) {
-            replaced.emplace_back(layers[n].get(), rebound);
-            layers[n] = std::move(rebound);
-            changed.push_back(n);
-        }
-    }
-}
-
 }  // namespace
-
-void StageCache::Clear() {
-    versions_.clear();
-    heights_ = {};
-}
 
 Terrain::Terrain() : Terrain(terraingen::Surface{}, nullptr, {}) {}
 
 Terrain::Terrain(terraingen::Surface surface, std::shared_ptr<const terraingen::Source> source,
                  std::vector<LayerPtr> layers)
     : surface_(std::move(surface)), source_(std::move(source)), layers_(std::move(layers)),
-      layerVersions_(layers_.size()) {
-    std::vector<std::size_t> every(layers_.size());
-    for (std::size_t n = 0; n < every.size(); ++n) {
-        every[n] = n;
-    }
-    Commit(true, every);
-}
-
-void Terrain::Commit(bool sourceChanged, const std::vector<std::size_t>& changed) {
-    Validate(surface_, source_.get(), layers_);
-    if (sourceChanged) {
-        sourceVersion_ = NextVersion();
-    }
-    for (const std::size_t n : changed) {
-        layerVersions_[n] = NextVersion();
-    }
-    cache_ = std::make_shared<EvaluationCache>(kPointQueryValues);
+      cache_(std::make_shared<EvaluationCache>(kPointQueryValues)) {
+    Validate(surface_, source_, layers_);
 }
 
 std::optional<RasterGrid> Terrain::Grid() const {
     return source_ ? BoundedGrid(*source_) : std::nullopt;
+}
+
+RasterGrid Terrain::SourceGrid() const {
+    const std::optional<RasterGrid> grid = Grid();
+    if (!grid) {
+        throw std::invalid_argument(
+            "A terrain without a source, or with a source without bounds such as synthetic "
+            "noise, needs a grid");
+    }
+    return *grid;
 }
 
 GeoKeys Terrain::Keys() const {
@@ -265,20 +271,21 @@ GeoKeys Terrain::Keys() const {
     return keys;
 }
 
+LayerContext Terrain::Context(double spacing, unsigned threads) const {
+    LayerContext context = Ground::Context(spacing, threads);
+    context.surface = &surface_;
+    context.source = source_.get();
+    return context;
+}
+
 Raster<float> Terrain::Evaluate(const RasterGrid& grid, const EvaluationOptions& options) const {
-    Raster<float> heights = grid.MakeRaster();
-    EvaluateInto(heights, options);
+    Raster<float> heights(grid);
+    Fill(grid, heights.Values(), options);
     return heights;
 }
 
-Raster<float> Terrain::Evaluate() const {
-    const std::optional<RasterGrid> grid = Grid();
-    if (!grid) {
-        throw std::invalid_argument(
-            "A terrain without a source, or with a source without bounds such as synthetic "
-            "noise, needs a grid to evaluate over");
-    }
-    return Evaluate(*grid);
+Raster<float> Terrain::Evaluate(const EvaluationOptions& options) const {
+    return Evaluate(SourceGrid(), options);
 }
 
 void Terrain::Fill(const RasterGrid& grid, Span<float> heights,
@@ -287,62 +294,30 @@ void Terrain::Fill(const RasterGrid& grid, Span<float> heights,
         throw std::invalid_argument("The grid needs " + std::to_string(grid.width * grid.height) +
                                     " heights, not " + std::to_string(heights.size()));
     }
-    Raster<float> view(grid.width, grid.height, heights);
-    view.SetTransform(grid.transform);
-    EvaluateInto(view, options);
-}
-
-std::vector<std::uint64_t> Terrain::StageVersions(std::size_t stage) const {
-    std::vector<std::uint64_t> versions{sourceVersion_};
-    versions.insert(versions.end(), layerVersions_.begin(),
-                    layerVersions_.begin() + static_cast<std::ptrdiff_t>(stage));
-    return versions;
-}
-
-void Terrain::EvaluateInto(Raster<float>& heights, const EvaluationOptions& options) const {
-    RequireNonNegative(options.spacing, "Sample spacing");
-    const RasterGrid grid = RasterGrid::FromRaster(heights);
-    const double spacing = ResolvedSpacing(grid, options.spacing, surface_);
-    const Backend backend = ResolveBackend(options.backend.value_or(DefaultBackend()));
-    StageCache* kept = options.stageCache;
-    const std::size_t stage = kept != nullptr ? kept->Stage() : layers_.size();
-    if (stage > layers_.size()) {
-        throw std::invalid_argument("The stage cache keeps the heights before layer " +
-                                    std::to_string(stage) + ", but the terrain has " +
-                                    std::to_string(layers_.size()) + " layers");
-    }
-    const std::vector<std::uint64_t> versions =
-        kept != nullptr ? StageVersions(stage) : std::vector<std::uint64_t>{};
-    const Span<float> values = heights.Values();
-    if (kept != nullptr && !kept->Empty() && kept->grid_ == grid && kept->spacing_ == spacing &&
-        kept->backend_ == backend && kept->versions_ == versions) {
-        std::copy(kept->heights_.begin(), kept->heights_.end(), values.begin());
+    Raster<float> view(grid, heights);
+    const double spacing = EvaluatedSpacing(grid, options, surface_);
+    if (source_) {
+        source_->Fill(view, spacing / surface_.UnitLength(), options.threads);
     } else {
-        if (source_) {
-            source_->Fill(heights, spacing / surface_.UnitLength(), options.threads);
-        } else {
-            std::fill(values.begin(), values.end(), 0.0f);
-        }
-        ApplyLayers(0, stage, heights, spacing, backend, options);
-        if (kept != nullptr) {
-            kept->grid_ = grid;
-            kept->spacing_ = spacing;
-            kept->backend_ = backend;
-            kept->versions_ = versions;
-            kept->heights_.assign(values.begin(), values.end());
-        }
+        std::fill(heights.begin(), heights.end(), 0.0f);
     }
-    ApplyLayers(stage, layers_.size(), heights, spacing, backend, options);
+    ApplyFrom(0, view, options);
 }
 
-void Terrain::ApplyLayers(std::size_t first, std::size_t last, Raster<float>& heights,
-                          double spacing, Backend backend, const EvaluationOptions& options) const {
-    for (std::size_t n = first; n < last; ++n) {
+void Terrain::ApplyFrom(std::size_t first, Raster<float>& heights,
+                        const EvaluationOptions& options) const {
+    if (first > layers_.size()) {
+        throw std::invalid_argument("The terrain has " + std::to_string(layers_.size()) +
+                                    " layers, so it has none from layer " + std::to_string(first));
+    }
+    const double spacing = EvaluatedSpacing(heights.Grid(), options, surface_);
+    const Backend backend = ResolveBackend(options.backend.value_or(DefaultBackend()));
+    for (std::size_t n = first; n < layers_.size(); ++n) {
         const Stopwatch stopwatch;
         EvaluationCache cache;
-        const StackGround ground(*this, n, &cache, options.threads);
-        const LayerContext context =
-            TerrainContext(*this, spacing, options.threads, &ground, backend, nullptr);
+        const StackGround ground(*this, n, &cache);
+        LayerContext context = ground.Context(spacing, options.threads);
+        context.backend = backend;
         layers_[n]->Apply(heights, context);
         if (options.onLayer) {
             options.onLayer(n, stopwatch.Milliseconds());
@@ -350,18 +325,9 @@ void Terrain::ApplyLayers(std::size_t first, std::size_t last, Raster<float>& he
     }
 }
 
-void Terrain::FillSamples(SampleBlock& samples, double spacing) const {
+void Terrain::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
     RequirePositive(spacing, "Sample spacing");
-    const StackGround ground(*this, layers_.size(), cache_.get(), 0);
-    ground.HeightsAt(samples.IsGrid() ? Span<const Vec2d>(samples.Positions()) : samples.Points(),
-                     samples.Heights(), spacing);
-}
-
-void Terrain::HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing,
-                        unsigned threads) const {
-    RequirePositive(spacing, "Sample spacing");
-    const StackGround ground(*this, layers_.size(), cache_.get(), threads);
-    ground.HeightsAt(points, heights, spacing);
+    ReadStack(*this, layers_.size(), samples, spacing, threads, cache_.get());
 }
 
 CraterFeatures Terrain::Craters(const RasterGrid& grid, double spacing) const {
@@ -373,26 +339,61 @@ CraterFeatures Terrain::Craters(const RasterGrid& grid, double spacing) const {
     return placed;
 }
 
+CraterFeatures Terrain::Craters(double spacing) const {
+    return Craters(SourceGrid(), spacing);
+}
+
 BoulderFeatures Terrain::Boulders(const RasterGrid& grid, double spacing) const {
     const double resolved = ListedSpacing(grid, spacing, surface_);
     BoulderFeatures placed;
     ForEachLayer<BoulderPlacer>(*this, [&](const BoulderPlacer& placer, std::size_t n) {
-        const StackGround ground(*this, n, cache_.get(), 0);
+        const StackGround ground(*this, n, cache_.get());
         placed.Append(placer.BouldersOver(grid, resolved, &ground));
     });
     return placed;
 }
 
-Terrain Terrain::Ground(std::size_t stages) const {
-    if (stages > layers_.size()) {
+BoulderFeatures Terrain::Boulders(double spacing) const {
+    return Boulders(SourceGrid(), spacing);
+}
+
+Terrain Terrain::Beneath(std::size_t layers) const {
+    if (layers > layers_.size()) {
         throw std::invalid_argument("The terrain has " + std::to_string(layers_.size()) +
                                     " layers, so it has no ground beneath layer " +
-                                    std::to_string(stages));
+                                    std::to_string(layers));
     }
     Terrain prefix = *this;
-    prefix.layers_.resize(stages);
-    prefix.layerVersions_.resize(stages);
+    prefix.layers_.resize(layers);
     return prefix;
+}
+
+void Terrain::Replace(std::shared_ptr<const terraingen::Source> source,
+                      const LayerReplacer& replace) {
+    std::vector<LayerPtr> layers = layers_;
+    const TerrainBase base{surface_, source};
+    LayerReplacements replaced;
+    for (std::size_t n = 0; n < layers.size(); ++n) {
+        LayerPtr layer = replace(n, layers[n]);
+        layer = layer ? std::move(layer) : layers[n];
+        const std::optional<TerrainBase> built = layer->LayerBase();
+        if (source != source_ && built && built->source == source_) {
+            if (LayerPtr rebased = layer->Rebased(base)) {
+                layer = std::move(rebased);
+            }
+        }
+        if (LayerPtr rebound = replaced.empty() ? nullptr : layer->Rebound(replaced)) {
+            layer = std::move(rebound);
+        }
+        if (layer != layers[n]) {
+            replaced.emplace_back(layers[n].get(), layer);
+            layers[n] = std::move(layer);
+        }
+    }
+    Validate(surface_, source, layers);
+    source_ = std::move(source);
+    layers_ = std::move(layers);
+    cache_ = std::make_shared<EvaluationCache>(kPointQueryValues);
 }
 
 void Terrain::SetLayer(std::size_t index, LayerPtr layer) {
@@ -400,52 +401,24 @@ void Terrain::SetLayer(std::size_t index, LayerPtr layer) {
         throw std::invalid_argument("The terrain has " + std::to_string(layers_.size()) +
                                     " layers, so it has no layer " + std::to_string(index));
     }
-    Terrain updated = *this;
-    LayerReplacements replaced{{layers_[index].get(), layer}};
-    std::vector<std::size_t> changed{index};
-    updated.layers_[index] = std::move(layer);
-    RebindFrom(index + 1, updated.layers_, replaced, changed);
-    updated.Commit(false, changed);
-    *this = std::move(updated);
+    if (!layer) {
+        throw std::invalid_argument("A terrain's layers must not be null");
+    }
+    Replace(source_, [&](std::size_t n, const LayerPtr&) { return n == index ? layer : nullptr; });
 }
 
 void Terrain::SetSource(std::shared_ptr<const terraingen::Source> source) {
-    Terrain updated = *this;
-    updated.source_ = std::move(source);
-    updated.Commit(true, {});
-    *this = std::move(updated);
-}
-
-std::uint64_t Terrain::LayerVersion(std::size_t index) const {
-    return layerVersions_.at(index);
+    Replace(std::move(source), [](std::size_t, const LayerPtr&) { return nullptr; });
 }
 
 Terrain Terrain::Reseed(std::uint64_t seed) const {
     Terrain reseeded = *this;
-    bool sourceChanged = false;
-    if (source_) {
-        if (auto source = source_->Reseeded(PartSeed(seed, 0))) {
-            reseeded.source_ = std::move(source);
-            sourceChanged = true;
-        }
-    }
-    LayerReplacements replaced;
-    std::vector<std::size_t> changed;
-    for (std::size_t n = 0; n < layers_.size(); ++n) {
-        LayerPtr layer = layers_[n]->Reseeded(PartSeed(seed, n + 1));
-        if (!layer) {
-            layer = layers_[n];
-        }
-        if (LayerPtr rebound = replaced.empty() ? nullptr : layer->Rebound(replaced)) {
-            layer = std::move(rebound);
-        }
-        if (layer != layers_[n]) {
-            replaced.emplace_back(layers_[n].get(), layer);
-            reseeded.layers_[n] = std::move(layer);
-            changed.push_back(n);
-        }
-    }
-    reseeded.Commit(sourceChanged, changed);
+    std::shared_ptr<const terraingen::Source> source =
+        source_ ? source_->Reseeded(PartSeed(seed, 0)) : nullptr;
+    reseeded.Replace(source ? std::move(source) : source_,
+                     [seed](std::size_t n, const LayerPtr& layer) {
+                         return layer->Reseeded(PartSeed(seed, n + 1));
+                     });
     return reseeded;
 }
 

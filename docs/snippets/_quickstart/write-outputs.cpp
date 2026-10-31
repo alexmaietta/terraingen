@@ -21,7 +21,7 @@ TEST_F(SnippetTest, QuickstartWriteOutputs) {
     const Raster<float> heights = terrain.Evaluate();
     // --8<-- [start:write_outputs]
     WriteGeoTiff("terrain.tif", heights, terrain.Keys());
-    const RasterGrid grid = RasterGrid::FromRaster(heights);
+    const RasterGrid grid = heights.Grid();
     WriteCraterList(terrain.Craters(grid).craters, "craters.csv", ListFormat::Csv);
     WriteBoulderList(terrain.Boulders(grid).boulders, "boulders.csv", ListFormat::Csv);
     // --8<-- [end:write_outputs]

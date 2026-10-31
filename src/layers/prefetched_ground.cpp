@@ -16,14 +16,15 @@ constexpr std::uint32_t kEmpty = 0xFFFFFFFFU;
 
 }  // namespace
 
-void RecordingGround::FillSamples(SampleBlock& samples, double spacing) const {
+void RecordingGround::FillSamples(SampleBlock& samples, double spacing,
+                                  unsigned /*threads*/) const {
     for (std::size_t i = 0; i < samples.Size(); ++i) {
         reads_.push_back({samples.Position(i), spacing});
         samples.Height(i) = 0.0f;
     }
 }
 
-GroundReads::GroundReads(const Ground& ground, Span<const GroundRead> reads)
+GroundReads::GroundReads(const Ground& ground, Span<const GroundRead> reads, unsigned threads)
     : ground_(ground), heights_(reads.size()) {
     std::size_t capacity = 16;
     while (capacity < 2 * reads.size()) {
@@ -54,7 +55,7 @@ GroundReads::GroundReads(const Ground& ground, Span<const GroundRead> reads)
             const Held& held = distinct_[indices[n]];
             points[n] = {BitCast<double>(held.x), BitCast<double>(held.y)};
         }
-        ground_.HeightsAt(points, read, BitCast<double>(spacing));
+        ground_.HeightsAt(points, read, BitCast<double>(spacing), threads);
         for (std::size_t n = 0; n < indices.size(); ++n) {
             distinct_[indices[n]].height = read[n];
         }
@@ -100,7 +101,7 @@ const float* ReplayedGround::Held(double x, double y, double spacing) const {
     return held_.Find(x, y, spacing);
 }
 
-void ReplayedGround::FillSamples(SampleBlock& samples, double spacing) const {
+void ReplayedGround::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
     std::vector<Vec2d> missing;
     std::vector<std::size_t> where;
     for (std::size_t i = 0; i < samples.Size(); ++i) {
@@ -116,7 +117,7 @@ void ReplayedGround::FillSamples(SampleBlock& samples, double spacing) const {
         return;
     }
     std::vector<float> read(missing.size());
-    held_.Read().HeightsAt(missing, read, spacing);
+    held_.Read().HeightsAt(missing, read, spacing, threads);
     for (std::size_t n = 0; n < missing.size(); ++n) {
         samples.Height(where[n]) = read[n];
     }

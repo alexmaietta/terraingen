@@ -30,10 +30,10 @@ class CraterAlbedo final : public AlbedoLayer {
 
     /// Brightens the albedo at one point by the craters' summed excess; NaN stays NaN.
     void ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                 const AlbedoContext& context) const override;
+                 const LayerContext& context) const override;
 
     /// `ApplyAt` at every cell center, gathering craters once per block of rows.
-    void Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const override;
+    void Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const override;
 
     /// The excess optical maturity (OMAT) `crater` gives surface point (`x`, `y`) at a sample
     /// spacing of `spacing` meters.

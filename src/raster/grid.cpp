@@ -25,17 +25,11 @@ double RasterGrid::PixelSize() const {
                                transform.rowRotation * transform.colRotation));
 }
 
-Raster<float> RasterGrid::MakeRaster(float fill) const {
-    Raster<float> raster(width, height, fill);
-    raster.SetTransform(transform);
-    return raster;
-}
-
 double RasterGrid::Spacing(const Surface& surface) const {
     if (!surface.IsBody()) {
         return PixelSize();
     }
-    return std::hypot(transform.rowRotation, transform.pixelHeight) * surface.UnitLength();
+    return transform.CellHeight() * surface.UnitLength();
 }
 
 RasterGrid RasterGrid::Covering(const Bounds2d& box, double pixelSize) {

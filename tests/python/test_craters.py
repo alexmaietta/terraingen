@@ -16,7 +16,7 @@ ALL_CRATERS = terraingen.CraterSelection(manual=True)
 def generate_lunar_craters(lunar_craters, region=REGION):
     """Fresh lunar craters 8 to 100 m across over `region`, seed 3."""
     density, _ = lunar_craters(3.5)
-    options = terraingen.CraterGenerationOptions(d_min=8.0, d_max=100.0)
+    options = terraingen.CraterGenerationOptions(min_diameter=8.0, max_diameter=100.0)
     return terraingen.generate_craters(
         terraingen.PlanarCells(), region, density, terraingen.FreshAges(), 3, options
     )
@@ -24,7 +24,7 @@ def generate_lunar_craters(lunar_craters, region=REGION):
 
 def carved_raster(craters, options=None):
     """A 200 x 200 raster at 2 m with `craters` applied with `options`."""
-    raster = terraingen.RasterGrid.centered((0, 0), (200 * 2.0, 200 * 2.0), 2.0).make_raster()
+    raster = terraingen.Raster(terraingen.RasterGrid.centered((0, 0), (200 * 2.0, 200 * 2.0), 2.0))
     terraingen.apply_craters(
         raster,
         craters,
@@ -40,7 +40,7 @@ def layer_craters(models, **generation):
     """The crater table of a seed-2 layer over `REGION` with extra generation options."""
     options = terraingen.CraterLayerOptions(
         seed=2,
-        generation=terraingen.CraterGenerationOptions(d_min=10.0, d_max=100.0, **generation),
+        generation=terraingen.CraterGenerationOptions(min_diameter=10.0, max_diameter=100.0, **generation),
     )
     return terraingen.CraterLayer(models, options).craters(REGION)
 
@@ -122,7 +122,7 @@ def test_crater_list_reads_depth_and_rim_height_columns():
 
 
 def test_apply_craters_carves_an_explicit_depth():
-    raster = terraingen.RasterGrid.centered((0, 0), (200 * 0.5, 200 * 0.5), 0.5).make_raster()
+    raster = terraingen.Raster(terraingen.RasterGrid.centered((0, 0), (200 * 0.5, 200 * 0.5), 0.5))
     craters = terraingen.CraterList(
         [terraingen.Crater(0.0, 0.0, 40.0, age_gyr=1.5, depth=6.0, rim_height=1.5)]
     )
@@ -504,7 +504,7 @@ def test_a_manual_crater_is_carved_alone():
 def test_crater_layers_default_to_the_configurations_crater_models():
     layer = terraingen.CraterLayer()
     assert layer.options.apply.irregularity.enabled and terraingen.default_crater_apply().irregularity.enabled
-    assert layer.options.generation.d_min == 2.5
+    assert layer.options.generation.min_diameter == 2.5
     assert isinstance(layer.models.profile, terraingen.DiffusedProfile)
     default = terraingen.CraterLayer.manual([terraingen.Crater(0.0, 0.0, 60.0, age_gyr=1.0)])
     terrain = terraingen.Terrain(source=terraingen.FlatSource(65, 65, 2.0), layers=[default])
@@ -716,3 +716,11 @@ def test_a_crater_layer_replaces_the_inherited_craters_its_source_resolves():
     assert [(c.id, c.replace) for c in manual] == [(2, True)]
     with pytest.raises(ValueError):
         terraingen.validate_inherited_craters(terraingen.InheritedCraters(min_source_px=0.0))
+
+
+def test_generation_options_bind_their_field_list():
+    options = terraingen.CraterGenerationOptions(4.0, 40.0, max_craters=10, margin_radii=1.5)
+    assert (options.min_diameter, options.max_diameter, options.max_craters) == (4.0, 40.0, 10)
+    assert options.margin_radii == 1.5 and options.max_band_diameter == math.inf
+    assert options.threads == 1 and options.min_resolved_diameter == 0.0
+    assert "min_diameter=4.0" in repr(options)

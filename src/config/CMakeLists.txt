@@ -16,6 +16,7 @@ terraingen_add_library(
     schema.cpp
     sources.cpp
     terrain.cpp
+    write_outputs.cpp
     PUBLIC
     terraingen_albedo
     terraingen_analysis

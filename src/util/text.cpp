@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
 #include <stdexcept>
@@ -30,6 +32,20 @@ std::string FormatNumber(double value, int digits) {
     std::array<char, 40> buffer{};
     std::snprintf(buffer.data(), buffer.size(), "%.*g", digits, value);
     return buffer.data();
+}
+
+double DegreesFromRadians(double radians) {
+    const double nearest = radians * (180.0 / kPi);
+    if (!std::isfinite(nearest)) {
+        return nearest;
+    }
+    for (int digits = 1; digits <= 17; ++digits) {
+        const double degrees = std::strtod(FormatNumber(nearest, digits).c_str(), nullptr);
+        if (RadiansFromDegrees(degrees) == radians) {
+            return degrees;
+        }
+    }
+    return nearest;
 }
 
 std::string ReadFile(const std::filesystem::path& path) {

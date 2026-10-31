@@ -21,8 +21,8 @@ TEST_F(SnippetTest, RestampCratersFromACoarserRun) {
     const auto Craters = [](InheritedCraters inherited = {}, TerrainBase base = {}) {
         CraterLayerOptions options;  // the same layer at every level: 4 m to 120 m, seed 5
         options.seed = 5;
-        options.generation.dMin = 4.0;
-        options.generation.dMax = 120.0;
+        options.generation.minDiameter = 4.0;
+        options.generation.maxDiameter = 120.0;
         options.sourceResolvesPixels = 4.0;  // the DEM holds craters from 4 x 8 m = 32 m across
         options.inherited = std::move(inherited);
         return std::make_shared<CraterLayer>(DefaultCraterModels(), options, std::move(base));
@@ -30,7 +30,7 @@ TEST_F(SnippetTest, RestampCratersFromACoarserRun) {
     const std::filesystem::path list = OutputFolder() / "coarse_craters.json";
     const Terrain coarse(Surface{}, std::make_shared<FlatSource>(75, 75, 8.0), {Craters()});
     const Raster<float> coarseHeights = coarse.Evaluate();
-    const CraterFeatures placed = coarse.Craters(RasterGrid::FromRaster(coarseHeights));
+    const CraterFeatures placed = coarse.Craters(coarseHeights.Grid());
     WriteCraterList(placed.craters, list, ListFormat::Json, placed.attributes);
     const auto dem = std::make_shared<RasterSource>(coarseHeights);
     // --8<-- [start:restamp_craters_from_a_coarser_run]

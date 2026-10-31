@@ -187,8 +187,9 @@ TEST(ResolvedCraterState, RejectsWhatTheFassettThomsonFitCannotShape) {
 TEST(ApplyCraters, LeavesExplicitCratersUnwornOnSteepGround) {
     const terraingen::CraterShapeModels models{Diffused(),
                                                std::make_shared<DiffusionDegradation>(Diffusion())};
-    terraingen::Raster<float> base(161, 161, 0.0f);
-    base.SetTransform(terraingen::GeoTransform::NorthUp(-80.5, 80.5, 1.0));
+    terraingen::Raster<float> base(
+        terraingen::RasterGrid{161, 161, terraingen::GeoTransform::NorthUp(-80.5, 80.5, 1.0)},
+        0.0f);
     for (std::size_t row = 0; row < base.Height(); ++row) {
         for (std::size_t col = 0; col < base.Width(); ++col) {
             base(col, row) = static_cast<float>(0.4 * base.CellCenter(col, row).y);
@@ -244,8 +245,9 @@ TEST(ApplyCraters, ShapesExplicitCratersOnEveryAvailableGpuAsOnTheCpu) {
             }
             shaped.Append(crater);
         }
-        terraingen::Raster<float> base(300, 300, 0.0f);
-        base.SetTransform(terraingen::GeoTransform::NorthUp(-600.0, 600.0, 4.0));
+        terraingen::Raster<float> base(
+            terraingen::RasterGrid{300, 300, terraingen::GeoTransform::NorthUp(-600.0, 600.0, 4.0)},
+            0.0f);
         terraingen::Raster<float> cpu = base;
         terraingen::ApplyCraters(cpu, shaped, cases[c], {}, {});
         for (const terraingen::BackendStatus& status : terraingen::Backends()) {

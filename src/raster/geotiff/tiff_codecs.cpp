@@ -6,6 +6,7 @@
 
 #include <miniz.h>
 
+#include <algorithm>
 #include <array>
 #include <cstring>
 
@@ -350,32 +351,40 @@ std::vector<std::uint8_t> DecodePackBits(Span<const std::uint8_t> data, std::siz
     return out;
 }
 
-void EncodeFloatPredictorRow(std::uint8_t* row, std::size_t sampleBytes, std::size_t rowSamples,
-                             std::size_t stride) {
+void EncodeFloatPredictor(std::uint8_t* data, std::size_t rows, std::size_t sampleBytes,
+                          std::size_t rowSamples, std::size_t stride) {
     const std::size_t rowBytes = rowSamples * sampleBytes;
-    std::vector<std::uint8_t> native(row, row + rowBytes);
-    for (std::size_t sample = 0; sample < rowSamples; ++sample) {
-        for (std::size_t byte = 0; byte < sampleBytes; ++byte) {
-            row[(sampleBytes - byte - 1) * rowSamples + sample] =
-                native[sample * sampleBytes + byte];
+    std::vector<std::uint8_t> native(rowBytes);
+    for (std::size_t r = 0; r < rows; ++r) {
+        std::uint8_t* row = data + r * rowBytes;
+        std::copy_n(row, rowBytes, native.begin());
+        for (std::size_t sample = 0; sample < rowSamples; ++sample) {
+            for (std::size_t byte = 0; byte < sampleBytes; ++byte) {
+                row[(sampleBytes - byte - 1) * rowSamples + sample] =
+                    native[sample * sampleBytes + byte];
+            }
         }
-    }
-    for (std::size_t i = rowBytes - 1; i >= stride; --i) {
-        row[i] = static_cast<std::uint8_t>(row[i] - row[i - stride]);
+        for (std::size_t i = rowBytes - 1; i >= stride; --i) {
+            row[i] = static_cast<std::uint8_t>(row[i] - row[i - stride]);
+        }
     }
 }
 
-void DecodeFloatPredictorRow(std::uint8_t* row, std::size_t sampleBytes, std::size_t rowSamples,
-                             std::size_t stride) {
+void DecodeFloatPredictor(std::uint8_t* data, std::size_t rows, std::size_t sampleBytes,
+                          std::size_t rowSamples, std::size_t stride) {
     const std::size_t rowBytes = rowSamples * sampleBytes;
-    for (std::size_t i = stride; i < rowBytes; ++i) {
-        row[i] = static_cast<std::uint8_t>(row[i] + row[i - stride]);
-    }
-    const std::vector<std::uint8_t> planes(row, row + rowBytes);
-    for (std::size_t sample = 0; sample < rowSamples; ++sample) {
-        for (std::size_t byte = 0; byte < sampleBytes; ++byte) {
-            row[sample * sampleBytes + byte] =
-                planes[(sampleBytes - byte - 1) * rowSamples + sample];
+    std::vector<std::uint8_t> planes(rowBytes);
+    for (std::size_t r = 0; r < rows; ++r) {
+        std::uint8_t* row = data + r * rowBytes;
+        for (std::size_t i = stride; i < rowBytes; ++i) {
+            row[i] = static_cast<std::uint8_t>(row[i] + row[i - stride]);
+        }
+        std::copy_n(row, rowBytes, planes.begin());
+        for (std::size_t sample = 0; sample < rowSamples; ++sample) {
+            for (std::size_t byte = 0; byte < sampleBytes; ++byte) {
+                row[sample * sampleBytes + byte] =
+                    planes[(sampleBytes - byte - 1) * rowSamples + sample];
+            }
         }
     }
 }

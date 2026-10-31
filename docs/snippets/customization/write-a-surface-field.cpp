@@ -37,8 +37,8 @@ TEST_F(SnippetTest, WriteASurfaceField) {
     densityMap.measure = DensityMeasure::Scale;  // times the layer's own density
     CraterLayerOptions options;
     options.seed = 5;
-    options.generation.dMin = 4.0;
-    options.generation.dMax = 40.0;
+    options.generation.minDiameter = 4.0;
+    options.generation.maxDiameter = 40.0;
     options.densityMap = densityMap;
     const CraterLayer craters(DefaultCraterModels(), options);
     const CraterList list = craters.Craters({-200.0, -200.0, 200.0, 200.0});

@@ -40,7 +40,7 @@ TEST(SyntheticSource, AnEmptyStackIsFlatAtItsElevation) {
     const SyntheticSource flat;
     EXPECT_EQ(flat.HeightAt(1e6, -3.0, 1.0), 0.0f);
     const SyntheticSource raised(std::vector<Fractal>{}, 12.5f);
-    Raster<float> heights = RasterGrid{4, 3, GeoTransform::NorthUp(-1e5, 2e5, 7.0)}.MakeRaster();
+    Raster<float> heights(RasterGrid{4, 3, GeoTransform::NorthUp(-1e5, 2e5, 7.0)});
     raised.Fill(heights);
     for (const float value : heights.Values()) {
         EXPECT_EQ(value, 12.5f);
@@ -60,7 +60,7 @@ TEST(SyntheticSource, EvaluatesTheNoiseAtEveryPointWithoutAPixelSize) {
         EXPECT_EQ(source.HeightAt(17.3, -4.1, spacing),
                   3.0f + terraingen::FractalStackAt(Hills(), {}, {}, 17.3, -4.1));
     }
-    Raster<float> filled = RasterGrid{64, 48, GeoTransform::NorthUp(-50.0, 40.0, 2.0)}.MakeRaster();
+    Raster<float> filled(RasterGrid{64, 48, GeoTransform::NorthUp(-50.0, 40.0, 2.0)});
     source.Fill(filled);
     const std::vector<Fractal> layers = Hills();
     for (std::size_t row = 0; row < filled.Height(); ++row) {
@@ -136,7 +136,7 @@ TEST(SyntheticSource, RejectsInvalidSettings) {
 }
 
 TEST(SyntheticSource, ADefaultStackFillsZeros) {
-    Raster<float> heights = RasterGrid{5, 4, GeoTransform::NorthUp(-30.0, 20.0, 3.0)}.MakeRaster();
+    Raster<float> heights(RasterGrid{5, 4, GeoTransform::NorthUp(-30.0, 20.0, 3.0)});
     SyntheticSource().Fill(heights);
     for (const float value : heights.Values()) {
         EXPECT_EQ(value, 0.0f);
@@ -155,8 +155,7 @@ namespace {
 
 /// The heights of `source` over a 24 x 16 grid of 2.5 m cells.
 Raster<float> Sampled(const terraingen::Source& source) {
-    Raster<float> heights =
-        RasterGrid{24, 16, GeoTransform::NorthUp(-30.0, 20.0, 2.5)}.MakeRaster();
+    Raster<float> heights(RasterGrid{24, 16, GeoTransform::NorthUp(-30.0, 20.0, 2.5)});
     source.Fill(heights, 1.0);
     return heights;
 }

@@ -17,8 +17,8 @@ TEST_F(SnippetTest, ListCratersOfALayer) {
     // --8<-- [start:list_craters_of_a_layer]
     CraterLayerOptions options;
     options.seed = 7;
-    options.generation.dMin = 4.0;
-    options.generation.dMax = 120.0;
+    options.generation.minDiameter = 4.0;
+    options.generation.maxDiameter = 120.0;
     const CraterLayer craters(DefaultCraterModels(), options);
     const CraterList list = craters.Craters({-200.0, -200.0, 200.0, 200.0});  // meters
     const double largest = *std::max_element(list.Diameters().begin(), list.Diameters().end());

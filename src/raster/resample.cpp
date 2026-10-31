@@ -2,7 +2,7 @@
 
 #include "terraingen/raster/resample.h"
 
-#include "raster/kernel_weight.h"
+#include "raster/kernels.h"
 #include "terraingen/util/bits.h"
 
 #include <algorithm>
@@ -147,12 +147,4 @@ float SampleRaster(const Raster<float>& raster, double x, double y, ResampleMeth
     }
     return *value;
 }
-
-std::optional<float> FilledNoData(std::optional<float> noData, bool missing) {
-    if (noData || !missing) {
-        return noData;
-    }
-    return std::numeric_limits<float>::quiet_NaN();
-}
-
 }  // namespace terraingen

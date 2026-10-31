@@ -29,8 +29,8 @@ TEST_F(SnippetTest, AddTerrainOverAWholeBody) {
     models.ages = std::make_shared<FreshAges>();
     CraterLayerOptions craterOptions;
     craterOptions.seed = 6;
-    craterOptions.generation.dMin = 3.0;  // meters
-    craterOptions.generation.dMax = 40.0;
+    craterOptions.generation.minDiameter = 3.0;  // meters
+    craterOptions.generation.maxDiameter = 40.0;
     const auto craters = std::make_shared<CraterLayer>(models, craterOptions, body);
     BoulderLayerOptions boulderOptions;
     boulderOptions.seed = 7;

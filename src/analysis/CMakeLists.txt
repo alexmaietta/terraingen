@@ -3,6 +3,7 @@
 terraingen_add_library(
     analysis
     SOURCES
+    raster_stats.cpp
     spectrum.cpp
     variogram.cpp
     PUBLIC

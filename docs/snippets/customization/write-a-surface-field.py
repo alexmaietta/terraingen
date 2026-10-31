@@ -23,7 +23,7 @@ def write_a_surface_field():
     density_map.field = LandingPad()
     density_map.measure = terraingen.DensityMeasure.SCALE  # times the layer's own density
     options = terraingen.CraterLayerOptions(
-        seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=40.0)
+        seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=40.0)
     )
     options.density_map = density_map
     table = terraingen.CraterLayer(options=options).craters(REGION)

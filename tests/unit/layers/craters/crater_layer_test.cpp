@@ -18,6 +18,7 @@ using terraingen::CraterList;
 using terraingen::CraterModels;
 using terraingen::GeoTransform;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 
 namespace {
 
@@ -31,15 +32,14 @@ CraterModels Models() {
 CraterLayerOptions Options() {
     CraterLayerOptions options;
     options.seed = 3;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 40.0;
+    options.generation.minDiameter = 6.0;
+    options.generation.maxDiameter = 40.0;
     options.apply = terraingen::CraterApplyOptions{};
     return options;
 }
 
 Raster<float> Grid(double originX = -64.0, double originY = 64.0) {
-    Raster<float> raster(64, 64, 0.0f);
-    raster.SetTransform(GeoTransform::NorthUp(originX, originY, 2.0));
+    Raster<float> raster(RasterGrid{64, 64, GeoTransform::NorthUp(originX, originY, 2.0)}, 0.0f);
     return raster;
 }
 
@@ -343,10 +343,8 @@ CraterLayer ExplicitLayer(bool generateRandom, double depth, double rim) {
 
 /// A `size` x `size` flat grid of `cell` m cells centered on the origin.
 Raster<float> Centered(std::size_t size, double cell) {
-    Raster<float> raster(size, size, 0.0f);
     const double half = 0.5 * static_cast<double>(size) * cell;
-    raster.SetTransform(GeoTransform::NorthUp(-half, half, cell));
-    return raster;
+    return Raster<float>(RasterGrid{size, size, GeoTransform::NorthUp(-half, half, cell)});
 }
 
 }  // namespace
@@ -407,7 +405,8 @@ namespace {
 /// Ground at height 2 everywhere.
 class Level final : public terraingen::Ground {
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = 2.0f;
         }
@@ -425,8 +424,7 @@ CraterList Coarser() {
 
 /// A DEM of 5 m cells, which resolves craters 20 m across at 4 cells.
 std::shared_ptr<terraingen::RasterSource> Dem() {
-    Raster<float> heights(64, 64, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(0.0, 320.0, 5.0));
+    Raster<float> heights(RasterGrid{64, 64, GeoTransform::NorthUp(0.0, 320.0, 5.0)}, 0.0f);
     return std::make_shared<terraingen::RasterSource>(heights);
 }
 
@@ -495,8 +493,7 @@ TEST(CraterLayer, ReplacingCratersAtPointsMatchTheGrid) {
     craters.Append(terraingen::ManualCrater(-10.0, 6.0, 30.0).Replace());
     const auto layer = CraterLayer::Manual(craters, Models(), terraingen::CraterApplyOptions{});
     const Level level;
-    Raster<float> heights(64, 64, 2.0f);
-    heights.SetTransform(GeoTransform::NorthUp(-64.0, 64.0, 2.0));
+    Raster<float> heights(RasterGrid{64, 64, GeoTransform::NorthUp(-64.0, 64.0, 2.0)}, 2.0f);
     layer->Apply(heights, {2.0, 1, &level});
     for (const auto& [col, row] : {std::pair<int, int>{27, 29}, {20, 25}, {35, 40}}) {
         const auto center = heights.Transform().PixelToWorld(col + 0.5, row + 0.5);

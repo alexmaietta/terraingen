@@ -13,7 +13,7 @@ def write_the_whole_body_as_a_mesh(output_folder):
     craters = terraingen.CraterLayer(
         None,
         terraingen.CraterLayerOptions(
-            seed=6, generation=terraingen.CraterGenerationOptions(d_min=3.0, d_max=40.0)
+            seed=6, generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=40.0)
         ),
         base=body,
     )

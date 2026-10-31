@@ -75,71 +75,19 @@ std::vector<ReachingCrater> CratersReaching(const SampleBlock& samples,
     return reaching;
 }
 
-/// Calls `visit(tile, cells)` for each tile of `side` cells, `tilesX` across, that `window`
-/// covers, with the cells of `window` within it.
-template <typename Visit>
-void ForEachTile(const PixelWindow& window, std::size_t side, std::size_t tilesX,
-                 const Visit& visit) {
-    for (std::size_t ty = window.rowBegin / side; ty <= (window.rowEnd - 1) / side; ++ty) {
-        for (std::size_t tx = window.colBegin / side; tx <= (window.colEnd - 1) / side; ++tx) {
-            PixelWindow cells;
-            cells.colBegin = std::max(window.colBegin, tx * side);
-            cells.colEnd = std::min(window.colEnd, (tx + 1) * side);
-            cells.rowBegin = std::max(window.rowBegin, ty * side);
-            cells.rowEnd = std::min(window.rowEnd, (ty + 1) * side);
-            visit(ty * tilesX + tx, cells);
-        }
-    }
-}
-
-/// Side of the tiles craters are binned into for the kernel, in cells.
-constexpr std::size_t kTileCells = 32;
-
-/// One crater's cells of one tile.
-struct TileEntry {
-    std::uint32_t crater;
-    PixelWindow cells;
-};
-
-/// Shapes `crater` with `record` into the `cells` of `raster` that hold data.
-void ShapeCells(Raster<float>& raster, const PixelWindow& cells, const CraterShapeKernel& kernel,
-                const CraterData& data, const CraterRecord& record, const Crater& crater,
-                const Surface& surface) {
-    for (std::size_t row = cells.rowBegin; row < cells.rowEnd; ++row) {
-        for (std::size_t col = cells.colBegin; col < cells.colEnd; ++col) {
-            float& cell = raster(col, row);
-            if (!raster.IsNoData(cell)) {
-                const KernelOffset at = ShapingOffset(surface, crater, raster.CellCenter(col, row));
-                cell = ApplyCraterKernel(kernel, data, record, cell, at.dx, at.dy);
-            }
-        }
-    }
-}
-
-/// Shapes the craters `onRaster` of `prepared` into `raster` with the kernel: each crater's
-/// `windows` are cut into the tiles they cover, the tiles run on `threads` threads, and a tile
-/// shapes its craters in order over their own cells, so every cell sees them in order.
-void ShapeTiles(Raster<float>& raster, unsigned threads, const CraterShapeKernel& kernel,
+/// Shapes the craters `onRaster` of `prepared`, reaching `boxes`, into the cells of `raster`
+/// holding data with the kernel, on `threads` threads, every cell taking them in order
+/// (`ForEachFeatureCell`).
+void ShapeCells(Raster<float>& raster, unsigned threads, const CraterShapeKernel& kernel,
                 const CraterKernelBatch& batch, const std::vector<PreparedCrater>& prepared,
-                const std::vector<std::size_t>& onRaster,
-                const std::vector<std::vector<PixelWindow>>& windows, const Surface& surface) {
-    const std::size_t tilesX = CeilDiv(raster.Width(), kTileCells);
-    const std::size_t tilesY = CeilDiv(raster.Height(), kTileCells);
-    std::vector<std::vector<TileEntry>> tiles(tilesX * tilesY);
-    for (std::size_t n = 0; n < onRaster.size(); ++n) {
-        for (const PixelWindow& window : windows[n]) {
-            ForEachTile(window, kTileCells, tilesX,
-                        [&](std::size_t tile, const PixelWindow& cells) {
-                            tiles[tile].push_back({static_cast<std::uint32_t>(n), cells});
-                        });
-        }
-    }
+                const std::vector<std::size_t>& onRaster, const std::vector<Bounds2d>& boxes,
+                const Surface& surface) {
     const CraterData data = batch.Data();
-    ParallelFor(tiles.size(), threads, [&](std::size_t tile) {
-        for (const TileEntry& entry : tiles[tile]) {
-            ShapeCells(raster, entry.cells, kernel, data, batch.records[entry.crater],
-                       prepared[onRaster[entry.crater]].crater, surface);
-        }
+    ForEachFeatureCell(raster, threads, boxes, surface, [&](float& cell, const FeatureCell& at) {
+        const Crater& crater = prepared[onRaster[at.feature]].crater;
+        const KernelOffset offset = ShapingOffset(surface, crater, at.center);
+        cell =
+            ApplyCraterKernel(kernel, data, batch.records[at.feature], cell, offset.dx, offset.dy);
     });
 }
 
@@ -156,12 +104,13 @@ GpuTileLists(const Raster<float>& raster, const std::vector<std::vector<PixelWin
     std::vector<std::vector<std::uint32_t>> lists(tilesX * tilesY);
     for (std::size_t n = 0; n < windows.size(); ++n) {
         for (const PixelWindow& window : windows[n]) {
-            ForEachTile(window, kGpuTileCells, tilesX, [&](std::size_t tile, const PixelWindow&) {
-                std::vector<std::uint32_t>& list = lists[tile];
-                if (list.empty() || list.back() != n) {
-                    list.push_back(static_cast<std::uint32_t>(n));
-                }
-            });
+            ForEachTileIn(window, kGpuTileCells, kGpuTileCells,
+                          [&](std::size_t tx, std::size_t ty, const PixelWindow&) {
+                              std::vector<std::uint32_t>& list = lists[ty * tilesX + tx];
+                              if (list.empty() || list.back() != n) {
+                                  list.push_back(static_cast<std::uint32_t>(n));
+                              }
+                          });
         }
     }
     std::vector<std::uint32_t> tiles{static_cast<std::uint32_t>(tilesX),
@@ -212,7 +161,7 @@ bool ShapeTilesOnGpu(Raster<float>& raster, Backend backend, unsigned threads,
     }
     const bool onBody = surface.IsBody();
     const auto [tiles, entries] = GpuTileLists(raster, windows, onBody);
-    const Bounds2d bounds = RasterGrid::FromRaster(raster).Bounds();
+    const Bounds2d bounds = raster.Grid().Bounds();
     const Vec2d origin{0.5 * (bounds.minX + bounds.maxX), 0.5 * (bounds.minY + bounds.maxY)};
     GpuFrames body;
     if (onBody) {
@@ -239,18 +188,21 @@ bool ShapeTilesOnGpu(Raster<float>& raster, Backend backend, unsigned threads,
     return true;
 }
 
-/// The craters of `prepared` whose footprints reach `raster`, with the windows of it they cover.
+/// The craters of `prepared` whose footprints reach `raster`, with their footprints and the windows
+/// of it they cover.
 std::vector<std::size_t> CratersOnRaster(const Raster<float>& raster,
                                          const std::vector<PreparedCrater>& prepared,
                                          double reachRadii, const Surface& surface,
+                                         std::vector<Bounds2d>& boxes,
                                          std::vector<std::vector<PixelWindow>>& windows) {
-    const RasterGrid grid = RasterGrid::FromRaster(raster);
+    const RasterGrid grid = raster.Grid();
     std::vector<std::size_t> onRaster;
     for (std::size_t k = 0; k < prepared.size(); ++k) {
-        std::vector<PixelWindow> around =
-            PixelWindowsIn(grid, Footprint(prepared[k], reachRadii, surface), surface);
+        const Bounds2d box = Footprint(prepared[k], reachRadii, surface);
+        std::vector<PixelWindow> around = PixelWindowsIn(grid, box, surface);
         if (!around.empty()) {
             onRaster.push_back(k);
+            boxes.push_back(box);
             windows.push_back(std::move(around));
         }
     }
@@ -326,8 +278,9 @@ CraterSampling SamplingFrom(const LayerContext& context, double spacing, const v
         sampling.ground = [ground, spacing](double x, double y) {
             return ground->HeightAt(x, y, spacing);
         };
-        sampling.groundBatch = [ground, spacing](Span<const Vec2d> points, Span<float> heights) {
-            ground->HeightsAt(points, heights, spacing);
+        sampling.groundBatch = [ground, spacing, threads = context.threads](
+                                   Span<const Vec2d> points, Span<float> heights) {
+            ground->HeightsAt(points, heights, spacing, threads);
         };
     }
     sampling.cache = context.cache;
@@ -350,14 +303,14 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
         return;
     }
     const Stopwatch stopwatch;
-    const double resolved =
-        ResolvedSpacing(RasterGrid::FromRaster(raster), sampling.spacing, options.surface);
+    const double resolved = ResolvedSpacing(raster.Grid(), sampling.spacing, options.surface);
     const CraterProfile& profile = *models.profile;
     std::vector<PreparedCrater> prepared =
         PrepareCraters(craters, options, resolved, models, sampling.threads, sampling.reshape);
+    std::vector<Bounds2d> boxes;
     std::vector<std::vector<PixelWindow>> windows;
     const std::vector<std::size_t> onRaster = CratersOnRaster(
-        raster, prepared, CraterReachRadii(profile, options), options.surface, windows);
+        raster, prepared, CraterReachRadii(profile, options), options.surface, boxes, windows);
     const CraterShapeKernel kernel = MakeCraterShapeKernel(profile, options);
     const ReplacingSplit split = SplitReplacing(prepared, onRaster);
     if (options.datum != CraterDatum::None && !split.others.empty()) {
@@ -367,7 +320,7 @@ void ApplyCraters(Raster<float>& raster, const CraterList& craters, const Crater
     CraterKernelBatch batch = MakeCraterKernelBatch(kernel, profile, prepared, onRaster, options);
     if (!ShapeTilesOnGpu(raster, sampling.backend, sampling.threads, kernel, batch, prepared,
                          onRaster, windows, options.surface)) {
-        ShapeTiles(raster, sampling.threads, kernel, batch, prepared, onRaster, windows,
+        ShapeCells(raster, sampling.threads, kernel, batch, prepared, onRaster, boxes,
                    options.surface);
     }
     LogInfo("craters", "Applied ", onRaster.size(), " of ", craters.Size(), " craters (",

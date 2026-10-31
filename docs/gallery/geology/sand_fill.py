@@ -23,7 +23,7 @@ def figure(quick=False):
     relief = terraingen.NoiseLayer(seed=4, wavelength=40.0, amplitude=2.0, octaves=6)
     craters = terraingen.CraterLayer(
         options=terraingen.CraterLayerOptions(
-            seed=3, generation=terraingen.CraterGenerationOptions(d_min=2.5, d_max=20.0)
+            seed=3, generation=terraingen.CraterGenerationOptions(min_diameter=2.5, max_diameter=20.0)
         )
     )
     source = terraingen.FlatSource(size, size, pixel)

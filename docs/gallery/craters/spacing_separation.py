@@ -29,7 +29,7 @@ def figure(quick=False):
 
     fig, axes = plt.subplots(1, len(SEPARATIONS), figsize=(18, 4.9), layout="constrained")
     for ax, separation in zip(axes, SEPARATIONS, strict=True):
-        generation = terraingen.CraterGenerationOptions(d_min=5.0, d_max=60.0)
+        generation = terraingen.CraterGenerationOptions(min_diameter=5.0, max_diameter=60.0)
         generation.spacing = terraingen.CraterSpacing(diameter_ratio=RATIO, separation=separation)
         craters = terraingen.CraterLayer(models, terraingen.CraterLayerOptions(seed=4, generation=generation))
         terrain = terraingen.Terrain(

@@ -3,7 +3,7 @@
 #include "terraingen/pipeline/materials.h"
 
 #include "terraingen/layers/fade.h"
-#include "terraingen/pipeline/pipeline_fields.h"
+#include "terraingen/pipeline/materials_fields.h"
 #include "terraingen/util/log.h"
 #include "terraingen/util/parallel.h"
 #include "util/checks.h"
@@ -35,19 +35,6 @@ const MaterialOptions& Checked(const MaterialOptions& options) {
     return options;
 }
 
-/// The context a material layer of `terrain` is read in, on the ground beneath it.
-LayerContext MaterialContext(const Terrain& terrain, const Ground& beneath, double spacing,
-                             unsigned threads, Backend backend) {
-    LayerContext context;
-    context.spacing = spacing;
-    context.threads = threads;
-    context.ground = &beneath;
-    context.backend = backend;
-    context.surface = &terrain.Surface();
-    context.source = terrain.Source().get();
-    return context;
-}
-
 /// The shares of a terrain before any material layer: soil, bedrock where the bare ground is
 /// exposed and dust patches.
 class GroundCover {
@@ -55,7 +42,7 @@ class GroundCover {
     /// @throws std::invalid_argument as `ValidateMaterialOptions`.
     GroundCover(const Terrain& terrain, const MaterialOptions& options)
         : surface_(terrain.Surface()), options_(Checked(options)),
-          bare_(terrain.Ground(BareLayers(terrain))) {
+          bare_(terrain.Beneath(BareLayers(terrain))) {
         if (options.exposure) {
             field_.emplace(*options.exposure, surface_);
         }
@@ -97,10 +84,9 @@ MaterialShares MaterialsAt(const Terrain& terrain, const MaterialOptions& option
     RequirePositive(spacing, "Material spacing");
     MaterialShares shares = ground.At(x, y, spacing);
     ForEachLayer<MaterialSource>(terrain, [&](const MaterialSource& source, std::size_t n) {
-        const Terrain beneath = terrain.Ground(n);
+        const Terrain beneath = terrain.Beneath(n);
         CoverWith(shares, source.Material(),
-                  source.MaterialCoverAt(
-                      x, y, MaterialContext(terrain, beneath, spacing, 1, Backend::Cpu)));
+                  source.MaterialCoverAt(x, y, beneath.Context(spacing, 1)));
     });
     return shares;
 }
@@ -115,16 +101,15 @@ std::vector<Raster<float>> EvaluateMaterials(const Terrain& terrain, const Mater
     std::vector<std::pair<MaterialClass, Raster<double>>> covers;
     ForEachLayer<MaterialSource>(terrain, [&](const MaterialSource& source, std::size_t n) {
         const Stopwatch stopwatch;
-        const Terrain beneath = terrain.Ground(n);
-        covers.emplace_back(
-            source.Material(),
-            source.MaterialCoverOver(
-                grid, MaterialContext(terrain, beneath, resolved, evaluation.threads, backend)));
+        const Terrain beneath = terrain.Beneath(n);
+        LayerContext context = beneath.Context(resolved, evaluation.threads);
+        context.backend = backend;
+        covers.emplace_back(source.Material(), source.MaterialCoverOver(grid, context));
         if (evaluation.onLayer) {
             evaluation.onLayer(n, stopwatch.Milliseconds());
         }
     });
-    std::vector<Raster<float>> bands(kMaterialClasses, grid.MakeRaster());
+    std::vector<Raster<float>> bands(kMaterialClasses, Raster<float>(grid));
     ParallelFor(grid.height, evaluation.threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < grid.width; ++col) {
             const Vec2d center = bands[0].CellCenter(col, row);

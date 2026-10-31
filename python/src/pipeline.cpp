@@ -10,9 +10,10 @@
 #include "terraingen/config/generate.h"
 #include "terraingen/config/json.h"
 #include "terraingen/config/validate.h"
+#include "terraingen/mesh/mesh_build.h"
 #include "terraingen/pipeline/body_mesh.h"
-#include "terraingen/pipeline/mesh_build.h"
 #include "terraingen/pipeline/terrain.h"
+#include "terraingen/pipeline/terrain_view.h"
 
 #include <cstdint>
 #include <filesystem>
@@ -37,44 +38,13 @@ nb::object FromJson(const std::string& text) {
     return nb::module_::import_("json").attr("loads")(text);
 }
 
-/// @brief `grid`, or else the grid of `terrain`'s source.
-/// @throws std::invalid_argument when there is neither.
-RasterGrid GridOr(const Terrain& terrain, const std::optional<RasterGrid>& grid) {
-    if (grid) {
-        return *grid;
-    }
-    const std::optional<RasterGrid> bounded = terrain.Grid();
-    if (!bounded) {
-        throw std::invalid_argument(
-            "A terrain without a source, or with a source without bounds, needs a grid");
-    }
-    return *bounded;
-}
-
 /// @brief Evaluation options from the Python keywords.
-EvaluationOptions Options(double spacing, unsigned threads, std::optional<Backend> backend,
-                          StageCache* stageCache) {
+EvaluationOptions Options(double spacing, unsigned threads, std::optional<Backend> backend) {
     EvaluationOptions options;
     options.spacing = spacing;
     options.threads = threads;
     options.backend = backend;
-    options.stageCache = stageCache;
     return options;
-}
-
-/// @brief `Terrain::HeightsAt` over the rows of an (n, 2) array, as a float32 array.
-nb::object TerrainHeightsAt(const Terrain& terrain, const CpuMatrix<double>& points, double spacing,
-                            unsigned threads) {
-    std::vector<Vec2d> positions;
-    for (const auto& row : Rows<2>(points)) {
-        positions.push_back({row[0], row[1]});
-    }
-    std::vector<float> heights(positions.size());
-    {
-        const nb::gil_scoped_release release;
-        terrain.HeightsAt(Span<const Vec2d>(positions), Span<float>(heights), spacing, threads);
-    }
-    return Column(std::move(heights));
 }
 
 /// @brief `Terrain::Fill` into a writable array of shape (grid.height, grid.width).
@@ -90,19 +60,30 @@ void FillArray(const Terrain& terrain, const RasterGrid& grid, CpuOutMatrix<floa
     terrain.Fill(grid, Span<float>(heights.data(), heights.size()), options);
 }
 
-void BindStageCache(nb::module_& m) {
-    nb::class_<StageCache>(
-        m, "StageCache",
-        "The heights a terrain held before one of its layers when it was last evaluated over a "
-        "grid, so evaluating the same grid at the same spacing again after `set_layer` of that "
-        "layer or a later one applies only the layers from there on. Pass it as `stage_cache`; "
-        "one evaluation may use it at a time.")
-        .def(nb::init<std::size_t>(), "stage"_a,
-             "A cache of the heights before layer `stage`: the source's for 0, the finished "
-             "heights for the terrain's layer count.")
-        .def("stage", &StageCache::Stage, "The index of the layer whose input the cache keeps.")
-        .def("empty", &StageCache::Empty, "Whether the cache holds heights.")
-        .def("clear", &StageCache::Clear, "Drops the heights held, freeing their memory.");
+void BindTerrainView(nb::module_& m) {
+    nb::class_<TerrainView>(
+        m, "TerrainView",
+        "A terrain's heights over one grid, for loops that edit the terrain and evaluate it "
+        "again. The view keeps the heights before layer `stage` (None for the last layer, 0 for "
+        "the source's heights), so `update` after replacing that layer or a later one applies "
+        "only the layers from there on, and `update` of an unchanged terrain evaluates nothing. "
+        "Updates give the bits of `Terrain.evaluate`.")
+        .def(
+            "__init__",
+            [](TerrainView* self, const RasterGrid& grid, double spacing, unsigned threads,
+               std::optional<Backend> backend, std::optional<std::size_t> stage) {
+                new (self) TerrainView(grid, Options(spacing, threads, backend), stage);
+            },
+            "grid"_a, "spacing"_a = 0.0, "threads"_a = 0, "backend"_a = nb::none(),
+            "stage"_a = nb::none())
+        .def("grid", &TerrainView::Grid, "The RasterGrid the view covers.")
+        .def("update", &TerrainView::Update, "terrain"_a, nb::rv_policy::reference_internal,
+             nb::call_guard<nb::gil_scoped_release>(),
+             "The terrain's heights over the grid as a Raster, restarting from the kept heights "
+             "when the surface, source and layers before the stage are those of the last update. "
+             "The Raster is the view's own, overwritten by the next update.")
+        .def("clear", &TerrainView::Clear,
+             "Drops the kept heights and parts, so the next update evaluates the whole terrain.");
 }
 
 void BindTerrainEvaluation(nb::class_<Terrain, Ground>& terrain) {
@@ -110,37 +91,41 @@ void BindTerrainEvaluation(nb::class_<Terrain, Ground>& terrain) {
         .def(
             "evaluate",
             [](const Terrain& t, std::optional<RasterGrid> grid, double spacing, unsigned threads,
-               std::optional<Backend> backend, StageCache* stageCache) {
-                return t.Evaluate(GridOr(t, grid), Options(spacing, threads, backend, stageCache));
+               std::optional<Backend> backend) {
+                const EvaluationOptions options = Options(spacing, threads, backend);
+                return grid ? t.Evaluate(*grid, options) : t.Evaluate(options);
             },
             "grid"_a = nb::none(), "spacing"_a = 0.0, "threads"_a = 0, "backend"_a = nb::none(),
-            "stage_cache"_a = nb::none(), nb::call_guard<nb::gil_scoped_release>(),
+            nb::call_guard<nb::gil_scoped_release>(),
             "The heights over `grid` (by default its source's) at a sample spacing of `spacing` "
             "meters (0 for the grid's), on up to `threads` threads (0 for every hardware thread; "
-            "the result does not depend on it), on `backend` (None for default_backend()), "
-            "restarting from `stage_cache` (a StageCache) when it is still current. On Vulkan the "
-            "heights match the CPU to within float rounding.")
+            "the result does not depend on it), on `backend` (None for default_backend()). On a "
+            "GPU the heights match the CPU to within float rounding.")
         .def(
             "fill",
             [](const Terrain& t, const RasterGrid& grid, CpuOutMatrix<float> heights,
-               double spacing, unsigned threads, std::optional<Backend> backend,
-               StageCache* stageCache) {
-                FillArray(t, grid, heights, Options(spacing, threads, backend, stageCache));
+               double spacing, unsigned threads, std::optional<Backend> backend) {
+                FillArray(t, grid, heights, Options(spacing, threads, backend));
             },
             "grid"_a, nb::arg("heights").noconvert(), "spacing"_a = 0.0, "threads"_a = 0,
-            "backend"_a = nb::none(), "stage_cache"_a = nb::none(),
+            "backend"_a = nb::none(),
             "Evaluates the terrain over `grid` into `heights`, a writable C-contiguous float32 "
             "array of shape (height, width), to the same bits as `evaluate` with the same "
             "options.")
-        .def("heights_at", &TerrainHeightsAt, "points"_a, "spacing"_a, "threads"_a = 0,
-             "The heights at `points`, an array of shape (n, 2) in surface coordinates, sampled "
-             "every `spacing` meters on up to `threads` threads (0 for every hardware thread), "
-             "as a float32 array; each equals `height_at` there and the cell centered there of "
-             "`evaluate`. Batches of points are much faster than one call per point.")
+        .def(
+            "apply_from",
+            [](const Terrain& t, std::size_t first, Raster<float>& heights, double spacing,
+               unsigned threads, std::optional<Backend> backend) {
+                t.ApplyFrom(first, heights, Options(spacing, threads, backend));
+            },
+            "first"_a, "heights"_a, "spacing"_a = 0.0, "threads"_a = 0, "backend"_a = nb::none(),
+            nb::call_guard<nb::gil_scoped_release>(),
+            "Applies the layers from `first` on to `heights`, a Raster holding the heights of "
+            "`beneath(first)` evaluated with the same options, to the bits of `evaluate`.")
         .def(
             "craters",
             [](const Terrain& t, std::optional<RasterGrid> grid, double spacing) {
-                return t.Craters(GridOr(t, grid), spacing);
+                return grid ? t.Craters(*grid, spacing) : t.Craters(spacing);
             },
             "grid"_a = nb::none(), "spacing"_a = 0.0, nb::call_guard<nb::gil_scoped_release>(),
             "The CraterFeatures the crater and secondary crater layers apply over `grid` (by "
@@ -148,7 +133,7 @@ void BindTerrainEvaluation(nb::class_<Terrain, Ground>& terrain) {
         .def(
             "boulders",
             [](const Terrain& t, std::optional<RasterGrid> grid, double spacing) {
-                return t.Boulders(GridOr(t, grid), spacing);
+                return grid ? t.Boulders(*grid, spacing) : t.Boulders(spacing);
             },
             "grid"_a = nb::none(), "spacing"_a = 0.0, nb::call_guard<nb::gil_scoped_release>(),
             "The BoulderFeatures the boulder layers place over `grid` (by default its source's) "
@@ -157,40 +142,35 @@ void BindTerrainEvaluation(nb::class_<Terrain, Ground>& terrain) {
 
 void BindTerrainUpdates(nb::class_<Terrain, Ground>& terrain) {
     terrain
-        .def("ground", &Terrain::Ground, "stages"_a,
-             "The terrain beneath layer `stages`: the source and the first `stages` layers, "
-             "sharing their versions and point-query values with this terrain.")
+        .def("beneath", &Terrain::Beneath, "layers"_a,
+             "The terrain beneath layer `layers`: the source and the first `layers` layers, "
+             "sharing their point-query values with this terrain.")
         .def("set_layer", &Terrain::SetLayer, "index"_a, "layer"_a,
              "Replaces layer `index` with `layer`; later layers that read the old one are rebound "
              "to it. Raises ValueError for an invalid terrain, which is then unchanged.")
         .def("set_source", &Terrain::SetSource, "source"_a.none(),
-             "Replaces the source; None for none. Raises ValueError for an invalid terrain, which "
-             "is then unchanged.")
-        .def("layer_version", &Terrain::LayerVersion, "index"_a,
-             "A stamp that changes whenever layer `index` is replaced, shared by copies and "
-             "prefixes.")
-        .def("source_version", &Terrain::SourceVersion,
-             "A stamp that changes whenever the source is replaced.")
+             "Replaces the source; None for none. Layers built on the old source are rebuilt on "
+             "the new one, and later layers reading them rebound to them. Raises ValueError for "
+             "an invalid terrain, which is then unchanged.")
         .def("reseed", &Terrain::Reseed, "seed"_a, nb::call_guard<nb::gil_scoped_release>(),
              "A copy whose seeded layers and source draw from `seed`, each part from its own seed "
              "derived from it, without reading any data again; measured data stays as it is.");
 }
 
 void BindTerrain(nb::module_& m) {
-    BindStageCache(m);
     nb::class_<Terrain, Ground> terrain(
         m, "Terrain",
         "A terrain: heights from `source` (the datum, 0 m, when None), plus each of `layers` in "
         "order, on `surface`. Its parts are immutable and shared by copies; `set_layer` and "
         "`set_source` replace one. A terrain is a Ground, and so is each of its prefixes "
-        "(`ground`).");
+        "(`beneath`).");
     terrain
         .def(nb::init<Surface, std::shared_ptr<const Source>, std::vector<LayerPtr>>(),
              "surface"_a = Surface{}, "source"_a.none() = nb::none(),
              "layers"_a = std::vector<LayerPtr>{},
              "Raises ValueError for a source of the wrong kind for the surface, a None layer, a "
-             "layer built for another surface, or a layer reading one that does not come before "
-             "it.")
+             "layer built on another surface or source, or a layer reading one that does not come "
+             "before it.")
         .def("surface", &Terrain::Surface, "What the terrain lies on.")
         .def("source", &Terrain::Source, "The starting heights; None for none.")
         .def("layers", &Terrain::Layers, "The layers, applied in order.")
@@ -617,6 +597,7 @@ void BindRun(nb::module_& m) {
 void BindPipeline(nb::module_& m) {
     BindFeatures(m);
     BindTerrain(m);
+    BindTerrainView(m);
     BindMeshBuild(m);
     BindBodyMesh(m);
     BindConfig(m);

@@ -36,9 +36,10 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
   protected:
     double CumulativeAt(double diameter) const override;
     double IncrementalAt(double diameter) const override;
-    /// The power-law inverse within the interval holding `target`, ignoring `dMin` and `dMax`; a
-    /// flat interval, where N(>=D) never reaches `target`, gives its start diameter.
-    double InvertCumulative(double target, double dMin, double dMax) const override;
+    /// The power-law inverse within the interval holding `target`, ignoring `minDiameter` and
+    /// `maxDiameter`; a flat interval, where N(>=D) never reaches `target`, gives its start
+    /// diameter.
+    double InvertCumulative(double target, double minDiameter, double maxDiameter) const override;
 
   private:
     std::size_t IntervalAt(double diameter) const;

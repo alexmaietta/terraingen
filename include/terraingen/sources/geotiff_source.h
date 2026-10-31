@@ -29,7 +29,7 @@ struct GeoTiffSourceOptions {
     /// The box in CRS units the source covers: only the cells of its grid that meet it. Unset
     /// covers the whole file.
     std::optional<Bounds2d> crop{};
-    /// The cell size in meters the file's heights resolve, for a DEM that was upsampled or
+    /// The cell size in CRS units the file's heights resolve, for a DEM that was upsampled or
     /// smoothed before it was saved: `ResolutionAt` gives it in place of the cells' size. Unset
     /// uses the cells'.
     std::optional<double> effectivePixelSize{};
@@ -82,7 +82,7 @@ class GeoTiffSource final : public detail::RasterHeightsSource {
     GeoTiffInfo info_;
     BandScaling scaling_;
     mutable std::once_flag loaded_;
-    mutable std::optional<detail::RasterHeights> heights_;
+    mutable std::shared_ptr<const detail::RasterHeights> heights_;
 };
 
 }  // namespace terraingen

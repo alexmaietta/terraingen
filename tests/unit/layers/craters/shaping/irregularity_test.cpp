@@ -418,11 +418,13 @@ TEST(ApplyCraters, StretchesElongatedCratersAndKeepsPointQueriesOnTheGrid) {
          std::make_shared<terraingen::NoDegradation>(terraingen::LunarFreshCraterMorphometry),
          std::make_shared<terraingen::FassettThomsonProfile>()},
         options);
-    terraingen::Raster<float> heights(120, 120, 0.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(-60.0, 60.0, 1.0));
+    terraingen::Raster<float> heights(
+        terraingen::RasterGrid{120, 120, terraingen::GeoTransform::NorthUp(-60.0, 60.0, 1.0)},
+        0.0f);
     const class Flat final : public terraingen::Ground {
       protected:
-        void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        void FillSamples(terraingen::SampleBlock& samples, double,
+                         unsigned /*threads*/) const override {
             for (std::size_t i = 0; i < samples.Size(); ++i) {
                 samples.Height(i) = 0.0f;
             }

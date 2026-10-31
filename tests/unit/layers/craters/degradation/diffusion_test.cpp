@@ -237,8 +237,8 @@ TEST(DiffusionDegradation, CraterLayersAgreeOnGridsAndPoints) {
         std::make_shared<FassettThomsonProfile>(FassettThomsonRim::Plateau));
     terraingen::CraterLayerOptions options;
     options.seed = 8;
-    options.generation.dMin = 6.0;
-    options.generation.dMax = 60.0;
+    options.generation.minDiameter = 6.0;
+    options.generation.maxDiameter = 60.0;
     const terraingen::CraterLayer layer({std::make_shared<terraingen::PowerLawSfd>(0.05, 2.0),
                                          std::make_shared<terraingen::UniformAges>(1.0),
                                          std::make_shared<DiffusionDegradation>(
@@ -246,10 +246,10 @@ TEST(DiffusionDegradation, CraterLayersAgreeOnGridsAndPoints) {
                                              terraingen::Fassett2022HartmannDiffusivity(), profile),
                                          profile},
                                         options);
-    terraingen::Raster<float> heights(64, 64, 0.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(-64.0, 64.0, 2.0));
+    terraingen::Raster<float> heights(
+        terraingen::RasterGrid{64, 64, terraingen::GeoTransform::NorthUp(-64.0, 64.0, 2.0)}, 0.0f);
     layer.Apply(heights, {2.0, 0});
-    const auto craters = layer.Craters(terraingen::RasterGrid::FromRaster(heights).Bounds(), 2.0);
+    const auto craters = layer.Craters(heights.Grid().Bounds(), 2.0);
     ASSERT_GT(craters.Size(), 3u);
     for (const auto& [col, row] :
          {std::pair<std::size_t, std::size_t>{10, 10}, std::pair<std::size_t, std::size_t>{40, 22},

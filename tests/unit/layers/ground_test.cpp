@@ -13,7 +13,8 @@ namespace {
 /// A plane z = 2x - 3y, with no data west of x = -50.
 class Tilted final : public terraingen::Ground {
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
             samples.Height(i) = p.x < -50.0 ? std::numeric_limits<float>::quiet_NaN()

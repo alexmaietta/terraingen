@@ -88,8 +88,8 @@ double PiecewiseUniformSfd::IncrementalAt(double diameter) const {
     return total;
 }
 
-double PiecewiseUniformSfd::InvertCumulative(double target, double /*dMin*/,
-                                             double /*dMax*/) const {
+double PiecewiseUniformSfd::InvertCumulative(double target, double /*minDiameter*/,
+                                             double /*maxDiameter*/) const {
     const auto below = std::partition_point(edgeCumulative_.begin(), edgeCumulative_.end(),
                                             [target](double value) { return value > target; });
     const auto i = static_cast<std::size_t>(below - edgeCumulative_.begin());

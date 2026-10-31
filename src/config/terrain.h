@@ -47,10 +47,8 @@ template <typename IO> void Fields(IO& io, ConfigSpec& config) {
        "What the terrain lies on: a plane in meters, or a whole body (a sphere, ellipsoid or "
        "shape model) in longitude and latitude degrees.");
     io("source", config.source,
-       "Where the heights come from: a GeoTIFF, a chain of sources, or synthetic noise, and how "
-       "its posts are upsampled to finer spacings. A raster's grid is what outputs cover unless "
-       "they give an extent and pixel size; unset is a synthetic source of rolling fBm noise, 400 "
-       "m in wavelength and 12 m in amplitude, at the body's datum.");
+       "Where the heights come from: a GeoTIFF, a chain of sources or synthetic noise, with its "
+       "upsampling; unset is fBm noise 400 m in wavelength and 12 m in amplitude at the datum.");
     io("layers", config.layers,
        "Relief and features added to the source's heights, applied in order: noise, craters, "
        "boulders and more.");
@@ -73,16 +71,13 @@ inline std::filesystem::path ConfigDirectory(const ConfigSpec& config,
     return given.empty() ? config.directory : given;
 }
 
-/// The source `config` gives, else a "shape_model" source on a shape-model body; none on other
-/// bodies, which then start from the default synthetic source.
-std::optional<SourceSpec> EffectiveSource(const ConfigSpec& config);
-
 namespace config {
 
 /// A configuration's terrain and summary, from one pass that checks each part as it builds it.
 struct CheckedTerrain {
     Terrain terrain;
     ConfigSummary summary;
+    std::vector<OutputGrid> outputs;  ///< What each output covers, in order.
 };
 
 /// Checks and builds `config` in one pass, on `external` in place of its source when given: every

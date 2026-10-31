@@ -138,7 +138,7 @@ TEST(GenerateCraters, KeepsCratersAboveTheOutrankingSizeWhateverSmallerOnesAreDr
     all.spacing = {2.0, 1.0};
     all.spacing.outrankFrom = 16.0;
     terraingen::CraterGenerationOptions large = all;
-    large.dMin = 16.0;
+    large.minDiameter = 16.0;
     const terraingen::Bounds2d region{0.0, 0.0, 600.0, 600.0};
     const auto withAll =
         terraingen::GenerateCraters(cells, region, density, terraingen::UniformAges(1.0), 3u, all);

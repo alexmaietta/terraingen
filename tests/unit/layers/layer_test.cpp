@@ -25,7 +25,8 @@ class Plus final : public terraingen::Layer {
 /// Ground at height 2 everywhere.
 class Level final : public terraingen::Ground {
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = 2.0f;
         }
@@ -57,7 +58,8 @@ TEST(Layer, HasNoSeedsOrDependenciesByDefault) {
     const Plus plus;
     EXPECT_EQ(plus.Reseeded(7), nullptr);
     EXPECT_EQ(plus.Rebound({}), nullptr);
-    EXPECT_FALSE(plus.LayerSurface());
+    EXPECT_FALSE(plus.LayerBase());
+    EXPECT_EQ(plus.Rebased({}), nullptr);
 }
 
 TEST(Replacement, GivesTheReplacementOfTheSameTypeOrTheLayer) {

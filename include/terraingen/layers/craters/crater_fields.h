@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 /// @file
-/// @brief The field lists of craters, their shaping and secondaries, and the crater enum names.
+/// @brief The field lists of craters, their generation, shaping and secondaries, and the crater
+/// enum names.
 #pragma once
 
 #include "terraingen/layers/craters/crater.h"
 #include "terraingen/layers/craters/crater_layer.h"
 #include "terraingen/layers/craters/degradation/diffusion.h"
+#include "terraingen/layers/craters/generation/population.h"
 #include "terraingen/layers/craters/generation/spacing.h"
 #include "terraingen/layers/craters/profiles/fassett_thomson.h"
 #include "terraingen/layers/craters/rays.h"
@@ -136,6 +138,45 @@ template <typename IO> void Fields(IO& io, CraterSpacing& spacing) {
        "Least distance between the centers of similar-size craters, in larger diameters; 0 "
        "disables spacing.",
        "", AtLeast(0.0));
+}
+
+/// The fields of which craters a generation draws: their diameter range, spacing and cap.
+template <typename IO> void CraterRangeFields(IO& io, CraterGenerationOptions& options) {
+    io("min_diameter_m", options.minDiameter,
+       "Smallest crater generated, in meters; lower values add many more small craters.", "m",
+       Above(0.0));
+    io("max_diameter_m", options.maxDiameter,
+       "Largest crater generated, in meters; above the smallest.", "m", Above(0.0));
+    io("spacing", options.spacing,
+       "Keeps craters of similar size apart by removing conflicting ones, which lowers the density "
+       "below the model's.");
+    io("max_craters", options.maxCraters,
+       "Most generated craters kept, the largest first; unset keeps all. Manual craters are always "
+       "kept, and a cap means tiles no longer match the whole grid.");
+}
+
+/// The fields of a crater generation but its manual craters, completeness, callbacks, surface and
+/// log name, which code gives.
+template <typename IO> void Fields(IO& io, CraterGenerationOptions& options) {
+    CraterRangeFields(io, options);
+    io("margin_radii", options.marginRadii,
+       "Also keeps craters centered outside the region within this many of their radii of it.", "",
+       AtLeast(0.0));
+    io("cell_size_factor", options.cellSizeFactor,
+       "Side of the cells craters are drawn in, as a multiple of each band's largest diameter.", "",
+       Above(0.0));
+    io("max_expected_craters", options.maxExpectedCraters,
+       "Most craters a generation may expect, to catch requests that would exhaust memory.", "",
+       AtLeast(0.0));
+    io("min_resolved_diameter_m", options.minResolvedDiameter,
+       "Bands whose craters are all smaller than this, in meters, are skipped; 0 generates every "
+       "band.",
+       "m", AtLeast(0.0));
+    io("max_band_diameter_m", options.maxBandDiameter,
+       "Bands whose craters are all larger than this, in meters, are skipped unless spacing or a "
+       "cap is on; infinity generates every band.",
+       "m", Above(0.0));
+    io("threads", options.threads, "Threads the cells are drawn on; 0 for every hardware thread.");
 }
 
 template <typename IO> void Fields(IO& io, CraterBlend& blend) {

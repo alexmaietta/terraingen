@@ -25,7 +25,7 @@ def write_a_crater_age_model():
         terraingen.MartinParkesDunstanProfile(),
     )
     options = terraingen.CraterLayerOptions(
-        seed=4, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=200.0)
+        seed=4, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=200.0)
     )
     table = terraingen.CraterLayer(models, options).craters(REGION)  # with each crater's age
     # --8<-- [end:write_a_crater_age_model]

@@ -26,8 +26,8 @@ inline Terrain LunarMare(double size, double pixelSize, double maxDiameter = 200
     const auto density = testing::LunarCraterDensity(3.5);
     const auto ages = testing::LunarCraterAges(3.5);
     CraterLayerOptions options;
-    options.generation.dMin = 2.5;
-    options.generation.dMax = maxDiameter;
+    options.generation.minDiameter = 2.5;
+    options.generation.maxDiameter = maxDiameter;
     options.cacheCraters = cacheCraters;
     options.apply.datum = datum;
     return Terrain(

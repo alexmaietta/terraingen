@@ -53,13 +53,13 @@ double SplicedSfd::IncrementalAt(double diameter) const {
     return UncheckedIncremental(*pieces_[PieceAt(diameter)].distribution, diameter);
 }
 
-double SplicedSfd::InvertCumulative(double target, double dMin, double dMax) const {
-    const std::size_t index =
-        detail::WalkPieces(pieces_, PieceAt(dMin), dMax, [&](std::size_t i, double high) {
+double SplicedSfd::InvertCumulative(double target, double minDiameter, double maxDiameter) const {
+    const std::size_t index = detail::WalkPieces(
+        pieces_, PieceAt(minDiameter), maxDiameter, [&](std::size_t i, double high) {
             return target >= UncheckedCumulative(*pieces_[i].distribution, high);
         });
     const SizeFrequencyDistribution& piece = *pieces_[index].distribution;
-    const auto [low, high] = detail::PieceInterval(pieces_, index, dMin, dMax);
+    const auto [low, high] = detail::PieceInterval(pieces_, index, minDiameter, maxDiameter);
     if (target >= UncheckedCumulative(piece, low)) {
         return low;
     }

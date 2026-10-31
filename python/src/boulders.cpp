@@ -101,8 +101,8 @@ void BindFacet(nb::module_& m) {
         .def(
             "__init__",
             [](BoulderFacet* self, double azimuthDeg, double angleDeg, double reach) {
-                new (self) BoulderFacet{config::RadiansFromDegrees(azimuthDeg),
-                                        config::RadiansFromDegrees(angleDeg), reach};
+                new (self) BoulderFacet{RadiansFromDegrees(azimuthDeg),
+                                        RadiansFromDegrees(angleDeg), reach};
             },
             "azimuth_deg"_a, "angle_deg"_a, "reach"_a)
         .def_rw("reach", &BoulderFacet::reach)
@@ -149,8 +149,8 @@ void BindBoulder(nb::module_& m) {
                                    diameter,
                                    height,
                                    burial,
-                                   config::RadiansFromDegrees(yawDeg),
-                                   config::RadiansFromDegrees(leanDeg),
+                                   RadiansFromDegrees(yawDeg),
+                                   RadiansFromDegrees(leanDeg),
                                    id};
             },
             "x"_a, "y"_a, "diameter"_a, "height"_a, "burial"_a = 0.0, "yaw_deg"_a = 0.0,
@@ -450,7 +450,7 @@ void BindLayerQueries(nb::class_<BoulderLayer, Layer>& layer) {
             },
             "x"_a, "y"_a, "ground"_a = nb::none(), nb::call_guard<nb::gil_scoped_release>(),
             "The boulder abundance at (x, y): (background, ejecta). With the exposure field, give "
-            "the ground beneath the boulders, such as `terrain.ground(n)` for layer n.")
+            "the ground beneath the boulders, such as `terrain.beneath(n)` for layer n.")
         .def(
             "unresolved_cover_at",
             [](const BoulderLayer& boulders, double x, double y, double spacing,

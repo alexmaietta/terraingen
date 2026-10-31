@@ -205,8 +205,8 @@ std::vector<Splotch> SplotchAlbedo::Marks(const Bounds2d& region, double spacing
                                           const Surface& surface) const {
     const SplotchAlbedoOptions& o = options_;
     CraterGenerationOptions generation;
-    generation.dMin = o.minDiameter;
-    generation.dMax = o.maxDiameter;
+    generation.minDiameter = o.minDiameter;
+    generation.maxDiameter = o.maxDiameter;
     generation.marginRadii = 1.0;
     generation.surface = surface;
     if (spacing > 0.0) {
@@ -293,8 +293,8 @@ void SplotchAlbedo::AddSwarms(const Bounds2d& region, double spacing, const Surf
     const SplotchSwarms& s = o.swarms;
     const double margin = 0.5 * s.splotchDiameter.Highest() * std::sqrt(s.wedgeElongation);
     CraterGenerationOptions generation;
-    generation.dMin = s.minCraterDiameter;
-    generation.dMax = s.maxCraterDiameter;
+    generation.minDiameter = s.minCraterDiameter;
+    generation.maxDiameter = s.maxCraterDiameter;
     generation.surface = surface;
     const PowerLawSfd density(s.Coefficient(o.lifetimeMyr), s.craterSlope);
     const UniformAges ages(1e-3 * o.lifetimeMyr);
@@ -394,7 +394,7 @@ double SplotchAlbedo::ChangeAt(const std::vector<const Splotch*>& splotches, dou
 }
 
 void SplotchAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
-                            const AlbedoContext& context) const {
+                            const LayerContext& context) const {
     const Surface& surface = context.SurfaceOrPlane();
     const std::vector<Splotch> splotches =
         Splotches(PointBounds(x, y), context.spacing, context.ground, surface);
@@ -406,11 +406,11 @@ void SplotchAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, do
     ChangeBands(value, bands, ChangeAt(pointers, x, y, context.spacing, surface));
 }
 
-void SplotchAlbedo::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
+void SplotchAlbedo::Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const {
     if (bands.empty()) {
         return;
     }
-    const RasterGrid grid = RasterGrid::FromRaster(bands.front());
+    const RasterGrid grid = bands.front().Grid();
     const Surface& surface = context.SurfaceOrPlane();
     const std::vector<Splotch> splotches =
         Splotches(grid.Bounds(), context.spacing, context.ground, surface);

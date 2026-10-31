@@ -32,7 +32,7 @@ def figure(quick=False):
     dem_craters = terraingen.CraterLayer(
         fresh,
         terraingen.CraterLayerOptions(
-            seed=21, generation=terraingen.CraterGenerationOptions(d_min=30.0, d_max=200.0)
+            seed=21, generation=terraingen.CraterGenerationOptions(min_diameter=30.0, max_diameter=200.0)
         ),
     )
     dem_terrain = terraingen.Terrain(
@@ -53,7 +53,7 @@ def figure(quick=False):
 
     def craters(inherited):
         options = terraingen.CraterLayerOptions(
-            seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=200.0)
+            seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=200.0)
         )
         options.source_resolves_px = 4.0
         if inherited:

@@ -43,7 +43,7 @@ bool SampleBlock::IsNoData(std::size_t i) const {
 
 Bounds2d SampleBlock::Bounds() const {
     if (grid_ != nullptr) {
-        return RasterGrid::FromRaster(*grid_).Bounds();
+        return grid_->Grid().Bounds();
     }
     if (positions_.empty()) {
         return {};
@@ -60,9 +60,8 @@ Bounds2d SampleBlock::Bounds() const {
 }
 
 double SampleBlock::ResolvedSpacing(double spacing, const Surface& surface) const {
-    return grid_ != nullptr
-               ? terraingen::ResolvedSpacing(RasterGrid::FromRaster(*grid_), spacing, surface)
-               : spacing;
+    return grid_ != nullptr ? terraingen::ResolvedSpacing(grid_->Grid(), spacing, surface)
+                            : spacing;
 }
 
 }  // namespace terraingen

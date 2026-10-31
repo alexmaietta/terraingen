@@ -23,8 +23,8 @@ using terraingen::SlopeAlbedoOptions;
 namespace {
 
 /// An evaluation at `spacing` meters over `ground`.
-terraingen::AlbedoContext OnGround(double spacing, const terraingen::Ground* ground) {
-    terraingen::AlbedoContext context;
+terraingen::LayerContext OnGround(double spacing, const terraingen::Ground* ground) {
+    terraingen::LayerContext context;
     context.spacing = spacing;
     context.ground = ground;
     return context;
@@ -36,7 +36,8 @@ class Tilted final : public terraingen::Ground {
     explicit Tilted(double degrees) : gradient_(std::tan(degrees * terraingen::kPi / 180.0)) {}
 
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             samples.Height(i) = static_cast<float>(gradient_ * samples.Position(i).x);
         }
@@ -49,7 +50,8 @@ class Tilted final : public terraingen::Ground {
 /// A bowl whose walls steepen away from the origin.
 class Bowl final : public terraingen::Ground {
   protected:
-    void FillSamples(terraingen::SampleBlock& samples, double) const override {
+    void FillSamples(terraingen::SampleBlock& samples, double,
+                     unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
             samples.Height(i) = static_cast<float>(0.02 * (p.x * p.x + p.y * p.y));
@@ -139,7 +141,8 @@ TEST(SlopeAlbedo, ReadsSlopesInMetersOnTheGivenSurface) {
         explicit EastSlope(const terraingen::Surface& surface) : surface_(surface) {}
 
       protected:
-        void FillSamples(terraingen::SampleBlock& samples, double) const override {
+        void FillSamples(terraingen::SampleBlock& samples, double,
+                         unsigned /*threads*/) const override {
             for (std::size_t i = 0; i < samples.Size(); ++i) {
                 samples.Height(i) =
                     static_cast<float>(0.5 * surface_.Offset({30.0, 60.0}, samples.Position(i)).x);

@@ -15,7 +15,6 @@ nanobind_add_module(
     src/mesh.cpp
     src/distribution.cpp
     src/crater_models.cpp
-    src/chain_seams.cpp
     src/sources.cpp
     src/layers.cpp
     src/craters.cpp

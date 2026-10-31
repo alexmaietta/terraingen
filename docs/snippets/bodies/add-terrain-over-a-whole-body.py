@@ -19,7 +19,7 @@ def add_terrain_over_a_whole_body(step=1.0):
     models = terraingen.CraterModels(
         terraingen.PowerLawSfd(0.05, 2.0), terraingen.FreshAges(), defaults.degradation, defaults.profile
     )
-    generation = terraingen.CraterGenerationOptions(d_min=3.0, d_max=40.0)  # meters
+    generation = terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=40.0)  # meters
     craters = terraingen.CraterLayer(
         models, terraingen.CraterLayerOptions(seed=6, generation=generation), base=body
     )

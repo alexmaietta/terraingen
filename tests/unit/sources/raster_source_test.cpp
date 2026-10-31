@@ -4,6 +4,7 @@
 #include "support/source_agreement.h"
 #include "terraingen/sources/raster_source.h"
 
+#include "sources/raster_heights.h"
 #include "support/resample.h"
 #include "support/temp_path.h"
 #include "terraingen/raster/geotiff/geotiff.h"
@@ -12,6 +13,7 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -45,8 +47,7 @@ GeoKeys Keys() {
 
 /// A 24 x 18 DEM of uneven heights in 4 m cells with its origin at (1000, 2000).
 Raster<float> Dem() {
-    Raster<float> dem(24, 18);
-    dem.SetTransform(GeoTransform::NorthUp(1000.0, 2000.0, 4.0));
+    Raster<float> dem(RasterGrid{24, 18, GeoTransform::NorthUp(1000.0, 2000.0, 4.0)});
     for (std::size_t row = 0; row < dem.Height(); ++row) {
         for (std::size_t col = 0; col < dem.Width(); ++col) {
             dem(col, row) = static_cast<float>(3.0 * std::sin(0.6 * static_cast<double>(col)) +
@@ -69,8 +70,8 @@ std::shared_ptr<const DiamondSquareUpsampler> DiamondSquare() {
 /// `spacing`.
 void ExpectSameHeights(const terraingen::Source& a, const terraingen::Source& b,
                        const RasterGrid& grid, double spacing) {
-    auto first = grid.MakeRaster();
-    auto second = grid.MakeRaster();
+    Raster<float> first(grid);
+    Raster<float> second(grid);
     a.Fill(first, spacing);
     b.Fill(second, spacing);
     EXPECT_EQ(first.NoData().has_value(), second.NoData().has_value());
@@ -123,7 +124,7 @@ TEST(RasterSource, CubicByDefaultGivesTodaysResamplingToTheBit) {
     for (const double pixelSize : {1.3, 0.5, 2.0}) {
         const Raster<float> resampled =
             terraingen::testing::Resample(dem, pixelSize, ResampleMethod::Cubic);
-        Raster<float> filled = RasterGrid::FromRaster(resampled).MakeRaster();
+        Raster<float> filled(resampled.Grid());
         source.Fill(filled, pixelSize);
         for (std::size_t i = 0; i < filled.Size(); ++i) {
             ASSERT_TRUE(SameBits(filled.Values()[i], resampled.Values()[i]))
@@ -164,7 +165,7 @@ TEST(RasterSource, CopiesItsCellsOnItsLatticeAtItsSpacingOrCoarser) {
     smooth.upsampler = std::make_shared<KernelUpsampler>(ResampleMethod::CubicBSpline);
     const RasterSource source(dem, smooth);
     for (const double spacing : {4.0, 10.0}) {
-        Raster<float> heights = source.Grid().MakeRaster();
+        Raster<float> heights(source.Grid());
         source.Fill(heights, spacing);
         for (std::size_t i = 0; i < heights.Size(); ++i) {
             ASSERT_TRUE(SameBits(heights.Values()[i], dem.Values()[i])) << i;
@@ -183,17 +184,17 @@ TEST(RasterSource, HonoursNoData) {
     dem.SetNoData(-9999.0f);
     dem(3, 4) = -9999.0f;
     const RasterSource source(dem);
-    EXPECT_EQ(source.Grid(), RasterGrid::FromRaster(dem));
+    EXPECT_EQ(source.Grid(), dem.Grid());
     const auto hole = dem.CellCenter(3, 4);
     EXPECT_TRUE(std::isnan(source.HeightAt(hole.x, hole.y, 4.0)));
     EXPECT_TRUE(std::isnan(source.HeightAt(hole.x + 0.3, hole.y, 1.0)));
     const auto cell = dem.CellCenter(5, 6);
     EXPECT_EQ(source.HeightAt(cell.x, cell.y, 4.0), dem(5, 6));
-    auto heights = source.Grid().MakeRaster();
+    Raster<float> heights(source.Grid());
     source.Fill(heights);
     EXPECT_EQ(heights.NoData(), -9999.0f);
     EXPECT_EQ(heights(3, 4), -9999.0f);
-    auto fine = terraingen::testing::ResampledGrid(source.Grid(), 2.0).MakeRaster();
+    Raster<float> fine(terraingen::testing::ResampledGrid(source.Grid(), 2.0));
     source.Fill(fine);
     EXPECT_EQ(fine.NoData(), -9999.0f);
     EXPECT_EQ(fine(6, 8), -9999.0f);
@@ -207,11 +208,10 @@ TEST(RasterSource, RejectsUnusableRastersAndOptions) {
         options.effectivePixelSize = size;
         EXPECT_THROW(RasterSource(Dem(), options), std::invalid_argument) << size;
     }
-    Raster<float> rotated(4, 4, 1.0f);
-    rotated.SetTransform(GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0});
+    Raster<float> rotated(RasterGrid{4, 4, GeoTransform{0.0, 1.0, 0.2, 0.0, 0.1, -1.0}}, 1.0f);
     EXPECT_NO_THROW(RasterSource{rotated});
     const RasterSource turned(rotated);
-    auto grid = RasterGrid{2, 2, GeoTransform{0.5, 1.0, 0.2, 0.0, 0.1, -1.0}}.MakeRaster();
+    Raster<float> grid(RasterGrid{2, 2, GeoTransform{0.5, 1.0, 0.2, 0.0, 0.1, -1.0}});
     EXPECT_THROW(turned.Fill(grid), std::invalid_argument);
     EXPECT_THROW(static_cast<void>(turned.HeightAt(0.7, -1.3, 0.1)), std::invalid_argument);
 }
@@ -225,6 +225,10 @@ TEST(RasterSource, ResolvesItsCellsOrItsEffectivePixelSize) {
     const RasterSource native(dem);
     EXPECT_EQ(native.ResolutionAt(center.x, center.y), 4.0);
     EXPECT_EQ(native.ResolutionAt(hole.x, hole.y), kInf);
+    const auto beside = dem.CellCenter(3, 2);
+    EXPECT_EQ(native.ResolutionAt(beside.x + 1.0, beside.y - 1.5), 4.0)
+        << "the cell under the point holds data, though cubic taps reach the hole";
+    EXPECT_EQ(native.ResolutionAt(hole.x + 1.5, hole.y + 1.0), kInf) << "the hole's own cell";
     EXPECT_EQ(native.ResolutionAt(900.0, 2000.0), kInf);
     RasterSourceOptions upsampled;
     upsampled.effectivePixelSize = 20.0;
@@ -233,8 +237,7 @@ TEST(RasterSource, ResolvesItsCellsOrItsEffectivePixelSize) {
     EXPECT_EQ(coarse.ResolutionAt(hole.x, hole.y), kInf);
     EXPECT_EQ(coarse.PostSpacingAt(center.x, center.y), 4.0) << "the posts stay the cells";
     EXPECT_EQ(coarse.PostSpacingAt(hole.x, hole.y), kInf);
-    Raster<float> oblong(8, 8, 1.0f);
-    oblong.SetTransform(GeoTransform{0.0, 2.0, 0.0, 0.0, 0.0, -5.0});
+    Raster<float> oblong(RasterGrid{8, 8, GeoTransform{0.0, 2.0, 0.0, 0.0, 0.0, -5.0}}, 1.0f);
     EXPECT_EQ(RasterSource(oblong).ResolutionAt(3.0, -7.0), 5.0);
 }
 
@@ -242,8 +245,7 @@ namespace {
 
 /// A 24 x 12 globe of uneven heights in 15 degree cells, its west edge at longitude `west`.
 Raster<float> Globe(double west, std::size_t shift = 0) {
-    Raster<float> globe(24, 12);
-    globe.SetTransform(GeoTransform::NorthUp(west, 90.0, 15.0));
+    Raster<float> globe(RasterGrid{24, 12, GeoTransform::NorthUp(west, 90.0, 15.0)});
     for (std::size_t row = 0; row < globe.Height(); ++row) {
         for (std::size_t col = 0; col < globe.Width(); ++col) {
             const double at = static_cast<double>((col + shift) % globe.Width());
@@ -265,8 +267,7 @@ TEST(RasterSource, WrapsAGlobeInLongitude) {
     EXPECT_EQ(source.HeightAt(367.5, -82.5, 15.0), globe(0, 11));
     EXPECT_EQ(source.ResolutionAt(-172.5, 0.0), 15.0);
 
-    Raster<float> east(24, 12);
-    east.SetTransform(GeoTransform::NorthUp(-180.0, 90.0, 15.0));
+    Raster<float> east(RasterGrid{24, 12, GeoTransform::NorthUp(-180.0, 90.0, 15.0)});
     source.Fill(east, 15.0);
     for (std::size_t row = 0; row < east.Height(); ++row) {
         for (std::size_t col = 0; col < east.Width(); ++col) {
@@ -276,8 +277,7 @@ TEST(RasterSource, WrapsAGlobeInLongitude) {
     EXPECT_FALSE(east.NoData().has_value());
 
     const RasterSource centered(Globe(-180.0, 12), {}, degrees);
-    Raster<float> seam(36, 6);
-    seam.SetTransform(GeoTransform::NorthUp(-45.0, 45.0, 2.5));
+    Raster<float> seam(RasterGrid{36, 6, GeoTransform::NorthUp(-45.0, 45.0, 2.5)});
     Raster<float> across = seam;
     source.Fill(seam, 2.5);
     centered.Fill(across, 2.5);
@@ -293,18 +293,16 @@ TEST(RasterSource, WrapsAGlobeInLongitude) {
 
 TEST(RasterSource, WrapsOnlyGeographicRastersSpanningATurn) {
     const GeoKeys degrees = terraingen::GeographicSphereKeys(1737400.0);
-    EXPECT_TRUE(terraingen::detail::WrapsLongitude(degrees, RasterGrid::FromRaster(Globe(0.0))));
+    EXPECT_TRUE(terraingen::detail::WrapsLongitude(degrees, Globe(0.0).Grid()));
     EXPECT_TRUE(std::isnan(RasterSource(Globe(0.0), {}, Keys()).HeightAt(-172.5, 0.0, 15.0)));
     EXPECT_TRUE(std::isnan(RasterSource(Globe(0.0)).HeightAt(-172.5, 0.0, 15.0)));
-    Raster<float> partial(23, 12, 1.0f);
-    partial.SetTransform(GeoTransform::NorthUp(0.0, 90.0, 15.0));
-    EXPECT_FALSE(terraingen::detail::WrapsLongitude(degrees, RasterGrid::FromRaster(partial)));
+    Raster<float> partial(RasterGrid{23, 12, GeoTransform::NorthUp(0.0, 90.0, 15.0)}, 1.0f);
+    EXPECT_FALSE(terraingen::detail::WrapsLongitude(degrees, partial.Grid()));
     EXPECT_TRUE(std::isnan(RasterSource(partial, {}, degrees).HeightAt(-7.5, 0.0, 15.0)));
 }
 
 TEST(RasterSource, CopiesItsLatticeInStripsOnEveryThreadCount) {
-    Raster<float> heights(150, 200, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(0.0, 400.0, 2.0));
+    Raster<float> heights(RasterGrid{150, 200, GeoTransform::NorthUp(0.0, 400.0, 2.0)}, 0.0f);
     heights.SetNoData(-9999.0f);
     for (std::size_t row = 0; row < heights.Height(); ++row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
@@ -313,10 +311,8 @@ TEST(RasterSource, CopiesItsLatticeInStripsOnEveryThreadCount) {
     }
     heights(7, 130) = -9999.0f;
     const RasterSource source(heights);
-    Raster<float> serial(140, 210);
-    serial.SetTransform(GeoTransform::NorthUp(10.0, 410.0, 2.0));
-    Raster<float> parallel(140, 210);
-    parallel.SetTransform(serial.Transform());
+    Raster<float> serial(RasterGrid{140, 210, GeoTransform::NorthUp(10.0, 410.0, 2.0)});
+    Raster<float> parallel(RasterGrid{140, 210, serial.Transform()});
     source.Fill(serial, 2.0, 1);
     source.Fill(parallel, 2.0, 0);
     terraingen::testing::ExpectSameRaster(serial, parallel);
@@ -325,4 +321,53 @@ TEST(RasterSource, CopiesItsLatticeInStripsOnEveryThreadCount) {
     EXPECT_TRUE(serial.IsNoData(serial(2, 135))) << "the no-data post";
     EXPECT_TRUE(serial.IsNoData(serial(0, 0))) << "above the lattice";
     EXPECT_TRUE(serial.IsNoData(serial(139, 209))) << "beyond the lattice";
+}
+
+namespace {
+
+/// Cubic upsampling that counts the samples it upsamples.
+class CountingUpsampler final : public terraingen::Upsampler {
+  public:
+    mutable std::atomic<std::size_t> samples{0};
+
+  protected:
+    void FillSamples(const terraingen::PostLattice& posts, terraingen::SampleBlock& block,
+                     double spacing, unsigned threads) const override {
+        samples += block.Size();
+        cubic_.Fill(posts, block, spacing, threads);
+    }
+
+  private:
+    KernelUpsampler cubic_;
+};
+
+}  // namespace
+
+TEST(RasterSource, UpsamplesOnlyTheCellsItCoversToTheSameBits) {
+    auto counting = std::make_shared<CountingUpsampler>();
+    RasterSourceOptions options;
+    options.upsampler = counting;
+    const RasterSource source(Dem(), options);
+    const RasterGrid wide{200, 200, GeoTransform::NorthUp(900.0, 2100.0, 1.0)};
+    Raster<float> heights(wide);
+    source.Fill(heights, 1.0);
+    EXPECT_LE(counting->samples.load(), std::size_t{98 * 74}) << "the 96 x 72 cells covered";
+    std::size_t covered = 0;
+    for (std::size_t row = 0; row < heights.Height(); ++row) {
+        for (std::size_t col = 0; col < heights.Width(); ++col) {
+            const auto center = heights.CellCenter(col, row);
+            const float point = source.HeightAt(center.x, center.y, 1.0);
+            ASSERT_TRUE(SameBits(heights(col, row), point) ||
+                        (heights.IsNoData(heights(col, row)) && std::isnan(point)))
+                << col << "," << row;
+            covered += std::isnan(point) ? 0 : 1;
+        }
+    }
+    EXPECT_EQ(covered, std::size_t{96 * 72});
+    const RasterGrid away{20, 20, GeoTransform::NorthUp(0.0, 0.0, 1.0)};
+    Raster<float> nothing(away);
+    counting->samples = 0;
+    source.Fill(nothing, 1.0);
+    EXPECT_EQ(counting->samples.load(), 0u) << "a grid off the raster upsamples nothing";
+    EXPECT_TRUE(nothing.IsNoData(nothing(3, 3)));
 }

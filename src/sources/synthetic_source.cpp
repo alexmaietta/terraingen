@@ -2,9 +2,10 @@
 
 #include "terraingen/sources/synthetic_source.h"
 
+#include "sources/lattice.h"
+
 #include "terraingen/noise/validate.h"
 #include "terraingen/random/stream.h"
-#include "terraingen/util/parallel.h"
 #include "util/checks.h"
 
 #include <cmath>
@@ -88,17 +89,8 @@ void SyntheticSource::FillSamples(SampleBlock& samples, double spacing, unsigned
         upsampler_->Fill(*posts_, samples, spacing, threads);
         return;
     }
-    Raster<float>* grid = samples.Grid();
-    if (grid == nullptr) {
-        NoiseAt(samples.Points(), samples.Heights());
-        return;
-    }
-    ParallelFor(grid->Height(), threads, [&](std::size_t row) {
-        std::vector<Vec2d> points(grid->Width());
-        for (std::size_t col = 0; col < points.size(); ++col) {
-            points[col] = grid->CellCenter(col, row);
-        }
-        NoiseAt(points, grid->Values().subspan(row * grid->Width(), grid->Width()));
+    detail::FillByTiles(samples, threads, [&](Span<const Vec2d> points, Span<float> heights) {
+        NoiseAt(points, heights);
     });
 }
 

@@ -55,9 +55,10 @@ def figure(quick=False):
     ax = fig.add_subplot(grid[0, 0])
     gallery.show_hillshade(ax, alone, pixel_m, sun_elevation=20.0)
     ax.set_title("LDEM_8, cubic")
-    for column, ((title, d_max, resolves), color) in enumerate(zip(PANELS, COLORS, strict=True)):
+    for column, ((title, max_diameter, resolves), color) in enumerate(zip(PANELS, COLORS, strict=True)):
         options = terraingen.CraterLayerOptions(
-            seed=5, generation=terraingen.CraterGenerationOptions(d_min=D_MIN_M, d_max=d_max)
+            seed=5,
+            generation=terraingen.CraterGenerationOptions(min_diameter=D_MIN_M, max_diameter=max_diameter),
         )
         options.source_resolves_px = resolves
         craters = terraingen.CraterLayer(options=options, base=terraingen.TerrainBase(moon, source))

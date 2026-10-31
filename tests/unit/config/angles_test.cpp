@@ -14,9 +14,7 @@
 #include <variant>
 
 namespace config = terraingen::config;
-using config::DegreesFromRadians;
 using config::Json;
-using config::RadiansFromDegrees;
 using terraingen::ConfigError;
 using terraingen::ConfigSpec;
 using terraingen::ConfigToJson;
@@ -43,17 +41,6 @@ std::string ReadError(const std::string& json) {
 }
 
 }  // namespace
-
-TEST(DegreesFromRadians, GivesTheShortestDegreesThatTurnBackIntoTheRadians) {
-    EXPECT_EQ(DegreesFromRadians(29.0 * kDegree), 29.0);
-    EXPECT_EQ(DegreesFromRadians(0.0), 0.0);
-    EXPECT_EQ(DegreesFromRadians(-90.0 * kDegree), -90.0);
-    for (const double radians : {0.5, 0.35, 0.03, 0.8, 4.3, 0.26, 1e-9, 123.456}) {
-        EXPECT_EQ(RadiansFromDegrees(DegreesFromRadians(radians)), radians) << radians;
-    }
-    EXPECT_TRUE(std::isnan(DegreesFromRadians(std::nan(""))));
-    EXPECT_TRUE(std::isinf(DegreesFromRadians(HUGE_VAL)));
-}
 
 TEST(ConfigAngles, ReadDegreesIntoRadians) {
     const ConfigSpec config = ParseConfig(OneLayer(
@@ -150,7 +137,8 @@ TEST(ConfigAngles, ReadManualBoulderAnglesInDegreesAndLeaveOmittedOnesUnset) {
         R"({"type": "boulders", "manual": [{"x": 1, "y": 2, "diameter_m": 1.5, "yaw_deg": 30,
             "lean_deg": 10, "tilt_deg": 20, "tilt_azimuth_deg": -90, "burial": 0.3,
             "rest": "side", "shape_seed": 9}, {"x": 0, "y": 0, "diameter_m": 1, "yaw_deg": null}]})"));
-    const auto& manual = std::get<terraingen::BoulderLayerSpec>(config.layers.at(0)).manual;
+    const auto& manual =
+        std::get<terraingen::BoulderLayerSpec>(config.layers.at(0)).boulders.manual;
     ASSERT_EQ(manual.size(), 2u);
     EXPECT_EQ(manual[0].yawDegrees, 30.0);
     EXPECT_EQ(manual[0].leanDegrees, 10.0);

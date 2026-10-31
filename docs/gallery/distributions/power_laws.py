@@ -48,7 +48,7 @@ def figure(quick=False):
             terraingen.NoDegradation(terraingen.lunar_fresh_crater_morphometry),
         )
         options = terraingen.CraterLayerOptions(
-            seed=8, generation=terraingen.CraterGenerationOptions(d_min=D_MIN, d_max=D_MAX)
+            seed=8, generation=terraingen.CraterGenerationOptions(min_diameter=D_MIN, max_diameter=D_MAX)
         )
         terrain = terraingen.Terrain(
             source=terraingen.FlatSource(size, size, pixel),

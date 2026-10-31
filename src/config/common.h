@@ -13,12 +13,14 @@
 #include "terraingen/config/config.h"
 #include "terraingen/config/json.h"
 #include "terraingen/geometry/geometry.h"
+#include "terraingen/geometry/geometry_fields.h"
 #include "terraingen/layers/density_map.h"
 #include "terraingen/layers/field.h"
 #include "terraingen/layers/layer_fields.h"
 #include "terraingen/noise/noise_fields.h"
 #include "terraingen/noise/validate.h"
 #include "terraingen/raster/geotiff/geotiff.h"
+#include "terraingen/raster/raster_fields.h"
 #include "terraingen/raster/resample.h"
 #include "terraingen/util/option_fields.h"
 
@@ -37,26 +39,6 @@
 #include <vector>
 
 namespace terraingen {
-
-template <> struct EnumNames<ResampleMethod> {
-    static constexpr std::array<EnumEntry<ResampleMethod>, 6> kValues{{
-        {"nearest", ResampleMethod::Nearest,
-         "The value of the nearest cell center: blocky, but never mixes values."},
-        {"bilinear", ResampleMethod::Bilinear,
-         "Linear in each axis over the four surrounding cells."},
-        {"cubic", ResampleMethod::Cubic,
-         "Keys cubic convolution (a = -0.5) over the sixteen surrounding cells: smooth, for "
-         "upscaling DEMs."},
-        {"catmull_rom", ResampleMethod::Cubic,
-         "Another name for cubic: the Catmull-Rom spline is the same kernel."},
-        {"lanczos3", ResampleMethod::Lanczos3,
-         "The three-lobe Lanczos kernel over the 36 surrounding cells: sharper than cubic, with "
-         "slight ringing at steps."},
-        {"cubic_bspline", ResampleMethod::CubicBSpline,
-         "The cubic B-spline over the sixteen surrounding cells: the smoothest, but it smooths "
-         "the cells themselves."},
-    }};
-};
 
 /// A value held by pointer, so that a spec can hold the variant it belongs to; it is copied by
 /// value.
@@ -115,10 +97,7 @@ struct FieldSpec {
     std::string path{};    ///< GeoTIFF, relative to the configuration's folder; empty for `value`.
     double value = 0.0;    ///< The field everywhere, without a `path`.
     std::size_t band = 0;  ///< The GeoTIFF band, from 0.
-    ResampleMethod method = ResampleMethod::Bilinear;
-    double scale = 1.0;                ///< Multiplies every cell.
-    std::optional<double> fallback{};  ///< Where the GeoTIFF has no value; unset leaves none.
-    bool periodicLongitude = false;    ///< The GeoTIFF's x is longitude repeating every 360 deg.
+    RasterFieldOptions read{};
 };
 
 template <typename IO> void Fields(IO& io, FieldSpec& field) {
@@ -127,48 +106,24 @@ template <typename IO> void Fields(IO& io, FieldSpec& field) {
        "meters on a plane, longitude and latitude in degrees on a sphere. Empty uses value.");
     io("value", field.value, "The field everywhere when no path is given.");
     io("band", field.band, "Band of the GeoTIFF read, from 0.");
-    io("method", field.method,
-       "How the GeoTIFF is interpolated: nearest or bilinear, which stay within the cells read.");
-    io("scale", field.scale,
-       "Multiplies every cell, such as 0.001 for a map stored in thousandths.", "", Above(0.0));
-    io("fallback", field.fallback,
-       "Value outside the GeoTIFF and where its cells are no-data or NaN; unset leaves none, and "
-       "the layer then keeps its own setting there.");
-    io("periodic_longitude", field.periodicLongitude,
-       "The GeoTIFF's x is longitude repeating every 360 degrees, so a map from 0 to 360 serves "
-       "-180 to 180.");
+    Fields(io, field.read);
 }
 
-/// A density map (`DensityMap`) of a crater or boulder population: `map` with its field read from
-/// `field`.
-struct DensityMapSpec {
+/// A map of a population, `DensityMap` or `SizeSlopeMap`: `map` with its field read from `field`.
+template <typename Map> struct MapSpec {
     FieldSpec field{};
-    DensityMap map{};  ///< Its `field` is left null; `field` gives it.
+    Map map{};  ///< Its `field` is left null; `field` gives it.
 };
 
-template <typename IO> void Fields(IO& io, DensityMapSpec& spec) {
+/// A density map of a crater or boulder population.
+using DensityMapSpec = MapSpec<DensityMap>;
+
+/// A size slope map of a boulder population.
+using SizeSlopeMapSpec = MapSpec<SizeSlopeMap>;
+
+template <typename IO, typename Map> void Fields(IO& io, MapSpec<Map>& spec) {
     io("field", spec.field, "The map.");
     Fields(io, spec.map);
-}
-
-/// A size slope map (`SizeSlopeMap`) of a boulder population: `map` with its field read from
-/// `field`.
-struct SizeSlopeMapSpec {
-    FieldSpec field{};
-    SizeSlopeMap map{};  ///< Its `field` is left null; `field` gives it.
-};
-
-template <typename IO> void Fields(IO& io, SizeSlopeMapSpec& spec) {
-    io("field", spec.field, "The map.");
-    Fields(io, spec.map);
-}
-
-/// The fields of a box in a raster's CRS units, as a GeoTIFF's `crop`.
-template <typename IO> void Fields(IO& io, Bounds2d& box) {
-    io("min_x", box.minX, "Lower edge along x, in the raster's CRS units.");
-    io("min_y", box.minY, "Lower edge along y, in the raster's CRS units.");
-    io("max_x", box.maxX, "Upper edge along x, in the raster's CRS units; above min_x.");
-    io("max_y", box.maxY, "Upper edge along y, in the raster's CRS units; above min_y.");
 }
 
 /// Amplitude over wavelength of a terrain noise layer whose amplitude is unset, near the lunar
@@ -237,8 +192,7 @@ inline FieldRange NoiseStackLength(std::size_t fewest) {
 std::vector<Fractal> StackFractals(const std::vector<FractalSpec>& stack);
 
 /// The fractal a synthetic source starts from by default: fBm 400 m in wavelength and 12 m in
-/// amplitude, seed 2, the `Fractal` defaults otherwise; rolling ground that craters and boulders
-/// look natural on at a meter per pixel.
+/// amplitude, seed 2.
 inline FractalSpec DefaultBaseNoise() {
     FractalSpec base;
     base.fractal.seed = 2;
@@ -252,19 +206,14 @@ inline FractalSpec DefaultBaseNoise() {
 /// beside the library's option structs.
 namespace config {
 
-/// The JSON path `path.key` of an object's member, or just `key` when `path` is empty.
-inline std::string Child(const std::string& path, std::string_view key) {
-    return FieldPath(path, key);
-}
-
-/// The JSON path `path[index]` of an array's element.
-inline std::string Element(const std::string& path, std::size_t index) {
-    return ItemPath(path, index);
-}
-
 /// Whether a variant, such as a layer or an output, holds one of the alternatives `Kinds`.
 template <typename... Kinds, typename... Ts> bool HoldsAny(const std::variant<Ts...>& value) {
     return (std::holds_alternative<Kinds>(value) || ...);
+}
+
+/// "lowest to highest", as messages give the counts a value allows.
+inline std::string CountText(std::size_t lowest, std::size_t highest) {
+    return std::to_string(lowest) + " to " + std::to_string(highest);
 }
 
 /// Checks that a configuration string, such as a file path, is not empty.
@@ -283,7 +232,7 @@ template <typename Check> auto At(const std::string& path, Check check) {
     try {
         return check();
     } catch (const FieldRangeError& error) {
-        throw ConfigError(Child(path, error.Path()), error.Rule());
+        throw ConfigError(FieldPath(path, error.Path()), error.Rule());
     } catch (const std::invalid_argument& error) {
         throw ConfigError(path, error.what());
     } catch (const std::domain_error& error) {
@@ -295,12 +244,7 @@ template <typename Check> auto At(const std::string& path, Check check) {
 /// (`FieldRange`): every number finite, every list of a length its field allows and every required
 /// optional set.
 /// @throws ConfigError naming the first value that does not fit by its JSON path.
-template <typename T> struct IsVariantTrait : std::false_type {};
-template <typename... Ts> struct IsVariantTrait<std::variant<Ts...>> : std::true_type {};
-
 template <typename T> void CheckConfigRanges(const T& value, const std::string& path = {}) {
-    static_assert(HasRangedFields<T> || IsVariantTrait<T>::value,
-                  "CheckConfigRanges needs a struct with a field list or a variant of them");
     T copy = value;
     try {
         CheckValueRanges(copy, path, {}, FieldRange{});
@@ -339,15 +283,6 @@ inline std::string InputPathHelp(std::string_view file) {
     return std::string(file) + "; relative paths resolve against the configuration's folder.";
 }
 
-/// An angle in degrees as configurations give it: the shortest decimal that `RadiansFromDegrees`
-/// turns back into exactly `radians`, else the nearest.
-double DegreesFromRadians(double radians);
-
-/// An angle in radians from degrees as configurations give it.
-inline double RadiansFromDegrees(double degrees) {
-    return degrees * kDegree;
-}
-
 /// @throws ConfigError at `path` for a grid side outside the sizes a configuration may request.
 void CheckGridSize(std::size_t width, std::size_t height, const std::string& path);
 
@@ -363,7 +298,7 @@ void CheckExpectedCount(double expected, std::string_view items, std::string_vie
 template <typename Spec>
 void CheckNoiseStack(const std::vector<Spec>& layers, const std::string& path) {
     for (std::size_t i = 0; i < layers.size(); ++i) {
-        At(Element(path, i), [&] { ValidateFractal(layers[i].Effective()); });
+        At(ItemPath(path, i), [&] { ValidateFractal(layers[i].Effective()); });
     }
 }
 
@@ -374,15 +309,22 @@ void CheckNoiseStack(const std::vector<Spec>& layers, const std::string& path) {
 std::shared_ptr<const SurfaceField> BuildField(const FieldSpec& spec, const std::string& path,
                                                const std::filesystem::path& directory = {});
 
-/// The density map a spec describes, its field built (`BuildField`) and the map checked.
+/// The map a spec describes, its field built (`BuildField`) and the map checked.
 /// @throws ConfigError at `path`.field for an unreadable GeoTIFF, or at `path` for an invalid map.
-DensityMap BuildDensityMap(const DensityMapSpec& spec, const std::string& path,
-                           const std::filesystem::path& directory = {});
-
-/// The size slope map a spec describes, its field built (`BuildField`) and the map checked.
-/// @throws ConfigError at `path`.field for an unreadable GeoTIFF, or at `path` for an invalid map.
-SizeSlopeMap BuildSizeSlopeMap(const SizeSlopeMapSpec& spec, const std::string& path,
-                               const std::filesystem::path& directory = {});
+template <typename Map>
+Map BuildMap(const MapSpec<Map>& spec, const std::string& path,
+             const std::filesystem::path& directory = {}) {
+    Map map = spec.map;
+    map.field = BuildField(spec.field, FieldPath(path, "field"), directory);
+    At(path, [&] {
+        if constexpr (std::is_same_v<Map, DensityMap>) {
+            ValidateDensityMap(map);
+        } else {
+            ValidateSizeSlopeMap(map);
+        }
+    });
+    return map;
+}
 
 }  // namespace config
 

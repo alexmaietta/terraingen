@@ -14,7 +14,7 @@ WINDOW = terraingen.RasterGrid.centered((0.0, 0.0), (200.0, 200.0), 1.0)
 def crater_layer(base=None, inherited=None):
     """The same crater layer at every level: 4 m to 120 m craters, seed 5."""
     options = terraingen.CraterLayerOptions(
-        seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=120.0)
+        seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=120.0)
     )
     options.source_resolves_px = RESOLVES_PIXELS
     if inherited is not None:

@@ -17,7 +17,7 @@ def skip_craters_a_dem_resolves(resolves_pixels=4.0):
     )
     # --8<-- [start:skip_craters_a_dem_resolves]
     options = terraingen.CraterLayerOptions(
-        seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=200.0)
+        seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=200.0)
     )
     options.source_resolves_px = resolves_pixels  # DEM cells across; None keeps every crater
     base = terraingen.TerrainBase(terraingen.Surface.plane(), dem)

@@ -59,7 +59,7 @@ def figure(quick=False):
         )
         density_map.measure = terraingen.DensityMeasure.SCALE
         options = terraingen.CraterLayerOptions(
-            seed=5, generation=terraingen.CraterGenerationOptions(d_min=4.0, d_max=60.0)
+            seed=5, generation=terraingen.CraterGenerationOptions(min_diameter=4.0, max_diameter=60.0)
         )
         options.density_map = density_map
         terrain = terraingen.Terrain(

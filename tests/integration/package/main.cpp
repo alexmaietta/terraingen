@@ -19,9 +19,8 @@ int main() {
 
     std::vector<terraingen::Fractal> params{terraingen::Fractal{}};
     params[0].amplitude = 10.0f;
-    terraingen::Raster<float> terrain =
-        terraingen::RasterGrid{32, 32, terraingen::GeoTransform::NorthUp(-16.0, 16.0, 1.0)}
-            .MakeRaster();
+    terraingen::Raster<float> terrain(
+        terraingen::RasterGrid{32, 32, terraingen::GeoTransform::NorthUp(-16.0, 16.0, 1.0)});
     terraingen::SyntheticSource(params).Fill(terrain);
     const terraingen::RasterStats stats = terraingen::ComputeStats(terrain);
     std::printf("synthetic terrain: %zu cells, %.3f to %.3f m\n", stats.validCount, stats.min,

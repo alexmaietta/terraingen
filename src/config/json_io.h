@@ -27,10 +27,6 @@ namespace terraingen::config {
 /// The JSON type configurations are read from and written to, keeping keys in order.
 using Json = nlohmann::ordered_json;
 
-/// Reports a problem with the configuration.
-/// @throws ConfigError at `path` with `message`, always.
-[[noreturn]] void Fail(const std::string& path, const std::string& message);
-
 /// Reads the keys of one JSON object into fields, remembering which keys were asked for so
 /// that any other key can be reported.
 class Reader {
@@ -150,14 +146,15 @@ void ReadObject(const Json& json, const std::string& path, T& value, bool typed 
 template <typename T, std::enable_if_t<IsUnsignedInteger<T>, int>>
 void Read(const Json& json, const std::string& path, T& value) {
     if (!json.is_number_integer()) {
-        Fail(path, std::string("expected a non-negative integer, not ") + json.type_name());
+        throw ConfigError(path,
+                          std::string("expected a non-negative integer, not ") + json.type_name());
     }
     if (!json.is_number_unsigned()) {
-        Fail(path, "expected a non-negative integer");
+        throw ConfigError(path, "expected a non-negative integer");
     }
     const auto number = json.get<std::uint64_t>();
     if (number > std::numeric_limits<T>::max()) {
-        Fail(path, "integer is too large");
+        throw ConfigError(path, "integer is too large");
     }
     value = static_cast<T>(number);
 }
@@ -174,7 +171,7 @@ void Read(const Json& json, const std::string& path, E& value) {
         }
         expected += (expected.empty() ? "" : ", ") + std::string(entry.name);
     }
-    Fail(path, "unknown value \"" + name + "\"; expected one of: " + expected);
+    throw ConfigError(path, "unknown value \"" + name + "\"; expected one of: " + expected);
 }
 
 template <typename T, std::enable_if_t<HasFields<T>, int>>
@@ -199,11 +196,11 @@ template <typename T> void Read(const Json& json, const std::string& path, Boxed
 
 template <typename T> void Read(const Json& json, const std::string& path, std::vector<T>& value) {
     if (!json.is_array()) {
-        Fail(path, std::string("expected an array, not ") + json.type_name());
+        throw ConfigError(path, std::string("expected an array, not ") + json.type_name());
     }
     std::vector<T> items(json.size());
     for (std::size_t i = 0; i < json.size(); ++i) {
-        Read(json[i], Element(path, i), items[i]);
+        Read(json[i], ItemPath(path, i), items[i]);
     }
     value = std::move(items);
 }
@@ -226,17 +223,19 @@ bool ReadAlternative(const Json& json, const std::string& path, const std::strin
 template <typename... Ts>
 void Read(const Json& json, const std::string& path, std::variant<Ts...>& value) {
     if (!json.is_object()) {
-        Fail(path, std::string("expected an object with a \"type\", not ") + json.type_name());
+        throw ConfigError(path, std::string("expected an object with a \"type\", not ") +
+                                    json.type_name());
     }
     std::string expected;
     ((expected += (expected.empty() ? "" : ", ") + std::string(SpecName<Ts>::kName)), ...);
     const auto type = json.find("type");
     if (type == json.end() || !type->is_string()) {
-        Fail(Child(path, "type"), "expected a string, one of: " + expected);
+        throw ConfigError(FieldPath(path, "type"), "expected a string, one of: " + expected);
     }
     const std::string name = type->template get<std::string>();
     if (!(ReadAlternative<Ts>(json, path, name, value) || ...)) {
-        Fail(Child(path, "type"), "unknown type \"" + name + "\"; expected one of: " + expected);
+        throw ConfigError(FieldPath(path, "type"),
+                          "unknown type \"" + name + "\"; expected one of: " + expected);
     }
 }
 
@@ -246,7 +245,7 @@ void Reader::operator()(std::string_view key, T& value, std::string_view /*descr
     known_.emplace(key);
     const auto found = json_.find(key);
     if (found != json_.end()) {
-        Read(*found, Child(path_, key), value);
+        Read(*found, FieldPath(path_, key), value);
     } else if (range.required) {
         missing_.emplace_back(key);
     }

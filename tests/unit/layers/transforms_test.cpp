@@ -19,7 +19,7 @@ namespace {
 /// A 6 x 4 grid of heights -2.5, -1.5, ... with one no-data cell.
 terraingen::Raster<float> Ramp() {
     const terraingen::RasterGrid grid{6, 4, terraingen::GeoTransform::NorthUp(10.0, 20.0, 0.5)};
-    auto heights = grid.MakeRaster();
+    terraingen::Raster<float> heights(grid);
     for (std::size_t i = 0; i < heights.Size(); ++i) {
         heights.Values()[i] = static_cast<float>(i) - 2.5f;
     }
@@ -91,12 +91,12 @@ TEST(FunctionLayer, CallsTheFunctionAtCellCentersWithTheSpacing) {
 TEST(FunctionLayer, WorksOnAnySurfaceAndGetsTheSpacingInMetersThere) {
     const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
     const FunctionLayer layer([](double, double, double spacing, double) { return spacing; });
-    EXPECT_FALSE(layer.LayerSurface());
-    EXPECT_FALSE(ScaleLayer(2.0).LayerSurface());
-    EXPECT_FALSE(ClampLayer(0.0, 1.0).LayerSurface());
+    EXPECT_FALSE(layer.LayerBase());
+    EXPECT_FALSE(ScaleLayer(2.0).LayerBase());
+    EXPECT_FALSE(ClampLayer(0.0, 1.0).LayerBase());
     EXPECT_EQ(layer.Reseeded(1), nullptr);
-    terraingen::Raster<float> heights(2, 2, 0.0f);
-    heights.SetTransform(terraingen::GeoTransform::NorthUp(0.0, 0.0, 0.001));
+    terraingen::Raster<float> heights(
+        terraingen::RasterGrid{2, 2, terraingen::GeoTransform::NorthUp(0.0, 0.0, 0.001)}, 0.0f);
     terraingen::LayerContext onMoon;
     onMoon.surface = &moon;
     layer.Apply(heights, onMoon);

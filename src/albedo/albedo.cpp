@@ -14,7 +14,7 @@
 
 namespace terraingen {
 
-void ValidateAlbedoContext(const AlbedoContext& context) {
+void ValidateAlbedoContext(const LayerContext& context) {
     RequirePositive(context.spacing, "Albedo sample spacing");
 }
 
@@ -85,13 +85,13 @@ void ForEachAlbedoBlock(
     });
 }
 
-void AlbedoSource::Fill(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
+void AlbedoSource::Fill(std::vector<Raster<float>>& bands, const LayerContext& context) const {
     ForEachAlbedoCell(bands, context.threads, [&](AlbedoSample& value, double x, double y) {
         value = ValueAt(x, y, context);
     });
 }
 
-void AlbedoLayer::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& context) const {
+void AlbedoLayer::Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const {
     const std::size_t count = bands.size();
     ForEachAlbedoCell(bands, context.threads, [&](AlbedoSample& value, double x, double y) {
         ApplyAt(value, count, x, y, context);
@@ -100,7 +100,7 @@ void AlbedoLayer::Apply(std::vector<Raster<float>>& bands, const AlbedoContext& 
 
 namespace {
 
-std::size_t CheckAlbedo(const Albedo& albedo, const AlbedoContext& context) {
+std::size_t CheckAlbedo(const Albedo& albedo, const LayerContext& context) {
     if (!albedo.source) {
         throw std::invalid_argument("An albedo needs a source");
     }
@@ -120,7 +120,7 @@ std::size_t CheckAlbedo(const Albedo& albedo, const AlbedoContext& context) {
 }  // namespace
 
 std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid& grid,
-                                          AlbedoContext context) {
+                                          LayerContext context) {
     if (grid.width == 0 || grid.height == 0) {
         throw std::invalid_argument("Cannot evaluate an albedo over an empty grid");
     }
@@ -132,7 +132,7 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
     const std::size_t count = CheckAlbedo(albedo, context);
     std::vector<Raster<float>> bands;
     for (std::size_t band = 0; band < count; ++band) {
-        Raster<float> raster = grid.MakeRaster(0.0f);
+        Raster<float> raster(grid, 0.0f);
         raster.SetNoData(std::numeric_limits<float>::quiet_NaN());
         bands.push_back(std::move(raster));
     }
@@ -146,7 +146,7 @@ std::vector<Raster<float>> EvaluateAlbedo(const Albedo& albedo, const RasterGrid
     return bands;
 }
 
-AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y, AlbedoContext context) {
+AlbedoSample EvaluateAlbedoAt(const Albedo& albedo, double x, double y, LayerContext context) {
     if (context.surface == nullptr) {
         context.surface = &albedo.surface;
     }

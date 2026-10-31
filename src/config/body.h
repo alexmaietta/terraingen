@@ -89,10 +89,8 @@ template <typename IO> void Fields(IO& io, EllipsoidSurfaceSpec& spec) {
 template <> struct SpecName<ShapeModelSurfaceSpec> {
     static constexpr std::string_view kName = "shape_model";
     static constexpr std::string_view kDescription =
-        "A whole star-shaped body such as an asteroid, from a shape model: planetocentric "
-        "longitude and latitude (degrees), heights along the direction from the center, and "
-        "features generated over the whole body. The model is resampled along rays from its "
-        "origin, keeping the outermost surface where a ray crosses it more than once.";
+        "A whole star-shaped body such as an asteroid from a shape model, resampled along rays "
+        "from its origin; heights are radial, in longitude and latitude degrees.";
 };
 template <typename IO> void Fields(IO& io, ShapeModelSurfaceSpec& spec) {
     io("path", spec.path,

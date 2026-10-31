@@ -39,7 +39,7 @@ class CandidateGround final : public Ground {
         : ground_(ground), points_(points), heights_(heights), spacing_(spacing) {}
 
   protected:
-    void FillSamples(SampleBlock& samples, double spacing) const override {
+    void FillSamples(SampleBlock& samples, double spacing, unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const Vec2d p = samples.Position(i);
             const std::optional<float> held = Held(p, spacing);
@@ -89,21 +89,21 @@ BoulderLayer::BoulderLayer(BoulderLayerOptions options, std::shared_ptr<const Cr
 BoulderLayer::BoulderLayer(BoulderLayerOptions options,
                            std::vector<std::shared_ptr<const CraterLayer>> craters,
                            TerrainBase base)
-    : options_(std::move(options)), craters_(std::move(craters)), surface_(base.surface) {
+    : options_(std::move(options)), craters_(std::move(craters)), surface_(std::move(base.surface)),
+      source_(std::move(base.source)), completeness_(options_.completeness) {
     for (const auto& layer : craters_) {
         if (!layer) {
             throw std::invalid_argument("A boulder layer's crater layers must not be null");
         }
-        if (!(layer->LayerSurface() == surface_)) {
+        if (!(layer->LayerBase()->surface == surface_)) {
             throw std::invalid_argument(
                 "A boulder layer and its crater layer must share a surface");
         }
     }
     ValidateBoulderLayerOptions(options_);
-    if (auto limit = LayerResolvedLimit(base.source, options_.sourceResolvesPixels, surface_)) {
-        std::shared_ptr<const SurfaceField>& completeness = options_.completeness;
-        completeness = completeness ? std::make_shared<const MinimumField>(completeness, limit)
-                                    : std::move(limit);
+    if (auto limit = LayerResolvedLimit(source_, options_.sourceResolvesPixels, surface_)) {
+        completeness_ = completeness_ ? std::make_shared<const MinimumField>(completeness_, limit)
+                                      : std::move(limit);
     }
     for (const ManualBoulder& boulder : options_.manual) {
         if (boulder.FixesAny()) {
@@ -148,7 +148,7 @@ LayerPtr BoulderLayer::Reseeded(std::uint64_t seed) const {
     BoulderLayerOptions options = options_;
     options.seed = ReseedWord(seed, 0);
     options.rendering.shapes.seed = ReseedWord(seed, 1);
-    return std::make_shared<BoulderLayer>(std::move(options), craters_, TerrainBase{surface_});
+    return std::make_shared<BoulderLayer>(std::move(options), craters_, *LayerBase());
 }
 
 LayerPtr BoulderLayer::Rebound(const LayerReplacements& replaced) const {
@@ -159,7 +159,11 @@ LayerPtr BoulderLayer::Rebound(const LayerReplacements& replaced) const {
     if (craters == craters_) {
         return nullptr;
     }
-    return std::make_shared<BoulderLayer>(options_, std::move(craters), TerrainBase{surface_});
+    return std::make_shared<BoulderLayer>(options_, std::move(craters), *LayerBase());
+}
+
+LayerPtr BoulderLayer::Rebased(const TerrainBase& base) const {
+    return std::make_shared<BoulderLayer>(options_, craters_, base);
 }
 
 double BoulderLayer::MaxFeatureDiameter() const {
@@ -263,8 +267,8 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
     const std::uint32_t seed = SubstreamSeed(options_.seed, kBoulderCandidateStream);
     const FreshAges ages;
     CraterGenerationOptions generation;
-    generation.dMin = options_.sizes.minDiameter;
-    generation.dMax = options_.sizes.maxDiameter;
+    generation.minDiameter = options_.sizes.minDiameter;
+    generation.maxDiameter = options_.sizes.maxDiameter;
     generation.marginRadii = margin;
     generation.surface = surface_;
     generation.logName = "boulders";
@@ -275,14 +279,14 @@ CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double
         generation.manual.Append(
             {boulder.x, boulder.y, boulder.diameter, 0.0, boulder.id.value_or(0u), true});
     }
-    generation.completeness = options_.completeness;
+    generation.completeness = completeness_;
     return GenerateCachedCraters(cache_.get(), *cells_, region, *candidates_, ages, seed,
                                  std::move(generation));
 }
 
 std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, double spacing,
-                                                const Ground* ground,
-                                                const EjectaIndex& ejecta) const {
+                                                const Ground* ground, const EjectaIndex& ejecta,
+                                                unsigned threads) const {
     std::vector<ThinnedCandidate> thinned;
     for (std::size_t n = 0; n < candidates.Size(); ++n) {
         if (std::optional<ThinnedCandidate> one = Thin(candidates.At(n), ground, ejecta)) {
@@ -313,7 +317,7 @@ std::vector<Boulder> BoulderLayer::DrawBoulders(const CraterList& candidates, do
         }
     }
     std::vector<float> heights(points.size());
-    ground->HeightsAt(points, heights, options_.groundSpacing);
+    ground->HeightsAt(points, heights, options_.groundSpacing, threads);
     for (std::size_t n = 0; n < thinned.size(); ++n) {
         const CandidateGround under(*ground, Span(points).subspan(n * each, each),
                                     Span(heights).subspan(n * each, each), options_.groundSpacing);
@@ -355,17 +359,18 @@ BoulderList ToBoulderList(const std::vector<Boulder>& boulders) {
 
 BoulderList BoulderLayer::Boulders(const Bounds2d& region, double spacing,
                                    const Ground* ground) const {
-    return ToBoulderList(BoulderRecords(region, spacing, ground));
+    return ToBoulderList(BoulderRecords(region, spacing, ground, 0));
 }
 
 std::vector<Boulder> BoulderLayer::BoulderRecords(const Bounds2d& region, double spacing,
-                                                  const Ground* ground) const {
+                                                  const Ground* ground, unsigned threads) const {
     const double smallest = spacing > 0.0 ? options_.fade.startSamples * spacing : 0.0;
-    return PlaceBoulders(region, spacing, smallest, ground);
+    return PlaceBoulders(region, spacing, smallest, ground, threads);
 }
 
 std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double spacing,
-                                                 double smallest, const Ground* ground) const {
+                                                 double smallest, const Ground* ground,
+                                                 unsigned threads) const {
     exposure_.Require(ground);
     const double roll = ground != nullptr ? options_.pose.rollDistance.value_or(0.0) : 0.0;
     const Bounds2d from = roll > 0.0 ? surface_.Expand(region, roll) : region;
@@ -377,7 +382,7 @@ std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double 
     const CraterList candidates = ScatterBoulderCandidates(from, smallest);
     if (!options_.fragmentation) {
         std::vector<Boulder> boulders =
-            DrawBoulders(candidates, spacing, ground, EjectaCraters(from));
+            DrawBoulders(candidates, spacing, ground, EjectaCraters(from), threads);
         boulders.erase(std::remove_if(boulders.begin(), boulders.end(),
                                       [&](const Boulder& boulder) { return !rests(boulder); }),
                        boulders.end());
@@ -387,7 +392,7 @@ std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double 
     const EjectaIndex ejecta = EjectaCraters(surface_.Expand(from, reach));
     std::vector<Boulder> boulders;
     std::vector<std::size_t> pieces;
-    for (const Boulder& parent : DrawBoulders(candidates, spacing, ground, ejecta)) {
+    for (const Boulder& parent : DrawBoulders(candidates, spacing, ground, ejecta, threads)) {
         for (const Boulder& boulder : Break(parent, spacing, smallest)) {
             const double own = 0.5 * boulder.diameter * OwnMarginRadii();
             if (surface_.Contains(surface_.Expand(region, own), {boulder.x, boulder.y})) {
@@ -398,14 +403,14 @@ std::vector<Boulder> BoulderLayer::PlaceBoulders(const Bounds2d& region, double 
             }
         }
     }
-    ReadGrounds(boulders, pieces, ground);
+    ReadGrounds(boulders, pieces, ground, threads);
     return boulders;
 }
 
 BoulderFeatures BoulderLayer::BouldersOver(const RasterGrid& grid, double spacing,
                                            const Ground* ground) const {
     const std::vector<Boulder> boulders =
-        PlaceBoulders(grid.Bounds(), ListedSpacing(grid, spacing, surface_), 0.0, ground);
+        PlaceBoulders(grid.Bounds(), ListedSpacing(grid, spacing, surface_), 0.0, ground, 0);
     return {ToBoulderList(boulders), Models(boulders)};
 }
 

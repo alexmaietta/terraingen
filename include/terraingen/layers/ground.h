@@ -15,12 +15,14 @@
 
 namespace terraingen {
 
+struct LayerContext;
+
 /// The terrain beneath a layer (its source and the layers before it), readable anywhere.
 ///
 /// Layers that depend on the shape of the ground, such as craters cut to a datum, read it here
 /// rather than from cells they changed, so they agree on every grid, tile and point. Like a
 /// `Source`, a ground evaluates one method, `FillSamples`, which `HeightAt` and `HeightsAt` wrap.
-/// A `Terrain` is a ground, and so is every prefix of one (`Terrain::Ground`).
+/// A `Terrain` is a ground, and so is every prefix of one (`Terrain::Beneath`).
 /// Implementations must be deterministic and thread-safe.
 class Ground {
   public:
@@ -30,16 +32,22 @@ class Ground {
     /// @param spacing Sample spacing in meters.
     float HeightAt(double x, double y, double spacing) const;
 
-    /// `HeightAt` at each of `points`, into `heights` of the same size, in one `FillSamples`.
+    /// `HeightAt` at each of `points`, into `heights` of the same size, in one `FillSamples` on
+    /// `threads` threads (0 for every hardware thread); the heights do not depend on it.
     /// @param spacing Sample spacing in meters.
     /// @throws std::invalid_argument for spans of different sizes.
-    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing) const;
+    void HeightsAt(Span<const Vec2d> points, Span<float> heights, double spacing,
+                   unsigned threads = 0) const;
+
+    /// The context a layer reads this ground in, at a sample spacing of `spacing` meters on
+    /// `threads` threads: on this ground, with the surface and source of a terrain.
+    virtual LayerContext Context(double spacing, unsigned threads) const;
 
   protected:
     /// Sets every sample of `samples` to the ground's height there at a sample spacing of
     /// `spacing` meters, NaN where there is no data; a point gets the bits of a grid cell
-    /// centered there.
-    virtual void FillSamples(SampleBlock& samples, double spacing) const = 0;
+    /// centered there, on `threads` threads (0 for every hardware thread).
+    virtual void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const = 0;
 };
 
 /// The four points `step` meters east, west, north and south of `center` on `surface`, in that

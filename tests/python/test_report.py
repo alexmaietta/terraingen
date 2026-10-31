@@ -54,7 +54,7 @@ def test_report_grid_bins_the_placed_features(small_config):
         threads=2,
     )
     assert sum(b.count for b in report.crater_bins) == len(craters.craters)
-    area = terraingen.RasterGrid.from_raster(grid.heights).surface_area(plane)
+    area = grid.heights.grid.surface_area(plane)
     first = report.crater_bins[0]
     assert first.max_diameter == 2 * first.min_diameter
     assert math.isclose(first.expected, area * 0.01 * (first.min_diameter**-2 - first.max_diameter**-2))

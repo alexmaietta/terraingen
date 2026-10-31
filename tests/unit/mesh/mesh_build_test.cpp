@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "terraingen/pipeline/mesh_build.h"
+#include "terraingen/mesh/mesh_build.h"
 
 #include "terraingen/raster/geo_transform.h"
 
@@ -19,6 +19,7 @@ using terraingen::BuildMeshOptions;
 using terraingen::GeoTransform;
 using terraingen::MeshSize;
 using terraingen::Raster;
+using terraingen::RasterGrid;
 using terraingen::Surface;
 using terraingen::Vec2d;
 
@@ -35,8 +36,9 @@ struct MeshCase {
 
 /// A `width` x `height` grid of 1 m cells with varied heights.
 Raster<float> Bumpy(std::size_t width, std::size_t height) {
-    Raster<float> heights(width, height, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(0.0, static_cast<double>(height), 1.0));
+    Raster<float> heights(
+        RasterGrid{width, height, GeoTransform::NorthUp(0.0, static_cast<double>(height), 1.0)},
+        0.0f);
     for (std::size_t row = 0; row < height; ++row) {
         for (std::size_t col = 0; col < width; ++col) {
             heights(col, row) =
@@ -72,8 +74,9 @@ std::vector<MeshCase> MeshCases() {
 
     const Surface moon = Surface::Sphere(1737400.0);
     const double step = 10.0 / moon.UnitLength();
-    Raster<float> spherical = Bumpy(6, 5);
-    spherical.SetTransform(GeoTransform::NorthUp(20.0, 40.0, step));
+    Raster<float> bumpy = Bumpy(6, 5);
+    Raster<float> spherical(RasterGrid{6, 5, GeoTransform::NorthUp(20.0, 40.0, step)},
+                            bumpy.Values());
     spherical.SetNoData(-9999.0f);
     spherical(2, 2) = -9999.0f;
     BuildMeshOptions skirted;
@@ -86,8 +89,7 @@ std::vector<MeshCase> MeshCases() {
 }  // namespace
 
 TEST(BuildMesh, PutsAVertexAtEveryCellWithDataAndFacesUp) {
-    Raster<float> heights(4, 3, 0.0f);
-    heights.SetTransform(GeoTransform::NorthUp(100.0, 50.0, 2.0));
+    Raster<float> heights(RasterGrid{4, 3, GeoTransform::NorthUp(100.0, 50.0, 2.0)}, 0.0f);
     for (std::size_t row = 0; row < 3; ++row) {
         for (std::size_t col = 0; col < 4; ++col) {
             heights(col, row) = static_cast<float>(col + 10 * row);
@@ -114,8 +116,8 @@ TEST(BuildMesh, PutsAVertexAtEveryCellWithDataAndFacesUp) {
 TEST(BuildMesh, IsInTheSiteFrameOnASphere) {
     const auto moon = terraingen::Surface::Sphere(1737400.0);
     const double step = 10.0 / moon.UnitLength();
-    Raster<float> heights(3, 3, 5.0f);
-    heights.SetTransform(GeoTransform::NorthUp(20.0 - 1.5 * step, 40.0 + 1.5 * step, step));
+    Raster<float> heights(
+        RasterGrid{3, 3, GeoTransform::NorthUp(20.0 - 1.5 * step, 40.0 + 1.5 * step, step)}, 5.0f);
     const auto mesh = terraingen::BuildMesh(heights, moon, {20.0, 40.0});
     const auto& center = mesh.positions[4];
     EXPECT_NEAR(center.x, 0.0, 1e-6);
@@ -127,8 +129,7 @@ TEST(BuildMesh, IsInTheSiteFrameOnASphere) {
 }
 
 TEST(BuildMesh, LeavesOutSquaresInCutoutsAndHangsAClosedSkirtBelowEveryEdge) {
-    Raster<float> heights(6, 6, 1.0f);
-    heights.SetTransform(GeoTransform::NorthUp(0.0, 6.0, 1.0));
+    Raster<float> heights(RasterGrid{6, 6, GeoTransform::NorthUp(0.0, 6.0, 1.0)}, 1.0f);
     BuildMeshOptions options;
     options.cutouts = {{1.5, 1.5, 3.5, 3.5}};
     const auto holed = terraingen::BuildMesh(heights, {}, {}, options);

@@ -42,7 +42,7 @@ TEST(RoughnessLayer, MeasuresTheRmsSlopeItPredictsOverEveryBaseline) {
         options.minWavelength = 0.08;
         options.seed = 3;
         const terraingen::RoughnessLayer layer(options);
-        auto heights = grid.MakeRaster();
+        terraingen::Raster<float> heights(grid);
         layer.Apply(heights, {kSpacing, 0});
         for (const std::size_t lag : {2u, 5u, 12u, 25u, 50u}) {
             const double baseline = static_cast<double>(lag) * kSpacing;

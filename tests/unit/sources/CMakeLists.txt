@@ -11,7 +11,6 @@ terraingen_add_test_suite(
     source_chain_test.cpp
     source_test.cpp
     synthetic_source_test.cpp
-    terrain_base_test.cpp
     upsampling_test.cpp
     LIBRARIES
     terraingen::sources)

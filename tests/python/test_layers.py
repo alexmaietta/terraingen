@@ -258,7 +258,7 @@ def test_exposure_at_a_point_matches_the_filled_raster(noise_layer):
 def test_exposure_of_flat_ground_is_uniform():
     field = terraingen.ExposureField(terraingen.ExposureParams(reach=3.0))
     flat = field.fill(
-        terraingen.Terrain(source=terraingen.FlatSource(16, 16, 0.25)).ground(0),
+        terraingen.Terrain(source=terraingen.FlatSource(16, 16, 0.25)).beneath(0),
         terraingen.RasterGrid.centered((0, 0), (16 * 0.25, 16 * 0.25), 0.25),
         0.25,
     )
@@ -358,21 +358,23 @@ def test_region_weight_on_a_sphere_uses_degrees(moon):
 
 def test_only_layers_that_derive_state_from_their_surface_take_a_base(lunar_models, moon):
     base = terraingen.TerrainBase(moon)
-    generation = terraingen.CraterGenerationOptions(d_min=20000.0, d_max=300000.0)
+    generation = terraingen.CraterGenerationOptions(min_diameter=20000.0, max_diameter=300000.0)
     craters = terraingen.CraterLayer(
         lunar_models(3.8), terraingen.CraterLayerOptions(generation=generation), base
     )
     boulders = terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters, base)
-    assert all(part.layer_surface() == moon for part in (craters, boulders))
+    assert all(part.layer_base().surface == moon for part in (craters, boulders))
+    assert craters.rebased(terraingen.TerrainBase(moon)).layer_base().surface == moon
     rough = terraingen.RoughnessLayer(terraingen.RoughnessOptions())
     bedforms = terraingen.BedformLayer(terraingen.mars_large_ripples())
-    assert all(part.layer_surface() is None for part in (rough, bedforms))
+    assert all(part.layer_base() is None for part in (rough, bedforms))
+    assert rough.rebased(base) is None
     with pytest.raises(TypeError):
         terraingen.RoughnessLayer(terraingen.RoughnessOptions(), base)
     with pytest.raises(TypeError):
         terraingen.NoiseLayer(seed=1, base=moon)
     assert not hasattr(terraingen.CraterLayerOptions(), "surface")
-    assert base.source is None and base.reference_point() == (0.0, 0.0)
+    assert base.source is None
     with pytest.raises(ValueError):
         terraingen.BoulderLayer(terraingen.BoulderLayerOptions(), craters)
     terrain = terraingen.Terrain(moon, None, [rough, craters, boulders, bedforms])
@@ -452,12 +454,12 @@ def test_sand_fill_pools_sand_and_lays_it_on_the_material_map():
     terrain = terraingen.Terrain(layers=[pit, fill])
     grid = terraingen.FlatSource(80, 80, 0.5).grid()
     filled = terrain.evaluate(grid).values
-    bare = terrain.ground(1).evaluate(grid).values
+    bare = terrain.beneath(1).evaluate(grid).values
     thickness = filled - bare
     assert thickness.min() >= 0.0 and 0.05 < thickness.max() <= 0.4
     row, col = np.unravel_index(np.argmax(thickness), thickness.shape)
     x, y = terrain.evaluate(grid).cell_center(int(col), int(row))
-    beneath = terrain.ground(1)
+    beneath = terrain.beneath(1)
     assert fill.thickness_at(x, y, 0.5, beneath) == pytest.approx(thickness[row, col], abs=1e-5)
     assert fill.material_cover_at(x, y, 0.5, beneath) == pytest.approx(1.0)
     assert fill.thickness_at(x, y, spacing=0.5, ground=beneath) >= 0.0
@@ -638,18 +640,18 @@ def test_diamond_square_upsampling_expands_posts_keeping_them():
         terraingen.validate_diamond_square_options(terraingen.DiamondSquareOptions(fractal_dimension=3.5))
     fitted = terraingen.DiamondSquareUpsampler().fit_to(terraingen.RasterPosts(heights))
     assert fitted.options.scale is None and fitted.options.fractal_dimension is not None
-    whole = terraingen.DiamondSquareUpsampler(terraingen.DiamondSquareOptions(fit_window=0))
+    whole = terraingen.DiamondSquareUpsampler(terraingen.DiamondSquareOptions(fit_window_px=0))
     fitted = whole.fit_to(terraingen.RasterPosts(heights))
     assert fitted.options.scale > 0.0 and fitted.options.fractal_dimension is not None
 
 
 def test_diamond_square_fits_its_scale_window_by_window():
-    assert terraingen.DiamondSquareOptions().fit_window == 32
-    assert terraingen.DiamondSquareOptions(fit_window=0) != terraingen.DiamondSquareOptions()
-    terraingen.validate_diamond_square_options(terraingen.DiamondSquareOptions(fit_window=4))
+    assert terraingen.DiamondSquareOptions().fit_window_px == 32
+    assert terraingen.DiamondSquareOptions(fit_window_px=0) != terraingen.DiamondSquareOptions()
+    terraingen.validate_diamond_square_options(terraingen.DiamondSquareOptions(fit_window_px=4))
     for bad in (3, terraingen.MAX_DIAMOND_SQUARE_FIT_WINDOW + 1):
         with pytest.raises(ValueError):
-            terraingen.DiamondSquareOptions(fit_window=bad).validate()
+            terraingen.DiamondSquareOptions(fit_window_px=bad).validate()
 
     rows, cols = np.mgrid[0:64, 0:64]
     rough = np.where(cols < 32, np.sin(1.7 * cols + 2.3 * rows), 0.01 * np.sin(1.7 * cols + 2.3 * rows))
@@ -657,11 +659,13 @@ def test_diamond_square_fits_its_scale_window_by_window():
         rough.astype(np.float32), terraingen.GeoTransform.north_up(0.0, 256.0, 4.0)
     )
     lattice = terraingen.RasterPosts(posts)
-    whole = terraingen.DiamondSquareUpsampler(terraingen.DiamondSquareOptions(fit_window=0)).fit_to(lattice)
+    whole = terraingen.DiamondSquareUpsampler(terraingen.DiamondSquareOptions(fit_window_px=0)).fit_to(
+        lattice
+    )
     assert whole.options.scale == pytest.approx(terraingen.estimate_midpoint_scale(posts))
     assert terraingen.estimate_midpoint_roughness(posts).scale == terraingen.estimate_midpoint_scale(posts)
 
-    options = terraingen.DiamondSquareOptions(fractal_dimension=2.4, fit_window=8, seed=3)
+    options = terraingen.DiamondSquareOptions(fractal_dimension=2.4, fit_window_px=8, seed=3)
     upsampler = terraingen.DiamondSquareUpsampler(options)
     assert upsampler.fit_to(lattice) is None, "nothing left to fit"
     unscaled = terraingen.DiamondSquareOptions(fractal_dimension=2.4, scale=0.0)

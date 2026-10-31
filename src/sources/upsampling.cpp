@@ -2,6 +2,8 @@
 
 #include "terraingen/sources/upsampling.h"
 
+#include "raster/kernels.h"
+#include "sources/lattice.h"
 #include "terraingen/util/bits.h"
 #include "terraingen/util/parallel.h"
 
@@ -18,30 +20,18 @@ namespace terraingen {
 
 namespace {
 
-/// How close to a whole number of posts, in posts, a position or a lattice offset counts as one.
-constexpr double kCentered = 1e-6;
-
 /// How far below the post spacing, as a share of it, a spacing still counts as the post spacing.
 constexpr double kSpacingTolerance = 1e-9;
 
 /// Rows of posts read at once when a grid on the lattice copies them.
 constexpr std::size_t kStripRows = 64;
 
-/// `value` as an integer when it is one to within `kCentered`.
-std::optional<std::int64_t> Whole(double value) {
-    const double rounded = std::round(value);
-    if (!(std::fabs(value - rounded) <= kCentered)) {
-        return std::nullopt;
-    }
-    return static_cast<std::int64_t>(rounded);
-}
-
 /// The post at world (`x`, `y`) of a lattice placed by `transform`, if (`x`, `y`) is one.
 std::optional<std::pair<std::int64_t, std::int64_t>> CenteredPost(const GeoTransform& transform,
                                                                   double x, double y) {
     const Vec2d pixel = transform.WorldToPixel(x, y);
-    const std::optional<std::int64_t> col = Whole(pixel.x - 0.5);
-    const std::optional<std::int64_t> row = Whole(pixel.y - 0.5);
+    const std::optional<std::int64_t> col = detail::NearestWhole(pixel.x - 0.5);
+    const std::optional<std::int64_t> row = detail::NearestWhole(pixel.y - 0.5);
     if (!col || !row) {
         return std::nullopt;
     }
@@ -192,25 +182,20 @@ void FillPointsAtPostSpacing(const PostLattice& posts, SampleBlock& samples,
     const GeoTransform transform = posts.Transform();
     const Span<const Vec2d> points = samples.Points();
     const Span<float> heights = samples.Heights();
-    std::vector<Vec2d> between;
-    std::vector<std::size_t> at;
-    for (std::size_t i = 0; i < points.size(); ++i) {
-        if (const auto post = CenteredPost(transform, points[i].x, points[i].y)) {
-            posts.Read(post->first, post->second, 1, 1, heights.subspan(i, 1));
-        } else {
-            between.push_back(points[i]);
-            at.push_back(i);
-        }
-    }
-    if (between.empty()) {
-        return;
-    }
-    std::vector<float> upsampled(between.size());
-    SampleBlock rest{Span<const Vec2d>(between), Span<float>(upsampled)};
-    upsample(rest);
-    for (std::size_t k = 0; k < at.size(); ++k) {
-        heights[at[k]] = upsampled[k];
-    }
+    detail::EvaluateChosen(
+        points.size(),
+        [&](std::size_t i) -> std::optional<Vec2d> {
+            if (const auto post = CenteredPost(transform, points[i].x, points[i].y)) {
+                posts.Read(post->first, post->second, 1, 1, heights.subspan(i, 1));
+                return std::nullopt;
+            }
+            return points[i];
+        },
+        [&](Span<const Vec2d> between, Span<float> values) {
+            SampleBlock rest(between, values);
+            upsample(rest);
+        },
+        [&](std::size_t i, float value) { heights[i] = value; });
 }
 
 /// The kernel upsamplers' names and kernels.
@@ -253,8 +238,8 @@ std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& lattice,
         return std::nullopt;
     }
     const Vec2d corner = lattice.WorldToPixel(grid.originX, grid.originY);
-    const std::optional<std::int64_t> col = Whole(corner.x);
-    const std::optional<std::int64_t> row = Whole(corner.y);
+    const std::optional<std::int64_t> col = detail::NearestWhole(corner.x);
+    const std::optional<std::int64_t> row = detail::NearestWhole(corner.y);
     if (!col || !row) {
         return std::nullopt;
     }
@@ -282,20 +267,15 @@ std::optional<PixelWindow> RasterPosts::Extent() const {
 void RasterPosts::Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
                        Span<float> heights) const {
     const Raster<float>& window = *window_;
-    const std::size_t colEnd = placement_.col + window.Width();
-    const std::size_t rowEnd = placement_.row + window.Height();
-    std::vector<std::size_t> cols(width);
-    for (std::size_t c = 0; c < width; ++c) {
-        cols[c] = detail::PostIndex(col0 + static_cast<std::int64_t>(c), wrapColumns_,
-                                    placement_.whole.width, placement_.col, colEnd) -
-                  placement_.col;
-    }
+    const std::vector<std::size_t> cols =
+        detail::PostIndices(col0, width, wrapColumns_, placement_.whole.width, placement_.col,
+                            placement_.col + window.Width());
+    const std::vector<std::size_t> rows =
+        detail::PostIndices(row0, height, false, placement_.whole.height, placement_.row,
+                            placement_.row + window.Height());
     for (std::size_t r = 0; r < height; ++r) {
-        const std::size_t row = detail::PostIndex(row0 + static_cast<std::int64_t>(r), false,
-                                                  placement_.whole.height, placement_.row, rowEnd) -
-                                placement_.row;
         for (std::size_t c = 0; c < width; ++c) {
-            const float value = window(cols[c], row);
+            const float value = window(cols[c] - placement_.col, rows[r] - placement_.row);
             heights[r * width + c] =
                 window.IsMissing(value) ? std::numeric_limits<float>::quiet_NaN() : value;
         }
@@ -303,26 +283,13 @@ void RasterPosts::Read(std::int64_t col0, std::int64_t row0, std::size_t width, 
 }
 
 double PostSpacing(const GeoTransform& transform) {
-    return std::max(std::hypot(transform.pixelWidth, transform.colRotation),
-                    std::hypot(transform.rowRotation, transform.pixelHeight));
+    return std::max(transform.CellWidth(), transform.CellHeight());
 }
 
 bool AtPostSpacing(const GeoTransform& transform, double spacing) {
     const double cellSize = std::sqrt(std::fabs(transform.pixelWidth * transform.pixelHeight -
                                                 transform.rowRotation * transform.colRotation));
     return spacing >= cellSize * (1.0 - kSpacingTolerance);
-}
-
-void MarkMissing(Raster<float>& heights, std::optional<float> noData) {
-    const float fill = noData.value_or(std::numeric_limits<float>::quiet_NaN());
-    bool missing = false;
-    for (float& value : heights.Values()) {
-        if (std::isnan(value)) {
-            value = fill;
-            missing = true;
-        }
-    }
-    heights.SetNoData(FilledNoData(noData, missing));
 }
 
 void Upsampler::Fill(const PostLattice& posts, SampleBlock& samples, double spacing,
@@ -347,10 +314,8 @@ void Upsampler::Fill(const PostLattice& posts, Raster<float>& heights, double sp
 }
 
 float Upsampler::HeightAt(const PostLattice& posts, double x, double y, double spacing) const {
-    float height = 0.0f;
-    const Vec2d point{x, y};
-    HeightsAt(posts, Span<const Vec2d>(&point, 1), Span<float>(&height, 1), spacing);
-    return height;
+    return detail::PointHeight(x, y,
+                               [&](SampleBlock& samples) { Fill(posts, samples, spacing, 1); });
 }
 
 void Upsampler::HeightsAt(const PostLattice& posts, Span<const Vec2d> points, Span<float> heights,

@@ -41,9 +41,9 @@ struct CraterBand {
     }
 };
 
-/// The bands `GenerateCraters` uses to cover [`dMin`, `dMax`) meters, smallest first.
+/// The bands `GenerateCraters` uses to cover [`minDiameter`, `maxDiameter`) meters, smallest first.
 /// @param cellSizeFactor Cell side over each band's largest whole diameter.
-std::vector<CraterBand> CraterBands(double dMin, double dMax, double cellSizeFactor);
+std::vector<CraterBand> CraterBands(double minDiameter, double maxDiameter, double cellSizeFactor);
 
 /// The craters `GenerateCraters` draws in one cell of one band, in the order drawn, before
 /// regions, manual craters, spacing and caps apply.
@@ -76,10 +76,10 @@ using CraterKeepShare = std::function<double(const Crater& crater)>;
 /// Which craters `GenerateCraters` draws, and how.
 struct CraterGenerationOptions {
     /// Smallest diameter generated, in meters; must be set to a positive value.
-    double dMin = 0.0;
+    double minDiameter = 0.0;
     /// Largest diameter (m), exclusive; infinity means the top of the density's valid range, which
     /// must then be finite.
-    double dMax = std::numeric_limits<double>::infinity();
+    double maxDiameter = std::numeric_limits<double>::infinity();
     /// Also keep craters centered outside the region within this many radii of it.
     double marginRadii = 0.0;
     /// Cell side as a multiple of each band's largest diameter.
@@ -132,25 +132,27 @@ struct CraterGenerationOptions {
 };
 
 /// Checks crater generation options.
-/// @throws std::invalid_argument for invalid spacing, a non-positive `dMin`, a `dMax` not above
-/// it, a negative margin, expected limit or resolved diameter, or a non-positive cell size factor
-/// or largest band.
+/// @throws std::invalid_argument for invalid spacing, a non-positive `minDiameter`, a `maxDiameter`
+/// not above it, a negative margin, expected limit or resolved diameter, or a non-positive cell
+/// size factor or largest band.
 void ValidateCraterGenerationOptions(const CraterGenerationOptions& options);
 
-/// The largest diameter generated in meters: `dMax`, or for an infinite `dMax` the top of the
-/// density's valid range; infinite when both are unbounded.
-double ResolveDMax(double dMax, const SizeFrequencyDistribution& density);
+/// The largest diameter generated in meters: `maxDiameter`, or for an infinite `maxDiameter` the
+/// top of the density's valid range; infinite when both are unbounded.
+double ResolveMaxDiameter(double maxDiameter, const SizeFrequencyDistribution& density);
 
-/// The smallest diameter in [`dMin`, `dMax`) meters from which `density` expects about `count`
-/// craters over `area` m^2; `dMin` if even that expects fewer.
-/// @throws std::invalid_argument unless `count` and `area` are positive and 0 < `dMin` < `dMax`.
+/// The smallest diameter in [`minDiameter`, `maxDiameter`) meters from which `density` expects
+/// about `count` craters over `area` m^2; `minDiameter` if even that expects fewer.
+/// @throws std::invalid_argument unless `count` and `area` are positive and 0 < `minDiameter` <
+/// `maxDiameter`.
 /// @throws std::domain_error if the interval leaves the density's valid range.
 double CountLimitDiameter(const SizeFrequencyDistribution& density, double area, double count,
-                          double dMin, double dMax);
+                          double minDiameter, double maxDiameter);
 
 /// Generates the craters of a density centered in `region` (surface coordinates) or within
 /// `marginRadii` radii of it, in band, cell and index order; tiles join exactly.
-/// @param density A `Density` distribution valid over [`dMin`, `dMax`), or extrapolating.
+/// @param density A `Density` distribution valid over [`minDiameter`, `maxDiameter`), or
+/// extrapolating.
 /// @throws std::invalid_argument for invalid options, a bad region or density kind, or more
 /// expected craters than `maxExpectedCraters`.
 /// @throws std::domain_error if the diameter interval leaves the density's valid range.

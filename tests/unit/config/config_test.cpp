@@ -36,26 +36,6 @@ TEST(ConfigSpec, ComparesAsItsJson) {
     EXPECT_TRUE(a != b);
 }
 
-TEST(SpectralContinuationLayerSpec, GivesItsOptionsWithDefaultsForUnsetValues) {
-    terraingen::SpectralContinuationLayerSpec spec;
-    spec.minWavelength = 0.2;
-    spec.seed = 7;
-    const terraingen::SpectralContinuationOptions defaults;
-    terraingen::SpectralContinuationOptions options = spec.Options();
-    EXPECT_EQ(options.pixelSize, defaults.pixelSize);
-    EXPECT_EQ(options.slope, defaults.slope);
-    EXPECT_EQ(options.octaveRms, defaults.octaveRms);
-    EXPECT_EQ(options.minWavelength, 0.2);
-    EXPECT_EQ(options.seed, 7u);
-    spec.pixelSize = 3.0;
-    spec.slope = 2.5;
-    spec.octaveRms = 0.4;
-    options = spec.Options();
-    EXPECT_EQ(options.pixelSize, 3.0);
-    EXPECT_EQ(options.slope, 2.5);
-    EXPECT_EQ(options.octaveRms, 0.4);
-}
-
 TEST(FractalSpec, DerivesTheGainFromTheHurstExponent) {
     FractalSpec config;
     config.fractal.gain = 0.3f;
@@ -132,10 +112,10 @@ TEST(RoughnessLayerSpec, TakesTheDefaultsTheGivenValuesOrTheBaseEstimates) {
 
 TEST(SyntheticAlbedoSpec, GivesTheColorAndEachNoiseStack) {
     terraingen::SyntheticAlbedoSpec spec;
-    spec.rgb = true;
-    spec.hueDegrees = 30.0;
-    spec.saturation = 0.2;
-    spec.value = 0.4;
+    spec.options.rgb = true;
+    spec.options.hueDegrees = 30.0;
+    spec.options.saturation = 0.2;
+    spec.options.value = 0.4;
     spec.hueNoiseDegrees = {terraingen::AlbedoFractalSpec{}};
     spec.valueNoise = {terraingen::AlbedoFractalSpec{{{}, 0.5f, {}}},
                        terraingen::AlbedoFractalSpec{}};

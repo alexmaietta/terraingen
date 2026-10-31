@@ -3,6 +3,7 @@
 #include "terraingen/io/report_json.h"
 
 #include "terraingen/geometry/geometry.h"
+#include "util/text.h"
 
 #include <nlohmann/json.hpp>
 
@@ -62,6 +63,10 @@ std::string ReportToJson(const TerrainReport& report, int indent) {
                        {"seconds", report.seconds}, {"layers", std::move(layers)},
                        {"grids", std::move(grids)}};
     return json.dump(indent < 0 ? -1 : indent);
+}
+
+void WriteReport(const std::filesystem::path& path, const TerrainReport& report) {
+    WriteFile(path, ReportToJson(report) + "\n");
 }
 
 }  // namespace terraingen

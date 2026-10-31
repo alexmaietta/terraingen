@@ -7,6 +7,7 @@
 #include "common.h"
 
 #include "config/terrain.h"
+#include "util/text.h"
 
 #include <nanobind/stl/array.h>
 
@@ -238,16 +239,15 @@ nb::class_<T> BindOptions(nb::module_& m, const char* name, const char* doc,
 template <typename T, typename Class>
 void DefDegrees(Class& cls, const char* name, double T::* member, const char* doc) {
     cls.def_prop_rw(
-        name, [member](const T& self) { return config::DegreesFromRadians(self.*member); },
-        [member](T& self, double degrees) { self.*member = config::RadiansFromDegrees(degrees); },
-        doc);
+        name, [member](const T& self) { return DegreesFromRadians(self.*member); },
+        [member](T& self, double degrees) { self.*member = RadiansFromDegrees(degrees); }, doc);
 }
 
 /// Binds the angle `member`, stored in radians, as the read-only property `name` in degrees.
 template <typename T, typename Class>
 void DefDegreesRo(Class& cls, const char* name, double T::* member, const char* doc) {
     cls.def_prop_ro(
-        name, [member](const T& self) { return config::DegreesFromRadians(self.*member); }, doc);
+        name, [member](const T& self) { return DegreesFromRadians(self.*member); }, doc);
 }
 
 /// `name` in upper case, as Python enum members are named.

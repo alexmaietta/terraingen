@@ -40,7 +40,7 @@ def figure(quick=False):
         )
     )
     crater_options = terraingen.CraterLayerOptions(
-        seed=8, generation=terraingen.CraterGenerationOptions(d_min=3.0, d_max=50.0)
+        seed=8, generation=terraingen.CraterGenerationOptions(min_diameter=3.0, max_diameter=50.0)
     )
     crater_options.density_map = density_map
     craters = terraingen.CraterLayer(options=crater_options)
