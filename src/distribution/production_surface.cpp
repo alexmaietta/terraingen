@@ -12,28 +12,28 @@ ProductionSurface::ProductionSurface(std::shared_ptr<const SizeFrequencyDistribu
                                      double ageGyr, const Chronology& chronology)
     : SizeFrequencyDistribution(SfdKind::Density,
                                 production ? production->ValidRange() : DiameterRange{}),
-      production_(std::move(production)), ageGyr_(ageGyr) {
-    if (!production_ || production_->Kind() != SfdKind::ProductionRate) {
+      m_production(std::move(production)), m_ageGyr(ageGyr) {
+    if (!m_production || m_production->Kind() != SfdKind::ProductionRate) {
         throw std::invalid_argument("A production surface needs a production rate distribution");
     }
     if (!chronology) {
         throw std::invalid_argument("A production surface needs a chronology");
     }
-    SetAllowExtrapolation(production_->AllowsExtrapolation());
-    scale_ = chronology(ageGyr_) / production_->Cumulative(1000.0);
+    SetAllowExtrapolation(m_production->AllowsExtrapolation());
+    m_scale = chronology(m_ageGyr) / m_production->Cumulative(1000.0);
 }
 
 double ProductionSurface::CumulativeAt(double diameter) const {
-    return scale_ * UncheckedCumulative(*production_, diameter);
+    return m_scale * UncheckedCumulative(*m_production, diameter);
 }
 
 double ProductionSurface::IncrementalAt(double diameter) const {
-    return scale_ * UncheckedIncremental(*production_, diameter);
+    return m_scale * UncheckedIncremental(*m_production, diameter);
 }
 
 double ProductionSurface::InvertCumulative(double target, double minDiameter,
                                            double maxDiameter) const {
-    return UncheckedInverse(*production_, target / scale_, minDiameter, maxDiameter);
+    return UncheckedInverse(*m_production, target / m_scale, minDiameter, maxDiameter);
 }
 
 namespace detail {

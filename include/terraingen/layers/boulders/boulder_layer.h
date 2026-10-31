@@ -116,17 +116,17 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
 
     /// The options the layer was made with.
     const BoulderLayerOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     std::optional<TerrainBase> LayerBase() const override {
-        return TerrainBase{surface_, source_};
+        return TerrainBase{m_surface, m_source};
     }
 
     /// The crater layers whose craters throw blocks, which must come before this layer.
     std::vector<const Layer*> Dependencies() const override {
         std::vector<const Layer*> layers;
-        for (const std::shared_ptr<const CraterLayer>& craters : craters_) {
+        for (const std::shared_ptr<const CraterLayer>& craters : m_craters) {
             layers.push_back(craters.get());
         }
         return layers;
@@ -385,31 +385,31 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         std::size_t operator()(const BedrockCell& cell) const;
     };
 
-    BoulderLayerOptions options_;
-    std::vector<std::shared_ptr<const CraterLayer>> craters_;
-    double minCraterDiameter_ = 0.0;  ///< Smallest crater throwing blocks (m); 0 for none.
-    double largestManual_ = 0.0;      ///< Largest manual boulder (m); 0 for none.
-    double clusterMean_ = 1.0;
-    std::uint32_t clusterSeed_ = 0;  ///< Seed of the cluster centers' Worley noise.
-    std::uint32_t patchSeed_ = 0;    ///< Seed of the abundance patch noise.
-    double referenceCount_ = 0.0;    ///< N(>=D0) of the sizes at a size slope map's D0, per m^2.
-    std::optional<BoulderBackground> background_;  ///< Set with `generateRandom`.
-    Vec2d bedrockOrigin_{};    ///< Corner of the bedrock mean lattice, in surface units.
-    Vec2d bedrockCellSize_{};  ///< Its cell sides, in surface units; signed as the map's.
-    std::shared_ptr<LruCache<BedrockCell, double, BedrockCellHash>> bedrockMeans_;
-    std::shared_ptr<const SizeFrequencyDistribution> candidates_;
-    std::shared_ptr<const SizeFrequencyDistribution> ejectaSizes_;
-    std::shared_ptr<CraterCellCache> cache_;
-    std::shared_ptr<LruCache<std::uint64_t, BoulderShape>> shapes_;
-    std::shared_ptr<LruCache<std::uint64_t, std::vector<BoulderFragment>>> fragments_;
-    LayerExposure exposure_;
+    BoulderLayerOptions m_options;
+    std::vector<std::shared_ptr<const CraterLayer>> m_craters;
+    double m_minCraterDiameter = 0.0;  ///< Smallest crater throwing blocks (m); 0 for none.
+    double m_largestManual = 0.0;      ///< Largest manual boulder (m); 0 for none.
+    double m_clusterMean = 1.0;
+    std::uint32_t m_clusterSeed = 0;  ///< Seed of the cluster centers' Worley noise.
+    std::uint32_t m_patchSeed = 0;    ///< Seed of the abundance patch noise.
+    double m_referenceCount = 0.0;    ///< N(>=D0) of the sizes at a size slope map's D0, per m^2.
+    std::optional<BoulderBackground> m_background;  ///< Set with `generateRandom`.
+    Vec2d m_bedrockOrigin{};    ///< Corner of the bedrock mean lattice, in surface units.
+    Vec2d m_bedrockCellSize{};  ///< Its cell sides, in surface units; signed as the map's.
+    std::shared_ptr<LruCache<BedrockCell, double, BedrockCellHash>> m_bedrockMeans;
+    std::shared_ptr<const SizeFrequencyDistribution> m_candidates;
+    std::shared_ptr<const SizeFrequencyDistribution> m_ejectaSizes;
+    std::shared_ptr<CraterCellCache> m_cache;
+    std::shared_ptr<LruCache<std::uint64_t, BoulderShape>> m_shapes;
+    std::shared_ptr<LruCache<std::uint64_t, std::vector<BoulderFragment>>> m_fragments;
+    LayerExposure m_exposure;
     /// The manual boulders that fix any field, by the ID they are placed with.
-    std::unordered_map<std::uint64_t, ManualBoulder> fixed_;
-    Surface surface_;
-    std::shared_ptr<const Source> source_;
-    /// `options_.completeness`, the least with what the source resolves.
-    std::shared_ptr<const SurfaceField> completeness_;
-    std::shared_ptr<const SurfaceCells> cells_;
+    std::unordered_map<std::uint64_t, ManualBoulder> m_fixed;
+    Surface m_surface;
+    std::shared_ptr<const Source> m_source;
+    /// `m_options.completeness`, the least with what the source resolves.
+    std::shared_ptr<const SurfaceField> m_completeness;
+    std::shared_ptr<const SurfaceCells> m_cells;
 };
 
 }  // namespace terraingen

@@ -38,72 +38,72 @@ BoulderList::BoulderList(std::initializer_list<Boulder> boulders) {
 }
 
 void BoulderList::Reserve(std::size_t count) {
-    x_.reserve(count);
-    y_.reserve(count);
-    diameter_.reserve(count);
-    height_.reserve(count);
-    burial_.reserve(count);
-    yaw_.reserve(count);
-    lean_.reserve(count);
-    id_.reserve(count);
-    rest_.reserve(count);
-    tilt_.reserve(count);
-    tiltAzimuth_.reserve(count);
-    ground_.reserve(count);
-    model_.reserve(count);
-    wear_.reserve(count);
-    parent_.reserve(count);
-    piece_.reserve(count);
-    facets_.reserve(count);
-    facetCount_.reserve(count);
-    shapeSeed_.reserve(count);
-    hasShapeSeed_.reserve(count);
+    m_x.reserve(count);
+    m_y.reserve(count);
+    m_diameter.reserve(count);
+    m_height.reserve(count);
+    m_burial.reserve(count);
+    m_yaw.reserve(count);
+    m_lean.reserve(count);
+    m_id.reserve(count);
+    m_rest.reserve(count);
+    m_tilt.reserve(count);
+    m_tiltAzimuth.reserve(count);
+    m_ground.reserve(count);
+    m_model.reserve(count);
+    m_wear.reserve(count);
+    m_parent.reserve(count);
+    m_piece.reserve(count);
+    m_facets.reserve(count);
+    m_facetCount.reserve(count);
+    m_shapeSeed.reserve(count);
+    m_hasShapeSeed.reserve(count);
 }
 
 void BoulderList::Append(const Boulder& boulder) {
-    x_.push_back(boulder.x);
-    y_.push_back(boulder.y);
-    diameter_.push_back(boulder.diameter);
-    height_.push_back(boulder.height);
-    burial_.push_back(boulder.burial);
-    yaw_.push_back(boulder.yaw);
-    lean_.push_back(boulder.lean);
-    id_.push_back(boulder.id);
-    rest_.push_back(static_cast<std::uint8_t>(boulder.rest));
-    tilt_.push_back(boulder.tilt);
-    tiltAzimuth_.push_back(boulder.tiltAzimuth);
-    ground_.push_back(boulder.ground.value_or(std::numeric_limits<double>::quiet_NaN()));
-    model_.push_back(boulder.model ? 1 : 0);
-    wear_.push_back(boulder.wear);
-    parent_.push_back(boulder.parent);
-    piece_.push_back(boulder.piece);
-    facets_.push_back(boulder.facets);
-    facetCount_.push_back(boulder.facetCount);
-    shapeSeed_.push_back(boulder.shapeSeed.value_or(0));
-    hasShapeSeed_.push_back(boulder.shapeSeed ? 1 : 0);
+    m_x.push_back(boulder.x);
+    m_y.push_back(boulder.y);
+    m_diameter.push_back(boulder.diameter);
+    m_height.push_back(boulder.height);
+    m_burial.push_back(boulder.burial);
+    m_yaw.push_back(boulder.yaw);
+    m_lean.push_back(boulder.lean);
+    m_id.push_back(boulder.id);
+    m_rest.push_back(static_cast<std::uint8_t>(boulder.rest));
+    m_tilt.push_back(boulder.tilt);
+    m_tiltAzimuth.push_back(boulder.tiltAzimuth);
+    m_ground.push_back(boulder.ground.value_or(std::numeric_limits<double>::quiet_NaN()));
+    m_model.push_back(boulder.model ? 1 : 0);
+    m_wear.push_back(boulder.wear);
+    m_parent.push_back(boulder.parent);
+    m_piece.push_back(boulder.piece);
+    m_facets.push_back(boulder.facets);
+    m_facetCount.push_back(boulder.facetCount);
+    m_shapeSeed.push_back(boulder.shapeSeed.value_or(0));
+    m_hasShapeSeed.push_back(boulder.shapeSeed ? 1 : 0);
 }
 
 void BoulderList::Append(const BoulderList& other) {
-    AppendColumn(x_, other.x_);
-    AppendColumn(y_, other.y_);
-    AppendColumn(diameter_, other.diameter_);
-    AppendColumn(height_, other.height_);
-    AppendColumn(burial_, other.burial_);
-    AppendColumn(yaw_, other.yaw_);
-    AppendColumn(lean_, other.lean_);
-    AppendColumn(id_, other.id_);
-    AppendColumn(rest_, other.rest_);
-    AppendColumn(tilt_, other.tilt_);
-    AppendColumn(tiltAzimuth_, other.tiltAzimuth_);
-    AppendColumn(ground_, other.ground_);
-    AppendColumn(model_, other.model_);
-    AppendColumn(wear_, other.wear_);
-    AppendColumn(parent_, other.parent_);
-    AppendColumn(piece_, other.piece_);
-    AppendColumn(facets_, other.facets_);
-    AppendColumn(facetCount_, other.facetCount_);
-    AppendColumn(shapeSeed_, other.shapeSeed_);
-    AppendColumn(hasShapeSeed_, other.hasShapeSeed_);
+    AppendColumn(m_x, other.m_x);
+    AppendColumn(m_y, other.m_y);
+    AppendColumn(m_diameter, other.m_diameter);
+    AppendColumn(m_height, other.m_height);
+    AppendColumn(m_burial, other.m_burial);
+    AppendColumn(m_yaw, other.m_yaw);
+    AppendColumn(m_lean, other.m_lean);
+    AppendColumn(m_id, other.m_id);
+    AppendColumn(m_rest, other.m_rest);
+    AppendColumn(m_tilt, other.m_tilt);
+    AppendColumn(m_tiltAzimuth, other.m_tiltAzimuth);
+    AppendColumn(m_ground, other.m_ground);
+    AppendColumn(m_model, other.m_model);
+    AppendColumn(m_wear, other.m_wear);
+    AppendColumn(m_parent, other.m_parent);
+    AppendColumn(m_piece, other.m_piece);
+    AppendColumn(m_facets, other.m_facets);
+    AppendColumn(m_facetCount, other.m_facetCount);
+    AppendColumn(m_shapeSeed, other.m_shapeSeed);
+    AppendColumn(m_hasShapeSeed, other.m_hasShapeSeed);
 }
 
 Boulder BoulderList::At(std::size_t index) const {
@@ -112,42 +112,43 @@ Boulder BoulderList::At(std::size_t index) const {
                                 std::to_string(Size()) + " boulders");
     }
     Boulder boulder;
-    boulder.x = x_[index];
-    boulder.y = y_[index];
-    boulder.diameter = diameter_[index];
-    boulder.height = height_[index];
-    boulder.burial = burial_[index];
-    boulder.yaw = yaw_[index];
-    boulder.lean = lean_[index];
-    boulder.id = id_[index];
-    boulder.rest = static_cast<BoulderRest>(rest_[index]);
-    boulder.tilt = tilt_[index];
-    boulder.tiltAzimuth = tiltAzimuth_[index];
-    if (!std::isnan(ground_[index])) {
-        boulder.ground = ground_[index];
+    boulder.x = m_x[index];
+    boulder.y = m_y[index];
+    boulder.diameter = m_diameter[index];
+    boulder.height = m_height[index];
+    boulder.burial = m_burial[index];
+    boulder.yaw = m_yaw[index];
+    boulder.lean = m_lean[index];
+    boulder.id = m_id[index];
+    boulder.rest = static_cast<BoulderRest>(m_rest[index]);
+    boulder.tilt = m_tilt[index];
+    boulder.tiltAzimuth = m_tiltAzimuth[index];
+    if (!std::isnan(m_ground[index])) {
+        boulder.ground = m_ground[index];
     }
-    boulder.model = model_[index] != 0;
-    boulder.wear = wear_[index];
-    boulder.parent = parent_[index];
-    boulder.piece = piece_[index];
-    boulder.facets = facets_[index];
-    boulder.facetCount = facetCount_[index];
-    if (hasShapeSeed_[index] != 0) {
-        boulder.shapeSeed = shapeSeed_[index];
+    boulder.model = m_model[index] != 0;
+    boulder.wear = m_wear[index];
+    boulder.parent = m_parent[index];
+    boulder.piece = m_piece[index];
+    boulder.facets = m_facets[index];
+    boulder.facetCount = m_facetCount[index];
+    if (m_hasShapeSeed[index] != 0) {
+        boulder.shapeSeed = m_shapeSeed[index];
     }
     return boulder;
 }
 
 bool BoulderList::operator==(const BoulderList& other) const {
-    return SameDoubles(x_, other.x_) && SameDoubles(y_, other.y_) &&
-           SameDoubles(diameter_, other.diameter_) && SameDoubles(height_, other.height_) &&
-           SameDoubles(burial_, other.burial_) && SameDoubles(yaw_, other.yaw_) &&
-           SameDoubles(lean_, other.lean_) && id_ == other.id_ && rest_ == other.rest_ &&
-           SameDoubles(tilt_, other.tilt_) && SameDoubles(tiltAzimuth_, other.tiltAzimuth_) &&
-           SameDoubles(ground_, other.ground_) && model_ == other.model_ &&
-           SameDoubles(wear_, other.wear_) && parent_ == other.parent_ && piece_ == other.piece_ &&
-           facets_ == other.facets_ && facetCount_ == other.facetCount_ &&
-           shapeSeed_ == other.shapeSeed_ && hasShapeSeed_ == other.hasShapeSeed_;
+    return SameDoubles(m_x, other.m_x) && SameDoubles(m_y, other.m_y) &&
+           SameDoubles(m_diameter, other.m_diameter) && SameDoubles(m_height, other.m_height) &&
+           SameDoubles(m_burial, other.m_burial) && SameDoubles(m_yaw, other.m_yaw) &&
+           SameDoubles(m_lean, other.m_lean) && m_id == other.m_id && m_rest == other.m_rest &&
+           SameDoubles(m_tilt, other.m_tilt) && SameDoubles(m_tiltAzimuth, other.m_tiltAzimuth) &&
+           SameDoubles(m_ground, other.m_ground) && m_model == other.m_model &&
+           SameDoubles(m_wear, other.m_wear) && m_parent == other.m_parent &&
+           m_piece == other.m_piece && m_facets == other.m_facets &&
+           m_facetCount == other.m_facetCount && m_shapeSeed == other.m_shapeSeed &&
+           m_hasShapeSeed == other.m_hasShapeSeed;
 }
 
 }  // namespace terraingen

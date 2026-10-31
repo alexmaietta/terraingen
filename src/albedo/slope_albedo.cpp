@@ -33,20 +33,20 @@ void ValidateSlopeAlbedoOptions(const SlopeAlbedoOptions& options) {
     }
 }
 
-SlopeAlbedo::SlopeAlbedo(SlopeAlbedoOptions options) : options_(options) {
-    ValidateSlopeAlbedoOptions(options_);
+SlopeAlbedo::SlopeAlbedo(SlopeAlbedoOptions options) : m_options(options) {
+    ValidateSlopeAlbedoOptions(m_options);
 }
 
 double SlopeAlbedo::MaturityAt(double slopeDegrees) const {
     const double excess =
-        options_.maturityPerDegree * std::fmax(0.0, slopeDegrees - options_.onsetDegrees);
-    return std::fmin(options_.backgroundMaturity + excess, options_.maxMaturity);
+        m_options.maturityPerDegree * std::fmax(0.0, slopeDegrees - m_options.onsetDegrees);
+    return std::fmin(m_options.backgroundMaturity + excess, m_options.maxMaturity);
 }
 
 SlopeAlbedo::Lattice SlopeAlbedo::ReadLattice(const Bounds2d& region, const Ground& ground,
                                               const Surface& surface) const {
     Lattice lattice;
-    const double step = options_.baseline / surface.UnitLength();
+    const double step = m_options.baseline / surface.UnitLength();
     lattice.step = step;
     lattice.i0 = std::floor(region.minX / step) - 1.0;
     lattice.j0 = std::floor(region.minY / step) - 1.0;
@@ -65,7 +65,7 @@ SlopeAlbedo::Lattice SlopeAlbedo::ReadLattice(const Bounds2d& region, const Grou
         }
     }
     std::vector<float> heights(points.size());
-    ground.HeightsAt(points, heights, options_.baseline);
+    ground.HeightsAt(points, heights, m_options.baseline);
     lattice.slopes.assign(points.size(), 0.0);
     for (std::size_t j = 1; j + 1 < lattice.rows; ++j) {
         for (std::size_t i = 1; i + 1 < lattice.columns; ++i) {
@@ -103,9 +103,9 @@ double SlopeAlbedo::SlopeAt(double x, double y, const Ground& ground,
 
 void SlopeAlbedo::Mature(AlbedoSample& value, std::size_t bands, double slopeDegrees) const {
     const double maturity = MaturityAt(slopeDegrees);
-    if (maturity != options_.backgroundMaturity) {
-        MatureBands(value, bands, options_.backgroundMaturity, maturity,
-                    options_.originReflectance);
+    if (maturity != m_options.backgroundMaturity) {
+        MatureBands(value, bands, m_options.backgroundMaturity, maturity,
+                    m_options.originReflectance);
     }
 }
 

@@ -38,34 +38,34 @@ template <typename T> class Raster {
 
     /// A raster over `grid`, every cell set to `fill`.
     explicit Raster(const RasterGrid& grid, T fill = T{})
-        : grid_(grid), owned_(grid.width * grid.height, fill), cells_(owned_.data()) {}
+        : m_grid(grid), m_owned(grid.width * grid.height, fill), m_cells(m_owned.data()) {}
 
     /// A raster over `grid` whose cells are `cells`, which must outlive it; writes go to
     /// `cells`.
     /// @throws std::invalid_argument unless `cells` holds one value per cell of `grid`.
-    Raster(const RasterGrid& grid, Span<T> cells) : grid_(grid), cells_(cells.data()) {
+    Raster(const RasterGrid& grid, Span<T> cells) : m_grid(grid), m_cells(cells.data()) {
         if (cells.size() != grid.width * grid.height) {
             throw std::invalid_argument("A raster borrowing cells needs one value per cell");
         }
     }
 
     Raster(const Raster& other)
-        : grid_(other.grid_), owned_(other.cells_, other.cells_ + other.Size()),
-          cells_(owned_.data()), noData_(other.noData_) {}
+        : m_grid(other.m_grid), m_owned(other.m_cells, other.m_cells + other.Size()),
+          m_cells(m_owned.data()), m_noData(other.m_noData) {}
 
     Raster(Raster&& other) noexcept
-        : grid_(other.grid_), owned_(std::move(other.owned_)), cells_(other.cells_),
-          noData_(other.noData_) {
-        other.grid_.width = 0;
-        other.grid_.height = 0;
-        other.cells_ = nullptr;
+        : m_grid(other.m_grid), m_owned(std::move(other.m_owned)), m_cells(other.m_cells),
+          m_noData(other.m_noData) {
+        other.m_grid.width = 0;
+        other.m_grid.height = 0;
+        other.m_cells = nullptr;
     }
 
     Raster& operator=(Raster other) noexcept {
-        std::swap(grid_, other.grid_);
-        std::swap(owned_, other.owned_);
-        std::swap(cells_, other.cells_);
-        std::swap(noData_, other.noData_);
+        std::swap(m_grid, other.m_grid);
+        std::swap(m_owned, other.m_owned);
+        std::swap(m_cells, other.m_cells);
+        std::swap(m_noData, other.m_noData);
         return *this;
     }
 
@@ -73,22 +73,22 @@ template <typename T> class Raster {
 
     /// The raster's size and pixel-to-world transform.
     const RasterGrid& Grid() const {
-        return grid_;
+        return m_grid;
     }
 
     /// The number of columns.
     std::size_t Width() const {
-        return grid_.width;
+        return m_grid.width;
     }
 
     /// The number of rows.
     std::size_t Height() const {
-        return grid_.height;
+        return m_grid.height;
     }
 
     /// The number of cells, `Width() * Height()`.
     std::size_t Size() const {
-        return grid_.width * grid_.height;
+        return m_grid.width * m_grid.height;
     }
 
     /// Whether the raster has no cells.
@@ -98,69 +98,69 @@ template <typename T> class Raster {
 
     /// Unchecked cell access; asserts `col < Width()` and `row < Height()` in debug builds.
     T& operator()(std::size_t col, std::size_t row) {
-        assert(col < grid_.width && row < grid_.height);
-        return cells_[row * grid_.width + col];
+        assert(col < m_grid.width && row < m_grid.height);
+        return m_cells[row * m_grid.width + col];
     }
 
     /// Unchecked read-only cell access; asserts in debug builds.
     const T& operator()(std::size_t col, std::size_t row) const {
-        assert(col < grid_.width && row < grid_.height);
-        return cells_[row * grid_.width + col];
+        assert(col < m_grid.width && row < m_grid.height);
+        return m_cells[row * m_grid.width + col];
     }
 
     /// Bounds-checked cell access.
     /// @throws std::out_of_range if `col` or `row` is outside the raster.
     T& At(std::size_t col, std::size_t row) {
         CheckBounds(col, row);
-        return cells_[row * grid_.width + col];
+        return m_cells[row * m_grid.width + col];
     }
 
     /// Bounds-checked read-only cell access.
     /// @throws std::out_of_range if `col` or `row` is outside the raster.
     const T& At(std::size_t col, std::size_t row) const {
         CheckBounds(col, row);
-        return cells_[row * grid_.width + col];
+        return m_cells[row * m_grid.width + col];
     }
 
     /// All cells in row-major order.
     Span<T> Values() {
-        return {cells_, Size()};
+        return {m_cells, Size()};
     }
 
     /// All cells in row-major order, read-only.
     Span<const T> Values() const {
-        return {cells_, Size()};
+        return {m_cells, Size()};
     }
 
     /// The cells of one row, west to east for north-up rasters; asserts in debug builds.
     Span<T> Row(std::size_t row) {
-        assert(row < grid_.height);
-        return {cells_ + row * grid_.width, grid_.width};
+        assert(row < m_grid.height);
+        return {m_cells + row * m_grid.width, m_grid.width};
     }
 
     /// The cells of one row, read-only; asserts in debug builds.
     Span<const T> Row(std::size_t row) const {
-        assert(row < grid_.height);
-        return {cells_ + row * grid_.width, grid_.width};
+        assert(row < m_grid.height);
+        return {m_cells + row * m_grid.width, m_grid.width};
     }
 
     /// The pixel-to-world transform.
     const GeoTransform& Transform() const {
-        return grid_.transform;
+        return m_grid.transform;
     }
 
     /// Whether `value` is the no-data value; a NaN no-data value matches every NaN, and nothing
     /// matches without a no-data value.
     bool IsNoData(const T& value) const {
-        if (!noData_) {
+        if (!m_noData) {
             return false;
         }
         if constexpr (std::is_floating_point_v<T>) {
-            if (std::isnan(*noData_)) {
+            if (std::isnan(*m_noData)) {
                 return std::isnan(value);
             }
         }
-        return value == *noData_;
+        return value == *m_noData;
     }
 
     /// Whether `value` holds no data: not finite, or the no-data value.
@@ -175,31 +175,31 @@ template <typename T> class Raster {
 
     /// The value marking cells without data, if any.
     const std::optional<T>& NoData() const {
-        return noData_;
+        return m_noData;
     }
 
     /// Sets the value marking cells without data, or none.
     void SetNoData(std::optional<T> value) {
-        noData_ = value;
+        m_noData = value;
     }
 
     /// The world coordinates of a cell's center.
     Vec2d CellCenter(std::size_t col, std::size_t row) const {
-        return grid_.transform.PixelToWorld(static_cast<double>(col) + 0.5,
-                                            static_cast<double>(row) + 0.5);
+        return m_grid.transform.PixelToWorld(static_cast<double>(col) + 0.5,
+                                             static_cast<double>(row) + 0.5);
     }
 
   private:
     void CheckBounds(std::size_t col, std::size_t row) const {
-        if (col >= grid_.width || row >= grid_.height) {
+        if (col >= m_grid.width || row >= m_grid.height) {
             throw std::out_of_range("Raster cell out of range");
         }
     }
 
-    RasterGrid grid_;
-    std::vector<T> owned_;
-    T* cells_ = nullptr;
-    std::optional<T> noData_;
+    RasterGrid m_grid;
+    std::vector<T> m_owned;
+    T* m_cells = nullptr;
+    std::optional<T> m_noData;
 };
 
 }  // namespace terraingen

@@ -53,7 +53,7 @@ class TerrainGenConfig {
     }
 
   private:
-    std::shared_ptr<const ConfigSpec> spec_;
+    std::shared_ptr<const ConfigSpec> m_spec;
 };
 
 /// Whether two configurations are the same, as their JSON is (`ConfigToJson`).

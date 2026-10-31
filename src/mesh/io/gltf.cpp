@@ -44,9 +44,9 @@ namespace {
 class GltfDocument {
   public:
     GltfDocument(const std::vector<SceneMesh>& meshes, const std::vector<SceneNode>& nodes)
-        : views_(ViewCount(meshes)), accessors_(views_.size()), attributes_(2 * meshes.size()),
-          materials_(meshes.size()), primitives_(meshes.size()), meshes_(meshes.size()),
-          nodes_(nodes.size()), roots_(nodes.size()) {
+        : m_views(ViewCount(meshes)), m_accessors(m_views.size()), m_attributes(2 * meshes.size()),
+          m_materials(meshes.size()), m_primitives(meshes.size()), m_meshes(meshes.size()),
+          m_nodes(nodes.size()), m_roots(nodes.size()) {
         std::size_t view = 0;
         for (std::size_t m = 0; m < meshes.size(); ++m) {
             AddMesh(m, meshes[m], view);
@@ -59,21 +59,21 @@ class GltfDocument {
     /// Writes the document as .glb (`binary`), or as .gltf with its buffer in a .bin beside it.
     void Write(const std::filesystem::path& path, bool binary) {
         cgltf_buffer buffer{};
-        buffer.size = binary_.size();
+        buffer.size = m_binary.size();
         std::string bin;
         if (!binary) {
             std::filesystem::path binPath = path;
             binPath.replace_extension(".bin");
-            WriteFile(binPath, binary_);
+            WriteFile(binPath, m_binary);
             bin = binPath.filename().string();
             buffer.uri = bin.data();
         }
-        for (cgltf_buffer_view& view : views_) {
+        for (cgltf_buffer_view& view : m_views) {
             view.buffer = &buffer;
         }
         cgltf_scene scene{};
-        scene.nodes = roots_.data();
-        scene.nodes_count = roots_.size();
+        scene.nodes = m_roots.data();
+        scene.nodes_count = m_roots.size();
         cgltf_data data{};
         std::string version = "2.0";
         std::string generator = "TerrainGen";
@@ -81,22 +81,22 @@ class GltfDocument {
         data.asset.generator = generator.data();
         data.buffers = &buffer;
         data.buffers_count = 1;
-        data.buffer_views = views_.data();
-        data.buffer_views_count = views_.size();
-        data.accessors = accessors_.data();
-        data.accessors_count = accessors_.size();
-        data.materials = materials_.data();
-        data.materials_count = materials_.size();
-        data.meshes = meshes_.data();
-        data.meshes_count = meshes_.size();
-        data.nodes = nodes_.data();
-        data.nodes_count = nodes_.size();
+        data.buffer_views = m_views.data();
+        data.buffer_views_count = m_views.size();
+        data.accessors = m_accessors.data();
+        data.accessors_count = m_accessors.size();
+        data.materials = m_materials.data();
+        data.materials_count = m_materials.size();
+        data.meshes = m_meshes.data();
+        data.meshes_count = m_meshes.size();
+        data.nodes = m_nodes.data();
+        data.nodes_count = m_nodes.size();
         data.scenes = &scene;
         data.scenes_count = 1;
         data.scene = &scene;
         if (binary) {
-            data.bin = binary_.data();
-            data.bin_size = binary_.size();
+            data.bin = m_binary.data();
+            data.bin_size = m_binary.size();
         }
         cgltf_options options{};
         options.type = binary ? cgltf_file_type_glb : cgltf_file_type_gltf;
@@ -115,18 +115,18 @@ class GltfDocument {
     }
 
     char* Name(const std::string& name) {
-        return names_.emplace_back(name).data();
+        return m_names.emplace_back(name).data();
     }
 
     /// Ends a view and its accessor at `view` over the bytes added since `start`.
     cgltf_accessor* AddAccessor(std::size_t& view, std::size_t start, cgltf_buffer_view_type type,
                                 cgltf_component_type component, cgltf_type kind,
                                 std::size_t count) {
-        cgltf_buffer_view& v = views_[view];
+        cgltf_buffer_view& v = m_views[view];
         v.offset = start;
-        v.size = binary_.size() - start;
+        v.size = m_binary.size() - start;
         v.type = type;
-        cgltf_accessor& a = accessors_[view];
+        cgltf_accessor& a = m_accessors[view];
         a.component_type = component;
         a.type = kind;
         a.count = count;
@@ -136,7 +136,7 @@ class GltfDocument {
     }
 
     cgltf_accessor* AddVectors(std::size_t& view, const std::vector<Vec3d>& vectors, bool bounds) {
-        const std::size_t start = binary_.size();
+        const std::size_t start = m_binary.size();
         constexpr float kInf = std::numeric_limits<float>::infinity();
         std::array<float, 3> low{kInf, kInf, kInf};
         std::array<float, 3> high{-kInf, -kInf, -kInf};
@@ -145,7 +145,7 @@ class GltfDocument {
             const std::array<float, 3> stored{static_cast<float>(p.x), static_cast<float>(p.y),
                                               static_cast<float>(p.z)};
             for (std::size_t c = 0; c < 3; ++c) {
-                Put(binary_, stored[c]);
+                Put(m_binary, stored[c]);
                 low[c] = std::min(low[c], stored[c]);
                 high[c] = std::max(high[c], stored[c]);
             }
@@ -162,7 +162,7 @@ class GltfDocument {
     }
 
     void AddMesh(std::size_t m, const SceneMesh& scene, std::size_t& view) {
-        cgltf_attribute* attributes = &attributes_[2 * m];
+        cgltf_attribute* attributes = &m_attributes[2 * m];
         attributes[0] = {Name("POSITION"), cgltf_attribute_type_position, 0,
                          AddVectors(view, scene.mesh.positions, true)};
         std::size_t count = 1;
@@ -171,13 +171,13 @@ class GltfDocument {
                              AddVectors(view, scene.normals, false)};
             count = 2;
         }
-        const std::size_t start = binary_.size();
+        const std::size_t start = m_binary.size();
         for (const auto& t : scene.mesh.triangles) {
             for (const std::uint32_t v : t) {
-                Put(binary_, v);
+                Put(m_binary, v);
             }
         }
-        cgltf_material& material = materials_[m];
+        cgltf_material& material = m_materials[m];
         material.name = Name(scene.material.name);
         material.has_pbr_metallic_roughness = 1;
         auto& pbr = material.pbr_metallic_roughness;
@@ -187,7 +187,7 @@ class GltfDocument {
         pbr.base_color_factor[3] = 1.0f;
         pbr.metallic_factor = 0.0f;
         pbr.roughness_factor = 1.0f;
-        cgltf_primitive& primitive = primitives_[m];
+        cgltf_primitive& primitive = m_primitives[m];
         primitive.type = cgltf_primitive_type_triangles;
         primitive.indices =
             AddAccessor(view, start, cgltf_buffer_view_type_indices, cgltf_component_type_r_32u,
@@ -195,13 +195,13 @@ class GltfDocument {
         primitive.material = &material;
         primitive.attributes = attributes;
         primitive.attributes_count = count;
-        meshes_[m].primitives = &primitive;
-        meshes_[m].primitives_count = 1;
+        m_meshes[m].primitives = &primitive;
+        m_meshes[m].primitives_count = 1;
     }
 
     void AddNode(std::size_t n, const SceneNode& node) {
-        cgltf_node& out = nodes_[n];
-        out.mesh = &meshes_[node.mesh];
+        cgltf_node& out = m_nodes[n];
+        out.mesh = &m_meshes[node.mesh];
         const auto q = RotationQuaternion(YUp(node.pose.rotation));
         const Vec3d t = YUp(node.pose.translation);
         out.has_translation = out.has_rotation = out.has_scale = 1;
@@ -214,19 +214,19 @@ class GltfDocument {
         for (std::size_t c = 0; c < 4; ++c) {
             out.rotation[c] = static_cast<float>(q[c]);
         }
-        roots_[n] = &out;
+        m_roots[n] = &out;
     }
 
-    std::string binary_;
-    std::deque<std::string> names_;
-    std::vector<cgltf_buffer_view> views_;
-    std::vector<cgltf_accessor> accessors_;
-    std::vector<cgltf_attribute> attributes_;
-    std::vector<cgltf_material> materials_;
-    std::vector<cgltf_primitive> primitives_;
-    std::vector<cgltf_mesh> meshes_;
-    std::vector<cgltf_node> nodes_;
-    std::vector<cgltf_node*> roots_;
+    std::string m_binary;
+    std::deque<std::string> m_names;
+    std::vector<cgltf_buffer_view> m_views;
+    std::vector<cgltf_accessor> m_accessors;
+    std::vector<cgltf_attribute> m_attributes;
+    std::vector<cgltf_material> m_materials;
+    std::vector<cgltf_primitive> m_primitives;
+    std::vector<cgltf_mesh> m_meshes;
+    std::vector<cgltf_node> m_nodes;
+    std::vector<cgltf_node*> m_roots;
 };
 
 /// The position accessor of `primitive`, or null.

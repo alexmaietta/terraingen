@@ -118,14 +118,14 @@ class SplotchBins {
   public:
     SplotchBins(const RasterGrid& grid, const std::vector<Splotch>& splotches,
                 const Surface& surface)
-        : bounds_(grid.Bounds()) {
-        const double width = bounds_.maxX - bounds_.minX;
-        const double height = bounds_.maxY - bounds_.minY;
-        bin_ = kBinCells * std::fmax(width / static_cast<double>(grid.width),
-                                     height / static_cast<double>(grid.height));
-        columns_ = static_cast<std::size_t>(std::ceil(width / bin_));
-        rows_ = static_cast<std::size_t>(std::ceil(height / bin_));
-        bins_.resize(columns_ * rows_);
+        : m_bounds(grid.Bounds()) {
+        const double width = m_bounds.maxX - m_bounds.minX;
+        const double height = m_bounds.maxY - m_bounds.minY;
+        m_bin = kBinCells * std::fmax(width / static_cast<double>(grid.width),
+                                      height / static_cast<double>(grid.height));
+        m_columns = static_cast<std::size_t>(std::ceil(width / m_bin));
+        m_rows = static_cast<std::size_t>(std::ceil(height / m_bin));
+        m_bins.resize(m_columns * m_rows);
         for (const Splotch& splotch : splotches) {
             Add(splotch, surface);
         }
@@ -133,38 +133,39 @@ class SplotchBins {
 
     /// The splotches that may reach (`x`, `y`).
     const std::vector<const Splotch*>& Near(double x, double y) const {
-        return bins_[Index(y, bounds_.minY, rows_) * columns_ + Index(x, bounds_.minX, columns_)];
+        return m_bins[Index(y, m_bounds.minY, m_rows) * m_columns +
+                      Index(x, m_bounds.minX, m_columns)];
     }
 
   private:
     std::size_t Index(double value, double origin, std::size_t count) const {
-        return ClampIndex(std::floor((value - origin) / bin_), count);
+        return ClampIndex(std::floor((value - origin) / m_bin), count);
     }
 
     void Add(const Splotch& splotch, const Surface& surface) {
         const Bounds2d box =
             surface.Expand(PointBounds(splotch.mark.x, splotch.mark.y),
                            0.5 * splotch.mark.diameter * std::sqrt(splotch.elongation));
-        if (box.maxX < bounds_.minX || box.minX > bounds_.maxX || box.maxY < bounds_.minY ||
-            box.minY > bounds_.maxY) {
+        if (box.maxX < m_bounds.minX || box.minX > m_bounds.maxX || box.maxY < m_bounds.minY ||
+            box.minY > m_bounds.maxY) {
             return;
         }
-        const std::size_t c0 = Index(box.minX, bounds_.minX, columns_);
-        const std::size_t c1 = Index(box.maxX, bounds_.minX, columns_);
-        const std::size_t r0 = Index(box.minY, bounds_.minY, rows_);
-        const std::size_t r1 = Index(box.maxY, bounds_.minY, rows_);
+        const std::size_t c0 = Index(box.minX, m_bounds.minX, m_columns);
+        const std::size_t c1 = Index(box.maxX, m_bounds.minX, m_columns);
+        const std::size_t r0 = Index(box.minY, m_bounds.minY, m_rows);
+        const std::size_t r1 = Index(box.maxY, m_bounds.minY, m_rows);
         for (std::size_t r = r0; r <= r1; ++r) {
             for (std::size_t c = c0; c <= c1; ++c) {
-                bins_[r * columns_ + c].push_back(&splotch);
+                m_bins[r * m_columns + c].push_back(&splotch);
             }
         }
     }
 
-    Bounds2d bounds_;
-    double bin_ = 0.0;
-    std::size_t columns_ = 0;
-    std::size_t rows_ = 0;
-    std::vector<std::vector<const Splotch*>> bins_;
+    Bounds2d m_bounds;
+    double m_bin = 0.0;
+    std::size_t m_columns = 0;
+    std::size_t m_rows = 0;
+    std::vector<std::vector<const Splotch*>> m_bins;
 };
 
 }  // namespace
@@ -197,13 +198,13 @@ void ValidateSplotchAlbedoOptions(const SplotchAlbedoOptions& options) {
     CheckSwarms(options.swarms);
 }
 
-SplotchAlbedo::SplotchAlbedo(SplotchAlbedoOptions options) : options_(std::move(options)) {
-    ValidateSplotchAlbedoOptions(options_);
+SplotchAlbedo::SplotchAlbedo(SplotchAlbedoOptions options) : m_options(std::move(options)) {
+    ValidateSplotchAlbedoOptions(m_options);
 }
 
 std::vector<Splotch> SplotchAlbedo::Marks(const Bounds2d& region, double spacing,
                                           const Surface& surface) const {
-    const SplotchAlbedoOptions& o = options_;
+    const SplotchAlbedoOptions& o = m_options;
     CraterGenerationOptions generation;
     generation.minDiameter = o.minDiameter;
     generation.maxDiameter = o.maxDiameter;
@@ -230,7 +231,7 @@ std::vector<double> SplotchAlbedo::SteepSlopes(const std::vector<Splotch>& splot
                                                double spacing, const Ground* ground,
                                                const Surface& surface) const {
     std::vector<double> slopes(splotches.size(), 0.0);
-    if (ground == nullptr || !options_.steepBrightShare) {
+    if (ground == nullptr || !m_options.steepBrightShare) {
         return slopes;
     }
     std::vector<Vec2d> points;
@@ -241,7 +242,7 @@ std::vector<double> SplotchAlbedo::SteepSlopes(const std::vector<Splotch>& splot
         points.insert(points.end(), four.begin(), four.end());
     }
     std::vector<float> heights(points.size());
-    ground->HeightsAt(points, heights, SlopeSpacing(spacing, options_));
+    ground->HeightsAt(points, heights, SlopeSpacing(spacing, m_options));
     for (std::size_t n = 0; n < splotches.size(); ++n) {
         slopes[n] = SlopeDegrees(Span(heights).subspan(4 * n).first(4), splotches[n].mark.diameter);
     }
@@ -249,7 +250,7 @@ std::vector<double> SplotchAlbedo::SteepSlopes(const std::vector<Splotch>& splot
 }
 
 void SplotchAlbedo::DrawSides(Splotch& splotch, double slopeDegrees) const {
-    const SplotchAlbedoOptions& o = options_;
+    const SplotchAlbedoOptions& o = m_options;
     double darkShare = o.darkShare;
     double brightShare = o.brightShare;
     if (o.steepBrightShare && slopeDegrees > o.steepSlopeDegrees) {
@@ -277,7 +278,7 @@ std::vector<Splotch> SplotchAlbedo::Splotches(const Bounds2d& region, double spa
     for (std::size_t n = 0; n < splotches.size(); ++n) {
         DrawSides(splotches[n], slopes[n]);
     }
-    if (options_.swarms.enabled) {
+    if (m_options.swarms.enabled) {
         AddSwarms(region, spacing, surface, splotches);
     }
     std::sort(splotches.begin(), splotches.end(), [](const Splotch& a, const Splotch& b) {
@@ -289,7 +290,7 @@ std::vector<Splotch> SplotchAlbedo::Splotches(const Bounds2d& region, double spa
 
 void SplotchAlbedo::AddSwarms(const Bounds2d& region, double spacing, const Surface& surface,
                               std::vector<Splotch>& splotches) const {
-    const SplotchAlbedoOptions& o = options_;
+    const SplotchAlbedoOptions& o = m_options;
     const SplotchSwarms& s = o.swarms;
     const double margin = 0.5 * s.splotchDiameter.Highest() * std::sqrt(s.wedgeElongation);
     CraterGenerationOptions generation;
@@ -325,7 +326,7 @@ void SplotchAlbedo::AddSwarms(const Bounds2d& region, double spacing, const Surf
 
 Splotch SplotchAlbedo::DrawSwarmSplotch(RandomStream& random, const Crater& crater,
                                         std::uint64_t index, const Surface& surface) const {
-    const SplotchSwarms& s = options_.swarms;
+    const SplotchSwarms& s = m_options.swarms;
     const double a = 1.5 * s.mu;
     const double near = std::pow(s.minRange, -a);
     const double far = std::pow(s.maxRange, -a);
@@ -359,12 +360,12 @@ Splotch SplotchAlbedo::DrawSwarmSplotch(RandomStream& random, const Crater& crat
 std::vector<Splotch> SplotchAlbedo::Swarm(const Crater& crater, double spacing,
                                           const Surface& surface) const {
     const IdWords id = SplitId(crater.id);
-    RandomStream random(options_.seed, kSplotchSwarmStream, id.low, id.high);
-    const std::uint64_t count = SamplePoisson(random, options_.swarms.Count(crater.diameter));
+    RandomStream random(m_options.seed, kSplotchSwarmStream, id.low, id.high);
+    const std::uint64_t count = SamplePoisson(random, m_options.swarms.Count(crater.diameter));
     std::vector<Splotch> splotches;
     for (std::uint64_t i = 0; i < count; ++i) {
         const Splotch splotch = DrawSwarmSplotch(random, crater, i, surface);
-        if (ResolutionWeight(splotch.mark.diameter, spacing, options_.fade) > 0.0) {
+        if (ResolutionWeight(splotch.mark.diameter, spacing, m_options.fade) > 0.0) {
             splotches.push_back(splotch);
         }
     }
@@ -381,13 +382,13 @@ double SplotchAlbedo::ChangeAt(const std::vector<const Splotch*>& splotches, dou
     ChangeOverlay overlay;
     for (const Splotch* splotch : splotches) {
         const Vec2d offset = surface.Offset({splotch->mark.x, splotch->mark.y}, {x, y});
-        const double cover = Cover(*splotch, offset, options_);
+        const double cover = Cover(*splotch, offset, m_options);
         if (cover == 0.0) {
             continue;
         }
-        const double left = LifeLeft(splotch->mark.ageGyr, options_.lifetimeMyr);
+        const double left = LifeLeft(splotch->mark.ageGyr, m_options.lifetimeMyr);
         overlay.Add(std::fmax(0.0, left) * cover,
-                    ResolutionWeight(splotch->mark.diameter, spacing, options_.fade) *
+                    ResolutionWeight(splotch->mark.diameter, spacing, m_options.fade) *
                         SideChange(*splotch, offset));
     }
     return overlay.Change();

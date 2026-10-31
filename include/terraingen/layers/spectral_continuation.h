@@ -56,7 +56,7 @@ class SpectralContinuationLayer final : public Layer {
 
     /// The options the layer was made with.
     const SpectralContinuationOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)`.
@@ -89,9 +89,9 @@ class SpectralContinuationLayer final : public Layer {
     void AddDetail(const std::vector<Vec2d>& positions, const std::vector<float*>& heights,
                    double spacing) const;
 
-    SpectralContinuationOptions options_;
-    double coefficient_ = 0.0;  ///< C in m^(4 - beta), P(f) = C f^-beta.
-    std::vector<Band> bands_;
+    SpectralContinuationOptions m_options;
+    double m_coefficient = 0.0;  ///< C in m^(4 - beta), P(f) = C f^-beta.
+    std::vector<Band> m_bands;
 };
 
 }  // namespace terraingen

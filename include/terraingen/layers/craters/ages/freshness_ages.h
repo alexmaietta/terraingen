@@ -21,7 +21,7 @@ class FreshnessAges final : public CraterAgeModel {
 
     /// The distribution freshness is drawn from, clamped to [0, 1].
     const ValueDistribution& Freshness() const {
-        return freshness_;
+        return m_freshness;
     }
 
     /// Draws a freshness in [0, 1] from two draws of `random`.
@@ -32,8 +32,8 @@ class FreshnessAges final : public CraterAgeModel {
     double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const override;
 
   private:
-    ValueDistribution freshness_;
-    double lifetimeGyr_;
+    ValueDistribution m_freshness;
+    double m_lifetimeGyr;
 };
 
 }  // namespace terraingen

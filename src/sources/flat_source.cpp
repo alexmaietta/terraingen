@@ -12,7 +12,7 @@ namespace terraingen {
 
 FlatSource::FlatSource(std::size_t width, std::size_t height, double pixelSize, float elevation,
                        Vec2d center)
-    : elevation_(elevation) {
+    : m_elevation(elevation) {
     if (width == 0 || height == 0) {
         throw std::invalid_argument("A flat source needs at least one cell in each direction");
     }
@@ -22,12 +22,12 @@ FlatSource::FlatSource(std::size_t width, std::size_t height, double pixelSize, 
     }
     const double halfX = 0.5 * static_cast<double>(width) * pixelSize;
     const double halfY = 0.5 * static_cast<double>(height) * pixelSize;
-    grid_ = {width, height, GeoTransform::NorthUp(center.x - halfX, center.y + halfY, pixelSize)};
+    m_grid = {width, height, GeoTransform::NorthUp(center.x - halfX, center.y + halfY, pixelSize)};
 }
 
 void FlatSource::FillSamples(SampleBlock& samples, double /*spacing*/, unsigned /*threads*/) const {
     const Span<float> heights = samples.Heights();
-    std::fill(heights.begin(), heights.end(), elevation_);
+    std::fill(heights.begin(), heights.end(), m_elevation);
 }
 
 }  // namespace terraingen

@@ -58,12 +58,12 @@ class SandShadowLayer final : public Layer, public MaterialSource {
 
     /// The options the layer was made with.
     const SandShadowOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     /// The boulder layer the shadows trail, which must come before this layer.
     std::vector<const Layer*> Dependencies() const override {
-        return {boulders_.get()};
+        return {m_boulders.get()};
     }
 
     /// A copy trailing the replacement of its boulder layer; null when it is not replaced.
@@ -95,10 +95,10 @@ class SandShadowLayer final : public Layer, public MaterialSource {
     double ShadowDepth(const Shadow& shadow, double x, double y, const Surface& surface) const;
     static std::vector<Bounds2d> Boxes(const std::vector<Shadow>& shadows);
 
-    std::shared_ptr<const BoulderLayer> boulders_;
-    SandShadowOptions options_;
-    Vec2d downwind_{1.0, 0.0};
-    double flankSlope_ = 0.0;
+    std::shared_ptr<const BoulderLayer> m_boulders;
+    SandShadowOptions m_options;
+    Vec2d m_downwind{1.0, 0.0};
+    double m_flankSlope = 0.0;
 };
 
 }  // namespace terraingen

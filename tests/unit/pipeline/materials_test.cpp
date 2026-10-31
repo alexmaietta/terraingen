@@ -35,19 +35,19 @@ std::size_t Index(MaterialClass material) {
 /// Ground tilted along x by `slope`, with a Gaussian pit of `depth` at (`pitX`, 0).
 class Tilt final : public terraingen::FormulaLayer {
   public:
-    Tilt(double slope, double depth, double pitX) : slope_(slope), depth_(depth), pitX_(pitX) {}
+    Tilt(double slope, double depth, double pitX) : m_slope(slope), m_depth(depth), m_pitX(pitX) {}
 
   protected:
     float HeightAt(float height, double x, double y,
                    const terraingen::LayerContext&) const override {
-        const double pit = depth_ * std::exp(-((x - pitX_) * (x - pitX_) + y * y) / 9.0);
-        return static_cast<float>(static_cast<double>(height) + slope_ * x - pit);
+        const double pit = m_depth * std::exp(-((x - m_pitX) * (x - m_pitX) + y * y) / 9.0);
+        return static_cast<float>(static_cast<double>(height) + m_slope * x - pit);
     }
 
   private:
-    double slope_;
-    double depth_;
-    double pitX_;
+    double m_slope;
+    double m_depth;
+    double m_pitX;
 };
 
 /// A terrain without a source of a `Tilt`, then `layers`.

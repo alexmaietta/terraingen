@@ -328,34 +328,34 @@ void AppendKernelOutline(const CraterOutline& outline, CraterRecord& record,
 }
 
 KernelOutline::KernelOutline(const CraterOutline& outline, double diameter)
-    : round_(outline.Round()) {
-    record_.diameter = static_cast<float>(diameter);
-    data_.clear();
-    AppendKernelOutline(outline, record_, data_);
-    if (data_.empty()) {
-        data_.push_back(0.0f);
+    : m_round(outline.Round()) {
+    m_record.diameter = static_cast<float>(diameter);
+    m_data.clear();
+    AppendKernelOutline(outline, m_record, m_data);
+    if (m_data.empty()) {
+        m_data.push_back(0.0f);
     }
 }
 
 double KernelOutline::Scale(const Vec2d& offset) const {
-    return static_cast<double>(KernelOutlineScale(Data(), record_, static_cast<float>(offset.x),
+    return static_cast<double>(KernelOutlineScale(Data(), m_record, static_cast<float>(offset.x),
                                                   static_cast<float>(offset.y)));
 }
 
 double KernelOutline::MarkShift(const Vec2d& offset, double radii) const {
-    if (record_.markCount == 0u) {
+    if (m_record.markCount == 0u) {
         return 0.0;
     }
-    return static_cast<double>(KernelMarkShift(Data(), record_, static_cast<float>(offset.x),
+    return static_cast<double>(KernelMarkShift(Data(), m_record, static_cast<float>(offset.x),
                                                static_cast<float>(offset.y),
                                                static_cast<float>(radii)));
 }
 
 double KernelOutline::ProfileDistance(const Vec2d& offset) const {
-    if (round_) {
+    if (m_round) {
         return std::sqrt(offset.x * offset.x + offset.y * offset.y);
     }
-    return static_cast<double>(KernelProfileDistance(Data(), record_, static_cast<float>(offset.x),
+    return static_cast<double>(KernelProfileDistance(Data(), m_record, static_cast<float>(offset.x),
                                                      static_cast<float>(offset.y)));
 }
 

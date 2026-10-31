@@ -13,12 +13,12 @@
 namespace terraingen {
 
 const ManualBoulder* BoulderLayer::Fixed(std::uint64_t id) const {
-    const auto found = fixed_.find(id);
-    return found != fixed_.end() ? &found->second : nullptr;
+    const auto found = m_fixed.find(id);
+    return found != m_fixed.end() ? &found->second : nullptr;
 }
 
 bool BoulderLayer::Settles(const Boulder& boulder) const {
-    if (!options_.pose.settle) {
+    if (!m_options.pose.settle) {
         return false;
     }
     const ManualBoulder* fixed = boulder.parent == 0 ? Fixed(boulder.id) : nullptr;
@@ -30,7 +30,7 @@ double BoulderLayer::Wear(double diameter, const BoulderAbundance& abundance, do
     RandomStream random = AttributeStream(id, BoulderDraw::Wear);
     const double thrown = random.NextDouble();
     if (abundance.ejecta > 0.0 && density > 0.0) {
-        const double fromCrater = abundance.ejecta * ejectaSizes_->Incremental(diameter) / density;
+        const double fromCrater = abundance.ejecta * m_ejectaSizes->Incremental(diameter) / density;
         if (thrown < fromCrater) {
             return abundance.ejectaWear;
         }
@@ -42,7 +42,7 @@ Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing,
                                const ManualBoulder* fixed) const {
     const Crater& candidate = thinned.candidate;
     RandomStream random = AttributeStream(candidate.id, BoulderDraw::Pose);
-    const BoulderPose& pose = options_.pose;
+    const BoulderPose& pose = m_options.pose;
     const double ratio =
         ValueRange{pose.minHeightRatio, pose.maxHeightRatio}.Lerp(random.NextDouble());
     double wear = Wear(candidate.diameter, thinned.abundance, thinned.density, candidate.id);
@@ -60,7 +60,7 @@ Boulder BoulderLayer::DrawPose(const ThinnedCandidate& thinned, double spacing,
         candidate.x, candidate.y, candidate.diameter, ratio * candidate.diameter, burial,
         yaw,         lean,        candidate.id};
     boulder.wear = wear;
-    boulder.model = options_.rendering.modelThreshold.IsModel(boulder.diameter, spacing);
+    boulder.model = m_options.rendering.modelThreshold.IsModel(boulder.diameter, spacing);
     if (fixed != nullptr) {
         boulder.height = fixed->height.value_or(boulder.height);
         boulder.burial = fixed->burial.value_or(boulder.burial);
@@ -80,7 +80,7 @@ std::optional<Boulder> BoulderLayer::PlaceCandidate(const ThinnedCandidate& thin
                                                     const Ground* ground) const {
     const ManualBoulder* fixed = thinned.candidate.manual ? Fixed(thinned.candidate.id) : nullptr;
     Boulder boulder = DrawPose(thinned, spacing, fixed);
-    const BoulderPose& pose = options_.pose;
+    const BoulderPose& pose = m_options.pose;
     if (pose.maxSlopeDegrees && ground != nullptr && !thinned.candidate.manual &&
         !Roll(boulder, *ground)) {
         return std::nullopt;
@@ -90,7 +90,7 @@ std::optional<Boulder> BoulderLayer::PlaceCandidate(const ThinnedCandidate& thin
         pose.followSlope || (fixed != nullptr && fixed->FixesOrientation())) {
         Settle(boulder, ground, fixed);
     }
-    if (options_.ventifacts.share > 0.0) {
+    if (m_options.ventifacts.share > 0.0) {
         Abrade(boulder);
     }
     return boulder;
@@ -100,7 +100,7 @@ void BoulderLayer::ReadGround(Boulder& boulder, const Ground* ground) const {
     boulder.ground.reset();
     if (ground != nullptr) {
         const double height =
-            static_cast<double>(ground->HeightAt(boulder.x, boulder.y, options_.groundSpacing));
+            static_cast<double>(ground->HeightAt(boulder.x, boulder.y, m_options.groundSpacing));
         if (!std::isnan(height)) {
             boulder.ground = height;
         }
@@ -108,7 +108,7 @@ void BoulderLayer::ReadGround(Boulder& boulder, const Ground* ground) const {
 }
 
 void BoulderLayer::Abrade(Boulder& boulder) const {
-    const BoulderVentifacts& ventifacts = options_.ventifacts;
+    const BoulderVentifacts& ventifacts = m_options.ventifacts;
     RandomStream random = AttributeStream(boulder.id, BoulderDraw::Abrade);
     if (random.NextDouble() >= ventifacts.share) {
         return;
@@ -133,7 +133,7 @@ void BoulderLayer::Abrade(Boulder& boulder) const {
 
 bool BoulderLayer::Roll(Boulder& boulder, const Ground& ground) const {
     constexpr double kMaxSteps = 128.0;
-    const BoulderPose& pose = options_.pose;
+    const BoulderPose& pose = m_options.pose;
     const double limit = std::tan((*pose.maxSlopeDegrees * kDegree));
     const double reach = pose.rollDistance.value_or(0.0);
     const double step = std::fmax(boulder.diameter, reach / kMaxSteps);
@@ -147,8 +147,8 @@ bool BoulderLayer::Roll(Boulder& boulder, const Ground& ground) const {
         if (rolled + step > reach) {
             return false;
         }
-        const Vec2d to = surface_.Locate({boulder.x, boulder.y},
-                                         {-g->x / gradient * step, -g->y / gradient * step});
+        const Vec2d to = m_surface.Locate({boulder.x, boulder.y},
+                                          {-g->x / gradient * step, -g->y / gradient * step});
         boulder.x = to.x;
         boulder.y = to.y;
         rolled += step;
@@ -156,12 +156,12 @@ bool BoulderLayer::Roll(Boulder& boulder, const Ground& ground) const {
 }
 
 std::optional<Vec2d> BoulderLayer::Gradient(const Boulder& boulder, const Ground& ground) const {
-    return GroundGradient(ground, surface_, {boulder.x, boulder.y}, 0.5 * boulder.diameter,
-                          options_.groundSpacing);
+    return GroundGradient(ground, m_surface, {boulder.x, boulder.y}, 0.5 * boulder.diameter,
+                          m_options.groundSpacing);
 }
 
 Vec3d BoulderLayer::UpAxis(RandomStream& random, const ManualBoulder* fixedTilt) const {
-    const BoulderPose& pose = options_.pose;
+    const BoulderPose& pose = m_options.pose;
     Vec3d up{0.0, 0.0, 1.0};
     double cosine = 1.0;
     double azimuth = 0.0;
@@ -186,7 +186,7 @@ Vec3d BoulderLayer::UpAxis(RandomStream& random, const ManualBoulder* fixedTilt)
 
 void BoulderLayer::Settle(Boulder& boulder, const Ground* ground,
                           const ManualBoulder* fixed) const {
-    const BoulderPose& pose = options_.pose;
+    const BoulderPose& pose = m_options.pose;
     RandomStream random = AttributeStream(boulder.id, BoulderDraw::Settle);
     const double pick = random.NextDouble();
     boulder.rest = pick < pose.endShare                    ? BoulderRest::End
@@ -231,7 +231,7 @@ void BoulderLayer::ReadGrounds(std::vector<Boulder>& boulders,
         return;
     }
     std::vector<float> heights(points.size());
-    ground->HeightsAt(points, heights, options_.groundSpacing, threads);
+    ground->HeightsAt(points, heights, m_options.groundSpacing, threads);
     for (std::size_t k = 0; k < indices.size(); ++k) {
         if (!std::isnan(heights[k])) {
             boulders[indices[k]].ground = heights[k];
@@ -240,7 +240,7 @@ void BoulderLayer::ReadGrounds(std::vector<Boulder>& boulders,
 }
 
 BoulderLayer::BreakStage BoulderLayer::Stage(const Boulder& parent) const {
-    const BoulderFragmentation& fragmentation = *options_.fragmentation;
+    const BoulderFragmentation& fragmentation = *m_options.fragmentation;
     const bool rubble = parent.wear >= fragmentation.rubbleWear;
     BreakStage stage;
     stage.opening = rubble || fragmentation.rubbleWear <= fragmentation.splitWear
@@ -257,7 +257,7 @@ BoulderLayer::BreakStage BoulderLayer::Stage(const Boulder& parent) const {
 Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& fragment,
                                  std::size_t k, const PieceFrame& frame, double push,
                                  double twist) const {
-    const BoulderFragmentation& fragmentation = *options_.fragmentation;
+    const BoulderFragmentation& fragmentation = *m_options.fragmentation;
     const BoulderPlacement& placement = frame.placement;
     const double scatter = frame.stage.scatter;
     const auto [low, high] = ZRange(fragment.shape.mesh.positions, [&](const Vec3d& p) {
@@ -283,8 +283,8 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
     piece.lean = parent.lean * (1.0 - scatter);
     piece.tilt = parent.tilt * (1.0 - scatter);
     const double sunk = std::clamp(-low / (high - low), 0.0, 0.95);
-    piece.burial = std::fmax(sunk, sunk + scatter * (options_.pose.maxBurial - sunk));
-    const Vec2d at = surface_.Locate(
+    piece.burial = std::fmax(sunk, sunk + scatter * (m_options.pose.maxBurial - sunk));
+    const Vec2d at = m_surface.Locate(
         {parent.x, parent.y}, {center.x + gap * std::cos(angle), center.y + gap * std::sin(angle)});
     piece.x = at.x;
     piece.y = at.y;
@@ -293,23 +293,23 @@ Boulder BoulderLayer::PlacePiece(const Boulder& parent, const BoulderFragment& f
 
 std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
                                          double smallest) const {
-    if (!options_.fragmentation) {
+    if (!m_options.fragmentation) {
         return {parent};
     }
-    const BoulderFragmentation& fragmentation = *options_.fragmentation;
+    const BoulderFragmentation& fragmentation = *m_options.fragmentation;
     if (parent.diameter < fragmentation.minDiameter || parent.wear < fragmentation.splitWear ||
         Fixed(parent.id) != nullptr) {
         return {parent};
     }
     const auto shape = Shape(parent);
-    const auto fragments = CachedFragments(ShapeSeed(parent, options_.rendering.shapePrototypes));
+    const auto fragments = CachedFragments(ShapeSeed(parent, m_options.rendering.shapePrototypes));
     Boulder origin = parent;
     origin.x = 0.0;
     origin.y = 0.0;
     const PieceFrame frame{PlaceBoulderModel(origin, *shape, 0.0, Settles(parent)), Stage(parent),
                            shape->shortAxis};
     const IdWords id = SplitId(parent.id);
-    RandomStream random(options_.seed, kBoulderPieceStream, id.low, id.high);
+    RandomStream random(m_options.seed, kBoulderPieceStream, id.low, id.high);
     std::vector<Boulder> pieces;
     for (std::size_t k = 0; k < fragments->size(); ++k) {
         const double push = random.NextDouble();
@@ -318,7 +318,7 @@ std::vector<Boulder> BoulderLayer::Break(const Boulder& parent, double spacing,
         if (piece.diameter < smallest) {
             continue;
         }
-        piece.model = options_.rendering.modelThreshold.IsModel(piece.diameter, spacing);
+        piece.model = m_options.rendering.modelThreshold.IsModel(piece.diameter, spacing);
         pieces.push_back(piece);
     }
     return pieces;

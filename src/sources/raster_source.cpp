@@ -68,21 +68,21 @@ PixelWindow NativeWindow(const RasterGrid& native, int reach, const PixelWindow&
 RasterHeights::RasterHeights(std::shared_ptr<const PostLattice> posts, const RasterGrid& lattice,
                              std::optional<float> noData, const RasterSourceOptions& options,
                              const PixelWindow& cells, std::string name, bool wrapLongitude)
-    : posts_(std::move(posts)), lattice_(lattice), noData_(noData), cells_(cells),
-      upsampler_(FittedUpsampler(options.upsampler, *posts_)), name_(std::move(name)),
-      wrapLongitude_(wrapLongitude) {
-    cellSpacing_ = PostSpacing(lattice_.transform);
-    resolution_ = options.effectivePixelSize.value_or(cellSpacing_);
+    : m_posts(std::move(posts)), m_lattice(lattice), m_noData(noData), m_cells(cells),
+      m_upsampler(FittedUpsampler(options.upsampler, *m_posts)), m_name(std::move(name)),
+      m_wrapLongitude(wrapLongitude) {
+    m_cellSpacing = PostSpacing(m_lattice.transform);
+    m_resolution = options.effectivePixelSize.value_or(m_cellSpacing);
 }
 
 bool RasterHeights::Covers(double col, double row) const {
-    return col >= static_cast<double>(cells_.colBegin) &&
-           row >= static_cast<double>(cells_.rowBegin) &&
-           col < static_cast<double>(cells_.colEnd) && row < static_cast<double>(cells_.rowEnd);
+    return col >= static_cast<double>(m_cells.colBegin) &&
+           row >= static_cast<double>(m_cells.rowBegin) &&
+           col < static_cast<double>(m_cells.colEnd) && row < static_cast<double>(m_cells.rowEnd);
 }
 
 PixelWindow RasterHeights::CoveredWindow(const RasterGrid& grid) const {
-    const PixelWindow meets = PixelWindowIn(grid, Subgrid(lattice_, cells_).Bounds());
+    const PixelWindow meets = PixelWindowIn(grid, Subgrid(m_lattice, m_cells).Bounds());
     if (meets.Empty()) {
         return {};
     }
@@ -92,9 +92,9 @@ PixelWindow RasterHeights::CoveredWindow(const RasterGrid& grid) const {
 
 void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing, unsigned threads) const {
     const GeoTransform& target = heights.Transform();
-    if (target.IsRotated() && !(AtPostSpacing(lattice_.transform, spacing) &&
-                                detail::OffsetOnLattice(lattice_.transform, target))) {
-        throw std::invalid_argument("A rotated grid off the lattice of " + name_ +
+    if (target.IsRotated() && !(AtPostSpacing(m_lattice.transform, spacing) &&
+                                detail::OffsetOnLattice(m_lattice.transform, target))) {
+        throw std::invalid_argument("A rotated grid off the lattice of " + m_name +
                                     " cannot be filled");
     }
     const RasterGrid grid = heights.Grid();
@@ -104,16 +104,16 @@ void RasterHeights::FillUnwrapped(Raster<float>& heights, double spacing, unsign
     Raster<float> covered;
     if (part) {
         covered = Raster<float>(*part);
-        upsampler_->Fill(*posts_, covered, spacing, threads);
+        m_upsampler->Fill(*m_posts, covered, spacing, threads);
     } else if (!window.Empty()) {
-        upsampler_->Fill(*posts_, heights, spacing, threads);
+        m_upsampler->Fill(*m_posts, heights, spacing, threads);
     }
     ParallelFor(heights.Height(), threads, [&](std::size_t row) {
         for (std::size_t col = 0; col < heights.Width(); ++col) {
             heights(col, row) = HeightIn(heights, col, row, window, part ? &covered : nullptr);
         }
     });
-    heights.SetNoData(noData_);
+    heights.SetNoData(m_noData);
 }
 
 float RasterHeights::HeightIn(const Raster<float>& heights, std::size_t col, std::size_t row,
@@ -124,7 +124,7 @@ float RasterHeights::HeightIn(const Raster<float>& heights, std::size_t col, std
         return kMissing;
     }
     const Vec2d center = heights.CellCenter(col, row);
-    const Vec2d pixel = lattice_.transform.WorldToPixel(center.x, center.y);
+    const Vec2d pixel = m_lattice.transform.WorldToPixel(center.x, center.y);
     if (!Covers(pixel.x, pixel.y)) {
         return kMissing;
     }
@@ -133,13 +133,13 @@ float RasterHeights::HeightIn(const Raster<float>& heights, std::size_t col, std
 }
 
 double RasterHeights::Turns(double x) const {
-    if (!wrapLongitude_) {
+    if (!m_wrapLongitude) {
         return 0.0;
     }
-    const GeoTransform& transform = lattice_.transform;
+    const GeoTransform& transform = m_lattice.transform;
     const double left =
         std::min(transform.originX,
-                 transform.originX + static_cast<double>(lattice_.width) * transform.pixelWidth);
+                 transform.originX + static_cast<double>(m_lattice.width) * transform.pixelWidth);
     return std::floor((x - left) / kTurnDegrees);
 }
 
@@ -154,7 +154,7 @@ void RasterHeights::Fill(SampleBlock& samples, double spacing, unsigned threads)
 void RasterHeights::FillGrid(Raster<float>& heights, double spacing, unsigned threads) const {
     const std::size_t width = heights.Width();
     const auto turnsAt = [&](std::size_t col) { return Turns(heights.CellCenter(col, 0).x); };
-    if (!wrapLongitude_ || heights.Empty() || heights.Transform().IsRotated() ||
+    if (!m_wrapLongitude || heights.Empty() || heights.Transform().IsRotated() ||
         (turnsAt(0) == 0.0 && turnsAt(width - 1) == 0.0)) {
         FillUnwrapped(heights, spacing, threads);
         return;
@@ -175,7 +175,7 @@ void RasterHeights::FillGrid(Raster<float>& heights, double spacing, unsigned th
         }
         begin = end;
     }
-    heights.SetNoData(noData_);
+    heights.SetNoData(m_noData);
 }
 
 Vec2d RasterHeights::Unwrapped(const Vec2d& point) const {
@@ -189,33 +189,33 @@ void RasterHeights::FillPoints(Span<const Vec2d> points, Span<float> heights,
         points.size(),
         [&](std::size_t i) -> std::optional<Vec2d> {
             const Vec2d at = Unwrapped(points[i]);
-            const Vec2d pixel = lattice_.transform.WorldToPixel(at.x, at.y);
+            const Vec2d pixel = m_lattice.transform.WorldToPixel(at.x, at.y);
             return Covers(pixel.x, pixel.y) ? std::optional<Vec2d>(at) : std::nullopt;
         },
         [&](Span<const Vec2d> covered, Span<float> values) {
-            upsampler_->HeightsAt(*posts_, covered, values, spacing);
+            m_upsampler->HeightsAt(*m_posts, covered, values, spacing);
         },
         [&](std::size_t i, float value) { heights[i] = value; });
 }
 
 bool RasterHeights::HasHeight(double x, double y) const {
     const Vec2d at = Unwrapped({x, y});
-    const Vec2d pixel = lattice_.transform.WorldToPixel(at.x, at.y);
+    const Vec2d pixel = m_lattice.transform.WorldToPixel(at.x, at.y);
     if (!Covers(pixel.x, pixel.y)) {
         return false;
     }
     float post = 0.0f;
-    posts_->Read(static_cast<std::int64_t>(std::floor(pixel.x)),
-                 static_cast<std::int64_t>(std::floor(pixel.y)), 1, 1, Span<float>(&post, 1));
+    m_posts->Read(static_cast<std::int64_t>(std::floor(pixel.x)),
+                  static_cast<std::int64_t>(std::floor(pixel.y)), 1, 1, Span<float>(&post, 1));
     return !std::isnan(post);
 }
 
 double RasterHeights::ResolutionAt(double x, double y) const {
-    return HasHeight(x, y) ? resolution_ : std::numeric_limits<double>::infinity();
+    return HasHeight(x, y) ? m_resolution : std::numeric_limits<double>::infinity();
 }
 
 double RasterHeights::PostSpacingAt(double x, double y) const {
-    return HasHeight(x, y) ? cellSpacing_ : std::numeric_limits<double>::infinity();
+    return HasHeight(x, y) ? m_cellSpacing : std::numeric_limits<double>::infinity();
 }
 
 double RasterHeightsSource::ResolutionAt(double x, double y) const {
@@ -235,14 +235,14 @@ void RasterHeightsSource::FillSamples(SampleBlock& samples, double spacing,
 
 RasterSource::RasterSource(Raster<float> heights, const RasterSourceOptions& options, GeoKeys keys)
     : RasterHeightsSource(heights.Grid(), WholeWindow(heights.Grid()), std::move(keys)),
-      heights_(WholeHeights(std::move(heights), options, Keys())) {}
+      m_heights(WholeHeights(std::move(heights), options, Keys())) {}
 
 const std::shared_ptr<const Upsampler>& RasterSource::UpsamplerInUse() const {
-    return heights_->UpsamplerInUse();
+    return m_heights->UpsamplerInUse();
 }
 
 const detail::RasterHeights& RasterSource::Heights() const {
-    return *heights_;
+    return *m_heights;
 }
 
 }  // namespace terraingen

@@ -22,55 +22,55 @@ using namespace detail;
 /// Builds an IFD with values stored inline or in a block after it.
 class IfdWriter {
   public:
-    explicit IfdWriter(bool bigTiff) : format_(IfdLayout(bigTiff)) {}
+    explicit IfdWriter(bool bigTiff) : m_format(IfdLayout(bigTiff)) {}
 
     template <typename T>
     void Add(std::uint16_t tag, FieldType type, const std::vector<T>& values) {
         std::vector<std::uint8_t> bytes(values.size() * sizeof(T));
         std::memcpy(bytes.data(), values.data(), bytes.size());
-        entries_[tag] = {type, values.size(), std::move(bytes)};
+        m_entries[tag] = {type, values.size(), std::move(bytes)};
     }
 
     void AddAscii(std::uint16_t tag, const std::string& text) {
         std::vector<std::uint8_t> bytes(text.begin(), text.end());
         bytes.push_back(0);
-        entries_[tag] = {kAscii, bytes.size(), std::move(bytes)};
+        m_entries[tag] = {kAscii, bytes.size(), std::move(bytes)};
     }
 
     /// The IFD and its out-of-line values, to be written at `offset`.
     std::vector<std::uint8_t> Serialize(std::uint64_t offset) const {
         const std::size_t tableSize =
-            format_.countSize + entries_.size() * format_.EntrySize() + format_.wordSize;
+            m_format.countSize + m_entries.size() * m_format.EntrySize() + m_format.wordSize;
         std::vector<std::uint8_t> table(tableSize, 0);
         std::vector<std::uint8_t> extra;
         const auto put = [&table](std::size_t at, std::uint64_t value, std::size_t size) {
             std::memcpy(table.data() + at, &value, size);
         };
-        put(0, entries_.size(), format_.countSize);
-        std::size_t at = format_.countSize;
-        for (const auto& [tag, entry] : entries_) {
+        put(0, m_entries.size(), m_format.countSize);
+        std::size_t at = m_format.countSize;
+        for (const auto& [tag, entry] : m_entries) {
             put(at, tag, 2);
             put(at + 2, entry.type, 2);
-            put(at + 4, entry.count, format_.wordSize);
-            const std::size_t valueAt = at + format_.ValueAt();
-            if (entry.bytes.size() <= format_.wordSize) {
+            put(at + 4, entry.count, m_format.wordSize);
+            const std::size_t valueAt = at + m_format.ValueAt();
+            if (entry.bytes.size() <= m_format.wordSize) {
                 std::memcpy(table.data() + valueAt, entry.bytes.data(), entry.bytes.size());
             } else {
                 if (extra.size() % 2 != 0) {
                     extra.push_back(0);
                 }
-                put(valueAt, offset + tableSize + extra.size(), format_.wordSize);
+                put(valueAt, offset + tableSize + extra.size(), m_format.wordSize);
                 extra.insert(extra.end(), entry.bytes.begin(), entry.bytes.end());
             }
-            at += format_.EntrySize();
+            at += m_format.EntrySize();
         }
         table.insert(table.end(), extra.begin(), extra.end());
         return table;
     }
 
   private:
-    IfdFormat format_;
-    std::map<std::uint16_t, IfdEntry> entries_;
+    IfdFormat m_format;
+    std::map<std::uint16_t, IfdEntry> m_entries;
 };
 
 /// Where the tiles were written, and where the file ends.

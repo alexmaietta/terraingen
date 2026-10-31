@@ -25,7 +25,7 @@ class LogPolynomialSfd final : public SizeFrequencyDistribution {
 
     /// The coefficients a_0, a_1, ... in increasing degree.
     const std::vector<double>& Coefficients() const {
-        return coefficients_;
+        return m_coefficients;
     }
 
   protected:
@@ -36,9 +36,9 @@ class LogPolynomialSfd final : public SizeFrequencyDistribution {
     double Polynomial(double x) const;
     double Derivative(double x) const;
 
-    std::vector<double> coefficients_;
-    double diameterUnit_;
-    double areaUnit_;
+    std::vector<double> m_coefficients;
+    double m_diameterUnit;
+    double m_areaUnit;
 };
 
 }  // namespace terraingen

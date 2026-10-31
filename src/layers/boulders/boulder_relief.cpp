@@ -225,7 +225,7 @@ FilletContact SampleContact(const Boulder& boulder, const Vec2d& offset,
 
 Boulder BoulderLayer::InLocalFrame(const Boulder& boulder) const {
     Boulder local = boulder;
-    if (surface_.IsBody()) {
+    if (m_surface.IsBody()) {
         local.x = 0.0;
         local.y = 0.0;
     }
@@ -244,16 +244,17 @@ TriangleMesh BoulderLayer::PlacedOnLevel(const Boulder& boulder) const {
 float BoulderLayer::AddRelief(float height, float base, double x, double y, const Boulder& boulder,
                               const TriangleMesh* placed, double weight, bool rock, double width,
                               const std::vector<FilletContact>& contacts) const {
-    const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
+    const Vec2d offset = m_surface.Offset({boulder.x, boulder.y}, {x, y});
     const double relief = rock ? RockRelief(x, y, boulder, placed, width) : 0.0;
     double result = static_cast<double>(height);
     if (relief > 0.0) {
         result = std::fmax(result, static_cast<double>(base) + weight * relief);
     }
-    if (options_.fillet.heightShare > 0.0) {
-        const double top = options_.fillet.heightShare * boulder.ExposedHeight();
-        const double fillet = FilletHeight(boulder, std::hypot(offset.x, offset.y), options_.fillet,
-                                           SampleContact(boulder, offset, contacts, width, top));
+    if (m_options.fillet.heightShare > 0.0) {
+        const double top = m_options.fillet.heightShare * boulder.ExposedHeight();
+        const double fillet =
+            FilletHeight(boulder, std::hypot(offset.x, offset.y), m_options.fillet,
+                         SampleContact(boulder, offset, contacts, width, top));
         if (fillet > 0.0) {
             result = std::fmax(result, static_cast<double>(base) + weight * fillet);
         }
@@ -263,13 +264,13 @@ float BoulderLayer::AddRelief(float height, float base, double x, double y, cons
 
 double BoulderLayer::RockRelief(double x, double y, const Boulder& boulder,
                                 const TriangleMesh* placed, double width) const {
-    const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, {x, y});
+    const Vec2d offset = m_surface.Offset({boulder.x, boulder.y}, {x, y});
     if (placed == nullptr) {
         return boulder.CutByFacets(offset,
                                    DomeHeight(boulder, std::hypot(offset.x, offset.y), width));
     }
     const std::optional<double> top =
-        surface_.IsBody() ? TopSurface(*placed, offset.x, offset.y) : TopSurface(*placed, x, y);
+        m_surface.IsBody() ? TopSurface(*placed, offset.x, offset.y) : TopSurface(*placed, x, y);
     return top ? std::fmax(*top, 0.0) : 0.0;
 }
 
@@ -280,15 +281,15 @@ double BoulderLayer::RockCover(const Relief& relief, const Vec2d& p) const {
 }
 
 double BoulderLayer::ModelCover(const Boulder& boulder, const Vec2d& p, double spacing) const {
-    const Vec2d offset = surface_.Offset({boulder.x, boulder.y}, p);
+    const Vec2d offset = m_surface.Offset({boulder.x, boulder.y}, p);
     const bool under = boulder.model && std::hypot(offset.x, offset.y) < 0.5 * boulder.diameter;
-    return under ? ResolutionWeight(boulder.diameter, spacing, options_.fade) : 0.0;
+    return under ? ResolutionWeight(boulder.diameter, spacing, m_options.fade) : 0.0;
 }
 
 std::vector<Boulder> BoulderLayer::ReliefBoulders(const Bounds2d& region, double spacing,
                                                   const Ground* ground, unsigned threads) const {
-    const double rim = options_.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
-    return BoulderRecords(surface_.Expand(region, rim), spacing, ground, threads);
+    const double rim = m_options.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
+    return BoulderRecords(m_surface.Expand(region, rim), spacing, ground, threads);
 }
 
 double BoulderLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
@@ -316,7 +317,7 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid,
     reliefs.erase(std::remove_if(reliefs.begin(), reliefs.end(),
                                  [](const Relief& relief) { return !relief.rock; }),
                   reliefs.end());
-    ForEachFeatureCell(cover, threads, Boxes(reliefs), surface_,
+    ForEachFeatureCell(cover, threads, Boxes(reliefs), m_surface,
                        [&](double& cell, const FeatureCell& at) {
                            cell = std::fmax(cell, RockCover(reliefs[at.feature], at.center));
                        });
@@ -325,10 +326,10 @@ Raster<double> BoulderLayer::MaterialCoverOver(const RasterGrid& grid,
     for (const Boulder& boulder : boulders) {
         if (boulder.model) {
             models.push_back(&boulder);
-            boxes.push_back(ReliefBox(boulder.x, boulder.y, 0.5 * boulder.diameter, surface_));
+            boxes.push_back(ReliefBox(boulder.x, boulder.y, 0.5 * boulder.diameter, m_surface));
         }
     }
-    ForEachFeatureCell(cover, threads, boxes, surface_, [&](double& cell, const FeatureCell& at) {
+    ForEachFeatureCell(cover, threads, boxes, m_surface, [&](double& cell, const FeatureCell& at) {
         cell = std::fmax(cell, ModelCover(*models[at.feature], at.center, spacing));
     });
     return cover;
@@ -371,12 +372,12 @@ std::vector<Bounds2d> BoulderLayer::Boxes(const std::vector<Relief>& reliefs) {
 
 std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<Boulder>& boulders,
                                                               double spacing, bool fillets) const {
-    const BoulderRelief look = options_.rendering.relief;
-    const bool filleted = options_.fillet.heightShare > 0.0;
+    const BoulderRelief look = m_options.rendering.relief;
+    const bool filleted = m_options.fillet.heightShare > 0.0;
     std::vector<Relief> reliefs;
     for (const Boulder& boulder : boulders) {
-        const double weight = ResolutionWeight(boulder.diameter, spacing, options_.fade);
-        const bool drawn = options_.rendering.reliefRange.Holds(boulder.diameter, boulder.model);
+        const double weight = ResolutionWeight(boulder.diameter, spacing, m_options.fade);
+        const bool drawn = m_options.rendering.reliefRange.Holds(boulder.diameter, boulder.model);
         const bool rock = drawn && look != BoulderRelief::None;
         const bool apron = filleted && (drawn || boulder.model);
         if (!(rock || apron) || weight <= 0.0) {
@@ -391,10 +392,10 @@ std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<
             reach = ShapeReach(*relief.placed, local.x, local.y);
         }
         if (filleted) {
-            reach = std::fmax(reach, FilletReach(boulder, options_.fillet));
+            reach = std::fmax(reach, FilletReach(boulder, m_options.fillet));
         }
         if (filleted && fillets) {
-            const double top = options_.fillet.heightShare * boulder.ExposedHeight();
+            const double top = m_options.fillet.heightShare * boulder.ExposedHeight();
             if (rock && look == BoulderRelief::Dome) {
                 if (boulder.facetCount == 0) {
                     relief.contacts.push_back(RoundDomeContact(boulder, width, top));
@@ -413,24 +414,24 @@ std::vector<BoulderLayer::Relief> BoulderLayer::PrepareRelief(const std::vector<
                 for (const FilletContact& contact : relief.contacts) {
                     farthest = std::fmax(farthest, contact.distance);
                 }
-                reach = std::fmax(reach, farthest + options_.fillet.widthRatio * boulder.diameter);
+                reach = std::fmax(reach, farthest + m_options.fillet.widthRatio * boulder.diameter);
             }
         }
-        relief.box = ReliefBox(boulder.x, boulder.y, reach, surface_);
+        relief.box = ReliefBox(boulder.x, boulder.y, reach, m_surface);
         reliefs.push_back(std::move(relief));
     }
     return reliefs;
 }
 
 void BoulderLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
-    if (options_.rendering.relief == BoulderRelief::None && options_.fillet.heightShare <= 0.0) {
+    if (m_options.rendering.relief == BoulderRelief::None && m_options.fillet.heightShare <= 0.0) {
         return;
     }
-    const double spacing = samples.ResolvedSpacing(context.spacing, surface_);
+    const double spacing = samples.ResolvedSpacing(context.spacing, m_surface);
     const std::vector<Boulder> boulders =
         ReliefBoulders(samples.Bounds(), spacing, context.ground, context.threads);
     const std::vector<Relief> reliefs = PrepareRelief(boulders, spacing, true);
-    DrawFeatures(samples, context.threads, Boxes(reliefs), surface_,
+    DrawFeatures(samples, context.threads, Boxes(reliefs), m_surface,
                  [&](float height, float base, const Vec2d& p, std::size_t n) {
                      const Relief& relief = reliefs[n];
                      return AddRelief(height, base, p.x, p.y, *relief.boulder, relief.Shape(),
@@ -456,7 +457,7 @@ std::vector<BoulderModel> BoulderLayer::Models(const std::vector<Boulder>& bould
             shape = std::make_shared<const BoulderShape>(
                 Abraded(*shape, placement, local, *boulder.ground));
         }
-        models[n] = {boulder, ShapeSeed(boulder, options_.rendering.shapePrototypes), shape,
+        models[n] = {boulder, ShapeSeed(boulder, m_options.rendering.shapePrototypes), shape,
                      placement};
     });
     return models;

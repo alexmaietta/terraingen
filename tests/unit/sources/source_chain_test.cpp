@@ -34,10 +34,10 @@ namespace {
 class Patchy final : public terraingen::Source {
   public:
     Patchy(bool (*covered)(double, double), std::optional<float> noData, RasterGrid grid)
-        : covered_(covered), noData_(noData), grid_(grid) {}
+        : m_covered(covered), m_noData(noData), m_grid(grid) {}
 
     RasterGrid Grid() const override {
-        return grid_;
+        return m_grid;
     }
     terraingen::Vec2d ReferencePoint() const override {
         return {7.0, 8.0};
@@ -50,10 +50,10 @@ class Patchy final : public terraingen::Source {
                      unsigned /*threads*/) const override {
         Raster<float>* grid = samples.Grid();
         const float nan = std::numeric_limits<float>::quiet_NaN();
-        const float fill = grid != nullptr ? noData_.value_or(nan) : nan;
+        const float fill = grid != nullptr ? m_noData.value_or(nan) : nan;
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
-            samples.Height(i) = covered_(p.x, p.y) ? static_cast<float>(p.x + 2.0 * p.y) : fill;
+            samples.Height(i) = m_covered(p.x, p.y) ? static_cast<float>(p.x + 2.0 * p.y) : fill;
         }
         if (grid != nullptr) {
             ++fills;
@@ -62,9 +62,9 @@ class Patchy final : public terraingen::Source {
     }
 
   private:
-    bool (*covered_)(double, double);
-    std::optional<float> noData_;
-    RasterGrid grid_;
+    bool (*m_covered)(double, double);
+    std::optional<float> m_noData;
+    RasterGrid m_grid;
 };
 
 const RasterGrid kGrid{8, 6, GeoTransform::NorthUp(-4.0, 3.0, 1.0)};
@@ -73,10 +73,10 @@ const RasterGrid kGrid{8, 6, GeoTransform::NorthUp(-4.0, 3.0, 1.0)};
 class Shaped final : public terraingen::Source {
   public:
     Shaped(double (*height)(double, double), bool (*covered)(double, double), RasterGrid grid)
-        : height_(height), covered_(covered), grid_(grid) {}
+        : m_height(height), m_covered(covered), m_grid(grid) {}
 
     RasterGrid Grid() const override {
-        return grid_;
+        return m_grid;
     }
 
   protected:
@@ -85,14 +85,14 @@ class Shaped final : public terraingen::Source {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
             samples.Height(i) =
-                covered_(p.x, p.y) ? static_cast<float>(height_(p.x, p.y)) : std::nanf("");
+                m_covered(p.x, p.y) ? static_cast<float>(m_height(p.x, p.y)) : std::nanf("");
         }
     }
 
   private:
-    double (*height_)(double, double);
-    bool (*covered_)(double, double);
-    RasterGrid grid_;
+    double (*m_height)(double, double);
+    bool (*m_covered)(double, double);
+    RasterGrid m_grid;
 };
 
 /// The 32 m square of 1 m cells around the origin that the earlier sources of the seam tests

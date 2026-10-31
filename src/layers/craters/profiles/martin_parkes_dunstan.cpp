@@ -14,7 +14,7 @@ double MartinParkesDunstanProfile::Height(double distance, double diameter,
         throw std::invalid_argument(
             "Crater state needs a positive depth and 0 <= rim height <= fresh rim height");
     }
-    return static_cast<double>(SimpleProfileHeight(kernel_, static_cast<float>(distance),
+    return static_cast<double>(SimpleProfileHeight(m_kernel, static_cast<float>(distance),
                                                    static_cast<float>(diameter),
                                                    KernelStateRecord(diameter, state)));
 }

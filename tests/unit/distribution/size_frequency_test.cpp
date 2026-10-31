@@ -33,15 +33,15 @@ constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 class ExponentialDecay final : public SizeFrequencyDistribution {
   public:
     explicit ExponentialDecay(double scale = 1.0)
-        : SizeFrequencyDistribution(SfdKind::ProductionRate, DiameterRange{}), scale_(scale) {}
+        : SizeFrequencyDistribution(SfdKind::ProductionRate, DiameterRange{}), m_scale(scale) {}
 
   protected:
     double CumulativeAt(double diameter) const override {
-        return scale_ * std::exp(-diameter / 10.0);
+        return m_scale * std::exp(-diameter / 10.0);
     }
 
   private:
-    double scale_;
+    double m_scale;
 };
 
 class Constant final : public SizeFrequencyDistribution {

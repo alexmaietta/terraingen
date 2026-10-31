@@ -276,7 +276,7 @@ struct CudaCompute::State {
     }
 };
 
-CudaCompute::CudaCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
+CudaCompute::CudaCompute(std::unique_ptr<State> state) : m_state(std::move(state)) {}
 
 CudaCompute::~CudaCompute() = default;
 
@@ -287,7 +287,7 @@ std::unique_ptr<CudaCompute> CudaCompute::Open() {
 }
 
 const std::string& CudaCompute::DeviceName() const {
-    return state_->name;
+    return m_state->name;
 }
 
 bool CudaCompute::CanRun(const KernelProgram& program) const {
@@ -299,7 +299,7 @@ void CudaCompute::Run(const KernelProgram& program, Span<const DeviceBuffer> buf
     if (!CanRun(program)) {
         throw std::runtime_error("The kernel has no PTX for CUDA");
     }
-    State& s = *state_;
+    State& s = *m_state;
     const std::lock_guard lock(s.mutex);
     s.Check(s.driver.ctxSetCurrent(s.context), "context binding");
     const Entry entry = s.FindEntry(program.ptx, buffers.size());

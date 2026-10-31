@@ -30,27 +30,27 @@ class SampleBlock {
 
     /// The number of samples.
     std::size_t Size() const {
-        return heights_.size();
+        return m_heights.size();
     }
 
     /// Whether the samples are a raster's cells.
     bool IsGrid() const {
-        return grid_ != nullptr;
+        return m_grid != nullptr;
     }
 
     /// The raster of a grid block, or null for points.
     Raster<float>* Grid() const {
-        return grid_;
+        return m_grid;
     }
 
     /// The points of a point block; empty for a grid.
     Span<const Vec2d> Points() const {
-        return positions_;
+        return m_positions;
     }
 
     /// Every height, a grid's row by row.
     Span<float> Heights() const {
-        return heights_;
+        return m_heights;
     }
 
     /// The position of sample `i`: a cell center, or a point.
@@ -61,7 +61,7 @@ class SampleBlock {
 
     /// The height of sample `i`.
     float& Height(std::size_t i) const {
-        return heights_[i];
+        return m_heights[i];
     }
 
     /// Whether sample `i` holds no data: NaN, or a grid's no-data value.
@@ -75,9 +75,9 @@ class SampleBlock {
     double ResolvedSpacing(double spacing, const Surface& surface) const;
 
   private:
-    Raster<float>* grid_ = nullptr;
-    Span<const Vec2d> positions_;
-    Span<float> heights_;
+    Raster<float>* m_grid = nullptr;
+    Span<const Vec2d> m_positions;
+    Span<float> m_heights;
 };
 
 /// Sets each point of `samples` holding data, in order, to `map(height, position)`.

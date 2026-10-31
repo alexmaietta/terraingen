@@ -30,7 +30,7 @@ class SteadyStateAges final : public CraterAgeModel {
 
     /// The surface age in Gyr.
     double SurfaceAgeGyr() const {
-        return ageGyr_;
+        return m_ageGyr;
     }
 
     /// The equilibrium lifetime tau(D) in Gyr of craters of `diameter` meters, before capping at
@@ -43,10 +43,10 @@ class SteadyStateAges final : public CraterAgeModel {
     double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const override;
 
   private:
-    std::shared_ptr<const SizeFrequencyDistribution> productionRate_;
-    std::shared_ptr<const SizeFrequencyDistribution> equilibrium_;
-    double ageGyr_;
-    Chronology chronology_;
+    std::shared_ptr<const SizeFrequencyDistribution> m_productionRate;
+    std::shared_ptr<const SizeFrequencyDistribution> m_equilibrium;
+    double m_ageGyr;
+    Chronology m_chronology;
 };
 
 /// A surface `ageGyr` old by `chronology`, cratered by `production` and capped by the

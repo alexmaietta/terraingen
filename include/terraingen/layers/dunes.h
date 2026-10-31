@@ -197,7 +197,7 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
 
     /// The options the layer was made with.
     const DuneOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)`.
@@ -252,13 +252,13 @@ class DuneLayer final : public FormulaLayer, public MaterialSource {
     /// and `n` across, its sizes drawn from `random`.
     void AddGrainflow(double& relief, RandomStream& random, double s, double n) const;
 
-    DuneOptions options_;
-    Vec2d wind_{1.0, 0.0};
-    std::int64_t rings_ = 1;
-    std::uint32_t defectSeed_ = 0;  ///< Seed of the noise of defects along crests.
-    std::uint32_t wanderSeed_ = 0;  ///< Seed of the ripple crest wander.
-    std::uint32_t kinkSeed_ = 0;    ///< Seed of the ripple crest kinks.
-    std::uint32_t fadeSeed_ = 0;    ///< Seed of the ripple fading along crests.
+    DuneOptions m_options;
+    Vec2d m_wind{1.0, 0.0};
+    std::int64_t m_rings = 1;
+    std::uint32_t m_defectSeed = 0;  ///< Seed of the noise of defects along crests.
+    std::uint32_t m_wanderSeed = 0;  ///< Seed of the ripple crest wander.
+    std::uint32_t m_kinkSeed = 0;    ///< Seed of the ripple crest kinks.
+    std::uint32_t m_fadeSeed = 0;    ///< Seed of the ripple fading along crests.
 };
 
 }  // namespace terraingen

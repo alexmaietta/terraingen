@@ -54,7 +54,7 @@ class UniformAges final : public CraterAgeModel {
     double SampleAgeAt(RandomStream& random, double diameter, double lifetimeGyr) const override;
 
   private:
-    double lifetimeGyr_;
+    double m_lifetimeGyr;
 };
 
 }  // namespace terraingen

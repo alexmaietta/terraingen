@@ -47,7 +47,7 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
 
     /// The options the layer was made with.
     const SandFillOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     MaterialClass Material() const override {
@@ -67,9 +67,9 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
     /// Points on each ring the surroundings are read at; the inner ring is turned half a step.
     static constexpr int kRingPoints = 8;
 
-    SandFillOptions options_;
+    SandFillOptions m_options;
     /// The two rings read around a point, inner first, in meters east and north of it.
-    std::array<Vec2d, 2 * kRingPoints> rings_{};
+    std::array<Vec2d, 2 * kRingPoints> m_rings{};
 };
 
 }  // namespace terraingen

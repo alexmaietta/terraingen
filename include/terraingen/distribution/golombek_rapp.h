@@ -30,8 +30,8 @@ class GolombekRappSfd final : public SizeFrequencyDistribution {
     double IncrementalAt(double diameter) const override;
 
   private:
-    double coverage_;
-    double q_;
+    double m_coverage;
+    double m_q;
 };
 
 /// The Golombek-Rapp density -dN/dD per m^2 per meter of diameter at `diameter` meters, for

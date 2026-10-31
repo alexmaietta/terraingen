@@ -29,12 +29,12 @@ class PlaneFit {
 
     /// Whether no point was added.
     bool Empty() const {
-        return n_ == 0.0;
+        return m_n == 0.0;
     }
 
     /// The mean height of the points; call only when not `Empty`.
     double Mean() const {
-        return sh_ / n_;
+        return m_sh / m_n;
     }
 
     /// The least-squares plane by Cramer's rule, or the flat plane at the mean for fewer than
@@ -42,15 +42,15 @@ class PlaneFit {
     Plane Solve() const;
 
   private:
-    double n_ = 0.0;
-    double sx_ = 0.0;
-    double sy_ = 0.0;
-    double sxx_ = 0.0;
-    double sxy_ = 0.0;
-    double syy_ = 0.0;
-    double sh_ = 0.0;
-    double sxh_ = 0.0;
-    double syh_ = 0.0;
+    double m_n = 0.0;
+    double m_sx = 0.0;
+    double m_sy = 0.0;
+    double m_sxx = 0.0;
+    double m_sxy = 0.0;
+    double m_syy = 0.0;
+    double m_sh = 0.0;
+    double m_sxh = 0.0;
+    double m_syh = 0.0;
 };
 
 }  // namespace terraingen

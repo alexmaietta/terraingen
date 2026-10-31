@@ -15,7 +15,7 @@ namespace terraingen::testing {
 class LogCapture {
   public:
     explicit LogCapture(LogLevel level = LogLevel::Info) {
-        SetLogSink([this](const LogRecord& record) { records_.push_back(record); });
+        SetLogSink([this](const LogRecord& record) { m_records.push_back(record); });
         SetLogLevel(level);
     }
 
@@ -28,13 +28,13 @@ class LogCapture {
     LogCapture& operator=(const LogCapture&) = delete;
 
     const std::vector<LogRecord>& Records() const {
-        return records_;
+        return m_records;
     }
 
     /// Records in `category` at exactly `level`.
     std::vector<LogRecord> Matching(std::string_view category, LogLevel level) const {
         std::vector<LogRecord> matching;
-        std::copy_if(records_.begin(), records_.end(), std::back_inserter(matching),
+        std::copy_if(m_records.begin(), m_records.end(), std::back_inserter(matching),
                      [&](const LogRecord& record) {
                          return record.category == category && record.level == level;
                      });
@@ -42,7 +42,7 @@ class LogCapture {
     }
 
   private:
-    std::vector<LogRecord> records_;
+    std::vector<LogRecord> m_records;
 };
 
 }  // namespace terraingen::testing

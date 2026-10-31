@@ -35,12 +35,12 @@ double FreshAges::SampleAgeAt(RandomStream& /*random*/, double /*diameter*/,
     return 0.0;
 }
 
-UniformAges::UniformAges(double lifetimeGyr) : lifetimeGyr_(lifetimeGyr) {
-    RequirePositive(lifetimeGyr_, "Lifetime");
+UniformAges::UniformAges(double lifetimeGyr) : m_lifetimeGyr(lifetimeGyr) {
+    RequirePositive(m_lifetimeGyr, "Lifetime");
 }
 
 double UniformAges::LifetimeAt(double /*diameter*/) const {
-    return lifetimeGyr_;
+    return m_lifetimeGyr;
 }
 
 double UniformAges::SampleAgeAt(RandomStream& random, double /*diameter*/,

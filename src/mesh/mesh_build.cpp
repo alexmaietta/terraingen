@@ -136,20 +136,20 @@ MeshLayout Layout(const Raster<float>& heights, const BuildMeshOptions& options)
 class SiteFrame {
   public:
     SiteFrame(const Surface& surface, const Vec2d& site)
-        : surface_(surface), frame_(surface.Frame(site)), origin_(surface.Position(site)) {}
+        : m_surface(surface), m_frame(surface.Frame(site)), m_origin(surface.Position(site)) {}
 
     Vec3d Place(const Vec2d& point, double height) const {
-        if (!surface_.IsBody()) {
+        if (!m_surface.IsBody()) {
             return {point.x, point.y, height};
         }
-        const LocalFrame at = surface_.Frame(point);
-        return frame_.Components(surface_.Position(point) + at.up * height - origin_);
+        const LocalFrame at = m_surface.Frame(point);
+        return m_frame.Components(m_surface.Position(point) + at.up * height - m_origin);
     }
 
   private:
-    const Surface& surface_;
-    LocalFrame frame_;
-    Vec3d origin_;
+    const Surface& m_surface;
+    LocalFrame m_frame;
+    Vec3d m_origin;
 };
 
 /// Throws unless `buffer` holds 3 * `count` values.

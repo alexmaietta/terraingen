@@ -68,40 +68,40 @@ void ValidateAlbedoDetail(const AlbedoDetail& detail) {
 }
 
 RasterAlbedo::RasterAlbedo(std::vector<Raster<float>> bands, RasterAlbedoOptions options)
-    : bands_(std::move(bands)), options_(options) {
-    if (bands_.size() != 1 && bands_.size() != kMaxAlbedoBands) {
+    : m_bands(std::move(bands)), m_options(options) {
+    if (m_bands.size() != 1 && m_bands.size() != kMaxAlbedoBands) {
         throw std::invalid_argument("An albedo map must have 1 or 3 bands");
     }
-    const Raster<float>& first = bands_.front();
+    const Raster<float>& first = m_bands.front();
     if (first.Empty() || first.Transform().IsRotated()) {
         throw std::invalid_argument("An albedo map must be neither empty nor rotated");
     }
-    for (const Raster<float>& band : bands_) {
+    for (const Raster<float>& band : m_bands) {
         if (band.Width() != first.Width() || band.Height() != first.Height() ||
             !(band.Transform() == first.Transform())) {
             throw std::invalid_argument("The bands of an albedo map must share one grid");
         }
     }
-    ValidateAlbedoDetail(options_.detail);
+    ValidateAlbedoDetail(m_options.detail);
     MeasureRoughness();
-    if (options_.detail.hurst) {
-        hurst_ = *options_.detail.hurst;
+    if (m_options.detail.hurst) {
+        m_hurst = *m_options.detail.hurst;
     }
 }
 
 void RasterAlbedo::MeasureRoughness() {
-    const Raster<float> logs = LogBrightness(bands_);
+    const Raster<float> logs = LogBrightness(m_bands);
     const DeviogramFit fit = FitDeviogram(logs);
-    roughness_ = fit.cellRms / std::sqrt(2.0);
+    m_roughness = fit.cellRms / std::sqrt(2.0);
     if (fit.lags >= 2) {
-        hurst_ = std::clamp(fit.slope, 0.0, 1.0);
+        m_hurst = std::clamp(fit.slope, 0.0, 1.0);
     }
 }
 
 double RasterAlbedo::DetailSum(double x, double y, double spacing, const Surface& surface) const {
-    const AlbedoDetail& detail = options_.detail;
-    const Vec2d origin = bands_.front().CellCenter(0, 0);
-    const double cell = bands_.front().Grid().Spacing(surface);
+    const AlbedoDetail& detail = m_options.detail;
+    const Vec2d origin = m_bands.front().CellCenter(0, 0);
+    const double cell = m_bands.front().Grid().Spacing(surface);
     double sum = 0.0;
     for (int octave = 0; octave < detail.octaves; ++octave) {
         const double wavelength = cell / std::exp2(octave + 1);
@@ -119,30 +119,30 @@ double RasterAlbedo::DetailSum(double x, double y, double spacing, const Surface
             noise =
                 PerlinNoise2Precise((x - origin.x) / wavelength, (y - origin.y) / wavelength, seed);
         }
-        sum += weight * std::exp2(-(octave + 1) * hurst_) * static_cast<double>(noise);
+        sum += weight * std::exp2(-(octave + 1) * m_hurst) * static_cast<double>(noise);
     }
     return sum;
 }
 
 AlbedoSample RasterAlbedo::ValueAt(double x, double y, const LayerContext& context) const {
     AlbedoSample value{};
-    for (std::size_t band = 0; band < bands_.size(); ++band) {
-        value[band] = SampleRaster(bands_[band], x, y, options_.method);
+    for (std::size_t band = 0; band < m_bands.size(); ++band) {
+        value[band] = SampleRaster(m_bands[band], x, y, m_options.method);
         if (std::isnan(value[band])) {
             value.fill(std::numeric_limits<float>::quiet_NaN());
             return value;
         }
     }
-    const AlbedoDetail& detail = options_.detail;
-    if (!detail.enabled || detail.scale == 0.0 || roughness_ == 0.0) {
+    const AlbedoDetail& detail = m_options.detail;
+    if (!detail.enabled || detail.scale == 0.0 || m_roughness == 0.0) {
         return value;
     }
     const Surface& surface = context.SurfaceOrPlane();
     const double sum = DetailSum(x, y, context.spacing, surface);
     const double rms =
         surface.IsBody() ? std::sqrt(0.5 * Perlin3StructureFunction(1e6)) : PerlinRms();
-    const double factor = std::exp(detail.scale * roughness_ * sum / rms);
-    for (std::size_t band = 0; band < bands_.size(); ++band) {
+    const double factor = std::exp(detail.scale * m_roughness * sum / rms);
+    for (std::size_t band = 0; band < m_bands.size(); ++band) {
         value[band] = static_cast<float>(static_cast<double>(value[band]) * factor);
     }
     return value;

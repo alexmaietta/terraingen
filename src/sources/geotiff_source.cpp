@@ -61,37 +61,37 @@ class GeoTiffPosts final : public PostLattice {
     GeoTiffPosts(const std::filesystem::path& path, std::size_t band, BandScaling scaling,
                  const RasterGrid& lattice, const PixelWindow& window, bool wrapColumns,
                  std::size_t cacheBytes)
-        : reader_(path, band), scaling_(scaling), lattice_(lattice), window_(window),
-          wrapColumns_(wrapColumns), across_(CeilDiv(lattice.width, reader_.BlockWidth())),
-          blocks_(
+        : m_reader(path, band), m_scaling(scaling), m_lattice(lattice), m_window(window),
+          m_wrapColumns(wrapColumns), m_across(CeilDiv(lattice.width, m_reader.BlockWidth())),
+          m_blocks(
               std::max<std::size_t>(cacheBytes, 1),
               [](const Raster<float>& block) { return block.Size() * sizeof(float); }, {}, 1) {}
 
     GeoTransform Transform() const override {
-        return lattice_.transform;
+        return m_lattice.transform;
     }
 
     std::optional<PixelWindow> Extent() const override {
-        return window_;
+        return m_window;
     }
 
     void Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
               Span<float> heights) const override {
         const std::vector<std::size_t> cols = detail::PostIndices(
-            col0, width, wrapColumns_, lattice_.width, window_.colBegin, window_.colEnd);
+            col0, width, m_wrapColumns, m_lattice.width, m_window.colBegin, m_window.colEnd);
         const std::vector<std::size_t> rows = detail::PostIndices(
-            row0, height, false, lattice_.height, window_.rowBegin, window_.rowEnd);
-        const std::size_t blockWidth = reader_.BlockWidth();
-        const std::size_t blockHeight = reader_.BlockHeight();
+            row0, height, false, m_lattice.height, m_window.rowBegin, m_window.rowEnd);
+        const std::size_t blockWidth = m_reader.BlockWidth();
+        const std::size_t blockHeight = m_reader.BlockHeight();
         std::vector<std::pair<std::size_t, std::shared_ptr<const Raster<float>>>> held;
         const auto block = [&](std::size_t bx, std::size_t by) -> const Raster<float>& {
-            const std::size_t key = by * across_ + bx;
+            const std::size_t key = by * m_across + bx;
             for (const auto& entry : held) {
                 if (entry.first == key) {
                     return *entry.second;
                 }
             }
-            held.emplace_back(key, blocks_.Get(key, [&] { return Decode(bx, by); }));
+            held.emplace_back(key, m_blocks.Get(key, [&] { return Decode(bx, by); }));
             return *held.back().second;
         };
         for (std::size_t r = 0; r < height; ++r) {
@@ -113,27 +113,27 @@ class GeoTiffPosts final : public PostLattice {
   private:
     /// Block (`bx`, `by`) scaled, NaN where it has no data.
     Raster<float> Decode(std::size_t bx, std::size_t by) const {
-        Raster<float> block = reader_.ReadBlock(bx, by);
+        Raster<float> block = m_reader.ReadBlock(bx, by);
         constexpr float kMissing = std::numeric_limits<float>::quiet_NaN();
-        const bool identity = scaling_.Identity();
+        const bool identity = m_scaling.Identity();
         for (float& value : block.Values()) {
             if (block.IsMissing(value)) {
                 value = kMissing;
             } else if (!identity) {
-                value = static_cast<float>(static_cast<double>(value) * scaling_.scale +
-                                           scaling_.offset);
+                value = static_cast<float>(static_cast<double>(value) * m_scaling.scale +
+                                           m_scaling.offset);
             }
         }
         return block;
     }
 
-    GeoTiffBlockReader reader_;
-    BandScaling scaling_;
-    RasterGrid lattice_;
-    PixelWindow window_;
-    bool wrapColumns_ = false;
-    std::size_t across_ = 0;
-    mutable LruCache<std::size_t, Raster<float>> blocks_;
+    GeoTiffBlockReader m_reader;
+    BandScaling m_scaling;
+    RasterGrid m_lattice;
+    PixelWindow m_window;
+    bool m_wrapColumns = false;
+    std::size_t m_across = 0;
+    mutable LruCache<std::size_t, Raster<float>> m_blocks;
 };
 
 }  // namespace
@@ -144,28 +144,28 @@ GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions op
 GeoTiffSource::GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options,
                              GeoTiffInfo info)
     : RasterHeightsSource(info.grid, CoveredCells(info.grid, options.crop), info.geoKeys),
-      path_(std::move(path)), options_(std::move(options)), info_(std::move(info)) {
-    const std::size_t band = options_.band;
-    if (band >= info_.bands) {
+      m_path(std::move(path)), m_options(std::move(options)), m_info(std::move(info)) {
+    const std::size_t band = m_options.band;
+    if (band >= m_info.bands) {
         throw std::invalid_argument("Band " + std::to_string(band) + " is missing; the file has " +
-                                    std::to_string(info_.bands) +
-                                    (info_.bands == 1 ? " band" : " bands"));
+                                    std::to_string(m_info.bands) +
+                                    (m_info.bands == 1 ? " band" : " bands"));
     }
-    const std::optional<double>& scale = options_.scale;
-    const std::optional<double>& offset = options_.offset;
+    const std::optional<double>& scale = m_options.scale;
+    const std::optional<double>& offset = m_options.offset;
     if ((scale && !std::isfinite(*scale)) || (offset && !std::isfinite(*offset))) {
         throw std::invalid_argument("Scale and offset must be finite");
     }
-    detail::ValidateRasterSourceOptions(SamplingOptions(options_));
-    scaling_ = {scale.value_or(info_.bandScaling[band].scale),
-                offset.value_or(info_.bandScaling[band].offset)};
+    detail::ValidateRasterSourceOptions(SamplingOptions(m_options));
+    m_scaling = {scale.value_or(m_info.bandScaling[band].scale),
+                 offset.value_or(m_info.bandScaling[band].offset)};
 }
 
 const detail::RasterHeights& GeoTiffSource::Heights() const {
-    std::call_once(loaded_, [this] {
-        const RasterSourceOptions sampling = SamplingOptions(options_);
+    std::call_once(m_loaded, [this] {
+        const RasterSourceOptions sampling = SamplingOptions(m_options);
         const RasterGrid& lattice = Lattice();
-        const bool wraps = detail::WrapsLongitude(info_.geoKeys, lattice);
+        const bool wraps = detail::WrapsLongitude(m_info.geoKeys, lattice);
         PixelWindow window = detail::NativeWindow(
             lattice, (sampling.upsampler ? sampling.upsampler : DefaultUpsampler())->Reach(),
             Cells());
@@ -174,16 +174,16 @@ const detail::RasterHeights& GeoTiffSource::Heights() const {
             window.colEnd = lattice.width;
         }
         std::optional<float> noData;
-        if (info_.noData) {
-            noData = scaling_.Identity() ? static_cast<float>(*info_.noData)
-                                         : std::numeric_limits<float>::quiet_NaN();
+        if (m_info.noData) {
+            noData = m_scaling.Identity() ? static_cast<float>(*m_info.noData)
+                                          : std::numeric_limits<float>::quiet_NaN();
         }
-        heights_ = std::make_shared<const detail::RasterHeights>(
-            std::make_shared<GeoTiffPosts>(path_, options_.band, scaling_, lattice, window, wraps,
-                                           options_.cacheBytes),
-            lattice, noData, sampling, Cells(), path_.string(), wraps);
+        m_heights = std::make_shared<const detail::RasterHeights>(
+            std::make_shared<GeoTiffPosts>(m_path, m_options.band, m_scaling, lattice, window,
+                                           wraps, m_options.cacheBytes),
+            lattice, noData, sampling, Cells(), m_path.string(), wraps);
     });
-    return *heights_;
+    return *m_heights;
 }
 
 }  // namespace terraingen

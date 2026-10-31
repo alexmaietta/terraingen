@@ -77,12 +77,12 @@ class GeoTiffSource final : public detail::RasterHeightsSource {
     /// The source of `path` with the header `info` read from it.
     GeoTiffSource(std::filesystem::path path, GeoTiffSourceOptions options, GeoTiffInfo info);
 
-    std::filesystem::path path_;
-    GeoTiffSourceOptions options_;
-    GeoTiffInfo info_;
-    BandScaling scaling_;
-    mutable std::once_flag loaded_;
-    mutable std::shared_ptr<const detail::RasterHeights> heights_;
+    std::filesystem::path m_path;
+    GeoTiffSourceOptions m_options;
+    GeoTiffInfo m_info;
+    BandScaling m_scaling;
+    mutable std::once_flag m_loaded;
+    mutable std::shared_ptr<const detail::RasterHeights> m_heights;
 };
 
 }  // namespace terraingen

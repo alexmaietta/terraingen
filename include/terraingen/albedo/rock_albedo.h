@@ -68,8 +68,8 @@ class RockAlbedo final : public AlbedoLayer {
     /// The share of each cell of the grid of `first` that no source's rock covers, row-major.
     std::vector<double> BareShares(const Raster<float>& first, const LayerContext& context) const;
 
-    RockAlbedoOptions options_;
-    std::vector<RockSource> sources_;
+    RockAlbedoOptions m_options;
+    std::vector<RockSource> m_sources;
 };
 
 }  // namespace terraingen

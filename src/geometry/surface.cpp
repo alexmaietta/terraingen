@@ -52,10 +52,10 @@ Vec3d UnitVector(double lonDeg, double latDeg) {
 Surface Surface::Sphere(double radius) {
     RequirePositive(radius, "A sphere's radius");
     Surface surface;
-    surface.form_ = Form::Sphere;
-    surface.radius_ = radius;
-    surface.unitLength_ = radius * kDegree;
-    surface.radii_ = {radius, radius, radius};
+    surface.m_form = Form::Sphere;
+    surface.m_radius = radius;
+    surface.m_unitLength = radius * kDegree;
+    surface.m_radii = {radius, radius, radius};
     return surface;
 }
 
@@ -67,10 +67,10 @@ Surface Surface::Ellipsoid(double a, double b, double c) {
         return Sphere(a);
     }
     Surface surface;
-    surface.form_ = Form::Ellipsoid;
-    surface.radius_ = std::cbrt(a * b * c);
-    surface.unitLength_ = surface.radius_ * kDegree;
-    surface.radii_ = {a, b, c};
+    surface.m_form = Form::Ellipsoid;
+    surface.m_radius = std::cbrt(a * b * c);
+    surface.m_unitLength = surface.m_radius * kDegree;
+    surface.m_radii = {a, b, c};
     return surface;
 }
 
@@ -79,51 +79,51 @@ Surface Surface::ShapeModel(std::shared_ptr<const RadialShape> shape) {
         throw std::invalid_argument("A shape model surface needs a radial shape");
     }
     Surface surface;
-    surface.form_ = Form::Shape;
-    surface.radius_ = MeanRadius(*shape);
-    surface.unitLength_ = surface.radius_ * kDegree;
-    surface.shape_ = std::move(shape);
+    surface.m_form = Form::Shape;
+    surface.m_radius = MeanRadius(*shape);
+    surface.m_unitLength = surface.m_radius * kDegree;
+    surface.m_shape = std::move(shape);
     return surface;
 }
 
 double Surface::MinRadius() const {
-    if (form_ == Form::Shape) {
-        return shape_->MinRadius();
+    if (m_form == Form::Shape) {
+        return m_shape->MinRadius();
     }
-    return std::min({radii_.x, radii_.y, radii_.z});
+    return std::min({m_radii.x, m_radii.y, m_radii.z});
 }
 
 double Surface::MaxRadius() const {
-    if (form_ == Form::Shape) {
-        return shape_->MaxRadius();
+    if (m_form == Form::Shape) {
+        return m_shape->MaxRadius();
     }
-    return std::max({radii_.x, radii_.y, radii_.z});
+    return std::max({m_radii.x, m_radii.y, m_radii.z});
 }
 
 double Surface::RadiusAt(const Vec2d& point) const {
-    switch (form_) {
+    switch (m_form) {
     case Form::Plane:
         return 0.0;
     case Form::Sphere:
-        return radius_;
+        return m_radius;
     case Form::Shape:
-        return shape_->At(UnitVector(point.x, point.y));
+        return m_shape->At(UnitVector(point.x, point.y));
     case Form::Ellipsoid:
         break;
     }
     const Vec3d u = UnitVector(point.x, point.y);
-    const double ex = u.x / radii_.x;
-    const double ey = u.y / radii_.y;
-    const double ez = u.z / radii_.z;
+    const double ex = u.x / m_radii.x;
+    const double ey = u.y / m_radii.y;
+    const double ez = u.z / m_radii.z;
     return 1.0 / std::sqrt(ex * ex + ey * ey + ez * ez);
 }
 
 double Surface::AreaPerSteradian(const Vec2d& point) const {
-    switch (form_) {
+    switch (m_form) {
     case Form::Plane:
         return 1.0;
     case Form::Sphere:
-        return radius_ * radius_;
+        return m_radius * m_radius;
     case Form::Ellipsoid:
     case Form::Shape:
         break;
@@ -136,7 +136,7 @@ double Surface::AreaPerSteradian(const Vec2d& point) const {
 
 Vec3d Surface::Normal(const Vec2d& point, const Vec3d& p) const {
     Vec3d n;
-    if (form_ == Form::Shape) {
+    if (m_form == Form::Shape) {
         constexpr double kStep = 1e-6;
         const Vec3d u = UnitVector(point.x, point.y);
         Vec3d east;
@@ -145,11 +145,12 @@ Vec3d Surface::Normal(const Vec2d& point, const Vec3d& p) const {
         const auto at = [&](const Vec3d& axis, double sign) {
             const Vec3d d = u + axis * (sign * kStep);
             const Vec3d unit = d / Length(d);
-            return unit * shape_->At(unit);
+            return unit * m_shape->At(unit);
         };
         n = Cross(at(east, 1.0) - at(east, -1.0), at(north, 1.0) - at(north, -1.0));
     } else {
-        n = {p.x / (radii_.x * radii_.x), p.y / (radii_.y * radii_.y), p.z / (radii_.z * radii_.z)};
+        n = {p.x / (m_radii.x * m_radii.x), p.y / (m_radii.y * m_radii.y),
+             p.z / (m_radii.z * m_radii.z)};
     }
     return n / Length(n);
 }
@@ -167,7 +168,7 @@ Vec2d Surface::TangentLocate(const Vec2d& center, const Vec2d& offset) const {
     const LocalFrame frame = Frame(center);
     const Vec3d q = Position(center) + frame.east * offset.x + frame.north * offset.y;
     const double depth =
-        form_ == Form::Shape ? ShapeDepth(q, frame.up) : EllipsoidDepth(q, frame.up);
+        m_form == Form::Shape ? ShapeDepth(q, frame.up) : EllipsoidDepth(q, frame.up);
     return Coordinates(q - frame.up * depth);
 }
 
@@ -175,20 +176,20 @@ double Surface::ShapeDepth(const Vec3d& q, const Vec3d& up) const {
     const auto excess = [&](double s) {
         const Vec3d x = q - up * s;
         const double r = Length(x);
-        return r - shape_->At(x / r);
+        return r - m_shape->At(x / r);
     };
-    const double step = shape_->MaxRadius() / 64.0;
+    const double step = m_shape->MaxRadius() / 64.0;
     double inside = 0.0;
     double outside = 0.0;
     if (excess(0.0) >= 0.0) {
         inside = step;
-        while (excess(inside) >= 0.0 && inside < 4.0 * shape_->MaxRadius()) {
+        while (excess(inside) >= 0.0 && inside < 4.0 * m_shape->MaxRadius()) {
             outside = inside;
             inside += step;
         }
     } else {
         outside = -step;
-        while (excess(outside) < 0.0 && outside > -4.0 * shape_->MaxRadius()) {
+        while (excess(outside) < 0.0 && outside > -4.0 * m_shape->MaxRadius()) {
             inside = outside;
             outside -= step;
         }
@@ -201,8 +202,8 @@ double Surface::ShapeDepth(const Vec3d& q, const Vec3d& up) const {
 }
 
 double Surface::EllipsoidDepth(const Vec3d& q, const Vec3d& up) const {
-    const Vec3d inverse{1.0 / (radii_.x * radii_.x), 1.0 / (radii_.y * radii_.y),
-                        1.0 / (radii_.z * radii_.z)};
+    const Vec3d inverse{1.0 / (m_radii.x * m_radii.x), 1.0 / (m_radii.y * m_radii.y),
+                        1.0 / (m_radii.z * m_radii.z)};
     const double a = up.x * up.x * inverse.x + up.y * up.y * inverse.y + up.z * up.z * inverse.z;
     const double b = q.x * up.x * inverse.x + q.y * up.y * inverse.y + q.z * up.z * inverse.z;
     const double cq = q.x * q.x * inverse.x + q.y * q.y * inverse.y + q.z * q.z * inverse.z;
@@ -221,9 +222,9 @@ Vec2d Surface::SphereOffset(const Vec2d& center, const Vec2d& point) const {
     const double n = Dot(p, north);
     const double across = std::hypot(e, n);
     if (across == 0.0) {
-        return {0.0, angle == 0.0 ? 0.0 : radius_ * angle};
+        return {0.0, angle == 0.0 ? 0.0 : m_radius * angle};
     }
-    const double scale = radius_ * angle / across;
+    const double scale = m_radius * angle / across;
     return {e * scale, n * scale};
 }
 
@@ -236,14 +237,14 @@ Vec2d Surface::SphereLocate(const Vec2d& center, const Vec2d& offset) const {
     Vec3d east;
     Vec3d north;
     LocalAxes(center.x * kDegree, center.y * kDegree, east, north);
-    const double angle = distance / radius_;
+    const double angle = distance / m_radius;
     const double along = std::sin(angle) / distance;
     const double cosAngle = std::cos(angle);
     return Coordinates(c * cosAngle + (east * offset.x + north * offset.y) * along);
 }
 
 double Surface::Distance(const Vec2d& a, const Vec2d& b) const {
-    switch (form_) {
+    switch (m_form) {
     case Form::Plane:
         return std::hypot(b.x - a.x, b.y - a.y);
     case Form::Ellipsoid:
@@ -254,19 +255,19 @@ double Surface::Distance(const Vec2d& a, const Vec2d& b) const {
     }
     const Vec3d u = UnitVector(a.x, a.y);
     const Vec3d v = UnitVector(b.x, b.y);
-    return radius_ * std::atan2(Length(Cross(u, v)), Dot(u, v));
+    return m_radius * std::atan2(Length(Cross(u, v)), Dot(u, v));
 }
 
 Vec3d Surface::Position(const Vec2d& point) const {
-    if (form_ == Form::Plane) {
+    if (m_form == Form::Plane) {
         return {point.x, point.y, 0.0};
     }
     const Vec3d unit = UnitVector(point.x, point.y);
-    return unit * (form_ == Form::Sphere ? radius_ : RadiusAt(point));
+    return unit * (m_form == Form::Sphere ? m_radius : RadiusAt(point));
 }
 
 LocalFrame Surface::Frame(const Vec2d& point) const {
-    if (form_ == Form::Plane) {
+    if (m_form == Form::Plane) {
         return {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
     }
     LocalFrame frame;
@@ -283,7 +284,7 @@ LocalFrame Surface::Frame(const Vec2d& point) const {
 }
 
 Vec2d Surface::Coordinates(const Vec3d& direction) const {
-    if (form_ == Form::Plane) {
+    if (m_form == Form::Plane) {
         return {direction.x, direction.y};
     }
     const double lon = std::atan2(direction.y, direction.x) * kRadian;
@@ -299,11 +300,11 @@ BucketIndex Surface::Bucket(const Vec2d& point, double size) const {
 }
 
 Bounds2d Surface::Expand(const Bounds2d& region, double meters) const {
-    if (form_ == Form::Plane) {
+    if (m_form == Form::Plane) {
         return region.Expanded(meters);
     }
-    double dLat = meters / unitLength_;
-    double angle = meters / radius_;
+    double dLat = meters / m_unitLength;
+    double angle = meters / m_radius;
     if (IsNonSphere()) {
         const double shortest = MinRadius();
         angle = meters < shortest ? std::asin(meters / shortest) : kPi;

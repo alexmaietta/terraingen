@@ -29,11 +29,11 @@ SummedSfd::SummedSfd(SfdKind kind, std::vector<WeightedSfd>&& terms)
     : SizeFrequencyDistribution(
           kind, detail::IntersectRanges(terms, detail::UsableRange,
                                         "Summed terms must have overlapping valid ranges")),
-      terms_(std::move(terms)) {}
+      m_terms(std::move(terms)) {}
 
 double SummedSfd::CumulativeAt(double diameter) const {
     double sum = 0.0;
-    for (const WeightedSfd& term : terms_) {
+    for (const WeightedSfd& term : m_terms) {
         sum += term.weight * UncheckedCumulative(*term.distribution, diameter);
     }
     return sum;
@@ -41,7 +41,7 @@ double SummedSfd::CumulativeAt(double diameter) const {
 
 double SummedSfd::IncrementalAt(double diameter) const {
     double sum = 0.0;
-    for (const WeightedSfd& term : terms_) {
+    for (const WeightedSfd& term : m_terms) {
         sum += term.weight * UncheckedIncremental(*term.distribution, diameter);
     }
     return sum;

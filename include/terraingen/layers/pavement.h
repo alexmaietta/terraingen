@@ -83,7 +83,7 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
 
     /// The options the layer was made with.
     const PavementOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)`.
@@ -127,9 +127,9 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
     double Relief(const Vec2d& q, double spacing) const;
     double ExposureWeight(double x, double y, const LayerContext& context) const;
 
-    PavementOptions options_;
-    LayerExposure exposure_;
-    std::vector<Level> levels_;
+    PavementOptions m_options;
+    LayerExposure m_exposure;
+    std::vector<Level> m_levels;
 };
 
 }  // namespace terraingen

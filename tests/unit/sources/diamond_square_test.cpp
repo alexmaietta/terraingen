@@ -40,7 +40,7 @@ namespace {
 class FunctionPosts final : public terraingen::PostLattice {
   public:
     explicit FunctionPosts(std::function<float(double, double)> height)
-        : height_(std::move(height)) {}
+        : m_height(std::move(height)) {}
 
     GeoTransform Transform() const override {
         return GeoTransform::NorthUp(0.0, -4.0, 4.0);
@@ -54,13 +54,13 @@ class FunctionPosts final : public terraingen::PostLattice {
                 const terraingen::Vec2d p = transform.PixelToWorld(
                     static_cast<double>(col0 + static_cast<std::int64_t>(c)) + 0.5,
                     static_cast<double>(row0 + static_cast<std::int64_t>(r)) + 0.5);
-                heights[r * width + c] = height_(p.x, p.y);
+                heights[r * width + c] = m_height(p.x, p.y);
             }
         }
     }
 
   private:
-    std::function<float(double, double)> height_;
+    std::function<float(double, double)> m_height;
 };
 
 /// The nodes of `level` over columns [`col0`, `col1`] and rows [`row0`, `row1`] of square posts,
@@ -72,32 +72,32 @@ class RefinedNodes {
     RefinedNodes(const DiamondSquareOptions& options, const terraingen::PostLattice& posts,
                  int level, std::int64_t col0, std::int64_t row0, std::int64_t col1,
                  std::int64_t row1)
-        : col0_(col0), row1_(row1) {
+        : m_col0(col0), m_row1(row1) {
         const GeoTransform transform = posts.Transform();
         const terraingen::Vec2d first = transform.PixelToWorld(0.5, 0.5);
         const double step = std::ldexp(transform.pixelWidth, -level);
-        heights_ = Raster<float>(RasterGrid{
+        m_heights = Raster<float>(RasterGrid{
             static_cast<std::size_t>(col1 - col0 + 1), static_cast<std::size_t>(row1 - row0 + 1),
             GeoTransform::NorthUp(first.x + (static_cast<double>(col0) - 0.5) * step,
                                   first.y + (static_cast<double>(row1) + 0.5) * step, step)});
-        DiamondSquareUpsampler(options).Fill(posts, heights_, step, 0);
+        DiamondSquareUpsampler(options).Fill(posts, m_heights, step, 0);
     }
 
     /// The height of node (`col`, `row`).
     double At(std::int64_t col, std::int64_t row) const {
-        return static_cast<double>(
-            heights_(static_cast<std::size_t>(col - col0_), static_cast<std::size_t>(row1_ - row)));
+        return static_cast<double>(m_heights(static_cast<std::size_t>(col - m_col0),
+                                             static_cast<std::size_t>(m_row1 - row)));
     }
 
     /// The nodes as a raster, the northernmost row first.
     const Raster<float>& Heights() const {
-        return heights_;
+        return m_heights;
     }
 
   private:
-    std::int64_t col0_;
-    std::int64_t row1_;
-    Raster<float> heights_;
+    std::int64_t m_col0;
+    std::int64_t m_row1;
+    Raster<float> m_heights;
 };
 
 /// The scale Se diamond-square with `options` displaces square-step node (`col`, `row`) of level 1

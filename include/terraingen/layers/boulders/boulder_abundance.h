@@ -30,20 +30,20 @@ class BoulderMapAbundance {
 
     /// The largest abundance the map gives anywhere, at least 1.
     double Max() const {
-        return max_;
+        return m_max;
     }
 
   private:
     /// The coverage at which Golombek-Rapp boulders measure `target`.
     double Coverage(double target) const;
 
-    DensityMap map_;
-    double coverage_ = 0.0;
-    double measure_ = 0.0;
-    double ejectaMeasure_ = 0.0;
-    std::vector<double> coverages_;
-    std::vector<double> measures_;
-    double max_ = 1.0;
+    DensityMap m_map;
+    double m_coverage = 0.0;
+    double m_measure = 0.0;
+    double m_ejectaMeasure = 0.0;
+    std::vector<double> m_coverages;
+    std::vector<double> m_measures;
+    double m_max = 1.0;
 };
 
 /// The mean over the plane of the patches' abundance, `spread` to the power of `PatchNoise`,

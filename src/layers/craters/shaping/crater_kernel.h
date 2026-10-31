@@ -47,6 +47,16 @@ inline void StoreKernelPosition(const Vec3d& position, float* at) {
     at[2] = static_cast<float>(position.z);
 }
 
+/// `value` as a float, and the float of what that leaves (`SplitDifference`).
+inline void SplitCoordinate(double value, float& high, float& low) {
+    high = static_cast<float>(value);
+    low = static_cast<float>(value - static_cast<double>(high));
+}
+
+/// Surface point `p` as kernels read it: its east and north on a plane, or its position
+/// (`Surface::Position`) on a body, each split (`SplitCoordinate`).
+SplitPoint MakeSplitPoint(const Surface& surface, const Vec2d& p);
+
 /// `lists` as the kernels read them: each list's first entry and entry count appended to
 /// `heads`, and the entries returned, never empty so a GPU can bind them.
 std::vector<std::uint32_t> FlattenKernelLists(const std::vector<std::vector<std::uint32_t>>& lists,

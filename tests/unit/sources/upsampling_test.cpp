@@ -227,8 +227,8 @@ namespace {
 class ThreadNotingUpsampler final : public terraingen::Upsampler {
   public:
     std::set<std::thread::id> Threads() const {
-        const std::lock_guard lock(mutex_);
-        return threads_;
+        const std::lock_guard lock(m_mutex);
+        return m_threads;
     }
 
   protected:
@@ -238,8 +238,8 @@ class ThreadNotingUpsampler final : public terraingen::Upsampler {
             samples, threads,
             [&](terraingen::Span<const terraingen::Vec2d> points, terraingen::Span<float> heights) {
                 {
-                    const std::lock_guard lock(mutex_);
-                    threads_.insert(std::this_thread::get_id());
+                    const std::lock_guard lock(m_mutex);
+                    m_threads.insert(std::this_thread::get_id());
                 }
                 for (std::size_t i = 0; i < points.size(); ++i) {
                     heights[i] = MeanUpsampler::Mean(posts, points[i].x, points[i].y);
@@ -248,8 +248,8 @@ class ThreadNotingUpsampler final : public terraingen::Upsampler {
     }
 
   private:
-    mutable std::mutex mutex_;
-    mutable std::set<std::thread::id> threads_;
+    mutable std::mutex m_mutex;
+    mutable std::set<std::thread::id> m_threads;
 };
 
 }  // namespace

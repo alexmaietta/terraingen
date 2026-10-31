@@ -58,25 +58,25 @@ std::optional<FacePoint> OnFace(const Vec3d& direction, std::size_t face, double
 }  // namespace
 
 ShapeModelSource::FacePosts::FacePosts(const ShapeModelSource& source, std::size_t face)
-    : source_(source), face_(face) {}
+    : m_source(source), m_face(face) {}
 
 GeoTransform ShapeModelSource::FacePosts::Transform() const {
-    const double size = source_.labelDegrees_;
+    const double size = m_source.m_labelDegrees;
     return GeoTransform::NorthUp(-0.5 * size, 0.5 * size, size);
 }
 
 std::optional<PixelWindow> ShapeModelSource::FacePosts::Extent() const {
-    const std::size_t first = face_ * static_cast<std::size_t>(kFaceColumns);
-    const std::size_t labels = source_.body_.Shape()->Q() + 1;
+    const std::size_t first = m_face * static_cast<std::size_t>(kFaceColumns);
+    const std::size_t labels = m_source.m_body.Shape()->Q() + 1;
     return PixelWindow{first, first + labels, 0, labels};
 }
 
 void ShapeModelSource::FacePosts::Read(std::int64_t col0, std::int64_t row0, std::size_t width,
                                        std::size_t height, Span<float> heights) const {
-    const RadialShape& shape = *source_.body_.Shape();
+    const RadialShape& shape = *m_source.m_body.Shape();
     const auto q = static_cast<std::int64_t>(shape.Q());
-    const std::int64_t first = static_cast<std::int64_t>(face_) * kFaceColumns;
-    const detail::CubeFace& face = detail::kIcqFaces[face_];
+    const std::int64_t first = static_cast<std::int64_t>(m_face) * kFaceColumns;
+    const detail::CubeFace& face = detail::kIcqFaces[m_face];
     for (std::size_t r = 0; r < height; ++r) {
         const std::int64_t j = row0 + static_cast<std::int64_t>(r);
         for (std::size_t c = 0; c < width; ++c) {
@@ -84,34 +84,34 @@ void ShapeModelSource::FacePosts::Read(std::int64_t col0, std::int64_t row0, std
             double radius = 0.0;
             if (i >= 0 && i <= q && j >= 0 && j <= q) {
                 radius = shape.Radii()[shape.LabelIndex(static_cast<std::size_t>(i),
-                                                        static_cast<std::size_t>(j), face_ + 1)];
+                                                        static_cast<std::size_t>(j), m_face + 1)];
             } else {
                 const Vec3d p =
                     detail::CubeFacePoint(face, ExtendedGnomonic(static_cast<double>(i), q),
                                           ExtendedGnomonic(static_cast<double>(j), q));
                 radius = shape.At(p / Length(p));
             }
-            heights[r * width + c] = static_cast<float>(radius - source_.reference_);
+            heights[r * width + c] = static_cast<float>(radius - m_source.m_reference);
         }
     }
 }
 
 ShapeModelSource::ShapeModelSource(Surface body, std::shared_ptr<const Upsampler> upsampler)
-    : body_(std::move(body)) {
-    const RadialShape* shape = body_.Shape();
+    : m_body(std::move(body)) {
+    const RadialShape* shape = m_body.Shape();
     if (!shape) {
         throw std::invalid_argument("A shape-model source needs a shape-model body");
     }
-    reference_ = 0.5 * (shape->MinRadius() + shape->MaxRadius());
-    labelDegrees_ = 90.0 / static_cast<double>(shape->Q());
-    for (std::size_t face = 0; face < posts_.size(); ++face) {
-        posts_[face] = std::make_unique<FacePosts>(*this, face);
-        upsamplers_[face] = FittedUpsampler(upsampler, *posts_[face]);
+    m_reference = 0.5 * (shape->MinRadius() + shape->MaxRadius());
+    m_labelDegrees = 90.0 / static_cast<double>(shape->Q());
+    for (std::size_t face = 0; face < m_posts.size(); ++face) {
+        m_posts[face] = std::make_unique<FacePosts>(*this, face);
+        m_upsamplers[face] = FittedUpsampler(upsampler, *m_posts[face]);
     }
 }
 
 RasterGrid ShapeModelSource::Grid() const {
-    return {0, 0, GeoTransform::NorthUp(-180.0, 90.0, labelDegrees_)};
+    return {0, 0, GeoTransform::NorthUp(-180.0, 90.0, m_labelDegrees)};
 }
 
 void ShapeModelSource::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
@@ -122,7 +122,7 @@ void ShapeModelSource::FillSamples(SampleBlock& samples, double spacing, unsigne
 
 void ShapeModelSource::FillPoints(Span<const Vec2d> points, Span<float> heights,
                                   double spacing) const {
-    const RadialShape& shape = *body_.Shape();
+    const RadialShape& shape = *m_body.Shape();
     const auto q = static_cast<double>(shape.Q());
     std::vector<Vec3d> directions(points.size());
     for (std::size_t i = 0; i < points.size(); ++i) {
@@ -142,10 +142,10 @@ void ShapeModelSource::FillPoints(Span<const Vec2d> points, Span<float> heights,
                 weights[i] = at->weight;
                 const double column =
                     at->s + static_cast<double>(face) * static_cast<double>(kFaceColumns);
-                return Vec2d{column * labelDegrees_, -at->t * labelDegrees_};
+                return Vec2d{column * m_labelDegrees, -at->t * m_labelDegrees};
             },
             [&](Span<const Vec2d> onFace, Span<float> values) {
-                upsamplers_[face]->HeightsAt(*posts_[face], onFace, values, spacing);
+                m_upsamplers[face]->HeightsAt(*m_posts[face], onFace, values, spacing);
             },
             [&](std::size_t i, float value) {
                 weighted[i] += weights[i] * static_cast<double>(value);
@@ -154,16 +154,16 @@ void ShapeModelSource::FillPoints(Span<const Vec2d> points, Span<float> heights,
     }
     for (std::size_t i = 0; i < points.size(); ++i) {
         heights[i] =
-            static_cast<float>(weighted[i] / total[i] + reference_ - shape.At(directions[i]));
+            static_cast<float>(weighted[i] / total[i] + m_reference - shape.At(directions[i]));
     }
 }
 
 double ShapeModelSource::ResolutionAt(double /*x*/, double /*y*/) const {
-    return labelDegrees_;
+    return m_labelDegrees;
 }
 
 double ShapeModelSource::PostSpacingAt(double /*x*/, double /*y*/) const {
-    return labelDegrees_;
+    return m_labelDegrees;
 }
 
 }  // namespace terraingen

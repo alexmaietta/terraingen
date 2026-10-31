@@ -15,7 +15,7 @@ namespace {
 /// Cells each thread keeps of the caches it last read.
 constexpr std::size_t kRecentCells = 256;
 
-/// The source of each cache's `id_`, from 1 so 0 marks an empty slot.
+/// The source of each cache's `m_id`, from 1 so 0 marks an empty slot.
 std::atomic<std::uint64_t> nextCacheId{1};
 
 /// A cell a thread read: its cache, band and index, and its craters.
@@ -37,11 +37,11 @@ CraterCellCache::Get(int exponent, const CellIndex& cell,
                                 (static_cast<std::uint32_t>(cell.j) * 0x85EBCA77u) ^
                                 (static_cast<std::uint32_t>(exponent) * 0xC2B2AE3Du);
     RecentCell& slot = recent[(mixed >> 16U) % kRecentCells];
-    if (slot.cache == id_ && slot.exponent == exponent && slot.i == cell.i && slot.j == cell.j) {
+    if (slot.cache == m_id && slot.exponent == exponent && slot.i == cell.i && slot.j == cell.j) {
         return slot.craters;
     }
-    std::shared_ptr<const CellCraters> craters = cache_.Get({exponent, cell.i, cell.j}, generate);
-    slot = {id_, exponent, cell.i, cell.j, craters};
+    std::shared_ptr<const CellCraters> craters = m_cache.Get({exponent, cell.i, cell.j}, generate);
+    slot = {m_id, exponent, cell.i, cell.j, craters};
     return craters;
 }
 
@@ -51,13 +51,13 @@ std::size_t CraterCellCache::KeyHash::operator()(const Key& key) const {
 }
 
 CraterCellCache::CraterCellCache(std::size_t maxCraters)
-    : cache_(
+    : m_cache(
           maxCraters, [](const CellCraters& cell) { return cell.craters.Size(); },
           [maxCraters](std::size_t evicted) {
               LogDebug("craters", "Crater cache evicted ", evicted, " cells to stay within ",
                        maxCraters, " craters");
           }),
-      id_(nextCacheId.fetch_add(1)) {}
+      m_id(nextCacheId.fetch_add(1)) {}
 
 CellCraterSource CachedCellCraters(CraterCellCache& cache, const SurfaceCells& cells,
                                    const SizeFrequencyDistribution& density,

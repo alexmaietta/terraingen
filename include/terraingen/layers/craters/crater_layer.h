@@ -147,16 +147,16 @@ class CraterLayer final : public Layer, public CraterPlacer {
 
     /// The models the layer was made with.
     const CraterModels& Models() const {
-        return models_;
+        return m_models;
     }
 
     /// The options, with surfaces and `marginRadii` filled in.
     const CraterLayerOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     std::optional<TerrainBase> LayerBase() const override {
-        return TerrainBase{surface_, source_};
+        return TerrainBase{m_surface, m_source};
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)` and the apply seeds of the irregularity,
@@ -180,7 +180,7 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// Drops the generated craters the source resolves, adds the inherited craters it resolves to
     /// the manual ones, replacing, and drops the generated craters they stand in for.
     void FollowSource();
-    /// Counts the bands generation draws into `bandCounts_`.
+    /// Counts the bands generation draws into `m_bandCounts`.
     void SetUpBandCounts();
     /// Draws craters at the density map's largest scale and thins them by the map, taking the
     /// secondaries out of a `total` map.
@@ -194,33 +194,33 @@ class CraterLayer final : public Layer, public CraterPlacer {
     /// The keep share for craters over `region`: the map's, less the secondaries thrown there
     /// by the craters around it that are large enough, when they are taken out of the map.
     CraterKeepShare KeepShare(const Bounds2d& region) const;
-    /// Sets `generation.bandCount` to read the bands' counts from `bandCounts_`.
+    /// Sets `generation.bandCount` to read the bands' counts from `m_bandCounts`.
     void CountBands(CraterGenerationOptions& generation) const;
 
-    /// A band's expected craters per square meter at the density of `candidates_`.
+    /// A band's expected craters per square meter at the density of `m_candidates`.
     struct BandCount {
         double low = 0.0;
         double high = 0.0;
         double count = 0.0;
     };
 
-    CraterModels models_;
-    CraterLayerOptions options_;
+    CraterModels m_models;
+    CraterLayerOptions m_options;
     /// The options as given, before the source's completeness and inherited craters.
-    std::shared_ptr<const CraterLayerOptions> given_;
-    Surface surface_;
-    std::shared_ptr<const Source> source_;
-    std::shared_ptr<const SurfaceCells> cells_;
-    std::shared_ptr<CraterCellCache> cache_;
-    /// The density craters are drawn at: `models_.density`, times the map's largest scale.
-    std::shared_ptr<const SizeFrequencyDistribution> candidates_;
-    std::shared_ptr<const DensityScale> scale_;
+    std::shared_ptr<const CraterLayerOptions> m_given;
+    Surface m_surface;
+    std::shared_ptr<const Source> m_source;
+    std::shared_ptr<const SurfaceCells> m_cells;
+    std::shared_ptr<CraterCellCache> m_cache;
+    /// The density craters are drawn at: `m_models.density`, times the map's largest scale.
+    std::shared_ptr<const SizeFrequencyDistribution> m_candidates;
+    std::shared_ptr<const DensityScale> m_scale;
     /// The counts of the bands generation draws, so point queries do not compute them each time.
-    std::vector<BandCount> bandCounts_;
+    std::vector<BandCount> m_bandCounts;
     /// Craters at least this large (m) throw secondaries the map measures and follow it alone.
-    double throwFrom_ = std::numeric_limits<double>::infinity();
+    double m_throwFrom = std::numeric_limits<double>::infinity();
     /// How far (m) beyond a grid the replacing manual craters can change it (`ReplacementMargin`).
-    double replacementMargin_ = 0.0;
+    double m_replacementMargin = 0.0;
 };
 
 }  // namespace terraingen

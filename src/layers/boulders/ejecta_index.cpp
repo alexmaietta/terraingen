@@ -18,24 +18,24 @@ constexpr double kFinestReach = 1e-3;
 EjectaIndex::EjectaIndex(CraterList craters, const Surface& surface,
                          const std::function<double(const Crater&)>& reach,
                          std::vector<std::uint32_t> sources)
-    : craters_(std::move(craters)), sources_(std::move(sources)),
-      surface_(std::make_shared<const Surface>(surface)) {
-    buckets_.emplace(*surface_);
-    for (std::size_t n = 0; n < craters_.Size(); ++n) {
-        const Crater crater = craters_.At(n);
+    : m_craters(std::move(craters)), m_sources(std::move(sources)),
+      m_surface(std::make_shared<const Surface>(surface)) {
+    m_buckets.emplace(*m_surface);
+    for (std::size_t n = 0; n < m_craters.Size(); ++n) {
+        const Crater crater = m_craters.At(n);
         const int band =
             static_cast<int>(std::ceil(std::log2(std::fmax(reach(crater), kFinestReach))));
-        buckets_->Add(band, std::ldexp(1.0, band), {crater.x, crater.y}, n);
+        m_buckets->Add(band, std::ldexp(1.0, band), {crater.x, crater.y}, n);
     }
 }
 
 std::vector<std::uint32_t> EjectaIndex::Near(double x, double y) const {
     std::vector<std::uint32_t> near;
-    if (!buckets_) {
+    if (!m_buckets) {
         return near;
     }
-    for (const int band : buckets_->Bands()) {
-        buckets_->ForEachAround(band, {x, y}, 1, [&](const std::vector<std::size_t>& indices) {
+    for (const int band : m_buckets->Bands()) {
+        m_buckets->ForEachAround(band, {x, y}, 1, [&](const std::vector<std::size_t>& indices) {
             for (const std::size_t n : indices) {
                 near.push_back(static_cast<std::uint32_t>(n));
             }

@@ -514,7 +514,7 @@ std::string VulkanInstallHint() {
 #endif
 }
 
-VulkanCompute::VulkanCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
+VulkanCompute::VulkanCompute(std::unique_ptr<State> state) : m_state(std::move(state)) {}
 
 VulkanCompute::~VulkanCompute() = default;
 
@@ -525,7 +525,7 @@ std::unique_ptr<VulkanCompute> VulkanCompute::Open() {
 }
 
 const std::string& VulkanCompute::DeviceName() const {
-    return state_->name;
+    return m_state->name;
 }
 
 bool VulkanCompute::CanRun(const KernelProgram& program) const {
@@ -534,7 +534,7 @@ bool VulkanCompute::CanRun(const KernelProgram& program) const {
 
 void VulkanCompute::Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
                         Span<const std::byte> pushConstants, const Dispatch& dispatch) {
-    State& s = *state_;
+    State& s = *m_state;
     if (!CanRun(program)) {
         throw std::runtime_error("The kernel has no SPIR-V for Vulkan");
     }

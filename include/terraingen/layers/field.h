@@ -33,17 +33,17 @@ class SurfaceField {
 class ConstantField final : public SurfaceField {
   public:
     /// @param value Any value; NaN gives a field with none.
-    explicit ConstantField(double value) : value_(value) {}
+    explicit ConstantField(double value) : m_value(value) {}
 
     double ValueAt(double /*x*/, double /*y*/) const override {
-        return value_;
+        return m_value;
     }
     double Max() const override {
-        return value_;
+        return m_value;
     }
 
   private:
-    double value_;
+    double m_value;
 };
 
 /// The smaller of two fields at each point, the one that has a value where the other is NaN: a
@@ -60,8 +60,8 @@ class MinimumField final : public SurfaceField {
     double Max() const override;
 
   private:
-    std::shared_ptr<const SurfaceField> a_;
-    std::shared_ptr<const SurfaceField> b_;
+    std::shared_ptr<const SurfaceField> m_a;
+    std::shared_ptr<const SurfaceField> m_b;
 };
 
 /// How a `RasterField` reads its raster.
@@ -103,17 +103,17 @@ class RasterField final : public SurfaceField {
 
     /// The largest finite cell times the scale, or the fallback if larger.
     double Max() const override {
-        return max_;
+        return m_max;
     }
 
     /// The raster read.
     const Raster<float>& Values() const {
-        return raster_;
+        return m_raster;
     }
 
     /// How it is read.
     const RasterFieldOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
   private:
@@ -125,9 +125,9 @@ class RasterField final : public SurfaceField {
     /// The weighted mean of the valid cells around `pixel`, NaN where none is.
     double SampleBilinear(const Vec2d& pixel) const;
 
-    Raster<float> raster_;
-    RasterFieldOptions options_;
-    double max_ = std::numeric_limits<double>::quiet_NaN();
+    Raster<float> m_raster;
+    RasterFieldOptions m_options;
+    double m_max = std::numeric_limits<double>::quiet_NaN();
 };
 
 /// A field read from one band of a GeoTIFF in the surface's coordinates.

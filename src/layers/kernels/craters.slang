@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Shapes the craters of CraterShapeKernel into a strip of grid rows. Each cell holding data runs
-// ApplyCraterKernel for the craters of its tile, in order, at its offset from each crater's center:
-// the difference of planar positions, or on a body its offset in the crater's frame
-// (KernelFrameOffset). The host side is ShapeTilesOnGpu
+// Shapes the craters of CraterShapeKernel into a strip of grid rows: each cell holding data runs
+// ShapeCraters, or ShapeCratersOnBody on a body, over the craters of its tile, as the CPU does
 // (terraingen/layers/craters/shaping/apply.cpp).
 #include "gpu/kernel.slang"
 #include "terraingen/layers/kernels/craters.h"
@@ -15,9 +13,11 @@
 // tile.
 [[vk::binding(6, 0)]] StructuredBuffer<uint> tiles;
 [[vk::binding(7, 0)]] StructuredBuffer<uint> entries;
-// On a body: each crater's frame, and the strip's cell positions as x, y, z triples.
+// On a body: each crater's frame, and the strip's cells as split points.
 [[vk::binding(8, 0)]] StructuredBuffer<terraingen::CraterFrame> frames;
-[[vk::binding(9, 0)]] StructuredBuffer<float> positions;
+[[vk::binding(9, 0)]] StructuredBuffer<terraingen::SplitPoint> points;
+// On a plane: what xs leaves of each column's x, then what ys leaves of each row's y.
+[[vk::binding(10, 0)]] StructuredBuffer<float> lows;
 
 // After every buffer (terraingen/gpu/kernel.slang).
 [[vk::push_constant]] ConstantBuffer<Params> params;
@@ -29,32 +29,24 @@ void main(uint3 id : SV_DispatchThreadID) {
         return;
     }
     const uint i = id.y * params.width + id.x;
-    float height = heights[i];
+    const float height = heights[i];
     if (terraingen::IsNoData(params, height)) {
         return;
     }
-    const uint side = tiles[1];
-    const uint tile = ((params.firstRow + id.y) / side) * tiles[0] + id.x / side;
-    const uint first = tiles[3 + 2 * tile];
-    const uint count = tiles[4 + 2 * tile];
+    const uint row = params.firstRow + id.y;
+    const uint head = terraingen::CraterTileHead(tiles, id.x, row);
     if (tiles[2] == 0) {
-        const float x = xs[id.x];
-        const float y = ys[id.y];
-        for (uint k = first; k < first + count; ++k) {
-            const terraingen::CraterRecord crater = records[entries[k]];
-            height = terraingen::ApplyCraterKernel(kernels[0], data, crater, height, x - crater.x,
-                                                   y - crater.y);
-        }
+        terraingen::SplitPoint p;
+        p.x = xs[id.x];
+        p.xLow = lows[id.x];
+        p.y = ys[id.y];
+        p.yLow = lows[params.width + row];
+        p.z = 0.0;
+        p.zLow = 0.0;
+        heights[i] = terraingen::ShapeCraters(kernels[0], data, records, entries, tiles[head],
+                                              tiles[head + 1], height, p);
     } else {
-        const float px = positions[3 * i];
-        const float py = positions[3 * i + 1];
-        const float pz = positions[3 * i + 2];
-        for (uint k = first; k < first + count; ++k) {
-            const uint n = entries[k];
-            const terraingen::KernelOffset at = terraingen::KernelFrameOffset(frames[n], px, py, pz);
-            height = terraingen::ApplyCraterKernel(kernels[0], data, records[n], height, at.dx,
-                                                   at.dy);
-        }
+        heights[i] = terraingen::ShapeCratersOnBody(kernels[0], data, records, frames, entries,
+                                                    tiles[head], tiles[head + 1], height, points[i]);
     }
-    heights[i] = height;
 }

@@ -16,26 +16,26 @@ namespace {
 class ConflictSearch {
   public:
     ConflictSearch(const CraterList& craters, const CraterSpacing& spacing, const Surface& surface)
-        : craters_(craters), spacing_(spacing), surface_(surface), buckets_(surface) {
+        : m_craters(craters), m_spacing(spacing), m_surface(surface), m_buckets(surface) {
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             const Crater crater = craters.At(n);
             const int band = std::ilogb(crater.diameter);
-            buckets_.Add(band,
-                         spacing.separation * spacing.diameterRatio * std::ldexp(1.0, band + 1),
-                         {crater.x, crater.y}, n);
+            m_buckets.Add(band,
+                          spacing.separation * spacing.diameterRatio * std::ldexp(1.0, band + 1),
+                          {crater.x, crater.y}, n);
         }
     }
 
     bool Outranked(std::size_t n) const {
-        const Crater crater = craters_.At(n);
-        const int lowest = std::ilogb(crater.diameter / spacing_.diameterRatio);
-        const int highest = std::ilogb(crater.diameter * spacing_.diameterRatio);
+        const Crater crater = m_craters.At(n);
+        const int lowest = std::ilogb(crater.diameter / m_spacing.diameterRatio);
+        const int highest = std::ilogb(crater.diameter * m_spacing.diameterRatio);
         bool outranked = false;
         for (int band = lowest; band <= highest && !outranked; ++band) {
-            buckets_.ForEachAround(band, {crater.x, crater.y}, 1,
-                                   [&](const std::vector<std::size_t>& others) {
-                                       outranked = outranked || OutrankedBy(others, n, crater);
-                                   });
+            m_buckets.ForEachAround(band, {crater.x, crater.y}, 1,
+                                    [&](const std::vector<std::size_t>& others) {
+                                        outranked = outranked || OutrankedBy(others, n, crater);
+                                    });
         }
         return outranked;
     }
@@ -48,19 +48,19 @@ class ConflictSearch {
             if (other == n) {
                 continue;
             }
-            const Crater neighbor = craters_.At(other);
-            if (CratersConflict(crater, neighbor, spacing_, surface_) &&
-                CraterTakesPrecedence(neighbor, crater, spacing_.outrankFrom)) {
+            const Crater neighbor = m_craters.At(other);
+            if (CratersConflict(crater, neighbor, m_spacing, m_surface) &&
+                CraterTakesPrecedence(neighbor, crater, m_spacing.outrankFrom)) {
                 return true;
             }
         }
         return false;
     }
 
-    const CraterList& craters_;
-    const CraterSpacing& spacing_;
-    const Surface& surface_;
-    BandBuckets buckets_;
+    const CraterList& m_craters;
+    const CraterSpacing& m_spacing;
+    const Surface& m_surface;
+    BandBuckets m_buckets;
 };
 
 }  // namespace

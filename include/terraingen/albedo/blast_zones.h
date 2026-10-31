@@ -69,7 +69,7 @@ class BlastZoneAlbedo final : public AlbedoLayer {
     static double Reach(const BlastZone& zone);
 
   private:
-    std::vector<BlastZone> zones_;
+    std::vector<BlastZone> m_zones;
 };
 
 }  // namespace terraingen

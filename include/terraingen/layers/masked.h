@@ -105,17 +105,17 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
 
     /// The confined layer.
     const Layer& Inner() const {
-        return *inner_;
+        return *m_inner;
     }
 
     /// The confined layer's base, if it was built on one.
     std::optional<TerrainBase> LayerBase() const override {
-        return inner_->LayerBase();
+        return m_inner->LayerBase();
     }
 
     /// The layers the confined layer reads.
     std::vector<const Layer*> Dependencies() const override {
-        return inner_->Dependencies();
+        return m_inner->Dependencies();
     }
 
     /// The layer confining the confined layer reseeded with `seed`; null when it has no seeds.
@@ -154,10 +154,10 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
     /// This layer confining `inner` in place of its own.
     LayerPtr Confining(LayerPtr inner) const;
 
-    std::shared_ptr<const Layer> inner_;
-    RegionShape shape_;
-    double feather_;
-    BlendShape blend_;
+    std::shared_ptr<const Layer> m_inner;
+    RegionShape m_shape;
+    double m_feather;
+    BlendShape m_blend;
 };
 
 }  // namespace terraingen

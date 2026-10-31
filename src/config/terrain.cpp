@@ -12,14 +12,14 @@ namespace terraingen {
 TerrainGenConfig::TerrainGenConfig() : TerrainGenConfig(ConfigSpec{}) {}
 
 TerrainGenConfig::TerrainGenConfig(ConfigSpec spec)
-    : spec_(std::make_shared<const ConfigSpec>(std::move(spec))) {}
+    : m_spec(std::make_shared<const ConfigSpec>(std::move(spec))) {}
 
 const std::filesystem::path& TerrainGenConfig::Directory() const {
-    return spec_->directory;
+    return m_spec->directory;
 }
 
 const ConfigSpec& TerrainGenConfig::Spec() const {
-    return *spec_;
+    return *m_spec;
 }
 
 namespace config {

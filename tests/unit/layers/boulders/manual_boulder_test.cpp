@@ -32,18 +32,18 @@ const Bounds2d kRegion{-15.0, -15.0, 15.0, 15.0};
 /// Ground rising `rise` meters per meter eastward from 3 m at x = 0.
 class Ramp final : public terraingen::Ground {
   public:
-    explicit Ramp(double rise = 0.0) : rise_(rise) {}
+    explicit Ramp(double rise = 0.0) : m_rise(rise) {}
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
                      unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
-            samples.Height(i) = static_cast<float>(3.0 + rise_ * samples.Position(i).x);
+            samples.Height(i) = static_cast<float>(3.0 + m_rise * samples.Position(i).x);
         }
     }
 
   private:
-    double rise_;
+    double m_rise;
 };
 
 /// Boulders that rest on sides and ends and tilt, those from 1 m placed as models.

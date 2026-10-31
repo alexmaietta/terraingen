@@ -41,7 +41,7 @@ class PiecewiseUniformSfd final : public SizeFrequencyDistribution {
 
     /// The bands, with densities per m^2 (or per m^2 per Gyr) after any `total` is applied.
     const std::vector<UniformBand>& Bands() const {
-        return bands_;
+        return m_bands;
     }
 
   protected:
@@ -50,9 +50,9 @@ class PiecewiseUniformSfd final : public SizeFrequencyDistribution {
     double InvertCumulative(double target, double minDiameter, double maxDiameter) const override;
 
   private:
-    std::vector<UniformBand> bands_;
-    std::vector<double> edges_;
-    std::vector<double> edgeCumulative_;
+    std::vector<UniformBand> m_bands;
+    std::vector<double> m_edges;
+    std::vector<double> m_edgeCumulative;
 };
 
 }  // namespace terraingen

@@ -59,7 +59,7 @@ class RoughnessLayer final : public FormulaLayer {
 
     /// The options the layer was made with.
     const RoughnessOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)`.
@@ -91,9 +91,9 @@ class RoughnessLayer final : public FormulaLayer {
     /// The noise of one octave at (`x`, `y`) on `surface`, in [-1, 1].
     static double OctaveNoise(const Octave& octave, const Surface& surface, double x, double y);
 
-    RoughnessOptions options_;
-    std::vector<Octave> planeOctaves_;
-    std::vector<Octave> bodyOctaves_;
+    RoughnessOptions m_options;
+    std::vector<Octave> m_planeOctaves;
+    std::vector<Octave> m_bodyOctaves;
 };
 
 }  // namespace terraingen

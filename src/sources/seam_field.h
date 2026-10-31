@@ -34,10 +34,10 @@ class SeamField {
     void Set(std::size_t col, std::size_t row, float value);
 
   private:
-    RasterGrid lattice_{};
-    std::size_t tileColumns_ = 0;
-    bool set_ = false;
-    std::vector<std::vector<float>> tiles_{};
+    RasterGrid m_lattice{};
+    std::size_t m_tileColumns = 0;
+    bool m_set = false;
+    std::vector<std::vector<float>> m_tiles{};
 };
 
 /// The correction `seams` add to `later` where `earlier` has no data, solved on the posts of

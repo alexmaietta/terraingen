@@ -23,18 +23,18 @@ constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
 /// Ground with a constant height.
 class Level final : public terraingen::Ground {
   public:
-    explicit Level(double height) : height_(height) {}
+    explicit Level(double height) : m_height(height) {}
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double,
                      unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
-            samples.Height(i) = static_cast<float>(height_);
+            samples.Height(i) = static_cast<float>(m_height);
         }
     }
 
   private:
-    double height_;
+    double m_height;
 };
 
 /// The terraced height of ground `height` meters high at (x, y).

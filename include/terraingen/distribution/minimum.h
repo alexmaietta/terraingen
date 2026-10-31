@@ -27,7 +27,7 @@ class MinimumSfd final : public SizeFrequencyDistribution {
 
     /// The distributions whose minimum this is.
     const std::vector<std::shared_ptr<const SizeFrequencyDistribution>>& Distributions() const {
-        return distributions_;
+        return m_distributions;
     }
 
   protected:
@@ -42,7 +42,7 @@ class MinimumSfd final : public SizeFrequencyDistribution {
     /// The input with the lowest N(>=D) at `diameter` meters, the first on ties, and that N.
     std::pair<const SizeFrequencyDistribution*, double> LowestAt(double diameter) const;
 
-    std::vector<std::shared_ptr<const SizeFrequencyDistribution>> distributions_;
+    std::vector<std::shared_ptr<const SizeFrequencyDistribution>> m_distributions;
 };
 
 }  // namespace terraingen

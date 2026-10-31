@@ -70,20 +70,20 @@ template <typename Read> auto WithPath(const std::filesystem::path& path, const 
 /// Random access to a TIFF file in its byte order.
 class TiffReader {
   public:
-    explicit TiffReader(const std::filesystem::path& path) : file_(path, std::ios::binary) {
-        if (!file_) {
+    explicit TiffReader(const std::filesystem::path& path) : m_file(path, std::ios::binary) {
+        if (!m_file) {
             Fail("cannot open the file");
         }
-        file_.seekg(0, std::ios::end);
-        size_ = static_cast<std::uint64_t>(file_.tellg());
+        m_file.seekg(0, std::ios::end);
+        m_size = static_cast<std::uint64_t>(m_file.tellg());
         ReadHeader();
     }
 
     void Read(std::uint64_t offset, void* destination, std::uint64_t count) {
         RequireInFile(offset, count);
-        file_.seekg(static_cast<std::streamoff>(offset));
-        file_.read(static_cast<char*>(destination), static_cast<std::streamsize>(count));
-        if (!file_) {
+        m_file.seekg(static_cast<std::streamoff>(offset));
+        m_file.read(static_cast<char*>(destination), static_cast<std::streamsize>(count));
+        if (!m_file) {
             Fail("read error");
         }
     }
@@ -99,7 +99,7 @@ class TiffReader {
     template <typename T> T Unsigned(const std::uint8_t* p) const {
         T value = 0;
         std::memcpy(&value, p, sizeof(T));
-        return bigEndian_ ? ByteSwap(value) : value;
+        return m_bigEndian ? ByteSwap(value) : value;
     }
 
     std::uint16_t U16(const std::uint8_t* p) const {
@@ -128,15 +128,15 @@ class TiffReader {
 
     /// The entries of the first IFD.
     std::map<std::uint16_t, IfdEntry> ReadFirstIfd() {
-        const IfdFormat format = IfdLayout(bigTiff_);
+        const IfdFormat format = IfdLayout(m_bigTiff);
         std::array<std::uint8_t, 8> countBytes{};
-        Read(firstIfd_, countBytes.data(), format.countSize);
+        Read(m_firstIfd, countBytes.data(), format.countSize);
         const std::uint64_t entries = Word(countBytes.data(), format.countSize);
         if (entries > 4096) {
             Fail("implausible number of IFD entries");
         }
         const std::vector<std::uint8_t> table =
-            ReadBytes(firstIfd_ + format.countSize, entries * format.EntrySize());
+            ReadBytes(m_firstIfd + format.countSize, entries * format.EntrySize());
         std::map<std::uint16_t, IfdEntry> result;
         for (std::uint64_t i = 0; i < entries; ++i) {
             const std::uint8_t* p = table.data() + i * format.EntrySize();
@@ -148,7 +148,7 @@ class TiffReader {
             if (fieldSize == 0) {
                 continue;
             }
-            if (entry.count > size_ / fieldSize + 1) {
+            if (entry.count > m_size / fieldSize + 1) {
                 Fail("implausible count for tag " + std::to_string(tag));
             }
             const std::uint8_t* value = p + format.ValueAt();
@@ -211,16 +211,16 @@ class TiffReader {
     }
 
     bool BigEndian() const {
-        return bigEndian_;
+        return m_bigEndian;
     }
 
     bool BigTiff() const {
-        return bigTiff_;
+        return m_bigTiff;
     }
 
   private:
     void RequireInFile(std::uint64_t offset, std::uint64_t count) const {
-        if (offset > size_ || count > size_ - offset) {
+        if (offset > m_size || count > m_size - offset) {
             Fail("data lies past the end of the file");
         }
     }
@@ -229,32 +229,32 @@ class TiffReader {
         std::array<std::uint8_t, 16> header{};
         Read(0, header.data(), 8);
         if (header[0] == 'I' && header[1] == 'I') {
-            bigEndian_ = false;
+            m_bigEndian = false;
         } else if (header[0] == 'M' && header[1] == 'M') {
-            bigEndian_ = true;
+            m_bigEndian = true;
         } else {
             Fail("not a TIFF file");
         }
         const std::uint16_t version = U16(header.data() + 2);
         if (version == 42) {
-            firstIfd_ = U32(header.data() + 4);
+            m_firstIfd = U32(header.data() + 4);
         } else if (version == 43) {
-            bigTiff_ = true;
+            m_bigTiff = true;
             Read(0, header.data(), 16);
             if (U16(header.data() + 4) != 8) {
                 Fail("unsupported BigTIFF offset size");
             }
-            firstIfd_ = U64(header.data() + 8);
+            m_firstIfd = U64(header.data() + 8);
         } else {
             Fail("unknown TIFF version " + std::to_string(version));
         }
     }
 
-    std::ifstream file_;
-    std::uint64_t size_ = 0;
-    std::uint64_t firstIfd_ = 0;
-    bool bigEndian_ = false;
-    bool bigTiff_ = false;
+    std::ifstream m_file;
+    std::uint64_t m_size = 0;
+    std::uint64_t m_firstIfd = 0;
+    bool m_bigEndian = false;
+    bool m_bigTiff = false;
 };
 
 /// The first IFD of a file and the reader to interpret it.
@@ -693,7 +693,7 @@ struct GeoTiffBlockReader::State {
 };
 
 GeoTiffBlockReader::GeoTiffBlockReader(const std::filesystem::path& path, std::size_t band)
-    : state_(WithPath(path, [&] {
+    : m_state(WithPath(path, [&] {
           TiffReader reader(path);
           Layout layout = ReadLayout(reader);
           RequireBand(layout.info, band);
@@ -704,19 +704,19 @@ GeoTiffBlockReader::GeoTiffBlockReader(const std::filesystem::path& path, std::s
 GeoTiffBlockReader::~GeoTiffBlockReader() = default;
 
 const GeoTiffInfo& GeoTiffBlockReader::Info() const {
-    return state_->layout.info;
+    return m_state->layout.info;
 }
 
 std::size_t GeoTiffBlockReader::BlockWidth() const {
-    return state_->layout.chunkWidth;
+    return m_state->layout.chunkWidth;
 }
 
 std::size_t GeoTiffBlockReader::BlockHeight() const {
-    return state_->layout.chunkHeight;
+    return m_state->layout.chunkHeight;
 }
 
 Raster<float> GeoTiffBlockReader::ReadBlock(std::size_t col, std::size_t row) const {
-    State& state = *state_;
+    State& state = *m_state;
     const Layout& layout = state.layout;
     const GeoTiffInfo& info = layout.info;
     if (col >= layout.across || row >= layout.down) {

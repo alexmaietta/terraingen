@@ -22,12 +22,12 @@ class EvaluationCache {
   public:
     /// An empty cache holding at most `capacity` values.
     explicit EvaluationCache(std::size_t capacity = 1 << 20)
-        : values_(capacity, [](const Holder&) { return std::size_t{1}; }), id_(NextId()) {}
+        : m_values(capacity, [](const Holder&) { return std::size_t{1}; }), m_id(NextId()) {}
 
     /// This cache among every one made, never 0 and never reused, so values a thread keeps
     /// for it can be told from another's.
     std::uint64_t Id() const {
-        return id_;
+        return m_id;
     }
 
     /// The value of `owner` for feature `id` at `spacing`, computed by `compute` when not held.
@@ -36,7 +36,7 @@ class EvaluationCache {
                                  const std::function<T()>& compute) {
         const Key key{reinterpret_cast<std::uintptr_t>(owner), id, BitCast<std::uint64_t>(spacing)};
         const std::shared_ptr<const Holder> held =
-            values_.Get(key, [&] { return Holder{std::make_shared<const T>(compute())}; });
+            m_values.Get(key, [&] { return Holder{std::make_shared<const T>(compute())}; });
         return std::static_pointer_cast<const T>(held->value);
     }
 
@@ -44,7 +44,7 @@ class EvaluationCache {
     template <typename T>
     std::shared_ptr<const T> Find(const void* owner, std::uint64_t id, double spacing) {
         const Key key{reinterpret_cast<std::uintptr_t>(owner), id, BitCast<std::uint64_t>(spacing)};
-        const std::shared_ptr<const Holder> held = values_.Find(key);
+        const std::shared_ptr<const Holder> held = m_values.Find(key);
         return held ? std::static_pointer_cast<const T>(held->value) : nullptr;
     }
 
@@ -72,8 +72,8 @@ class EvaluationCache {
         return next.fetch_add(1);
     }
 
-    LruCache<Key, Holder, KeyHash> values_;
-    std::uint64_t id_;
+    LruCache<Key, Holder, KeyHash> m_values;
+    std::uint64_t m_id;
 };
 
 }  // namespace terraingen

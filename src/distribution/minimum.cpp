@@ -19,13 +19,13 @@ MinimumSfd::MinimumSfd(
                     distributions,
                     [](const SizeFrequencyDistribution& each) { return each.ValidRange(); },
                     "The distributions' valid ranges do not overlap")),
-      distributions_(std::move(distributions)) {}
+      m_distributions(std::move(distributions)) {}
 
 std::pair<const SizeFrequencyDistribution*, double> MinimumSfd::LowestAt(double diameter) const {
-    const SizeFrequencyDistribution* lowest = distributions_.front().get();
+    const SizeFrequencyDistribution* lowest = m_distributions.front().get();
     double value = UncheckedCumulative(*lowest, diameter);
-    for (std::size_t n = 1; n < distributions_.size(); ++n) {
-        const auto& distribution = distributions_[n];
+    for (std::size_t n = 1; n < m_distributions.size(); ++n) {
+        const auto& distribution = m_distributions[n];
         const double candidate = UncheckedCumulative(*distribution, diameter);
         if (candidate < value) {
             value = candidate;

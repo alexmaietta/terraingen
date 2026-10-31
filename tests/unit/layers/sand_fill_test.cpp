@@ -23,21 +23,21 @@ namespace {
 /// A Gaussian pit (`depth` < 0) or hill (`depth` > 0) of width `width` at the origin.
 class Mound final : public terraingen::Ground {
   public:
-    Mound(double depth, double width) : depth_(depth), width_(width) {}
+    Mound(double depth, double width) : m_depth(depth), m_width(width) {}
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double,
                      unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
-            const double r2 = (p.x * p.x + p.y * p.y) / (width_ * width_);
-            samples.Height(i) = static_cast<float>(depth_ * std::exp(-r2));
+            const double r2 = (p.x * p.x + p.y * p.y) / (m_width * m_width);
+            samples.Height(i) = static_cast<float>(m_depth * std::exp(-r2));
         }
     }
 
   private:
-    double depth_;
-    double width_;
+    double m_depth;
+    double m_width;
 };
 
 double Fill(const SandFillLayer& layer, const terraingen::Ground& ground, double x, double y) {

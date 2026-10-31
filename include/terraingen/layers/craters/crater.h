@@ -112,12 +112,12 @@ class CraterList {
 
     /// The number of craters.
     std::size_t Size() const {
-        return id_.size();
+        return m_id.size();
     }
 
     /// Whether the list holds no crater.
     bool Empty() const {
-        return id_.empty();
+        return m_id.empty();
     }
 
     /// Reserves room for `count` craters in every column.
@@ -135,62 +135,62 @@ class CraterList {
 
     /// Surface x of every center.
     const std::vector<double>& X() const {
-        return x_;
+        return m_x;
     }
 
     /// Surface y of every center.
     const std::vector<double>& Y() const {
-        return y_;
+        return m_y;
     }
 
     /// Every diameter, in meters.
     const std::vector<double>& Diameters() const {
-        return diameter_;
+        return m_diameter;
     }
 
     /// Every age, in Gyr.
     const std::vector<double>& AgesGyr() const {
-        return ageGyr_;
+        return m_ageGyr;
     }
 
     /// Every ID.
     const std::vector<std::uint64_t>& Ids() const {
-        return id_;
+        return m_id;
     }
 
     /// 1 for manual craters, 0 for generated ones; bytes so it can be shared without copying.
     const std::vector<std::uint8_t>& Manual() const {
-        return manual_;
+        return m_manual;
     }
 
     /// Every explicit depth in meters (`Crater::depth`), NaN where it comes from the model.
     const std::vector<double>& Depths() const {
-        return depth_;
+        return m_depth;
     }
 
     /// Every explicit rim height in meters (`Crater::rimHeight`), NaN where it is derived.
     const std::vector<double>& RimHeights() const {
-        return rimHeight_;
+        return m_rimHeight;
     }
 
     /// 1 for craters that replace the terrain beneath them (`Crater::replace`), 0 for others.
     const std::vector<std::uint8_t>& Replace() const {
-        return replace_;
+        return m_replace;
     }
 
     /// Whether any crater replaces the terrain beneath it.
     bool AnyReplace() const;
 
   private:
-    std::vector<double> x_;
-    std::vector<double> y_;
-    std::vector<double> diameter_;
-    std::vector<double> ageGyr_;
-    std::vector<std::uint64_t> id_;
-    std::vector<std::uint8_t> manual_;
-    std::vector<double> depth_;
-    std::vector<double> rimHeight_;
-    std::vector<std::uint8_t> replace_;
+    std::vector<double> m_x;
+    std::vector<double> m_y;
+    std::vector<double> m_diameter;
+    std::vector<double> m_ageGyr;
+    std::vector<std::uint64_t> m_id;
+    std::vector<std::uint8_t> m_manual;
+    std::vector<double> m_depth;
+    std::vector<double> m_rimHeight;
+    std::vector<std::uint8_t> m_replace;
 };
 
 /// The craters `keep(index, crater)` keeps, in their order.

@@ -615,22 +615,22 @@ std::vector<std::vector<Key>> Regions(const std::vector<Key>& unknowns, int orde
 }  // namespace
 
 SeamField::SeamField(const RasterGrid& lattice)
-    : lattice_(lattice), tileColumns_((lattice.width + kTileSide - 1) / kTileSide),
-      tiles_(tileColumns_ * ((lattice.height + kTileSide - 1) / kTileSide)) {}
+    : m_lattice(lattice), m_tileColumns((lattice.width + kTileSide - 1) / kTileSide),
+      m_tiles(m_tileColumns * ((lattice.height + kTileSide - 1) / kTileSide)) {}
 
 float SeamField::Post(std::ptrdiff_t col, std::ptrdiff_t row) const {
-    if (col < 0 || row < 0 || static_cast<std::size_t>(col) >= lattice_.width ||
-        static_cast<std::size_t>(row) >= lattice_.height) {
+    if (col < 0 || row < 0 || static_cast<std::size_t>(col) >= m_lattice.width ||
+        static_cast<std::size_t>(row) >= m_lattice.height) {
         return 0.0f;
     }
     const auto c = static_cast<std::size_t>(col);
     const auto r = static_cast<std::size_t>(row);
-    const std::vector<float>& tile = tiles_[(r / kTileSide) * tileColumns_ + c / kTileSide];
+    const std::vector<float>& tile = m_tiles[(r / kTileSide) * m_tileColumns + c / kTileSide];
     return tile.empty() ? 0.0f : tile[(r % kTileSide) * kTileSide + c % kTileSide];
 }
 
 void SeamField::Set(std::size_t col, std::size_t row, float value) {
-    std::vector<float>& tile = tiles_[(row / kTileSide) * tileColumns_ + col / kTileSide];
+    std::vector<float>& tile = m_tiles[(row / kTileSide) * m_tileColumns + col / kTileSide];
     if (tile.empty()) {
         if (value == 0.0f) {
             return;
@@ -638,20 +638,20 @@ void SeamField::Set(std::size_t col, std::size_t row, float value) {
         tile.assign(kTileSide * kTileSide, 0.0f);
     }
     tile[(row % kTileSide) * kTileSide + col % kTileSide] = value;
-    set_ = true;
+    m_set = true;
 }
 
 double SeamField::At(double x, double y) const {
-    if (!set_) {
+    if (!m_set) {
         return 0.0;
     }
-    const Vec2d pixel = lattice_.transform.WorldToPixel(x, y);
+    const Vec2d pixel = m_lattice.transform.WorldToPixel(x, y);
     const double fx = pixel.x - 0.5;
     const double fy = pixel.y - 0.5;
     const double left = std::floor(fx);
     const double top = std::floor(fy);
-    if (!(left >= -2.0 && top >= -2.0 && left <= static_cast<double>(lattice_.width) &&
-          top <= static_cast<double>(lattice_.height))) {
+    if (!(left >= -2.0 && top >= -2.0 && left <= static_cast<double>(m_lattice.width) &&
+          top <= static_cast<double>(m_lattice.height))) {
         return 0.0;
     }
     const auto post = [this](double col, double row) {

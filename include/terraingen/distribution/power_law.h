@@ -56,12 +56,12 @@ class PowerLawSfd final : public SizeFrequencyDistribution {
 
     /// N(>=1 m), per m^2 (or per m^2 per Gyr).
     double Coefficient() const {
-        return law_.coefficient;
+        return m_law.coefficient;
     }
 
     /// The cumulative slope.
     double Exponent() const {
-        return law_.exponent;
+        return m_law.exponent;
     }
 
   protected:
@@ -70,7 +70,7 @@ class PowerLawSfd final : public SizeFrequencyDistribution {
     double InvertCumulative(double target, double minDiameter, double maxDiameter) const override;
 
   private:
-    PowerLawSegment law_;
+    PowerLawSegment m_law;
 };
 
 /// Converts a power-law coefficient published for D in km and N per km^2 to D in meters and

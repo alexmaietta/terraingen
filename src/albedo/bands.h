@@ -30,18 +30,18 @@ class ChangeOverlay {
   public:
     /// Lays down a layer covering `cover` (in [0, 1]) of what shows, changing it by `change` there.
     void Add(double cover, double change) {
-        change_ += open_ * cover * change;
-        open_ *= 1.0 - cover;
+        m_change += m_open * cover * change;
+        m_open *= 1.0 - cover;
     }
 
     /// The summed relative change.
     double Change() const {
-        return change_;
+        return m_change;
     }
 
   private:
-    double change_ = 0.0;
-    double open_ = 1.0;
+    double m_change = 0.0;
+    double m_open = 1.0;
 };
 
 /// Moves the first `bands` values of `value` from optical maturity `reference` to `maturity`

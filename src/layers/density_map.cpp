@@ -92,24 +92,24 @@ double MapMax(const DensityMap& map) {
 }
 
 DensityScale::DensityScale(DensityMap map, const SizeFrequencyDistribution& distribution)
-    : map_(std::move(map)) {
-    ValidateDensityMap(map_);
-    measure_ = MapMeasure(map_, distribution);
-    if (!(measure_ > 0.0 && std::isfinite(measure_))) {
+    : m_map(std::move(map)) {
+    ValidateDensityMap(m_map);
+    m_measure = MapMeasure(m_map, distribution);
+    if (!(m_measure > 0.0 && std::isfinite(m_measure))) {
         throw std::invalid_argument("A density map must measure some of its size distribution");
     }
-    max_ = std::fmax(1.0, MapMax(map_) / measure_);
+    m_max = std::fmax(1.0, MapMax(m_map) / m_measure);
 }
 
 double DensityScale::At(double x, double y) const {
-    return Scale(MapValueAt(map_, x, y));
+    return Scale(MapValueAt(m_map, x, y));
 }
 
 double DensityScale::Scale(double value) const {
     if (std::isnan(value)) {
         return 1.0;
     }
-    return std::clamp(value / measure_, 0.0, max_);
+    return std::clamp(value / m_measure, 0.0, m_max);
 }
 
 }  // namespace terraingen

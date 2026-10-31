@@ -64,7 +64,7 @@ template <typename T> class OptionsBinder {
     /// Takes the fields the configuration writes in another form through its hooks (`BindsNative`).
     static constexpr bool kBindsNative = true;
 
-    explicit OptionsBinder(nb::class_<T>& cls) : cls_(cls) {}
+    explicit OptionsBinder(nb::class_<T>& cls) : m_cls(cls) {}
 
     /// Binds `member` as the property `key`.
     template <typename F>
@@ -74,8 +74,8 @@ template <typename T> class OptionsBinder {
                                      const F&, F&&>;
         const std::size_t offset = Offset(key, member);
         Add(PythonName(key, unit));
-        cls_.def_prop_rw(
-            names_->back().c_str(),
+        m_cls.def_prop_rw(
+            m_names->back().c_str(),
             [offset](const T& self) -> const F& { return At<F>(self, offset); },
             [offset](T& self, Q value) { At<F>(self, offset) = static_cast<Q>(value); },
             FieldDoc<F>(description, unit, range).c_str());
@@ -87,8 +87,8 @@ template <typename T> class OptionsBinder {
                std::string_view unit, double unset, const FieldRange& range) {
         const std::size_t offset = Offset(key, bound);
         Add(PythonName(key, unit));
-        cls_.def_prop_rw(
-            names_->back().c_str(),
+        m_cls.def_prop_rw(
+            m_names->back().c_str(),
             [offset](const T& self) -> std::optional<double> {
                 const double value = At<double>(self, offset);
                 return std::isfinite(value) ? std::optional<double>(value) : std::nullopt;
@@ -103,7 +103,7 @@ template <typename T> class OptionsBinder {
     /// when it is the whole struct.
     template <typename G>
     bool Group(std::string_view name, G& group, std::string_view description) {
-        if (static_cast<const void*>(&group) == static_cast<const void*>(&prototype_) &&
+        if (static_cast<const void*>(&group) == static_cast<const void*>(&m_prototype) &&
             sizeof(G) == sizeof(T)) {
             return false;
         }
@@ -113,12 +113,12 @@ template <typename T> class OptionsBinder {
 
     /// The default `T` whose members the field list visits.
     T& Prototype() {
-        return prototype_;
+        return m_prototype;
     }
 
     /// The names of the properties bound so far, in order.
     std::shared_ptr<const std::vector<std::string>> Names() const {
-        return names_;
+        return m_names;
     }
 
   private:
@@ -133,7 +133,7 @@ template <typename T> class OptionsBinder {
     /// The offset of `member` in `T`.
     /// @throws std::logic_error when the field list passes a value that is not a member.
     template <typename F> std::size_t Offset(std::string_view key, const F& member) const {
-        const auto* base = reinterpret_cast<const char*>(&prototype_);
+        const auto* base = reinterpret_cast<const char*>(&m_prototype);
         const auto* field = reinterpret_cast<const char*>(&member);
         if (field < base || field + sizeof(F) > base + sizeof(T)) {
             throw std::logic_error("The field " + std::string(key) + " is not a member");
@@ -144,17 +144,18 @@ template <typename T> class OptionsBinder {
     /// Records the property `name`.
     /// @throws std::logic_error when the struct already has a property of that name.
     void Add(std::string_view name) {
-        for (const std::string& bound : *names_) {
+        for (const std::string& bound : *m_names) {
             if (bound == name) {
                 throw std::logic_error("Two fields bind as the property " + std::string(name));
             }
         }
-        names_->emplace_back(name);
+        m_names->emplace_back(name);
     }
 
-    nb::class_<T>& cls_;
-    T prototype_{};
-    std::shared_ptr<std::vector<std::string>> names_ = std::make_shared<std::vector<std::string>>();
+    nb::class_<T>& m_cls;
+    T m_prototype{};
+    std::shared_ptr<std::vector<std::string>> m_names =
+        std::make_shared<std::vector<std::string>>();
 };
 
 /// Binds `__init__(*args, **kwargs)` for an options struct whose fields are `names`: the

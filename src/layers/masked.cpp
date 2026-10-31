@@ -226,12 +226,12 @@ void ValidateRegionShape(const RegionShape& shape) {
 
 MaskedLayer::MaskedLayer(std::shared_ptr<const Layer> inner, RegionShape shape, double feather,
                          BlendShape blend)
-    : inner_(std::move(inner)), shape_(shape), feather_(feather), blend_(blend) {
-    if (!inner_) {
+    : m_inner(std::move(inner)), m_shape(shape), m_feather(feather), m_blend(blend) {
+    if (!m_inner) {
         throw std::invalid_argument("A masked layer needs a layer to apply");
     }
-    ValidateRegionShape(shape_);
-    RequireNonNegative(feather_, "Masked layer feather");
+    ValidateRegionShape(m_shape);
+    RequireNonNegative(m_feather, "Masked layer feather");
 }
 
 LayerPtr MaskedLayer::Confining(LayerPtr inner) const {
@@ -239,39 +239,39 @@ LayerPtr MaskedLayer::Confining(LayerPtr inner) const {
         return nullptr;
     }
     auto confining = std::make_shared<MaskedLayer>(*this);
-    confining->inner_ = std::move(inner);
+    confining->m_inner = std::move(inner);
     return confining;
 }
 
 LayerPtr MaskedLayer::Reseeded(std::uint64_t seed) const {
-    return Confining(inner_->Reseeded(seed));
+    return Confining(m_inner->Reseeded(seed));
 }
 
 LayerPtr MaskedLayer::Rebound(const LayerReplacements& replaced) const {
-    return Confining(inner_->Rebound(replaced));
+    return Confining(m_inner->Rebound(replaced));
 }
 
 LayerPtr MaskedLayer::Rebased(const TerrainBase& base) const {
-    return Confining(inner_->Rebased(base));
+    return Confining(m_inner->Rebased(base));
 }
 
 double MaskedLayer::Weight(double x, double y, const Surface& surface) const {
-    const double distance = shape_.DistanceOutside(x, y, surface);
+    const double distance = m_shape.DistanceOutside(x, y, surface);
     if (distance <= 0.0) {
         return 1.0;
     }
-    if (distance >= feather_) {
+    if (distance >= m_feather) {
         return 0.0;
     }
-    return Falloff(distance, 0.0, feather_, blend_);
+    return Falloff(distance, 0.0, m_feather, m_blend);
 }
 
 bool MaskedLayer::Holds(double x, double y, const Surface& surface) const {
-    return shape_.DistanceOutside(x, y, surface) <= feather_;
+    return m_shape.DistanceOutside(x, y, surface) <= m_feather;
 }
 
 PixelWindow MaskedLayer::InnerWindow(const RasterGrid& grid, const Surface& surface) const {
-    const Bounds2d reach = surface.Expand(shape_.Bounds(surface), feather_);
+    const Bounds2d reach = surface.Expand(m_shape.Bounds(surface), m_feather);
     return MergeWindows(PixelWindowsIn(grid, reach, surface));
 }
 
@@ -285,7 +285,7 @@ std::optional<RasterGrid> MaskedLayer::InnerGrid(const RasterGrid& grid,
 }
 
 CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) const {
-    const auto* placer = dynamic_cast<const CraterPlacer*>(inner_.get());
+    const auto* placer = dynamic_cast<const CraterPlacer*>(m_inner.get());
     const Surface surface = LayerBase().value_or(TerrainBase{}).surface;
     const std::optional<RasterGrid> inner = InnerGrid(grid, surface);
     CraterFeatures held;
@@ -305,7 +305,7 @@ CraterFeatures MaskedLayer::CratersOver(const RasterGrid& grid, double spacing) 
 
 BoulderFeatures MaskedLayer::BouldersOver(const RasterGrid& grid, double spacing,
                                           const Ground* ground) const {
-    const auto* placer = dynamic_cast<const BoulderPlacer*>(inner_.get());
+    const auto* placer = dynamic_cast<const BoulderPlacer*>(m_inner.get());
     const Surface surface = LayerBase().value_or(TerrainBase{}).surface;
     const std::optional<RasterGrid> inner = InnerGrid(grid, surface);
     BoulderFeatures held;
@@ -348,7 +348,7 @@ void MaskedLayer::ApplyToPoints(SampleBlock& samples, const LayerContext& contex
         }
     }
     SampleBlock inside(positions, heights);
-    inner_->Apply(inside, context);
+    m_inner->Apply(inside, context);
     for (std::size_t k = 0; k < indices.size(); ++k) {
         float& height = samples.Height(indices[k]);
         height = Blend(height, heights[k], weights[k]);
@@ -362,7 +362,7 @@ void MaskedLayer::ApplyToGrid(Raster<float>& heights, const LayerContext& contex
         return;
     }
     Raster<float> inner = CopyWindow(heights, window);
-    inner_->Apply(inner, context);
+    m_inner->Apply(inner, context);
     ParallelFor(window.rowEnd - window.rowBegin, context.threads, [&](std::size_t r) {
         const std::size_t row = window.rowBegin + r;
         for (std::size_t col = window.colBegin; col < window.colEnd; ++col) {

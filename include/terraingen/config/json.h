@@ -23,11 +23,11 @@ class ConfigError : public std::runtime_error {
 
     /// The JSON path of the value; empty for the document as a whole.
     const std::string& Path() const {
-        return path_;
+        return m_path;
     }
 
   private:
-    std::string path_;
+    std::string m_path;
 };
 
 /// Reads a configuration from JSON text.

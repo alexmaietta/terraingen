@@ -23,7 +23,7 @@ namespace {
 /// their corners, so each ray tests only the triangles around it.
 class TriangleBins {
   public:
-    TriangleBins(const TriangleMesh& mesh, std::size_t n) : n_(n), bins_(6 * n * n) {
+    TriangleBins(const TriangleMesh& mesh, std::size_t n) : m_n(n), m_bins(6 * n * n) {
         for (std::size_t t = 0; t < mesh.triangles.size(); ++t) {
             std::array<Vec3d, 3> corner{};
             for (std::size_t k = 0; k < 3; ++k) {
@@ -40,13 +40,13 @@ class TriangleBins {
         out.clear();
         const auto range = [&](double x) {
             const double k = std::floor(x);
-            return std::array<std::size_t, 2>{ClampIndex(k - 1.0, n_), ClampIndex(k, n_)};
+            return std::array<std::size_t, 2>{ClampIndex(k - 1.0, m_n), ClampIndex(k, m_n)};
         };
         const auto [i0, i1] = range(s);
         const auto [j0, j1] = range(t);
         for (std::size_t j = j0; j <= j1; ++j) {
             for (std::size_t i = i0; i <= i1; ++i) {
-                const auto& bin = bins_[(face * n_ + j) * n_ + i];
+                const auto& bin = m_bins[(face * m_n + j) * m_n + i];
                 out.insert(out.end(), bin.begin(), bin.end());
             }
         }
@@ -57,9 +57,9 @@ class TriangleBins {
   private:
     void Insert(std::uint32_t triangle, std::size_t face, const std::array<Vec3d, 3>& corner) {
         const detail::CubeFace& f = detail::kCubeFaces[face];
-        double sLo = static_cast<double>(n_);
+        double sLo = static_cast<double>(m_n);
         double sHi = 0.0;
-        double tLo = static_cast<double>(n_);
+        double tLo = static_cast<double>(m_n);
         double tHi = 0.0;
         bool behind = false;
         bool front = false;
@@ -71,9 +71,9 @@ class TriangleBins {
             }
             front = true;
             const double s =
-                detail::EquiangularCoordinate(Dot(p, f.u) / along, static_cast<double>(n_));
+                detail::EquiangularCoordinate(Dot(p, f.u) / along, static_cast<double>(m_n));
             const double t =
-                detail::EquiangularCoordinate(Dot(p, f.v) / along, static_cast<double>(n_));
+                detail::EquiangularCoordinate(Dot(p, f.v) / along, static_cast<double>(m_n));
             sLo = std::min(sLo, s);
             sHi = std::max(sHi, s);
             tLo = std::min(tLo, t);
@@ -85,22 +85,22 @@ class TriangleBins {
         if (behind) {
             sLo = 0.0;
             tLo = 0.0;
-            sHi = static_cast<double>(n_);
-            tHi = static_cast<double>(n_);
+            sHi = static_cast<double>(m_n);
+            tHi = static_cast<double>(m_n);
         }
-        const std::size_t i0 = ClampIndex(std::floor(sLo) - 1.0, n_);
-        const std::size_t i1 = ClampIndex(std::floor(sHi) + 1.0, n_);
-        const std::size_t j0 = ClampIndex(std::floor(tLo) - 1.0, n_);
-        const std::size_t j1 = ClampIndex(std::floor(tHi) + 1.0, n_);
+        const std::size_t i0 = ClampIndex(std::floor(sLo) - 1.0, m_n);
+        const std::size_t i1 = ClampIndex(std::floor(sHi) + 1.0, m_n);
+        const std::size_t j0 = ClampIndex(std::floor(tLo) - 1.0, m_n);
+        const std::size_t j1 = ClampIndex(std::floor(tHi) + 1.0, m_n);
         for (std::size_t j = j0; j <= j1; ++j) {
             for (std::size_t i = i0; i <= i1; ++i) {
-                bins_[(face * n_ + j) * n_ + i].push_back(triangle);
+                m_bins[(face * m_n + j) * m_n + i].push_back(triangle);
             }
         }
     }
 
-    std::size_t n_;
-    std::vector<std::vector<std::uint32_t>> bins_;
+    std::size_t m_n;
+    std::vector<std::vector<std::uint32_t>> m_bins;
 };
 
 /// The distance along unit `direction` from the origin at which the ray crosses triangle

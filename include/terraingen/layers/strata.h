@@ -65,7 +65,7 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
 
     /// The options the layer was made with.
     const StrataOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)`.
@@ -101,9 +101,9 @@ class StrataLayer final : public FormulaLayer, public MaterialSource {
     bool StratigraphicLevel(double height, double x, double y, const Surface& surface,
                             double& level) const;
 
-    StrataOptions options_;
-    Vec2d dipDirection_{1.0, 0.0};
-    double dipSlope_ = 0.0;
+    StrataOptions m_options;
+    Vec2d m_dipDirection{1.0, 0.0};
+    double m_dipSlope = 0.0;
 };
 
 }  // namespace terraingen

@@ -75,7 +75,7 @@ class RasterPosts final : public PostLattice {
 
     /// The whole lattice's transform.
     GeoTransform Transform() const override {
-        return placement_.whole.transform;
+        return m_placement.whole.transform;
     }
 
     /// The window's cells in the whole lattice.
@@ -85,9 +85,9 @@ class RasterPosts final : public PostLattice {
               Span<float> heights) const override;
 
   private:
-    std::shared_ptr<const Raster<float>> window_;
-    RasterPlacement placement_;
-    bool wrapColumns_ = false;
+    std::shared_ptr<const Raster<float>> m_window;
+    RasterPlacement m_placement;
+    bool m_wrapColumns = false;
 };
 
 /// The spacing of a lattice's posts: the longer side of a cell of `transform`, in its units.
@@ -161,11 +161,11 @@ class Upsampler {
 /// the default, gives the same bits as `SampleRaster` of the posts.
 class KernelUpsampler final : public Upsampler {
   public:
-    explicit KernelUpsampler(ResampleMethod method = ResampleMethod::Cubic) : method_(method) {}
+    explicit KernelUpsampler(ResampleMethod method = ResampleMethod::Cubic) : m_method(method) {}
 
     /// The kernel's radius (`KernelRadius`).
     int Reach() const override {
-        return KernelRadius(method_);
+        return KernelRadius(m_method);
     }
 
   protected:
@@ -177,7 +177,7 @@ class KernelUpsampler final : public Upsampler {
                      unsigned threads) const override;
 
   private:
-    ResampleMethod method_;
+    ResampleMethod m_method;
 };
 
 /// The upsampler sources use unless given one: cubic interpolation, shared.

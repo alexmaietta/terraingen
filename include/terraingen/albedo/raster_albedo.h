@@ -67,7 +67,7 @@ class RasterAlbedo final : public AlbedoSource {
 
     /// 1 or 3 bands, as the map has.
     std::size_t Bands() const override {
-        return bands_.size();
+        return m_bands.size();
     }
 
     /// The map interpolated at world (`x`, `y`) (longitude and latitude on a sphere), with detail
@@ -76,30 +76,30 @@ class RasterAlbedo final : public AlbedoSource {
 
     /// The Hurst exponent the detail uses: `detail.hurst`, or the one measured.
     double Hurst() const {
-        return hurst_;
+        return m_hurst;
     }
 
     /// The map's roughness at one cell, sqrt(D(c) / 2) of the logarithm of the brightness; 0 when
     /// the map is too small or too uniform to measure.
     double CellRoughness() const {
-        return roughness_;
+        return m_roughness;
     }
 
     /// Interpolation and detail.
     const RasterAlbedoOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
   private:
-    /// Measures `roughness_` and `hurst_` from the map.
+    /// Measures `m_roughness` and `m_hurst` from the map.
     void MeasureRoughness();
     /// The sum of the detail octaves at (`x`, `y`) on `surface` resolved at `spacing`.
     double DetailSum(double x, double y, double spacing, const Surface& surface) const;
 
-    std::vector<Raster<float>> bands_;
-    RasterAlbedoOptions options_;
-    double hurst_ = 0.5;
-    double roughness_ = 0.0;
+    std::vector<Raster<float>> m_bands;
+    RasterAlbedoOptions m_options;
+    double m_hurst = 0.5;
+    double m_roughness = 0.0;
 };
 
 }  // namespace terraingen

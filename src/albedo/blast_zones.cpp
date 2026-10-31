@@ -47,8 +47,8 @@ double BlastZoneMeanShare() {
     return share;
 }
 
-BlastZoneAlbedo::BlastZoneAlbedo(std::vector<BlastZone> zones) : zones_(std::move(zones)) {
-    for (const BlastZone& zone : zones_) {
+BlastZoneAlbedo::BlastZoneAlbedo(std::vector<BlastZone> zones) : m_zones(std::move(zones)) {
+    for (const BlastZone& zone : m_zones) {
         ValidateBlastZone(zone);
     }
 }
@@ -87,7 +87,7 @@ double BlastZoneAlbedo::Change(const BlastZone& zone, double x, double y, const 
 void BlastZoneAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                               const LayerContext& context) const {
     double change = 0.0;
-    for (const BlastZone& zone : zones_) {
+    for (const BlastZone& zone : m_zones) {
         change += Change(zone, x, y, context.SurfaceOrPlane());
     }
     ChangeBands(value, bands, change);

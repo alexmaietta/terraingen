@@ -334,11 +334,11 @@ class CountingUpsampler final : public terraingen::Upsampler {
     void FillSamples(const terraingen::PostLattice& posts, terraingen::SampleBlock& block,
                      double spacing, unsigned threads) const override {
         samples += block.Size();
-        cubic_.Fill(posts, block, spacing, threads);
+        m_cubic.Fill(posts, block, spacing, threads);
     }
 
   private:
-    KernelUpsampler cubic_;
+    KernelUpsampler m_cubic;
 };
 
 }  // namespace

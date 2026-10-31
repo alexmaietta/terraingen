@@ -16,10 +16,10 @@ namespace {
 class SourceResolvedField final : public SurfaceField {
   public:
     SourceResolvedField(std::shared_ptr<const Source> source, double metersPerCell)
-        : source_(std::move(source)), metersPerCell_(metersPerCell) {}
+        : m_source(std::move(source)), m_metersPerCell(metersPerCell) {}
 
     double ValueAt(double x, double y) const override {
-        return metersPerCell_ * source_->ResolutionAt(x, y);
+        return m_metersPerCell * m_source->ResolutionAt(x, y);
     }
 
     double Max() const override {
@@ -27,8 +27,8 @@ class SourceResolvedField final : public SurfaceField {
     }
 
   private:
-    std::shared_ptr<const Source> source_;
-    double metersPerCell_;
+    std::shared_ptr<const Source> m_source;
+    double m_metersPerCell;
 };
 
 }  // namespace

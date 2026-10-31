@@ -72,16 +72,16 @@ class Generation {
     Generation(const SurfaceCells& cells, const Bounds2d& region,
                const SizeFrequencyDistribution& density, const CraterAgeModel& ages,
                std::uint32_t seed, const CraterGenerationOptions& options)
-        : cells_(cells), region_(region), density_(density), ages_(ages), seed_(seed),
-          options_(options), surface_(options.surface) {
+        : m_cells(cells), m_region(region), m_density(density), m_ages(ages), m_seed(seed),
+          m_options(options), m_surface(options.surface) {
         if (density.Kind() != SfdKind::Density) {
             throw std::invalid_argument("Craters are generated from a Density distribution");
         }
-        maxDiameter_ = ResolveMaxDiameter(options.maxDiameter, density);
-        if (std::isinf(maxDiameter_)) {
+        m_maxDiameter = ResolveMaxDiameter(options.maxDiameter, density);
+        if (std::isinf(m_maxDiameter)) {
             throw std::invalid_argument("An unbounded density needs a finite maxDiameter");
         }
-        if (!(maxDiameter_ > options.minDiameter)) {
+        if (!(m_maxDiameter > options.minDiameter)) {
             throw std::invalid_argument("maxDiameter must exceed minDiameter");
         }
     }
@@ -92,16 +92,16 @@ class Generation {
         for (const BandPlan& entry : plan) {
             counts.expected += entry.expected;
         }
-        if (counts.expected > options_.maxExpectedCraters) {
+        if (counts.expected > m_options.maxExpectedCraters) {
             throw std::invalid_argument("Expected crater count " + std::to_string(counts.expected) +
                                         " exceeds maxExpectedCraters");
         }
         CraterList craters = DrawPlannedCells(plan, counts.expected);
         const std::size_t generated = craters.Size();
-        AppendManualCraters(options_.manual, craters);
-        if (options_.spacing.Enabled()) {
+        AppendManualCraters(m_options.manual, craters);
+        if (m_options.spacing.Enabled()) {
             craters = RemoveSpacingConflicts(craters, counts.removed);
-        } else if (options_.manual.Size() > 0) {
+        } else if (m_options.manual.Size() > 0) {
             craters = CropToRegion(craters, generated);
         }
         return KeepLargest(craters, counts.capped);
@@ -111,10 +111,10 @@ class Generation {
         if (!LogEnabled(LogLevel::Debug)) {
             return;
         }
-        const bool spaced = options_.spacing.Enabled();
-        const std::size_t manual = options_.manual.Size();
-        LogDebug(options_.logName, "Generated ", kept, " ", options_.logName, " (",
-                 options_.minDiameter, "-", maxDiameter_, " m, ", counts.bands, " bands, ",
+        const bool spaced = m_options.spacing.Enabled();
+        const std::size_t manual = m_options.manual.Size();
+        LogDebug(m_options.logName, "Generated ", kept, " ", m_options.logName, " (",
+                 m_options.minDiameter, "-", m_maxDiameter, " m, ", counts.bands, " bands, ",
                  static_cast<long long>(std::llround(counts.expected)), " expected",
                  spaced ? ", " + std::to_string(counts.removed) + " removed by spacing" : "",
                  manual > 0 ? ", " + std::to_string(manual) + " manual supplied" : "",
@@ -128,44 +128,44 @@ class Generation {
     /// How far beyond the region a crater `diameter` across is drawn: its margin, and with spacing
     /// as far again as the craters it can conflict with reach.
     double CandidateMargin(double diameter) const {
-        const CraterSpacing& spacing = options_.spacing;
+        const CraterSpacing& spacing = m_options.spacing;
         if (!spacing.Enabled()) {
-            return 0.5 * options_.marginRadii * diameter;
+            return 0.5 * m_options.marginRadii * diameter;
         }
-        const double neighbor = std::fmin(spacing.diameterRatio * diameter, maxDiameter_);
-        return SpacingReach(diameter, maxDiameter_, spacing) +
-               0.5 * options_.marginRadii * neighbor;
+        const double neighbor = std::fmin(spacing.diameterRatio * diameter, m_maxDiameter);
+        return SpacingReach(diameter, m_maxDiameter, spacing) +
+               0.5 * m_options.marginRadii * neighbor;
     }
 
     /// Whether `crater` is centered in the region or within its margin of it.
     bool InRegion(const Crater& crater, double margin) const {
-        return surface_.Contains(surface_.Expand(region_, margin), {crater.x, crater.y});
+        return m_surface.Contains(m_surface.Expand(m_region, margin), {crater.x, crater.y});
     }
 
     std::vector<BandPlan> PlanBands() const {
-        const CraterSpacing& spacing = options_.spacing;
+        const CraterSpacing& spacing = m_options.spacing;
         const double skipBelow =
-            options_.minResolvedDiameter / (spacing.Enabled() ? spacing.diameterRatio : 1.0);
+            m_options.minResolvedDiameter / (spacing.Enabled() ? spacing.diameterRatio : 1.0);
         std::vector<BandPlan> plan;
         for (const CraterBand& band :
-             CraterBands(options_.minDiameter, maxDiameter_, options_.cellSizeFactor)) {
+             CraterBands(m_options.minDiameter, m_maxDiameter, m_options.cellSizeFactor)) {
             const bool tooLarge =
-                !spacing.Enabled() && !options_.maxCraters && band.low > options_.maxBandDiameter;
+                !spacing.Enabled() && !m_options.maxCraters && band.low > m_options.maxBandDiameter;
             if (band.high <= skipBelow || tooLarge) {
                 continue;
             }
             const double margin = CandidateMargin(band.high);
-            BandPlan entry{band,
-                           cells_.CellsCovering(surface_.Expand(region_, margin), band.cellSize)};
-            const double countPerArea = options_.bandCount
-                                            ? options_.bandCount(band)
-                                            : density_.ExpectedCount(1.0, band.low, band.high);
+            BandPlan entry{
+                band, m_cells.CellsCovering(m_surface.Expand(m_region, margin), band.cellSize)};
+            const double countPerArea = m_options.bandCount
+                                            ? m_options.bandCount(band)
+                                            : m_density.ExpectedCount(1.0, band.low, band.high);
             for (const CellIndex& cell : entry.cells) {
-                entry.expected += countPerArea * cells_.CellArea(cell, band.cellSize);
+                entry.expected += countPerArea * m_cells.CellArea(cell, band.cellSize);
             }
-            LogDebug(options_.logName, "Band [", band.low, ", ", band.high,
+            LogDebug(m_options.logName, "Band [", band.low, ", ", band.high,
                      ") m: ", entry.cells.size(), " cells of ", band.cellSize, " m, ",
-                     entry.expected, " ", options_.logName, " expected");
+                     entry.expected, " ", m_options.logName, " expected");
             plan.push_back(std::move(entry));
         }
         return plan;
@@ -182,14 +182,14 @@ class Generation {
                 cells.emplace_back(b, cell);
             }
         }
-        if (options_.threads == 1 || cells.size() < 2) {
+        if (m_options.threads == 1 || cells.size() < 2) {
             for (const auto& [b, cell] : cells) {
                 DrawKept(plan[b].band, regions[b], cell, craters);
             }
             return craters;
         }
         std::vector<CraterList> kept(cells.size());
-        ParallelFor(cells.size(), options_.threads, [&](std::size_t n) {
+        ParallelFor(cells.size(), m_options.threads, [&](std::size_t n) {
             const auto& [b, cell] = cells[n];
             DrawKept(plan[b].band, regions[b], cell, kept[n]);
         });
@@ -214,7 +214,7 @@ class Generation {
         const std::shared_ptr<const CellCraters> drawn = DrawCell(band, cell);
         const CraterList& list = drawn->craters;
         const Bounds2d reach = drawn->maxDiameter > band.high
-                                   ? surface_.Expand(region_, CandidateMargin(drawn->maxDiameter))
+                                   ? m_surface.Expand(m_region, CandidateMargin(drawn->maxDiameter))
                                    : region.outer;
         for (const std::uint32_t n : drawn->Rows(reach.minY, reach.maxY)) {
             if (OutsideBand(region, list.Diameters()[n], list.X()[n], list.Y()[n])) {
@@ -228,15 +228,15 @@ class Generation {
     }
 
     BandRegion BandBounds(const CraterBand& band) const {
-        return {band, surface_.Expand(region_, CandidateMargin(band.low)),
-                surface_.Expand(region_, CandidateMargin(band.high))};
+        return {band, m_surface.Expand(m_region, CandidateMargin(band.low)),
+                m_surface.Expand(m_region, CandidateMargin(band.high))};
     }
 
     /// Whether a crater of the band lies outside its outer region, which `InBandRegion` rejects
     /// first; tested on the list's columns before the crater is copied out.
     bool OutsideBand(const BandRegion& region, double diameter, double x, double y) const {
         return diameter >= region.band.low && diameter <= region.band.high &&
-               !surface_.Contains(region.outer, {x, y});
+               !m_surface.Contains(region.outer, {x, y});
     }
 
     /// `InRegion` with the crater's candidate margin, expanding the region only for craters of the
@@ -246,49 +246,49 @@ class Generation {
             return InRegion(crater, CandidateMargin(crater.diameter));
         }
         const Vec2d center{crater.x, crater.y};
-        if (!surface_.Contains(region.outer, center)) {
+        if (!m_surface.Contains(region.outer, center)) {
             return false;
         }
-        return surface_.Contains(region.inner, center) ||
+        return m_surface.Contains(region.inner, center) ||
                InRegion(crater, CandidateMargin(crater.diameter));
     }
 
     /// Whether a generated crater stays: below the catalog's completeness limit at its center, and
     /// within the keep share there by a uniform keyed to its ID.
     bool Kept(const Crater& crater) const {
-        if (options_.completeness &&
-            crater.diameter >= options_.completeness->ValueAt(crater.x, crater.y)) {
+        if (m_options.completeness &&
+            crater.diameter >= m_options.completeness->ValueAt(crater.x, crater.y)) {
             return false;
         }
-        if (!options_.keepShare) {
+        if (!m_options.keepShare) {
             return true;
         }
         const IdWords id = SplitId(crater.id);
-        RandomStream random(seed_, kCraterKeepStream, id.low, id.high);
-        return random.NextDouble() < options_.keepShare(crater);
+        RandomStream random(m_seed, kCraterKeepStream, id.low, id.high);
+        return random.NextDouble() < m_options.keepShare(crater);
     }
 
     std::shared_ptr<const CellCraters> DrawCell(const CraterBand& band,
                                                 const CellIndex& cell) const {
-        if (options_.cellCraters) {
-            return options_.cellCraters(band, cell);
+        if (m_options.cellCraters) {
+            return m_options.cellCraters(band, cell);
         }
         return std::make_shared<const CellCraters>(
-            GenerateCellCraters(cells_, band, cell, density_, ages_, seed_));
+            GenerateCellCraters(m_cells, band, cell, m_density, m_ages, m_seed));
     }
 
     /// The craters within their margin of the region, the first `generated` of which already are.
     CraterList CropToRegion(const CraterList& craters, std::size_t generated) const {
         return FilterCraters(craters, [&](std::size_t n, const Crater& crater) {
-            return n < generated || InRegion(crater, 0.5 * options_.marginRadii * crater.diameter);
+            return n < generated || InRegion(crater, 0.5 * m_options.marginRadii * crater.diameter);
         });
     }
 
     /// The craters within their margin of the region that spacing keeps, counting those removed.
     CraterList RemoveSpacingConflicts(const CraterList& craters, std::size_t& removed) const {
-        const std::vector<bool> conflicts = SpacingConflicts(craters, options_.spacing, surface_);
+        const std::vector<bool> conflicts = SpacingConflicts(craters, m_options.spacing, m_surface);
         return FilterCraters(craters, [&](std::size_t n, const Crater& crater) {
-            if (!InRegion(crater, 0.5 * options_.marginRadii * crater.diameter)) {
+            if (!InRegion(crater, 0.5 * m_options.marginRadii * crater.diameter)) {
                 return false;
             }
             if (conflicts[n]) {
@@ -302,10 +302,10 @@ class Generation {
     /// The manual craters and the `maxCraters` largest generated ones (ties to the smaller ID),
     /// counting the generated craters dropped.
     CraterList KeepLargest(const CraterList& craters, std::size_t& capped) const {
-        if (!options_.maxCraters) {
+        if (!m_options.maxCraters) {
             return craters;
         }
-        const std::size_t limit = *options_.maxCraters;
+        const std::size_t limit = *m_options.maxCraters;
         std::vector<std::size_t> generated;
         for (std::size_t n = 0; n < craters.Size(); ++n) {
             if (craters.Manual()[n] == 0) {
@@ -333,14 +333,14 @@ class Generation {
             craters, [&](std::size_t n, const Crater& crater) { return keep[n] || crater.manual; });
     }
 
-    const SurfaceCells& cells_;
-    const Bounds2d& region_;
-    const SizeFrequencyDistribution& density_;
-    const CraterAgeModel& ages_;
-    std::uint32_t seed_;
-    const CraterGenerationOptions& options_;
-    const Surface& surface_;
-    double maxDiameter_ = 0.0;
+    const SurfaceCells& m_cells;
+    const Bounds2d& m_region;
+    const SizeFrequencyDistribution& m_density;
+    const CraterAgeModel& m_ages;
+    std::uint32_t m_seed;
+    const CraterGenerationOptions& m_options;
+    const Surface& m_surface;
+    double m_maxDiameter = 0.0;
 };
 
 }  // namespace

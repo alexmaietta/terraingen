@@ -20,22 +20,22 @@ namespace terraingen {
 class BandBuckets {
   public:
     /// Buckets on `surface`, which must outlive them.
-    explicit BandBuckets(const Surface& surface) : surface_(&surface) {}
+    explicit BandBuckets(const Surface& surface) : m_surface(&surface) {}
 
     /// Adds index `n` at surface `point` to band `band`, whose buckets are `size` meters across;
     /// a band keeps the size it is first given.
     void Add(int band, double size, const Vec2d& point, std::size_t n) {
-        Band& entry = bands_[band];
+        Band& entry = m_bands[band];
         if (entry.buckets.empty()) {
             entry.size = size;
         }
-        entry.buckets[surface_->Bucket(point, entry.size)].push_back(n);
+        entry.buckets[m_surface->Bucket(point, entry.size)].push_back(n);
     }
 
     /// The bands holding indices, ascending.
     std::vector<int> Bands() const {
         std::vector<int> bands;
-        for (const auto& entry : bands_) {
+        for (const auto& entry : m_bands) {
             bands.push_back(entry.first);
         }
         return bands;
@@ -43,12 +43,12 @@ class BandBuckets {
 
     /// Whether band `band` holds any index.
     bool Has(int band) const {
-        return bands_.count(band) > 0;
+        return m_bands.count(band) > 0;
     }
 
     /// The side in meters of the buckets of band `band`, which must hold indices.
     double Size(int band) const {
-        return bands_.at(band).size;
+        return m_bands.at(band).size;
     }
 
     /// Calls `visit(indices)` for each bucket of band `band` within `span` buckets of the one
@@ -56,13 +56,13 @@ class BandBuckets {
     /// then columns, then layers.
     template <typename Visit>
     void ForEachAround(int band, const Vec2d& point, long long span, const Visit& visit) const {
-        const auto found = bands_.find(band);
-        if (found == bands_.end()) {
+        const auto found = m_bands.find(band);
+        if (found == m_bands.end()) {
             return;
         }
         const Band& entry = found->second;
-        const BucketIndex center = surface_->Bucket(point, entry.size);
-        const long long depth = surface_->IsBody() ? span : 0;
+        const BucketIndex center = m_surface->Bucket(point, entry.size);
+        const long long depth = m_surface->IsBody() ? span : 0;
         for (long long j = center.j - span; j <= center.j + span; ++j) {
             for (long long i = center.i - span; i <= center.i + span; ++i) {
                 for (long long k = center.k - depth; k <= center.k + depth; ++k) {
@@ -87,8 +87,8 @@ class BandBuckets {
         std::unordered_map<BucketIndex, std::vector<std::size_t>, BucketHash> buckets;
     };
 
-    const Surface* surface_;
-    std::map<int, Band> bands_;
+    const Surface* m_surface;
+    std::map<int, Band> m_bands;
 };
 
 }  // namespace terraingen

@@ -30,19 +30,19 @@ std::shared_ptr<const CraterProfile> MatchedProfile(std::shared_ptr<const Crater
     return required ? required : std::make_shared<MartinParkesDunstanProfile>();
 }
 NoDegradation::NoDegradation(FreshMorphometry fresh, std::optional<double> depthRatio)
-    : fresh_(std::move(fresh)), depthRatio_(depthRatio) {
-    if (!fresh_) {
+    : m_fresh(std::move(fresh)), m_depthRatio(depthRatio) {
+    if (!m_fresh) {
         throw std::invalid_argument("No degradation needs the fresh crater morphometry");
     }
-    if (depthRatio_) {
-        RequirePositive(*depthRatio_, "Depth/diameter ratio");
+    if (m_depthRatio) {
+        RequirePositive(*m_depthRatio, "Depth/diameter ratio");
     }
 }
 
 CraterState NoDegradation::State(const Crater& crater) const {
-    CraterMorphometry fresh = fresh_(crater.diameter);
-    if (depthRatio_) {
-        fresh.depthRatio = *depthRatio_;
+    CraterMorphometry fresh = m_fresh(crater.diameter);
+    if (m_depthRatio) {
+        fresh.depthRatio = *m_depthRatio;
     }
     return {fresh, fresh};
 }

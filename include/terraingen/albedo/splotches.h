@@ -159,7 +159,7 @@ class SplotchAlbedo final : public AlbedoLayer {
 
     /// What the splotches are.
     const SplotchAlbedoOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
   private:
@@ -185,7 +185,7 @@ class SplotchAlbedo final : public AlbedoLayer {
     double ChangeAt(const std::vector<const Splotch*>& splotches, double x, double y,
                     double spacing, const Surface& surface) const;
 
-    SplotchAlbedoOptions options_;
+    SplotchAlbedoOptions m_options;
 };
 
 }  // namespace terraingen

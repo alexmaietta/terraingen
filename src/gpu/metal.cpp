@@ -120,7 +120,7 @@ std::unique_ptr<MetalCompute> MetalCompute::Open() {
 }
 
 const std::string& MetalCompute::DeviceName() const {
-    return state_->name;
+    return m_state->name;
 }
 
 void MetalCompute::Run(const KernelProgram& program, Span<const DeviceBuffer> buffers,
@@ -128,7 +128,7 @@ void MetalCompute::Run(const KernelProgram& program, Span<const DeviceBuffer> bu
     if (!CanRun(program)) {
         throw std::runtime_error("The kernel has no Metal source");
     }
-    State& s = *state_;
+    State& s = *m_state;
     const std::lock_guard lock(s.mutex);
     @autoreleasepool {
         id<MTLComputePipelineState> pipeline = s.CachedPipeline(program.metal);
@@ -170,7 +170,7 @@ void MetalCompute::Run(const KernelProgram& /*program*/, Span<const DeviceBuffer
 
 namespace terraingen {
 
-MetalCompute::MetalCompute(std::unique_ptr<State> state) : state_(std::move(state)) {}
+MetalCompute::MetalCompute(std::unique_ptr<State> state) : m_state(std::move(state)) {}
 
 MetalCompute::~MetalCompute() = default;
 

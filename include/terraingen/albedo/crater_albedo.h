@@ -53,7 +53,7 @@ class CraterAlbedo final : public AlbedoLayer {
 
     /// How bright, and for how long.
     const CraterAlbedoOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
   private:
@@ -84,8 +84,8 @@ class CraterAlbedo final : public AlbedoLayer {
     std::vector<Prepared> Gather(const Bounds2d& region, double spacing,
                                  const Ground* ground) const;
 
-    std::shared_ptr<const CraterLayer> craters_;
-    CraterAlbedoOptions options_;
+    std::shared_ptr<const CraterLayer> m_craters;
+    CraterAlbedoOptions m_options;
 };
 
 }  // namespace terraingen

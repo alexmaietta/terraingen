@@ -6,16 +6,16 @@ namespace terraingen {
 
 RandomStream::RandomStream(std::uint32_t seed, std::uint32_t stream, std::uint32_t a,
                            std::uint32_t b, std::uint32_t c)
-    : key_{seed, stream}, counter_{a, b, c, 0u} {}
+    : m_key{seed, stream}, m_counter{a, b, c, 0u} {}
 
 std::uint32_t RandomStream::NextU32() {
-    if (used_ == 4) {
-        block_ = Philox4x32(counter_, key_);
-        ++counter_.w;
-        used_ = 0;
+    if (m_used == 4) {
+        m_block = Philox4x32(m_counter, m_key);
+        ++m_counter.w;
+        m_used = 0;
     }
-    const std::uint32_t words[4] = {block_.x, block_.y, block_.z, block_.w};
-    return words[used_++];
+    const std::uint32_t words[4] = {m_block.x, m_block.y, m_block.z, m_block.w};
+    return words[m_used++];
 }
 
 double RandomStream::NextDouble() {

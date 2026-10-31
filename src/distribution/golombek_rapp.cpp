@@ -12,29 +12,29 @@
 namespace terraingen {
 
 GolombekRappSfd::GolombekRappSfd(double coverage, double qa, double qb, DiameterRange range)
-    : SizeFrequencyDistribution(SfdKind::Density, range), coverage_(coverage) {
-    if (!(coverage_ > 0.0 && coverage_ < 1.0)) {
+    : SizeFrequencyDistribution(SfdKind::Density, range), m_coverage(coverage) {
+    if (!(m_coverage > 0.0 && m_coverage < 1.0)) {
         throw std::invalid_argument("Boulder coverage k must be between 0 and 1");
     }
     if (!(IsNonNegative(qa) && IsNonNegative(qb))) {
         throw std::invalid_argument("Golombek-Rapp qa and qb must be finite and not negative");
     }
-    q_ = qa + qb / coverage_;
-    if (!(q_ > 0.0)) {
+    m_q = qa + qb / m_coverage;
+    if (!(m_q > 0.0)) {
         throw std::invalid_argument("Golombek-Rapp q must be positive");
     }
 }
 
 double GolombekRappSfd::FractionalArea(double diameter) const {
-    return coverage_ * std::exp(-q_ * diameter);
+    return m_coverage * std::exp(-m_q * diameter);
 }
 
 double GolombekRappSfd::CumulativeAt(double diameter) const {
-    return 4.0 * coverage_ * q_ / kPi * ExponentialIntegral(2, q_ * diameter) / diameter;
+    return 4.0 * m_coverage * m_q / kPi * ExponentialIntegral(2, m_q * diameter) / diameter;
 }
 
 double GolombekRappSfd::IncrementalAt(double diameter) const {
-    return GolombekRappIncremental(diameter, coverage_, q_);
+    return GolombekRappIncremental(diameter, m_coverage, m_q);
 }
 
 double GolombekRappIncremental(double diameter, double coverage, double q) {

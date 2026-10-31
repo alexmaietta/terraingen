@@ -172,7 +172,7 @@ class CubeSphereCells final : public SurfaceCells {
 
     /// The radius in meters the cells are sized by: the sphere's, or an ellipsoid's shortest.
     double Radius() const {
-        return sphere_.Radius();
+        return m_sphere.Radius();
     }
 
   private:
@@ -203,11 +203,11 @@ class CubeSphereCells final : public SurfaceCells {
     /// `CellArea` computed rather than recalled.
     double ComputeCellArea(const CellIndex& cell, double cellSize) const;
 
-    Surface surface_;
-    Surface sphere_;          ///< The sphere of `Radius`, which cell geometry is computed on.
-    double weightCap_ = 0.0;  ///< Bound of `Weight` over the whole ellipsoid; 0 on a sphere.
+    Surface m_surface;
+    Surface m_sphere;          ///< The sphere of `Radius`, which cell geometry is computed on.
+    double m_weightCap = 0.0;  ///< Bound of `Weight` over the whole ellipsoid; 0 on a sphere.
     /// These cells among every set made, which the threads' recalled areas key on.
-    std::uint64_t id_ = 0;
+    std::uint64_t m_id = 0;
 };
 
 /// The cells features are generated in on `surface`: `PlanarCells` on a plane, `CubeSphereCells`

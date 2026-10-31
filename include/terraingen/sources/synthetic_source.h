@@ -55,18 +55,18 @@ class SyntheticSource final : public Source {
 
     /// The noise stack.
     const std::vector<Fractal>& Fractals() const {
-        return fractals_;
+        return m_fractals;
     }
 
     /// The spacing of the posts in the surface's units (degrees on a body), if the noise is
     /// sampled at posts.
     const std::optional<double>& PixelSize() const {
-        return pixelSize_;
+        return m_pixelSize;
     }
 
     /// The upsampler in use, fitted to the posts; null without a pixel size.
     const std::shared_ptr<const Upsampler>& UpsamplerInUse() const {
-        return upsampler_;
+        return m_upsampler;
     }
 
     /// A copy whose fractal n has seed `ReseedWord(seed, n)` and whose upsampler, if it has
@@ -86,27 +86,27 @@ class SyntheticSource final : public Source {
       public:
         NoisePosts(const SyntheticSource& source, double pixelSize);
         GeoTransform Transform() const override {
-            return transform_;
+            return m_transform;
         }
         void Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
                   Span<float> heights) const override;
 
       private:
-        const SyntheticSource& source_;
-        GeoTransform transform_;
+        const SyntheticSource& m_source;
+        GeoTransform m_transform;
     };
 
     /// The elevation plus the noise at each of `points`, into `heights` of the same size.
     void NoiseAt(Span<const Vec2d> points, Span<float> heights) const;
 
-    std::vector<Fractal> fractals_;
-    float elevation_;
-    std::optional<double> givenPixelSize_;
-    std::optional<double> pixelSize_;
-    Surface surface_;
-    std::optional<NoisePosts> posts_;
-    std::shared_ptr<const Upsampler> givenUpsampler_;
-    std::shared_ptr<const Upsampler> upsampler_;
+    std::vector<Fractal> m_fractals;
+    float m_elevation;
+    std::optional<double> m_givenPixelSize;
+    std::optional<double> m_pixelSize;
+    Surface m_surface;
+    std::optional<NoisePosts> m_posts;
+    std::shared_ptr<const Upsampler> m_givenUpsampler;
+    std::shared_ptr<const Upsampler> m_upsampler;
 };
 
 }  // namespace terraingen

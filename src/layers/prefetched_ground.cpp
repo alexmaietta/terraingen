@@ -19,18 +19,18 @@ constexpr std::uint32_t kEmpty = 0xFFFFFFFFU;
 void RecordingGround::FillSamples(SampleBlock& samples, double spacing,
                                   unsigned /*threads*/) const {
     for (std::size_t i = 0; i < samples.Size(); ++i) {
-        reads_.push_back({samples.Position(i), spacing});
+        m_reads.push_back({samples.Position(i), spacing});
         samples.Height(i) = 0.0f;
     }
 }
 
 GroundReads::GroundReads(const Ground& ground, Span<const GroundRead> reads, unsigned threads)
-    : ground_(ground), heights_(reads.size()) {
+    : m_ground(ground), m_heights(reads.size()) {
     std::size_t capacity = 16;
     while (capacity < 2 * reads.size()) {
         capacity *= 2;
     }
-    table_.assign(capacity, kEmpty);
+    m_table.assign(capacity, kEmpty);
     std::vector<std::uint32_t> places(reads.size());
     std::map<std::uint64_t, std::vector<std::uint32_t>> bySpacing;
     for (std::size_t n = 0; n < reads.size(); ++n) {
@@ -38,10 +38,10 @@ GroundReads::GroundReads(const Ground& ground, Span<const GroundRead> reads, uns
         const std::uint64_t x = BitCast<std::uint64_t>(read.point.x);
         const std::uint64_t y = BitCast<std::uint64_t>(read.point.y);
         const std::uint64_t spacing = BitCast<std::uint64_t>(read.spacing);
-        std::uint32_t& slot = table_[Slot(x, y, spacing)];
+        std::uint32_t& slot = m_table[Slot(x, y, spacing)];
         if (slot == kEmpty) {
-            slot = static_cast<std::uint32_t>(distinct_.size());
-            distinct_.push_back({x, y, spacing, 0.0f});
+            slot = static_cast<std::uint32_t>(m_distinct.size());
+            m_distinct.push_back({x, y, spacing, 0.0f});
             bySpacing[spacing].push_back(slot);
         }
         places[n] = slot;
@@ -52,31 +52,31 @@ GroundReads::GroundReads(const Ground& ground, Span<const GroundRead> reads, uns
         points.resize(indices.size());
         read.assign(indices.size(), 0.0f);
         for (std::size_t n = 0; n < indices.size(); ++n) {
-            const Held& held = distinct_[indices[n]];
+            const Held& held = m_distinct[indices[n]];
             points[n] = {BitCast<double>(held.x), BitCast<double>(held.y)};
         }
-        ground_.HeightsAt(points, read, BitCast<double>(spacing), threads);
+        m_ground.HeightsAt(points, read, BitCast<double>(spacing), threads);
         for (std::size_t n = 0; n < indices.size(); ++n) {
-            distinct_[indices[n]].height = read[n];
+            m_distinct[indices[n]].height = read[n];
         }
     }
     for (std::size_t n = 0; n < reads.size(); ++n) {
-        heights_[n] = distinct_[places[n]].height;
+        m_heights[n] = m_distinct[places[n]].height;
     }
 }
 
 std::size_t GroundReads::Slot(std::uint64_t x, std::uint64_t y, std::uint64_t spacing) const {
-    const std::size_t mask = table_.size() - 1;
+    const std::size_t mask = m_table.size() - 1;
     std::uint64_t hash = x ^ (y * 0x9E3779B97F4A7C15ULL) ^ (spacing * 0xC2B2AE3D27D4EB4FULL);
     hash = (hash ^ (hash >> 30U)) * 0xBF58476D1CE4E5B9ULL;
     hash = (hash ^ (hash >> 27U)) * 0x94D049BB133111EBULL;
     hash ^= hash >> 31U;
     for (std::size_t slot = hash & mask;; slot = (slot + 1) & mask) {
-        const std::uint32_t held = table_[slot];
+        const std::uint32_t held = m_table[slot];
         if (held == kEmpty) {
             return slot;
         }
-        const Held& entry = distinct_[held];
+        const Held& entry = m_distinct[held];
         if (entry.x == x && entry.y == y && entry.spacing == spacing) {
             return slot;
         }
@@ -84,21 +84,21 @@ std::size_t GroundReads::Slot(std::uint64_t x, std::uint64_t y, std::uint64_t sp
 }
 
 const float* GroundReads::Find(double x, double y, double spacing) const {
-    const std::uint32_t held = table_[Slot(BitCast<std::uint64_t>(x), BitCast<std::uint64_t>(y),
-                                           BitCast<std::uint64_t>(spacing))];
-    return held == kEmpty ? nullptr : &distinct_[held].height;
+    const std::uint32_t held = m_table[Slot(BitCast<std::uint64_t>(x), BitCast<std::uint64_t>(y),
+                                            BitCast<std::uint64_t>(spacing))];
+    return held == kEmpty ? nullptr : &m_distinct[held].height;
 }
 
 const float* ReplayedGround::Held(double x, double y, double spacing) const {
-    if (next_ < reads_.size()) {
-        const GroundRead& recorded = reads_[next_];
+    if (m_next < m_reads.size()) {
+        const GroundRead& recorded = m_reads[m_next];
         if (BitCast<std::uint64_t>(recorded.point.x) == BitCast<std::uint64_t>(x) &&
             BitCast<std::uint64_t>(recorded.point.y) == BitCast<std::uint64_t>(y) &&
             BitCast<std::uint64_t>(recorded.spacing) == BitCast<std::uint64_t>(spacing)) {
-            return &heights_[next_++];
+            return &m_heights[m_next++];
         }
     }
-    return held_.Find(x, y, spacing);
+    return m_held.Find(x, y, spacing);
 }
 
 void ReplayedGround::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
@@ -117,7 +117,7 @@ void ReplayedGround::FillSamples(SampleBlock& samples, double spacing, unsigned 
         return;
     }
     std::vector<float> read(missing.size());
-    held_.Read().HeightsAt(missing, read, spacing, threads);
+    m_held.Read().HeightsAt(missing, read, spacing, threads);
     for (std::size_t n = 0; n < missing.size(); ++n) {
         samples.Height(where[n]) = read[n];
     }

@@ -71,7 +71,7 @@ class SlopeAlbedo final : public AlbedoLayer {
     static double Interpolate(const Lattice& lattice, double x, double y);
     void Mature(AlbedoSample& value, std::size_t bands, double slopeDegrees) const;
 
-    SlopeAlbedoOptions options_;
+    SlopeAlbedoOptions m_options;
 };
 
 }  // namespace terraingen

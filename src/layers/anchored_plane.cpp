@@ -5,20 +5,20 @@
 namespace terraingen {
 
 AnchoredPlane::AnchoredPlane(const Surface& surface, const Vec2d& anchor)
-    : surface_(&surface), anchor_(anchor) {
-    if (surface_->IsBody()) {
-        direction_ = UnitVector(anchor_.x, anchor_.y);
+    : m_surface(&surface), m_anchor(anchor) {
+    if (m_surface->IsBody()) {
+        m_direction = UnitVector(m_anchor.x, m_anchor.y);
     }
 }
 
 std::optional<Vec2d> AnchoredPlane::Project(double x, double y) const {
-    if (!surface_->IsBody()) {
+    if (!m_surface->IsBody()) {
         return Vec2d{x, y};
     }
-    if (Dot(UnitVector(x, y), direction_) <= 0.0) {
+    if (Dot(UnitVector(x, y), m_direction) <= 0.0) {
         return std::nullopt;
     }
-    return surface_->Offset(anchor_, {x, y});
+    return m_surface->Offset(m_anchor, {x, y});
 }
 
 }  // namespace terraingen

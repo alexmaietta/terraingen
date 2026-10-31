@@ -14,19 +14,19 @@ namespace terraingen {
 PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments, SfdKind kind,
                                            double maxDiameter, SfdJoins joins)
     : SizeFrequencyDistribution(kind, detail::PieceRange(segments, maxDiameter)),
-      segments_(std::move(segments)) {
+      m_segments(std::move(segments)) {
     const DiameterRange& range = ValidRange();
-    if (segments_.empty()) {
+    if (m_segments.empty()) {
         throw std::invalid_argument("A piecewise power law needs at least one segment");
     }
-    for (const PowerLawSegment& segment : segments_) {
+    for (const PowerLawSegment& segment : m_segments) {
         if (!IsPositive(segment.coefficient) || !IsPositive(segment.exponent)) {
             throw std::invalid_argument("Segment coefficients and exponents must be positive");
         }
     }
-    detail::CheckStarts(detail::Starts(segments_), range, "Segment");
+    detail::CheckStarts(detail::Starts(m_segments), range, "Segment");
     detail::CheckJoins(
-        segments_,
+        m_segments,
         [](const PowerLawSegment& segment, double diameter) {
             return segment.Cumulative(diameter);
         },
@@ -34,7 +34,7 @@ PiecewisePowerLawSfd::PiecewisePowerLawSfd(std::vector<PowerLawSegment> segments
 }
 
 const PowerLawSegment& PiecewisePowerLawSfd::SegmentAt(double diameter) const {
-    return segments_[detail::PieceIndex(segments_, diameter)];
+    return m_segments[detail::PieceIndex(m_segments, diameter)];
 }
 
 double PiecewisePowerLawSfd::CumulativeAt(double diameter) const {
@@ -48,12 +48,12 @@ double PiecewisePowerLawSfd::IncrementalAt(double diameter) const {
 double PiecewisePowerLawSfd::InvertCumulative(double target, double minDiameter,
                                               double maxDiameter) const {
     const std::size_t index =
-        detail::WalkPieces(segments_, 0, maxDiameter, [&](std::size_t i, double high) {
-            const PowerLawSegment& segment = segments_[i];
+        detail::WalkPieces(m_segments, 0, maxDiameter, [&](std::size_t i, double high) {
+            const PowerLawSegment& segment = m_segments[i];
             return std::fmax(minDiameter, segment.start) < high &&
                    target >= segment.Cumulative(high);
         });
-    const PowerLawSegment& segment = segments_[index];
+    const PowerLawSegment& segment = m_segments[index];
     const double low = std::fmax(minDiameter, segment.start);
     if (target > segment.Cumulative(low)) {
         return low;

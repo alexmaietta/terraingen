@@ -115,48 +115,48 @@ RasterGrid SeamLattice(const RasterGrid& grid, const ChainSeams& seams) {
 }
 
 SourceChain::SourceChain(std::vector<std::shared_ptr<const Source>> sources, ChainSeams seams)
-    : sources_(std::move(sources)), seams_(seams) {
-    if (sources_.empty()) {
+    : m_sources(std::move(sources)), m_seams(seams) {
+    if (m_sources.empty()) {
         throw std::invalid_argument("A source chain needs at least one source");
     }
-    for (const auto& source : sources_) {
+    for (const auto& source : m_sources) {
         if (!source) {
             throw std::invalid_argument("A source chain cannot hold a null source");
         }
     }
-    ValidateChainSeams(seams_);
-    if (sources_.size() < 2) {
+    ValidateChainSeams(m_seams);
+    if (m_sources.size() < 2) {
         return;
     }
-    const std::optional<RasterGrid> grid = BoundedGrid(*sources_[sources_.size() - 2]);
-    if (grid && seams_.mode != ChainSeamMode::None) {
-        static_cast<void>(SeamLattice(*grid, seams_));
+    const std::optional<RasterGrid> grid = BoundedGrid(*m_sources[m_sources.size() - 2]);
+    if (grid && m_seams.mode != ChainSeamMode::None) {
+        static_cast<void>(SeamLattice(*grid, m_seams));
     }
-    prefix_ = sources_.size() == 2
-                  ? sources_.front()
-                  : std::make_shared<SourceChain>(std::vector<std::shared_ptr<const Source>>(
-                                                      sources_.begin(), sources_.end() - 1),
-                                                  seams_);
+    m_prefix = m_sources.size() == 2
+                   ? m_sources.front()
+                   : std::make_shared<SourceChain>(std::vector<std::shared_ptr<const Source>>(
+                                                       m_sources.begin(), m_sources.end() - 1),
+                                                   m_seams);
 }
 
 SourceChain::~SourceChain() = default;
 
 const detail::SeamField& SourceChain::Seam() const {
-    std::call_once(seamed_, [this] {
-        const std::optional<RasterGrid> grid = BoundedGrid(*sources_[sources_.size() - 2]);
-        seam_ = std::make_shared<const detail::SeamField>(
-            grid ? detail::BuildSeamField(*prefix_, *sources_.back(), *grid, seams_)
+    std::call_once(m_seamed, [this] {
+        const std::optional<RasterGrid> grid = BoundedGrid(*m_sources[m_sources.size() - 2]);
+        m_seam = std::make_shared<const detail::SeamField>(
+            grid ? detail::BuildSeamField(*m_prefix, *m_sources.back(), *grid, m_seams)
                  : detail::SeamField{});
     });
-    return *seam_;
+    return *m_seam;
 }
 
 void SourceChain::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
-    if (!prefix_) {
-        FillUnmarked(*sources_.front(), samples, spacing, threads);
+    if (!m_prefix) {
+        FillUnmarked(*m_sources.front(), samples, spacing, threads);
         return;
     }
-    FillUnmarked(*prefix_, samples, spacing, threads);
+    FillUnmarked(*m_prefix, samples, spacing, threads);
     if (Raster<float>* grid = samples.Grid()) {
         FillGridGaps(*grid, spacing, threads);
     } else {
@@ -177,7 +177,7 @@ void SourceChain::FillGridGaps(Raster<float>& heights, double spacing, unsigned 
     const PixelWindow window = part ? gaps : WholeWindow(grid);
     Raster<float> next((part ? *part : grid));
     SampleBlock samples(next);
-    FillUnmarked(*sources_.back(), samples, spacing, threads);
+    FillUnmarked(*m_sources.back(), samples, spacing, threads);
     ParallelFor(window.Height(), threads, [&](std::size_t r) {
         const std::size_t row = window.rowBegin + r;
         const detail::SeamField* seam = nullptr;
@@ -204,7 +204,7 @@ void SourceChain::FillPointGaps(Span<const Vec2d> points, Span<float> heights,
             return std::isnan(heights[i]) ? std::optional<Vec2d>(points[i]) : std::nullopt;
         },
         [&](Span<const Vec2d> gaps, Span<float> later) {
-            sources_.back()->HeightsAt(gaps, later, spacing);
+            m_sources.back()->HeightsAt(gaps, later, spacing);
         },
         [&](std::size_t i, float later) {
             heights[i] =
@@ -213,17 +213,17 @@ void SourceChain::FillPointGaps(Span<const Vec2d> points, Span<float> heights,
 }
 
 double SourceChain::ResolutionAt(double x, double y) const {
-    return FirstWithHeight(sources_, x, y,
+    return FirstWithHeight(m_sources, x, y,
                            [&](const Source& source) { return source.ResolutionAt(x, y); });
 }
 
 double SourceChain::PostSpacingAt(double x, double y) const {
-    return FirstWithHeight(sources_, x, y,
+    return FirstWithHeight(m_sources, x, y,
                            [&](const Source& source) { return source.PostSpacingAt(x, y); });
 }
 
 std::shared_ptr<const Source> SourceChain::Reseeded(std::uint64_t seed) const {
-    std::vector<std::shared_ptr<const Source>> sources = sources_;
+    std::vector<std::shared_ptr<const Source>> sources = m_sources;
     bool changed = false;
     for (std::size_t n = 0; n < sources.size(); ++n) {
         const auto word = static_cast<std::uint32_t>(2 * n);
@@ -233,7 +233,7 @@ std::shared_ptr<const Source> SourceChain::Reseeded(std::uint64_t seed) const {
             changed = true;
         }
     }
-    return changed ? std::make_shared<SourceChain>(std::move(sources), seams_) : nullptr;
+    return changed ? std::make_shared<SourceChain>(std::move(sources), m_seams) : nullptr;
 }
 
 }  // namespace terraingen

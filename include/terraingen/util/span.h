@@ -42,71 +42,71 @@ template <typename T> class Span {
     using iterator = T*;
 
     constexpr Span() noexcept = default;
-    constexpr Span(T* data, std::size_t size) noexcept : data_(data), size_(size) {}
+    constexpr Span(T* data, std::size_t size) noexcept : m_data(data), m_size(size) {}
     constexpr Span(T* first, T* last) noexcept
-        : data_(first), size_(static_cast<std::size_t>(last - first)) {}
+        : m_data(first), m_size(static_cast<std::size_t>(last - first)) {}
 
-    template <std::size_t N> constexpr Span(T (&array)[N]) noexcept : data_(array), size_(N) {}
+    template <std::size_t N> constexpr Span(T (&array)[N]) noexcept : m_data(array), m_size(N) {}
 
     /// Views a contiguous container: a vector, an array, a string or another span.
     template <typename C, typename = std::enable_if_t<!std::is_same_v<std::decay_t<C>, Span> &&
                                                       detail::IsSpanContainer<T, C>::value>>
     constexpr Span(C&& container) noexcept
-        : data_(std::data(container)), size_(std::size(container)) {}
+        : m_data(std::data(container)), m_size(std::size(container)) {}
 
     constexpr T* data() const noexcept {
-        return data_;
+        return m_data;
     }
     constexpr std::size_t size() const noexcept {
-        return size_;
+        return m_size;
     }
     constexpr std::size_t size_bytes() const noexcept {
-        return size_ * sizeof(T);
+        return m_size * sizeof(T);
     }
     constexpr bool empty() const noexcept {
-        return size_ == 0;
+        return m_size == 0;
     }
 
     constexpr T* begin() const noexcept {
-        return data_;
+        return m_data;
     }
     constexpr T* end() const noexcept {
-        return data_ + size_;
+        return m_data + m_size;
     }
 
     constexpr T& operator[](std::size_t index) const {
-        assert(index < size_);
-        return data_[index];
+        assert(index < m_size);
+        return m_data[index];
     }
     constexpr T& front() const {
         return (*this)[0];
     }
     constexpr T& back() const {
-        return (*this)[size_ - 1];
+        return (*this)[m_size - 1];
     }
 
     /// The first `count` elements.
     constexpr Span first(std::size_t count) const {
-        assert(count <= size_);
-        return {data_, count};
+        assert(count <= m_size);
+        return {m_data, count};
     }
     /// The last `count` elements.
     constexpr Span last(std::size_t count) const {
-        assert(count <= size_);
-        return {data_ + (size_ - count), count};
+        assert(count <= m_size);
+        return {m_data + (m_size - count), count};
     }
     /// The `count` elements from `offset`, or all of them to the end when `count` is omitted.
     constexpr Span subspan(std::size_t offset,
                            std::size_t count = static_cast<std::size_t>(-1)) const {
-        assert(offset <= size_);
-        const std::size_t rest = size_ - offset;
+        assert(offset <= m_size);
+        const std::size_t rest = m_size - offset;
         assert(count == static_cast<std::size_t>(-1) || count <= rest);
-        return {data_ + offset, count == static_cast<std::size_t>(-1) ? rest : count};
+        return {m_data + offset, count == static_cast<std::size_t>(-1) ? rest : count};
     }
 
   private:
-    T* data_ = nullptr;
-    std::size_t size_ = 0;
+    T* m_data = nullptr;
+    std::size_t m_size = 0;
 };
 
 template <typename T, std::size_t N> Span(T (&)[N]) -> Span<T>;

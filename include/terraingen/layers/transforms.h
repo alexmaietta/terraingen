@@ -21,19 +21,19 @@ class ScaleLayer final : public FormulaLayer {
 
     /// The factor on the heights.
     double Scale() const {
-        return scale_;
+        return m_scale;
     }
     /// The shift after scaling, in meters.
     double Offset() const {
-        return offset_;
+        return m_offset;
     }
 
   protected:
     float HeightAt(float height, double x, double y, const LayerContext& context) const override;
 
   private:
-    double scale_;
-    double offset_;
+    double m_scale;
+    double m_offset;
 };
 
 /// Clamps the heights so far to [`min`, `max`], either bound optional.
@@ -46,19 +46,19 @@ class ClampLayer final : public FormulaLayer {
 
     /// The lowest height kept, in meters; none for no floor.
     std::optional<double> Min() const {
-        return min_;
+        return m_min;
     }
     /// The highest height kept, in meters; none for no cap.
     std::optional<double> Max() const {
-        return max_;
+        return m_max;
     }
 
   protected:
     float HeightAt(float height, double x, double y, const LayerContext& context) const override;
 
   private:
-    std::optional<double> min_;
-    std::optional<double> max_;
+    std::optional<double> m_min;
+    std::optional<double> m_max;
 };
 
 /// The new height at (`x`, `y`) sampled every `spacing` meters given the `height` so far; must be
@@ -75,7 +75,7 @@ class FunctionLayer final : public FormulaLayer {
     float HeightAt(float height, double x, double y, const LayerContext& context) const override;
 
   private:
-    HeightFunction function_;
+    HeightFunction m_function;
 };
 
 }  // namespace terraingen

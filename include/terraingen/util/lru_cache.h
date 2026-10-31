@@ -37,9 +37,9 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
     /// @throws std::invalid_argument if `capacity` or `shards` is zero.
     LruCache(std::size_t capacity, Cost cost, OnEvict onEvict = {},
              std::size_t shards = kDefaultShards)
-        : capacity_(capacity), cost_(std::move(cost)), onEvict_(std::move(onEvict)),
-          shards_(shards) {
-        if (capacity_ == 0 || shards == 0) {
+        : m_capacity(capacity), m_cost(std::move(cost)), m_onEvict(std::move(onEvict)),
+          m_shards(shards) {
+        if (m_capacity == 0 || shards == 0) {
             throw std::invalid_argument("A cache needs a positive capacity and shards");
         }
     }
@@ -57,8 +57,8 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
             return held;
         }
         auto value = std::make_shared<const Value>(compute());
-        const std::size_t cost = cost_(*value);
-        const std::size_t budget = std::max<std::size_t>(1, capacity_ / shards_.size());
+        const std::size_t cost = m_cost(*value);
+        const std::size_t budget = std::max<std::size_t>(1, m_capacity / m_shards.size());
         std::size_t evicted = 0;
         {
             const std::lock_guard lock(shard.mutex);
@@ -76,8 +76,8 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
                 ++evicted;
             }
         }
-        if (evicted > 0 && onEvict_) {
-            onEvict_(evicted);
+        if (evicted > 0 && m_onEvict) {
+            m_onEvict(evicted);
         }
         return value;
     }
@@ -85,7 +85,7 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
     /// The total cost of every value held, in `Cost` units.
     std::size_t Size() const {
         std::size_t total = 0;
-        for (const Shard& shard : shards_) {
+        for (const Shard& shard : m_shards) {
             const std::lock_guard lock(shard.mutex);
             total += shard.cost;
         }
@@ -107,7 +107,7 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
     static constexpr std::size_t kDefaultShards = 16;
 
     Shard& ShardHolding(const Key& key) {
-        return shards_[Hash{}(key) % shards_.size()];
+        return m_shards[Hash{}(key) % m_shards.size()];
     }
 
     /// The value `shard` holds for a key, marked most recently used; null when it is not held.
@@ -121,10 +121,10 @@ template <typename Key, typename Value, typename Hash = std::hash<Key>> class Lr
         return found->second.value;
     }
 
-    std::size_t capacity_;
-    Cost cost_;
-    OnEvict onEvict_;
-    std::vector<Shard> shards_;
+    std::size_t m_capacity;
+    Cost m_cost;
+    OnEvict m_onEvict;
+    std::vector<Shard> m_shards;
 };
 
 }  // namespace terraingen

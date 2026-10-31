@@ -61,7 +61,7 @@ class VulkanCompute final : public SharedComputeDevice<VulkanCompute> {
     /// Opens a new device.
     /// @throws std::runtime_error saying why Vulkan is unavailable.
     static std::unique_ptr<VulkanCompute> Open();
-    std::unique_ptr<State> state_;
+    std::unique_ptr<State> m_state;
 };
 
 }  // namespace terraingen

@@ -633,17 +633,17 @@ namespace {
 /// A field that is `west` for negative x and `east` otherwise.
 class Halves final : public terraingen::SurfaceField {
   public:
-    Halves(double west, double east) : west_(west), east_(east) {}
+    Halves(double west, double east) : m_west(west), m_east(east) {}
     double ValueAt(double x, double /*y*/) const override {
-        return x < 0.0 ? west_ : east_;
+        return x < 0.0 ? m_west : m_east;
     }
     double Max() const override {
-        return std::fmax(west_, east_);
+        return std::fmax(m_west, m_east);
     }
 
   private:
-    double west_;
-    double east_;
+    double m_west;
+    double m_east;
 };
 
 }  // namespace

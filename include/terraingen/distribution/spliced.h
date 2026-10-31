@@ -37,7 +37,7 @@ class SplicedSfd final : public SizeFrequencyDistribution {
 
     /// The pieces in increasing `start` order.
     const std::vector<SfdPiece>& Pieces() const {
-        return pieces_;
+        return m_pieces;
     }
 
   protected:
@@ -48,7 +48,7 @@ class SplicedSfd final : public SizeFrequencyDistribution {
   private:
     std::size_t PieceAt(double diameter) const;
 
-    std::vector<SfdPiece> pieces_;
+    std::vector<SfdPiece> m_pieces;
 };
 
 }  // namespace terraingen

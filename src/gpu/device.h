@@ -73,33 +73,33 @@ ComputeDevice* GpuDevice(Backend backend);
 template <typename Device> class LazyDevice {
   public:
     /// @param api The API name log messages show, such as "Vulkan".
-    explicit LazyDevice(const char* api) : api_(api) {}
+    explicit LazyDevice(const char* api) : m_api(api) {}
 
     /// The device, opened on the first call; null when it cannot open (see `Reason`).
     Device* Get() {
-        std::call_once(once_, [this] {
+        std::call_once(m_once, [this] {
             try {
-                device_ = Device::Open().release();
-                LogInfo("gpu", api_, " compute on ", device_->DeviceName());
+                m_device = Device::Open().release();
+                LogInfo("gpu", m_api, " compute on ", m_device->DeviceName());
             } catch (const std::exception& error) {
-                reason_ = error.what();
-                LogInfo("gpu", api_, " unavailable: ", reason_);
+                m_reason = error.what();
+                LogInfo("gpu", m_api, " unavailable: ", m_reason);
             }
         });
-        return device_;
+        return m_device;
     }
 
     /// Why the device cannot open; empty when it is open.
     const std::string& Reason() {
         Get();
-        return reason_;
+        return m_reason;
     }
 
   private:
-    const char* api_;
-    std::once_flag once_;
-    Device* device_ = nullptr;
-    std::string reason_;
+    const char* m_api;
+    std::once_flag m_once;
+    Device* m_device = nullptr;
+    std::string m_reason;
 };
 
 /// A `ComputeDevice` with one process-wide instance, opened by `Device::Open` on first use and

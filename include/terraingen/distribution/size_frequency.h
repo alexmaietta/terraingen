@@ -40,22 +40,22 @@ class SizeFrequencyDistribution {
 
     /// What the values measure.
     SfdKind Kind() const {
-        return kind_;
+        return m_kind;
     }
 
     /// The diameters in meters where the distribution may be evaluated without extrapolation.
     const DiameterRange& ValidRange() const {
-        return range_;
+        return m_range;
     }
 
     /// Whether evaluation outside `ValidRange` is allowed.
     bool AllowsExtrapolation() const {
-        return extrapolate_;
+        return m_extrapolate;
     }
 
     /// Permits or forbids evaluation at positive diameters outside `ValidRange`.
     void SetAllowExtrapolation(bool allow) {
-        extrapolate_ = allow;
+        m_extrapolate = allow;
     }
 
     /// N(>=D), the count per m^2 (or per m^2 per Gyr) of features at least `diameter` meters
@@ -122,9 +122,9 @@ class SizeFrequencyDistribution {
   private:
     void CheckDiameter(double diameter) const;
 
-    SfdKind kind_;
-    DiameterRange range_;
-    bool extrapolate_ = false;
+    SfdKind m_kind;
+    DiameterRange m_range;
+    bool m_extrapolate = false;
 };
 
 }  // namespace terraingen

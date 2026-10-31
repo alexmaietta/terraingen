@@ -22,52 +22,52 @@ constexpr int kMaxCode = 4096;
 /// Reads MSB-first codes of varying width.
 class BitReader {
   public:
-    explicit BitReader(Span<const std::uint8_t> data) : data_(data) {}
+    explicit BitReader(Span<const std::uint8_t> data) : m_data(data) {}
 
     /// The next `width`-bit code, or EndOfInfo when the data runs out.
     int Next(int width) {
-        while (count_ < width) {
-            if (position_ >= data_.size()) {
+        while (m_count < width) {
+            if (m_position >= m_data.size()) {
                 return kEndOfInfo;
             }
-            buffer_ = (buffer_ << 8) | data_[position_++];
-            count_ += 8;
+            m_buffer = (m_buffer << 8) | m_data[m_position++];
+            m_count += 8;
         }
-        count_ -= width;
-        return static_cast<int>((buffer_ >> count_) & ((1u << width) - 1u));
+        m_count -= width;
+        return static_cast<int>((m_buffer >> m_count) & ((1u << width) - 1u));
     }
 
   private:
-    Span<const std::uint8_t> data_;
-    std::size_t position_ = 0;
-    std::uint32_t buffer_ = 0;
-    int count_ = 0;
+    Span<const std::uint8_t> m_data;
+    std::size_t m_position = 0;
+    std::uint32_t m_buffer = 0;
+    int m_count = 0;
 };
 
 /// Writes MSB-first codes of varying width.
 class BitWriter {
   public:
     void Put(int code, int width) {
-        buffer_ = (buffer_ << width) | static_cast<std::uint32_t>(code);
-        count_ += width;
-        while (count_ >= 8) {
-            count_ -= 8;
-            bytes_.push_back(static_cast<std::uint8_t>(buffer_ >> count_));
+        m_buffer = (m_buffer << width) | static_cast<std::uint32_t>(code);
+        m_count += width;
+        while (m_count >= 8) {
+            m_count -= 8;
+            m_bytes.push_back(static_cast<std::uint8_t>(m_buffer >> m_count));
         }
     }
 
     std::vector<std::uint8_t> Finish() {
-        if (count_ > 0) {
-            bytes_.push_back(static_cast<std::uint8_t>(buffer_ << (8 - count_)));
-            count_ = 0;
+        if (m_count > 0) {
+            m_bytes.push_back(static_cast<std::uint8_t>(m_buffer << (8 - m_count)));
+            m_count = 0;
         }
-        return std::move(bytes_);
+        return std::move(m_bytes);
     }
 
   private:
-    std::vector<std::uint8_t> bytes_;
-    std::uint32_t buffer_ = 0;
-    int count_ = 0;
+    std::vector<std::uint8_t> m_bytes;
+    std::uint32_t m_buffer = 0;
+    int m_count = 0;
 };
 
 [[noreturn]] void Corrupt(const char* what) {
@@ -85,78 +85,78 @@ class LzwDecodeTable {
   public:
     LzwDecodeTable() {
         for (int code = 0; code < 256; ++code) {
-            suffix_[static_cast<std::size_t>(code)] = static_cast<std::uint8_t>(code);
-            length_[static_cast<std::size_t>(code)] = 1;
+            m_suffix[static_cast<std::size_t>(code)] = static_cast<std::uint8_t>(code);
+            m_length[static_cast<std::size_t>(code)] = 1;
         }
     }
 
     /// The code the next added string gets.
     int Next() const {
-        return next_;
+        return m_next;
     }
 
     /// Forgets every added string, as after Clear.
     void Reset() {
-        next_ = kFirstCode;
+        m_next = kFirstCode;
     }
 
     /// Adds the string of `previous` followed by `last`.
     void Add(int previous, std::uint8_t last) {
-        const auto entry = static_cast<std::size_t>(next_++);
-        prefix_[entry] = static_cast<std::uint16_t>(previous);
-        suffix_[entry] = last;
-        length_[entry] =
-            static_cast<std::uint16_t>(length_[static_cast<std::size_t>(previous)] + 1);
+        const auto entry = static_cast<std::size_t>(m_next++);
+        m_prefix[entry] = static_cast<std::uint16_t>(previous);
+        m_suffix[entry] = last;
+        m_length[entry] =
+            static_cast<std::uint16_t>(m_length[static_cast<std::size_t>(previous)] + 1);
     }
 
     /// Appends the string of `code` to `out` and returns its first byte.
     std::uint8_t Emit(int code, std::vector<std::uint8_t>& out) const {
         const std::size_t start = out.size();
-        out.resize(start + length_[static_cast<std::size_t>(code)]);
+        out.resize(start + m_length[static_cast<std::size_t>(code)]);
         for (std::size_t i = out.size(); i > start; --i) {
-            out[i - 1] = suffix_[static_cast<std::size_t>(code)];
-            code = prefix_[static_cast<std::size_t>(code)];
+            out[i - 1] = m_suffix[static_cast<std::size_t>(code)];
+            code = m_prefix[static_cast<std::size_t>(code)];
         }
         return out[start];
     }
 
   private:
-    std::array<std::uint16_t, kMaxCode> prefix_{};
-    std::array<std::uint8_t, kMaxCode> suffix_{};
-    std::array<std::uint16_t, kMaxCode> length_{};
-    int next_ = kFirstCode;
+    std::array<std::uint16_t, kMaxCode> m_prefix{};
+    std::array<std::uint8_t, kMaxCode> m_suffix{};
+    std::array<std::uint16_t, kMaxCode> m_length{};
+    int m_next = kFirstCode;
 };
 
 /// The LZW string table for encoding: (prefix code, next byte) -> code, open-addressed with a
 /// generation stamp so that clearing it is constant time.
 class LzwTable {
   public:
-    LzwTable() : keys_(kSlots), codes_(kSlots), stamps_(kSlots, 0) {}
+    LzwTable() : m_keys(kSlots), m_codes(kSlots), m_stamps(kSlots, 0) {}
 
     void Clear() {
-        ++generation_;
+        ++m_generation;
     }
 
     /// The code for `key`, or -1.
     int Find(std::uint32_t key) const {
         for (std::size_t slot = Hash(key);; slot = (slot + 1) & (kSlots - 1)) {
-            if (stamps_[slot] != generation_) {
+            if (m_stamps[slot] != m_generation) {
                 return -1;
             }
-            if (keys_[slot] == key) {
-                return codes_[slot];
+            if (m_keys[slot] == key) {
+                return m_codes[slot];
             }
         }
     }
 
     void Insert(std::uint32_t key, int code) {
         std::size_t slot = Hash(key);
-        while (stamps_[slot] == generation_) {
+        while (m_stamps[slot] == m_generation) {
             slot = (slot + 1) & (kSlots - 1);
         }
-        keys_[slot] = key;
-        codes_[slot] = static_cast<std::uint16_t>(code);
-        stamps_[slot] = generation_;
+        m_keys[slot] = key;
+        m_codes[slot] = static_cast<std::uint16_t>(code);
+        m_stamps[slot] = m_generation;
     }
 
   private:
@@ -166,47 +166,47 @@ class LzwTable {
         return static_cast<std::size_t>((key * 2654435761u) >> 18) & (kSlots - 1);
     }
 
-    std::vector<std::uint32_t> keys_;
-    std::vector<std::uint16_t> codes_;
-    std::vector<std::uint32_t> stamps_;
-    std::uint32_t generation_ = 1;
+    std::vector<std::uint32_t> m_keys;
+    std::vector<std::uint16_t> m_codes;
+    std::vector<std::uint32_t> m_stamps;
+    std::uint32_t m_generation = 1;
 };
 
 /// Writes LZW codes, widening them one code early as the table grows.
 class LzwCodeWriter {
   public:
     LzwCodeWriter() {
-        writer_.Put(kClear, width_);
+        m_writer.Put(kClear, m_width);
     }
 
     /// The code the next string gets.
     int Next() const {
-        return next_;
+        return m_next;
     }
 
     /// Writes `code`; the encoder adds a string for every code it writes.
     void PutCode(int code) {
-        writer_.Put(code, width_);
-        ++next_;
-        width_ = LzwNextWidth(next_, width_);
+        m_writer.Put(code, m_width);
+        ++m_next;
+        m_width = LzwNextWidth(m_next, m_width);
     }
 
     /// Writes Clear and starts again from 9-bit codes.
     void Clear() {
-        writer_.Put(kClear, width_);
-        width_ = 9;
-        next_ = kFirstCode;
+        m_writer.Put(kClear, m_width);
+        m_width = 9;
+        m_next = kFirstCode;
     }
 
     std::vector<std::uint8_t> Finish() {
-        writer_.Put(kEndOfInfo, width_);
-        return writer_.Finish();
+        m_writer.Put(kEndOfInfo, m_width);
+        return m_writer.Finish();
     }
 
   private:
-    BitWriter writer_;
-    int width_ = 9;
-    int next_ = kFirstCode;
+    BitWriter m_writer;
+    int m_width = 9;
+    int m_next = kFirstCode;
 };
 
 }  // namespace

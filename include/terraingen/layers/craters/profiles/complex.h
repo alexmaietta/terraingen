@@ -85,23 +85,23 @@ class ComplexCraterProfile final : public CraterProfile {
 
     /// True from `transitionDiameter`.
     bool IsComplex(double diameter) const override {
-        return diameter >= shape_.transitionDiameter;
+        return diameter >= m_shape.transitionDiameter;
     }
 
     /// The shape the profile was made with.
     const ComplexCraterShape& Shape() const {
-        return shape_;
+        return m_shape;
     }
 
     /// The profile of simple craters.
     const CraterProfile& Simple() const {
-        return *simple_;
+        return *m_simple;
     }
 
   private:
-    std::shared_ptr<const CraterProfile> simple_;
-    ComplexCraterShape shape_;
-    CraterProfileKernel kernel_;
+    std::shared_ptr<const CraterProfile> m_simple;
+    ComplexCraterShape m_shape;
+    CraterProfileKernel m_kernel;
 };
 
 }  // namespace terraingen

@@ -16,13 +16,13 @@ namespace terraingen::testing {
 /// A source of flat ground at 0 m without bounds whose reference point is `point`.
 class ReferencedSource final : public Source {
   public:
-    explicit ReferencedSource(Vec2d point) : point_(point) {}
+    explicit ReferencedSource(Vec2d point) : m_point(point) {}
 
     RasterGrid Grid() const override {
         return {};
     }
     Vec2d ReferencePoint() const override {
-        return point_;
+        return m_point;
     }
 
   protected:
@@ -32,7 +32,7 @@ class ReferencedSource final : public Source {
     }
 
   private:
-    Vec2d point_;
+    Vec2d m_point;
 };
 
 }  // namespace terraingen::testing

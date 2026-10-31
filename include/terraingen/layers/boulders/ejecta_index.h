@@ -30,15 +30,15 @@ class EjectaIndex {
 
     /// The indexed craters.
     const CraterList& Craters() const {
-        return craters_;
+        return m_craters;
     }
     /// The layer crater `n` comes from, by index.
     std::uint32_t Source(std::size_t n) const {
-        return sources_.empty() ? 0u : sources_[n];
+        return m_sources.empty() ? 0u : m_sources[n];
     }
     /// Whether no craters are indexed.
     bool Empty() const {
-        return craters_.Empty();
+        return m_craters.Empty();
     }
 
     /// The craters whose reach may hold (`x`, `y`), in ascending order; a superset of those
@@ -46,10 +46,10 @@ class EjectaIndex {
     std::vector<std::uint32_t> Near(double x, double y) const;
 
   private:
-    CraterList craters_;
-    std::vector<std::uint32_t> sources_;
-    std::shared_ptr<const Surface> surface_;  ///< Held so moved indexes keep their buckets valid.
-    std::optional<BandBuckets> buckets_;
+    CraterList m_craters;
+    std::vector<std::uint32_t> m_sources;
+    std::shared_ptr<const Surface> m_surface;  ///< Held so moved indexes keep their buckets valid.
+    std::optional<BandBuckets> m_buckets;
 };
 
 }  // namespace terraingen

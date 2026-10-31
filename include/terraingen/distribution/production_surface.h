@@ -29,12 +29,12 @@ class ProductionSurface final : public SizeFrequencyDistribution {
 
     /// The `ProductionRate` distribution the surface scales.
     const SizeFrequencyDistribution& Production() const {
-        return *production_;
+        return *m_production;
     }
 
     /// The surface age in Gyr.
     double AgeGyr() const {
-        return ageGyr_;
+        return m_ageGyr;
     }
 
   protected:
@@ -43,9 +43,9 @@ class ProductionSurface final : public SizeFrequencyDistribution {
     double InvertCumulative(double target, double minDiameter, double maxDiameter) const override;
 
   private:
-    std::shared_ptr<const SizeFrequencyDistribution> production_;
-    double ageGyr_;
-    double scale_;
+    std::shared_ptr<const SizeFrequencyDistribution> m_production;
+    double m_ageGyr;
+    double m_scale;
 };
 
 namespace detail {

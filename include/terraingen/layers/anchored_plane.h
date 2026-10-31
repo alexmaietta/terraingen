@@ -23,9 +23,9 @@ class AnchoredPlane {
     std::optional<Vec2d> Project(double x, double y) const;
 
   private:
-    const Surface* surface_;
-    Vec2d anchor_;
-    Vec3d direction_{};
+    const Surface* m_surface;
+    Vec2d m_anchor;
+    Vec3d m_direction{};
 };
 
 }  // namespace terraingen

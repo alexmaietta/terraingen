@@ -360,23 +360,24 @@ class ReliefIndex {
     /// Indexes `prepared`, which must outlive the index; their datums are not read.
     ReliefIndex(const std::vector<PreparedCrater>& prepared, const CraterShapeKernel& shape,
                 const CraterProfile& profile, const CraterApplyOptions& options)
-        : prepared_(&prepared), shape_(shape), surface_(options.surface),
-          profileReach_(profile.ReachRadii()), buckets_(surface_) {
+        : m_prepared(&prepared), m_shape(shape), m_surface(options.surface),
+          m_profileReach(profile.ReachRadii()), m_buckets(m_surface) {
         std::vector<std::size_t> all(prepared.size());
         for (std::size_t n = 0; n < all.size(); ++n) {
             all[n] = n;
         }
-        batch_ = MakeCraterKernelBatch(shape, profile, prepared, all, options);
+        m_batch = MakeCraterKernelBatch(shape, profile, prepared, all, options);
         std::map<int, std::vector<std::size_t>> members;
         for (std::size_t n = 0; n < prepared.size(); ++n) {
             const int band = ReliefBand(prepared[n]);
             const Crater& crater = prepared[n].crater;
-            buckets_.Add(band, profileReach_ * std::ldexp(1.0, band + 1), {crater.x, crater.y}, n);
+            m_buckets.Add(band, m_profileReach * std::ldexp(1.0, band + 1), {crater.x, crater.y},
+                          n);
             members[band].push_back(n);
         }
         for (auto& [band, craters] : members) {
-            bands_.push_back(band);
-            members_.push_back(std::move(craters));
+            m_bands.push_back(band);
+            m_members.push_back(std::move(craters));
         }
     }
 
@@ -385,13 +386,13 @@ class ReliefIndex {
 
     /// The records of every crater, in order.
     const CraterKernelBatch& Batch() const {
-        return batch_;
+        return m_batch;
     }
 
     /// How far (m) crater `n` reaches, stretched by its outline, with a little slack: the bound
     /// `CraterRelief` takes.
     float Bound(std::size_t n) const {
-        return static_cast<float>(1.0001 * CraterReach((*prepared_)[n], profileReach_));
+        return static_cast<float>(1.0001 * CraterReach((*m_prepared)[n], m_profileReach));
     }
 
     /// Calls `visit(n)` for each crater n before crater `k` whose center may lie within `radius`
@@ -407,16 +408,16 @@ class ReliefIndex {
                 visit(n);
             }
         };
-        for (std::size_t b = 0; b < bands_.size(); ++b) {
+        for (std::size_t b = 0; b < m_bands.size(); ++b) {
             const auto span =
-                static_cast<long long>(std::ceil(radius / buckets_.Size(bands_[b]))) + 1;
-            const long long depth = surface_.IsBody() ? span : 0;
+                static_cast<long long>(std::ceil(radius / m_buckets.Size(m_bands[b]))) + 1;
+            const long long depth = m_surface.IsBody() ? span : 0;
             const auto buckets = static_cast<double>((2 * span + 1) * (2 * span + 1)) *
                                  static_cast<double>(2 * depth + 1);
-            if (buckets >= static_cast<double>(members_[b].size())) {
-                before(members_[b]);
+            if (buckets >= static_cast<double>(m_members[b].size())) {
+                before(m_members[b]);
             } else {
-                buckets_.ForEachAround(bands_[b], point, span, before);
+                m_buckets.ForEachAround(m_bands[b], point, span, before);
             }
         }
     }
@@ -424,16 +425,16 @@ class ReliefIndex {
     /// The relief in meters at surface `point` of the craters before crater `k`.
     float ReliefBefore(const Vec2d& point, std::size_t k) const {
         float relief = 0.0f;
-        const CraterData data = batch_.Data();
-        for (const int band : bands_) {
-            buckets_.ForEachAround(band, point, 1, [&](const std::vector<std::size_t>& bucket) {
+        const CraterData data = m_batch.Data();
+        for (const int band : m_bands) {
+            m_buckets.ForEachAround(band, point, 1, [&](const std::vector<std::size_t>& bucket) {
                 for (const std::size_t n : bucket) {
                     if (n >= k) {
                         break;
                     }
                     const KernelOffset offset =
-                        ShapingOffset(surface_, (*prepared_)[n].crater, point);
-                    relief += CraterRelief(shape_, data, batch_.records[n], Bound(n), offset.dx,
+                        ShapingOffset(m_surface, (*m_prepared)[n].crater, point);
+                    relief += CraterRelief(m_shape, data, m_batch.records[n], Bound(n), offset.dx,
                                            offset.dy);
                 }
             });
@@ -442,15 +443,15 @@ class ReliefIndex {
     }
 
   private:
-    const std::vector<PreparedCrater>* prepared_;
-    CraterShapeKernel shape_;
-    Surface surface_;
-    double profileReach_ = 1.0;
-    CraterKernelBatch batch_;
-    BandBuckets buckets_;
-    std::vector<int> bands_;
-    /// The craters of each of `bands_`, in order.
-    std::vector<std::vector<std::size_t>> members_;
+    const std::vector<PreparedCrater>* m_prepared;
+    CraterShapeKernel m_shape;
+    Surface m_surface;
+    double m_profileReach = 1.0;
+    CraterKernelBatch m_batch;
+    BandBuckets m_buckets;
+    std::vector<int> m_bands;
+    /// The craters of each of `m_bands`, in order.
+    std::vector<std::vector<std::size_t>> m_members;
 };
 
 /// The ground crater `k` fits its datum to: `ground` plus the relief of the craters before it in

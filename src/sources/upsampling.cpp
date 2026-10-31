@@ -250,32 +250,32 @@ std::optional<LatticeOffset> OffsetOnLattice(const GeoTransform& lattice,
 
 RasterPosts::RasterPosts(std::shared_ptr<const Raster<float>> window,
                          const RasterPlacement& placement, bool wrapColumns)
-    : window_(std::move(window)), placement_(placement), wrapColumns_(wrapColumns) {
-    if (!window_ || window_->Empty()) {
+    : m_window(std::move(window)), m_placement(placement), m_wrapColumns(wrapColumns) {
+    if (!m_window || m_window->Empty()) {
         throw std::invalid_argument("Raster posts need a raster with cells");
     }
-    if (wrapColumns_ && (placement_.col != 0 || window_->Width() != placement_.whole.width)) {
+    if (m_wrapColumns && (m_placement.col != 0 || m_window->Width() != m_placement.whole.width)) {
         throw std::invalid_argument("Wrapping raster posts must span every column");
     }
 }
 
 std::optional<PixelWindow> RasterPosts::Extent() const {
-    return PixelWindow{placement_.col, placement_.col + window_->Width(), placement_.row,
-                       placement_.row + window_->Height()};
+    return PixelWindow{m_placement.col, m_placement.col + m_window->Width(), m_placement.row,
+                       m_placement.row + m_window->Height()};
 }
 
 void RasterPosts::Read(std::int64_t col0, std::int64_t row0, std::size_t width, std::size_t height,
                        Span<float> heights) const {
-    const Raster<float>& window = *window_;
+    const Raster<float>& window = *m_window;
     const std::vector<std::size_t> cols =
-        detail::PostIndices(col0, width, wrapColumns_, placement_.whole.width, placement_.col,
-                            placement_.col + window.Width());
+        detail::PostIndices(col0, width, m_wrapColumns, m_placement.whole.width, m_placement.col,
+                            m_placement.col + window.Width());
     const std::vector<std::size_t> rows =
-        detail::PostIndices(row0, height, false, placement_.whole.height, placement_.row,
-                            placement_.row + window.Height());
+        detail::PostIndices(row0, height, false, m_placement.whole.height, m_placement.row,
+                            m_placement.row + window.Height());
     for (std::size_t r = 0; r < height; ++r) {
         for (std::size_t c = 0; c < width; ++c) {
-            const float value = window(cols[c] - placement_.col, rows[r] - placement_.row);
+            const float value = window(cols[c] - m_placement.col, rows[r] - m_placement.row);
             heights[r * width + c] =
                 window.IsMissing(value) ? std::numeric_limits<float>::quiet_NaN() : value;
         }
@@ -333,12 +333,12 @@ void KernelUpsampler::FillSamples(const PostLattice& posts, SampleBlock& samples
             const Vec2d pixel = transform.WorldToPixel(points[i].x, points[i].y);
             lattice[i] = {pixel.x - 0.5, pixel.y - 0.5};
         }
-        const auto taps = static_cast<double>(2 * KernelRadius(method_));
+        const auto taps = static_cast<double>(2 * KernelRadius(m_method));
         detail::ExpandPoints(
             Span<const Vec2d>(lattice), heights, 4.0 * taps * taps,
-            [&](Span<const Vec2d> at) { return TapBox(method_, at); },
+            [&](Span<const Vec2d> at) { return TapBox(m_method, at); },
             [&](const detail::IndexBox& box, Span<const Vec2d> at, Span<float> values) {
-                InterpolateBlock(detail::ReadPosts(posts, box), method_, at, values);
+                InterpolateBlock(detail::ReadPosts(posts, box), m_method, at, values);
             });
     });
 }

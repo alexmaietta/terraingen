@@ -33,10 +33,10 @@ class RandomStream {
     double NextDouble();
 
   private:
-    U32x2 key_;
-    U32x4 counter_;
-    U32x4 block_;
-    int used_ = 4;
+    U32x2 m_key;
+    U32x4 m_counter;
+    U32x4 m_block;
+    int m_used = 4;
 };
 
 /// A 64-bit ID as two 32-bit words, for keying `RandomStream` and `Philox4x32` by it.

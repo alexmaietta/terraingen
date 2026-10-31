@@ -80,17 +80,17 @@ class Terrain final : public Ground {
 
     /// What the terrain lies on.
     const terraingen::Surface& Surface() const {
-        return surface_;
+        return m_surface;
     }
 
     /// The starting heights; null for none.
     const std::shared_ptr<const terraingen::Source>& Source() const {
-        return source_;
+        return m_source;
     }
 
     /// The layers, applied in order.
     const std::vector<LayerPtr>& Layers() const {
-        return layers_;
+        return m_layers;
     }
 
     /// The grid of the source; none without a source or for one without bounds (`BoundedGrid`).
@@ -193,10 +193,10 @@ class Terrain final : public Ground {
     /// @throws std::invalid_argument for a terrain without a bounded source.
     RasterGrid SourceGrid() const;
 
-    terraingen::Surface surface_{};
-    std::shared_ptr<const terraingen::Source> source_;
-    std::vector<LayerPtr> layers_;
-    std::shared_ptr<EvaluationCache> cache_;
+    terraingen::Surface m_surface{};
+    std::shared_ptr<const terraingen::Source> m_source;
+    std::vector<LayerPtr> m_layers;
+    std::shared_ptr<EvaluationCache> m_cache;
 };
 
 /// Calls `visit(layer, index)` for each layer of `terrain` that is a `T`, in order, with `index`

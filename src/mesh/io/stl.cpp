@@ -31,26 +31,26 @@ class Welder {
         for (std::size_t c = 0; c < 3; ++c) {
             triangle[c] = Vertex(corners[c]);
         }
-        mesh_.triangles.push_back(triangle);
+        m_mesh.triangles.push_back(triangle);
     }
 
     TriangleMesh Take() {
-        return std::move(mesh_);
+        return std::move(m_mesh);
     }
 
   private:
     std::uint32_t Vertex(const Vec3d& p) {
         const auto [found, added] =
-            index_.emplace(std::array<double, 3>{p.x, p.y, p.z},
-                           static_cast<std::uint32_t>(mesh_.positions.size()));
+            m_index.emplace(std::array<double, 3>{p.x, p.y, p.z},
+                            static_cast<std::uint32_t>(m_mesh.positions.size()));
         if (added) {
-            mesh_.positions.push_back(p);
+            m_mesh.positions.push_back(p);
         }
         return found->second;
     }
 
-    TriangleMesh mesh_;
-    std::map<std::array<double, 3>, std::uint32_t> index_;
+    TriangleMesh m_mesh;
+    std::map<std::array<double, 3>, std::uint32_t> m_index;
 };
 
 Vec3d GetVector(const std::string& bytes, std::size_t offset) {

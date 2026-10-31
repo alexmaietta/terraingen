@@ -32,18 +32,18 @@ BedformOptions Field() {
 
 class Level final : public terraingen::Ground {
   public:
-    explicit Level(double slope) : slope_(slope) {}
+    explicit Level(double slope) : m_slope(slope) {}
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double,
                      unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
-            samples.Height(i) = static_cast<float>(slope_ * samples.Position(i).x);
+            samples.Height(i) = static_cast<float>(m_slope * samples.Position(i).x);
         }
     }
 
   private:
-    double slope_;
+    double m_slope;
 };
 
 }  // namespace

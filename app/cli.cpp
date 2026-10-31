@@ -35,16 +35,16 @@ struct GenerateArgs {
 /// The arguments of a command, read in order.
 class ArgCursor {
   public:
-    explicit ArgCursor(const std::vector<std::string>& args) : args_(args) {}
+    explicit ArgCursor(const std::vector<std::string>& args) : m_args(args) {}
 
     /// Whether every argument has been read.
     bool Done() const {
-        return next_ >= args_.size();
+        return m_next >= m_args.size();
     }
 
     /// The next argument.
     const std::string& Next() {
-        return args_[next_++];
+        return m_args[m_next++];
     }
 
     /// The value after the option `option`.
@@ -57,8 +57,8 @@ class ArgCursor {
     }
 
   private:
-    const std::vector<std::string>& args_;
-    std::size_t next_ = 0;
+    const std::vector<std::string>& m_args;
+    std::size_t m_next = 0;
 };
 
 /// Whether `arg` is an option rather than a path.
@@ -141,17 +141,17 @@ GenerateArgs ParseGenerate(const std::vector<std::string>& args) {
 /// Restores the log level it was made with when it goes out of scope.
 class LogLevelScope {
   public:
-    explicit LogLevelScope(LogLevel level) : previous_(GetLogLevel()) {
+    explicit LogLevelScope(LogLevel level) : m_previous(GetLogLevel()) {
         SetLogLevel(level);
     }
     LogLevelScope(const LogLevelScope&) = delete;
     LogLevelScope& operator=(const LogLevelScope&) = delete;
     ~LogLevelScope() {
-        SetLogLevel(previous_);
+        SetLogLevel(m_previous);
     }
 
   private:
-    LogLevel previous_;
+    LogLevel m_previous;
 };
 
 /// Runs `command`, reporting a configuration error against the file `config` and any other error

@@ -189,33 +189,33 @@ class SecondaryDensity {
 
     /// The farthest a secondary lands from the primary's center, in meters; 0 when it throws none.
     double Reach() const {
-        return outer_;
+        return m_outer;
     }
 
     /// Where the secondaries start (`SecondaryOnsetRange`), in meters from the primary's center.
     double Onset() const {
-        return onset_;
+        return m_onset;
     }
 
     /// Secondaries per m^2 at least `Reference` across at the onset.
     double OnsetDensity() const {
-        return density0_;
+        return m_density0;
     }
 
     /// The size `OnsetDensity` counts from, `countFraction` times the diameter, in meters.
     double Reference() const {
-        return reference_;
+        return m_reference;
     }
 
     /// Where the secondaries gather; none spreads them evenly.
     const std::optional<SecondaryRayField>& Rays() const {
-        return rays_;
+        return m_rays;
     }
 
     /// Chapman's scaled range 1 + (range - onset) / D at `range` meters, whose inverse square the
     /// density falls with.
     double ScaledRange(double range) const {
-        return 1.0 + (range - onset_) / diameter_;
+        return 1.0 + (range - m_onset) / m_diameter;
     }
 
     /// The share of the cumulative count at `Reference` with diameters in [`low`, `high`) meters.
@@ -226,15 +226,15 @@ class SecondaryDensity {
     /// `offset`.
     double Measure(const Vec2d& offset, double minDiameter, double maxDiameter, bool cover) const;
 
-    double sizeSlope_ = 4.0;
-    double minSize_ = 0.0;
-    double maxSize_ = 0.0;
-    double diameter_ = 0.0;
-    double onset_ = 0.0;
-    double outer_ = 0.0;
-    double density0_ = 0.0;
-    double reference_ = 0.0;
-    std::optional<SecondaryRayField> rays_;
+    double m_sizeSlope = 4.0;
+    double m_minSize = 0.0;
+    double m_maxSize = 0.0;
+    double m_diameter = 0.0;
+    double m_onset = 0.0;
+    double m_outer = 0.0;
+    double m_density0 = 0.0;
+    double m_reference = 0.0;
+    std::optional<SecondaryRayField> m_rays;
 };
 
 }  // namespace terraingen

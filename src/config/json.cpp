@@ -17,24 +17,24 @@ namespace terraingen {
 
 namespace config {
 
-Reader::Reader(const Json& json, std::string path) : json_(json), path_(std::move(path)) {
-    if (!json_.is_object()) {
-        throw ConfigError(path_, std::string("expected an object, not ") + json_.type_name());
+Reader::Reader(const Json& json, std::string path) : m_json(json), m_path(std::move(path)) {
+    if (!m_json.is_object()) {
+        throw ConfigError(m_path, std::string("expected an object, not ") + m_json.type_name());
     }
 }
 
 void Reader::Finish() const {
-    for (const auto& [key, value] : json_.items()) {
-        if (known_.count(key) == 0) {
+    for (const auto& [key, value] : m_json.items()) {
+        if (m_known.count(key) == 0) {
             std::string expected;
-            for (const std::string& name : known_) {
+            for (const std::string& name : m_known) {
                 expected += (expected.empty() ? "" : ", ") + name;
             }
-            throw ConfigError(FieldPath(path_, key), "unknown key; expected one of: " + expected);
+            throw ConfigError(FieldPath(m_path, key), "unknown key; expected one of: " + expected);
         }
     }
-    if (!missing_.empty()) {
-        throw ConfigError(FieldPath(path_, missing_.front()), "required");
+    if (!m_missing.empty()) {
+        throw ConfigError(FieldPath(m_path, m_missing.front()), "required");
     }
 }
 
@@ -182,7 +182,7 @@ void CheckSchemaVersion(const Json& json) {
 }  // namespace config
 
 ConfigError::ConfigError(std::string path, const std::string& message)
-    : std::runtime_error(path.empty() ? message : path + ": " + message), path_(std::move(path)) {}
+    : std::runtime_error(path.empty() ? message : path + ": " + message), m_path(std::move(path)) {}
 
 TerrainGenConfig ParseConfig(std::string_view json) {
     config::Json document;

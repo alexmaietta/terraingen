@@ -72,16 +72,16 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
 
     /// The options the layer was made with.
     const SecondaryCraterOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     std::optional<TerrainBase> LayerBase() const override {
-        return TerrainBase{apply_.surface, source_};
+        return TerrainBase{m_apply.surface, m_source};
     }
 
     /// The primaries, which must come before this layer.
     std::vector<const Layer*> Dependencies() const override {
-        return {primaries_.get()};
+        return {m_primaries.get()};
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)` and the apply seeds of the irregularity,
@@ -101,12 +101,12 @@ class SecondaryCraterLayer final : public Layer, public CraterPlacer {
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
-    std::shared_ptr<const CraterLayer> primaries_;
-    CraterShapeModels models_;
-    SecondaryCraterOptions options_;
-    CraterApplyOptions apply_;
-    std::shared_ptr<const Source> source_;
-    std::shared_ptr<const SurfaceField> limit_;
+    std::shared_ptr<const CraterLayer> m_primaries;
+    CraterShapeModels m_models;
+    SecondaryCraterOptions m_options;
+    CraterApplyOptions m_apply;
+    std::shared_ptr<const Source> m_source;
+    std::shared_ptr<const SurfaceField> m_limit;
 };
 
 }  // namespace terraingen

@@ -63,15 +63,15 @@ std::optional<double> InvertBySecant(const Cumulative& cumulative, double target
 }  // namespace
 
 SizeFrequencyDistribution::SizeFrequencyDistribution(SfdKind kind, DiameterRange range)
-    : kind_(kind), range_(range) {
-    CheckRange(range_);
+    : m_kind(kind), m_range(range) {
+    CheckRange(m_range);
 }
 
 void SizeFrequencyDistribution::CheckDiameter(double diameter) const {
     if (!IsPositive(diameter)) {
         throw std::domain_error("Diameter must be positive and finite");
     }
-    if (!extrapolate_ && !range_.Contains(diameter)) {
+    if (!m_extrapolate && !m_range.Contains(diameter)) {
         throw std::domain_error("Diameter " + std::to_string(diameter) +
                                 " m is outside the distribution's valid range");
     }
@@ -119,7 +119,7 @@ double SizeFrequencyDistribution::ExpectedCount(double area, double minDiameter,
     RequireNonNegative(area, "Area");
     double upper = 0.0;
     if (std::isinf(maxDiameter)) {
-        if (!extrapolate_ && !std::isinf(range_.max)) {
+        if (!m_extrapolate && !std::isinf(m_range.max)) {
             throw std::domain_error("An infinite maxDiameter needs an unbounded valid range");
         }
     } else {

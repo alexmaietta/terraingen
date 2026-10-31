@@ -33,7 +33,7 @@ class PiecewisePowerLawSfd final : public SizeFrequencyDistribution {
 
     /// The segments in increasing `start` order.
     const std::vector<PowerLawSegment>& Segments() const {
-        return segments_;
+        return m_segments;
     }
 
   protected:
@@ -44,7 +44,7 @@ class PiecewisePowerLawSfd final : public SizeFrequencyDistribution {
   private:
     const PowerLawSegment& SegmentAt(double diameter) const;
 
-    std::vector<PowerLawSegment> segments_;
+    std::vector<PowerLawSegment> m_segments;
 };
 
 }  // namespace terraingen

@@ -24,19 +24,19 @@ namespace {
 /// A profile the kernel does not know, forwarding to `inner`, so the kernel tabulates it.
 class Opaque final : public CraterProfile {
   public:
-    explicit Opaque(std::shared_ptr<const CraterProfile> inner) : inner_(std::move(inner)) {}
+    explicit Opaque(std::shared_ptr<const CraterProfile> inner) : m_inner(std::move(inner)) {}
     double Height(double distance, double diameter, const CraterState& state) const override {
-        return inner_->Height(distance, diameter, state);
+        return m_inner->Height(distance, diameter, state);
     }
     double ReachRadii() const override {
-        return inner_->ReachRadii();
+        return m_inner->ReachRadii();
     }
     bool IsComplex(double diameter) const override {
-        return inner_->IsComplex(diameter);
+        return m_inner->IsComplex(diameter);
     }
 
   private:
-    std::shared_ptr<const CraterProfile> inner_;
+    std::shared_ptr<const CraterProfile> m_inner;
 };
 
 struct Case {
@@ -422,9 +422,9 @@ TEST(CraterKernel, WorksOutBodyOffsetsInEachCratersFrameAsTheSurfaceDoes) {
                 const terraingen::Vec2d point = body.surface.Locate(
                     body.center, {meters * std::sin(azimuth), meters * std::cos(azimuth)});
                 const terraingen::Vec3d p = body.surface.Position(point) - origin;
-                const terraingen::KernelOffset kernel =
-                    terraingen::KernelFrameOffset(frame, static_cast<float>(p.x),
-                                                  static_cast<float>(p.y), static_cast<float>(p.z));
+                const terraingen::KernelOffset kernel = terraingen::KernelFrameOffset(
+                    frame, static_cast<float>(p.x) - frame.x, static_cast<float>(p.y) - frame.y,
+                    static_cast<float>(p.z) - frame.z);
                 const terraingen::KernelOffset exact =
                     terraingen::ShapingOffset(body.surface, crater, point);
                 const double tolerance = 1e-3 + 1e-6 * meters;
@@ -521,6 +521,49 @@ TEST(StoreKernelPosition, StoresAFloatTriple) {
     EXPECT_EQ(at[0], 1.5f);
     EXPECT_EQ(at[1], -2.0f);
     EXPECT_EQ(at[2], static_cast<float>(1e9 + 0.25));
+}
+
+TEST(SplitCoordinate, KeepsWhatTheFloatLeaves) {
+    float high = 0.0f;
+    float low = 0.0f;
+    terraingen::SplitCoordinate(512345.678901, high, low);
+    EXPECT_EQ(high, static_cast<float>(512345.678901));
+    EXPECT_NEAR(static_cast<double>(high) + static_cast<double>(low), 512345.678901, 1e-9);
+}
+
+TEST(SplitDifference, MeasuresNearbyCoordinatesToFloatPrecisionFarFromAnyOrigin) {
+    for (const double base : {0.0, 512345.678901, -3.7e6, 1.7374e6}) {
+        for (const double apart : {0.0, 1e-4, 0.37, 812.5}) {
+            float a = 0.0f;
+            float aLow = 0.0f;
+            float b = 0.0f;
+            float bLow = 0.0f;
+            terraingen::SplitCoordinate(base + apart, a, aLow);
+            terraingen::SplitCoordinate(base, b, bLow);
+            const double exact = (base + apart) - base;
+            EXPECT_NEAR(terraingen::SplitDifference(a, aLow, b, bLow), exact,
+                        1e-6 + 1e-6 * std::abs(exact))
+                << base << " + " << apart;
+        }
+    }
+}
+
+TEST(MakeSplitPoint, SplitsPlanarCoordinatesAndBodyPositions) {
+    const terraingen::Vec2d p{512345.678901, -3.25};
+    const terraingen::SplitPoint planar = terraingen::MakeSplitPoint(terraingen::Surface{}, p);
+    EXPECT_EQ(planar.x, static_cast<float>(p.x));
+    EXPECT_NEAR(static_cast<double>(planar.x) + static_cast<double>(planar.xLow), p.x, 1e-9);
+    EXPECT_EQ(planar.y, -3.25f);
+    EXPECT_EQ(planar.yLow, 0.0f);
+    EXPECT_EQ(planar.z, 0.0f);
+
+    const terraingen::Surface moon = terraingen::Surface::Sphere(1737400.0);
+    const terraingen::Vec2d at{10.25, -4.5};
+    const terraingen::Vec3d position = moon.Position(at);
+    const terraingen::SplitPoint body = terraingen::MakeSplitPoint(moon, at);
+    EXPECT_NEAR(static_cast<double>(body.x) + static_cast<double>(body.xLow), position.x, 1e-6);
+    EXPECT_NEAR(static_cast<double>(body.y) + static_cast<double>(body.yLow), position.y, 1e-6);
+    EXPECT_NEAR(static_cast<double>(body.z) + static_cast<double>(body.zLow), position.z, 1e-6);
 }
 
 TEST(KernelPeriodicAt, WrapsTheAngleIntoTheTable) {

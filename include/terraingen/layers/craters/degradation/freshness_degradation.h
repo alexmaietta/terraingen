@@ -28,13 +28,13 @@ class FreshnessDegradation final : public DegradationModel {
 
     /// The ages whose lifetimes the craters wear over.
     std::shared_ptr<const CraterAgeModel> AgeModel() const override {
-        return ages_;
+        return m_ages;
     }
 
   private:
-    std::shared_ptr<const CraterAgeModel> ages_;
-    FreshMorphometry fresh_;
-    double cutoffDepthRatio_;
+    std::shared_ptr<const CraterAgeModel> m_ages;
+    FreshMorphometry m_fresh;
+    double m_cutoffDepthRatio;
 };
 
 }  // namespace terraingen

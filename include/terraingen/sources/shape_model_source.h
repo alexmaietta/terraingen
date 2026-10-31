@@ -47,12 +47,12 @@ class ShapeModelSource final : public Source {
 
     /// The body.
     const Surface& Body() const {
-        return body_;
+        return m_body;
     }
 
     /// The upsampler of each face, fitted to its posts.
     const std::array<std::shared_ptr<const Upsampler>, 6>& UpsamplersInUse() const {
-        return upsamplers_;
+        return m_upsamplers;
     }
 
   protected:
@@ -79,15 +79,15 @@ class ShapeModelSource final : public Source {
                   Span<float> heights) const override;
 
       private:
-        const ShapeModelSource& source_;
-        std::size_t face_;
+        const ShapeModelSource& m_source;
+        std::size_t m_face;
     };
 
-    Surface body_;
-    double reference_ = 0.0;
-    double labelDegrees_ = 0.0;
-    std::array<std::unique_ptr<FacePosts>, 6> posts_;
-    std::array<std::shared_ptr<const Upsampler>, 6> upsamplers_;
+    Surface m_body;
+    double m_reference = 0.0;
+    double m_labelDegrees = 0.0;
+    std::array<std::unique_ptr<FacePosts>, 6> m_posts;
+    std::array<std::shared_ptr<const Upsampler>, 6> m_upsamplers;
 };
 
 }  // namespace terraingen

@@ -47,7 +47,7 @@ class NoiseLayer final : public Layer {
 
     /// The fractals and source limit the layer was made with.
     const NoiseLayerOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     /// The layer with the seed of fractal n `ReseedWord(seed, n)`.
@@ -57,11 +57,12 @@ class NoiseLayer final : public Layer {
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override;
 
   private:
-    NoiseLayerOptions options_;
-    NoiseLayerKernel kernel_;
-    std::vector<double> wavelengths_;  ///< The fractals' distinct wavelengths in meters, ascending.
-    /// The stack with the fractals of `wavelengths_[i]` and longer disabled, the whole stack last.
-    std::vector<std::vector<Fractal>> stacks_;
+    NoiseLayerOptions m_options;
+    NoiseLayerKernel m_kernel;
+    std::vector<double>
+        m_wavelengths;  ///< The fractals' distinct wavelengths in meters, ascending.
+    /// The stack with the fractals of `m_wavelengths[i]` and longer disabled, the whole stack last.
+    std::vector<std::vector<Fractal>> m_stacks;
 };
 
 }  // namespace terraingen

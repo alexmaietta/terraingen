@@ -59,32 +59,33 @@ void AddNoiseRows(SampleBlock& samples, unsigned threads, const std::vector<Frac
 
 }  // namespace
 
-NoiseLayer::NoiseLayer(NoiseLayerOptions options) : options_(std::move(options)) {
-    ValidateFractals(options_.fractals, 1);
-    ValidateSourceResolvesPixels(options_.sourceResolvesPixels);
-    kernel_ = MakeNoiseLayerKernel(options_.fractals);
-    if (!options_.sourceResolvesPixels) {
+NoiseLayer::NoiseLayer(NoiseLayerOptions options) : m_options(std::move(options)) {
+    ValidateFractals(m_options.fractals, 1);
+    ValidateSourceResolvesPixels(m_options.sourceResolvesPixels);
+    m_kernel = MakeNoiseLayerKernel(m_options.fractals);
+    if (!m_options.sourceResolvesPixels) {
         return;
     }
-    for (const Fractal& fractal : options_.fractals) {
-        wavelengths_.push_back(static_cast<double>(fractal.wavelength));
+    for (const Fractal& fractal : m_options.fractals) {
+        m_wavelengths.push_back(static_cast<double>(fractal.wavelength));
     }
-    std::sort(wavelengths_.begin(), wavelengths_.end());
-    wavelengths_.erase(std::unique(wavelengths_.begin(), wavelengths_.end()), wavelengths_.end());
-    for (std::size_t kept = 0; kept <= wavelengths_.size(); ++kept) {
-        std::vector<Fractal> stack = options_.fractals;
+    std::sort(m_wavelengths.begin(), m_wavelengths.end());
+    m_wavelengths.erase(std::unique(m_wavelengths.begin(), m_wavelengths.end()),
+                        m_wavelengths.end());
+    for (std::size_t kept = 0; kept <= m_wavelengths.size(); ++kept) {
+        std::vector<Fractal> stack = m_options.fractals;
         for (Fractal& fractal : stack) {
-            if (kept < wavelengths_.size() &&
-                static_cast<double>(fractal.wavelength) >= wavelengths_[kept]) {
+            if (kept < m_wavelengths.size() &&
+                static_cast<double>(fractal.wavelength) >= m_wavelengths[kept]) {
                 fractal.enabled = false;
             }
         }
-        stacks_.push_back(std::move(stack));
+        m_stacks.push_back(std::move(stack));
     }
 }
 
 LayerPtr NoiseLayer::Reseeded(std::uint64_t seed) const {
-    NoiseLayerOptions options = options_;
+    NoiseLayerOptions options = m_options;
     for (std::size_t n = 0; n < options.fractals.size(); ++n) {
         options.fractals[n].seed = ReseedWord(seed, static_cast<std::uint32_t>(n));
     }
@@ -94,27 +95,27 @@ LayerPtr NoiseLayer::Reseeded(std::uint64_t seed) const {
 void NoiseLayer::ApplySamples(SampleBlock& samples, const LayerContext& context) const {
     const Surface& surface = context.SurfaceOrPlane();
     const Vec2d origin = context.ReferencePoint();
-    if (context.source != nullptr && options_.sourceResolvesPixels) {
+    if (context.source != nullptr && m_options.sourceResolvesPixels) {
         MapSamples(samples, context.threads, [&](float height, const Vec2d& p) {
             const double resolved = SourceResolvedSize(
-                context.source, options_.sourceResolvesPixels, surface, p.x, p.y);
+                context.source, m_options.sourceResolvesPixels, surface, p.x, p.y);
             const auto kept =
                 std::isnan(resolved)
-                    ? wavelengths_.size()
+                    ? m_wavelengths.size()
                     : static_cast<std::size_t>(
-                          std::lower_bound(wavelengths_.begin(), wavelengths_.end(), resolved) -
-                          wavelengths_.begin());
-            return height + FractalStackAt(stacks_[kept], origin, surface, p.x, p.y);
+                          std::lower_bound(m_wavelengths.begin(), m_wavelengths.end(), resolved) -
+                          m_wavelengths.begin());
+            return height + FractalStackAt(m_stacks[kept], origin, surface, p.x, p.y);
         });
         return;
     }
     Raster<float>* grid = samples.Grid();
     if (!surface.IsBody() && grid != nullptr && context.backend != Backend::Cpu &&
-        RunKernel(context.backend, CompiledKernel<NoiseLayerKernel>(), AsBytes(Span(&kernel_, 1)),
+        RunKernel(context.backend, CompiledKernel<NoiseLayerKernel>(), AsBytes(Span(&m_kernel, 1)),
                   *grid, origin)) {
         return;
     }
-    AddNoiseRows(samples, context.threads, options_.fractals, origin, surface);
+    AddNoiseRows(samples, context.threads, m_options.fractals, origin, surface);
 }
 
 }  // namespace terraingen

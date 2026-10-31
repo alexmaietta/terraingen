@@ -21,23 +21,23 @@ void ValidateSandShadowOptions(const SandShadowOptions& options) {
 
 SandShadowLayer::SandShadowLayer(std::shared_ptr<const BoulderLayer> boulders,
                                  SandShadowOptions options)
-    : boulders_(std::move(boulders)), options_(options) {
-    ValidateSandShadowOptions(options_);
-    if (!boulders_) {
+    : m_boulders(std::move(boulders)), m_options(options) {
+    ValidateSandShadowOptions(m_options);
+    if (!m_boulders) {
         throw std::invalid_argument("Sand shadows need a boulder layer");
     }
-    downwind_ = {std::cos(options_.windAzimuthDegrees * kDegree),
-                 std::sin(options_.windAzimuthDegrees * kDegree)};
-    flankSlope_ = std::tan(options_.flankAngleDegrees * kDegree);
+    m_downwind = {std::cos(m_options.windAzimuthDegrees * kDegree),
+                  std::sin(m_options.windAzimuthDegrees * kDegree)};
+    m_flankSlope = std::tan(m_options.flankAngleDegrees * kDegree);
 }
 
 LayerPtr SandShadowLayer::Rebound(const LayerReplacements& replaced) const {
-    std::shared_ptr<const BoulderLayer> boulders = Replacement(boulders_, replaced);
-    if (boulders == boulders_) {
+    std::shared_ptr<const BoulderLayer> boulders = Replacement(m_boulders, replaced);
+    if (boulders == m_boulders) {
         return nullptr;
     }
     auto rebound = std::make_shared<SandShadowLayer>(*this);
-    rebound->boulders_ = std::move(boulders);
+    rebound->m_boulders = std::move(boulders);
     return rebound;
 }
 
@@ -45,21 +45,21 @@ std::vector<SandShadowLayer::Shadow> SandShadowLayer::ShadowsOver(const Bounds2d
                                                                   double spacing,
                                                                   const Ground* ground,
                                                                   const Surface& surface) const {
-    const double longest = boulders_->MaxFeatureDiameter() * (0.5 + options_.lengthRatio);
+    const double longest = m_boulders->MaxFeatureDiameter() * (0.5 + m_options.lengthRatio);
     std::vector<Shadow> shadows;
     const BoulderList boulders =
-        boulders_->Boulders(surface.Expand(region, longest), spacing, ground);
+        m_boulders->Boulders(surface.Expand(region, longest), spacing, ground);
     for (std::size_t i = 0; i < boulders.Size(); ++i) {
         const Boulder boulder = boulders.At(i);
-        if (boulder.diameter < options_.minDiameter) {
+        if (boulder.diameter < m_options.minDiameter) {
             continue;
         }
-        const double weight = ResolutionWeight(boulder.diameter, spacing, options_.fade);
+        const double weight = ResolutionWeight(boulder.diameter, spacing, m_options.fade);
         const double cap = boulder.ExposedHeight();
         if (weight <= 0.0 || cap <= 0.0) {
             continue;
         }
-        const double reach = boulder.diameter * (0.5 + options_.lengthRatio);
+        const double reach = boulder.diameter * (0.5 + m_options.lengthRatio);
         shadows.push_back({{boulder.x, boulder.y},
                            boulder.diameter,
                            cap,
@@ -72,18 +72,18 @@ std::vector<SandShadowLayer::Shadow> SandShadowLayer::ShadowsOver(const Bounds2d
 double SandShadowLayer::ShadowDepth(const Shadow& shadow, double x, double y,
                                     const Surface& surface) const {
     const Vec2d offset = surface.Offset(shadow.center, {x, y});
-    const double along = offset.x * downwind_.x + offset.y * downwind_.y - 0.5 * shadow.width;
-    const double length = options_.lengthRatio * shadow.width;
+    const double along = offset.x * m_downwind.x + offset.y * m_downwind.y - 0.5 * shadow.width;
+    const double length = m_options.lengthRatio * shadow.width;
     if (!(along >= 0.0 && along < length)) {
         return 0.0;
     }
-    const double across = std::fabs(offset.y * downwind_.x - offset.x * downwind_.y);
+    const double across = std::fabs(offset.y * m_downwind.x - offset.x * m_downwind.y);
     const double taper = 1.0 - along / length;
     const double half = 0.5 * shadow.width * taper;
     if (across >= half) {
         return 0.0;
     }
-    const double crest = std::min(0.5 * shadow.width * flankSlope_, shadow.cap) * taper;
+    const double crest = std::min(0.5 * shadow.width * m_flankSlope, shadow.cap) * taper;
     return shadow.weight * crest * (1.0 - across / half);
 }
 
@@ -110,7 +110,7 @@ double SandShadowLayer::ThicknessAt(double x, double y, const LayerContext& cont
 }
 
 double SandShadowLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
-    return Smoothstep(ThicknessAt(x, y, context) / options_.coverThickness);
+    return Smoothstep(ThicknessAt(x, y, context) / m_options.coverThickness);
 }
 
 Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid,
@@ -125,7 +125,7 @@ Raster<double> SandShadowLayer::MaterialCoverOver(const RasterGrid& grid,
                 std::max(cell, ShadowDepth(shadows[at.feature], at.center.x, at.center.y, surface));
         });
     for (double& cell : cover.Values()) {
-        cell = Smoothstep(cell / options_.coverThickness);
+        cell = Smoothstep(cell / m_options.coverThickness);
     }
     return cover;
 }

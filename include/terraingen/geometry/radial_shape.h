@@ -55,7 +55,7 @@ class RadialShape {
 
     /// The index of label (`i`, `j`, `face`) in the label radii (`IcqLabelIndex`).
     std::size_t LabelIndex(std::size_t i, std::size_t j, std::size_t face) const {
-        return IcqLabelIndex(q_, i, j, face);
+        return IcqLabelIndex(m_q, i, j, face);
     }
 
     /// The radius in meters along a nonzero `direction`.
@@ -63,22 +63,22 @@ class RadialShape {
 
     /// Q, the intervals per face edge.
     std::size_t Q() const {
-        return q_;
+        return m_q;
     }
 
     /// The label radii in meters, in the order of `LabelIndex`.
     const std::vector<double>& Radii() const {
-        return radii_;
+        return m_radii;
     }
 
     /// The smallest label radius in meters, a lower bound of `At`.
     double MinRadius() const {
-        return min_;
+        return m_min;
     }
 
     /// The largest label radius in meters, an upper bound of `At`.
     double MaxRadius() const {
-        return max_;
+        return m_max;
     }
 
     /// An upper bound in m^2 of the area per steradian, r^2 / (u . n), over the interpolated
@@ -86,12 +86,12 @@ class RadialShape {
     /// normal (from the cross product of its diagonals), times a margin for the variation within
     /// quadrilaterals.
     double MaxAreaPerSteradian() const {
-        return maxArea_;
+        return m_maxArea;
     }
 
     /// Whether two shapes have the same Q and label radii.
     bool operator==(const RadialShape& other) const {
-        return q_ == other.q_ && radii_ == other.radii_;
+        return m_q == other.m_q && m_radii == other.m_radii;
     }
     bool operator!=(const RadialShape& other) const {
         return !(*this == other);
@@ -105,11 +105,11 @@ class RadialShape {
     /// The largest area per steradian at the corners of quadrilateral (`i`, `j`) of `face`.
     double QuadAreaBound(std::size_t i, std::size_t j, std::size_t face) const;
 
-    std::size_t q_ = 0;
-    std::vector<double> radii_;
-    double min_ = 0.0;
-    double max_ = 0.0;
-    double maxArea_ = 0.0;
+    std::size_t m_q = 0;
+    std::vector<double> m_radii;
+    double m_min = 0.0;
+    double m_max = 0.0;
+    double m_maxArea = 0.0;
 };
 
 }  // namespace terraingen

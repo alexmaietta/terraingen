@@ -10,25 +10,25 @@
 
 namespace terraingen {
 
-SampleBlock::SampleBlock(Raster<float>& heights) : grid_(&heights), heights_(heights.Values()) {}
+SampleBlock::SampleBlock(Raster<float>& heights) : m_grid(&heights), m_heights(heights.Values()) {}
 
 SampleBlock::SampleBlock(Span<const Vec2d> positions, Span<float> heights)
-    : positions_(positions), heights_(heights) {
+    : m_positions(positions), m_heights(heights) {
     if (positions.size() != heights.size()) {
         throw std::invalid_argument("A sample block needs one height per position");
     }
 }
 
 Vec2d SampleBlock::Position(std::size_t i) const {
-    if (grid_ != nullptr) {
-        return grid_->CellCenter(i % grid_->Width(), i / grid_->Width());
+    if (m_grid != nullptr) {
+        return m_grid->CellCenter(i % m_grid->Width(), i / m_grid->Width());
     }
-    return positions_[i];
+    return m_positions[i];
 }
 
 std::vector<Vec2d> SampleBlock::Positions() const {
-    if (grid_ == nullptr) {
-        return {positions_.begin(), positions_.end()};
+    if (m_grid == nullptr) {
+        return {m_positions.begin(), m_positions.end()};
     }
     std::vector<Vec2d> positions(Size());
     for (std::size_t i = 0; i < positions.size(); ++i) {
@@ -38,18 +38,18 @@ std::vector<Vec2d> SampleBlock::Positions() const {
 }
 
 bool SampleBlock::IsNoData(std::size_t i) const {
-    return grid_ != nullptr ? grid_->IsNoData(heights_[i]) : std::isnan(heights_[i]);
+    return m_grid != nullptr ? m_grid->IsNoData(m_heights[i]) : std::isnan(m_heights[i]);
 }
 
 Bounds2d SampleBlock::Bounds() const {
-    if (grid_ != nullptr) {
-        return grid_->Grid().Bounds();
+    if (m_grid != nullptr) {
+        return m_grid->Grid().Bounds();
     }
-    if (positions_.empty()) {
+    if (m_positions.empty()) {
         return {};
     }
-    Bounds2d box = PointBounds(positions_[0].x, positions_[0].y);
-    for (const Vec2d& p : positions_) {
+    Bounds2d box = PointBounds(m_positions[0].x, m_positions[0].y);
+    for (const Vec2d& p : m_positions) {
         const Bounds2d point = PointBounds(p.x, p.y);
         box.minX = std::min(box.minX, point.minX);
         box.minY = std::min(box.minY, point.minY);
@@ -60,8 +60,8 @@ Bounds2d SampleBlock::Bounds() const {
 }
 
 double SampleBlock::ResolvedSpacing(double spacing, const Surface& surface) const {
-    return grid_ != nullptr ? terraingen::ResolvedSpacing(grid_->Grid(), spacing, surface)
-                            : spacing;
+    return m_grid != nullptr ? terraingen::ResolvedSpacing(m_grid->Grid(), spacing, surface)
+                             : spacing;
 }
 
 }  // namespace terraingen

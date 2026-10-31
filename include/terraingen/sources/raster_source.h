@@ -45,17 +45,17 @@ class RasterHeightsSource : public Source {
   public:
     /// The lattice's cells covered.
     RasterGrid Grid() const final {
-        return Subgrid(lattice_, cells_);
+        return Subgrid(m_lattice, m_cells);
     }
 
     /// The top-left corner of the whole lattice, with or without a window of it.
     Vec2d ReferencePoint() const final {
-        return {lattice_.transform.originX, lattice_.transform.originY};
+        return {m_lattice.transform.originX, m_lattice.transform.originY};
     }
 
     /// The projection given at construction.
     GeoKeys Keys() const final {
-        return keys_;
+        return m_keys;
     }
 
     /// The effective pixel size, or else the cell size in CRS units, the larger side of a cell;
@@ -73,16 +73,16 @@ class RasterHeightsSource : public Source {
     /// @param cells The window of `lattice` covered.
     /// @param keys The projection outputs are written with.
     RasterHeightsSource(const RasterGrid& lattice, const PixelWindow& cells, GeoKeys keys)
-        : lattice_(lattice), cells_(cells), keys_(std::move(keys)) {}
+        : m_lattice(lattice), m_cells(cells), m_keys(std::move(keys)) {}
 
     /// The whole grid the heights lie on.
     const RasterGrid& Lattice() const {
-        return lattice_;
+        return m_lattice;
     }
 
     /// The window of the lattice covered.
     const PixelWindow& Cells() const {
-        return cells_;
+        return m_cells;
     }
 
     /// Copies cells on the lattice at its cell size or coarser, otherwise upsamples.
@@ -94,9 +94,9 @@ class RasterHeightsSource : public Source {
     virtual const RasterHeights& Heights() const = 0;
 
   private:
-    RasterGrid lattice_;
-    PixelWindow cells_;
-    GeoKeys keys_;
+    RasterGrid m_lattice;
+    PixelWindow m_cells;
+    GeoKeys m_keys;
 };
 
 }  // namespace detail
@@ -124,7 +124,7 @@ class RasterSource final : public detail::RasterHeightsSource {
     const detail::RasterHeights& Heights() const override;
 
   private:
-    std::shared_ptr<const detail::RasterHeights> heights_;
+    std::shared_ptr<const detail::RasterHeights> m_heights;
 };
 
 }  // namespace terraingen

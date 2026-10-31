@@ -24,17 +24,17 @@ SplicedSfd::SplicedSfd(std::vector<SfdPiece> pieces, double maxDiameter, double 
     : SizeFrequencyDistribution(
           detail::CommonKind(detail::Distributions(pieces), "A spliced distribution"),
           detail::PieceRange(pieces, maxDiameter)),
-      pieces_(std::move(pieces)) {
+      m_pieces(std::move(pieces)) {
     const DiameterRange& range = ValidRange();
-    detail::CheckStarts(detail::Starts(pieces_), range, "Piece");
-    for (std::size_t i = 0; i < pieces_.size(); ++i) {
-        const double end = i + 1 < pieces_.size() ? pieces_[i + 1].start : range.max;
-        if (!Covers(*pieces_[i].distribution, pieces_[i].start, end)) {
+    detail::CheckStarts(detail::Starts(m_pieces), range, "Piece");
+    for (std::size_t i = 0; i < m_pieces.size(); ++i) {
+        const double end = i + 1 < m_pieces.size() ? m_pieces[i + 1].start : range.max;
+        if (!Covers(*m_pieces[i].distribution, m_pieces[i].start, end)) {
             throw std::invalid_argument("Each piece must be valid over its diameter interval");
         }
     }
     detail::CheckJoins(
-        pieces_,
+        m_pieces,
         [](const SfdPiece& piece, double diameter) {
             return UncheckedCumulative(*piece.distribution, diameter);
         },
@@ -42,24 +42,24 @@ SplicedSfd::SplicedSfd(std::vector<SfdPiece> pieces, double maxDiameter, double 
 }
 
 std::size_t SplicedSfd::PieceAt(double diameter) const {
-    return detail::PieceIndex(pieces_, diameter);
+    return detail::PieceIndex(m_pieces, diameter);
 }
 
 double SplicedSfd::CumulativeAt(double diameter) const {
-    return UncheckedCumulative(*pieces_[PieceAt(diameter)].distribution, diameter);
+    return UncheckedCumulative(*m_pieces[PieceAt(diameter)].distribution, diameter);
 }
 
 double SplicedSfd::IncrementalAt(double diameter) const {
-    return UncheckedIncremental(*pieces_[PieceAt(diameter)].distribution, diameter);
+    return UncheckedIncremental(*m_pieces[PieceAt(diameter)].distribution, diameter);
 }
 
 double SplicedSfd::InvertCumulative(double target, double minDiameter, double maxDiameter) const {
     const std::size_t index = detail::WalkPieces(
-        pieces_, PieceAt(minDiameter), maxDiameter, [&](std::size_t i, double high) {
-            return target >= UncheckedCumulative(*pieces_[i].distribution, high);
+        m_pieces, PieceAt(minDiameter), maxDiameter, [&](std::size_t i, double high) {
+            return target >= UncheckedCumulative(*m_pieces[i].distribution, high);
         });
-    const SizeFrequencyDistribution& piece = *pieces_[index].distribution;
-    const auto [low, high] = detail::PieceInterval(pieces_, index, minDiameter, maxDiameter);
+    const SizeFrequencyDistribution& piece = *m_pieces[index].distribution;
+    const auto [low, high] = detail::PieceInterval(m_pieces, index, minDiameter, maxDiameter);
     if (target >= UncheckedCumulative(piece, low)) {
         return low;
     }

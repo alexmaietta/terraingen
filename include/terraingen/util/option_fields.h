@@ -249,21 +249,21 @@ class FieldRangeError : public std::invalid_argument {
   public:
     /// An error at `path` that breaks `rule`, such as "must be positive, got 0".
     FieldRangeError(std::string path, std::string rule)
-        : std::invalid_argument(path.empty() ? rule : path + ": " + rule), path_(std::move(path)),
-          rule_(std::move(rule)) {}
+        : std::invalid_argument(path.empty() ? rule : path + ": " + rule), m_path(std::move(path)),
+          m_rule(std::move(rule)) {}
 
     /// The path of the field, its keys joined by "." and list items as "[i]".
     const std::string& Path() const {
-        return path_;
+        return m_path;
     }
     /// What the value breaks, without the path.
     const std::string& Rule() const {
-        return rule_;
+        return m_rule;
     }
 
   private:
-    std::string path_;
-    std::string rule_;
+    std::string m_path;
+    std::string m_rule;
 };
 
 /// Checks that a number is finite and within its field's range.
@@ -314,18 +314,18 @@ void CheckValueRanges(std::array<double, 2>& value, const std::string& path, std
 class RangeChecker {
   public:
     /// A checker of the struct at `path`, empty for the root.
-    explicit RangeChecker(std::string path = {}) : path_(std::move(path)) {}
+    explicit RangeChecker(std::string path = {}) : m_path(std::move(path)) {}
 
     /// Checks a field; `description` is for schemas and docstrings.
     /// @throws FieldRangeError at the field's path, or below it, for a value out of its range.
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view /*description*/ = {},
                     std::string_view unit = {}, const FieldRange& range = {}) {
-        CheckValueRanges(value, FieldPath(path_, key), unit, range);
+        CheckValueRanges(value, FieldPath(m_path, key), unit, range);
     }
 
   private:
-    std::string path_;
+    std::string m_path;
 };
 
 template <typename T>

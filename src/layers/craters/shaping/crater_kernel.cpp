@@ -209,13 +209,13 @@ CraterRecord BaseRecord(const PreparedCrater& p, const CraterApplyOptions& optio
 class ProfileTables {
   public:
     ProfileTables(const CraterShapeKernel& kernel, const CraterProfile& profile)
-        : kernel_(kernel), profile_(profile),
-          diffused_(dynamic_cast<const DiffusedProfile*>(&profile)) {}
+        : m_kernel(kernel), m_profile(profile),
+          m_diffused(dynamic_cast<const DiffusedProfile*>(&profile)) {}
 
     /// Appends the ages of a diffused profile's tables to `data`, which must be empty.
     void AppendAges(std::vector<float>& data) const {
-        if (kernel_.profile.diffused == 1u && diffused_ != nullptr) {
-            for (const double age : diffused_->Ages()) {
+        if (m_kernel.profile.diffused == 1u && m_diffused != nullptr) {
+            for (const double age : m_diffused->Ages()) {
                 data.push_back(static_cast<float>(age));
             }
         }
@@ -225,7 +225,7 @@ class ProfileTables {
     void Append(const PreparedCrater& p, CraterRecord& r, std::vector<float>& data) {
         const CraterState& state = p.state;
         const double diameter = p.crater.diameter;
-        if (kernel_.profile.simple == CraterProfileKind::Tabulated) {
+        if (m_kernel.profile.simple == CraterProfileKind::Tabulated) {
             const std::array<double, 6> key{diameter,
                                             state.fresh.depthRatio,
                                             state.fresh.rimHeightRatio,
@@ -233,16 +233,16 @@ class ProfileTables {
                                             state.current.rimHeightRatio,
                                             state.diffusion};
             const auto [at, added] =
-                tabulated_.try_emplace(key, static_cast<std::uint32_t>(data.size()));
+                m_tabulated.try_emplace(key, static_cast<std::uint32_t>(data.size()));
             if (added) {
                 AppendRow(diameter, state, data);
             }
             r.profileOffset = at->second;
             return;
         }
-        if (kernel_.profile.diffused == 1u && diffused_ != nullptr && state.diffusion > 0.0) {
+        if (m_kernel.profile.diffused == 1u && m_diffused != nullptr && state.diffusion > 0.0) {
             const std::shared_ptr<const std::vector<float>> table =
-                diffused_->HeightTable(state.fresh, diameter);
+                m_diffused->HeightTable(state.fresh, diameter);
             const auto [at, added] =
                 diffused_tables_.try_emplace(table.get(), static_cast<std::uint32_t>(data.size()));
             if (added) {
@@ -256,20 +256,20 @@ class ProfileTables {
     /// Appends the profile's heights over the diameter along one row for a crater of `diameter`
     /// meters in `state`.
     void AppendRow(double diameter, const CraterState& state, std::vector<float>& data) const {
-        const double extent = 0.5 * profile_.ReachRadii();
-        const double step = extent / static_cast<double>(kernel_.profile.tableCells);
-        for (std::uint32_t i = 0; i <= kernel_.profile.tableCells; ++i) {
+        const double extent = 0.5 * m_profile.ReachRadii();
+        const double step = extent / static_cast<double>(m_kernel.profile.tableCells);
+        for (std::uint32_t i = 0; i <= m_kernel.profile.tableCells; ++i) {
             const double distance = static_cast<double>(i) * step * diameter;
             data.push_back(
-                static_cast<float>(profile_.Height(distance, diameter, state) / diameter));
+                static_cast<float>(m_profile.Height(distance, diameter, state) / diameter));
         }
     }
 
-    const CraterShapeKernel& kernel_;
-    const CraterProfile& profile_;
-    const DiffusedProfile* diffused_;
+    const CraterShapeKernel& m_kernel;
+    const CraterProfile& m_profile;
+    const DiffusedProfile* m_diffused;
     std::map<const std::vector<float>*, std::uint32_t> diffused_tables_;
-    std::map<std::array<double, 6>, std::uint32_t> tabulated_;
+    std::map<std::array<double, 6>, std::uint32_t> m_tabulated;
 };
 
 }  // namespace
@@ -287,9 +287,9 @@ CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const 
     const Vec3d position = surface.Position(center) - origin;
     const LocalFrame frame = surface.Frame(center);
     CraterFrame f;
-    f.x = static_cast<float>(position.x);
-    f.y = static_cast<float>(position.y);
-    f.z = static_cast<float>(position.z);
+    SplitCoordinate(position.x, f.x, f.xLow);
+    SplitCoordinate(position.y, f.y, f.yLow);
+    SplitCoordinate(position.z, f.z, f.zLow);
     f.eastX = static_cast<float>(frame.east.x);
     f.eastY = static_cast<float>(frame.east.y);
     f.eastZ = static_cast<float>(frame.east.z);
@@ -298,6 +298,15 @@ CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const 
     f.northZ = static_cast<float>(frame.north.z);
     f.sphereRadius = surface.IsSphere() ? static_cast<float>(surface.Radius()) : 0.0f;
     return f;
+}
+
+SplitPoint MakeSplitPoint(const Surface& surface, const Vec2d& p) {
+    const Vec3d at = surface.IsBody() ? surface.Position(p) : Vec3d{p.x, p.y, 0.0};
+    SplitPoint split{};
+    SplitCoordinate(at.x, split.x, split.xLow);
+    SplitCoordinate(at.y, split.y, split.yLow);
+    SplitCoordinate(at.z, split.z, split.zLow);
+    return split;
 }
 
 void AppendKernelTerraces(const PreparedCrater& p, const CraterTerraces& terraces,
@@ -582,6 +591,8 @@ CraterKernelBatch MakeCraterKernelBatch(const CraterShapeKernel& kernel,
         const PreparedCrater& p = prepared[k];
         CheckProfileState(kernel, p.crater.diameter, p.state);
         CraterRecord r = BaseRecord(p, options);
+        SplitCoordinate(p.crater.x, r.x, r.xLow);
+        SplitCoordinate(p.crater.y, r.y, r.yLow);
         AppendKernelOutline(p.outline, r, batch.data);
         AppendKernelTerraces(p, options.terraces, profile, r, batch.data);
         AppendKernelPeaks(p, options.peaks, profile, r, batch.data);

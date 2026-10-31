@@ -41,15 +41,16 @@ class SelfAffineSurface {
                 terraingen::RandomStream random(7, 0, n, j);
                 const double turn = 2.0 * terraingen::kPi * random.NextDouble();
                 const double k = 2.0 * terraingen::kPi / wavelength;
-                waves_.push_back({0.1 * std::pow(wavelength, hurst), k * std::cos(turn),
-                                  k * std::sin(turn), 2.0 * terraingen::kPi * random.NextDouble()});
+                m_waves.push_back({0.1 * std::pow(wavelength, hurst), k * std::cos(turn),
+                                   k * std::sin(turn),
+                                   2.0 * terraingen::kPi * random.NextDouble()});
             }
         }
     }
 
     double At(double x, double y) const {
         double sum = 0.0;
-        for (const Wave& wave : waves_) {
+        for (const Wave& wave : m_waves) {
             sum += wave.amplitude * std::cos(wave.kx * x + wave.ky * y + wave.phase);
         }
         return sum;
@@ -58,7 +59,7 @@ class SelfAffineSurface {
     /// The RMS height difference at a lag of `lag` meters, averaged along x and y.
     double Deviation(double lag) const {
         double sum = 0.0;
-        for (const Wave& wave : waves_) {
+        for (const Wave& wave : m_waves) {
             sum += wave.amplitude * wave.amplitude *
                    (2.0 - std::cos(wave.kx * lag) - std::cos(wave.ky * lag)) / 2.0;
         }
@@ -80,7 +81,7 @@ class SelfAffineSurface {
     }
 
   private:
-    std::vector<Wave> waves_;
+    std::vector<Wave> m_waves;
 };
 
 /// The RMS height difference in meters of `layer` at a lag of its wavelength on a lattice unlike

@@ -82,12 +82,12 @@ struct CraterShapeKernel {
 
 /// One crater ready to shape.
 struct CraterRecord {
-    float x = 0.0f;           ///< Center east of the dispatch's origin (m); read on the GPU only.
-    float y = 0.0f;           ///< Center north of the dispatch's origin (m); read on the GPU only.
-    float diameter = 0.0f;    ///< Diameter (m).
-    float resolution = 1.0f;  ///< `ResolutionWeight` at the sample spacing.
-    float freshDepth = 0.0f;  ///< Fresh depth over diameter.
-    float freshRim = 0.0f;    ///< Fresh rim height over diameter.
+    float x = 0.0f;               ///< Center east (m) as a float; `xLow` holds the remainder.
+    float y = 0.0f;               ///< Center north (m) as a float; `yLow` holds the remainder.
+    float diameter = 0.0f;        ///< Diameter (m).
+    float resolution = 1.0f;      ///< `ResolutionWeight` at the sample spacing.
+    float freshDepth = 0.0f;      ///< Fresh depth over diameter.
+    float freshRim = 0.0f;        ///< Fresh rim height over diameter.
     float currentDepth = 0.0f;    ///< Current depth over diameter.
     float currentRim = 0.0f;      ///< Current rim height over diameter.
     float diffusion = 0.0f;       ///< `CraterState::diffusion`.
@@ -117,6 +117,8 @@ struct CraterRecord {
     uint32_t peakCount = 0;      ///< Massifs of the central peak; 0 keeps the profile's dome.
     uint32_t peakOffset = 0;     ///< The massifs in `CraterData` (`KernelPeakMassifs`).
     uint32_t replace = 0;        ///< 1 when the crater replaces the terrain (`Crater::replace`).
+    float xLow = 0.0f;           ///< What `x` leaves of the center east (m).
+    float yLow = 0.0f;           ///< What `y` leaves of the center north (m).
 };
 
 /// A point east and north of a crater's center, in meters, as the kernel reads it.
@@ -140,7 +142,16 @@ struct CraterFrame {
     /// The radius (m) of a sphere, whose offsets are azimuthal equidistant; 0 on an ellipsoid or
     /// shape model, whose offsets are projected on the tangent plane.
     float sphereRadius = 0.0f;
+    float xLow = 0.0f;  ///< What `x`, `y` and `z` leave of the center's position (m).
+    float yLow = 0.0f;
+    float zLow = 0.0f;
 };
+
+/// `a` - `b` for coordinates held as a float and the float of its remainder: the same bits on
+/// every device and for every query, with no origin to measure from.
+inline float SplitDifference(float a, float aLow, float b, float bLow) {
+    return (a - b) + (aLow - bLow);
+}
 
 /// asin(`s`) / `s` for `s` in [0, 1]: by its series below 0.25, to within float rounding, since
 /// GPUs may evaluate inverse trigonometric functions to only a few thousand ulp (Vulkan allows
@@ -154,12 +165,9 @@ inline float KernelArcsineRatio(float s) {
     return atan2(s, sqrt(1.0f - s * s)) / s;
 }
 
-/// The offset of the point at position (`px`, `py`, `pz`) from the dispatch's origin (m) in
-/// crater frame `f`: `Surface::Offset` in single precision.
-inline KernelOffset KernelFrameOffset(KERNEL_IN(CraterFrame) f, float px, float py, float pz) {
-    const float dx = px - f.x;
-    const float dy = py - f.y;
-    const float dz = pz - f.z;
+/// The offset in crater frame `f` of the point (`dx`, `dy`, `dz`) meters from its center:
+/// `Surface::Offset` in single precision.
+inline KernelOffset KernelFrameOffset(KERNEL_IN(CraterFrame) f, float dx, float dy, float dz) {
     KernelOffset offset;
     offset.dx = dx * f.eastX + dy * f.eastY + dz * f.eastZ;
     offset.dy = dx * f.northX + dy * f.northY + dz * f.northZ;
@@ -1267,10 +1275,10 @@ inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData d
                     if (n >= k) {
                         break;
                     }
-                    relief +=
-                        CraterRelief(kernel.shape, data, records[n], size,
-                                     (records[k].x - records[n].x) + (lowX - lows[2u * n]),
-                                     (records[k].y - records[n].y) + (lowY - lows[2u * n + 1u]));
+                    relief += CraterRelief(
+                        kernel.shape, data, records[n], size,
+                        SplitDifference(records[k].x, lowX, records[n].x, lows[2u * n]),
+                        SplitDifference(records[k].y, lowY, records[n].y, lows[2u * n + 1u]));
                 }
             }
         }
@@ -1294,18 +1302,67 @@ inline float KernelBodyDatumRelief(KERNEL_IN(CraterShapeKernel) k, CraterData da
     float relief = 0.0f;
     for (uint32_t e = first; e < first + count; ++e) {
         const uint32_t n = entries[e];
-        const KernelOffset at = KernelFrameOffset(frames[n], px, py, pz);
+        const KernelOffset at =
+            KernelFrameOffset(frames[n], px - frames[n].x, py - frames[n].y, pz - frames[n].z);
         relief += CraterRelief(k, data, records[n], bounds[n], at.dx, at.dy);
     }
     return relief;
+}
+
+/// Where the first entry and count of the tile holding cell (`col`, `row`) sit in `tiles`: tiles
+/// across, cells per tile side and 1 on a body, then each tile's first entry and count.
+inline uint32_t CraterTileHead(KernelUints tiles, uint32_t col, uint32_t row) {
+    const uint32_t side = tiles[1];
+    return 3u + 2u * ((row / side) * tiles[0] + col / side);
+}
+
+/// A sample's coordinates (m), each a float and the float of its remainder (`SplitDifference`):
+/// east and north on a plane, or its position (`Surface::Position`) on a body.
+struct SplitPoint {
+    float x;
+    float xLow;
+    float y;
+    float yLow;
+    float z;
+    float zLow;
+};
+
+/// The height after craters `entries[first]` to `entries[first + count - 1]` of `records`, in
+/// that order, from `height` at `p` on a plane.
+inline float ShapeCraters(KERNEL_IN(CraterShapeKernel) k, CraterData data, CraterRecords records,
+                          KernelUints entries, uint32_t first, uint32_t count, float height,
+                          KERNEL_IN(SplitPoint) p) {
+    for (uint32_t e = first; e < first + count; ++e) {
+        const uint32_t n = entries[e];
+        height = ApplyCraterKernel(k, data, records[n], height,
+                                   SplitDifference(p.x, p.xLow, records[n].x, records[n].xLow),
+                                   SplitDifference(p.y, p.yLow, records[n].y, records[n].yLow));
+    }
+    return height;
+}
+
+/// `ShapeCraters` on a body, each crater read in its `frames` (`KernelFrameOffset`).
+inline float ShapeCratersOnBody(KERNEL_IN(CraterShapeKernel) k, CraterData data,
+                                CraterRecords records, CraterFrames frames, KernelUints entries,
+                                uint32_t first, uint32_t count, float height,
+                                KERNEL_IN(SplitPoint) p) {
+    for (uint32_t e = first; e < first + count; ++e) {
+        const uint32_t n = entries[e];
+        const CraterFrame f = frames[n];
+        const KernelOffset at = KernelFrameOffset(f, SplitDifference(p.x, p.xLow, f.x, f.xLow),
+                                                  SplitDifference(p.y, p.yLow, f.y, f.yLow),
+                                                  SplitDifference(p.z, p.zLow, f.z, f.zLow));
+        height = ApplyCraterKernel(k, data, records[n], height, at.dx, at.dy);
+    }
+    return height;
 }
 
 #ifndef __SLANG__
 static_assert(sizeof(CraterProfileKernel) == 76,
               "CraterProfileKernel must match its std430 layout");
 static_assert(sizeof(CraterShapeKernel) == 188, "CraterShapeKernel must match its std430 layout");
-static_assert(sizeof(CraterRecord) == 136, "CraterRecord must match its std430 layout");
-static_assert(sizeof(CraterFrame) == 40, "CraterFrame must match its std430 layout");
+static_assert(sizeof(CraterRecord) == 144, "CraterRecord must match its std430 layout");
+static_assert(sizeof(CraterFrame) == 52, "CraterFrame must match its std430 layout");
 static_assert(sizeof(CraterDatumKernel) == 200, "CraterDatumKernel must match its std430 layout");
 static_assert(sizeof(CraterBodyDatumKernel) == 188,
               "CraterBodyDatumKernel must match its std430 layout");

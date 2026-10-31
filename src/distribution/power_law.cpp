@@ -10,7 +10,7 @@
 namespace terraingen {
 
 PowerLawSfd::PowerLawSfd(double coefficient, double exponent, SfdKind kind, DiameterRange range)
-    : SizeFrequencyDistribution(kind, range), law_{range.min, coefficient, exponent} {
+    : SizeFrequencyDistribution(kind, range), m_law{range.min, coefficient, exponent} {
     if (!IsPositive(coefficient) || !IsPositive(exponent)) {
         throw std::invalid_argument(
             "Power law coefficient and exponent must be positive and finite");
@@ -18,16 +18,16 @@ PowerLawSfd::PowerLawSfd(double coefficient, double exponent, SfdKind kind, Diam
 }
 
 double PowerLawSfd::CumulativeAt(double diameter) const {
-    return law_.Cumulative(diameter);
+    return m_law.Cumulative(diameter);
 }
 
 double PowerLawSfd::IncrementalAt(double diameter) const {
-    return law_.Incremental(diameter);
+    return m_law.Incremental(diameter);
 }
 
 double PowerLawSfd::InvertCumulative(double target, double /*minDiameter*/,
                                      double /*maxDiameter*/) const {
-    return law_.Invert(target);
+    return m_law.Invert(target);
 }
 
 double PowerLawCoefficientFromKilometers(double coefficient, double exponent) {

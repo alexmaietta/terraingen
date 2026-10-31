@@ -116,7 +116,7 @@ class DiamondSquareUpsampler final : public Upsampler {
 
     /// The options the upsampler was made with.
     const DiamondSquareOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
   protected:
@@ -127,8 +127,8 @@ class DiamondSquareUpsampler final : public Upsampler {
                      unsigned threads) const override;
 
   private:
-    DiamondSquareOptions options_;
-    double stepFactor_ = 1.0;
+    DiamondSquareOptions m_options;
+    double m_stepFactor = 1.0;
 };
 
 }  // namespace terraingen

@@ -39,7 +39,7 @@ class FlatSource final : public Source {
 
     /// The grid given at construction.
     RasterGrid Grid() const override {
-        return grid_;
+        return m_grid;
     }
 
   protected:
@@ -47,8 +47,8 @@ class FlatSource final : public Source {
     void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
 
   private:
-    RasterGrid grid_;
-    float elevation_;
+    RasterGrid m_grid;
+    float m_elevation;
 };
 
 }  // namespace terraingen

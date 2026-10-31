@@ -21,24 +21,24 @@ double Determinant(const Matrix3& m) {
 }  // namespace
 
 void PlaneFit::Add(double dx, double dy, double h) {
-    n_ += 1.0;
-    sx_ += dx;
-    sy_ += dy;
-    sxx_ += dx * dx;
-    sxy_ += dx * dy;
-    syy_ += dy * dy;
-    sh_ += h;
-    sxh_ += dx * h;
-    syh_ += dy * h;
+    m_n += 1.0;
+    m_sx += dx;
+    m_sy += dy;
+    m_sxx += dx * dx;
+    m_sxy += dx * dy;
+    m_syy += dy * dy;
+    m_sh += h;
+    m_sxh += dx * h;
+    m_syh += dy * h;
 }
 
 Plane PlaneFit::Solve() const {
-    const Matrix3 normal{{{n_, sx_, sy_}, {sx_, sxx_, sxy_}, {sy_, sxy_, syy_}}};
+    const Matrix3 normal{{{m_n, m_sx, m_sy}, {m_sx, m_sxx, m_sxy}, {m_sy, m_sxy, m_syy}}};
     const double det = Determinant(normal);
-    if (n_ < 3.0 || !(std::fabs(det) > 1e-9 * n_ * sxx_ * syy_)) {
-        return {sh_ / n_, 0.0, 0.0};
+    if (m_n < 3.0 || !(std::fabs(det) > 1e-9 * m_n * m_sxx * m_syy)) {
+        return {m_sh / m_n, 0.0, 0.0};
     }
-    const std::array<double, 3> rhs{sh_, sxh_, syh_};
+    const std::array<double, 3> rhs{m_sh, m_sxh, m_syh};
     std::array<double, 3> solution{};
     for (std::size_t column = 0; column < 3; ++column) {
         Matrix3 replaced = normal;

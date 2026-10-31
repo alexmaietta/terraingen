@@ -33,18 +33,18 @@ terraingen::LayerContext OnGround(double spacing, const terraingen::Ground* grou
 /// Ground tilted toward +x by `degrees`.
 class Tilted final : public terraingen::Ground {
   public:
-    explicit Tilted(double degrees) : gradient_(std::tan(degrees * terraingen::kPi / 180.0)) {}
+    explicit Tilted(double degrees) : m_gradient(std::tan(degrees * terraingen::kPi / 180.0)) {}
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double,
                      unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
-            samples.Height(i) = static_cast<float>(gradient_ * samples.Position(i).x);
+            samples.Height(i) = static_cast<float>(m_gradient * samples.Position(i).x);
         }
     }
 
   private:
-    double gradient_;
+    double m_gradient;
 };
 
 /// A bowl whose walls steepen away from the origin.
@@ -138,19 +138,19 @@ TEST(SlopeAlbedo, ReadsSlopesInMetersOnTheGivenSurface) {
     const terraingen::Surface sphere = terraingen::Surface::Sphere(1737400.0);
     class EastSlope final : public terraingen::Ground {
       public:
-        explicit EastSlope(const terraingen::Surface& surface) : surface_(surface) {}
+        explicit EastSlope(const terraingen::Surface& surface) : m_surface(surface) {}
 
       protected:
         void FillSamples(terraingen::SampleBlock& samples, double,
                          unsigned /*threads*/) const override {
             for (std::size_t i = 0; i < samples.Size(); ++i) {
                 samples.Height(i) =
-                    static_cast<float>(0.5 * surface_.Offset({30.0, 60.0}, samples.Position(i)).x);
+                    static_cast<float>(0.5 * m_surface.Offset({30.0, 60.0}, samples.Position(i)).x);
             }
         }
 
       private:
-        const terraingen::Surface& surface_;
+        const terraingen::Surface& m_surface;
     } ground(sphere);
     const SlopeAlbedo slopes;
     const double expected = std::atan(0.5) * 180.0 / terraingen::kPi;

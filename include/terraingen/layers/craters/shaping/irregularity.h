@@ -167,13 +167,13 @@ class KernelOutline {
   private:
     CraterData Data() const {
         CraterData view;
-        view.values = data_.data();
+        view.values = m_data.data();
         return view;
     }
 
-    bool round_ = true;
-    CraterRecord record_;
-    std::vector<float> data_{0.0f};
+    bool m_round = true;
+    CraterRecord m_record;
+    std::vector<float> m_data{0.0f};
 };
 
 /// The distance in meters at which a crater's round profile is read at surface (x, y): the true

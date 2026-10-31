@@ -66,7 +66,7 @@ class SyntheticAlbedo final : public AlbedoSource {
 
     /// 3 bands when `rgb` is set, otherwise 1.
     std::size_t Bands() const override {
-        return options_.rgb ? kMaxAlbedoBands : 1;
+        return m_options.rgb ? kMaxAlbedoBands : 1;
     }
 
     /// The color with noise at world point (`x`, `y`).
@@ -74,14 +74,14 @@ class SyntheticAlbedo final : public AlbedoSource {
 
     /// The color and its noise.
     const SyntheticAlbedoOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
   private:
     static double Noise(const std::vector<Fractal>& fractals, double x, double y,
                         const LayerContext& context);
 
-    SyntheticAlbedoOptions options_;
+    SyntheticAlbedoOptions m_options;
 };
 
 }  // namespace terraingen

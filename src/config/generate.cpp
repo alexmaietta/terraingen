@@ -95,25 +95,25 @@ class OutputGenerator {
     OutputGenerator(const ConfigSpec& config, GeneratedOutputs& generated,
                     const std::filesystem::path& directory, unsigned threads,
                     std::vector<config::OutputGrid> outputs)
-        : config_(config), generated_(generated), directory_(directory), threads_(threads),
-          outputs_(std::move(outputs)), grids_(DistinctGrids(generated.outputGrids)) {
+        : m_config(config), m_generated(generated), m_directory(directory), m_threads(threads),
+          m_outputs(std::move(outputs)), m_grids(DistinctGrids(generated.outputGrids)) {
         for (std::size_t n = 0; n < config.layers.size(); ++n) {
-            steps_.push_back(
+            m_steps.push_back(
                 {"layer " + std::to_string(n + 1) + " " + LayerType(config.layers[n])});
         }
         for (const char* name : {"albedo", "materials", "features", "meshes"}) {
-            steps_.push_back({name});
+            m_steps.push_back({name});
         }
     }
 
     /// Generates what output `i` asks for, unless an earlier output did.
     void Generate(std::size_t i) {
-        const OutputSpec& output = config_.outputs[i];
+        const OutputSpec& output = m_config.outputs[i];
         if (const auto* mesh = std::get_if<MeshOutput>(&output)) {
             AddBodyMesh(*mesh);
             return;
         }
-        const std::optional<RasterGrid>& grid = generated_.outputGrids[i];
+        const std::optional<RasterGrid>& grid = m_generated.outputGrids[i];
         if (!grid) {
             return;
         }
@@ -125,7 +125,7 @@ class OutputGenerator {
             AddAlbedo(target);
         }
         AddMaterials(output, target);
-        AddFeatures(output, outputs_[i].featureSpacing, target);
+        AddFeatures(output, m_outputs[i].featureSpacing, target);
         if (const auto* mesh = std::get_if<TerrainMeshOutput>(&output); mesh && !target.mesh) {
             AddTerrainMesh(*mesh, target);
         }
@@ -133,52 +133,53 @@ class OutputGenerator {
 
     /// Logs the time of each step, of `total` milliseconds, when anything was generated.
     void LogTimes(double total) const {
-        if (!generated_.grids.empty() || generated_.bodyMesh || generated_.bodyIcq) {
-            LogStepTimes(steps_, generated_.grids.size(), total);
+        if (!m_generated.grids.empty() || m_generated.bodyMesh || m_generated.bodyIcq) {
+            LogStepTimes(m_steps, m_generated.grids.size(), total);
         }
     }
 
     /// Each layer's type and its time summed over every evaluation, in order.
     std::vector<LayerTiming> LayerTimings() const {
         std::vector<LayerTiming> timings;
-        for (std::size_t n = 0; n < config_.layers.size(); ++n) {
-            timings.push_back({LayerType(config_.layers[n]), steps_[n].milliseconds / 1000.0});
+        for (std::size_t n = 0; n < m_config.layers.size(); ++n) {
+            timings.push_back({LayerType(m_config.layers[n]), m_steps[n].milliseconds / 1000.0});
         }
         return timings;
     }
 
   private:
     void Timed(std::size_t step, double milliseconds) {
-        steps_[step].milliseconds += milliseconds;
-        LogInfo("pipeline", "  ", steps_[step].name, " in ", FormatDuration(milliseconds));
+        m_steps[step].milliseconds += milliseconds;
+        LogInfo("pipeline", "  ", m_steps[step].name, " in ", FormatDuration(milliseconds));
     }
 
     void Timed(Step step, double milliseconds) {
-        Timed(config_.layers.size() + static_cast<std::size_t>(step), milliseconds);
+        Timed(m_config.layers.size() + static_cast<std::size_t>(step), milliseconds);
     }
 
     /// The generated grid over `grid`, added empty the first time.
     GeneratedGrid& Target(const RasterGrid& grid) {
-        if (GeneratedGrid* existing = generated_.Find(grid)) {
+        if (GeneratedGrid* existing = m_generated.Find(grid)) {
             return *existing;
         }
         GeneratedGrid added;
         added.grid = grid;
-        generated_.grids.push_back(std::move(added));
-        return generated_.grids.back();
+        m_generated.grids.push_back(std::move(added));
+        return m_generated.grids.back();
     }
 
     /// How grids are evaluated: on the configured threads and backend.
     EvaluationOptions Options() const {
-        return EvaluationOptions{}.Threads(threads_).On(generated_.backend);
+        return EvaluationOptions{}.Threads(m_threads).On(m_generated.backend);
     }
 
     void AddHeights(GeneratedGrid& target) {
-        const Terrain& terrain = generated_.terrain;
+        const Terrain& terrain = m_generated.terrain;
         const auto index = static_cast<std::size_t>(
-            std::find(grids_.begin(), grids_.end(), target.grid) - grids_.begin());
-        LogInfo("pipeline", "Grid ", index + 1, " of ", grids_.size(), ": ", target.grid.width, "x",
-                target.grid.height, " at ", FormatSpacing(target.grid.Spacing(terrain.Surface())));
+            std::find(m_grids.begin(), m_grids.end(), target.grid) - m_grids.begin());
+        LogInfo("pipeline", "Grid ", index + 1, " of ", m_grids.size(), ": ", target.grid.width,
+                "x", target.grid.height, " at ",
+                FormatSpacing(target.grid.Spacing(terrain.Surface())));
         EvaluationOptions options = Options();
         options.onLayer = [this](std::size_t step, double milliseconds) {
             Timed(step, milliseconds);
@@ -188,12 +189,12 @@ class OutputGenerator {
 
     void AddAlbedo(GeneratedGrid& target) {
         const Stopwatch stopwatch;
-        const Terrain& terrain = generated_.terrain;
-        if (!albedo_) {
-            albedo_ =
-                config::BuildValidAlbedo(*config_.albedo, config_.layers, terrain, directory_);
+        const Terrain& terrain = m_generated.terrain;
+        if (!m_albedo) {
+            m_albedo =
+                config::BuildValidAlbedo(*m_config.albedo, m_config.layers, terrain, m_directory);
         }
-        target.albedo = EvaluateAlbedo(*albedo_, target.grid, terrain.Context(0.0, threads_));
+        target.albedo = EvaluateAlbedo(*m_albedo, target.grid, terrain.Context(0.0, m_threads));
         Timed(Step::Albedo, stopwatch.Milliseconds());
     }
 
@@ -202,14 +203,14 @@ class OutputGenerator {
         if (config::HoldsAny<MaterialsOutput, PhotometryOutput>(output) &&
             target.materials.empty()) {
             const Stopwatch stopwatch;
-            target.materials = EvaluateMaterials(generated_.terrain, config_.materials->options,
+            target.materials = EvaluateMaterials(m_generated.terrain, m_config.materials->options,
                                                  target.grid, Options());
             Timed(Step::Materials, stopwatch.Milliseconds());
         }
         if (std::holds_alternative<PhotometryOutput>(output) && target.photometry.empty()) {
             const Stopwatch stopwatch;
             target.photometry = EvaluatePhotometry(
-                target.materials, config::BuildPhotometry(config_.materials->photometry));
+                target.materials, config::BuildPhotometry(m_config.materials->photometry));
             Timed(Step::Materials, stopwatch.Milliseconds());
         }
     }
@@ -217,7 +218,7 @@ class OutputGenerator {
     /// Places the craters a crater list asks for, or the boulders a boulder list or models do, at
     /// `spacing` meters (0 for the grid's own).
     void AddFeatures(const OutputSpec& output, double spacing, GeneratedGrid& target) {
-        const Terrain& terrain = generated_.terrain;
+        const Terrain& terrain = m_generated.terrain;
         if (std::holds_alternative<CraterListOutput>(output) && !target.craters) {
             const Stopwatch stopwatch;
             target.craters = terrain.Craters(target.grid, spacing);
@@ -239,33 +240,33 @@ class OutputGenerator {
         }
         const Vec2d site = output.siteDeg ? Vec2d{(*output.siteDeg)[0], (*output.siteDeg)[1]}
                                           : target.grid.Bounds().Center();
-        target.mesh = BuildMesh(target.heights, generated_.terrain.Surface(), site, options);
+        target.mesh = BuildMesh(target.heights, m_generated.terrain.Surface(), site, options);
         Timed(Step::Meshes, stopwatch.Milliseconds());
     }
 
     void AddBodyMesh(const MeshOutput& output) {
         const Stopwatch stopwatch;
-        const Terrain& terrain = generated_.terrain;
+        const Terrain& terrain = m_generated.terrain;
         const double spacing = output.spacing.value_or(0.0);
         if (IsIcqPath(output.path)) {
-            if (!generated_.bodyIcq) {
-                generated_.bodyIcq = BodyIcq(terrain, output.cellsPerFace, spacing, threads_);
+            if (!m_generated.bodyIcq) {
+                m_generated.bodyIcq = BodyIcq(terrain, output.cellsPerFace, spacing, m_threads);
                 Timed(Step::Meshes, stopwatch.Milliseconds());
             }
-        } else if (!generated_.bodyMesh) {
-            generated_.bodyMesh = BodyMesh(terrain, output.cellsPerFace, spacing, threads_);
+        } else if (!m_generated.bodyMesh) {
+            m_generated.bodyMesh = BodyMesh(terrain, output.cellsPerFace, spacing, m_threads);
             Timed(Step::Meshes, stopwatch.Milliseconds());
         }
     }
 
-    const ConfigSpec& config_;
-    GeneratedOutputs& generated_;
-    const std::filesystem::path& directory_;
-    unsigned threads_;
-    std::vector<config::OutputGrid> outputs_;
-    std::vector<RasterGrid> grids_;
-    std::vector<StepTime> steps_;
-    std::optional<Albedo> albedo_;
+    const ConfigSpec& m_config;
+    GeneratedOutputs& m_generated;
+    const std::filesystem::path& m_directory;
+    unsigned m_threads;
+    std::vector<config::OutputGrid> m_outputs;
+    std::vector<RasterGrid> m_grids;
+    std::vector<StepTime> m_steps;
+    std::optional<Albedo> m_albedo;
 };
 
 /// A field-list `IO` that finds a layer's top-level "seed", or its inner layer's in a masked

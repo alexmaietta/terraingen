@@ -75,14 +75,14 @@ class ExposureField {
 
     /// The thresholds the field was made with.
     const ExposureParams& Params() const {
-        return params_;
+        return m_params;
     }
 
   private:
-    ExposureParams params_;
-    Surface surface_;
+    ExposureParams m_params;
+    Surface m_surface;
     /// The surroundings read around a point, in meters east and north of it.
-    std::array<Vec2d, 8> ring_{};
+    std::array<Vec2d, 8> m_ring{};
 };
 
 /// The exposure field a layer may read, at a fixed ground spacing, on the surface it is read on;
@@ -98,7 +98,7 @@ class LayerExposure {
 
     /// Whether the layer reads an exposure field.
     explicit operator bool() const {
-        return field_.has_value();
+        return m_field.has_value();
     }
 
     /// Checks that a layer reading the field was given a ground.
@@ -110,9 +110,9 @@ class LayerExposure {
     double At(double x, double y, const Ground* ground, const Surface& surface) const;
 
   private:
-    std::optional<ExposureField> field_;
-    double spacing_ = 1.0;
-    const char* reader_ = "";
+    std::optional<ExposureField> m_field;
+    double m_spacing = 1.0;
+    const char* m_reader = "";
 };
 
 }  // namespace terraingen

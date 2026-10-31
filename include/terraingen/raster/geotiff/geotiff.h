@@ -171,7 +171,7 @@ class GeoTiffBlockReader {
 
   private:
     struct State;
-    std::unique_ptr<State> state_;
+    std::unique_ptr<State> m_state;
 };
 
 /// GeoKeys for longitude and latitude in degrees on a sphere, such as a planet or moon.

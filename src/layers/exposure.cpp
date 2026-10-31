@@ -36,20 +36,20 @@ void ValidateExposureParams(const ExposureParams& params) {
 }
 
 ExposureField::ExposureField(const ExposureParams& params, const Surface& surface)
-    : params_(params), surface_(surface) {
-    ValidateExposureParams(params_);
+    : m_params(params), m_surface(surface) {
+    ValidateExposureParams(m_params);
     constexpr double kDiagonal = 0.70710678118654752;
     constexpr std::array<double, 8> kEast{1.0,  kDiagonal,  0.0, -kDiagonal,
                                           -1.0, -kDiagonal, 0.0, kDiagonal};
     constexpr std::array<double, 8> kNorth{0.0, kDiagonal,  1.0,  kDiagonal,
                                            0.0, -kDiagonal, -1.0, -kDiagonal};
-    for (std::size_t k = 0; k < ring_.size(); ++k) {
-        ring_[k] = {kEast[k] * params_.reach, kNorth[k] * params_.reach};
+    for (std::size_t k = 0; k < m_ring.size(); ++k) {
+        m_ring[k] = {kEast[k] * m_params.reach, kNorth[k] * m_params.reach};
     }
 }
 
 double ExposureField::Exposure(const Ground& ground, double x, double y, double spacing) const {
-    return Exposure(ground, surface_, x, y, spacing);
+    return Exposure(ground, m_surface, x, y, spacing);
 }
 
 double ExposureField::Exposure(const Ground& ground, const Surface& surface, double x, double y,
@@ -58,9 +58,9 @@ double ExposureField::Exposure(const Ground& ground, const Surface& surface, dou
     if (std::isnan(here)) {
         return 0.0;
     }
-    const double reach = params_.reach;
+    const double reach = m_params.reach;
     std::array<double, 8> heights{};
-    GroundAround(ground, surface, {x, y}, ring_, spacing, static_cast<double>(here), heights);
+    GroundAround(ground, surface, {x, y}, m_ring, spacing, static_cast<double>(here), heights);
     double mean = 0.0;
     for (const double height : heights) {
         mean += height / 8.0;
@@ -68,11 +68,11 @@ double ExposureField::Exposure(const Ground& ground, const Surface& surface, dou
     const double rise = (static_cast<double>(here) - mean) / reach;
     const double slope =
         std::hypot(heights[0] - heights[4], heights[2] - heights[6]) / (2.0 * reach);
-    double exposure = std::max(BetweenSmooth(rise, params_.riseSoil, params_.riseBoulder),
-                               BetweenSmooth(slope, params_.slopeSoil, params_.slopeBoulder));
-    if (params_.floorCover > 0.0) {
-        const double noise = PatchNoise(surface, x, y, params_.floorPatch, params_.seed);
-        const double threshold = 1.0 - 2.0 * params_.floorCover;
+    double exposure = std::max(BetweenSmooth(rise, m_params.riseSoil, m_params.riseBoulder),
+                               BetweenSmooth(slope, m_params.slopeSoil, m_params.slopeBoulder));
+    if (m_params.floorCover > 0.0) {
+        const double noise = PatchNoise(surface, x, y, m_params.floorPatch, m_params.seed);
+        const double threshold = 1.0 - 2.0 * m_params.floorCover;
         exposure = std::max(exposure, BetweenSmooth(noise, threshold - 0.2, threshold + 0.2));
     }
     return exposure;
@@ -87,21 +87,21 @@ void ExposureField::Fill(Raster<float>& raster, const Ground& ground, double spa
 
 LayerExposure::LayerExposure(const std::optional<ExposureParams>& params, double spacing,
                              const char* reader)
-    : spacing_(spacing), reader_(reader) {
+    : m_spacing(spacing), m_reader(reader) {
     if (params) {
-        field_.emplace(*params);
+        m_field.emplace(*params);
     }
 }
 
 void LayerExposure::Require(const Ground* ground) const {
-    if (field_) {
-        RequireGround(ground, reader_);
+    if (m_field) {
+        RequireGround(ground, m_reader);
     }
 }
 
 double LayerExposure::At(double x, double y, const Ground* ground, const Surface& surface) const {
-    RequireGround(ground, reader_);
-    return field_->Exposure(*ground, surface, x, y, spacing_);
+    RequireGround(ground, m_reader);
+    return m_field->Exposure(*ground, surface, x, y, m_spacing);
 }
 
 double PatchNoise(const Surface& surface, double x, double y, double size, std::uint32_t seed) {

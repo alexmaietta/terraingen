@@ -40,7 +40,7 @@ class MetalCompute final : public SharedComputeDevice<MetalCompute> {
     /// Opens a new device.
     /// @throws std::runtime_error saying why Metal is unavailable.
     static std::unique_ptr<MetalCompute> Open();
-    std::unique_ptr<State> state_;
+    std::unique_ptr<State> m_state;
 };
 
 }  // namespace terraingen

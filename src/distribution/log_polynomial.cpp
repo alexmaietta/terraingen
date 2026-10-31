@@ -13,13 +13,13 @@ namespace terraingen {
 
 LogPolynomialSfd::LogPolynomialSfd(std::vector<double> coefficients, SfdKind kind,
                                    DiameterRange range, double diameterUnit, double areaUnit)
-    : SizeFrequencyDistribution(kind, range), coefficients_(std::move(coefficients)),
-      diameterUnit_(diameterUnit), areaUnit_(areaUnit) {
-    if (coefficients_.empty() || !std::all_of(coefficients_.begin(), coefficients_.end(),
-                                              [](double value) { return std::isfinite(value); })) {
+    : SizeFrequencyDistribution(kind, range), m_coefficients(std::move(coefficients)),
+      m_diameterUnit(diameterUnit), m_areaUnit(areaUnit) {
+    if (m_coefficients.empty() || !std::all_of(m_coefficients.begin(), m_coefficients.end(),
+                                               [](double value) { return std::isfinite(value); })) {
         throw std::invalid_argument("A log polynomial needs finite coefficients");
     }
-    if (!IsPositive(diameterUnit_) || !IsPositive(areaUnit_)) {
+    if (!IsPositive(m_diameterUnit) || !IsPositive(m_areaUnit)) {
         throw std::invalid_argument("Diameter and area units must be positive and finite");
     }
     if (!(range.min > 0.0 && std::isfinite(range.max))) {
@@ -27,8 +27,8 @@ LogPolynomialSfd::LogPolynomialSfd(std::vector<double> coefficients, SfdKind kin
             "A log polynomial needs a finite range with a positive minimum");
     }
     constexpr int kSamples = 4096;
-    const double low = std::log10(range.min / diameterUnit_);
-    const double high = std::log10(range.max / diameterUnit_);
+    const double low = std::log10(range.min / m_diameterUnit);
+    const double high = std::log10(range.max / m_diameterUnit);
     for (int i = 0; i <= kSamples; ++i) {
         if (Derivative(low + (high - low) * i / kSamples) > 0.0) {
             throw std::invalid_argument("A cumulative distribution cannot increase with diameter");
@@ -38,7 +38,7 @@ LogPolynomialSfd::LogPolynomialSfd(std::vector<double> coefficients, SfdKind kin
 
 double LogPolynomialSfd::Polynomial(double x) const {
     double sum = 0.0;
-    for (auto it = coefficients_.rbegin(); it != coefficients_.rend(); ++it) {
+    for (auto it = m_coefficients.rbegin(); it != m_coefficients.rend(); ++it) {
         sum = sum * x + *it;
     }
     return sum;
@@ -46,18 +46,18 @@ double LogPolynomialSfd::Polynomial(double x) const {
 
 double LogPolynomialSfd::Derivative(double x) const {
     double sum = 0.0;
-    for (std::size_t i = coefficients_.size() - 1; i > 0; --i) {
-        sum = sum * x + static_cast<double>(i) * coefficients_[i];
+    for (std::size_t i = m_coefficients.size() - 1; i > 0; --i) {
+        sum = sum * x + static_cast<double>(i) * m_coefficients[i];
     }
     return sum;
 }
 
 double LogPolynomialSfd::CumulativeAt(double diameter) const {
-    return std::pow(10.0, Polynomial(std::log10(diameter / diameterUnit_))) / areaUnit_;
+    return std::pow(10.0, Polynomial(std::log10(diameter / m_diameterUnit))) / m_areaUnit;
 }
 
 double LogPolynomialSfd::IncrementalAt(double diameter) const {
-    return -CumulativeAt(diameter) * Derivative(std::log10(diameter / diameterUnit_)) / diameter;
+    return -CumulativeAt(diameter) * Derivative(std::log10(diameter / m_diameterUnit)) / diameter;
 }
 
 }  // namespace terraingen

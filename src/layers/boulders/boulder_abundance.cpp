@@ -55,61 +55,61 @@ BoulderMapAbundance::BoulderMapAbundance(const BoulderLayerOptions& options) {
     if (!options.densityMap) {
         throw std::invalid_argument("Boulder map abundance needs a density map");
     }
-    map_ = *options.densityMap;
-    ValidateDensityMap(map_);
+    m_map = *options.densityMap;
+    ValidateDensityMap(m_map);
     const BoulderSizes& sizes = options.sizes;
-    if (map_.total && options.ejecta.ThrowingDiameter()) {
-        ejectaMeasure_ = BoulderMeasure(map_, *EjectaSizes(options));
+    if (m_map.total && options.ejecta.ThrowingDiameter()) {
+        m_ejectaMeasure = BoulderMeasure(m_map, *EjectaSizes(options));
     }
-    if (sizes.distribution || map_.measure == DensityMeasure::Scale) {
-        measure_ = sizes.distribution ? BoulderMeasure(map_, *sizes.distribution) : 1.0;
-        if (!(measure_ > 0.0 && std::isfinite(measure_))) {
+    if (sizes.distribution || m_map.measure == DensityMeasure::Scale) {
+        m_measure = sizes.distribution ? BoulderMeasure(m_map, *sizes.distribution) : 1.0;
+        if (!(m_measure > 0.0 && std::isfinite(m_measure))) {
             throw std::invalid_argument("A boulder density map must measure some of the sizes");
         }
     } else {
-        coverage_ = sizes.Coverage();
+        m_coverage = sizes.Coverage();
         for (int i = 0; i < kCoverageSteps; ++i) {
             const double k =
                 kLeastCoverage * std::pow(kMostCoverage / kLeastCoverage,
                                           static_cast<double>(i) / (kCoverageSteps - 1));
-            coverages_.push_back(k);
-            measures_.push_back(BoulderMeasure(
-                map_, GolombekRappSfd(k, sizes.QConstant(), sizes.QCoverageCoefficient())));
+            m_coverages.push_back(k);
+            m_measures.push_back(BoulderMeasure(
+                m_map, GolombekRappSfd(k, sizes.QConstant(), sizes.QCoverageCoefficient())));
         }
-        if (!(measures_.back() > 0.0)) {
+        if (!(m_measures.back() > 0.0)) {
             throw std::invalid_argument("A boulder density map must measure some of the sizes");
         }
     }
-    const double top = map_.field->Max();
-    const double largest = map_.measure == DensityMeasure::Count ? top / map_.areaUnit : top;
-    max_ = std::fmax(1.0, At(largest, 0.0));
+    const double top = m_map.field->Max();
+    const double largest = m_map.measure == DensityMeasure::Count ? top / m_map.areaUnit : top;
+    m_max = std::fmax(1.0, At(largest, 0.0));
 }
 
 double BoulderMapAbundance::Coverage(double target) const {
-    if (target <= measures_.front()) {
-        return coverages_.front() * target / measures_.front();
+    if (target <= m_measures.front()) {
+        return m_coverages.front() * target / m_measures.front();
     }
-    if (target >= measures_.back()) {
-        return coverages_.back();
+    if (target >= m_measures.back()) {
+        return m_coverages.back();
     }
-    const auto above = std::lower_bound(measures_.begin(), measures_.end(), target);
-    const auto i = static_cast<std::size_t>(above - measures_.begin());
-    const double t = (target - measures_[i - 1]) / (measures_[i] - measures_[i - 1]);
-    return coverages_[i - 1] + t * (coverages_[i] - coverages_[i - 1]);
+    const auto above = std::lower_bound(m_measures.begin(), m_measures.end(), target);
+    const auto i = static_cast<std::size_t>(above - m_measures.begin());
+    const double t = (target - m_measures[i - 1]) / (m_measures[i] - m_measures[i - 1]);
+    return m_coverages[i - 1] + t * (m_coverages[i] - m_coverages[i - 1]);
 }
 
 double BoulderMapAbundance::At(double value, double ejecta) const {
     if (std::isnan(value)) {
         return 1.0;
     }
-    if (map_.measure == DensityMeasure::Scale) {
+    if (m_map.measure == DensityMeasure::Scale) {
         return std::fmax(0.0, value);
     }
-    const double target = value - ejecta * ejectaMeasure_;
+    const double target = value - ejecta * m_ejectaMeasure;
     if (!(target > 0.0)) {
         return 0.0;
     }
-    return coverages_.empty() ? target / measure_ : Coverage(target) / coverage_;
+    return m_coverages.empty() ? target / m_measure : Coverage(target) / m_coverage;
 }
 
 double MeanPatchAbundance(const BoulderPatches& patches) {

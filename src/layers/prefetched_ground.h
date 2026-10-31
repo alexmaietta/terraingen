@@ -27,13 +27,13 @@ struct GroundRead {
 class RecordingGround final : public Ground {
   public:
     /// A ground recording into `reads`, which must outlive it.
-    explicit RecordingGround(std::vector<GroundRead>& reads) : reads_(reads) {}
+    explicit RecordingGround(std::vector<GroundRead>& reads) : m_reads(reads) {}
 
   protected:
     void FillSamples(SampleBlock& samples, double spacing, unsigned threads) const override;
 
   private:
-    std::vector<GroundRead>& reads_;
+    std::vector<GroundRead>& m_reads;
 };
 
 /// The heights of a ground at recorded reads, each distinct read (point and spacing, to the bit)
@@ -47,12 +47,12 @@ class GroundReads {
 
     /// The ground read.
     const Ground& Read() const {
-        return ground_;
+        return m_ground;
     }
 
     /// The height of each read, in their order.
     const std::vector<float>& Heights() const {
-        return heights_;
+        return m_heights;
     }
 
     /// The height read at (`x`, `y`) and `spacing`, or null when it was not read.
@@ -60,7 +60,7 @@ class GroundReads {
 
     /// The number of distinct reads.
     std::size_t Distinct() const {
-        return distinct_.size();
+        return m_distinct.size();
     }
 
   private:
@@ -74,10 +74,10 @@ class GroundReads {
     /// The slot of the table where (`x`, `y`, `spacing`) is held or would go.
     std::size_t Slot(std::uint64_t x, std::uint64_t y, std::uint64_t spacing) const;
 
-    const Ground& ground_;
-    std::vector<float> heights_;
-    std::vector<Held> distinct_;
-    std::vector<std::uint32_t> table_;
+    const Ground& m_ground;
+    std::vector<float> m_heights;
+    std::vector<Held> m_distinct;
+    std::vector<std::uint32_t> m_table;
 };
 
 /// A ground that replays reads recorded by a `RecordingGround`: a read matching the next one
@@ -88,12 +88,12 @@ class ReplayedGround final : public Ground {
   public:
     /// Replays `reads`, which are those of `held` from `first` on; both must outlive it.
     ReplayedGround(const GroundReads& held, Span<const GroundRead> reads, std::size_t first)
-        : held_(held), reads_(reads),
-          heights_(Span<const float>(held.Heights()).subspan(first, reads.size())) {}
+        : m_held(held), m_reads(reads),
+          m_heights(Span<const float>(held.Heights()).subspan(first, reads.size())) {}
 
     /// The number of recorded reads replayed in order so far.
     std::size_t Replayed() const {
-        return next_;
+        return m_next;
     }
 
   protected:
@@ -104,10 +104,10 @@ class ReplayedGround final : public Ground {
     /// held read there, else null.
     const float* Held(double x, double y, double spacing) const;
 
-    const GroundReads& held_;
-    Span<const GroundRead> reads_;
-    Span<const float> heights_;
-    mutable std::size_t next_ = 0;
+    const GroundReads& m_held;
+    Span<const GroundRead> m_reads;
+    Span<const float> m_heights;
+    mutable std::size_t m_next = 0;
 };
 
 /// Calls `store(i, value(i, ahead))` for each i in [0, `count`), where `ahead` serves the points

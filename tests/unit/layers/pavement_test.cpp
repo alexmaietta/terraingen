@@ -33,18 +33,18 @@ PavementOptions Stepped() {
 /// Ground tilted along x by `slope`.
 class Tilted final : public terraingen::Ground {
   public:
-    explicit Tilted(double slope) : slope_(slope) {}
+    explicit Tilted(double slope) : m_slope(slope) {}
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
                      unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
-            samples.Height(i) = static_cast<float>(slope_ * samples.Position(i).x);
+            samples.Height(i) = static_cast<float>(m_slope * samples.Position(i).x);
         }
     }
 
   private:
-    double slope_;
+    double m_slope;
 };
 
 /// The context of a point query at `spacing` meters on `surface` over `ground`.

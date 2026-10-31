@@ -63,12 +63,12 @@ class DiffusedProfile final : public CraterProfile {
 
     /// `reachRadii`.
     double ReachRadii() const override {
-        return reachRadii_;
+        return m_reachRadii;
     }
 
     /// As the fresh profile says.
     bool IsComplex(double diameter) const override {
-        return fresh_->IsComplex(diameter);
+        return m_fresh->IsComplex(diameter);
     }
 
     /// The morphometry of a crater of `diameter` meters diffused to age `tau` (kappa t / D^2): rim
@@ -88,12 +88,12 @@ class DiffusedProfile final : public CraterProfile {
 
     /// The fresh profile.
     const CraterProfile& Fresh() const {
-        return *fresh_;
+        return *m_fresh;
     }
 
     /// The profile's tables as the crater kernel reads them, with the ages first in its data.
     const CraterProfileKernel& Kernel() const {
-        return kernel_;
+        return m_kernel;
     }
 
     /// The heights over the diameter a crater of `fresh` morphometry and `diameter` meters is read
@@ -119,19 +119,19 @@ class DiffusedProfile final : public CraterProfile {
         std::size_t operator()(const Key& key) const;
     };
     struct Table {
-        std::vector<float> heights;  ///< Row per age, `cells_ + 1` heights over D per row.
+        std::vector<float> heights;  ///< Row per age, `m_cells + 1` heights over D per row.
         std::vector<CraterMorphometry> morphometry;
     };
 
     std::shared_ptr<const Table> CachedTable(const CraterMorphometry& fresh, double diameter) const;
     Table Solve(const CraterMorphometry& fresh, double diameter) const;
 
-    std::shared_ptr<const CraterProfile> fresh_;
-    double reachRadii_;
-    std::size_t cells_;
-    std::shared_ptr<LruCache<Key, Table, KeyHash>> tables_;
-    std::uint64_t instance_;  ///< Unique to this profile, keying each thread's last table.
-    CraterProfileKernel kernel_;
+    std::shared_ptr<const CraterProfile> m_fresh;
+    double m_reachRadii;
+    std::size_t m_cells;
+    std::shared_ptr<LruCache<Key, Table, KeyHash>> m_tables;
+    std::uint64_t m_instance;  ///< Unique to this profile, keying each thread's last table.
+    CraterProfileKernel m_kernel;
 };
 
 /// Craters worn by topographic diffusion, shaped with its `DiffusedProfile`.
@@ -154,13 +154,13 @@ class DiffusionDegradation final : public DegradationModel {
 
     /// The diffused profile the craters are shaped with.
     std::shared_ptr<const CraterProfile> RequiredProfile() const override {
-        return profile_;
+        return m_profile;
     }
 
   private:
-    FreshMorphometry fresh_;
-    DiffusionAgeModel ages_;
-    std::shared_ptr<const DiffusedProfile> profile_;
+    FreshMorphometry m_fresh;
+    DiffusionAgeModel m_ages;
+    std::shared_ptr<const DiffusedProfile> m_profile;
 };
 
 }  // namespace terraingen

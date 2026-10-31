@@ -24,11 +24,11 @@ class MartinParkesDunstanProfile final : public CraterProfile {
 
     /// The profile as the crater kernel evaluates it.
     const CraterProfileKernel& Kernel() const {
-        return kernel_;
+        return m_kernel;
     }
 
   private:
-    CraterProfileKernel kernel_ = [] {
+    CraterProfileKernel m_kernel = [] {
         CraterProfileKernel kernel;
         kernel.simple = CraterProfileKind::MartinParkesDunstan;
         return kernel;

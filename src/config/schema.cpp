@@ -43,16 +43,16 @@ template <typename... Ts> Json CatalogEntry(const std::optional<std::variant<Ts.
 /// Writes each field a `Fields` function visits as its `CatalogEntry`.
 class CatalogWriter {
   public:
-    explicit CatalogWriter(Json& json) : json_(json) {}
+    explicit CatalogWriter(Json& json) : m_json(json) {}
 
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view /*description*/ = {},
                     std::string_view /*unit*/ = {}, const FieldRange& /*range*/ = {}) {
-        json_[std::string(key)] = CatalogEntry(value);
+        m_json[std::string(key)] = CatalogEntry(value);
     }
 
   private:
-    Json& json_;
+    Json& m_json;
 };
 
 /// What `ConfigSchema` collects: each struct and variant described once under an id, so
@@ -81,7 +81,7 @@ template <typename T, typename = void> struct Describer;
 /// description followed by what the range says (`FieldHelp`).
 class SchemaWriter {
   public:
-    SchemaWriter(SchemaBuilder& builder, Json& fields) : builder_(builder), fields_(fields) {}
+    SchemaWriter(SchemaBuilder& builder, Json& fields) : m_builder(builder), m_fields(fields) {}
 
     template <typename T>
     void operator()(std::string_view key, T& value, std::string_view description = {},
@@ -89,7 +89,7 @@ class SchemaWriter {
         Json field{{"name", std::string(key)},
                    {"description", FieldHelp<T>(description, unit, range)},
                    {"unit", std::string(unit)},
-                   {"schema", Describer<T>::Describe(builder_)},
+                   {"schema", Describer<T>::Describe(m_builder)},
                    {"default", ToJson(value)}};
         if (range.minimum) {
             field["minimum"] = *range.minimum;
@@ -112,12 +112,12 @@ class SchemaWriter {
         if (range.required) {
             field["required"] = true;
         }
-        fields_.push_back(std::move(field));
+        m_fields.push_back(std::move(field));
     }
 
   private:
-    SchemaBuilder& builder_;
-    Json& fields_;
+    SchemaBuilder& m_builder;
+    Json& m_fields;
 };
 
 /// The described fields of a default `T`.

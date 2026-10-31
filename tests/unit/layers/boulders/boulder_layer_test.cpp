@@ -51,19 +51,19 @@ Craters(const std::vector<terraingen::Crater>& manual) {
 
 class Analytic final : public terraingen::Ground {
   public:
-    explicit Analytic(std::function<float(double, double)> height) : height_(std::move(height)) {}
+    explicit Analytic(std::function<float(double, double)> height) : m_height(std::move(height)) {}
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
                      unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
-            samples.Height(i) = height_(p.x, p.y);
+            samples.Height(i) = m_height(p.x, p.y);
         }
     }
 
   private:
-    std::function<float(double, double)> height_;
+    std::function<float(double, double)> m_height;
 };
 
 }  // namespace
@@ -1343,17 +1343,17 @@ namespace {
 /// A field that is `west` for negative x and `east` otherwise.
 class WestEast final : public terraingen::SurfaceField {
   public:
-    WestEast(double west, double east) : west_(west), east_(east) {}
+    WestEast(double west, double east) : m_west(west), m_east(east) {}
     double ValueAt(double x, double /*y*/) const override {
-        return x < 0.0 ? west_ : east_;
+        return x < 0.0 ? m_west : m_east;
     }
     double Max() const override {
-        return std::fmax(west_, east_);
+        return std::fmax(m_west, m_east);
     }
 
   private:
-    double west_;
-    double east_;
+    double m_west;
+    double m_east;
 };
 
 }  // namespace
@@ -1458,15 +1458,15 @@ namespace {
 /// A sloping ground that counts how often it is read, and records any thread count but 1.
 class Counted final : public terraingen::Ground {
   public:
-    mutable std::atomic<int> reads_{0};
-    mutable std::atomic<unsigned> threads_{1};
+    mutable std::atomic<int> m_reads{0};
+    mutable std::atomic<unsigned> m_threads{1};
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
                      unsigned threads) const override {
-        ++reads_;
+        ++m_reads;
         if (threads != 1) {
-            threads_ = threads;
+            m_threads = threads;
         }
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
@@ -1487,7 +1487,7 @@ TEST(BoulderLayer, ReadsTheGroundBeneathItsBouldersInOnePass) {
     const Counted counted;
     const auto boulders = terraingen::testing::Records(layer.Boulders(region, 0.0, &counted));
     ASSERT_GT(boulders.size(), 20u);
-    EXPECT_EQ(counted.reads_.load(), 1) << "every point the boulders read was fetched at once";
+    EXPECT_EQ(counted.m_reads.load(), 1) << "every point the boulders read was fetched at once";
 }
 
 TEST(BoulderLayer, ReadsTheGroundOnTheEvaluationsThreads) {
@@ -1500,8 +1500,8 @@ TEST(BoulderLayer, ReadsTheGroundOnTheEvaluationsThreads) {
     terraingen::LayerContext context{0.5, 1};
     context.ground = &counted;
     layer.Apply(heights, context);
-    ASSERT_GT(counted.reads_.load(), 0);
-    EXPECT_EQ(counted.threads_.load(), 1u) << "a one-thread evaluation reads on one thread";
+    ASSERT_GT(counted.m_reads.load(), 0);
+    EXPECT_EQ(counted.m_threads.load(), 1u) << "a one-thread evaluation reads on one thread";
 }
 
 TEST(BoulderLayer, MeasuresUnresolvedCoverUpToItsLargestBoulder) {

@@ -67,7 +67,7 @@ class RasterHeights {
 
     /// The upsampler in use, fitted to the cells (`Upsampler::FitTo`).
     const std::shared_ptr<const Upsampler>& UpsamplerInUse() const {
-        return upsampler_;
+        return m_upsampler;
     }
 
   private:
@@ -96,15 +96,15 @@ class RasterHeights {
     /// `Fill` of `points`, the points covered upsampled at once.
     void FillPoints(Span<const Vec2d> points, Span<float> heights, double spacing) const;
 
-    std::shared_ptr<const PostLattice> posts_;
-    RasterGrid lattice_;
-    std::optional<float> noData_;
-    PixelWindow cells_;
-    std::shared_ptr<const Upsampler> upsampler_;
-    double cellSpacing_ = 0.0;
-    double resolution_ = 0.0;
-    std::string name_;
-    bool wrapLongitude_ = false;
+    std::shared_ptr<const PostLattice> m_posts;
+    RasterGrid m_lattice;
+    std::optional<float> m_noData;
+    PixelWindow m_cells;
+    std::shared_ptr<const Upsampler> m_upsampler;
+    double m_cellSpacing = 0.0;
+    double m_resolution = 0.0;
+    std::string m_name;
+    bool m_wrapLongitude = false;
 };
 
 }  // namespace terraingen::detail

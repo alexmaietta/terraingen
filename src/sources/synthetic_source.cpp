@@ -17,8 +17,8 @@
 namespace terraingen {
 
 SyntheticSource::NoisePosts::NoisePosts(const SyntheticSource& source, double pixelSize)
-    : source_(source),
-      transform_(GeoTransform::NorthUp(-0.5 * pixelSize, 0.5 * pixelSize, pixelSize)) {}
+    : m_source(source),
+      m_transform(GeoTransform::NorthUp(-0.5 * pixelSize, 0.5 * pixelSize, pixelSize)) {}
 
 void SyntheticSource::NoisePosts::Read(std::int64_t col0, std::int64_t row0, std::size_t width,
                                        std::size_t height, Span<float> heights) const {
@@ -27,66 +27,66 @@ void SyntheticSource::NoisePosts::Read(std::int64_t col0, std::int64_t row0, std
         const double row = static_cast<double>(row0 + static_cast<std::int64_t>(r)) + 0.5;
         for (std::size_t c = 0; c < width; ++c) {
             const double col = static_cast<double>(col0 + static_cast<std::int64_t>(c)) + 0.5;
-            points[r * width + c] = transform_.PixelToWorld(col, row);
+            points[r * width + c] = m_transform.PixelToWorld(col, row);
         }
     }
-    source_.NoiseAt(points, heights);
+    m_source.NoiseAt(points, heights);
 }
 
 SyntheticSource::SyntheticSource(std::vector<Fractal> fractals, float elevation,
                                  std::optional<double> pixelSize,
                                  std::shared_ptr<const Upsampler> upsampler, Surface surface)
-    : fractals_(std::move(fractals)), elevation_(elevation), givenPixelSize_(pixelSize),
-      pixelSize_(pixelSize ? std::optional<double>(*pixelSize / surface.UnitLength())
-                           : std::nullopt),
-      surface_(surface), givenUpsampler_(std::move(upsampler)) {
-    ValidateFractals(fractals_);
-    RequireFinite(static_cast<double>(elevation_), "Elevation");
-    if (!pixelSize_) {
-        if (givenUpsampler_) {
+    : m_fractals(std::move(fractals)), m_elevation(elevation), m_givenPixelSize(pixelSize),
+      m_pixelSize(pixelSize ? std::optional<double>(*pixelSize / surface.UnitLength())
+                            : std::nullopt),
+      m_surface(surface), m_givenUpsampler(std::move(upsampler)) {
+    ValidateFractals(m_fractals);
+    RequireFinite(static_cast<double>(m_elevation), "Elevation");
+    if (!m_pixelSize) {
+        if (m_givenUpsampler) {
             throw std::invalid_argument(
                 "A synthetic source upsamples only posts, so an upsampler needs a pixel size");
         }
         return;
     }
-    RequirePositive(*pixelSize_, "Pixel size");
-    posts_.emplace(*this, *pixelSize_);
-    upsampler_ = FittedUpsampler(givenUpsampler_, *posts_);
+    RequirePositive(*m_pixelSize, "Pixel size");
+    m_posts.emplace(*this, *m_pixelSize);
+    m_upsampler = FittedUpsampler(m_givenUpsampler, *m_posts);
 }
 
 std::shared_ptr<const Source> SyntheticSource::Reseeded(std::uint64_t seed) const {
-    std::vector<Fractal> fractals = fractals_;
+    std::vector<Fractal> fractals = m_fractals;
     for (std::size_t n = 0; n < fractals.size(); ++n) {
         fractals[n].seed = ReseedWord(seed, static_cast<std::uint32_t>(n));
     }
-    std::shared_ptr<const Upsampler> upsampler = givenUpsampler_;
+    std::shared_ptr<const Upsampler> upsampler = m_givenUpsampler;
     if (upsampler) {
         if (auto reseeded = upsampler->Reseeded(
                 JoinWords(ReseedWord(seed, kMaxFractals), ReseedWord(seed, kMaxFractals + 1)))) {
             upsampler = std::move(reseeded);
         }
     }
-    if (fractals.empty() && upsampler == givenUpsampler_) {
+    if (fractals.empty() && upsampler == m_givenUpsampler) {
         return nullptr;
     }
-    return std::make_shared<SyntheticSource>(std::move(fractals), elevation_, givenPixelSize_,
-                                             std::move(upsampler), surface_);
+    return std::make_shared<SyntheticSource>(std::move(fractals), m_elevation, m_givenPixelSize,
+                                             std::move(upsampler), m_surface);
 }
 
 void SyntheticSource::NoiseAt(Span<const Vec2d> points, Span<float> heights) const {
-    FractalStackRows(fractals_, {}, surface_, points, heights);
+    FractalStackRows(m_fractals, {}, m_surface, points, heights);
     for (float& height : heights) {
-        height = elevation_ + height;
+        height = m_elevation + height;
     }
 }
 
 RasterGrid SyntheticSource::Grid() const {
-    return {0, 0, posts_ ? posts_->Transform() : GeoTransform::NorthUp(0.0, 0.0, 1.0)};
+    return {0, 0, m_posts ? m_posts->Transform() : GeoTransform::NorthUp(0.0, 0.0, 1.0)};
 }
 
 void SyntheticSource::FillSamples(SampleBlock& samples, double spacing, unsigned threads) const {
-    if (posts_) {
-        upsampler_->Fill(*posts_, samples, spacing, threads);
+    if (m_posts) {
+        m_upsampler->Fill(*m_posts, samples, spacing, threads);
         return;
     }
     detail::FillByTiles(samples, threads, [&](Span<const Vec2d> points, Span<float> heights) {
@@ -95,7 +95,7 @@ void SyntheticSource::FillSamples(SampleBlock& samples, double spacing, unsigned
 }
 
 double SyntheticSource::PostSpacingAt(double /*x*/, double /*y*/) const {
-    return pixelSize_.value_or(std::numeric_limits<double>::infinity());
+    return m_pixelSize.value_or(std::numeric_limits<double>::infinity());
 }
 
 }  // namespace terraingen

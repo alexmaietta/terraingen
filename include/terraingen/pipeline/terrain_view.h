@@ -32,7 +32,7 @@ class TerrainView {
 
     /// The grid the view covers.
     const RasterGrid& Grid() const {
-        return heights_.Grid();
+        return m_heights.Grid();
     }
 
     /// The terrain's heights over the grid, restarting from the kept heights when the surface,
@@ -54,16 +54,16 @@ class TerrainView {
     /// Evaluates `terrain` from its source, keeping the heights before layer `stage`.
     void EvaluateKeeping(const Terrain& terrain, std::size_t stage);
 
-    EvaluationOptions options_;
-    std::optional<std::size_t> stage_;
-    Raster<float> heights_;
-    std::vector<float> kept_;
-    std::size_t keptStage_ = 0;
-    bool evaluated_ = false;
-    Backend backend_ = Backend::Cpu;
-    Surface surface_{};
-    std::shared_ptr<const Source> source_;
-    std::vector<LayerPtr> layers_;
+    EvaluationOptions m_options;
+    std::optional<std::size_t> m_stage;
+    Raster<float> m_heights;
+    std::vector<float> m_kept;
+    std::size_t m_keptStage = 0;
+    bool m_evaluated = false;
+    Backend m_backend = Backend::Cpu;
+    Surface m_surface{};
+    std::shared_ptr<const Source> m_source;
+    std::vector<LayerPtr> m_layers;
 };
 
 }  // namespace terraingen

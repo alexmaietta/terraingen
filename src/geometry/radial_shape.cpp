@@ -60,32 +60,33 @@ RadialShape RadialShape::Sample(std::size_t q, const std::function<double(const 
 }
 
 RadialShape::RadialShape(std::size_t q, std::vector<double> radii)
-    : q_(q), radii_(std::move(radii)) {
-    if (q_ == 0) {
+    : m_q(q), m_radii(std::move(radii)) {
+    if (m_q == 0) {
         throw std::invalid_argument("A radial shape needs Q > 0");
     }
-    if (radii_.size() != 6 * (q_ + 1) * (q_ + 1)) {
+    if (m_radii.size() != 6 * (m_q + 1) * (m_q + 1)) {
         throw std::invalid_argument("A radial shape needs 6 (Q + 1)^2 label radii");
     }
-    if (!std::all_of(radii_.begin(), radii_.end(), IsPositive)) {
+    if (!std::all_of(m_radii.begin(), m_radii.end(), IsPositive)) {
         throw std::invalid_argument("A radial shape's radii must be positive and finite");
     }
-    const auto [lo, hi] = std::minmax_element(radii_.begin(), radii_.end());
-    min_ = *lo;
-    max_ = *hi;
+    const auto [lo, hi] = std::minmax_element(m_radii.begin(), m_radii.end());
+    m_min = *lo;
+    m_max = *hi;
     CheckSharedLabels();
-    maxArea_ = CornerAreaBound() * kAreaMargin;
+    m_maxArea = CornerAreaBound() * kAreaMargin;
 }
 
 void RadialShape::CheckSharedLabels() const {
     std::map<std::array<double, 3>, double> shared;
-    ForEachIcqLabel(q_, [&](std::size_t i, std::size_t j, std::size_t face, std::size_t k) {
-        if (i != 0 && i != q_ && j != 0 && j != q_) {
+    ForEachIcqLabel(m_q, [&](std::size_t i, std::size_t j, std::size_t face, std::size_t k) {
+        if (i != 0 && i != m_q && j != 0 && j != m_q) {
             return;
         }
-        const Vec3d d = LabelDirection(q_, i, j, face);
-        const auto [it, inserted] = shared.emplace(std::array<double, 3>{d.x, d.y, d.z}, radii_[k]);
-        if (!inserted && std::fabs(it->second - radii_[k]) > 1e-9 * max_) {
+        const Vec3d d = LabelDirection(m_q, i, j, face);
+        const auto [it, inserted] =
+            shared.emplace(std::array<double, 3>{d.x, d.y, d.z}, m_radii[k]);
+        if (!inserted && std::fabs(it->second - m_radii[k]) > 1e-9 * m_max) {
             throw std::invalid_argument(
                 "A radial shape's labels shared between faces must have equal radii");
         }
@@ -95,8 +96,8 @@ void RadialShape::CheckSharedLabels() const {
 double RadialShape::CornerAreaBound() const {
     double largest = 0.0;
     for (std::size_t face = 1; face <= 6; ++face) {
-        for (std::size_t j = 0; j < q_; ++j) {
-            for (std::size_t i = 0; i < q_; ++i) {
+        for (std::size_t j = 0; j < m_q; ++j) {
+            for (std::size_t i = 0; i < m_q; ++i) {
                 largest = std::max(largest, QuadAreaBound(i, j, face));
             }
         }
@@ -110,7 +111,7 @@ double RadialShape::QuadAreaBound(std::size_t i, std::size_t j, std::size_t face
     std::array<Vec3d, 4> p{};
     for (std::size_t k = 0; k < 4; ++k) {
         const auto [ci, cj] = corners[k];
-        p[k] = LabelDirection(q_, ci, cj, face) * radii_[LabelIndex(ci, cj, face)];
+        p[k] = LabelDirection(m_q, ci, cj, face) * m_radii[LabelIndex(ci, cj, face)];
     }
     Vec3d normal = Normalized(Cross(p[2] - p[0], p[3] - p[1]));
     if (Dot(normal, p[0]) < 0.0) {
@@ -127,18 +128,18 @@ double RadialShape::QuadAreaBound(std::size_t i, std::size_t j, std::size_t face
 
 double RadialShape::At(const Vec3d& direction) const {
     const detail::FacePosition at =
-        detail::FaceCoordinates(detail::kIcqFaces, direction, static_cast<double>(q_));
+        detail::FaceCoordinates(detail::kIcqFaces, direction, static_cast<double>(m_q));
     const auto position = [&](double s) {
-        const std::size_t k = ClampIndex(std::floor(s), q_);
+        const std::size_t k = ClampIndex(std::floor(s), m_q);
         return std::pair<std::size_t, double>{k, std::clamp(s - static_cast<double>(k), 0.0, 1.0)};
     };
     const auto [i, fi] = position(at.s);
     const auto [j, fj] = position(at.t);
     const std::size_t face = at.face + 1;
-    const double r00 = radii_[LabelIndex(i, j, face)];
-    const double r10 = radii_[LabelIndex(i + 1, j, face)];
-    const double r01 = radii_[LabelIndex(i, j + 1, face)];
-    const double r11 = radii_[LabelIndex(i + 1, j + 1, face)];
+    const double r00 = m_radii[LabelIndex(i, j, face)];
+    const double r10 = m_radii[LabelIndex(i + 1, j, face)];
+    const double r01 = m_radii[LabelIndex(i, j + 1, face)];
+    const double r11 = m_radii[LabelIndex(i + 1, j + 1, face)];
     return (1.0 - fj) * ((1.0 - fi) * r00 + fi * r10) + fj * ((1.0 - fi) * r01 + fi * r11);
 }
 

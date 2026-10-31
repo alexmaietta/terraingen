@@ -54,24 +54,24 @@ void SetKernelComplexShape(CraterProfileKernel& p, const ComplexCraterShape& sha
 
 ComplexCraterProfile::ComplexCraterProfile(std::shared_ptr<const CraterProfile> simple,
                                            ComplexCraterShape shape)
-    : simple_(std::move(simple)), shape_(shape) {
-    if (!simple_) {
+    : m_simple(std::move(simple)), m_shape(shape) {
+    if (!m_simple) {
         throw std::invalid_argument("A complex crater profile needs a simple one");
     }
-    ValidateComplexCraterShape(shape_);
-    SetKernelComplexShape(kernel_, shape_);
+    ValidateComplexCraterShape(m_shape);
+    SetKernelComplexShape(m_kernel, m_shape);
 }
 
 double ComplexCraterProfile::ReachRadii() const {
-    return std::fmax(simple_->ReachRadii(), shape_.reachRadii);
+    return std::fmax(m_simple->ReachRadii(), m_shape.reachRadii);
 }
 
 double ComplexCraterProfile::Height(double distance, double diameter,
                                     const CraterState& state) const {
     if (!IsComplex(diameter)) {
-        return simple_->Height(distance, diameter, state);
+        return m_simple->Height(distance, diameter, state);
     }
-    return static_cast<double>(ComplexProfileHeight(kernel_, static_cast<float>(distance),
+    return static_cast<double>(ComplexProfileHeight(m_kernel, static_cast<float>(distance),
                                                     static_cast<float>(diameter),
                                                     KernelStateRecord(diameter, state)));
 }

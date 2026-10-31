@@ -62,8 +62,8 @@ class NoDegradation final : public DegradationModel {
     CraterState State(const Crater& crater) const override;
 
   private:
-    FreshMorphometry fresh_;
-    std::optional<double> depthRatio_;
+    FreshMorphometry m_fresh;
+    std::optional<double> m_depthRatio;
 };
 
 }  // namespace terraingen

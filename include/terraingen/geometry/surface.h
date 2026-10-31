@@ -69,17 +69,17 @@ class Surface {
 
     /// Whether the surface is a body (a sphere, an ellipsoid or a shape model) rather than a plane.
     bool IsBody() const {
-        return form_ != Form::Plane;
+        return m_form != Form::Plane;
     }
 
     /// Whether the surface is exactly a sphere, of one radius.
     bool IsSphere() const {
-        return form_ == Form::Sphere;
+        return m_form == Form::Sphere;
     }
 
     /// The body's shape model; null for a plane, a sphere or an ellipsoid.
     const RadialShape* Shape() const {
-        return shape_.get();
+        return m_shape.get();
     }
 
     /// The smallest distance in meters from the center to the surface; 0 on a plane.
@@ -91,13 +91,13 @@ class Surface {
     /// The radius in meters of a sphere, or the volumetric mean radius of an ellipsoid
     /// ((abc)^(1/3)) or shape model; 0 for a plane.
     double Radius() const {
-        return radius_;
+        return m_radius;
     }
 
     /// The semi-axes in meters along x, y and z; all equal on a sphere, 0 on a plane or a shape
     /// model.
     Vec3d Radii() const {
-        return radii_;
+        return m_radii;
     }
 
     /// The distance in meters from the center to the surface at `point`: the sphere's radius, or
@@ -111,13 +111,13 @@ class Surface {
     /// Meters per surface unit along a meridian: 1 on a plane, R pi / 180 on a sphere, and that of
     /// the mean radius `Radius` on an ellipsoid, where the true scale varies with position.
     double UnitLength() const {
-        return form_ == Form::Plane ? 1.0 : unitLength_;
+        return m_form == Form::Plane ? 1.0 : m_unitLength;
     }
 
     /// The east and north offsets in meters of `point` in the local frame of `center` (both in
     /// surface coordinates); exactly `point` - `center` on a plane.
     Vec2d Offset(const Vec2d& center, const Vec2d& point) const {
-        switch (form_) {
+        switch (m_form) {
         case Form::Plane:
             return point - center;
         case Form::Sphere:
@@ -132,7 +132,7 @@ class Surface {
     /// The point, in surface coordinates, at east and north `offset` meters from `center`: the
     /// inverse of `Offset`. On a sphere the longitude is in (-180, 180].
     Vec2d Locate(const Vec2d& center, const Vec2d& offset) const {
-        switch (form_) {
+        switch (m_form) {
         case Form::Plane:
             return center + offset;
         case Form::Sphere:
@@ -173,7 +173,7 @@ class Surface {
         if (region.Contains(point.x, point.y)) {
             return true;
         }
-        if (form_ == Form::Plane) {
+        if (m_form == Form::Plane) {
             return false;
         }
         const Vec2d pole{point.x, point.y >= 90.0 && region.maxY >= 90.0 ? region.minY : point.y};
@@ -188,8 +188,9 @@ class Surface {
 
     /// Whether two surfaces are the same form and radii, and share one shape model or have none.
     bool operator==(const Surface& other) const {
-        return form_ == other.form_ && radius_ == other.radius_ &&
-               unitLength_ == other.unitLength_ && radii_ == other.radii_ && shape_ == other.shape_;
+        return m_form == other.m_form && m_radius == other.m_radius &&
+               m_unitLength == other.m_unitLength && m_radii == other.m_radii &&
+               m_shape == other.m_shape;
     }
     bool operator!=(const Surface& other) const {
         return !(*this == other);
@@ -207,7 +208,7 @@ class Surface {
     /// Whether the surface is a body the sphere formulas do not apply to: an ellipsoid of unequal
     /// radii or a shape model.
     bool IsNonSphere() const {
-        return form_ == Form::Ellipsoid || form_ == Form::Shape;
+        return m_form == Form::Ellipsoid || m_form == Form::Shape;
     }
 
     Vec2d SphereOffset(const Vec2d& center, const Vec2d& point) const;
@@ -223,11 +224,11 @@ class Surface {
     /// ellipsoid or shape model.
     Vec3d Normal(const Vec2d& point, const Vec3d& p) const;
 
-    Form form_ = Form::Plane;
-    double radius_ = 0.0;
-    double unitLength_ = 1.0;
-    Vec3d radii_{};
-    std::shared_ptr<const RadialShape> shape_;
+    Form m_form = Form::Plane;
+    double m_radius = 0.0;
+    double m_unitLength = 1.0;
+    Vec3d m_radii{};
+    std::shared_ptr<const RadialShape> m_shape;
 };
 
 /// The unit vector of a longitude and latitude: x toward longitude 0 on the equator, y

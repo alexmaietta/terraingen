@@ -57,22 +57,22 @@ std::vector<UniformBand> ScaleBands(std::vector<UniformBand> bands, double total
 
 PiecewiseUniformSfd::PiecewiseUniformSfd(std::vector<UniformBand> bands, SfdKind kind, double total)
     : SizeFrequencyDistribution(kind, BandRange(bands)),
-      bands_(ScaleBands(std::move(bands), total)) {
+      m_bands(ScaleBands(std::move(bands), total)) {
     SetAllowExtrapolation(true);
-    for (const UniformBand& band : bands_) {
-        edges_.push_back(band.min);
-        edges_.push_back(band.max);
+    for (const UniformBand& band : m_bands) {
+        m_edges.push_back(band.min);
+        m_edges.push_back(band.max);
     }
-    std::sort(edges_.begin(), edges_.end());
-    edges_.erase(std::unique(edges_.begin(), edges_.end()), edges_.end());
-    for (const double edge : edges_) {
-        edgeCumulative_.push_back(CumulativeAt(edge));
+    std::sort(m_edges.begin(), m_edges.end());
+    m_edges.erase(std::unique(m_edges.begin(), m_edges.end()), m_edges.end());
+    for (const double edge : m_edges) {
+        m_edgeCumulative.push_back(CumulativeAt(edge));
     }
 }
 
 double PiecewiseUniformSfd::CumulativeAt(double diameter) const {
     double total = 0.0;
-    for (const UniformBand& band : bands_) {
+    for (const UniformBand& band : m_bands) {
         total += band.density * std::clamp((band.max - diameter) / (band.max - band.min), 0.0, 1.0);
     }
     return total;
@@ -80,7 +80,7 @@ double PiecewiseUniformSfd::CumulativeAt(double diameter) const {
 
 double PiecewiseUniformSfd::IncrementalAt(double diameter) const {
     double total = 0.0;
-    for (const UniformBand& band : bands_) {
+    for (const UniformBand& band : m_bands) {
         if (diameter >= band.min && diameter < band.max) {
             total += band.density / (band.max - band.min);
         }
@@ -90,18 +90,18 @@ double PiecewiseUniformSfd::IncrementalAt(double diameter) const {
 
 double PiecewiseUniformSfd::InvertCumulative(double target, double /*minDiameter*/,
                                              double /*maxDiameter*/) const {
-    const auto below = std::partition_point(edgeCumulative_.begin(), edgeCumulative_.end(),
+    const auto below = std::partition_point(m_edgeCumulative.begin(), m_edgeCumulative.end(),
                                             [target](double value) { return value > target; });
-    const auto i = static_cast<std::size_t>(below - edgeCumulative_.begin());
+    const auto i = static_cast<std::size_t>(below - m_edgeCumulative.begin());
     if (i == 0) {
-        return edges_.front();
+        return m_edges.front();
     }
-    if (i == edges_.size()) {
-        return edges_.back();
+    if (i == m_edges.size()) {
+        return m_edges.back();
     }
-    const double high = edgeCumulative_[i - 1];
-    const double low = edgeCumulative_[i];
-    return edges_[i - 1] + (high - target) / (high - low) * (edges_[i] - edges_[i - 1]);
+    const double high = m_edgeCumulative[i - 1];
+    const double low = m_edgeCumulative[i];
+    return m_edges[i - 1] + (high - target) / (high - low) * (m_edges[i] - m_edges[i - 1]);
 }
 
 }  // namespace terraingen

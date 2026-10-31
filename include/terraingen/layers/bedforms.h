@@ -77,7 +77,7 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
 
     /// The options the layer was made with.
     const BedformOptions& Options() const {
-        return options_;
+        return m_options;
     }
 
     /// The layer with its seed `ReseedWord(seed, 0)`.
@@ -104,11 +104,11 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     void AddField(FieldSum& sum, RandomStream& random, const Vec2d& center, const Vec2d& offset,
                   const LayerContext& context) const;
 
-    BedformOptions options_;
-    double cell_ = 1.0;
-    double density_ = 0.0;
-    std::uint32_t wanderSeed_ = 0;  ///< Seed of the crest wander noise.
-    LayerExposure exposure_;
+    BedformOptions m_options;
+    double m_cell = 1.0;
+    double m_density = 0.0;
+    std::uint32_t m_wanderSeed = 0;  ///< Seed of the crest wander noise.
+    LayerExposure m_exposure;
 };
 
 }  // namespace terraingen

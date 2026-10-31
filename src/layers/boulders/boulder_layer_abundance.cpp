@@ -57,39 +57,39 @@ double Retention(const BoulderEjecta& ejecta, const Crater& crater, const Crater
 }  // namespace
 
 EjectaIndex BoulderLayer::EjectaCraters(const Bounds2d& region) const {
-    if (minCraterDiameter_ <= 0.0) {
+    if (m_minCraterDiameter <= 0.0) {
         return {};
     }
     CraterList ejecta;
     std::vector<std::uint32_t> sources;
-    for (std::size_t k = 0; k < craters_.size(); ++k) {
-        const CraterLayer& layer = *craters_[k];
-        const double margin = options_.ejecta.reach * 0.5 * layer.MaxFeatureDiameter();
-        const double spacing = minCraterDiameter_ / layer.Options().apply.fade.startSamples;
-        const CraterList all = layer.Craters(surface_.Expand(region, margin), spacing);
+    for (std::size_t k = 0; k < m_craters.size(); ++k) {
+        const CraterLayer& layer = *m_craters[k];
+        const double margin = m_options.ejecta.reach * 0.5 * layer.MaxFeatureDiameter();
+        const double spacing = m_minCraterDiameter / layer.Options().apply.fade.startSamples;
+        const CraterList all = layer.Craters(m_surface.Expand(region, margin), spacing);
         const CraterList thrown = FilterCraters(all, [&](std::size_t, const Crater& crater) {
-            return crater.diameter >= minCraterDiameter_;
+            return crater.diameter >= m_minCraterDiameter;
         });
         ejecta.Append(thrown);
         sources.resize(ejecta.Size(), static_cast<std::uint32_t>(k));
     }
     const auto reach = [&](const Crater& crater) {
-        return EjectaReach(options_.ejecta, crater.diameter) * 0.5 * crater.diameter;
+        return EjectaReach(m_options.ejecta, crater.diameter) * 0.5 * crater.diameter;
     };
-    return {std::move(ejecta), surface_, reach, std::move(sources)};
+    return {std::move(ejecta), m_surface, reach, std::move(sources)};
 }
 
 double BoulderLayer::NearestClusterDistance(double x, double y) const {
-    const double spacing = options_.clusters.centerSpacing;
-    if (surface_.IsBody()) {
-        const Vec3d p = surface_.Position({x, y});
+    const double spacing = m_options.clusters.centerSpacing;
+    if (m_surface.IsBody()) {
+        const Vec3d p = m_surface.Position({x, y});
         const double s = 1.0 / spacing;
         return spacing *
                static_cast<double>(
-                   Worley3(SplitLatticePrecise3(s * p.x, s * p.y, s * p.z), clusterSeed_).f1);
+                   Worley3(SplitLatticePrecise3(s * p.x, s * p.y, s * p.z), m_clusterSeed).f1);
     }
     return spacing * static_cast<double>(Worley2(static_cast<float>(x / spacing),
-                                                 static_cast<float>(y / spacing), clusterSeed_)
+                                                 static_cast<float>(y / spacing), m_clusterSeed)
                                              .f1);
 }
 
@@ -144,16 +144,16 @@ struct ThomasLattice {
 }  // namespace
 
 double BoulderLayer::ThomasClusterField(double x, double y) const {
-    const BoulderClusters& clusters = options_.clusters;
+    const BoulderClusters& clusters = m_options.clusters;
     ThomasLattice lattice;
     lattice.sigma = clusters.radius;
     lattice.side = kThomasReachRadii * lattice.sigma;
-    lattice.seed = options_.seed;
+    lattice.seed = m_options.seed;
     const double perArea = 1.0 / (clusters.centerSpacing * clusters.centerSpacing);
     const double side = lattice.side;
-    if (surface_.IsBody()) {
+    if (m_surface.IsBody()) {
         lattice.perCell = perArea / (std::sqrt(2.0 * kPi) * lattice.sigma) * side * side * side;
-        return lattice.Sum(surface_.Position({x, y}), false);
+        return lattice.Sum(m_surface.Position({x, y}), false);
     }
     lattice.perCell = perArea * side * side;
     return lattice.Sum({x, y, 0.0}, true);
@@ -161,29 +161,29 @@ double BoulderLayer::ThomasClusterField(double x, double y) const {
 
 double BoulderLayer::BackgroundAbundance(double x, double y, const Ground* ground,
                                          double ejecta) const {
-    double background = background_->map
-                            ? background_->map->At(MapValueAt(*options_.densityMap, x, y), ejecta)
+    double background = m_background->map
+                            ? m_background->map->At(MapValueAt(*m_options.densityMap, x, y), ejecta)
                             : 1.0;
-    const BoulderPatches& patches = options_.patches;
+    const BoulderPatches& patches = m_options.patches;
     if (patches.spread > 1.0) {
-        const double noise = PatchNoise(surface_, x, y, patches.size, patchSeed_);
-        background *= std::pow(patches.spread, noise) / background_->patchMean;
+        const double noise = PatchNoise(m_surface, x, y, patches.size, m_patchSeed);
+        background *= std::pow(patches.spread, noise) / m_background->patchMean;
     }
-    const BoulderClusters& clusters = options_.clusters;
+    const BoulderClusters& clusters = m_options.clusters;
     if (clusters.share > 0.0) {
         const double field = clusters.model == BoulderClusterModel::Thomas
                                  ? ThomasClusterField(x, y)
                                  : ClusterBump(NearestClusterDistance(x, y), clusters);
-        background *= 1.0 - clusters.share + clusters.share * field / clusterMean_;
+        background *= 1.0 - clusters.share + clusters.share * field / m_clusterMean;
     }
-    if (exposure_) {
-        const double bedrock = exposure_.At(x, y, ground, surface_);
-        background *= 1.0 + bedrock * (options_.bedrock.abundance - 1.0);
-        if (bedrockMeans_) {
+    if (m_exposure) {
+        const double bedrock = m_exposure.At(x, y, ground, m_surface);
+        background *= 1.0 + bedrock * (m_options.bedrock.abundance - 1.0);
+        if (m_bedrockMeans) {
             background /= BedrockMean(x, y, *ground);
         }
     }
-    return std::min(background, background_->max);
+    return std::min(background, m_background->max);
 }
 
 std::size_t BoulderLayer::BedrockCellHash::operator()(const BedrockCell& cell) const {
@@ -193,26 +193,26 @@ std::size_t BoulderLayer::BedrockCellHash::operator()(const BedrockCell& cell) c
 
 double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const {
     constexpr int kSide = 8;
-    const double gain = options_.bedrock.abundance - 1.0;
+    const double gain = m_options.bedrock.abundance - 1.0;
     const auto cellMean = [&](std::int64_t i, std::int64_t j) {
-        return *bedrockMeans_->Get({&ground, i, j}, [&] {
+        return *m_bedrockMeans->Get({&ground, i, j}, [&] {
             double sum = 0.0;
             for (int b = 0; b < kSide; ++b) {
                 for (int a = 0; a < kSide; ++a) {
                     const double px =
-                        bedrockOrigin_.x +
-                        (static_cast<double>(i) + (a + 0.5) / kSide) * bedrockCellSize_.x;
+                        m_bedrockOrigin.x +
+                        (static_cast<double>(i) + (a + 0.5) / kSide) * m_bedrockCellSize.x;
                     const double py =
-                        bedrockOrigin_.y +
-                        (static_cast<double>(j) + (b + 0.5) / kSide) * bedrockCellSize_.y;
-                    sum += 1.0 + gain * exposure_.At(px, py, &ground, surface_);
+                        m_bedrockOrigin.y +
+                        (static_cast<double>(j) + (b + 0.5) / kSide) * m_bedrockCellSize.y;
+                    sum += 1.0 + gain * m_exposure.At(px, py, &ground, m_surface);
                 }
             }
             return sum / (kSide * kSide);
         });
     };
-    const double u = (x - bedrockOrigin_.x) / bedrockCellSize_.x - 0.5;
-    const double v = (y - bedrockOrigin_.y) / bedrockCellSize_.y - 0.5;
+    const double u = (x - m_bedrockOrigin.x) / m_bedrockCellSize.x - 0.5;
+    const double v = (y - m_bedrockOrigin.y) / m_bedrockCellSize.y - 0.5;
     const double fu = std::floor(u);
     const double fv = std::floor(v);
     const auto i = static_cast<std::int64_t>(fu);
@@ -225,15 +225,15 @@ double BoulderLayer::BedrockMean(double x, double y, const Ground& ground) const
 
 void BoulderLayer::EjectaAbundance(double x, double y, const EjectaIndex& ejecta,
                                    BoulderAbundance& abundance) const {
-    const BoulderEjecta& eject = options_.ejecta;
+    const BoulderEjecta& eject = m_options.ejecta;
     double share = 0.0;
     double wear = 0.0;
     for (const std::uint32_t n : ejecta.Near(x, y)) {
-        const CraterModels& models = craters_[ejecta.Source(n)]->Models();
+        const CraterModels& models = m_craters[ejecta.Source(n)]->Models();
         const Crater crater = ejecta.Craters().At(n);
         const double reach = EjectaReach(eject, crater.diameter);
         const double rho =
-            surface_.Distance({crater.x, crater.y}, {x, y}) / (0.5 * crater.diameter);
+            m_surface.Distance({crater.x, crater.y}, {x, y}) / (0.5 * crater.diameter);
         if (rho >= reach) {
             continue;
         }
@@ -258,14 +258,14 @@ BoulderAbundance BoulderLayer::Abundance(double x, double y, const Ground* groun
         EjectaAbundance(x, y, ejecta, abundance);
     }
     abundance.background = BackgroundAbundance(x, y, ground, abundance.ejecta);
-    if (options_.slopeMap) {
-        abundance.exponent = SizeSlopeAt(*options_.slopeMap, x, y);
+    if (m_options.slopeMap) {
+        abundance.exponent = SizeSlopeAt(*m_options.slopeMap, x, y);
     }
     return abundance;
 }
 
 BoulderAbundance BoulderLayer::AbundanceAt(double x, double y, const Ground* ground) const {
-    if (!options_.generateRandom) {
+    if (!m_options.generateRandom) {
         BoulderAbundance none;
         none.background = 0.0;
         return none;
@@ -274,15 +274,15 @@ BoulderAbundance BoulderLayer::AbundanceAt(double x, double y, const Ground* gro
 }
 
 double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance) const {
-    if (!options_.generateRandom) {
+    if (!m_options.generateRandom) {
         return 0.0;
     }
-    const BoulderSizes& sizes = options_.sizes;
+    const BoulderSizes& sizes = m_options.sizes;
     double density = 0.0;
     if (abundance.exponent) {
         const double alpha = *abundance.exponent;
-        const double d0 = options_.slopeMap->referenceDiameter;
-        density = abundance.background * referenceCount_ * alpha * std::pow(d0, alpha) *
+        const double d0 = m_options.slopeMap->referenceDiameter;
+        density = abundance.background * m_referenceCount * alpha * std::pow(d0, alpha) *
                   std::pow(diameter, -alpha - 1.0);
     } else if (sizes.distribution) {
         density = abundance.background * sizes.distribution->Incremental(diameter);
@@ -292,22 +292,22 @@ double BoulderLayer::Density(double diameter, const BoulderAbundance& abundance)
                                           sizes.QConstant() + sizes.QCoverageCoefficient() / k);
     }
     if (abundance.ejecta > 0.0) {
-        density += abundance.ejecta * ejectaSizes_->Incremental(diameter);
+        density += abundance.ejecta * m_ejectaSizes->Incremental(diameter);
     }
     return density;
 }
 
 std::vector<BoulderLayer::UnresolvedNode> BoulderLayer::UnresolvedNodes(double spacing) const {
-    const BoulderSizes& sizes = options_.sizes;
-    const double start = options_.fade.startSamples * spacing;
-    const double end = std::fmin(options_.fade.endSamples * spacing, sizes.maxDiameter);
+    const BoulderSizes& sizes = m_options.sizes;
+    const double start = m_options.fade.startSamples * spacing;
+    const double end = std::fmin(m_options.fade.endSamples * spacing, sizes.maxDiameter);
     std::vector<UnresolvedNode> nodes;
     const auto add = [&](double low, double high) {
         if (!(high > low)) {
             return;
         }
         ForEachLogSimpsonNode(low, high, 16, [&](double d, double weight) {
-            const double unresolved = 1.0 - ResolutionWeight(d, spacing, options_.fade);
+            const double unresolved = 1.0 - ResolutionWeight(d, spacing, m_options.fade);
             if (unresolved > 0.0) {
                 nodes.push_back({d, 0.25 * kPi * d * d, unresolved * weight});
             }
@@ -333,8 +333,8 @@ UnresolvedCover BoulderLayer::UnresolvedCoverWith(const BoulderAbundance& abunda
 
 bool BoulderLayer::LeavesUnresolved(double spacing) const {
     RequirePositive(spacing, "Unresolved cover spacing");
-    return options_.generateRandom &&
-           options_.sizes.minDiameter < options_.fade.endSamples * spacing;
+    return m_options.generateRandom &&
+           m_options.sizes.minDiameter < m_options.fade.endSamples * spacing;
 }
 
 UnresolvedCover BoulderLayer::UnresolvedCoverAt(double x, double y, double spacing,

@@ -64,18 +64,18 @@ BedformOptions MarsTransverseAeolianRidges() {
     return ridges;
 }
 
-BedformLayer::BedformLayer(BedformOptions options) : options_(options) {
-    ValidateBedformOptions(options_);
-    cell_ = options_.fieldSize / (kRadiusMin + kRadiusMax);
+BedformLayer::BedformLayer(BedformOptions options) : m_options(options) {
+    ValidateBedformOptions(m_options);
+    m_cell = m_options.fieldSize / (kRadiusMin + kRadiusMax);
     const double meanArea = kPi * (std::pow(kRadiusMax, 3.0) - std::pow(kRadiusMin, 3.0)) /
                             (3.0 * (kRadiusMax - kRadiusMin));
-    density_ = std::min(1.0, -std::log1p(-options_.cover) / meanArea);
-    wanderSeed_ = SubstreamSeed(options_.seed, kBedformWanderStream);
-    exposure_ = LayerExposure(options_.exposure, options_.exposureSpacing, kExposureReader);
+    m_density = std::min(1.0, -std::log1p(-m_options.cover) / meanArea);
+    m_wanderSeed = SubstreamSeed(m_options.seed, kBedformWanderStream);
+    m_exposure = LayerExposure(m_options.exposure, m_options.exposureSpacing, kExposureReader);
 }
 
 LayerPtr BedformLayer::Reseeded(std::uint64_t seed) const {
-    BedformOptions options = options_;
+    BedformOptions options = m_options;
     options.seed = ReseedWord(seed, 0);
     return std::make_shared<BedformLayer>(options);
 }
@@ -85,60 +85,61 @@ void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& ce
     const double barren = random.NextDouble();
     const auto ox = static_cast<float>(97.0 * random.NextDouble());
     const auto oy = static_cast<float>(97.0 * random.NextDouble());
-    const double radius = (kRadiusMin + (kRadiusMax - kRadiusMin) * random.NextDouble()) * cell_;
+    const double radius = (kRadiusMin + (kRadiusMax - kRadiusMin) * random.NextDouble()) * m_cell;
     const double scale = kWavelengthMin + kWavelengthSpan * random.NextDouble();
     const double azimuth =
-        (options_.windAzimuthDegrees * kDegree) +
-        (options_.azimuthSpreadDegrees * kDegree) * (2.0 * random.NextDouble() - 1.0);
+        (m_options.windAzimuthDegrees * kDegree) +
+        (m_options.azimuthSpreadDegrees * kDegree) * (2.0 * random.NextDouble() - 1.0);
     const double phase = random.NextDouble();
     const double dx = offset.x;
     const double dy = offset.y;
     const double rag = static_cast<double>(
         PerlinNoise2(static_cast<float>(dx / (kRagRadii * radius)) + ox,
-                     static_cast<float>(dy / (kRagRadii * radius)) + oy, options_.seed));
+                     static_cast<float>(dy / (kRagRadii * radius)) + oy, m_options.seed));
     const double inside = 1.0 - std::hypot(dx, dy) / (radius * (1.0 + kRagged * rag));
     if (inside <= 0.0) {
         return;
     }
-    if (exposure_ &&
-        barren < exposure_.At(center.x, center.y, context.ground, context.SurfaceOrPlane())) {
+    if (m_exposure &&
+        barren < m_exposure.At(center.x, center.y, context.ground, context.SurfaceOrPlane())) {
         return;
     }
     const double cover = Smoothstep(inside / kEdgeShare);
-    const double wavelength = options_.wavelength * scale;
-    const double wander = static_cast<double>(
-        PerlinNoise2(static_cast<float>(dx / (kWanderWavelengths * wavelength)) + oy,
-                     static_cast<float>(dy / (kWanderWavelengths * wavelength)) + ox, wanderSeed_));
+    const double wavelength = m_options.wavelength * scale;
+    const double wander = static_cast<double>(PerlinNoise2(
+        static_cast<float>(dx / (kWanderWavelengths * wavelength)) + oy,
+        static_cast<float>(dy / (kWanderWavelengths * wavelength)) + ox, m_wanderSeed));
     const double along = (dx * std::cos(azimuth) + dy * std::sin(azimuth)) / wavelength +
-                         options_.sinuosity * wander + phase;
+                         m_options.sinuosity * wander + phase;
     const double t = along - std::floor(along);
-    const double upwind = 1.0 - options_.leeFraction;
+    const double upwind = 1.0 - m_options.leeFraction;
     const double profile = t < upwind
                                ? 0.5 * (1.0 - std::cos(kPi * t / upwind))
-                               : 0.5 * (1.0 + std::cos(kPi * (t - upwind) / options_.leeFraction));
+                               : 0.5 * (1.0 + std::cos(kPi * (t - upwind) / m_options.leeFraction));
     sum.cover += cover;
-    sum.relief += cover * options_.height * scale * profile;
+    sum.relief += cover * m_options.height * scale * profile;
 }
 
 BedformLayer::FieldSum BedformLayer::SumFields(double x, double y,
                                                const LayerContext& context) const {
     FieldSum sum;
-    if (density_ <= 0.0) {
+    if (m_density <= 0.0) {
         return sum;
     }
-    exposure_.Require(context.ground);
+    m_exposure.Require(context.ground);
     const Surface& surface = context.SurfaceOrPlane();
     const std::shared_ptr<const SurfaceCells> cells = ThreadCells(surface);
-    const double reach = kRadiusMax * (1.0 + kRagged) * cell_;
-    for (const CellIndex& cell : cells->CellsCovering(surface.Expand({x, y, x, y}, reach), cell_)) {
-        RandomStream random = LatticeStream(options_.seed, kBedformStream, cell.i, cell.j);
-        const double chance = density_ * cells->CellArea(cell, cell_) / (cell_ * cell_);
+    const double reach = kRadiusMax * (1.0 + kRagged) * m_cell;
+    for (const CellIndex& cell :
+         cells->CellsCovering(surface.Expand({x, y, x, y}, reach), m_cell)) {
+        RandomStream random = LatticeStream(m_options.seed, kBedformStream, cell.i, cell.j);
+        const double chance = m_density * cells->CellArea(cell, m_cell) / (m_cell * m_cell);
         if (random.NextDouble() >= chance) {
             continue;
         }
         const double u = random.NextDouble();
         const double v = random.NextDouble();
-        const Vec2d center = cells->SamplePoint(u, v, cell, cell_);
+        const Vec2d center = cells->SamplePoint(u, v, cell, m_cell);
         AddField(sum, random, center, surface.Offset(center, {x, y}), context);
     }
     return sum;
@@ -149,12 +150,12 @@ double BedformLayer::MaterialCoverAt(double x, double y, const LayerContext& con
 }
 
 float BedformLayer::HeightAt(float height, double x, double y, const LayerContext& context) const {
-    const double resolved = SourceResolvedSize(context.source, options_.sourceResolvesPixels,
+    const double resolved = SourceResolvedSize(context.source, m_options.sourceResolvesPixels,
                                                context.SurfaceOrPlane(), x, y);
     const double weight =
-        options_.wavelength >= resolved
+        m_options.wavelength >= resolved
             ? 0.0
-            : ResolutionWeight(options_.wavelength, context.spacing, options_.fade);
+            : ResolutionWeight(m_options.wavelength, context.spacing, m_options.fade);
     if (weight <= 0.0) {
         return height;
     }
@@ -167,7 +168,7 @@ float BedformLayer::HeightAt(float height, double x, double y, const LayerContex
 }
 
 void BedformLayer::CheckContext(const LayerContext& context) const {
-    exposure_.Require(context.ground);
+    m_exposure.Require(context.ground);
 }
 
 }  // namespace terraingen

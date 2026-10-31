@@ -128,24 +128,24 @@ PavementOptions MarsDesiccationRidges() {
     return ridges;
 }
 
-PavementLayer::PavementLayer(PavementOptions options) : options_(options) {
-    ValidatePavementOptions(options_);
-    exposure_ = LayerExposure(options_.exposure, options_.exposureSpacing, kExposureReader);
+PavementLayer::PavementLayer(PavementOptions options) : m_options(options) {
+    ValidatePavementOptions(m_options);
+    m_exposure = LayerExposure(m_options.exposure, m_options.exposureSpacing, kExposureReader);
     double size = 1.0;
     double relief = 1.0;
-    for (int k = 0; k < options_.octaves; ++k) {
-        levels_.push_back(
-            {options_.plateSize / size, relief * options_.crackWidth, relief * options_.crackDepth,
-             relief * options_.edgeRounding, relief * (options_.maxTiltDegrees * kDegree),
-             relief * options_.maxStep,
-             SubstreamSeed(options_.seed, kPavementOctaveStream, static_cast<std::uint32_t>(k))});
-        size *= options_.lacunarity;
-        relief *= options_.gain;
+    for (int k = 0; k < m_options.octaves; ++k) {
+        m_levels.push_back(
+            {m_options.plateSize / size, relief * m_options.crackWidth,
+             relief * m_options.crackDepth, relief * m_options.edgeRounding,
+             relief * (m_options.maxTiltDegrees * kDegree), relief * m_options.maxStep,
+             SubstreamSeed(m_options.seed, kPavementOctaveStream, static_cast<std::uint32_t>(k))});
+        size *= m_options.lacunarity;
+        relief *= m_options.gain;
     }
 }
 
 LayerPtr PavementLayer::Reseeded(std::uint64_t seed) const {
-    PavementOptions options = options_;
+    PavementOptions options = m_options;
     options.seed = ReseedWord(seed, 0);
     return std::make_shared<PavementLayer>(options);
 }
@@ -156,7 +156,7 @@ Vec2d PavementLayer::Warp(const Vec2d& q, double size, std::uint32_t seed) const
             PerlinNoise2Precise(q.x / (scale * size) + ox, q.y / (scale * size) + oy,
                                 SubstreamSeed(seed, kPavementWarpStream, field)));
     };
-    const double reach = options_.warp * size;
+    const double reach = m_options.warp * size;
     return {q.x + reach * (warp(kWarpScale, 0.0, 0.0, 0u) +
                            kFineWarp * warp(kFineWarpScale, 5.3, -8.1, 2u)),
             q.y + reach * (warp(kWarpScale, 31.7, -12.3, 1u) +
@@ -167,14 +167,14 @@ PavementLayer::Plate PavementLayer::PlateAt(const Vec2d& q, const Level& level, 
                                             double crackWeight) const {
     const Vec2d p = Warp(q, level.size, seed);
     const Sites around =
-        PlateSites(p, level.size, options_.jitter, level.maxStep, level.maxTilt, seed);
+        PlateSites(p, level.size, m_options.jitter, level.maxStep, level.maxTilt, seed);
     const Site& own = around.sites[around.nearest];
     const auto [edge, neighbor] = NearestEdge(around, p);
     const double shoulder = 0.5 * level.crackWidth + level.rounding;
     const double crack = 1.0 - Smoothstep(edge / shoulder);
     const double ownHeight = own.HeightAt(p);
     const double plate = ownHeight + 0.5 * crack * (around.sites[neighbor].HeightAt(p) - ownHeight);
-    const double sign = options_.raised ? 1.0 : -1.0;
+    const double sign = m_options.raised ? 1.0 : -1.0;
     return {plate + crackWeight * sign * level.crackDepth * crack, 1.0 - crack, own.id};
 }
 
@@ -182,13 +182,13 @@ double PavementLayer::Relief(const Vec2d& q, double spacing) const {
     double relief = 0.0;
     double interior = 1.0;
     std::uint32_t parent = 0;
-    for (const Level& level : levels_) {
-        const double plateWeight = ResolutionWeight(level.size, spacing, options_.fade);
+    for (const Level& level : m_levels) {
+        const double plateWeight = ResolutionWeight(level.size, spacing, m_options.fade);
         if (plateWeight <= 0.0 || interior <= 0.0) {
             break;
         }
         const double crackWeight =
-            ResolutionWeight(level.crackWidth + 2.0 * level.rounding, spacing, options_.fade);
+            ResolutionWeight(level.crackWidth + 2.0 * level.rounding, spacing, m_options.fade);
         const Plate plate = PlateAt(
             q, level, SubstreamSeed(level.seed, kPavementParentStream, parent), crackWeight);
         relief += interior * plateWeight * plate.relief;
@@ -199,18 +199,18 @@ double PavementLayer::Relief(const Vec2d& q, double spacing) const {
 }
 
 double PavementLayer::ExposureWeight(double x, double y, const LayerContext& context) const {
-    return exposure_ ? exposure_.At(x, y, context.ground, context.SurfaceOrPlane()) : 1.0;
+    return m_exposure ? m_exposure.At(x, y, context.ground, context.SurfaceOrPlane()) : 1.0;
 }
 
 double PavementLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
-    const AnchoredPlane plane(context.SurfaceOrPlane(), options_.anchor);
+    const AnchoredPlane plane(context.SurfaceOrPlane(), m_options.anchor);
     return plane.Project(x, y) ? ExposureWeight(x, y, context) : 0.0;
 }
 
 float PavementLayer::HeightAt(float height, double x, double y, const LayerContext& context) const {
     const std::optional<Vec2d> q =
-        AnchoredPlane(context.SurfaceOrPlane(), options_.anchor).Project(x, y);
-    if (!q || ResolutionWeight(options_.plateSize, context.spacing, options_.fade) <= 0.0) {
+        AnchoredPlane(context.SurfaceOrPlane(), m_options.anchor).Project(x, y);
+    if (!q || ResolutionWeight(m_options.plateSize, context.spacing, m_options.fade) <= 0.0) {
         return height;
     }
     const double exposure = ExposureWeight(x, y, context);
@@ -221,7 +221,7 @@ float PavementLayer::HeightAt(float height, double x, double y, const LayerConte
 }
 
 void PavementLayer::CheckContext(const LayerContext& context) const {
-    exposure_.Require(context.ground);
+    m_exposure.Require(context.ground);
 }
 
 }  // namespace terraingen

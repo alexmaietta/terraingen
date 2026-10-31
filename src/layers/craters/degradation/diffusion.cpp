@@ -89,35 +89,35 @@ void SolveTridiagonal(const Tridiagonal& system, std::vector<double>& x, std::ve
 class RadialDiffusion {
   public:
     RadialDiffusion(std::size_t n, double dx)
-        : n_(n), below_(n + 1, 0.0), above_(n + 1, 0.0),
-          system_{std::vector<double>(n), std::vector<double>(n), std::vector<double>(n)}, c_(n),
-          d_(n) {
+        : m_n(n), m_below(n + 1, 0.0), m_above(n + 1, 0.0),
+          m_system{std::vector<double>(n), std::vector<double>(n), std::vector<double>(n)}, m_c(n),
+          m_d(n) {
         for (std::size_t i = 1; i < n; ++i) {
             const double x = static_cast<double>(i) * dx;
-            below_[i] = (x - 0.5 * dx) / (x * dx * dx);
-            above_[i] = (x + 0.5 * dx) / (x * dx * dx);
+            m_below[i] = (x - 0.5 * dx) / (x * dx * dx);
+            m_above[i] = (x + 0.5 * dx) / (x * dx * dx);
         }
-        above_[0] = 4.0 / (dx * dx);
+        m_above[0] = 4.0 / (dx * dx);
     }
 
     /// Diffuses heights `h` (n + 1 values) over `dt`.
     void Step(std::vector<double>& h, double dt) {
-        for (std::size_t i = 0; i < n_; ++i) {
-            system_.lower[i] = -dt * below_[i];
-            system_.diag[i] = 1.0 + dt * (below_[i] + above_[i]);
-            system_.upper[i] = -dt * above_[i];
+        for (std::size_t i = 0; i < m_n; ++i) {
+            m_system.lower[i] = -dt * m_below[i];
+            m_system.diag[i] = 1.0 + dt * (m_below[i] + m_above[i]);
+            m_system.upper[i] = -dt * m_above[i];
         }
-        h[n_] = 0.0;
-        SolveTridiagonal(system_, h, c_, d_);
+        h[m_n] = 0.0;
+        SolveTridiagonal(m_system, h, m_c, m_d);
     }
 
   private:
-    std::size_t n_;
-    std::vector<double> below_;
-    std::vector<double> above_;
-    Tridiagonal system_;
-    std::vector<double> c_;
-    std::vector<double> d_;
+    std::size_t m_n;
+    std::vector<double> m_below;
+    std::vector<double> m_above;
+    Tridiagonal m_system;
+    std::vector<double> m_c;
+    std::vector<double> m_d;
 };
 
 /// Appends heights `h` (cells `dx` diameters apart) to `heights` and returns their morphometry:
@@ -161,24 +161,25 @@ std::size_t DiffusedProfile::KeyHash::operator()(const Key& key) const {
 
 DiffusedProfile::DiffusedProfile(std::shared_ptr<const CraterProfile> fresh, double reachRadii,
                                  std::size_t cells, std::size_t cacheTables)
-    : fresh_(std::move(fresh)), reachRadii_(reachRadii), cells_(cells), instance_(NextInstance()) {
-    if (!fresh_) {
+    : m_fresh(std::move(fresh)), m_reachRadii(reachRadii), m_cells(cells),
+      m_instance(NextInstance()) {
+    if (!m_fresh) {
         throw std::invalid_argument("A diffused profile needs a fresh profile");
     }
-    if (!(std::isfinite(reachRadii_) && reachRadii_ >= fresh_->ReachRadii())) {
+    if (!(std::isfinite(m_reachRadii) && m_reachRadii >= m_fresh->ReachRadii())) {
         throw std::invalid_argument(
             "A diffused profile must reach at least as far as the fresh one");
     }
-    if (cells_ < 100 || cacheTables == 0) {
+    if (m_cells < 100 || cacheTables == 0) {
         throw std::invalid_argument("A diffused profile needs at least 100 cells and a cache");
     }
-    tables_ = std::make_shared<LruCache<Key, Table, KeyHash>>(
+    m_tables = std::make_shared<LruCache<Key, Table, KeyHash>>(
         cacheTables, [](const Table&) { return std::size_t{1}; });
-    kernel_.diffused = 1u;
-    kernel_.tableExtent = static_cast<float>(0.5 * reachRadii_);
-    kernel_.tableCells = static_cast<std::uint32_t>(cells_);
-    kernel_.agesOffset = 0u;
-    kernel_.ageCount = static_cast<std::uint32_t>(TableAges().size());
+    m_kernel.diffused = 1u;
+    m_kernel.tableExtent = static_cast<float>(0.5 * m_reachRadii);
+    m_kernel.tableCells = static_cast<std::uint32_t>(m_cells);
+    m_kernel.agesOffset = 0u;
+    m_kernel.ageCount = static_cast<std::uint32_t>(TableAges().size());
 }
 
 const std::vector<double>& DiffusedProfile::Ages() const {
@@ -187,13 +188,14 @@ const std::vector<double>& DiffusedProfile::Ages() const {
 
 DiffusedProfile::Table DiffusedProfile::Solve(const CraterMorphometry& fresh,
                                               double diameter) const {
-    const std::size_t n = cells_;
-    const double extent = 0.5 * reachRadii_;
+    const std::size_t n = m_cells;
+    const double extent = 0.5 * m_reachRadii;
     const double dx = extent / static_cast<double>(n);
     const CraterState initial{fresh, fresh, 0.0};
     std::vector<double> h(n + 1, 0.0);
     for (std::size_t i = 0; i < n; ++i) {
-        h[i] = fresh_->Height(static_cast<double>(i) * dx * diameter, diameter, initial) / diameter;
+        h[i] =
+            m_fresh->Height(static_cast<double>(i) * dx * diameter, diameter, initial) / diameter;
     }
     RadialDiffusion diffusion(n, dx);
     Table table;
@@ -213,7 +215,7 @@ DiffusedProfile::Table DiffusedProfile::Solve(const CraterMorphometry& fresh,
 
 std::shared_ptr<const DiffusedProfile::Table>
 DiffusedProfile::CachedTable(const CraterMorphometry& fresh, double diameter) const {
-    const double reference = fresh_->IsComplex(diameter) ? diameter : kReferenceDiameter;
+    const double reference = m_fresh->IsComplex(diameter) ? diameter : kReferenceDiameter;
     const Key key{fresh.depthRatio, fresh.rimHeightRatio, reference};
     struct Last {
         std::uint64_t instance = 0;
@@ -221,11 +223,11 @@ DiffusedProfile::CachedTable(const CraterMorphometry& fresh, double diameter) co
         std::shared_ptr<const Table> table;
     };
     thread_local Last last;
-    if (last.instance == instance_ && last.key == key) {
+    if (last.instance == m_instance && last.key == key) {
         return last.table;
     }
-    last.table = tables_->Get(key, [&] { return Solve(fresh, reference); });
-    last.instance = instance_;
+    last.table = m_tables->Get(key, [&] { return Solve(fresh, reference); });
+    last.instance = m_instance;
     last.key = key;
     return last.table;
 }
@@ -238,17 +240,18 @@ DiffusedProfile::HeightTable(const CraterMorphometry& fresh, double diameter) co
 
 double DiffusedProfile::Height(double distance, double diameter, const CraterState& state) const {
     if (!(state.diffusion > 0.0)) {
-        return fresh_->Height(distance, diameter, {state.fresh, state.fresh, 0.0});
+        return m_fresh->Height(distance, diameter, {state.fresh, state.fresh, 0.0});
     }
     const float x = static_cast<float>(distance) / static_cast<float>(diameter);
-    if (x >= kernel_.tableExtent) {
+    if (x >= m_kernel.tableExtent) {
         return 0.0;
     }
     const auto table = CachedTable(state.fresh, diameter);
     CraterData heights;
     heights.values = table->heights.data();
-    return diameter * static_cast<double>(KernelDiffusedValue(kernel_, KernelAges(), heights, 0u, x,
-                                                              static_cast<float>(state.diffusion)));
+    return diameter *
+           static_cast<double>(KernelDiffusedValue(m_kernel, KernelAges(), heights, 0u, x,
+                                                   static_cast<float>(state.diffusion)));
 }
 
 CraterMorphometry DiffusedProfile::Morphometry(const CraterMorphometry& fresh, double diameter,
@@ -257,7 +260,7 @@ CraterMorphometry DiffusedProfile::Morphometry(const CraterMorphometry& fresh, d
         return fresh;
     }
     const auto table = CachedTable(fresh, diameter);
-    const KernelAgeRow age = KernelAgeRowAt(kernel_, KernelAges(), static_cast<float>(tau));
+    const KernelAgeRow age = KernelAgeRowAt(m_kernel, KernelAges(), static_cast<float>(tau));
     CraterMorphometry result = table->morphometry[age.row];
     if (age.weight > 0.0f) {
         const auto weight = static_cast<double>(age.weight);
@@ -289,8 +292,8 @@ double DiffusedProfile::AgeAtDepthRatio(const CraterMorphometry& fresh, double d
 
 DiffusionDegradation::DiffusionDegradation(FreshMorphometry fresh, DiffusionAgeModel ages,
                                            std::shared_ptr<const DiffusedProfile> profile)
-    : fresh_(std::move(fresh)), ages_(std::move(ages)), profile_(std::move(profile)) {
-    if (!fresh_ || !ages_ || !profile_) {
+    : m_fresh(std::move(fresh)), m_ages(std::move(ages)), m_profile(std::move(profile)) {
+    if (!m_fresh || !m_ages || !m_profile) {
         throw std::invalid_argument(
             "Diffusion degradation needs fresh morphometry, diffusion ages and a diffused profile");
     }
@@ -305,13 +308,13 @@ CraterState DiffusionDegradation::WornState(const Crater& crater, double rate) c
     if (!IsNonNegative(crater.ageGyr)) {
         throw std::domain_error("Crater age must be finite and not negative");
     }
-    const double kappaT = rate * ages_(crater.diameter, crater.ageGyr);
+    const double kappaT = rate * m_ages(crater.diameter, crater.ageGyr);
     if (!IsNonNegative(kappaT)) {
         throw std::domain_error("A crater's diffusion age must be finite and not negative");
     }
-    const CraterMorphometry fresh = fresh_(crater.diameter);
+    const CraterMorphometry fresh = m_fresh(crater.diameter);
     const double tau = kappaT / (crater.diameter * crater.diameter);
-    return {fresh, profile_->Morphometry(fresh, crater.diameter, tau), tau};
+    return {fresh, m_profile->Morphometry(fresh, crater.diameter, tau), tau};
 }
 
 }  // namespace terraingen

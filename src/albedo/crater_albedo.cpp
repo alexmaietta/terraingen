@@ -234,21 +234,21 @@ struct CraterAlbedo::Prepared {
 };
 
 CraterAlbedo::CraterAlbedo(std::shared_ptr<const CraterLayer> craters, CraterAlbedoOptions options)
-    : craters_(std::move(craters)), options_(options) {
-    if (!craters_) {
+    : m_craters(std::move(craters)), m_options(options) {
+    if (!m_craters) {
         throw std::invalid_argument("Crater albedo needs a crater layer");
     }
-    ValidateCraterAlbedoOptions(options_);
+    ValidateCraterAlbedoOptions(m_options);
 }
 
 bool CraterAlbedo::Eligible(const Crater& crater, RandomStream& random) const {
-    return options_.selection.Includes(crater) && random.NextDouble() < options_.share;
+    return m_options.selection.Includes(crater) && random.NextDouble() < m_options.share;
 }
 
 CraterAlbedo::Ray CraterAlbedo::DrawRay(RandomStream& random, double median,
                                         const CraterImpact& impact,
                                         const RayDirection* direction) const {
-    const CraterRays& rays = options_.rays;
+    const CraterRays& rays = m_options.rays;
     const ObliqueImpacts& oblique = rays.oblique;
     const double asymmetry = (impact.speedRatio - 1.0) / (impact.speedRatio + 1.0);
     const double zone = oblique.zoneHalfWidthDegrees * kDegree;
@@ -284,18 +284,18 @@ void CraterAlbedo::AddRays(Prepared& prepared, RandomStream& random) const {
     const Crater& crater = prepared.crater;
     const double c1 = random.NextDouble();
     const double c2 = random.NextDouble();
-    const std::vector<RayDirection> directions = options_.rays.layout
-                                                     ? RayDirections(crater, *options_.rays.layout)
+    const std::vector<RayDirection> directions = m_options.rays.layout
+                                                     ? RayDirections(crater, *m_options.rays.layout)
                                                      : std::vector<RayDirection>{};
-    const auto count = options_.rays.layout
+    const auto count = m_options.rays.layout
                            ? static_cast<int>(directions.size())
-                           : static_cast<int>(std::lround(options_.rays.count.Sample(c1, c2)));
-    const double median = options_.rays.MedianLength(crater.diameter);
+                           : static_cast<int>(std::lround(m_options.rays.count.Sample(c1, c2)));
+    const double median = m_options.rays.MedianLength(crater.diameter);
     const CraterImpact impact = Impact(crater);
     for (int i = 0; i < count; ++i) {
         const Ray ray =
             DrawRay(random, median, impact,
-                    options_.rays.layout ? &directions[static_cast<std::size_t>(i)] : nullptr);
+                    m_options.rays.layout ? &directions[static_cast<std::size_t>(i)] : nullptr);
         if (ray.length > 0.5 * crater.diameter) {
             prepared.reach = std::fmax(prepared.reach, ray.length);
             prepared.rays.push_back(ray);
@@ -304,7 +304,7 @@ void CraterAlbedo::AddRays(Prepared& prepared, RandomStream& random) const {
 }
 
 void CraterAlbedo::AddZones(Prepared& prepared, double left, double resolution) const {
-    const CraterReflectanceZones& z = options_.zones;
+    const CraterReflectanceZones& z = m_options.zones;
     const Crater& crater = prepared.crater;
     const IdWords id = SplitId(crater.id);
     RandomStream random(z.seed, kAlbedoZoneStream, id.low, id.high);
@@ -316,7 +316,7 @@ void CraterAlbedo::AddZones(Prepared& prepared, double left, double resolution) 
                                 ? std::fmin(left, LifeLeft(crater.ageGyr, *zone->retentionMyr))
                                 : left;
         std::optional<DrawnZone> drawn =
-            DrawZone(*zone, random, crater.diameter, life, options_.fadeExponent, resolution);
+            DrawZone(*zone, random, crater.diameter, life, m_options.fadeExponent, resolution);
         if (!drawn) {
             continue;
         }
@@ -333,7 +333,7 @@ void CraterAlbedo::AddZones(Prepared& prepared, double left, double resolution) 
 CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacing) const {
     Prepared prepared;
     prepared.crater = crater;
-    const CraterAlbedoOptions& o = options_;
+    const CraterAlbedoOptions& o = m_options;
     const IdWords id = SplitId(crater.id);
     RandomStream random(o.seed, kCraterAlbedoStream, id.low, id.high);
     if (!Eligible(crater, random)) {
@@ -345,7 +345,7 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
         return prepared;
     }
     prepared.weight = std::pow(left, o.fadeExponent) * resolution;
-    prepared.outline = IrregularOutline(crater, craters_->Options().apply.irregularity);
+    prepared.outline = IrregularOutline(crater, m_craters->Options().apply.irregularity);
     prepared.profile = KernelOutline(prepared.outline, crater.diameter);
     prepared.reach = o.ejectaReachRadii * (0.5 * crater.diameter) * prepared.outline.MaxScale() *
                      (1.0 + o.texture.lobes);
@@ -359,21 +359,21 @@ CraterAlbedo::Prepared CraterAlbedo::Prepare(const Crater& crater, double spacin
 }
 
 double CraterAlbedo::Excess(const Crater& crater, double x, double y, double spacing) const {
-    return Prepare(crater, spacing).Excess(options_, craters_->Options().apply.surface, x, y);
+    return Prepare(crater, spacing).Excess(m_options, m_craters->Options().apply.surface, x, y);
 }
 
 double CraterAlbedo::ReflectanceChange(const Crater& crater, double x, double y, double spacing,
                                        const Ground* ground) const {
     Prepared prepared = Prepare(crater, spacing);
-    if (ground != nullptr && options_.zones.shadows.enabled) {
+    if (ground != nullptr && m_options.zones.shadows.enabled) {
         AddShadows(prepared, *ground, PointBounds(x, y));
     }
-    return prepared.Change(options_.texture, craters_->Options().apply.surface, x, y);
+    return prepared.Change(m_options.texture, m_craters->Options().apply.surface, x, y);
 }
 
 void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
                               const Bounds2d& region) const {
-    const ZoneShadows& s = options_.zones.shadows;
+    const ZoneShadows& s = m_options.zones.shadows;
     double reach = 0.0;
     for (const DrawnZone& zone : prepared.zones) {
         reach = zone.distal ? std::fmax(reach, zone.reach) : reach;
@@ -384,7 +384,7 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
         return;
     }
     const Vec2d center{crater.x, crater.y};
-    const Surface& surface = craters_->Options().apply.surface;
+    const Surface& surface = m_craters->Options().apply.surface;
     const detail::RayWindow window =
         detail::RaysOver(center, region, surface, static_cast<std::size_t>(s.azimuths));
     auto profile = std::make_shared<detail::ShadowProfile>(
@@ -397,13 +397,13 @@ void CraterAlbedo::AddShadows(Prepared& prepared, const Ground& ground,
 }
 
 CraterImpact CraterAlbedo::Impact(const Crater& crater) const {
-    const ObliqueImpacts& oblique = options_.rays.oblique;
+    const ObliqueImpacts& oblique = m_options.rays.oblique;
     CraterImpact impact;
     if (!oblique.enabled) {
         return impact;
     }
     const IdWords id = SplitId(crater.id);
-    RandomStream random(options_.seed, kObliqueRayStream, id.low, id.high);
+    RandomStream random(m_options.seed, kObliqueRayStream, id.low, id.high);
     impact.angleDegrees = std::asin(std::sqrt(random.NextDouble())) * kRadian;
     const double h = random.NextDouble();
     impact.heading = oblique.headingDegrees ? *oblique.headingDegrees * kDegree : 2.0 * kPi * h;
@@ -420,20 +420,20 @@ double CraterAlbedo::Reach(const Crater& crater) const {
 }
 
 double CraterAlbedo::GatherMargin() const {
-    const double largest = craters_->MaxFeatureDiameter();
-    const double rayReach = options_.rays.enabled
-                                ? options_.rays.MedianLength(largest) *
-                                      std::exp(options_.rays.lengthSpread.Highest()) *
-                                      options_.rays.oblique.MaxStretch()
+    const double largest = m_craters->MaxFeatureDiameter();
+    const double rayReach = m_options.rays.enabled
+                                ? m_options.rays.MedianLength(largest) *
+                                      std::exp(m_options.rays.lengthSpread.Highest()) *
+                                      m_options.rays.oblique.MaxStretch()
                                 : 0.0;
-    return std::fmax(rayReach, 0.5 * largest * options_.ejectaReachRadii *
-                                   MaxOutlineScale(craters_->Options().apply.irregularity) *
-                                   (1.0 + options_.texture.lobes));
+    return std::fmax(rayReach, 0.5 * largest * m_options.ejectaReachRadii *
+                                   MaxOutlineScale(m_craters->Options().apply.irregularity) *
+                                   (1.0 + m_options.texture.lobes));
 }
 
 void CraterAlbedo::TakePrepared(const CraterList& list, const Bounds2d& region, double spacing,
                                 std::vector<Prepared>& prepared) const {
-    const Surface& surface = craters_->Options().apply.surface;
+    const Surface& surface = m_craters->Options().apply.surface;
     for (std::size_t i = 0; i < list.Size(); ++i) {
         Prepared one = Prepare(list.At(i), spacing);
         if (one.weight == 0.0) {
@@ -497,16 +497,16 @@ void Brighten(AlbedoSample& value, std::size_t bands, double excess, double chan
 std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region, double spacing,
                                                          const Ground* ground) const {
     const double margin = GatherMargin();
-    const Surface& surface = craters_->Options().apply.surface;
+    const Surface& surface = m_craters->Options().apply.surface;
     std::vector<Prepared> prepared;
-    TakePrepared(craters_->Craters(surface.Expand(region, margin), spacing), region, spacing,
+    TakePrepared(m_craters->Craters(surface.Expand(region, margin), spacing), region, spacing,
                  prepared);
-    const CraterReflectanceZones& zones = options_.zones;
+    const CraterReflectanceZones& zones = m_options.zones;
     if (zones.enabled) {
-        for (double high = std::fmin(craters_->MaxFeatureDiameter(), zones.maxDiameter);
+        for (double high = std::fmin(m_craters->MaxFeatureDiameter(), zones.maxDiameter);
              zones.MaxReach(high) > margin; high *= 0.5) {
-            TakePrepared(craters_->Craters(surface.Expand(region, zones.MaxReach(high)), spacing,
-                                           0.5 * high, high),
+            TakePrepared(m_craters->Craters(surface.Expand(region, zones.MaxReach(high)), spacing,
+                                            0.5 * high, high),
                          region, spacing, prepared);
         }
     }
@@ -524,21 +524,21 @@ std::vector<CraterAlbedo::Prepared> CraterAlbedo::Gather(const Bounds2d& region,
 
 void CraterAlbedo::ApplyAt(AlbedoSample& value, std::size_t bands, double x, double y,
                            const LayerContext& context) const {
-    const Surface& surface = craters_->Options().apply.surface;
+    const Surface& surface = m_craters->Options().apply.surface;
     double excess = 0.0;
     double change = 0.0;
     for (const Prepared& p : Gather(PointBounds(x, y), context.spacing, context.ground)) {
-        excess += p.Excess(options_, surface, x, y);
-        change += p.Change(options_.texture, surface, x, y);
+        excess += p.Excess(m_options, surface, x, y);
+        change += p.Change(m_options.texture, surface, x, y);
     }
-    Brighten(value, bands, excess, change, options_);
+    Brighten(value, bands, excess, change, m_options);
 }
 
 void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const LayerContext& context) const {
     if (bands.empty()) {
         return;
     }
-    const Surface& surface = craters_->Options().apply.surface;
+    const Surface& surface = m_craters->Options().apply.surface;
     const Raster<float>& first = bands.front();
     const std::vector<Prepared> prepared =
         Gather(first.Grid().Bounds(), context.spacing, context.ground);
@@ -553,10 +553,10 @@ void CraterAlbedo::Apply(std::vector<Raster<float>>& bands, const LayerContext& 
                 if (!surface.IsBody() && std::fabs(x - p->crater.x) > p->reach) {
                     continue;
                 }
-                excess += p->Excess(options_, surface, x, y);
-                change += p->Change(options_.texture, surface, x, y);
+                excess += p->Excess(m_options, surface, x, y);
+                change += p->Change(m_options.texture, surface, x, y);
             }
-            Brighten(value, count, excess, change, options_);
+            Brighten(value, count, excess, change, m_options);
         });
     });
 }

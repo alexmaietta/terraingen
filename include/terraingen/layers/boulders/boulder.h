@@ -117,12 +117,12 @@ class BoulderList {
 
     /// The number of boulders.
     std::size_t Size() const {
-        return id_.size();
+        return m_id.size();
     }
 
     /// Whether the list holds no boulder.
     bool Empty() const {
-        return id_.empty();
+        return m_id.empty();
     }
 
     /// Reserves room for `count` boulders in every column.
@@ -146,106 +146,106 @@ class BoulderList {
 
     /// Every east coordinate, in surface coordinates.
     const std::vector<double>& X() const {
-        return x_;
+        return m_x;
     }
     /// Every north coordinate, in surface coordinates.
     const std::vector<double>& Y() const {
-        return y_;
+        return m_y;
     }
     /// Every diameter, in meters.
     const std::vector<double>& Diameters() const {
-        return diameter_;
+        return m_diameter;
     }
     /// Every height, in meters.
     const std::vector<double>& Heights() const {
-        return height_;
+        return m_height;
     }
     /// Every buried share of the vertical extent, in [0, 1).
     const std::vector<double>& Burials() const {
-        return burial_;
+        return m_burial;
     }
     /// Every yaw, in radians.
     const std::vector<double>& Yaws() const {
-        return yaw_;
+        return m_yaw;
     }
     /// Every lean, in radians.
     const std::vector<double>& Leans() const {
-        return lean_;
+        return m_lean;
     }
     /// Every stable ID.
     const std::vector<std::uint64_t>& Ids() const {
-        return id_;
+        return m_id;
     }
     /// Every `BoulderRest` as a byte.
     const std::vector<std::uint8_t>& Rests() const {
-        return rest_;
+        return m_rest;
     }
     /// Every tilt, in radians.
     const std::vector<double>& Tilts() const {
-        return tilt_;
+        return m_tilt;
     }
     /// Every tilt azimuth, in radians.
     const std::vector<double>& TiltAzimuths() const {
-        return tiltAzimuth_;
+        return m_tiltAzimuth;
     }
     /// Every ground height in meters, NaN where unknown.
     const std::vector<double>& Grounds() const {
-        return ground_;
+        return m_ground;
     }
     /// 1 for boulders placed as 3D models, 0 for the rest.
     const std::vector<std::uint8_t>& Models() const {
-        return model_;
+        return m_model;
     }
     /// Every wear, from 0 (fresh) to 1.
     const std::vector<double>& Wears() const {
-        return wear_;
+        return m_wear;
     }
     /// Every parent ID, 0 for a whole boulder.
     const std::vector<std::uint64_t>& Parents() const {
-        return parent_;
+        return m_parent;
     }
     /// Every piece index among its parent's pieces.
     const std::vector<std::uint32_t>& Pieces() const {
-        return piece_;
+        return m_piece;
     }
     /// Every boulder's facets; the first `FacetCounts()` of each are used.
     const std::vector<std::array<BoulderFacet, 2>>& Facets() const {
-        return facets_;
+        return m_facets;
     }
     /// Every boulder's number of facets in use.
     const std::vector<std::uint8_t>& FacetCounts() const {
-        return facetCount_;
+        return m_facetCount;
     }
     /// Every shape seed, 0 where unset (see `HasShapeSeeds`).
     const std::vector<std::uint64_t>& ShapeSeeds() const {
-        return shapeSeed_;
+        return m_shapeSeed;
     }
     /// 1 where a boulder has a shape seed, 0 where it derives one from its ID.
     const std::vector<std::uint8_t>& HasShapeSeeds() const {
-        return hasShapeSeed_;
+        return m_hasShapeSeed;
     }
 
   private:
-    std::vector<double> x_;
-    std::vector<double> y_;
-    std::vector<double> diameter_;
-    std::vector<double> height_;
-    std::vector<double> burial_;
-    std::vector<double> yaw_;
-    std::vector<double> lean_;
-    std::vector<std::uint64_t> id_;
-    std::vector<std::uint8_t> rest_;
-    std::vector<double> tilt_;
-    std::vector<double> tiltAzimuth_;
-    std::vector<double> ground_;
-    std::vector<std::uint8_t> model_;
-    std::vector<double> wear_;
-    std::vector<std::uint64_t> parent_;
-    std::vector<std::uint32_t> piece_;
-    std::vector<std::array<BoulderFacet, 2>> facets_;
-    std::vector<std::uint8_t> facetCount_;
-    std::vector<std::uint64_t> shapeSeed_;
-    std::vector<std::uint8_t> hasShapeSeed_;
+    std::vector<double> m_x;
+    std::vector<double> m_y;
+    std::vector<double> m_diameter;
+    std::vector<double> m_height;
+    std::vector<double> m_burial;
+    std::vector<double> m_yaw;
+    std::vector<double> m_lean;
+    std::vector<std::uint64_t> m_id;
+    std::vector<std::uint8_t> m_rest;
+    std::vector<double> m_tilt;
+    std::vector<double> m_tiltAzimuth;
+    std::vector<double> m_ground;
+    std::vector<std::uint8_t> m_model;
+    std::vector<double> m_wear;
+    std::vector<std::uint64_t> m_parent;
+    std::vector<std::uint32_t> m_piece;
+    std::vector<std::array<BoulderFacet, 2>> m_facets;
+    std::vector<std::uint8_t> m_facetCount;
+    std::vector<std::uint64_t> m_shapeSeed;
+    std::vector<std::uint8_t> m_hasShapeSeed;
 };
 
 /// A boulder placed by hand: its center and size, and any of its pose and shape fixed; unset

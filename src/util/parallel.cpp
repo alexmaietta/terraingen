@@ -71,20 +71,20 @@ class Pool {
     /// Offers `job` to the pool's threads.
     void Post(const std::shared_ptr<Job>& job) {
         {
-            const std::lock_guard lock(mutex_);
-            jobs_.push_back(job);
+            const std::lock_guard lock(m_mutex);
+            m_jobs.push_back(job);
         }
-        wake_.notify_all();
+        m_wake.notify_all();
     }
 
   private:
     void Loop() {
-        std::unique_lock lock(mutex_);
+        std::unique_lock lock(m_mutex);
         while (true) {
-            wake_.wait(lock, [this] { return !jobs_.empty(); });
-            std::shared_ptr<Job> job = jobs_.front();
+            m_wake.wait(lock, [this] { return !m_jobs.empty(); });
+            std::shared_ptr<Job> job = m_jobs.front();
             if (job->Exhausted() || job->slots.fetch_sub(1) <= 0) {
-                jobs_.pop_front();
+                m_jobs.pop_front();
                 continue;
             }
             lock.unlock();
@@ -102,9 +102,9 @@ class Pool {
         }
     }
 
-    std::mutex mutex_;
-    std::condition_variable wake_;
-    std::deque<std::shared_ptr<Job>> jobs_;
+    std::mutex m_mutex;
+    std::condition_variable m_wake;
+    std::deque<std::shared_ptr<Job>> m_jobs;
 };
 
 Pool& SharedPool() {

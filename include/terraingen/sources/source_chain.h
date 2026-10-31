@@ -91,17 +91,17 @@ class SourceChain final : public Source {
 
     /// The first source's grid.
     RasterGrid Grid() const override {
-        return sources_.front()->Grid();
+        return m_sources.front()->Grid();
     }
 
     /// The first source's reference point.
     Vec2d ReferencePoint() const override {
-        return sources_.front()->ReferencePoint();
+        return m_sources.front()->ReferencePoint();
     }
 
     /// The first source's projection.
     GeoKeys Keys() const override {
-        return sources_.front()->Keys();
+        return m_sources.front()->Keys();
     }
 
     /// The resolution of the first source with a height at (`x`, `y`) at its coarsest, an
@@ -114,12 +114,12 @@ class SourceChain final : public Source {
 
     /// The sources in the order they are tried.
     const std::vector<std::shared_ptr<const Source>>& Sources() const {
-        return sources_;
+        return m_sources;
     }
 
     /// How each source is joined to the gaps of those before it.
     const ChainSeams& Seams() const {
-        return seams_;
+        return m_seams;
     }
 
     /// A chain of the same seams whose source n is reseeded with
@@ -141,13 +141,13 @@ class SourceChain final : public Source {
     /// Fills the `heights` without data at `points` from the last source, at those points.
     void FillPointGaps(Span<const Vec2d> points, Span<float> heights, double spacing) const;
 
-    std::vector<std::shared_ptr<const Source>> sources_;
-    ChainSeams seams_;
+    std::vector<std::shared_ptr<const Source>> m_sources;
+    ChainSeams m_seams;
     /// The chain of every source but the last, which the last fills and is matched to; null with
     /// one source.
-    std::shared_ptr<const Source> prefix_;
-    mutable std::once_flag seamed_;
-    mutable std::shared_ptr<const detail::SeamField> seam_;
+    std::shared_ptr<const Source> m_prefix;
+    mutable std::once_flag m_seamed;
+    mutable std::shared_ptr<const detail::SeamField> m_seam;
 };
 
 }  // namespace terraingen

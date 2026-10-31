@@ -41,7 +41,7 @@ class CudaCompute final : public SharedComputeDevice<CudaCompute> {
     /// Opens a new device.
     /// @throws std::runtime_error saying why CUDA is unavailable.
     static std::unique_ptr<CudaCompute> Open();
-    std::unique_ptr<State> state_;
+    std::unique_ptr<State> m_state;
 };
 
 }  // namespace terraingen

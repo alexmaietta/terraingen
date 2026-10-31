@@ -25,12 +25,12 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
 
     /// The table's diameters in meters.
     const std::vector<double>& Diameters() const {
-        return diameters_;
+        return m_diameters;
     }
 
     /// The table's N(>=D) values per m^2 (or per m^2 per Gyr).
     const std::vector<double>& CumulativeValues() const {
-        return cumulative_;
+        return m_cumulative;
     }
 
   protected:
@@ -44,9 +44,9 @@ class TabulatedSfd final : public SizeFrequencyDistribution {
   private:
     std::size_t IntervalAt(double diameter) const;
 
-    std::vector<double> diameters_;
-    std::vector<double> cumulative_;
-    std::vector<double> slopes_;
+    std::vector<double> m_diameters;
+    std::vector<double> m_cumulative;
+    std::vector<double> m_slopes;
 };
 
 }  // namespace terraingen

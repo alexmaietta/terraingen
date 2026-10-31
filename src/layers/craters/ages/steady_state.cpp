@@ -28,26 +28,26 @@ double SampleFormationAge(RandomStream& random, const Chronology& chronology, do
 SteadyStateAges::SteadyStateAges(std::shared_ptr<const SizeFrequencyDistribution> productionRate,
                                  std::shared_ptr<const SizeFrequencyDistribution> equilibrium,
                                  double ageGyr, Chronology chronology)
-    : productionRate_(std::move(productionRate)), equilibrium_(std::move(equilibrium)),
-      ageGyr_(ageGyr), chronology_(std::move(chronology)) {
-    if (!productionRate_ || productionRate_->Kind() != SfdKind::ProductionRate) {
+    : m_productionRate(std::move(productionRate)), m_equilibrium(std::move(equilibrium)),
+      m_ageGyr(ageGyr), m_chronology(std::move(chronology)) {
+    if (!m_productionRate || m_productionRate->Kind() != SfdKind::ProductionRate) {
         throw std::invalid_argument("Steady-state ages need a production rate distribution");
     }
-    if (!equilibrium_ || equilibrium_->Kind() != SfdKind::Density) {
+    if (!m_equilibrium || m_equilibrium->Kind() != SfdKind::Density) {
         throw std::invalid_argument("Steady-state ages need an equilibrium density");
     }
-    if (!chronology_) {
+    if (!m_chronology) {
         throw std::invalid_argument("Steady-state ages need a chronology");
     }
-    chronology_(ageGyr_);
+    m_chronology(m_ageGyr);
 }
 
 double SteadyStateAges::EquilibriumLifetimeGyr(double diameter) const {
-    return equilibrium_->Incremental(diameter) / productionRate_->Incremental(diameter);
+    return m_equilibrium->Incremental(diameter) / m_productionRate->Incremental(diameter);
 }
 
 double SteadyStateAges::LifetimeAt(double diameter) const {
-    return std::fmin(EquilibriumLifetimeGyr(diameter), ageGyr_);
+    return std::fmin(EquilibriumLifetimeGyr(diameter), m_ageGyr);
 }
 
 double SteadyStateAges::SampleAgeAt(RandomStream& random, double /*diameter*/,
@@ -55,7 +55,7 @@ double SteadyStateAges::SampleAgeAt(RandomStream& random, double /*diameter*/,
     if (lifetimeGyr == 0.0) {
         return 0.0;
     }
-    return SampleFormationAge(random, chronology_, lifetimeGyr);
+    return SampleFormationAge(random, m_chronology, lifetimeGyr);
 }
 
 std::shared_ptr<const SizeFrequencyDistribution> EquilibriumSurface::Density() const {

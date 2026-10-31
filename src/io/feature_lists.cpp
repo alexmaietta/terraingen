@@ -223,7 +223,7 @@ class CsvCraterRow {
   public:
     CsvCraterRow(const std::map<std::string, std::size_t>& columns,
                  const std::vector<std::string>& cells, std::size_t row)
-        : columns_(columns), cells_(cells), row_(row) {}
+        : m_columns(columns), m_cells(cells), m_row(row) {}
 
     /// Column `name`'s number; none where the list lacks it or the cell is empty.
     std::optional<double> Number(const char* name) const {
@@ -231,7 +231,7 @@ class CsvCraterRow {
         if (text == nullptr || text->empty()) {
             return std::nullopt;
         }
-        return ParseNumber(*text, row_, name);
+        return ParseNumber(*text, m_row, name);
     }
 
     /// The ID column, 0 where the list lacks it or the cell is empty.
@@ -243,62 +243,63 @@ class CsvCraterRow {
         char* end = nullptr;
         const unsigned long long value = std::strtoull(text->c_str(), &end, 10);
         if (end != text->c_str() + text->size() || text->front() == '-') {
-            ThrowRowError(row_, "id '" + *text + "' is not an unsigned integer");
+            ThrowRowError(m_row, "id '" + *text + "' is not an unsigned integer");
         }
         return static_cast<std::uint64_t>(value);
     }
 
   private:
     const std::string* Cell(const char* name) const {
-        const auto found = columns_.find(name);
-        return found == columns_.end() || found->second >= cells_.size() ? nullptr
-                                                                         : &cells_[found->second];
+        const auto found = m_columns.find(name);
+        return found == m_columns.end() || found->second >= m_cells.size()
+                   ? nullptr
+                   : &m_cells[found->second];
     }
 
-    const std::map<std::string, std::size_t>& columns_;
-    const std::vector<std::string>& cells_;
-    std::size_t row_;
+    const std::map<std::string, std::size_t>& m_columns;
+    const std::vector<std::string>& m_cells;
+    std::size_t m_row;
 };
 
 /// An entry of a JSON crater list.
 class JsonCraterRow {
   public:
-    JsonCraterRow(const Json& entry, std::size_t row) : entry_(entry), row_(row) {
-        if (!entry_.is_object()) {
-            ThrowRowError(row_, "not an object");
+    JsonCraterRow(const Json& entry, std::size_t row) : m_entry(entry), m_row(row) {
+        if (!m_entry.is_object()) {
+            ThrowRowError(m_row, "not an object");
         }
     }
 
     /// Key `name`'s number, booleans as 1 and 0; none where the entry lacks it or holds null.
     std::optional<double> Number(const char* name) const {
-        const auto found = entry_.find(name);
-        if (found == entry_.end() || found->is_null()) {
+        const auto found = m_entry.find(name);
+        if (found == m_entry.end() || found->is_null()) {
             return std::nullopt;
         }
         if (found->is_boolean()) {
             return found->get<bool>() ? 1.0 : 0.0;
         }
         if (!found->is_number()) {
-            ThrowRowError(row_, std::string(name) + " is not a number");
+            ThrowRowError(m_row, std::string(name) + " is not a number");
         }
         return found->get<double>();
     }
 
     /// The ID, 0 where the entry lacks it or holds null.
     std::uint64_t Id() const {
-        const auto found = entry_.find("id");
-        if (found == entry_.end() || found->is_null()) {
+        const auto found = m_entry.find("id");
+        if (found == m_entry.end() || found->is_null()) {
             return 0;
         }
         if (!found->is_number_unsigned()) {
-            ThrowRowError(row_, "id is not an unsigned integer");
+            ThrowRowError(m_row, "id is not an unsigned integer");
         }
         return found->get<std::uint64_t>();
     }
 
   private:
-    const Json& entry_;
-    std::size_t row_;
+    const Json& m_entry;
+    std::size_t m_row;
 };
 
 /// The crater `row` describes (`ReadCraterList`).

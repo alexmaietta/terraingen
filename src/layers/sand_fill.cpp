@@ -22,37 +22,37 @@ void ValidateSandFillOptions(const SandFillOptions& options) {
     CheckRanges(options);
 }
 
-SandFillLayer::SandFillLayer(SandFillOptions options) : options_(options) {
-    ValidateSandFillOptions(options_);
+SandFillLayer::SandFillLayer(SandFillOptions options) : m_options(options) {
+    ValidateSandFillOptions(m_options);
     for (int ring = 0; ring < 2; ++ring) {
-        const double radius = options_.reach * (ring == 0 ? 0.5 : 1.0);
+        const double radius = m_options.reach * (ring == 0 ? 0.5 : 1.0);
         const double turn = ring == 0 ? kPi / kRingPoints : 0.0;
         for (int k = 0; k < kRingPoints; ++k) {
             const double angle = turn + 2.0 * kPi * k / kRingPoints;
-            rings_[static_cast<std::size_t>(ring * kRingPoints + k)] = {radius * std::cos(angle),
-                                                                        radius * std::sin(angle)};
+            m_rings[static_cast<std::size_t>(ring * kRingPoints + k)] = {radius * std::cos(angle),
+                                                                         radius * std::sin(angle)};
         }
     }
 }
 
 double SandFillLayer::Thickness(double x, double y, double height,
                                 const LayerContext& context) const {
-    if (std::isnan(height) || options_.fill <= 0.0) {
+    if (std::isnan(height) || m_options.fill <= 0.0) {
         return 0.0;
     }
     std::array<double, 2 * kRingPoints> heights{};
-    GroundAround(*context.ground, context.SurfaceOrPlane(), {x, y}, rings_, context.spacing, height,
-                 heights);
+    GroundAround(*context.ground, context.SurfaceOrPlane(), {x, y}, m_rings, context.spacing,
+                 height, heights);
     double mean = 0.0;
     for (const double there : heights) {
         mean += there;
     }
     mean /= 2.0 * kRingPoints;
-    const double depth = options_.fill * (mean - height);
+    const double depth = m_options.fill * (mean - height);
     if (depth <= 0.0) {
         return 0.0;
     }
-    return options_.maxThickness * -std::expm1(-depth / options_.maxThickness);
+    return m_options.maxThickness * -std::expm1(-depth / m_options.maxThickness);
 }
 
 double SandFillLayer::ThicknessAt(double x, double y, const LayerContext& context) const {
@@ -62,7 +62,7 @@ double SandFillLayer::ThicknessAt(double x, double y, const LayerContext& contex
 }
 
 double SandFillLayer::MaterialCoverAt(double x, double y, const LayerContext& context) const {
-    return Smoothstep(ThicknessAt(x, y, context) / options_.coverThickness);
+    return Smoothstep(ThicknessAt(x, y, context) / m_options.coverThickness);
 }
 
 float SandFillLayer::HeightAt(float height, double x, double y, const LayerContext& context) const {

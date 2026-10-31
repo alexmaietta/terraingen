@@ -45,7 +45,7 @@ class Reader {
 
     /// Marks a key as known without reading it.
     void Accept(std::string_view key) {
-        known_.emplace(key);
+        m_known.emplace(key);
     }
 
     /// Checks that the object has no key that no field asked for, then that it has every key a
@@ -54,10 +54,10 @@ class Reader {
     void Finish() const;
 
   private:
-    const Json& json_;
-    std::string path_;
-    std::set<std::string, std::less<>> known_;
-    std::vector<std::string> missing_;
+    const Json& m_json;
+    std::string m_path;
+    std::set<std::string, std::less<>> m_known;
+    std::vector<std::string> m_missing;
 };
 
 /// Writes fields as the keys of a JSON object, in order.
@@ -70,7 +70,7 @@ class Writer {
     /// @param compact Whether the objects inside it leave out lists that are empty, as they are
     /// by default (`FieldsJson`).
     explicit Writer(Json& json, bool omitUnset = false, bool compact = false)
-        : json_(json), omitUnset_(omitUnset), compact_(compact) {}
+        : m_json(json), m_omitUnset(omitUnset), m_compact(compact) {}
 
     /// Writes a field as a key; `description` and `unit` are for `ConfigSchema`.
     template <typename T>
@@ -78,9 +78,9 @@ class Writer {
                     std::string_view unit = {}, const FieldRange& range = {});
 
   private:
-    Json& json_;
-    bool omitUnset_ = false;
-    bool compact_ = false;
+    Json& m_json;
+    bool m_omitUnset = false;
+    bool m_compact = false;
 };
 
 /// Whether `Fields(reader, value)` is callable with a `Reader`.
@@ -242,12 +242,12 @@ void Read(const Json& json, const std::string& path, std::variant<Ts...>& value)
 template <typename T>
 void Reader::operator()(std::string_view key, T& value, std::string_view /*description*/,
                         std::string_view /*unit*/, const FieldRange& range) {
-    known_.emplace(key);
-    const auto found = json_.find(key);
-    if (found != json_.end()) {
-        Read(*found, FieldPath(path_, key), value);
+    m_known.emplace(key);
+    const auto found = m_json.find(key);
+    if (found != m_json.end()) {
+        Read(*found, FieldPath(m_path, key), value);
     } else if (range.required) {
-        missing_.emplace_back(key);
+        m_missing.emplace_back(key);
     }
 }
 
@@ -382,10 +382,10 @@ template <typename T> bool IsUnset(const std::optional<T>& value) {
 template <typename T>
 void Writer::operator()(std::string_view key, T& value, std::string_view /*description*/,
                         std::string_view /*unit*/, const FieldRange& /*range*/) {
-    if (omitUnset_ && IsUnset(value)) {
+    if (m_omitUnset && IsUnset(value)) {
         return;
     }
-    json_[std::string(key)] = ToJson(value, compact_);
+    m_json[std::string(key)] = ToJson(value, m_compact);
 }
 
 }  // namespace terraingen::config

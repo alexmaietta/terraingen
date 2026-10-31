@@ -45,7 +45,7 @@ namespace terraingen {
 template <typename T> class Boxed {
   public:
     /// A default-constructed value.
-    Boxed() : value_(std::make_unique<T>()) {}
+    Boxed() : m_value(std::make_unique<T>()) {}
     /// A value made from anything `T` can be made from, such as one alternative of a variant.
     /// `std::conjunction` stops at a `Boxed` argument, so copying never asks whether an incomplete
     /// `T` is constructible.
@@ -57,31 +57,31 @@ template <typename T> class Boxed {
                 std::is_constructible<T, U&&>>,
             int> = 0>
     Boxed(U&& value)  // NOLINT(google-explicit-constructor): converts implicitly by design
-        : value_(std::make_unique<T>(std::forward<U>(value))) {}
-    Boxed(const Boxed& other) : value_(std::make_unique<T>(*other.value_)) {}
+        : m_value(std::make_unique<T>(std::forward<U>(value))) {}
+    Boxed(const Boxed& other) : m_value(std::make_unique<T>(*other.m_value)) {}
     Boxed(Boxed&& other) noexcept = default;
     Boxed& operator=(const Boxed& other) {
-        value_ = std::make_unique<T>(*other.value_);
+        m_value = std::make_unique<T>(*other.m_value);
         return *this;
     }
     Boxed& operator=(Boxed&& other) noexcept = default;
     ~Boxed() = default;
 
     T& operator*() {
-        return *value_;
+        return *m_value;
     }
     const T& operator*() const {
-        return *value_;
+        return *m_value;
     }
     T* operator->() {
-        return value_.get();
+        return m_value.get();
     }
     const T* operator->() const {
-        return value_.get();
+        return m_value.get();
     }
 
   private:
-    std::unique_ptr<T> value_;
+    std::unique_ptr<T> m_value;
 };
 
 /// Checks the ranges of a boxed value as of the value itself.

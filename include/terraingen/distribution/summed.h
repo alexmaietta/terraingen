@@ -31,7 +31,7 @@ class SummedSfd final : public SizeFrequencyDistribution {
 
     /// The weighted terms of the sum.
     const std::vector<WeightedSfd>& Terms() const {
-        return terms_;
+        return m_terms;
     }
 
   protected:
@@ -42,7 +42,7 @@ class SummedSfd final : public SizeFrequencyDistribution {
     /// The sum of `terms`, already checked to share `kind`.
     SummedSfd(SfdKind kind, std::vector<WeightedSfd>&& terms);
 
-    std::vector<WeightedSfd> terms_;
+    std::vector<WeightedSfd> m_terms;
 };
 
 }  // namespace terraingen

@@ -47,9 +47,9 @@ class CraterCellCache {
         std::size_t operator()(const Key& key) const;
     };
 
-    LruCache<Key, CellCraters, KeyHash> cache_;
+    LruCache<Key, CellCraters, KeyHash> m_cache;
     /// This cache among every one made, which the threads' tables of recent cells key on.
-    std::uint64_t id_;
+    std::uint64_t m_id;
 };
 
 /// A source for `CraterGenerationOptions::cellCraters` that draws each cell with

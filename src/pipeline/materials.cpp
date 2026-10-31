@@ -41,32 +41,32 @@ class GroundCover {
   public:
     /// @throws std::invalid_argument as `ValidateMaterialOptions`.
     GroundCover(const Terrain& terrain, const MaterialOptions& options)
-        : surface_(terrain.Surface()), options_(Checked(options)),
-          bare_(terrain.Beneath(BareLayers(terrain))) {
+        : m_surface(terrain.Surface()), m_options(Checked(options)),
+          m_bare(terrain.Beneath(BareLayers(terrain))) {
         if (options.exposure) {
-            field_.emplace(*options.exposure, surface_);
+            m_field.emplace(*options.exposure, m_surface);
         }
     }
 
     /// The shares at surface point (`x`, `y`), reading the ground at `spacing` meters.
     MaterialShares At(double x, double y, double spacing) const {
         MaterialShares shares = SoilShares();
-        if (field_) {
-            CoverWith(shares, MaterialClass::Bedrock, field_->Exposure(bare_, x, y, spacing));
+        if (m_field) {
+            CoverWith(shares, MaterialClass::Bedrock, m_field->Exposure(m_bare, x, y, spacing));
         }
-        if (options_.dustCover > 0.0) {
-            const double noise = PatchNoise(surface_, x, y, options_.dustPatch, options_.seed);
-            const double threshold = 1.0 - 2.0 * options_.dustCover;
+        if (m_options.dustCover > 0.0) {
+            const double noise = PatchNoise(m_surface, x, y, m_options.dustPatch, m_options.seed);
+            const double threshold = 1.0 - 2.0 * m_options.dustCover;
             CoverWith(shares, MaterialClass::Dust, Smoothstep((noise - threshold) / kDustEdge));
         }
         return shares;
     }
 
   private:
-    const Surface& surface_;
-    const MaterialOptions& options_;
-    Terrain bare_;
-    std::optional<ExposureField> field_;
+    const Surface& m_surface;
+    const MaterialOptions& m_options;
+    Terrain m_bare;
+    std::optional<ExposureField> m_field;
 };
 
 }  // namespace

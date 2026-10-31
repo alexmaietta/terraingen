@@ -181,44 +181,44 @@ double SecondaryRayField::Peak(double r0, double r1) const {
 }
 
 SecondaryDensity::SecondaryDensity(const Crater& primary, const SecondaryCraterOptions& options)
-    : sizeSlope_(options.sizeSlope), minSize_(options.minDiameter), maxSize_(options.maxDiameter),
-      diameter_(primary.diameter) {
+    : m_sizeSlope(options.sizeSlope), m_minSize(options.minDiameter),
+      m_maxSize(options.maxDiameter), m_diameter(primary.diameter) {
     if (!options.selection.Includes(primary) || !options.onsetCount) {
         return;
     }
-    onset_ = SecondaryOnsetRange(diameter_);
-    const double outer = SecondaryOuterRange(diameter_, options);
-    if (!(outer > onset_)) {
+    m_onset = SecondaryOnsetRange(m_diameter);
+    const double outer = SecondaryOuterRange(m_diameter, options);
+    if (!(outer > m_onset)) {
         return;
     }
-    outer_ = outer;
-    density0_ = *options.onsetCount / (0.25 * kPi * diameter_ * diameter_);
-    reference_ = options.countFraction * diameter_;
-    rays_ = SecondaryRayField::Make(primary, options.rays);
+    m_outer = outer;
+    m_density0 = *options.onsetCount / (0.25 * kPi * m_diameter * m_diameter);
+    m_reference = options.countFraction * m_diameter;
+    m_rays = SecondaryRayField::Make(primary, options.rays);
 }
 
 double SecondaryDensity::Measure(const Vec2d& offset, double minDiameter, double maxDiameter,
                                  bool cover) const {
     const double range = std::hypot(offset.x, offset.y);
-    if (!(range >= onset_ && range < outer_)) {
+    if (!(range >= m_onset && range < m_outer)) {
         return 0.0;
     }
-    const double low = std::fmax(minDiameter, minSize_);
+    const double low = std::fmax(minDiameter, m_minSize);
     const double high =
-        std::fmin(std::fmin(maxDiameter, maxSize_), SingerMaxSecondaryDiameter(diameter_, range));
+        std::fmin(std::fmin(maxDiameter, m_maxSize), SingerMaxSecondaryDiameter(m_diameter, range));
     if (!(high > low)) {
         return 0.0;
     }
     const double r = ScaledRange(range);
-    const double s = sizeSlope_;
+    const double s = m_sizeSlope;
     double sizes = SizeShare(low, high);
     if (cover) {
-        const double scale = 0.25 * kPi * s * std::pow(reference_, s);
+        const double scale = 0.25 * kPi * s * std::pow(m_reference, s);
         sizes = s == 2.0 ? scale * std::log(high / low)
                          : scale * (std::pow(high, 2.0 - s) - std::pow(low, 2.0 - s)) / (2.0 - s);
     }
-    const double density = density0_ / (r * r) * sizes;
-    return rays_ ? density * rays_->Density(range, std::atan2(offset.y, offset.x)) : density;
+    const double density = m_density0 / (r * r) * sizes;
+    return m_rays ? density * m_rays->Density(range, std::atan2(offset.y, offset.x)) : density;
 }
 
 double SecondaryDensity::At(const Vec2d& offset, double minDiameter, double maxDiameter) const {
@@ -231,7 +231,7 @@ double SecondaryDensity::CoverAt(const Vec2d& offset, double minDiameter,
 }
 
 double SecondaryDensity::SizeShare(double low, double high) const {
-    return std::pow(low / reference_, -sizeSlope_) - std::pow(high / reference_, -sizeSlope_);
+    return std::pow(low / m_reference, -m_sizeSlope) - std::pow(high / m_reference, -m_sizeSlope);
 }
 
 double LargestSecondary(double diameter, const SecondaryCraterOptions& options) {

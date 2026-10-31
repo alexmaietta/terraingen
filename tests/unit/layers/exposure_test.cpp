@@ -21,19 +21,19 @@ namespace {
 /// A ground given by a function of position.
 class Analytic final : public terraingen::Ground {
   public:
-    explicit Analytic(std::function<float(double, double)> height) : height_(std::move(height)) {}
+    explicit Analytic(std::function<float(double, double)> height) : m_height(std::move(height)) {}
 
   protected:
     void FillSamples(terraingen::SampleBlock& samples, double /*spacing*/,
                      unsigned /*threads*/) const override {
         for (std::size_t i = 0; i < samples.Size(); ++i) {
             const terraingen::Vec2d p = samples.Position(i);
-            samples.Height(i) = height_(p.x, p.y);
+            samples.Height(i) = m_height(p.x, p.y);
         }
     }
 
   private:
-    std::function<float(double, double)> height_;
+    std::function<float(double, double)> m_height;
 };
 
 }  // namespace

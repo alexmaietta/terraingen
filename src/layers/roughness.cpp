@@ -69,26 +69,26 @@ void ValidateRoughnessOptions(const RoughnessOptions& options) {
     ValidateResolutionFade(options.fade);
 }
 
-RoughnessLayer::RoughnessLayer(RoughnessOptions options) : options_(options) {
-    ValidateRoughnessOptions(options_);
-    planeOctaves_ = MakeOctaves(false);
-    bodyOctaves_ = MakeOctaves(true);
+RoughnessLayer::RoughnessLayer(RoughnessOptions options) : m_options(options) {
+    ValidateRoughnessOptions(m_options);
+    m_planeOctaves = MakeOctaves(false);
+    m_bodyOctaves = MakeOctaves(true);
 }
 
 LayerPtr RoughnessLayer::Reseeded(std::uint64_t seed) const {
-    RoughnessOptions options = options_;
+    RoughnessOptions options = m_options;
     options.seed = ReseedWord(seed, 0);
     return std::make_shared<RoughnessLayer>(options);
 }
 
 std::vector<RoughnessLayer::Octave> RoughnessLayer::MakeOctaves(bool body) const {
     std::vector<Octave> octaves;
-    const double shortest = options_.minWavelength * (1.0 - 1e-12);
-    double wavelength = options_.maxWavelength;
+    const double shortest = m_options.minWavelength * (1.0 - 1e-12);
+    double wavelength = m_options.maxWavelength;
     for (std::uint32_t i = 0; wavelength >= shortest; ++i, wavelength *= 0.5) {
         octaves.push_back(MakeOctave(i, wavelength, body));
     }
-    const double scale = options_.rmsSlope / OctavesRmsSlope(octaves, options_.baseline, body);
+    const double scale = m_options.rmsSlope / OctavesRmsSlope(octaves, m_options.baseline, body);
     for (Octave& octave : octaves) {
         octave.amplitude *= scale;
     }
@@ -97,17 +97,17 @@ std::vector<RoughnessLayer::Octave> RoughnessLayer::MakeOctaves(bool body) const
 
 RoughnessLayer::Octave RoughnessLayer::MakeOctave(std::uint32_t i, double wavelength,
                                                   bool body) const {
-    const UVec3 hash = Pcg3dHash({options_.seed, i, kRoughnessOctaveStream});
+    const UVec3 hash = Pcg3dHash({m_options.seed, i, kRoughnessOctaveStream});
     const double angle = kGoldenAngle * static_cast<double>(i);
     Octave octave{wavelength,
-                  std::pow(wavelength, options_.hurst),
+                  std::pow(wavelength, m_options.hurst),
                   std::cos(angle),
                   std::sin(angle),
                   LatticeOffset(hash.x),
                   LatticeOffset(hash.y),
                   hash.z};
     if (body) {
-        octave.rotation = UniformRotation(Pcg3dHash({options_.seed, i, kRoughnessRotationStream}));
+        octave.rotation = UniformRotation(Pcg3dHash({m_options.seed, i, kRoughnessRotationStream}));
         octave.offsetZ = LatticeOffset(Pcg3dHash({hash.z, i, kOffsetZSalt}).x);
     }
     return octave;
@@ -142,12 +142,12 @@ double RoughnessLayer::OctavesRmsSlope(const std::vector<Octave>& octaves, doubl
 
 double RoughnessLayer::RmsSlope(double baseline, const Surface& surface) const {
     const bool body = surface.IsBody();
-    return OctavesRmsSlope(body ? bodyOctaves_ : planeOctaves_, baseline, body);
+    return OctavesRmsSlope(body ? m_bodyOctaves : m_planeOctaves, baseline, body);
 }
 
 std::vector<double> RoughnessLayer::Wavelengths() const {
     std::vector<double> wavelengths;
-    for (const Octave& octave : planeOctaves_) {
+    for (const Octave& octave : m_planeOctaves) {
         wavelengths.push_back(octave.wavelength);
     }
     return wavelengths;
@@ -157,8 +157,8 @@ float RoughnessLayer::HeightAt(float height, double x, double y,
                                const LayerContext& context) const {
     const Surface& surface = context.SurfaceOrPlane();
     double sum = 0.0;
-    for (const Octave& octave : surface.IsBody() ? bodyOctaves_ : planeOctaves_) {
-        const double weight = ResolutionWeight(octave.wavelength, context.spacing, options_.fade);
+    for (const Octave& octave : surface.IsBody() ? m_bodyOctaves : m_planeOctaves) {
+        const double weight = ResolutionWeight(octave.wavelength, context.spacing, m_options.fade);
         if (weight <= 0.0) {
             break;
         }

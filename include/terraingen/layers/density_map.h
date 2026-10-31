@@ -114,23 +114,23 @@ class DensityScale {
 
     /// What the map measures of the distribution at a scale of 1.
     double Measure() const {
-        return measure_;
+        return m_measure;
     }
 
     /// The largest scale anywhere, at least 1.
     double Max() const {
-        return max_;
+        return m_max;
     }
 
     /// The map.
     const DensityMap& Map() const {
-        return map_;
+        return m_map;
     }
 
   private:
-    DensityMap map_;
-    double measure_ = 1.0;
-    double max_ = 1.0;
+    DensityMap m_map;
+    double m_measure = 1.0;
+    double m_max = 1.0;
 };
 
 }  // namespace terraingen

@@ -21,16 +21,16 @@ ValueDistribution ClampedToUnit(ValueDistribution freshness) {
 }  // namespace
 
 FreshnessAges::FreshnessAges(ValueDistribution freshness, double lifetimeGyr)
-    : freshness_(ClampedToUnit(std::move(freshness))), lifetimeGyr_(lifetimeGyr) {
-    RequirePositive(lifetimeGyr_, "Lifetime");
+    : m_freshness(ClampedToUnit(std::move(freshness))), m_lifetimeGyr(lifetimeGyr) {
+    RequirePositive(m_lifetimeGyr, "Lifetime");
 }
 
 double FreshnessAges::SampleFreshness(RandomStream& random) const {
-    return freshness_.Draw(random);
+    return m_freshness.Draw(random);
 }
 
 double FreshnessAges::LifetimeAt(double /*diameter*/) const {
-    return lifetimeGyr_;
+    return m_lifetimeGyr;
 }
 
 double FreshnessAges::SampleAgeAt(RandomStream& random, double /*diameter*/,

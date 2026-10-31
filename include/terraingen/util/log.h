@@ -89,16 +89,16 @@ template <typename... Parts> void LogWarning(std::string_view category, const Pa
 class Stopwatch {
   public:
     /// Starts timing.
-    Stopwatch() : start_(std::chrono::steady_clock::now()) {}
+    Stopwatch() : m_start(std::chrono::steady_clock::now()) {}
 
     /// Milliseconds since construction.
     double Milliseconds() const {
-        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_)
+        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - m_start)
             .count();
     }
 
   private:
-    std::chrono::steady_clock::time_point start_;
+    std::chrono::steady_clock::time_point m_start;
 };
 
 /// Formats a duration in milliseconds for messages: "0.42 ms", "91.6 ms" or "2.31 s".

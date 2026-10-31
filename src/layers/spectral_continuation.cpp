@@ -64,11 +64,11 @@ struct SpectralContinuationLayer::ImpulseTable {
 };
 
 SpectralContinuationLayer::SpectralContinuationLayer(SpectralContinuationOptions options)
-    : options_(options) {
-    ValidateSpectralContinuationOptions(options_);
-    const double nyquist = 0.5 / options_.pixelSize;
-    coefficient_ = PowerLawSpectrum{options_.slope, options_.octaveRms}.Coefficient(nyquist);
-    const double octaves = std::log2(1.0 / (options_.minWavelength * nyquist));
+    : m_options(options) {
+    ValidateSpectralContinuationOptions(m_options);
+    const double nyquist = 0.5 / m_options.pixelSize;
+    m_coefficient = PowerLawSpectrum{m_options.slope, m_options.octaveRms}.Coefficient(nyquist);
+    const double octaves = std::log2(1.0 / (m_options.minWavelength * nyquist));
     const int count = static_cast<int>(
         std::clamp(std::ceil(octaves - 1e-9), 0.0, static_cast<double>(kMaxBands)));
     const double radius = std::sqrt(-std::log(kEnvelopeCut) / kPi);
@@ -77,25 +77,25 @@ SpectralContinuationLayer::SpectralContinuationLayer(SpectralContinuationOptions
         band.frequency = std::ldexp(nyquist, i);
         band.bandwidth = kBandwidth * band.frequency;
         band.reach = radius / band.bandwidth;
-        band.seed = SubstreamSeed(options_.seed, kSpectralContinuationStream,
+        band.seed = SubstreamSeed(m_options.seed, kSpectralContinuationStream,
                                   static_cast<std::uint32_t>(i));
-        bands_.push_back(band);
+        m_bands.push_back(band);
     }
 }
 
 LayerPtr SpectralContinuationLayer::Reseeded(std::uint64_t seed) const {
-    SpectralContinuationOptions options = options_;
+    SpectralContinuationOptions options = m_options;
     options.seed = ReseedWord(seed, 0);
     return std::make_shared<SpectralContinuationLayer>(options);
 }
 
 double SpectralContinuationLayer::TargetPsd(double frequency) const {
-    const double nyquist = 0.5 / options_.pixelSize;
-    if (!(frequency > nyquist) || frequency > 1.0 / options_.minWavelength) {
+    const double nyquist = 0.5 / m_options.pixelSize;
+    if (!(frequency > nyquist) || frequency > 1.0 / m_options.minWavelength) {
         return 0.0;
     }
-    const double taper = Smoothstep(std::log2(frequency / nyquist) / options_.taperOctaves);
-    return coefficient_ * std::pow(frequency, -options_.slope) * taper;
+    const double taper = Smoothstep(std::log2(frequency / nyquist) / m_options.taperOctaves);
+    return m_coefficient * std::pow(frequency, -m_options.slope) * taper;
 }
 
 SpectralContinuationLayer::ImpulseTable SpectralContinuationLayer::Table(const Band& band,
@@ -127,7 +127,7 @@ SpectralContinuationLayer::ImpulseTable SpectralContinuationLayer::Table(const B
                 impulse.ky = 2.0 * kPi * frequency * std::sin(angle);
                 impulse.amplitude =
                     std::sqrt(weight * frequency * frequency * TargetPsd(frequency)) *
-                    ResolutionWeight(1.0 / frequency, spacing, options_.fade);
+                    ResolutionWeight(1.0 / frequency, spacing, m_options.fade);
                 table.impulses.push_back(impulse);
             }
         }
@@ -148,8 +148,8 @@ void SpectralContinuationLayer::AddDetail(const std::vector<Vec2d>& positions,
         high = {std::max(high.x, p.x), std::max(high.y, p.y)};
     }
     std::vector<ImpulseTable> tables;
-    for (const Band& band : bands_) {
-        if (ResolutionWeight(1.0 / band.frequency, spacing, options_.fade) > 0.0) {
+    for (const Band& band : m_bands) {
+        if (ResolutionWeight(1.0 / band.frequency, spacing, m_options.fade) > 0.0) {
             tables.push_back(Table(band, low.x, low.y, high.x, high.y, spacing));
         }
     }
@@ -195,8 +195,8 @@ void SpectralContinuationLayer::ApplySamples(SampleBlock& samples,
                                              const LayerContext& context) const {
     const Surface& surface = context.SurfaceOrPlane();
     const double spacing = samples.ResolvedSpacing(context.spacing, surface);
-    if (bands_.empty() ||
-        !(ResolutionWeight(1.0 / bands_.front().frequency, spacing, options_.fade) > 0.0)) {
+    if (m_bands.empty() ||
+        !(ResolutionWeight(1.0 / m_bands.front().frequency, spacing, m_options.fade) > 0.0)) {
         return;
     }
     const double unit = surface.UnitLength();
