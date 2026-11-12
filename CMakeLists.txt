@@ -11,6 +11,12 @@ endif()
 # The release being worked toward, such as 0.1.0, or for a development build a PEP 440 pre-release of
 # it, such as 0.1.0.dev42, which only the Python package carries.
 set(TERRAINGEN_FULL_VERSION "0.2.0")
+
+# macOS 26 is the oldest supported release; the Metal backend compiles kernels with its safe math
+# mode, which needs macOS 15. Set before project() so it applies to every target.
+set(CMAKE_OSX_DEPLOYMENT_TARGET
+    "26.0"
+    CACHE STRING "Oldest macOS TerrainGen runs on")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TERRAINGEN_VERSION "${TERRAINGEN_FULL_VERSION}")
 
 project(

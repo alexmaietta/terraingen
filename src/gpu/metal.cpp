@@ -43,6 +43,16 @@ struct MetalCompute::State {
         name = [[device name] UTF8String];
     }
 
+    /// IEEE math with precise library functions. Metal's default fast math reassociates
+    /// arithmetic, which drops the low halves of split floats (`SplitDifference`) and moves
+    /// craters on a body by tenths of a meter.
+    static MTLCompileOptions* CompileOptions() {
+        MTLCompileOptions* options = [[MTLCompileOptions alloc] init];
+        options.mathMode = MTLMathModeSafe;
+        options.mathFloatingPointFunctions = MTLMathFloatingPointFunctionsPrecise;
+        return options;
+    }
+
     /// The pipeline of `source`, compiled on first use.
     id<MTLComputePipelineState> CachedPipeline(Span<const char> source) {
         const auto found = pipelines.find(source.data());
@@ -53,7 +63,8 @@ struct MetalCompute::State {
                                                   length:source.size()
                                                 encoding:NSUTF8StringEncoding];
         NSError* error = nil;
-        id<MTLLibrary> library = [device newLibraryWithSource:text options:nil error:&error];
+        id<MTLLibrary> library =
+            [device newLibraryWithSource:text options:CompileOptions() error:&error];
         if (library == nil) {
             throw std::runtime_error(std::string("Metal kernel compilation failed: ") +
                                      [[error localizedDescription] UTF8String]);

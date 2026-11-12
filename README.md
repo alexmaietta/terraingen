@@ -50,7 +50,7 @@ Looking for a theoretical background behind TerrainGen, see our [concepts](https
 
 ## Requirements
 
-- Linux (Ubuntu 22.04 or newer), macOS 14 or newer, or Windows 10 or newer, on x86_64 or arm64.
+- Linux (Ubuntu 22.04 or newer) or Windows 10 or newer on x86_64 or arm64, or macOS 26 or newer on Apple silicon.
 - Python 3.10 or newer for the Python package.
 - Optional: a Vulkan, CUDA or Metal driver for GPU acceleration. Run `terraingen backends` to see what is available.
 

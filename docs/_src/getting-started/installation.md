@@ -4,7 +4,7 @@ We recommend installing `terraingenpy` from PyPI, which gives you the Python pac
 
 ## Requirements
 
-- Linux (Ubuntu 22.04 or newer), macOS 14 or newer, or Windows 10 or newer, on x86_64 or arm64.
+- Linux (Ubuntu 22.04 or newer) or Windows 10 or newer on x86_64 or arm64, or macOS 26 or newer on Apple silicon.
 - Python 3.10 or newer for the Python package.
 - Optionally, a Vulkan, CUDA or Metal driver for GPU acceleration. Run `terraingen backends` to see what is available.
 
