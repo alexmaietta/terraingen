@@ -174,6 +174,9 @@ void BindTerrain(nb::module_& m) {
         .def("surface", &Terrain::Surface, "What the terrain lies on.")
         .def("source", &Terrain::Source, "The starting heights; None for none.")
         .def("layers", &Terrain::Layers, "The layers, applied in order.")
+        .def("ground_reach", &Terrain::GroundReach, "spacing"_a,
+             "How far (m) around a tile evaluated at `spacing` the terrain beneath its layers is "
+             "read: the sum of the layers' ground_reach.")
         .def("grid", &Terrain::Grid,
              "The RasterGrid of the source; None without a source or for one without bounds.")
         .def("keys", &Terrain::Keys,

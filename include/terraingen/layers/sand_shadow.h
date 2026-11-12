@@ -66,6 +66,9 @@ class SandShadowLayer final : public Layer, public MaterialSource {
         return {m_boulders.get()};
     }
 
+    /// The longest shadow plus the boulder layer's reach, for the boulders it lists.
+    double GroundReach(double spacing) const override;
+
     /// A copy trailing the replacement of its boulder layer; null when it is not replaced.
     LayerPtr Rebound(const LayerReplacements& replaced) const override;
 
@@ -90,6 +93,8 @@ class SandShadowLayer final : public Layer, public MaterialSource {
         double weight = 1.0;
         Bounds2d box{};
     };
+    /// How far (m) the largest boulder's shadow reaches from its center.
+    double LongestShadow() const;
     std::vector<Shadow> ShadowsOver(const Bounds2d& region, double spacing, const Ground* ground,
                                     const Surface& surface) const;
     double ShadowDepth(const Shadow& shadow, double x, double y, const Surface& surface) const;

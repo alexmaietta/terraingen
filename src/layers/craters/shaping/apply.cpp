@@ -85,7 +85,7 @@ std::vector<CraterFrame> MakeCraterFrames(const std::vector<PreparedCrater>& pre
     }
     std::vector<CraterFrame> frames(indices.size());
     for (std::size_t n = 0; n < indices.size(); ++n) {
-        frames[n] = MakeCraterFrame(surface, prepared[indices[n]].crater, Vec3d{});
+        frames[n] = MakeCraterFrame(surface, prepared[indices[n]].crater);
     }
     return frames;
 }

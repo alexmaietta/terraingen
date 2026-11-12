@@ -120,6 +120,10 @@ void BedformLayer::AddField(FieldSum& sum, RandomStream& random, const Vec2d& ce
     sum.relief += cover * m_options.height * scale * profile;
 }
 
+double BedformLayer::GroundReach(double /*spacing*/) const {
+    return m_exposure ? kRadiusMax * (1.0 + kRagged) * m_cell + m_exposure.Reach() : 0.0;
+}
+
 BedformLayer::FieldSum BedformLayer::SumFields(double x, double y,
                                                const LayerContext& context) const {
     FieldSum sum;

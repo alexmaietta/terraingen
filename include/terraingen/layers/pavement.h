@@ -89,6 +89,11 @@ class PavementLayer final : public FormulaLayer, public MaterialSource {
     /// The layer with its seed `ReseedWord(seed, 0)`.
     LayerPtr Reseeded(std::uint64_t seed) const override;
 
+    /// The exposure field's reach; 0 without one.
+    double GroundReach(double /*spacing*/) const override {
+        return m_exposure.Reach();
+    }
+
     MaterialClass Material() const override {
         return MaterialClass::Bedrock;
     }

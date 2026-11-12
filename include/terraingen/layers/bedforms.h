@@ -83,6 +83,10 @@ class BedformLayer final : public FormulaLayer, public MaterialSource {
     /// The layer with its seed `ReseedWord(seed, 0)`.
     LayerPtr Reseeded(std::uint64_t seed) const override;
 
+    /// The largest field's reach plus the exposure field's reach at its center; 0 without
+    /// exposure.
+    double GroundReach(double spacing) const override;
+
     MaterialClass Material() const override {
         return MaterialClass::Sand;
     }

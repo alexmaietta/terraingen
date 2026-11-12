@@ -117,13 +117,12 @@ void SolveDatums(std::vector<PreparedCrater>& prepared, const std::vector<std::s
     });
 }
 
-/// Craters indexed for `KernelDatumRelief`, with the kernel that reads them. Positions are the
-/// floats nearest the craters' with `lows` what those drop, and cells are absolute, so the relief
-/// at a point depends only on the craters reaching it. On a plane only.
+/// Craters indexed for `KernelDatumRelief`, with the kernel that reads them. Positions are split
+/// (`SplitDifference`) and cells are absolute, so the relief at a point depends only on the craters
+/// reaching it. On a plane only.
 struct DatumKernelIndex {
     CraterDatumKernel kernel;
     CraterKernelBatch batch;
-    std::vector<float> lows;
     /// Per size band: its cell size, which is its largest reach, and its first cell's column and
     /// row.
     std::vector<float> bandFloats;
@@ -183,20 +182,11 @@ std::vector<std::size_t> ReliefCraters(const std::vector<PreparedCrater>& prepar
     return kept;
 }
 
-/// Sets each record of `index` to the float nearest its crater's center, with what that drops in
-/// `lows`, and groups the records by size band.
-std::map<int, std::vector<std::uint32_t>> RoundRecords(const std::vector<PreparedCrater>& prepared,
-                                                       const std::vector<std::size_t>& kept,
-                                                       DatumKernelIndex& index) {
-    index.lows.resize(2 * kept.size());
+/// The records of craters `kept` of `prepared`, grouped by size band.
+std::map<int, std::vector<std::uint32_t>> BandRecords(const std::vector<PreparedCrater>& prepared,
+                                                      const std::vector<std::size_t>& kept) {
     std::map<int, std::vector<std::uint32_t>> bands;
     for (std::size_t m = 0; m < kept.size(); ++m) {
-        const Crater& c = prepared[kept[m]].crater;
-        CraterRecord& record = index.batch.records[m];
-        record.x = static_cast<float>(c.x);
-        record.y = static_cast<float>(c.y);
-        index.lows[2 * m] = static_cast<float>(c.x - static_cast<double>(record.x));
-        index.lows[2 * m + 1] = static_cast<float>(c.y - static_cast<double>(record.y));
         bands[ReliefBand(prepared[kept[m]])].push_back(static_cast<std::uint32_t>(m));
     }
     return bands;
@@ -289,7 +279,7 @@ std::optional<DatumKernelIndex> IndexDatumRelief(const std::vector<PreparedCrate
     const std::vector<std::size_t> kept =
         ReliefCraters(prepared, fitted, profile, options, index.slot);
     index.batch = MakeCraterKernelBatch(shape, profile, prepared, kept, options);
-    const std::map<int, std::vector<std::uint32_t>> bands = RoundRecords(prepared, kept, index);
+    const std::map<int, std::vector<std::uint32_t>> bands = BandRecords(prepared, kept);
     for (const auto& [band, members] : bands) {
         const auto size = static_cast<float>(1.0001 * profile.ReachRadii() * std::ldexp(1.0, band));
         if (!AddReliefBand(index, size, members)) {
@@ -313,11 +303,11 @@ Backend AddDatumRelief(Raster<float>& lattice, const std::vector<std::uint8_t>& 
         targets[n] = index.slot[fitted[n]];
     }
     const CraterKernelBatch& batch = index.batch;
-    const std::array<KernelBuffer, 8> extra{
-        MakeKernelBuffer(batch.records),   MakeKernelBuffer(batch.data),
-        MakeKernelBuffer(index.lows),      MakeKernelBuffer(index.bandFloats),
-        MakeKernelBuffer(index.bandCells), MakeKernelBuffer(index.cells),
-        MakeKernelBuffer(index.entries),   MakeKernelBuffer(targets)};
+    const std::array<KernelBuffer, 7> extra{
+        MakeKernelBuffer(batch.records),    MakeKernelBuffer(batch.data),
+        MakeKernelBuffer(index.bandFloats), MakeKernelBuffer(index.bandCells),
+        MakeKernelBuffer(index.cells),      MakeKernelBuffer(index.entries),
+        MakeKernelBuffer(targets)};
     if (RunKernel(backend, CompiledKernel<CraterDatumKernel>(), AsBytes(Span(&index.kernel, 1)),
                   lattice, {0.0, 0.0}, extra)) {
         return backend;
@@ -327,9 +317,9 @@ Backend AddDatumRelief(Raster<float>& lattice, const std::vector<std::uint8_t>& 
             const std::size_t at = n * kDatumLatticePoints + point;
             if (valid[at] != 0) {
                 lattice.Values()[at] += KernelDatumRelief(
-                    index.kernel, batch.Data(), batch.records.data(), index.lows.data(),
-                    index.bandFloats.data(), index.bandCells.data(), index.cells.data(),
-                    index.entries.data(), targets[n], static_cast<std::uint32_t>(point));
+                    index.kernel, batch.Data(), batch.records.data(), index.bandFloats.data(),
+                    index.bandCells.data(), index.cells.data(), index.entries.data(), targets[n],
+                    static_cast<std::uint32_t>(point));
             }
         }
     });
@@ -352,9 +342,9 @@ void FitDatumsWithKernel(std::vector<PreparedCrater>& prepared,
 }
 
 /// Prepared craters bucketed by surface position, to sum with `CraterRelief` the relief of the
-/// craters before any one of them at a point, on any surface, each read at its own local-frame
-/// offset (`ShapingOffset`). A point sums in an order fixed by the craters' positions, so the
-/// relief depends only on the craters reaching it.
+/// craters before any one of them at a point, on any surface, each read at the kernel's split
+/// offset (`PlanarSplitOffset`, `BodySplitOffset`). A point sums in an order fixed by the craters'
+/// positions, so the relief depends only on the craters reaching it.
 class ReliefIndex {
   public:
     /// Indexes `prepared`, which must outlive the index; their datums are not read.
@@ -374,6 +364,12 @@ class ReliefIndex {
             m_buckets.Add(band, m_profileReach * std::ldexp(1.0, band + 1), {crater.x, crater.y},
                           n);
             members[band].push_back(n);
+            if (m_surface.IsBody()) {
+                m_frames.push_back(MakeCraterFrame(m_surface, crater));
+            }
+        }
+        if (m_frames.empty()) {
+            m_frames.push_back(CraterFrame{});
         }
         for (auto& [band, craters] : members) {
             m_bands.push_back(band);
@@ -387,6 +383,11 @@ class ReliefIndex {
     /// The records of every crater, in order.
     const CraterKernelBatch& Batch() const {
         return m_batch;
+    }
+
+    /// Every crater's frame on a body, in order; a placeholder on a plane.
+    const std::vector<CraterFrame>& Frames() const {
+        return m_frames;
     }
 
     /// How far (m) crater `n` reaches, stretched by its outline, with a little slack: the bound
@@ -426,14 +427,16 @@ class ReliefIndex {
     float ReliefBefore(const Vec2d& point, std::size_t k) const {
         float relief = 0.0f;
         const CraterData data = m_batch.Data();
+        const SplitPoint at = MakeSplitPoint(m_surface, point);
+        const bool onBody = m_surface.IsBody();
         for (const int band : m_bands) {
             m_buckets.ForEachAround(band, point, 1, [&](const std::vector<std::size_t>& bucket) {
                 for (const std::size_t n : bucket) {
                     if (n >= k) {
                         break;
                     }
-                    const KernelOffset offset =
-                        ShapingOffset(m_surface, (*m_prepared)[n].crater, point);
+                    const KernelOffset offset = onBody ? BodySplitOffset(m_frames[n], at)
+                                                       : PlanarSplitOffset(m_batch.records[n], at);
                     relief += CraterRelief(m_shape, data, m_batch.records[n], Bound(n), offset.dx,
                                            offset.dy);
                 }
@@ -448,6 +451,7 @@ class ReliefIndex {
     Surface m_surface;
     double m_profileReach = 1.0;
     CraterKernelBatch m_batch;
+    std::vector<CraterFrame> m_frames;
     BandBuckets m_buckets;
     std::vector<int> m_bands;
     /// The craters of each of `m_bands`, in order.
@@ -474,8 +478,7 @@ constexpr double kBodyReachSlack = 1.25;
 /// The craters whose relief datums on a body are fitted to, as `KernelBodyDatumRelief` reads
 /// them.
 struct BodyReliefCraters {
-    std::vector<CraterFrame> frames;  ///< Per crater.
-    std::vector<float> bounds;        ///< Per crater, `ReliefIndex::Bound`.
+    std::vector<float> bounds;  ///< Per crater, `ReliefIndex::Bound`.
     /// Per crater fitted, its first entry and its entry count.
     std::vector<std::uint32_t> lists;
     /// The craters before each crater fitted that can reach its footprint, ascending per crater.
@@ -502,18 +505,16 @@ std::vector<std::uint32_t> CratersNear(const std::vector<PreparedCrater>& prepar
 }
 
 /// The craters of `prepared` in `index` as the relief datums of craters `fitted` are fitted to on
-/// a body, with frames from `origin` (m), on `threads` threads.
+/// a body, on `threads` threads.
 BodyReliefCraters MakeBodyReliefCraters(const std::vector<PreparedCrater>& prepared,
                                         const std::vector<std::size_t>& fitted,
                                         const ReliefIndex& index, const CraterApplyOptions& options,
-                                        const Vec3d& origin, unsigned threads) {
+                                        unsigned threads) {
     BodyReliefCraters craters;
-    craters.frames.resize(prepared.size());
     craters.bounds.resize(prepared.size());
-    ParallelFor(prepared.size(), threads, [&](std::size_t n) {
-        craters.frames[n] = MakeCraterFrame(options.surface, prepared[n].crater, origin);
+    for (std::size_t n = 0; n < prepared.size(); ++n) {
         craters.bounds[n] = index.Bound(n);
-    });
+    }
     std::vector<std::vector<std::uint32_t>> near(fitted.size());
     ParallelFor(fitted.size(), threads,
                 [&](std::size_t n) { near[n] = CratersNear(prepared, fitted[n], index, options); });
@@ -521,17 +522,16 @@ BodyReliefCraters MakeBodyReliefCraters(const std::vector<PreparedCrater>& prepa
     return craters;
 }
 
-/// The positions from `origin` (m) of the points of `lattice` inside the footprint, as x, y, z
-/// triples, 0 elsewhere, set on `threads` threads.
-std::vector<float> LatticePositions(const DatumLattice& lattice, const Surface& surface,
-                                    const Vec3d& origin, unsigned threads) {
-    std::vector<float> positions(3 * lattice.points.size(), 0.0f);
+/// The points of `lattice` inside the footprint as kernels read them (`MakeSplitPoint`), zero
+/// elsewhere, set on `threads` threads.
+std::vector<SplitPoint> LatticePositions(const DatumLattice& lattice, const Surface& surface,
+                                         unsigned threads) {
+    std::vector<SplitPoint> positions(lattice.points.size(), SplitPoint{});
     ParallelFor(lattice.points.size() / kDatumLatticePoints, threads, [&](std::size_t row) {
         for (std::size_t at = row * kDatumLatticePoints; at < (row + 1) * kDatumLatticePoints;
              ++at) {
             if (lattice.inside[at] != 0) {
-                StoreKernelPosition(surface.Position(lattice.points[at]) - origin,
-                                    positions.data() + 3 * at);
+                positions[at] = MakeSplitPoint(surface, lattice.points[at]);
             }
         }
     });
@@ -549,22 +549,20 @@ bool FitBodyDatumsOnGpu(std::vector<PreparedCrater>& prepared,
     if (sampling.backend == Backend::Cpu || fitted.empty()) {
         return false;
     }
-    const Crater& first = prepared[fitted.front()].crater;
-    const Vec3d origin = options.surface.Position({first.x, first.y});
     const DatumLattice points = LocateDatumLattice(prepared, fitted, options, sampling.threads);
-    const std::vector<float> positions =
-        LatticePositions(points, options.surface, origin, sampling.threads);
+    const std::vector<SplitPoint> positions =
+        LatticePositions(points, options.surface, sampling.threads);
     Raster<float> lattice = ReadGround(points, ground, batchGround, sampling.threads);
     const std::vector<std::uint8_t> valid = ValidPoints(lattice);
     const BodyReliefCraters craters =
-        MakeBodyReliefCraters(prepared, fitted, index, options, origin, sampling.threads);
+        MakeBodyReliefCraters(prepared, fitted, index, options, sampling.threads);
     const CraterKernelBatch& batch = index.Batch();
     const CraterBodyDatumKernel kernel{shape};
     const std::array<KernelBuffer, 7> extra{
         MakeKernelBuffer(batch.records),  MakeKernelBuffer(batch.data),
-        MakeKernelBuffer(craters.frames), MakeKernelBuffer(craters.bounds),
+        MakeKernelBuffer(index.Frames()), MakeKernelBuffer(craters.bounds),
         MakeKernelBuffer(craters.lists),  MakeKernelBuffer(craters.entries),
-        MakeKernelBuffer(positions, 3)};
+        MakeKernelBuffer(positions, 1)};
     if (!RunKernel(sampling.backend, CompiledKernel<CraterBodyDatumKernel>(),
                    AsBytes(Span(&kernel, 1)), lattice, {0.0, 0.0}, extra)) {
         return false;

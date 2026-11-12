@@ -252,6 +252,14 @@ double BoulderLayer::BreakMarginRadii() const {
     return fragmentation ? 2.0 * (fragmentation->gapRatio + fragmentation->spreadRatio) : 0.0;
 }
 
+double BoulderLayer::GroundReach(double spacing) const {
+    const double rim = m_options.rendering.relief == BoulderRelief::Dome ? 0.5 * spacing : 0.0;
+    const double roll = m_options.pose.rollDistance.value_or(0.0);
+    const double radius = 0.5 * MaxFeatureDiameter();
+    return rim + 2.0 * roll + radius * (OwnMarginRadii() + BreakMarginRadii()) +
+           std::fmax(radius, m_exposure.Reach());
+}
+
 CraterList BoulderLayer::ScatterBoulderCandidates(const Bounds2d& region, double smallest) const {
     const double margin = OwnMarginRadii() + BreakMarginRadii();
     if (!m_options.generateRandom) {

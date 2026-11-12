@@ -114,6 +114,10 @@ class MaskedLayer final : public Layer, public CraterPlacer, public BoulderPlace
     }
 
     /// The layers the confined layer reads.
+    double GroundReach(double spacing) const override {
+        return m_inner->GroundReach(spacing);
+    }
+
     std::vector<const Layer*> Dependencies() const override {
         return m_inner->Dependencies();
     }

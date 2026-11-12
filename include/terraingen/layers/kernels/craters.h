@@ -185,6 +185,32 @@ inline KernelOffset KernelFrameOffset(KERNEL_IN(CraterFrame) f, float dx, float 
     return offset;
 }
 
+/// A sample's coordinates (m), each a float and the float of its remainder (`SplitDifference`):
+/// east and north on a plane, or its position (`Surface::Position`) on a body.
+struct SplitPoint {
+    float x;
+    float xLow;
+    float y;
+    float yLow;
+    float z;
+    float zLow;
+};
+
+/// The offset of `p` from crater `c`'s center on a plane.
+inline KernelOffset PlanarSplitOffset(KERNEL_IN(CraterRecord) c, KERNEL_IN(SplitPoint) p) {
+    KernelOffset offset;
+    offset.dx = SplitDifference(p.x, p.xLow, c.x, c.xLow);
+    offset.dy = SplitDifference(p.y, p.yLow, c.y, c.yLow);
+    return offset;
+}
+
+/// The offset of `p` in crater frame `f` on a body (`KernelFrameOffset`).
+inline KernelOffset BodySplitOffset(KERNEL_IN(CraterFrame) f, KERNEL_IN(SplitPoint) p) {
+    return KernelFrameOffset(f, SplitDifference(p.x, p.xLow, f.x, f.xLow),
+                             SplitDifference(p.y, p.yLow, f.y, f.yLow),
+                             SplitDifference(p.z, p.zLow, f.z, f.zLow));
+}
+
 #ifdef __SLANG__
 /// Where the variable-length values of craters are read from: a buffer the dispatch binds.
 typedef StructuredBuffer<float> CraterData;
@@ -1238,10 +1264,9 @@ inline KernelCellSpan KernelCellsNear(float p, float size, float slack, float st
 
 /// The relief (m) of the craters before crater `k` of `records` at lattice point `point` of `k`'s
 /// datum footprint, numbered row by row; 0 outside the footprint. The index is laid out as
-/// `DatumKernelIndex` (shaping/datum_fit.cpp) describes, with `lows` the x, y pairs the records'
-/// float positions drop.
+/// `DatumKernelIndex` (shaping/datum_fit.cpp) describes.
 inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData data,
-                               CraterRecords records, KernelFloats lows, KernelFloats bandFloats,
+                               CraterRecords records, KernelFloats bandFloats,
                                KernelUints bandCells, KernelUints cells, KernelUints entries,
                                uint32_t k, uint32_t point) {
     const uint32_t side = kernel.latticeSide;
@@ -1251,10 +1276,15 @@ inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData d
     if (dx * dx + dy * dy >= fitRadius * fitRadius) {
         return 0.0f;
     }
-    const float lowX = lows[2u * k] + dx;
-    const float lowY = lows[2u * k + 1u] + dy;
-    const float px = records[k].x + lowX;
-    const float py = records[k].y + lowY;
+    SplitPoint at;
+    at.x = records[k].x;
+    at.xLow = records[k].xLow + dx;
+    at.y = records[k].y;
+    at.yLow = records[k].yLow + dy;
+    at.z = 0.0f;
+    at.zLow = 0.0f;
+    const float px = at.x + at.xLow;
+    const float py = at.y + at.yLow;
     const float slackX = kDatumCellSlack * abs(px);
     const float slackY = kDatumCellSlack * abs(py);
     float relief = 0.0f;
@@ -1275,10 +1305,9 @@ inline float KernelDatumRelief(KERNEL_IN(CraterDatumKernel) kernel, CraterData d
                     if (n >= k) {
                         break;
                     }
-                    relief += CraterRelief(
-                        kernel.shape, data, records[n], size,
-                        SplitDifference(records[k].x, lowX, records[n].x, lows[2u * n]),
-                        SplitDifference(records[k].y, lowY, records[n].y, lows[2u * n + 1u]));
+                    const KernelOffset offset = PlanarSplitOffset(records[n], at);
+                    relief +=
+                        CraterRelief(kernel.shape, data, records[n], size, offset.dx, offset.dy);
                 }
             }
         }
@@ -1292,18 +1321,16 @@ struct CraterBodyDatumKernel {
 };
 
 /// The relief (m) of craters `entries[first]` to `entries[first + count - 1]` of `records`, in
-/// that order, at the point at position (`px`, `py`, `pz`) from the dispatch's origin (m) on a
-/// body; each crater read in its `frames` (`KernelFrameOffset`) within its `bounds` (m), as
-/// `CraterRelief` takes them.
+/// that order, at `p` on a body; each crater read in its `frames` (`BodySplitOffset`) within its
+/// `bounds` (m), as `CraterRelief` takes them.
 inline float KernelBodyDatumRelief(KERNEL_IN(CraterShapeKernel) k, CraterData data,
                                    CraterRecords records, CraterFrames frames, KernelFloats bounds,
-                                   KernelUints entries, uint32_t first, uint32_t count, float px,
-                                   float py, float pz) {
+                                   KernelUints entries, uint32_t first, uint32_t count,
+                                   KERNEL_IN(SplitPoint) p) {
     float relief = 0.0f;
     for (uint32_t e = first; e < first + count; ++e) {
         const uint32_t n = entries[e];
-        const KernelOffset at =
-            KernelFrameOffset(frames[n], px - frames[n].x, py - frames[n].y, pz - frames[n].z);
+        const KernelOffset at = BodySplitOffset(frames[n], p);
         relief += CraterRelief(k, data, records[n], bounds[n], at.dx, at.dy);
     }
     return relief;
@@ -1316,17 +1343,6 @@ inline uint32_t CraterTileHead(KernelUints tiles, uint32_t col, uint32_t row) {
     return 3u + 2u * ((row / side) * tiles[0] + col / side);
 }
 
-/// A sample's coordinates (m), each a float and the float of its remainder (`SplitDifference`):
-/// east and north on a plane, or its position (`Surface::Position`) on a body.
-struct SplitPoint {
-    float x;
-    float xLow;
-    float y;
-    float yLow;
-    float z;
-    float zLow;
-};
-
 /// The height after craters `entries[first]` to `entries[first + count - 1]` of `records`, in
 /// that order, from `height` at `p` on a plane.
 inline float ShapeCraters(KERNEL_IN(CraterShapeKernel) k, CraterData data, CraterRecords records,
@@ -1334,24 +1350,20 @@ inline float ShapeCraters(KERNEL_IN(CraterShapeKernel) k, CraterData data, Crate
                           KERNEL_IN(SplitPoint) p) {
     for (uint32_t e = first; e < first + count; ++e) {
         const uint32_t n = entries[e];
-        height = ApplyCraterKernel(k, data, records[n], height,
-                                   SplitDifference(p.x, p.xLow, records[n].x, records[n].xLow),
-                                   SplitDifference(p.y, p.yLow, records[n].y, records[n].yLow));
+        const KernelOffset at = PlanarSplitOffset(records[n], p);
+        height = ApplyCraterKernel(k, data, records[n], height, at.dx, at.dy);
     }
     return height;
 }
 
-/// `ShapeCraters` on a body, each crater read in its `frames` (`KernelFrameOffset`).
+/// `ShapeCraters` on a body, each crater read in its `frames`.
 inline float ShapeCratersOnBody(KERNEL_IN(CraterShapeKernel) k, CraterData data,
                                 CraterRecords records, CraterFrames frames, KernelUints entries,
                                 uint32_t first, uint32_t count, float height,
                                 KERNEL_IN(SplitPoint) p) {
     for (uint32_t e = first; e < first + count; ++e) {
         const uint32_t n = entries[e];
-        const CraterFrame f = frames[n];
-        const KernelOffset at = KernelFrameOffset(f, SplitDifference(p.x, p.xLow, f.x, f.xLow),
-                                                  SplitDifference(p.y, p.yLow, f.y, f.yLow),
-                                                  SplitDifference(p.z, p.zLow, f.z, f.zLow));
+        const KernelOffset at = BodySplitOffset(frames[n], p);
         height = ApplyCraterKernel(k, data, records[n], height, at.dx, at.dy);
     }
     return height;

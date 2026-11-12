@@ -354,12 +354,15 @@ void CraterLayer::ApplySamples(SampleBlock& samples, const LayerContext& context
                                    m_options.apply, sampling)) {
         return;
     }
-    const double margin = std::fmax(
-        DatumMargin(m_options.apply, *m_models.profile, MaxFeatureDiameter()), m_replacementMargin);
     const CraterList craters =
-        Craters(m_surface.Expand(bounds, margin), spacing, 0.0,
+        Craters(m_surface.Expand(bounds, GroundReach(spacing)), spacing, 0.0,
                 std::numeric_limits<double>::infinity(), grid != nullptr ? context.threads : 1);
     ApplyCraters(samples, craters, m_models.Shape(), m_options.apply, sampling);
+}
+
+double CraterLayer::GroundReach(double /*spacing*/) const {
+    return std::fmax(DatumMargin(m_options.apply, *m_models.profile, MaxFeatureDiameter()),
+                     m_replacementMargin);
 }
 
 CraterFeatures CraterLayer::CratersOver(const RasterGrid& grid, double spacing) const {

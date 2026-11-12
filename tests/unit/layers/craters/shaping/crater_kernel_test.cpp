@@ -413,23 +413,17 @@ TEST(CraterKernel, TakesArcsineRatiosToWithinFloatRounding) {
 TEST(CraterKernel, WorksOutBodyOffsetsInEachCratersFrameAsTheSurfaceDoes) {
     for (const BodySurface& body : BodySurfaces()) {
         const Crater crater{body.center.x, body.center.y, body.maxDiameter, 0.0, 1u};
-        const terraingen::Vec2d corner = body.surface.Locate(body.center, {-900.0, 700.0});
-        const terraingen::Vec3d origin = body.surface.Position(corner);
-        const terraingen::CraterFrame frame =
-            terraingen::MakeCraterFrame(body.surface, crater, origin);
+        const terraingen::CraterFrame frame = terraingen::MakeCraterFrame(body.surface, crater);
         for (const double meters : {0.0, 0.01, 1.0, 37.0, 250.0, 1200.0}) {
             for (const double azimuth : {0.0, 0.7, 2.2, 3.9, 5.5}) {
                 const terraingen::Vec2d point = body.surface.Locate(
                     body.center, {meters * std::sin(azimuth), meters * std::cos(azimuth)});
-                const terraingen::Vec3d p = body.surface.Position(point) - origin;
-                const terraingen::KernelOffset kernel = terraingen::KernelFrameOffset(
-                    frame, static_cast<float>(p.x) - frame.x, static_cast<float>(p.y) - frame.y,
-                    static_cast<float>(p.z) - frame.z);
-                const terraingen::KernelOffset exact =
-                    terraingen::ShapingOffset(body.surface, crater, point);
+                const terraingen::KernelOffset kernel = terraingen::BodySplitOffset(
+                    frame, terraingen::MakeSplitPoint(body.surface, point));
+                const terraingen::Vec2d exact = body.surface.Offset(body.center, point);
                 const double tolerance = 1e-3 + 1e-6 * meters;
-                EXPECT_NEAR(kernel.dx, exact.dx, tolerance) << body.name << " at " << meters;
-                EXPECT_NEAR(kernel.dy, exact.dy, tolerance) << body.name << " at " << meters;
+                EXPECT_NEAR(kernel.dx, exact.x, tolerance) << body.name << " at " << meters;
+                EXPECT_NEAR(kernel.dy, exact.y, tolerance) << body.name << " at " << meters;
             }
         }
     }
@@ -513,14 +507,6 @@ TEST(FlattenKernelLists, AppendsEachListsFirstEntryAndCountAndNeverLeavesNoEntri
     std::vector<std::uint32_t> none;
     EXPECT_EQ(terraingen::FlattenKernelLists({{}}, none), (std::vector<std::uint32_t>{0u}));
     EXPECT_EQ(none, (std::vector<std::uint32_t>{0u, 0u}));
-}
-
-TEST(StoreKernelPosition, StoresAFloatTriple) {
-    float at[3] = {0.0f, 0.0f, 0.0f};
-    terraingen::StoreKernelPosition({1.5, -2.0, 1e9 + 0.25}, at);
-    EXPECT_EQ(at[0], 1.5f);
-    EXPECT_EQ(at[1], -2.0f);
-    EXPECT_EQ(at[2], static_cast<float>(1e9 + 0.25));
 }
 
 TEST(SplitCoordinate, KeepsWhatTheFloatLeaves) {

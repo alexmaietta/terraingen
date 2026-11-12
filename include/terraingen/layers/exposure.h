@@ -101,6 +101,11 @@ class LayerExposure {
         return m_field.has_value();
     }
 
+    /// How far (m) around a point the field reads the ground; 0 when not set.
+    double Reach() const {
+        return m_field ? m_field->Params().reach : 0.0;
+    }
+
     /// Checks that a layer reading the field was given a ground.
     /// @throws std::invalid_argument if the field is set and `ground` is null.
     void Require(const Ground* ground) const;

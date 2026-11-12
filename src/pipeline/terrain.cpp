@@ -249,6 +249,14 @@ Terrain::Terrain(terraingen::Surface surface, std::shared_ptr<const terraingen::
     Validate(m_surface, m_source, m_layers);
 }
 
+double Terrain::GroundReach(double spacing) const {
+    double reach = 0.0;
+    for (const LayerPtr& layer : m_layers) {
+        reach += layer->GroundReach(spacing);
+    }
+    return reach;
+}
+
 std::optional<RasterGrid> Terrain::Grid() const {
     return m_source ? BoundedGrid(*m_source) : std::nullopt;
 }

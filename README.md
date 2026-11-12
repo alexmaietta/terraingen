@@ -2,9 +2,10 @@
 
 [![pipeline](https://img.shields.io/github/actions/workflow/status/alexmaietta/terraingen/ci.yml?branch=main&label=pipeline)](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml)
 [![coverage](https://img.shields.io/endpoint?url=https://alexmaietta.github.io/terraingen/coverage/badge.json)](https://alexmaietta.github.io/terraingen/coverage/)
-[![release](https://img.shields.io/github/v/release/alexmaietta/terraingen)](https://github.com/alexmaietta/terraingen/releases)
-[![pypi](https://img.shields.io/pypi/v/terraingenpy)](https://pypi.org/project/terraingenpy/)
-[![license](https://img.shields.io/badge/license-BSD_3--Clause-blue)](LICENSE)
+[![release](https://img.shields.io/github/v/release/alexmaietta/terraingen?color=orange)](https://github.com/alexmaietta/terraingen/releases)
+[![pypi](https://img.shields.io/pypi/v/terraingenpy?color=yellow)](https://pypi.org/project/terraingenpy/)
+[![downloads](https://static.pepy.tech/badge/terraingenpy)](https://pepy.tech/projects/terraingenpy)
+[![license](https://img.shields.io/badge/license-BSD_3--Clause-2E8B57)](LICENSE)
 
 # TerrainGen
 

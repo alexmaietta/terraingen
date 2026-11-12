@@ -46,6 +46,10 @@ class PyLayer : public Layer {
             .value_or(nullptr);
     }
 
+    double GroundReach(double spacing) const override {
+        return CallOverride<double>(nb_trampoline, "ground_reach", spacing).value_or(0.0);
+    }
+
   protected:
     void ApplySamples(SampleBlock& samples, const LayerContext& context) const override {
         Raster<float>* grid = samples.Grid();
@@ -203,6 +207,10 @@ void BindLayerBase(nb::module_& m) {
              "A copy of a layer built on a base rebuilt on `base`; None for a layer without one.")
         .def("reseeded", &Layer::Reseeded, "seed"_a,
              "A copy of the layer whose seeds draw from `seed`; None for a layer without seeds.")
+        .def("ground_reach", &Layer::GroundReach, "spacing"_a,
+             "The farthest distance (m) from a sample at which evaluating it at `spacing` reads "
+             "the ground beneath the layer; 0 for a layer that reads it only at its samples or "
+             "not at all. Override it in a layer of your own that reads the ground around.")
         .def(
             "rebound",
             [](const Layer& layer, const std::vector<std::pair<LayerPtr, LayerPtr>>& replaced) {

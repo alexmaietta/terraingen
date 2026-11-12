@@ -96,6 +96,13 @@ class Layer {
         return {};
     }
 
+    /// The farthest distance (m) from a sample at which evaluating it at `spacing` reads the
+    /// ground beneath the layer; 0 (the default) for a layer that reads it only at its samples or
+    /// not at all. A tile evaluated alone needs the ground this far around it.
+    virtual double GroundReach(double /*spacing*/) const {
+        return 0.0;
+    }
+
     /// A copy of the layer whose seeds draw from `seed` (`ReseedWord`); null for a layer without
     /// seeds (the default), which `Terrain::Reseed` keeps.
     virtual LayerPtr Reseeded(std::uint64_t /*seed*/) const {

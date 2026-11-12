@@ -16,7 +16,11 @@ inline float ApplyCraterTo(float height, double x, double y, const PreparedCrate
                            const CraterProfile& profile, const CraterApplyOptions& options) {
     const CraterShapeKernel kernel = MakeCraterShapeKernel(profile, options);
     const CraterKernelBatch batch = MakeCraterKernelBatch(kernel, profile, {crater}, {0}, options);
-    const KernelOffset at = ShapingOffset(options.surface, crater.crater, {x, y});
+    const SplitPoint p = MakeSplitPoint(options.surface, {x, y});
+    const KernelOffset at =
+        options.surface.IsBody()
+            ? BodySplitOffset(MakeCraterFrame(options.surface, crater.crater), p)
+            : PlanarSplitOffset(batch.records[0], p);
     return ApplyCraterKernel(kernel, batch.Data(), batch.records[0], height, at.dx, at.dy);
 }
 

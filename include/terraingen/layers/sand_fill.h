@@ -50,6 +50,11 @@ class SandFillLayer final : public FormulaLayer, public MaterialSource {
         return m_options;
     }
 
+    /// `SandFillOptions::reach`.
+    double GroundReach(double /*spacing*/) const override {
+        return m_options.reach;
+    }
+
     MaterialClass Material() const override {
         return MaterialClass::Sand;
     }

@@ -41,11 +41,19 @@ LayerPtr SandShadowLayer::Rebound(const LayerReplacements& replaced) const {
     return rebound;
 }
 
+double SandShadowLayer::LongestShadow() const {
+    return m_boulders->MaxFeatureDiameter() * (0.5 + m_options.lengthRatio);
+}
+
+double SandShadowLayer::GroundReach(double spacing) const {
+    return LongestShadow() + m_boulders->GroundReach(spacing);
+}
+
 std::vector<SandShadowLayer::Shadow> SandShadowLayer::ShadowsOver(const Bounds2d& region,
                                                                   double spacing,
                                                                   const Ground* ground,
                                                                   const Surface& surface) const {
-    const double longest = m_boulders->MaxFeatureDiameter() * (0.5 + m_options.lengthRatio);
+    const double longest = LongestShadow();
     std::vector<Shadow> shadows;
     const BoulderList boulders =
         m_boulders->Boulders(surface.Expand(region, longest), spacing, ground);

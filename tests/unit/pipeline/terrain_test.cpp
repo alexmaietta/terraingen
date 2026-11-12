@@ -184,6 +184,18 @@ TEST(Terrain, GivesItsPartsGridAndKeys) {
     EXPECT_TRUE(Terrain(Surface::Sphere(1000.0), nullptr, {}).Keys().IsGeographic());
 }
 
+TEST(Terrain, ReachesTheSumOfItsLayersGroundReach) {
+    terraingen::SandFillOptions near;
+    near.reach = 4.0;
+    terraingen::SandFillOptions far;
+    far.reach = 9.0;
+    const Terrain terrain(Surface{}, nullptr,
+                          {std::make_shared<terraingen::SandFillLayer>(near),
+                           std::make_shared<terraingen::SandFillLayer>(far)});
+    EXPECT_EQ(terrain.GroundReach(1.0), 13.0);
+    EXPECT_EQ(Terrain().GroundReach(1.0), 0.0);
+}
+
 TEST(Evaluate, RunsTheSourceThenLayersOverTheSourcesGrid) {
     const Terrain terrain = Rolling();
     const auto whole = terrain.Evaluate();

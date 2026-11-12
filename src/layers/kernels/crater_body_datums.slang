@@ -17,8 +17,8 @@
 [[vk::binding(8, 0)]] StructuredBuffer<uint> lists;
 // Record indices, ascending within each row.
 [[vk::binding(9, 0)]] StructuredBuffer<uint> entries;
-// The strip's lattice point positions as x, y, z triples.
-[[vk::binding(10, 0)]] StructuredBuffer<float> positions;
+// The strip's lattice points as split points.
+[[vk::binding(10, 0)]] StructuredBuffer<terraingen::SplitPoint> positions;
 
 // After every buffer (terraingen/gpu/kernel.slang).
 [[vk::push_constant]] ConstantBuffer<Params> params;
@@ -37,6 +37,5 @@ void main(uint3 id : SV_DispatchThreadID) {
     const uint row = params.firstRow + id.y;
     heights[at] = height + terraingen::KernelBodyDatumRelief(
                                kernels[0].shape, data, records, frames, bounds, entries,
-                               lists[2 * row], lists[2 * row + 1], positions[3 * at],
-                               positions[3 * at + 1], positions[3 * at + 2]);
+                               lists[2 * row], lists[2 * row + 1], positions[at]);
 }

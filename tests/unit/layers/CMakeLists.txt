@@ -12,6 +12,7 @@ terraingen_add_test_suite(
     field_test.cpp
     ground_test.cpp
     lattice_test.cpp
+    ground_reach_test.cpp
     layer_test.cpp
     noise_layer_test.cpp
     masked_test.cpp

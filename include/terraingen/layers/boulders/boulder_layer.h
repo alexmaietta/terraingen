@@ -123,6 +123,10 @@ class BoulderLayer final : public Layer, public BoulderPlacer, public MaterialSo
         return TerrainBase{m_surface, m_source};
     }
 
+    /// How far beyond the samples the largest boulder's center can start and roll, plus how far
+    /// around it its gradient and exposure field read.
+    double GroundReach(double spacing) const override;
+
     /// The crater layers whose craters throw blocks, which must come before this layer.
     std::vector<const Layer*> Dependencies() const override {
         std::vector<const Layer*> layers;

@@ -343,6 +343,22 @@ def test_python_layers_reseed_when_they_say():
     assert terrain.reseed(4).layers()[0] is not terrain.layers()[0]
 
 
+def test_layers_and_terrains_report_their_ground_reach():
+    class Around(terraingen.Layer):
+        def apply_at(self, height, x, y, context):
+            return height
+
+        def ground_reach(self, spacing):
+            return 2.0 * spacing
+
+    fill = terraingen.SandFillLayer(terraingen.SandFillOptions(reach=6.0))
+    assert fill.ground_reach(1.0) == 6.0
+    assert Bump().ground_reach(1.0) == 0.0
+    assert Around().ground_reach(0.5) == 1.0
+    terrain = terraingen.Terrain(layers=[fill, Around(), Bump()])
+    assert terrain.ground_reach(0.5) == 7.0
+
+
 def test_base_layer_without_overrides_raises(paraboloid):
     with pytest.raises(TypeError):
         terraingen.Terrain(source=paraboloid, layers=[terraingen.Layer()]).evaluate()

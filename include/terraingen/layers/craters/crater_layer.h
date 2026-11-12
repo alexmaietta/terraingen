@@ -159,6 +159,10 @@ class CraterLayer final : public Layer, public CraterPlacer {
         return TerrainBase{m_surface, m_source};
     }
 
+    /// How far the largest crater's datum fit (`DatumMargin`) or replacement ring
+    /// (`ReplacementMargin`) reaches beyond the samples it changes.
+    double GroundReach(double spacing) const override;
+
     /// The layer with its seed `ReseedWord(seed, 0)` and the apply seeds of the irregularity,
     /// noise, texture, slope, terraces and peaks `ReseedWord(seed, 1)` to `ReseedWord(seed, 6)`,
     /// sharing its models and craters but not its cached cells.

@@ -93,6 +93,11 @@ class Terrain final : public Ground {
         return m_layers;
     }
 
+    /// How far (m) around a tile evaluated at `spacing` the terrain beneath its layers is read: the
+    /// sum of the layers' `Layer::GroundReach`, since each layer's ground needs the reach of the
+    /// layers below around it.
+    double GroundReach(double spacing) const;
+
     /// The grid of the source; none without a source or for one without bounds (`BoundedGrid`).
     std::optional<RasterGrid> Grid() const;
 

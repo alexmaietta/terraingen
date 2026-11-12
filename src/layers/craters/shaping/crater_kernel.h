@@ -27,25 +27,9 @@ constexpr std::uint32_t kProfileTableCells = 512;
 CraterShapeKernel MakeCraterShapeKernel(const CraterProfile& profile,
                                         const CraterApplyOptions& options);
 
-/// The offset at which the kernel shapes surface point `point` from `crater`'s center:
-/// `Surface::Offset` in single precision, so exactly the difference on a plane and the crater's
-/// local frame on a body.
-inline KernelOffset ShapingOffset(const Surface& surface, const Crater& crater,
-                                  const Vec2d& point) {
-    const Vec2d offset = surface.Offset({crater.x, crater.y}, point);
-    return {static_cast<float>(offset.x), static_cast<float>(offset.y)};
-}
-
-/// The frame in which the GPU shapes points of body `surface` around `crater`
-/// (`KernelFrameOffset`), with positions measured from `origin` (m).
-CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const Vec3d& origin);
-
-/// Stores `position` (m) as the float triple the GPU reads at `at`.
-inline void StoreKernelPosition(const Vec3d& position, float* at) {
-    at[0] = static_cast<float>(position.x);
-    at[1] = static_cast<float>(position.y);
-    at[2] = static_cast<float>(position.z);
-}
+/// The frame in which kernels shape points of body `surface` around `crater` (`BodySplitOffset`),
+/// its center split (`SplitCoordinate`).
+CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater);
 
 /// `value` as a float, and the float of what that leaves (`SplitDifference`).
 inline void SplitCoordinate(double value, float& high, float& low) {

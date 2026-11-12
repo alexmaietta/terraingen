@@ -282,9 +282,9 @@ CraterShapeKernel MakeCraterShapeKernel(const CraterProfile& profile,
     return k;
 }
 
-CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater, const Vec3d& origin) {
+CraterFrame MakeCraterFrame(const Surface& surface, const Crater& crater) {
     const Vec2d center{crater.x, crater.y};
-    const Vec3d position = surface.Position(center) - origin;
+    const Vec3d position = surface.Position(center);
     const LocalFrame frame = surface.Frame(center);
     CraterFrame f;
     SplitCoordinate(position.x, f.x, f.xLow);
