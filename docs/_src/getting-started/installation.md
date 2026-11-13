@@ -18,7 +18,7 @@ The package imports as `terraingen` and installs the `terraingen` command. There
 
 ## Releases
 
-Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI, library, headers and CMake package for each platform, and `.deb` packages for Ubuntu and Debian. The [dev](https://github.com/alexmaietta/terraingen/releases/tag/dev) pre-release is built from `main` on every push.
+Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI, library, headers and CMake package for each platform, and `.deb` packages for Ubuntu and Debian. Pre-releases (`X.Y.ZrcN`) come before each final release; install one from PyPI with `pip install --pre terraingenpy`.
 
 ## Building from source
 

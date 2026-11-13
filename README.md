@@ -1,7 +1,7 @@
 > **This project is in active beta development.** This means the API is unstable, features may be added or removed, and breaking changes are likely to occur frequently and without notice as the design is refined.
 
 [![pipeline](https://img.shields.io/github/actions/workflow/status/alexmaietta/terraingen/ci.yml?branch=main&label=pipeline)](https://github.com/alexmaietta/terraingen/actions/workflows/ci.yml)
-[![coverage](https://img.shields.io/endpoint?url=https://alexmaietta.github.io/terraingen/coverage/badge.json)](https://alexmaietta.github.io/terraingen/coverage/)
+[![coverage](https://img.shields.io/endpoint?url=https://alexmaietta.github.io/terraingen/dev/coverage/badge.json)](https://alexmaietta.github.io/terraingen/dev/coverage/)
 [![release](https://img.shields.io/github/v/release/alexmaietta/terraingen?color=orange)](https://github.com/alexmaietta/terraingen/releases)
 [![pypi](https://img.shields.io/pypi/v/terraingenpy?color=yellow)](https://pypi.org/project/terraingenpy/)
 [![downloads](https://static.pepy.tech/badge/terraingenpy)](https://pepy.tech/projects/terraingenpy)
@@ -99,7 +99,7 @@ terraingen config.json # will output terrain.tif
 
 ## Releases
 
-Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI, library, headers and CMake package for each platform, and `.deb` packages for Ubuntu and Debian. The [dev](https://github.com/alexmaietta/terraingen/releases/tag/dev) pre-release is built from `main` on every push.
+Every [release](https://github.com/alexmaietta/terraingen/releases) has the CLI, library, headers and CMake package for each platform, and `.deb` packages for Ubuntu and Debian. Pre-releases (`X.Y.ZrcN`) come before each final release; install one from PyPI with `pip install --pre terraingenpy`.
 
 ## Building from Source
 
@@ -131,7 +131,7 @@ The [documentation](https://alexmaietta.github.io/terraingen/) is built with MkD
 
 ### Code Coverage
 
-The [coverage report](https://alexmaietta.github.io/terraingen/coverage/) is updated on every push to `main`. To generate it locally:
+The [coverage report](https://alexmaietta.github.io/terraingen/dev/coverage/) is updated on every push to `main`. To generate it locally:
 
 ```sh
 cmake -S . -B build-coverage -DTERRAINGEN_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug

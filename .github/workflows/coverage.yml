@@ -1,0 +1,57 @@
+name: Coverage
+
+# Line coverage of the library, from the tests on lavapipe. The docs deploy from main publishes the
+# report under dev/coverage/.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      TERRAINGEN_DEVICE: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install gcovr numpy pytest ninja
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: coverage
+          max-size: 1G
+      - name: Install lavapipe
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DTERRAINGEN_COVERAGE=ON
+          -DTERRAINGEN_BUILD_BENCHMARKS=OFF
+          "-DPython_EXECUTABLE=$(python -c 'import sys; print(sys.executable)')"
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      # Everything first, since the coverage target builds only the test programs and not the
+      # command that the integration tests run.
+      - name: Build
+        run: cmake --build build --parallel 4
+      # The tests four at a time (ctest reads CTEST_PARALLEL_LEVEL), the long ones first.
+      - name: Test and report
+        env:
+          CTEST_PARALLEL_LEVEL: "4"
+        run: cmake --build build --target coverage
+      - name: Summary
+        if: always()
+        run: cat build/coverage/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage-report
+          path: build/coverage/
+          if-no-files-found: ignore
+          retention-days: 7

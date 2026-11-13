@@ -81,7 +81,11 @@ markdown_extensions:
       base_path: ["."]
       check_paths: true
       dedent_subsections: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.emoji:
@@ -90,6 +94,10 @@ markdown_extensions:
 
 extra:
   generator: false
+  version:
+    provider: mike
+    default: latest
+    alias: true
 
 extra_css:
   - css/extra.css
@@ -107,6 +115,7 @@ nav:
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
       - Contributing: contributing.md
+      - Releases: releases.md
       - Changelog: changelog.md
       - Citing: citing.md
   - Guides:

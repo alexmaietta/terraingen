@@ -1,0 +1,82 @@
+name: Build
+
+# Build and every test, with the GPU tests on Mesa's lavapipe, the software Vulkan driver, which
+# TerrainGen uses only when TERRAINGEN_DEVICE names it. The runners have no NVIDIA GPU, so the CUDA
+# kernels are compiled to PTX but not run.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The oldest supported Ubuntu, compiler and Python.
+          - { name: ubuntu-22.04-gcc-11, os: ubuntu-22.04, cc: gcc-11, cxx: g++-11, python: "3.10" }
+          - { name: ubuntu-22.04-arm-gcc-11, os: ubuntu-22.04-arm, cc: gcc-11, cxx: g++-11 }
+          - { name: ubuntu-24.04-clang-18, os: ubuntu-24.04, cc: clang-18, cxx: clang++-18 }
+          - { name: macos-26, os: macos-26 }
+          - { name: windows-2022-msvc, os: windows-2022 }
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      TERRAINGEN_DEVICE: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python || '3.12' }}
+      - run: python -m pip install numpy pytest ninja
+      # MSVC on the path for the Ninja generator.
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        if: runner.os == 'Windows'
+      - uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        if: runner.os != 'Windows'
+        with:
+          key: ${{ matrix.name }}
+          max-size: 500M
+      - name: Install lavapipe
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
+          icd=$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' | head -n1)
+          echo "VK_DRIVER_FILES=$icd" >> "$GITHUB_ENV"
+          echo "VK_ICD_FILENAMES=$icd" >> "$GITHUB_ENV"
+      - name: Install lavapipe
+        if: runner.os == 'Windows'
+        shell: bash
+        run: .github/scripts/install-lavapipe-windows.sh
+      - name: Install lavapipe
+        if: runner.os == 'macOS'
+        run: |
+          brew install mesa vulkan-loader
+          prefix=$(brew --prefix)
+          icd=$(find "$prefix/share/vulkan/icd.d" -name 'lvp_icd*.json' | head -n1)
+          {
+            echo "VK_DRIVER_FILES=$icd"
+            echo "VK_ICD_FILENAMES=$icd"
+            echo "DYLD_FALLBACK_LIBRARY_PATH=$prefix/lib"
+          } >> "$GITHUB_ENV"
+      - name: Configure
+        shell: bash
+        run: >
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DTERRAINGEN_BUILD_BENCHMARKS=OFF
+          "-DPython_EXECUTABLE=$(python -c 'import sys; print(sys.executable)')"
+          ${{ runner.os != 'Windows' && '-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache' || '' }}
+      - name: Build
+        run: cmake --build build --parallel 4
+      - name: Backends
+        shell: bash
+        run: build/bin/terraingen backends
+      - name: Test
+        run: ctest --test-dir build --parallel 4 --output-on-failure --timeout 1200

@@ -1,0 +1,101 @@
+name: Release
+
+# A v* tag on a release-X.Y branch (docs/_src/releases.md) publishes the wheels and sdist to PyPI, a
+# GitHub release with every asset and SHA256SUMS, the Docker image and, for a final release, the docs.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    uses: ./.github/workflows/version.yml
+
+  packages:
+    needs: version
+    uses: ./.github/workflows/packages.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  wheels:
+    needs: version
+    uses: ./.github/workflows/wheels.yml
+
+  docker:
+    needs: version
+    uses: ./.github/workflows/docker.yml
+    permissions:
+      contents: read
+      packages: write
+
+  # By Trusted Publishing, with no stored token.
+  pypi:
+    needs: [packages, wheels]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/project/terraingenpy/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: wheel-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sdist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+
+  docs:
+    needs: pypi
+    uses: ./.github/workflows/docs-deploy.yml
+    with:
+      version: ${{ github.ref_name }}
+    permissions:
+      contents: write
+
+  github:
+    needs: [packages, wheels]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: assets
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: wheel-*
+          merge-multiple: true
+          path: assets
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sdist
+          path: assets
+      - name: Flatten the archive directories
+        run: |
+          find assets -mindepth 2 -type f -exec mv -t assets {} +
+          find assets -mindepth 1 -type d -empty -delete
+      - name: Checksums
+        run: cd assets && sha256sum -- * > SHA256SUMS
+      - name: Release
+        run: |
+          prerelease=()
+          if [[ "$GITHUB_REF_NAME" =~ (a|b|rc)[0-9]+$ ]]; then
+            prerelease=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" assets/* \
+            --title "TerrainGen ${GITHUB_REF_NAME#v}" --generate-notes "${prerelease[@]}"

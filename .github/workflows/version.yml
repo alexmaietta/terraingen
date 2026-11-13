@@ -1,0 +1,46 @@
+name: Version
+
+# The version from CMakeLists.txt (VERSION plus TERRAINGEN_PRERELEASE). On a v* tag it must match the
+# tag, and the tag must be on its release-X.Y branch.
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: The version, such as 0.3.0 or 0.3.0rc1.
+        value: ${{ jobs.version.outputs.version }}
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: version
+        name: Check the tag
+        run: |
+          project=$(grep -m 1 -oP '^\s*VERSION \K[0-9]+\.[0-9]+\.[0-9]+' CMakeLists.txt)
+          prerelease=$(grep -m 1 -oP '^set\(TERRAINGEN_PRERELEASE "\K[^"]*' CMakeLists.txt)
+          if [[ -n "$prerelease" && ! "$prerelease" =~ ^(a|b|rc)[0-9]+$ ]]; then
+            echo "::error::TERRAINGEN_PRERELEASE is $prerelease, which is not a1, b1, rc1 or empty"
+            exit 1
+          fi
+          version=$project$prerelease
+          if [[ "$GITHUB_REF" == refs/tags/v* && "${GITHUB_REF_NAME#v}" != "$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match CMakeLists.txt's version $version"
+            exit 1
+          fi
+          branch=release-${project%.*}
+          if [[ "$GITHUB_REF" == refs/tags/v* ]] && ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$branch"; then
+            echo "::error::Tag $GITHUB_REF_NAME is not on $branch"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Version $version"

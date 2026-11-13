@@ -8,21 +8,21 @@ if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
 
-# The release being worked toward, such as 0.1.0, or for a development build a PEP 440 pre-release of
-# it, such as 0.1.0.dev42, which only the Python package carries.
-set(TERRAINGEN_FULL_VERSION "0.2.0")
-
 # macOS 26 is the oldest supported release; the Metal backend compiles kernels with its safe math
 # mode, which needs macOS 15. Set before project() so it applies to every target.
 set(CMAKE_OSX_DEPLOYMENT_TARGET
     "26.0"
     CACHE STRING "Oldest macOS TerrainGen runs on")
-string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" TERRAINGEN_VERSION "${TERRAINGEN_FULL_VERSION}")
 
+# The version, the next minor on main and the release's on a release-X.Y branch
+# (docs/_src/releases.md). TERRAINGEN_PRERELEASE is a1, b1 or rcN before a final release, else empty,
+# and the Python package and CI read both from here.
 project(
     TerrainGen
-    VERSION ${TERRAINGEN_VERSION}
+    VERSION 0.3.0
     LANGUAGES C CXX)
+set(TERRAINGEN_PRERELEASE "")
+set(TERRAINGEN_FULL_VERSION "${PROJECT_VERSION}${TERRAINGEN_PRERELEASE}")
 # The Metal backend (src/gpu/metal.cpp) is Objective-C++ on Apple platforms. It is enabled
 # here, above every target that links the gpu module.
 if(APPLE)

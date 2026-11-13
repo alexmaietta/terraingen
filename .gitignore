@@ -31,3 +31,6 @@ __pycache__/
 
 # Default output folder
 /output/
+
+# Coverage report copied into the docs by docs-deploy.yml
+/docs/_src/coverage/

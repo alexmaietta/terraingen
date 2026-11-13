@@ -12,3 +12,5 @@ ruff==0.17.0
 matplotlib==3.11.2
 # Opens figures in a lightbox (the gallery and every page).
 mkdocs-glightbox==0.4.0
+# Publishes one copy of the site per minor version (docs-deploy.yml).
+mike==2.1.3

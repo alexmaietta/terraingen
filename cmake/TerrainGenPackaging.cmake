@@ -5,7 +5,12 @@ set(TERRAINGEN_PACKAGE_MAINTAINER
     CACHE STRING "Maintainer recorded in generated packages, as \"Name <email>\".")
 
 set(CPACK_PACKAGE_NAME terraingen)
-set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+# A pre-release after a tilde, which Debian sorts before the final release.
+if(TERRAINGEN_PRERELEASE)
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}~${TERRAINGEN_PRERELEASE}")
+else()
+    set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+endif()
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Scientific terrain generation for the lunar surface")
 set(CPACK_PACKAGE_CONTACT "${TERRAINGEN_PACKAGE_MAINTAINER}")
 set(CPACK_PACKAGING_INSTALL_PREFIX /usr)

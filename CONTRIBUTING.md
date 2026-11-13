@@ -31,6 +31,7 @@ The 3D GUI (`terraingen CONFIG --gui`) builds with Ernie, the renderer, from a l
 - Run [pre-commit](https://pre-commit.com) before committing (`pre-commit install` once): it formats C++ with clang-format, CMake with cmake-format, Python with ruff, and runs cppcheck and ruff's linter.
 - Keep commits focused, with a one-line message saying what changed.
 - CI must pass on Linux, macOS and Windows.
+- Pull requests target `main`. Release branches (`release-X.Y`) take only fixes cherry-picked from `main`, as the [release guide](https://alexmaietta.github.io/terraingen/latest/releases/) describes.
 
 ## Conventions
 

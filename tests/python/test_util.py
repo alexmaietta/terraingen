@@ -20,7 +20,9 @@ def restore_logging():
 
 def test_version_matches_cmake(repo_root):
     cmake = (repo_root / "CMakeLists.txt").read_text()
-    expected = re.search(r'set\(TERRAINGEN_FULL_VERSION "([^"]+)"\)', cmake).group(1)
+    version = re.search(r"project\(\s*TerrainGen\s+VERSION\s+([0-9.]+)", cmake).group(1)
+    prerelease = re.search(r'set\(TERRAINGEN_PRERELEASE "([^"]*)"\)', cmake).group(1)
+    expected = version + prerelease
     assert terraingen.__version__ == expected
     assert (
         ".".join(str(part) for part in terraingen.get_version())

@@ -1,0 +1,83 @@
+name: Docs deploy
+
+# Publishes the docs to the gh-pages branch with mike, built against the Linux wheel of the calling
+# run. Each minor series gets its own folder (0.3/, 0.4/, ...), main goes to dev/ with the coverage
+# report, and the latest alias follows the newest final release with docs (dev until there is one).
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: dev, or the release tag (vX.Y.Z). RC tags are skipped.
+        type: string
+        required: true
+      coverage:
+        description: Bundle the coverage report from this run into the docs.
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Deploys from main and from tags all commit to gh-pages, so they run one at a time.
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: docs/requirements.txt
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: wheel-ubuntu-24.04-cp312
+          path: wheel
+      - name: Install Doxygen, TerrainGen and the docs requirements
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends doxygen
+          python -m pip install wheel/*.whl -r docs/requirements.txt
+      # The report and coverage/badge.json for the README badge; a failed coverage run leaves it out.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: inputs.coverage
+        continue-on-error: true
+        with:
+          name: coverage-report
+          path: docs/_src/coverage
+      - name: Deploy
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --depth=1 origin gh-pages:gh-pages || true
+          # Newest final release (X.Y.Z, no RC suffix), or empty before the first one.
+          newest=$(git ls-remote --tags --refs origin 'v*' | sed 's|.*refs/tags/v||' \
+            | { grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true; } | sort -V | tail -n 1)
+          if [[ "$VERSION" == dev ]]; then
+            if [[ -z "$newest" ]] || ! git cat-file -e "gh-pages:${newest%.*}/index.html" 2>/dev/null; then
+              # No release has docs yet, so dev holds latest and the /latest/ links work.
+              mike deploy --push --update-aliases dev latest
+            else
+              mike deploy --push dev
+            fi
+          else
+            version=${VERSION#v}
+            if [[ "$version" =~ (a|b|rc)[0-9]+$ ]]; then
+              echo "Skipping docs for prerelease $version"
+              exit 0
+            fi
+            if [[ "$version" == "$newest" ]]; then
+              mike deploy --push --update-aliases "${version%.*}" latest
+            else
+              mike deploy --push "${version%.*}"
+            fi
+          fi
+          if [[ "$(git show gh-pages:index.html 2>/dev/null)" != *'latest/'* ]]; then
+            mike set-default --push latest
+          fi
