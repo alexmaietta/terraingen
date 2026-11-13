@@ -21,7 +21,7 @@ project(
     TerrainGen
     VERSION 0.3.0
     LANGUAGES C CXX)
-set(TERRAINGEN_PRERELEASE "")
+set(TERRAINGEN_PRERELEASE "rc1")
 set(TERRAINGEN_FULL_VERSION "${PROJECT_VERSION}${TERRAINGEN_PRERELEASE}")
 # The Metal backend (src/gpu/metal.cpp) is Objective-C++ on Apple platforms. It is enabled
 # here, above every target that links the gpu module.
