@@ -73,7 +73,7 @@
   </div>
   <div class="Box-row Box-row--focus-gray py-2 d-flex">
     <div role="gridcell" class="color-fg-muted flex-auto min-width-0 col-md-2"><a href="#L12">terraingen::ReflectanceAtMaturity(double, double, double, double) (src/albedo/maturity.cpp:12)</a>    </div>
-    <div role="gridcell" class="color-fg-muted flex-auto min-width-0 d-flex flex-justify-end flex-wrap flex-items-baseline" data-sort="188338">called 188338 times</div>
+    <div role="gridcell" class="color-fg-muted flex-auto min-width-0 d-flex flex-justify-end flex-wrap flex-items-baseline" data-sort="190982">called 190982 times</div>
     <div role="gridcell" class="color-fg-muted d-flex flex-justify-end flex-wrap col-2">100.0%</div>
     <div role="gridcell" class="color-fg-muted d-flex flex-justify-end flex-wrap col-2">71.4%</div>
     <div role="gridcell" class="color-fg-muted d-flex flex-justify-end flex-wrap col-2">91.0%</div>
@@ -185,7 +185,7 @@
         <td class="text-right src linenos"><a class="normal" id="L12" href="#L12">12</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">188338</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">190982</td>
         <td class="src coveredLine show_coveredLine"><span class="kt">double</span><span class="w"> </span><span class="nf">ReflectanceAtMaturity</span><span class="p">(</span><span class="kt">double</span><span class="w"> </span><span class="n">reflectance</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">reference</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">maturity</span><span class="p">,</span></td>
       </tr>
       <tr>
@@ -201,16 +201,16 @@
           <details class="normal details-overlay">
             <summary>4/6</summary>
             <div class="text-left position-absolute color-bg-subtle p-3 mt-2" style="z-index: 1;">
-              <div class="color-taken-branch">&check; Branch 0 taken 188338 times.</div>
+              <div class="color-taken-branch">&check; Branch 0 taken 190982 times.</div>
               <div class="color-fg-danger">&cross; Branch 1 not taken.</div>
-              <div class="color-taken-branch">&check; Branch 2 taken 188337 times.</div>
+              <div class="color-taken-branch">&check; Branch 2 taken 190981 times.</div>
               <div class="color-fg-danger">&cross; Branch 3 not taken.</div>
-              <div class="color-taken-branch">&check; Branch 4 taken 188335 times.</div>
+              <div class="color-taken-branch">&check; Branch 4 taken 190979 times.</div>
               <div class="color-taken-branch">&check; Branch 5 taken 1 time.</div>
             </div>
           </details>
         </td>
-        <td class="linecount partialCoveredLine show_partialCoveredLine pr-2 pl-2 color-fg-muted text-right">565011</td>
+        <td class="linecount partialCoveredLine show_partialCoveredLine pr-2 pl-2 color-fg-muted text-right">572943</td>
         <td class="src partialCoveredLine show_partialCoveredLine"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">IsPositive</span><span class="p">(</span><span class="n">reference</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">IsNonNegative</span><span class="p">(</span><span class="n">maturity</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">isfinite</span><span class="p">(</span><span class="n">originReflectance</span><span class="p">)))</span><span class="w"> </span><span class="p">{</span></td>
       </tr>
       <tr>
@@ -244,14 +244,14 @@
         <td class="text-right src linenos"><a class="normal" id="L18" href="#L18">18</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">188335</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">190979</td>
         <td class="src coveredLine show_coveredLine"><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">origin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">fmin</span><span class="p">(</span><span class="n">originReflectance</span><span class="p">,</span><span class="w"> </span><span class="n">reflectance</span><span class="p">);</span></td>
       </tr>
       <tr>
         <td class="text-right src linenos"><a class="normal" id="L19" href="#L19">19</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">188335</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">190979</td>
         <td class="src coveredLine show_coveredLine"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">origin</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="n">reflectance</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">origin</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">maturity</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">reference</span><span class="p">;</span></td>
       </tr>
       <tr>
@@ -289,7 +289,7 @@
         <hr class="block-separator"/>
         <footer class="text-center">
           Created using <a href="http://gcovr.com/en/8.8">GCOVR (Version 8.8)</a>
-          at 2026-11-13 21:45:18+00:00
+          at 2026-11-13 22:52:20+00:00
         </footer>
       </div>
     </div>
