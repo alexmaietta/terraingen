@@ -1,0 +1,6367 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An open-source scientific terrain generation suite for planetary surfaces">
+      
+      
+        <meta name="author" content="Alex Maietta">
+      
+      
+        <link rel="canonical" href="https://alexmaietta.github.io/terraingen/dev/changelog/">
+      
+      
+        <link rel="prev" href="../releases/">
+      
+      
+        <link rel="next" href="../citing/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Changelog - TerrainGen</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans:300,300i,400,400i,700,700i%7CIBM+Plex+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"IBM Plex Sans";--md-code-font:"IBM Plex Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../css/extra.css">
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+   <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+    html.glightbox-open { overflow: initial; height: 100%; }
+    .gslide-title { margin-top: 0px; user-select: text; }
+    .gslide-desc { color: #666; user-select: text; }
+    .gslide-image img { background: none; }
+    .glightbox-clean .gslide-media {
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+    .gscrollbar-fixer { padding-right: 15px; }
+    .gdesc-inner { font-size: 0.75rem; }
+    body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
+    body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
+    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="../assets/javascripts/glightbox.min.js"></script></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <a href=".." class="md-header__title tg-header__name" aria-label="TerrainGen">
+      TerrainGen
+    </a>
+    <ul class="md-tabs__list tg-header__sections" aria-label="Tabs" data-md-component="tabs">
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../guides/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../concepts/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../features/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../gallery/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Gallery
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/alexmaietta/terraingen" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="TerrainGen" class="md-nav__button md-logo" aria-label="TerrainGen" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TerrainGen
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/alexmaietta/terraingen" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href=".." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../releases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#020-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2.0 - 2026-10-23
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.2.0 - 2026-10-23">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrating-from-010" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from 0.1.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010-2026-10-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.0 - 2026-10-18
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.0 - 2026-10-18">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../citing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../guides/tools/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/tools/command-line/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/tools/gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../guides/workflows/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/workflows/customize-terraingen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customize TerrainGen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/craters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Craters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/boulders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boulders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/albedo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/bodies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Irregular bodies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/customization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../concepts/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/surfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surfaces and bodies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/gpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU acceleration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/customization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../features/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../features/relief/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Relief
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Relief
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/relief/noise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fractal noise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/relief/roughness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roughness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/relief/spectral-continuation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectral continuation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/relief/upsampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upsampling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../features/distributions/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributions
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Distributions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/distributions/size-frequency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Size-frequency distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/distributions/production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/distributions/equilibrium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Equilibrium densities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/distributions/chronology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chronologies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/distributions/combining/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Combining distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/distributions/sampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sampling and placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/distributions/value-distributions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Value distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../features/craters/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Craters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Craters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/populations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Populations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/ages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/degradation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Degradation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/irregularity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Irregular outlines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/secondaries-and-rays/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secondaries and rays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/texture-and-slopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Texture and slopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/placement-and-blending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Placement and blending
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/craters/crater-lists/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../features/boulders/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boulders
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Boulders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/boulders/size-distributions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Size distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/boulders/placement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/boulders/shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shapes and 3D models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/boulders/burial-and-exposure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Burial and exposure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/boulders/fragmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fragmentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/boulders/lists-and-meshes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lists and meshes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../features/albedo/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Albedo
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/albedo/base-maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/albedo/slopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slopes and maturity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/albedo/crater-rays/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater ejecta and rays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/albedo/reflectance-zones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reflectance zones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/albedo/splotches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Splotches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/albedo/blast-zones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blast zones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/albedo/rocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/albedo/photometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Photometry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../features/geology/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aeolian and geologic features
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_7" id="__nav_4_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Aeolian and geologic features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/geology/dunes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dunes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/geology/bedforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ripples and bedforms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/geology/sand/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sand fill and sand shadows
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/geology/strata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/geology/pavement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pavement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../gallery/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gallery
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gallery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/albedo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/boulders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boulders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/craters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Craters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/dem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DEMs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/distributions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/geology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/planets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/queries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/relief/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Relief
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6_1" id="__nav_6_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_2" id="__nav_6_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bodies
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bodies
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bodies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_3" id="__nav_6_1_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Sources
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/source/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../reference/layers/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6_1_4" id="__nav_6_1_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/noise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    noise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/craters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    craters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/boulders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    boulders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/roughness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    roughness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/bedforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bedforms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/scale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scale
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/clamp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clamp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/masked/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    masked
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/secondaries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    secondaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/dunes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dunes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/sand_fill/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sand_fill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/pavement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pavement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/strata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    strata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/sand_shadow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sand_shadow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/layers/spectral_continuation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spectral_continuation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_5" id="__nav_6_1_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater and boulder models
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Crater and boulder models
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/models/upsampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upsampling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/models/densities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater densities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/models/ages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater ages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/models/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/models/degradation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater degradation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/models/boulder-sizes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boulder sizes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/models/mask-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mask shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_6" id="__nav_6_1_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Albedo
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/albedo-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/albedo-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_7" id="__nav_6_1_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Outputs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/enums/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enumerations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/cpp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/bibliography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bibliography
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unreleased
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#020-2026-10-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2.0 - 2026-10-23
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.2.0 - 2026-10-23">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fixed_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrating-from-010" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from 0.1.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010-2026-10-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.1.0 - 2026-10-18
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.1.0 - 2026-10-18">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+  
+  
+                  
+
+
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>All notable changes to this project will be documented in this file.</p>
+<p>The format is based on <a href="https://keepachangelog.com/en/1.1.0/">Keep a Changelog</a>,
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
+<h2 id="unreleased"><a href="https://github.com/alexmaietta/terraingen/compare/v0.2.0...HEAD">Unreleased</a><a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Batched source queries: <code>Source::HeightsAt(points, heights, spacing)</code> (Python <code>Source.heights_at</code>) gives every point's height in one call, to the bits of <code>HeightAt</code>, and point queries of a generator use it; <code>Source::Fill(grid, heights, spacing, threads)</code> (Python <code>Source.fill(grid, array)</code>) fills a caller's buffer in place.</li>
+<li><code>Source::PostSpacingAt</code> (Python <code>post_spacing_at</code>): the spacing of the posts behind a height, measured or generated; <code>ResolutionAt</code> now gives only what measured data resolves.</li>
+<li><code>Terrain</code> (<code>pipeline/terrain.h</code>, Python <code>Terrain</code>) replaces <code>TerrainGenerator</code> as the one object that holds a surface, source and layers, checked once when built; its members replace the free functions: <code>Evaluate(grid, options)</code>, <code>Evaluate(options)</code> over the source grid, <code>Fill</code> (was <code>FillHeights</code>), <code>HeightAt</code>, <code>HeightsAt</code>, <code>Craters</code> and <code>Boulders</code> (were <code>PlacedCraters</code> and <code>PlacedBoulders</code>), <code>Beneath(k)</code> (was <code>TerrainGround</code> and <code>SharedGround</code>), <code>Surface</code>, <code>Source</code>, <code>Layers</code>, <code>Grid</code> (was <code>SourceGrid</code>) and <code>Keys</code> (was <code>TerrainGeoKeys</code>).</li>
+<li>Updates for simulation loops: <code>Terrain::SetLayer</code> and <code>SetSource</code> (Python <code>set_layer</code>, <code>set_source</code>) replace one part, rebinding layers that read a replaced layer (<code>Layer::Rebound</code>) and rebuilding those built on a replaced source (<code>Layer::Rebased</code>), and <code>Terrain::ApplyFrom(k, heights)</code> (Python <code>apply_from</code>) finishes the heights beneath layer k. A <code>TerrainView(grid, options, stage)</code> (<code>pipeline/terrain_view.h</code>, Python <code>TerrainView</code>) keeps one grid of heights and those before one layer, the last by default; <code>Update(terrain)</code> evaluates nothing for an unchanged terrain and restarts from the kept heights after replacing that layer or a later one.</li>
+<li><code>Terrain::Reseed(seed)</code> (Python <code>reseed</code>) returns a terrain whose seeded layers and synthetic source draw from new seeds, sharing every file it read, for domain randomization; layers, sources and upsamplers implement <code>Reseeded(seed)</code> (default null for none), with each seed field drawn from <code>ReseedWord(seed, field)</code>.</li>
+<li><code>Raster</code> can borrow a caller's buffer (<code>Raster(grid, cells)</code>); <code>Terrain::Fill</code> and <code>Source::Fill</code> into a buffer write into it with no copy.</li>
+<li>A Simulation guide with tested Python and C++ tasks: query heights at contact points, fill a buffer you own, evaluate on the GPU, update a terrain between runs, randomize a terrain each episode and read the ground beneath a layer.</li>
+<li><code>terraingen --gui</code> warns that the GUI is still in work and not available yet, then runs the rest of the command; it was an unknown option.</li>
+<li><code>RasterStats::stddev</code>, <code>LocalFrame::Components</code>, <code>ForEachCell</code>, <code>GeneratedOutputs::outputGrids</code>, and required keys and list lengths in the configuration schema (<code>required</code>, <code>min_length</code>, <code>max_length</code>, <code>lengths</code>).</li>
+<li><code>ShapeModelSource</code> (Python <code>ShapeModelSource(body, upsampler=None)</code>, config source <code>{"type": "shape_model", "upsampling": ...}</code>): a shape-model body's own labels refined by any upsampler, as a DEM's cells are, cubic by default. Each ICQ face is a lattice of posts in degrees, 90 / Q apart, read across its edges from the neighboring faces and blended with them within half a label of the edges, so kernel upsamplers and diamond-square leave no seams; diamond-square displaces each face differently and fits its roughness per face. Its heights are the refined radius less the body's bilinear one, 0 on every label, and layers read it as measured data (<code>source_resolves_px</code>). It needs a shape-model body.</li>
+<li>Crater replacement (<code>Crater::replace</code>, <code>Crater::Replace()</code>, <code>CraterList::Replace</code> and <code>AnyReplace</code>, config <code>"replace": true</code> on a manual crater, Python <code>Crater(..., replace=True)</code> and <code>CraterList.replace</code>): a replacing crater swaps whatever the terrain holds there, such as a crater a DEM holds blurred, for a sharp crater of its diameter and depth. It is cut into its own plane datum, fitted on a ring from where the replacement ends out <code>fit_width_radii</code> (1) radii further, so neither the old bowl nor its rim pulls it down, whatever datum and <code>interior_replacement</code> the other craters have; it replaces in full to <code>start_radii</code> (1) and blends out by <code>end_radii</code>, the profile's reach unless set (<code>CraterReplacement</code>, <code>CraterApplyOptions::replacement</code>, config <code>"replacement"</code> under <code>apply</code>, <code>FitReplacementDatum</code>, <code>ReplacementMargin</code>, <code>ValidateCraterReplacement</code>). Point queries of a replacing crater need the ground, as datums do. A replacing crater stands in for a crater the terrain held, so crater selections (<code>CraterSelection::Includes</code>) take it as generated: it gets the irregular outline, secondaries and crater albedo generated craters get, even where <code>manual</code> is off.</li>
+<li>Inherited craters (<code>InheritedCraters</code>, <code>CraterLayerOptions::inherited</code>, config <code>"replace_inherited_craters": {"path", "min_source_px", "max_source_px"}</code>, Python <code>InheritedCraters</code>): craters of a coarser level, such as a coarser run's crater list over the heights it wrote that the layer's source now upsamples, or a catalog of a DEM's craters, stamped again sharp as replacing craters with their IDs, ages and realized depths where the source resolves them (from <code>min_source_px</code>, by default the layer's <code>source_resolves_px</code>, up to <code>max_source_px</code>). Generated craters fill the gaps beneath and stop where the inherited ones stand in, so none is drawn twice. Listed rim heights are kept where the profile takes one (<code>TakesRimHeight</code>: not under a diffused or Fassett-Thomson simple profile, which tie the rim to the depth).</li>
+<li><code>ReadCraterList</code> (<code>read_crater_list</code>): reads a crater list as <code>WriteCraterList</code> writes it, or a catalog in the same form, CSV or JSON; with attributes, its <code>depth_ratio</code> and <code>rim_height</code> become each crater's depth and rim, so a coarse run's craters read back as realized. Crater lists gain a <code>replace</code> column.</li>
+<li>Slump terraces on the walls of large craters (<code>CraterTerraces</code>, <code>CraterApplyOptions::terraces</code>, config <code>"terraces"</code> under a crater layer's <code>apply</code>, Python <code>CraterTerraces</code>): between the floor edge and the rim crest the wall steps into benches under 5 degrees and scarps near <code>scarp_slope_deg</code> (35), from 1 bench at <code>onset_diameter_m</code> (20 km, where half of fresh lunar mare craters are terraced) to <code>max_benches</code> from <code>full_diameter_m</code> (65 km). Steps split the wall's height, and each bench stands where its step keeps its mean height, so slumped blocks rise above the unterraced wall at their toes and drop below it under their headscarps, keeping the wall's volume; walls too steep for a bench keep their slope. Each scarp scallops around the rim between inward cusps and wobbles, each bench covers its own arcs of the wall, its slump blocks step in or out (<code>block_offset</code>) and some go missing (<code>block_gaps</code>), and the rim crest of a terraced crater scallops into a polygon. Terraces soften as a crater wears and are gone below <code>min_freshness</code>; the floor edge is the complex profile's floor diameter, else Pike's 0.187 D^1.249 km. Crater layers turn them on (<code>DefaultCraterApply</code>); <code>CraterApplyOptions{}</code> leaves them off.</li>
+<li>Central peaks built from massifs (<code>CraterPeaks</code>, <code>CraterApplyOptions::peaks</code>, config <code>"peaks"</code> under a crater layer's <code>apply</code>, Python <code>CraterPeaks</code>): in place of the complex profile's round dome, <code>min_massifs</code> to <code>max_massifs</code> mountains strung across the floor <code>spread_radii</code> peak radii from the center, each up to <code>elongation</code> long and strung along a chain or scattered around the center (<code>chain_spread_deg</code>), <code>sharpness</code> sharp (0 domes, 1 spires), <code>lopsidedness</code> lopsided and up to <code>height_variation</code> lower than the main one, their outlines warped (<code>warp</code>) and their slopes carved into spurs and gullies by ridged noise (<code>roughness</code>, <code>roughness_wavelength</code>). The profile's peak height and base set their size, scaled by <code>height_scale</code> and <code>width_scale</code> for peaks off the fitted laws; they lower with it as the crater wears and worn peaks lose their roughness; tabulated and diffused profiles keep the dome. Crater layers turn them on (<code>DefaultCraterApply</code>); <code>CraterApplyOptions{}</code> leaves them off. The gallery's <code>craters/copernicus</code> figure recreates Copernicus with terraces and peaks.</li>
+<li>Python <code>ValueDistribution.sample(u1, u2)</code>, <code>draw(stream, count=None)</code> (a NumPy array of <code>count</code> draws when given), <code>lowest()</code> and <code>highest()</code>, as in C++.</li>
+<li>Python bindings for <code>FitDeviogram</code> (<code>fit_deviogram</code>, <code>DeviogramFit</code>), <code>ValidateConfig</code> (<code>validate_config</code>, <code>ConfigSummary</code>; <code>TerrainGenConfig.validate</code> returns the summary), <code>WriteCraterList</code>, <code>WriteBoulderList</code> and <code>WriteBoulderModels</code> (<code>write_crater_list</code>, <code>write_boulder_list</code>, <code>write_boulder_models</code>, <code>ListFormat</code>), <code>FragmentBoulderShape</code> (<code>fragment_boulder_shape</code>, <code>BoulderFragment</code>, <code>BoulderCracks</code>), <code>SecondaryDensity</code> and <code>SecondaryRayField</code>, <code>DescribeCraters</code> (<code>describe_craters</code>, <code>CraterShapeModels</code>, <code>CraterModels.shape</code>, <code>CraterFeatures.attributes</code>) and <code>BlastZoneMeanShare</code> (<code>blast_zone_mean_share</code>).</li>
+<li><code>RasterGrid::Centered(center, size, pixelSize)</code> and <code>RasterGrid::Covering(box, pixelSize)</code>: the north-up grid covering a box, snapped outward to whole cells as configuration outputs snap their extents (<code>SnappedCells</code>, <code>kGridSnapTolerance</code>).</li>
+<li>Seam matching for source chains (<code>ChainSeams</code>, <code>ChainSeamMode</code>, <code>SourceChain(sources, seams)</code>, <code>SourceChain::Seams</code>, <code>ValidateChainSeams</code>, <code>SeamReach</code>, <code>SeamLattice</code>, <code>kSeamReachDecays</code>; config <code>"seams"</code> on a chain source with <code>"mode"</code>, <code>"width_m"</code> and <code>"decay_length_m"</code>; Python <code>ChainSeams</code>, <code>ChainSeamMode</code>, <code>SourceChain(sources, seams=...)</code>, <code>validate_chain_seams</code>, <code>seam_reach</code>, <code>seam_lattice</code>, <code>SEAM_REACH_DECAYS</code>): where a source fills the gaps of those before it, <code>none</code> (the default) switches outright as before, <code>feather</code> adds the height difference at the nearest edge post and fades it to 0 across <code>width</code>, <code>height</code> spreads the edge's height difference into the gap by solving (Laplacian - 1/L^2) d = 0, so the later source keeps its relief and heights meet (C0), and <code>slope</code> solves (Laplacian - 1/L^2)^2 d = 0 so slopes meet as well (C1). A hole takes the whole shift; beyond a source's edge it fades out over the decay length L and is 0 from 3 L on. The correction is solved once per connected gap region, on first use, on the posts of the source before the gap, by conjugate gradients with multigrid V-cycles, and read between posts by Catmull-Rom interpolation, so points, tiles and grids agree to the bit. Chains of more sources are matched at each handover, and on a body the configuration's meters become degrees along a meridian.</li>
+<li><code>ManualCrater(x, y, diameter, depth, rimHeight)</code> (<code>manual_crater</code>) and a <code>CraterList</code> built from a list of craters, <code>CraterList{a, b, c}</code>.</li>
+<li><code>BoulderList</code> (Python <code>BoulderList</code>): boulders stored one column per field, as <code>CraterList</code> stores craters, built from <code>Boulder</code> records (<code>Append</code>, <code>BoulderList{a, b, c}</code>) and read back with <code>At</code>.</li>
+<li><code>BuildGenerator(config, source)</code> (<code>build_generator(config, source=...)</code>): a configuration's layers built on a source the caller gives, such as an embedder's DEM, which they read as measured data (<code>source_resolves_px</code>, crater datums); the configuration gives no source of its own.</li>
+<li>Point queries keep fitted crater datums between calls, so craters with a datum are fitted once and later queries near them run as fast as craters without one (<code>BM_HeightAtDatum</code> about 1k to 340k point queries per second). <code>HeightsAt</code> and <code>HeightAt</code> share a cache kept per generator, matched by its surface, source and layers and dropped once one of them is freed; pass an <code>EvaluationCache</code> (<code>cache=</code> in Python) to manage one yourself.</li>
+<li>Polygon regions for masked layers (<code>RegionShape::Polygon(points, holes)</code>, Python <code>RegionShape.polygon(points, holes=[])</code>, config <code>"shape": {"type": "polygon", "points": [[x, y], ...], "holes": [[[x, y], ...], ...]}</code>): a simple polygon in surface coordinates (x east, y north; longitude and latitude on a body), concave or with holes, closed from its last point back to its first. The feather fades out from the nearest edge, holes counting as outside, and <code>ValidateRegionShape</code> rejects outlines or holes with fewer than 3 points, points that are not finite, zero-length edges (including a repeated first point) or no area. Python <code>RegionShape.points</code> and <code>RegionShape.holes</code> read them back.</li>
+<li>DEMs in longitude and latitude on a body: <code>GeoTiffSource</code> reads a GeoTIFF in a geographic CRS (crops and cell sizes in degrees), and a <code>RasterSource</code> or <code>GeoTiffSource</code> whose geographic columns span 360 degrees wraps in longitude, so a file from 0 to 360 E also serves 180 W to 0 with no seam (Python <code>RasterSource(..., keys=...)</code>). <code>ValidateGenerator</code> rejects a source in longitude and latitude on a plane and a projected source on a body.</li>
+</ul>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Boulder layers read the ground beneath them on the evaluation's threads (<code>LayerContext::threads</code>) instead of every hardware thread.</li>
+<li>Output grids are built once, when the outputs are checked; generation reads the stored record of each output instead of computing its grid and feature spacing again.</li>
+<li><code>ConfigToJson</code> writes an unset extent corner, center or size and an unset <code>site_deg</code> as <code>null</code> rather than leaving it out; an empty list for them is no longer read.</li>
+<li>Crater, spectral continuation, synthetic albedo and field specs hold the library's <code>CraterLayerOptions</code>, <code>SpectralContinuationOptions</code>, <code>SyntheticAlbedoOptions</code> and <code>RasterFieldOptions</code> and read them through their field lists; the JSON keys are unchanged.</li>
+<li><code>CraterGenerationOptions</code> and <code>RasterFieldOptions</code> are bound in Python from their field lists: <code>CraterGenerationOptions</code> gains <code>margin_radii</code>, <code>min_resolved_diameter</code>, <code>max_band_diameter</code> and <code>threads</code> and takes positional arguments, and <code>RasterFieldOptions.fallback</code> is None when unset rather than NaN.</li>
+<li><code>WriteReport(path, report)</code> (<code>io/report_json.h</code>) writes a report as JSON, and <code>Bounds2d::Center()</code> gives a box's center.</li>
+<li><code>InferListFormat</code> moved from <code>config/json.h</code> to <code>io/feature_lists.h</code>, beside <code>ListFormat</code>.</li>
+<li>Roughness and spectral continuation layers are checked by their constructors only, so their errors read as the layer reports them.</li>
+<li>Shorter schema descriptions for <code>scale_m</code>, <code>crop</code>, <code>upsampling</code>, <code>estimate_from_source</code>, the shape-model source and body, extents, cutouts and polygon points.</li>
+<li><code>AlbedoContext</code> is gone: albedo sources and layers take a <code>LayerContext</code>, and Python's <code>AlbedoContext</code> is <code>LayerContext</code>.</li>
+<li><code>Ground::Context(spacing, threads)</code> (Python <code>context</code>) gives the one <code>LayerContext</code> a layer or albedo reads a ground in, with the surface and source of a <code>Terrain</code>; the bindings, material maps and generated albedo build their contexts with it.</li>
+<li><code>Ground::FillSamples</code> and <code>Ground::HeightsAt</code> take <code>threads</code> like a <code>Source</code> (Python <code>fill_samples(samples, spacing, threads)</code> and <code>heights_at(points, spacing, threads=0)</code>), replacing <code>Terrain</code>'s own four-argument <code>HeightsAt</code>.</li>
+<li><code>Layer::LayerBase</code> (Python <code>layer_base</code>) gives the whole <code>TerrainBase</code> a crater, secondary crater or boulder layer was built on, and <code>Layer::Rebased(base)</code> (Python <code>rebased</code>) builds such a layer again on another base.</li>
+<li><code>Terrain::Evaluate(options)</code>, <code>Craters(spacing)</code> and <code>Boulders(spacing)</code> cover the source's grid; the Python <code>evaluate</code>, <code>craters</code> and <code>boulders</code> without a grid call them.</li>
+<li>Python <code>heights_at</code> reads a C-contiguous (n, 2) float64 array in place, without copying the points.</li>
+<li>Ground reads of a terrain over a grid are evaluated in 16 x 16 tiles of cells in place of copying and Morton-sorting every position, to the same bits.</li>
+<li><code>BodyMesh</code> is <code>IcqToMesh(BodyIcq(...))</code>: the faces share their edge vertices, 6 n^2 + 2 vertices in place of 6 (n + 1)^2, in the ICQ layout.</li>
+<li><code>BuildMesh</code>, <code>GetMeshSize</code> and <code>FillMesh</code> moved from <code>pipeline/mesh_build.h</code> to <code>mesh/mesh_build.h</code>.</li>
+<li>The slope statistics of <code>ReportGrid</code> are the public <code>ComputeSlopeStats</code> (<code>analysis/raster_stats.h</code>), returning a <code>SlopeStats</code>.</li>
+<li><code>Raster&lt;T&gt;</code> holds a <code>RasterGrid</code>: <code>Raster(grid, fill)</code> and <code>Raster(grid, cells)</code> build one over a grid and <code>Raster::Grid()</code> (Python <code>Raster(grid, fill)</code> and <code>raster.grid</code>) gives it back; <code>RasterGrid::FromRaster</code> and <code>MakeRaster</code> (Python <code>from_raster</code>, <code>make_raster</code>) and <code>Raster::SetTransform</code> are removed, and Python <code>Raster.transform</code> is read-only.</li>
+<li><code>GeoTiffInfo</code> holds its size and transform as <code>grid</code> (Python <code>GeoTiffInfo.grid</code>) in place of <code>width</code>, <code>height</code> and <code>transform</code>.</li>
+<li><code>ComputeStats</code> takes a <code>Raster&lt;float&gt;</code> and is no longer a template.</li>
+<li>Python <code>RasterGrid</code> compares with <code>==</code>.</li>
+<li><code>ForEachFeatureCell</code> takes only feature boxes (the overload taking a window callback and <code>FeatureCell::window</code> are gone) and sorts the features into tiles of <code>kFeatureTileCells</code> cells, so its cost no longer grows with row bands times features; crater shaping uses it. <code>ForEachTileIn</code> and <code>TileWindow</code> (<code>raster/cell_loops.h</code>) visit the tiles a window meets, and <code>PixelWindow::Width</code> and <code>Height</code> count its cells.</li>
+<li><code>GeoTransform::CellWidth</code> and <code>CellHeight</code> (Python <code>cell_width</code>, <code>cell_height</code>) give the side lengths of a cell.</li>
+<li><code>LruCache</code> takes a shard count, 16 by default; the block cache of <code>GeoTiffSource</code> is an <code>LruCache</code> of one shard.</li>
+<li><code>ResolutionAt</code> and <code>PostSpacingAt</code> of <code>RasterSource</code> and <code>GeoTiffSource</code> read the cell under the point instead of upsampling there, so near no-data cells they no longer depend on the upsampler's taps.</li>
+<li>Raster and GeoTIFF sources upsample only the cells of a grid they cover, a chain fills only the window of a grid's gaps from its next source, and a grid's missing cells are marked once per fill, all to the same bits.</li>
+<li><code>TerrainBase</code> moved from <code>sources/terrain_base.h</code> to <code>layers/terrain_base.h</code>, and <code>TerrainBase::ReferencePoint</code> (Python <code>reference_point</code>) is gone; <code>SurfaceOrPlane(surface)</code> and <code>ReferencePoint(source)</code> are free functions the layer and albedo contexts share.</li>
+<li><code>RasterPlacement</code> moved from <code>raster/resample.h</code> to <code>sources/upsampling.h</code>; <code>KernelWeights</code>, <code>InterpolateLattice</code>, <code>InterpolateLatticeWeights</code>, <code>FilledNoData</code>, <code>MarkMissing</code> and the <code>detail::</code> lattice helpers of <code>sources/upsampling.h</code> and <code>sources/raster_source.h</code> (<code>RasterHeights</code>, <code>WrapsLongitude</code>, <code>NativeWindow</code>) are private.</li>
+<li>The field lists and enum names of diamond-square options, chain seams and GeoTIFF band reads are public in <code>sources/sources_fields.h</code>, those of <code>ResampleMethod</code> and <code>TiffCompression</code> in <code>raster/raster_fields.h</code> and that of <code>Bounds2d</code> in <code>geometry/geometry_fields.h</code>; the JSON configuration is unchanged.</li>
+<li>Python <code>DiamondSquareOptions</code> and <code>ChainSeams</code> are bound from their field lists: <code>DiamondSquareOptions.fit_window</code> is <code>fit_window_px</code>, and both print their fields.</li>
+<li>Diameter limits are named <code>minDiameter</code> and <code>maxDiameter</code> everywhere (were <code>dMin</code> and <code>dMax</code>): <code>CraterGenerationOptions</code>, <code>SizeFrequencyDistribution::ExpectedCount</code>, <code>SampleDiameter</code> and <code>InvertCumulative</code>, <code>CraterBands</code>, <code>CountLimitDiameter</code>, <code>SecondaryDensity::At</code> and <code>CoverAt</code>, and <code>ResolveMaxDiameter</code> (was <code>ResolveDMax</code>); Python keywords and properties are <code>min_diameter</code> and <code>max_diameter</code> (were <code>d_min</code> and <code>d_max</code>).</li>
+<li>Releases come from <code>release-X.Y</code> branches, with <code>vX.Y.ZrcN</code> pre-releases before each final <code>vX.Y.Z</code> tag (see the Releases page). <code>main</code> is 0.3.0 and no longer publishes <code>.devN</code> versions to PyPI or a <code>dev</code> GitHub release. The docs are versioned per minor release under <code>dev/</code>, <code>X.Y/</code> and <code>latest/</code>, with the coverage report at <code>dev/coverage/</code>.</li>
+<li>macOS 26 on Apple silicon is the oldest supported macOS. CI, wheels and packages build on <code>macos-26</code> with a 26.0 deployment target, and there are no more Intel macOS wheels or packages.</li>
+<li>New modules <code>terraingen::geometry</code>, <code>terraingen::analysis</code> and <code>terraingen::io</code>, with their headers moved: <code>util/geometry.h</code>, <code>util/surface.h</code>, <code>util/cells.h</code>, <code>util/radial_shape.h</code> and <code>util/plane_fit.h</code> to <code>geometry/</code>; <code>raster/raster_stats.h</code>, <code>raster/spectrum.h</code> and <code>raster/variogram.h</code> to <code>analysis/</code>; <code>pipeline/feature_lists.h</code> to <code>io/feature_lists.h</code>, and <code>ReportToJson</code> from <code>pipeline/report.h</code> to <code>io/report_json.h</code>.</li>
+<li><code>TerrainGenConfig</code> is an opaque, immutable value: the spec structs are private, so configurations are made by <code>ParseConfig</code> and <code>LoadConfig</code> and changed in their JSON. <code>BuildSurface</code> takes a configuration, and <code>LayerType</code> and <code>BuildCraterModels</code> are no longer public.</li>
+<li><code>ValidateConfig</code> and <code>BuildGenerator</code> are one pass that checks each part as it builds it: <code>ValidateConfig</code> builds the terrain, so it also reads what building reads, and some errors come in another order or at a finer path, such as a list of the wrong length at the list's key or a missing key reported as required.</li>
+<li>The configuration key <code>estimate_from_base</code> is <code>estimate_from_source</code>.</li>
+<li><code>ResampleMethod::CatmullRom</code> is gone, as it was the same kernel as <code>Cubic</code>; configurations still take <code>"catmull_rom"</code>, read as <code>"cubic"</code>, and Python's <code>ResampleMethod.CATMULL_ROM</code> is gone.</li>
+<li><code>EvaluateMaterials(terrain, options, grid, evaluationOptions)</code> follows the spacing, threads and backend of its <code>EvaluationOptions</code> and reports each material layer's time to <code>onLayer</code>; Python takes <code>spacing</code>, <code>threads</code> and <code>backend</code> keywords.</li>
+<li>Sources and upsamplers override one protected <code>FillSamples(SampleBlock&amp;, spacing, threads)</code> behind non-virtual <code>Fill</code>, <code>HeightAt</code> and <code>HeightsAt</code>; Python subclasses define <code>fill_samples</code>.</li>
+<li><code>Ground</code> has the same shape, one protected <code>FillSamples(SampleBlock&amp;, spacing)</code> behind <code>HeightAt</code> and <code>HeightsAt</code>, and a <code>Terrain</code> is a <code>Ground</code>; Python grounds define <code>fill_samples</code>, and point queries that took <code>generator</code> and <code>layers</code> take <code>ground=</code> (such as <code>terrain.ground(k)</code>).</li>
+<li>Range errors read "field_path: rule, got x".</li>
+<li>The configuration builds a <code>Terrain</code>: <code>BuildGenerator</code> is <code>BuildTerrain</code> (Python <code>build_terrain</code>), <code>GeneratedOutputs::generator</code> is <code>terrain</code>, and <code>BuildAlbedo</code>, <code>MaterialsAt</code>, <code>BodyMesh</code> and <code>BodyIcq</code> take a <code>Terrain</code>.</li>
+<li>Point queries keep their values in a cache each terrain owns and shares with its copies, so <code>HeightAt</code> and <code>HeightsAt</code> no longer take an <code>EvaluationCache</code> (Python's <code>EvaluationCache</code> is gone).</li>
+<li><code>LayerContext</code> carries the terrain's <code>surface</code> and <code>source</code>; <code>FormulaLayer::HeightAt(height, x, y, context)</code> and <code>MaterialSource::MaterialCoverAt(x, y, context)</code> and <code>MaterialCoverOver(grid, context)</code> take the context.</li>
+<li><code>FillCells</code> is merged into <code>MapCells</code>, which skips cells without data.</li>
+<li><code>Raster::IsMissing</code> counts infinities as missing too, and <code>HasData</code> is gone.</li>
+<li><code>field.h</code> (<code>SurfaceField</code>, <code>RasterField</code>) moved from <code>sources</code> to <code>layers</code>; <code>util/arithmetic.h</code> merged into <code>util/bits.h</code>, and <code>util/fft.h</code> is private.</li>
+<li>Removed: <code>RasterSource</code>'s shared-raster constructor and <code>Options</code>, the thread-less <code>Upsampler::Fill</code>, <code>detail::MidpointRefiner</code>, <code>LayerTimer</code>, the <code>Raster</code> overloads of <code>ResolvedSpacing</code> and <code>PixelWindowsIn</code>, the span overload of <code>PlacedCraters</code> and <code>LruCache::Evictions</code>.</li>
+<li>A configuration with a <code>shape_model</code> body and no source starts from the shape model upsampled by cubic interpolation (<code>ShapeModelSource</code>, <code>EffectiveSource</code>), rather than from the default synthetic noise over the bilinear shape; give a source to replace it.</li>
+<li>Noise has two types instead of three: the one-fractal <code>NoiseLayer</code> struct is now the flat <code>Fractal</code>, which holds the <code>FractalParams</code> fields itself with <code>enabled</code>, <code>blend</code>, <code>warpAmplitude</code> and <code>warpWavelength</code>, and the terrain layer <code>NoiseRelief</code> (<code>NoiseReliefOptions</code>) is now <code>NoiseLayer</code> (<code>NoiseLayerOptions</code>, with <code>fractals</code>), taking a list of fractals or one. <code>SyntheticTerrainParams</code> and <code>ValidateSyntheticTerrain</code> are gone, and <code>SyntheticSource</code> takes the fractals directly (<code>fractals</code>). The stack helpers follow: <code>NoiseLayers</code> is <code>FractalStack</code>, <code>kMaxNoiseLayers</code> is <code>kMaxFractals</code>, <code>LayerBlend</code> is <code>FractalBlend</code>, and <code>NoiseLayersAt</code>, <code>ValidateNoiseLayer(s)</code> and <code>EvaluateNoiseLayer(s)</code> are <code>FractalStackAt</code>, <code>ValidateFractal(s)</code> and <code>EvaluateFractal(s)</code>. In Python, <code>NoiseLayer(FractalParams(...))</code> becomes <code>Fractal(...)</code>, <code>NoiseRelief([...])</code> becomes <code>NoiseLayer([...])</code>, and <code>NoiseLayer(seed=..., wavelength=..., amplitude=...)</code> makes a layer of one fractal. The JSON configuration is unchanged.</li>
+<li><code>RegionShape::DistanceOutside</code> (<code>distance_outside</code>) is a signed distance: negative inside a rectangle, circle or polygon, by the distance to its nearest edge, where it was 0; outside it is unchanged. Masked layer weights and the features a region holds are unchanged.</li>
+<li>A configuration without a source starts from rolling ground rather than flat: a synthetic source of one fBm noise layer, 400 m in wavelength and 12 m in amplitude, seed 2 (<code>DefaultBaseNoise</code>), on which default craters and boulders look natural at a meter per pixel. A synthetic source without a <code>stack</code> takes the same layer; <code>"stack": []</code> gives flat ground at its elevation.</li>
+<li><code>CraterApplyOptions::interiorReplacement</code> (<code>interior_replacement</code>) defaults to 0 rather than 1: craters cut into a datum keep the older relief on their floor and walls, and a clean cut takes <code>interior_replacement</code> 1. The default datum stays <code>none</code>, so default terrain is unchanged; the example configs that set a datum now ask for a clean cut.</li>
+<li>Every configuration key in meters ends in <code>_m</code>, as keys in degrees, pixels and Gyr already end in <code>_deg</code>, <code>_px</code> and <code>_gyr</code>: 61 keys gained it, among them <code>baseline_m</code>, <code>bed_thickness_m</code>, <code>core_radius_m</code>, <code>cover_thickness_m</code>, <code>crack_depth_m</code>, <code>crack_width_m</code>, <code>depth_m</code>, <code>diameter_m</code>, <code>dust_patch_m</code>, <code>edge_rounding_m</code>, <code>exposure_spacing_m</code>, <code>field_size_m</code>, <code>floor_patch_m</code>, <code>height_m</code>, <code>large_diameter_m</code>, <code>mature_depth_m</code>, <code>max_crater_diameter_m</code>, <code>max_diameter_m</code>, <code>max_lobe_length_m</code>, <code>max_lobe_width_m</code>, <code>max_range_m</code>, <code>max_scarp_length_m</code>, <code>max_scarp_width_m</code>, <code>max_step_m</code>, <code>max_thickness_m</code>, <code>max_wavelength_m</code>, <code>mid_diameter_m</code>, <code>min_crater_diameter_m</code>, <code>min_diameter_m</code>, <code>min_lobe_length_m</code>, <code>min_lobe_width_m</code>, <code>min_range_m</code>, <code>min_scarp_length_m</code>, <code>min_scarp_width_m</code>, <code>min_wavelength_m</code>, <code>min_width_m</code>, <code>octave_rms_m</code>, <code>pixel_size_m</code>, <code>plate_size_m</code>, <code>radii_m</code>, <code>radius_m</code>, <code>reference_diameter_m</code>, <code>rim_height_m</code>, <code>small_diameter_m</code>, <code>start_m</code>, <code>thickness_m</code>, <code>warp_amplitude_m</code>, <code>warp_wavelength_m</code>, <code>wavelength_m</code>, <code>width_m</code>, and the terrain noise <code>amplitude_m</code>, <code>spacing_m</code>, <code>feather_m</code>, <code>reach_m</code>, <code>offset_m</code> and <code>scale_m</code> where those are meters; heightmap <code>tile_size</code> is <code>tile_size_px</code>. Albedo noise layers keep <code>amplitude</code>, which is a relative contrast or degrees there, and conversion factors keep <code>diameter_unit</code> and <code>meters_per_unit</code> (unit m/unit). Python names are unchanged, as they drop <code>_m</code>.</li>
+<li>Every layer gives its resolution fade as craters and boulders do, <code>"fade_px": [start, end]</code> in output pixels and <code>"fade_shape"</code>: roughness, dune, ripple, grainflow, pavement, sand shadow, bedform and spectral continuation layers and albedo detail, crater albedo and splotches took a <code>"fade"</code> object of <code>start_samples</code>, <code>end_samples</code> and <code>shape</code>. In Python every fade is one <code>ResolutionFade</code>, <code>options.fade</code>, as in C++; <code>fade_px</code> and <code>fade_shape</code> on <code>CraterApplyOptions</code> and <code>BoulderLayerOptions</code> are gone.</li>
+<li>Layers that read the ground beneath them at many points per sample (sand fill, pavement and bedforms on an exposure field, any <code>FormulaLayer</code>) read it up front, once per block of samples, in one batched pass through the layers beneath (<code>MapReadingGround</code>, <code>PrefetchedGround</code>), rather than evaluating the whole stack beneath once per point read; stacked ground-reading layers no longer multiply each other's cost. Heights are unchanged to the bit, on grids and at points (<code>BM_EvaluateGroundReaders</code>).</li>
+<li><code>SandFillLayer::ThicknessAt(x, y, spacing, ground)</code> takes the ground last, as <code>SandShadowLayer::ThicknessAt</code> and the other point queries do (it took it first).</li>
+<li>Worn craters round out and lower their ejecta as they wear: a crater keeps its rough rim wobble in proportion to its current over its fresh rim height, each harmonic of order k by that share to the power k / 2, so worn rims lose their short wiggles first rather than showing them as lumps along a rounded rim (<code>KernelWornOutlineShare</code>; as diffusion already blurred them); and Martin, Parkes and Dunstan ejecta thickness scales with the rim height, so worn craters no longer dip below the ground in a moat outside the rim.</li>
+<li><code>FassettThomsonProfile</code> exteriors are tapered as Martin, Parkes and Dunstan's are, by 1 - u^2 from where the exterior starts to 1.5 radii, so their slope also falls to 0 at the reach rather than the crater being cut off while still sloping (<code>FassettThomsonExterior</code>); every Fassett and Thomson crater's exterior changes, its rim join does not.</li>
+<li><code>MartinParkesDunstanProfile</code> craters join the ground without slope breaks: the ejecta outside the rim is tapered by 1 - x^2 (x the distance beyond the rim in radii), so its slope falls to 0 at the 2 R reach rather than the profile being cut off while still sloping, and a worn crater's rounded rim is a cubic matching the ejecta's height and slope where they meet, which kinked before (<code>MartinParkesDunstanExterior</code>). In hillshades the rings at the rim join and at 2 R are gone. Every Martin, Parkes and Dunstan crater's exterior changes; its crest, rim height and interior do not.</li>
+<li>Layers and albedos read the terrain's surface and source from their context; only <code>CraterLayer</code>, <code>SecondaryCraterLayer</code> and <code>BoulderLayer</code> take a <code>TerrainBase{surface, source}</code> (Python <code>base=</code>) when built, since they derive cell grids, caches, completeness and inherited craters from it, and report it through <code>Layer::LayerBase</code> for the terrain to check. <code>CraterLayerOptions::surface</code> is gone, <code>NoiseLayer</code> and <code>SyntheticAlbedo</code> measure noise from the context source's reference point in place of an <code>origin</code> argument, and <code>SecondaryCraterLayer</code> rejects a base on another surface than its primaries'.</li>
+<li><code>BedformLayer::CoverAt</code> is gone (use <code>MaterialCoverAt</code>); <code>SandFillLayer::ThicknessAt</code> and <code>SandShadowLayer::ThicknessAt</code> take a <code>LayerContext</code>, and <code>DuneLayer::DuneHeightAt</code>, <code>RoughnessLayer::RmsSlope</code>, <code>MaskedLayer::Weight</code> and <code>Holds</code>, <code>SlopeAlbedo::SlopeAt</code> and the splotch and blast zone queries take the surface last.</li>
+<li>Python <code>BoulderLayerOptions</code> nests its parts as the C++ struct does: <code>sizes</code> (<code>BoulderSizes</code>: <code>coverage</code>, <code>q_constant</code>, <code>q_coverage_coefficient</code>, <code>distribution</code>, <code>min_diameter</code>, <code>max_diameter</code>), <code>bedrock</code> (<code>BoulderBedrock</code>: <code>exposure</code>, <code>abundance</code>, <code>mean_size</code>), <code>pose</code> (<code>BoulderPose</code>) and <code>rendering</code> (<code>BoulderRendering</code>: <code>relief</code>, <code>model_threshold</code>, <code>relief_range</code>, <code>shapes</code>, <code>shape_prototypes</code>), which were flat properties named for the configuration keys (<code>coverage</code>, <code>qa</code>, <code>qb</code>, <code>bedrock_abundance</code>, <code>min_burial</code>, <code>relief</code>, ...); <code>cache_boulders</code> is bound. Configurations keep their flat keys.</li>
+<li><code>BoulderModelThreshold::minSamples</code> and <code>maxSamples</code> are <code>minPixels</code> and <code>maxPixels</code>; Python and configurations name them <code>min_px</code> and <code>max_px</code>.</li>
+<li><code>DuneOptions::ripples</code> and <code>grainflows</code> are optional, unset for none (Python <code>None</code>); they were on with a 0 <code>wavelength</code> or <code>cover</code> meaning none. <code>DuneRipples</code> defaults to the 2.1 m, 0.2 m large ripples of Mars's Bagnold dunes and requires a positive wavelength, and <code>DuneGrainflows</code> defaults to a <code>cover</code> of 1. Configurations give ripples and grainflows as before.</li>
+<li><code>Crater::depth</code> and <code>rimHeight</code> are <code>std::optional&lt;double&gt;</code>, unset where the models give them (they were NaN); Python <code>Crater.depth</code> and <code>rim_height</code> are <code>None</code> when unset. <code>CraterList</code> columns keep NaN for unset values.</li>
+<li>A crater layer's <code>ages</code> (<code>CraterLayerSpec::ages</code>) is optional: unset gives steady-state ages on the production surface and equilibrium its density is the minimum of (<code>config::LayerAges</code>, <code>config::MatchingAges</code>), so a density capped by Trask no longer needs its ages repeated. The default ages were always Hartmann, which made any Trask-capped density without ages fail validation.</li>
+<li>Size-frequency constructors take the data, then the kind, then the range: <code>LogPolynomialSfd(coefficients, kind, range, ...)</code> (was range before kind; Python <code>LogPolynomialSfd(coefficients, kind, min_diameter, max_diameter)</code>). <code>SplicedSfd(pieces, maxDiameter, tolerance)</code> and <code>PiecewisePowerLawSfd(segments, kind, maxDiameter, joins)</code> are valid from their first piece's start, so they take only the largest diameter (they took a <code>DiameterRange</code> whose minimum had to repeat it); <code>SfdJoins{allowDiscontinuities, tolerance}</code> (Python <code>SfdJoins</code>, <code>joins=</code>) replaces the bare <code>bool</code> and tolerance.</li>
+<li><code>SyntheticAlbedoOptions::hue</code> and <code>hueNoise</code> are <code>hueDegrees</code> and <code>hueNoiseDegrees</code>, as <code>SyntheticAlbedoSpec</code>'s are; Python and configuration keys keep <code>hue_deg</code> and <code>hue_noise_deg</code>, as does <code>hsv_to_rgb(hue_deg, ...)</code>.</li>
+<li>Rough crater rims fade toward a round floor: the profile follows an outline's rough wobble less the nearer it is read to the center, none there and all of it at the rim, each harmonic of order k by the share to the power k / 2 so short wiggles stay near the rim (<code>KernelOutlineScaleAt</code>, <code>KernelOutlineShare</code>). At high roughness, rim kinks no longer run as straight radial seams through the wall to the center; every irregular crater's inner wall changes, its rim and outline do not.</li>
+<li>A crater layer given no profile, under a degradation that requires none, shapes its craters with Martin, Parkes and Dunstan's profile (<code>MatchedProfile</code>), as <code>DefaultCraterModels</code> and configurations do; it threw before.</li>
+<li>Python option fields are named for their C++ members with a <code>_m</code> unit suffix dropped (<code>min_diameter</code>, <code>ground_spacing</code>). Angles and sample counts keep the configuration's <code>_deg</code> and <code>_px</code> (<code>yaw_deg</code>, <code>max_slope_deg</code>, <code>source_resolves_px</code>), as placed boulders, outlines and other records do, where C++ spells them <code>Degrees</code> and <code>Pixels</code>.</li>
+<li>Public angles are in degrees, named for it, matching the configuration's <code>*_deg</code> keys: <code>CraterIrregularity::headingDegrees</code> and <code>headingSpreadDegrees</code>, <code>CraterSlopeResponse::fullSlopeDegrees</code>, <code>ObliqueImpacts::headingDegrees</code>, <code>BoulderPose::maxLeanDegrees</code>, <code>maxTiltDegrees</code> and <code>maxSlopeDegrees</code>, <code>BoulderVentifacts::windAzimuthDegrees</code>, <code>minAngleDegrees</code>, <code>maxAngleDegrees</code> and <code>secondWindAzimuthDegrees</code>, <code>DuneOptions::windAzimuthDegrees</code>, <code>azimuthSpreadDegrees</code>, <code>slipFaceAngleDegrees</code>, <code>stossSlopeDegrees</code> and <code>flankSlopeDegrees</code>, <code>PavementOptions::maxTiltDegrees</code>, <code>StrataOptions::dipDegrees</code> and <code>dipAzimuthDegrees</code>, <code>SandShadowOptions::windAzimuthDegrees</code> and <code>flankAngleDegrees</code>, and <code>BedformOptions::windAzimuthDegrees</code> and <code>azimuthSpreadDegrees</code> (all were radians). Placed boulders and other outputs keep radians.</li>
+<li>Names that clashed with others: <code>BoulderClusters::spacing</code> is <code>centerSpacing</code> (key <code>center_spacing_m</code>), <code>DuneOptions::spacing</code> is <code>latticeSpacing</code> (key <code>lattice_spacing_m</code>, was <code>spacing</code>), <code>BoulderRendering::models</code> is <code>modelThreshold</code> (key <code>model_threshold</code>) and <code>BoulderReliefRange::models</code> is <code>includeModels</code> (key <code>include_models</code>).</li>
+<li><code>SyntheticSource</code> takes its <code>pixelSize</code> in meters on a body too, as <code>FlatSource</code> does (it took the surface's units, degrees on a body).</li>
+<li>Building a <code>Terrain</code> rejects a layer built for another surface than the terrain's (<code>Layer::LayerBase</code>) and a layer whose inputs, such as a boulder layer's crater layers or a sand shadow layer's boulder layer, are missing from the terrain's layers or come after it (<code>Layer::Dependencies</code>).</li>
+<li><code>LoadConfig</code> remembers the configuration's folder in <code>TerrainGenConfig::Directory()</code>, which <code>ValidateConfig</code>, <code>BuildGenerator</code>, <code>BuildAlbedo</code> and <code>GenerateFromConfig</code> resolve relative paths against when given no folder (<code>ConfigDirectory</code>).</li>
+<li><code>WriteGeoTiff(path, raster, generator)</code> writes in the terrain's projection (<code>TerrainGeoKeys</code>), and <code>WriteMesh(path, mesh)</code> writes a <code>TriangleMesh</code> alone.</li>
+<li><code>ManualBoulder</code> is built by name: <code>ManualBoulder(x, y, diameter)</code> with chainable setters (<code>.Height(1.1).Burial(0.2).YawDegrees(30.0).Rest(BoulderRest::Side)</code>), every field it leaves to be drawn a <code>std::optional</code> instead of NaN (and <code>id</code> instead of 0), its angles in degrees (<code>yawDegrees</code>, <code>leanDegrees</code>, <code>tiltDegrees</code>, <code>tiltAzimuthDegrees</code>, as the configuration's <code>*_deg</code> keys), and a new <code>model</code> that makes it a 3D model, or keeps it relief, whatever the layer's size threshold.</li>
+<li><code>ManualCrater(x, y, diameter)</code> takes no depth or rim height, whose position clashed with <code>Crater{x, y, diameter, ageGyr}</code>; set them, and the age, by name with <code>Crater</code>'s chainable <code>.AgeGyr()</code>, <code>.Depth()</code> and <code>.RimHeight()</code> (Python <code>manual_crater(x, y, diameter)</code>, then its attributes).</li>
+<li>Named construction: <code>ValueDistribution::Constant</code>, <code>Uniform</code>, <code>Normal</code>, <code>LogNormal</code>, <code>Piecewise</code> and <code>.Clamped(min, max)</code> (Python <code>ValueDistribution.normal(...)</code> and so on), <code>EvaluationOptions{}.Spacing(s).Threads(n).On(backend)</code>, <code>NoiseLayer::Fbm(seed, wavelength, amplitude)</code>, and <code>NoiseRelief(NoiseLayer)</code> for one layer.</li>
+<li>Off and unset are <code>std::optional</code> where a sentinel stood for them: <code>BoulderLayerOptions::fragmentation</code> is optional (none break unset; was off until <code>splitWear</code> dropped below 1, <code>BoulderFragmentation::Enabled</code> is gone, and <code>splitWear</code> defaults to 0.5); <code>BoulderEjecta::minCraterDiameter</code> is optional (was 0 for none) and <code>MinCraterDiameter()</code> is <code>ThrowingDiameter()</code>, unset when no crater throws blocks; <code>CraterGenerationOptions::maxCraters</code> and the configuration's <code>max_craters</code> are optional (was 0 for no cap); <code>ComplexCraterShape::peakFitMaxDiameter</code> is optional (was 0 for every size).</li>
+<li>Crater shaping seeds (<code>irregularity</code>, <code>noise</code>, <code>texture</code> and <code>slope</code>) are optional and, unset, follow the crater layer's <code>seed</code> (<code>SeededCraterApply</code>), so a new layer seed reshapes the outlines, noise, texture and floor offsets too; they were 0 whatever the layer's seed. Craters with these features on change unless their seeds are set.</li>
+<li><code>CraterSlopeResponse::enabled</code> is <code>asymmetric</code> (configuration key <code>asymmetric</code>, Python <code>asymmetric</code>), as it turns on only the asymmetry: the wear <code>criticalGradient</code> gives applies either way.</li>
+<li>Settings that would be lost are rejected instead: <code>BoulderLayer::Manual</code> (Python <code>BoulderLayer.manual</code>) throws for options whose <code>manual</code> is not empty, which it replaced; <code>BuildBoulderOptions</code> throws for a <code>BoulderLayerSpec</code> whose <code>boulders.sizes.distribution</code> or <code>boulders.ejecta.distribution</code> is not the default, which <code>sizes</code> and <code>ejecta_sizes</code> replaced; and a raster source spec's <code>read.upsampler</code>, which <code>upsampling</code> replaced, must stay unset.</li>
+<li>Crater ages and surfaces are given once: a crater layer whose <code>CraterModels::ages</code> is null draws the ages its degradation wears by (<code>DegradationModel::AgeModel</code>, <code>FreshnessDegradation</code>'s), <code>EquilibriumSurface{production, equilibrium, ageGyr, chronology}</code> (Python <code>EquilibriumSurface</code>) gives a surface's <code>Density()</code> and steady-state <code>Ages()</code> from one set of models, <code>EquilibriumDiffusionAges(profile, fresh, steadyAges)</code> and <code>MatchedDiffusionDegradation</code> match diffusion to steady-state ages in one call, and a configuration whose steady-state ages name another production function, chronology, age or equilibrium than its density's production surface and equilibrium is rejected at <code>ages</code>.</li>
+<li><code>SecondaryCraterLayer(primaries, options)</code> (Python <code>SecondaryCraterLayer(primaries, options)</code>) shapes secondaries as the primaries are, and a secondary layer on primaries following a density map throws unless its options are among the primaries' <code>CraterLayerOptions::secondaries</code>, which the map counts.</li>
+<li>Crater layers built in code default as a configuration's do: <code>DefaultCraterModels()</code> (<code>default_crater_models</code>) gives the configuration's default density, ages, profile and degradation, <code>CraterLayerOptions</code> generates from 2.5 m (was 4 m) and shapes with <code>DefaultCraterApply()</code> (irregular outlines on, as configurations always had; it moves from <code>config.h</code> to <code>shaping/apply_options.h</code>), and <code>CraterLayer</code>'s models default to <code>DefaultCraterModels()</code>. The density and ages may be null for a layer that generates no craters.</li>
+<li>Roughness, bedform, dune and boulder options built in code default as a configuration's do: roughness octaves up to 16 m (was 4 m), bedforms 4 m apart, 0.4 m high over 90% of the ground (were 1 m, 0.1 m and none), barchans 50 m wide from 15 m in 129 m cells (were 400 m, 200 m and 800 m), and boulder sizes between craters and around them from the nominal SP-8023 intercrater blocks up to their largest, about 5.86 m (<code>DefaultBoulderSizes</code>; were Golombek-Rapp sizes up to 4 m). <code>DefaultBoulders</code>, <code>DefaultRoughness</code>, <code>DefaultBedforms</code> and <code>DefaultDunes</code> are gone; <code>PlaceBoulderModel</code> settles by default, as the layer does.</li>
+<li>The Golombek-Rapp terms <code>BoulderSizes::coverage</code>, <code>qConstant</code>, <code>qCoverageCoefficient</code> and <code>BoulderEjecta::coverage</code> are optional (<code>Coverage()</code>, <code>QConstant()</code>, <code>QCoverageCoefficient()</code> give them or their defaults), and <code>ValidateBoulderLayerOptions</code> rejects one set beside the size distribution that leaves it unused; Golombek-Rapp sizes need <code>sizes.distribution</code> (Python <code>distribution</code>) set to null, which Python now accepts.</li>
+<li><code>CraterLayer::Manual(craters, models, apply, surface)</code> (Python <code>CraterLayer.manual(craters, models=None, apply=None)</code>) takes its craters first, with the models defaulting to <code>DefaultCraterModels()</code> and the shaping to <code>DefaultCraterApply()</code>.</li>
+<li>Crater layers take their profile from a degradation model that requires one (<code>DegradationModel::RequiredProfile</code>, <code>MatchedProfile</code>): <code>DiffusionDegradation</code> gives its <code>DiffusedProfile</code>, so <code>CraterModels::profile</code> (Python <code>profile=</code>) may be left null, and a different profile is rejected. The diffusion terrains of the <code>craters_degradation</code> and <code>ages_models</code> examples were shaped with the plain Fassett-Thomson profile and now are diffused.</li>
+<li><code>BuildAlbedo</code> throws a <code>ConfigError</code> naming the layer when the generator's layers are not the ones the configuration builds, as after changing a built generator, instead of reading past them.</li>
+<li>Albedo noise layers in a configuration must give their <code>amplitude</code>; unset it was 100, which saturated the albedo.</li>
+<li><code>BoulderFeatures::boulders</code>, <code>BoulderLayer::Boulders</code> and <code>WriteBoulderList</code> hold or take a <code>BoulderList</code> instead of <code>std::vector&lt;Boulder&gt;</code>; Python <code>BoulderLayer.boulders(region)</code> returns a <code>BoulderList</code> like C++ (its <code>.table</code> gives the NumPy columns it returned before).</li>
+<li><code>NoiseRelief</code> takes its noise layers as <code>std::vector&lt;NoiseLayer&gt;</code> and returns them from <code>Layers()</code>, as the Python binding always did (it took <code>SyntheticTerrainParams</code> and had <code>Params()</code>).</li>
+<li>Python <code>RasterGrid.centered(center, size, pixel_size)</code> takes the C++ arguments, a center and a size in world units, instead of cell counts (<code>centered(width, height, pixel_size, center)</code>).</li>
+<li>
+<p><code>config::SnappedGrid</code>, <code>config::SnappedCells</code> and <code>config::kExtentSnapTolerance</code> give way to <code>RasterGrid::Covering</code>, <code>SnappedCells</code> and <code>kGridSnapTolerance</code> in <code>raster/grid.h</code>.</p>
+</li>
+<li>
+<p>Point queries on a body find the cells around them directly from the neighbors of the cell holding the point, instead of sampling the region: about 1.8x faster on a sphere, within 1.2x of a plane.</p>
+</li>
+<li>
+<p>Generated cells keep their craters indexed by y, so a point query visits only the craters in its rows instead of copying every crater of the cells around it: point queries about 2x faster on a plane and 1.5x on a sphere.</p>
+</li>
+<li>
+<p><code>terraingen schema</code> prints the configuration schema (<code>ConfigSchema</code>); the catalog of types with their defaults stays available as Python <code>config_catalog()</code>.</p>
+</li>
+<li>Every number in a configuration must be finite, and such errors name the number itself, such as <code>layers[1].manual[0].x</code>.</li>
+<li><code>terraingen/config/report.h</code> is now <code>terraingen/pipeline/report.h</code>; <code>WriteCraterList</code>, <code>WriteBoulderList</code>, <code>WriteBoulderModels</code> and <code>ListFormat</code> move to <code>terraingen/pipeline/feature_lists.h</code>, and <code>PlacedCraters</code> and <code>PlacedBoulders</code> to <code>terraingen/pipeline/generator.h</code> (<code>pipeline/features.h</code> is gone).</li>
+<li>C++ renames: <code>NoiseLayerConfig</code> to <code>NoiseStackLayerSpec</code>, <code>SyntheticAlbedoSpec::Params</code> to <code>Options</code>, <code>estimateFromBase</code> to <code>estimateFromSource</code> and the config key <code>estimate_from_base</code> to <code>estimate_from_source</code>; <code>CheckConfigRanges</code> and <code>ValidateAlbedo</code> move into <code>terraingen::config</code>.</li>
+<li><code>TerrainGenConfig</code> compares equal when its JSON does; the nested specs no longer have <code>operator==</code>.</li>
+<li>Headers moved: <code>sources/synthetic_terrain.h</code> into <code>sources/synthetic_source.h</code>; <code>layers/bisection.h</code> to <code>util/bisection.h</code>; <code>Plane</code> and <code>PlaneFit</code> to <code>util/plane_fit.h</code>; the power spectrum fit (<code>EstimatePowerLawSpectrum</code>, <code>PowerLawSpectrum</code>) to <code>raster/spectrum.h</code>; the Perlin structure functions to <code>noise/structure_function.h</code>; <code>NoiseLayersAt</code> to <code>noise/surface_noise.h</code>; the crater albedo options to <code>albedo/crater_albedo_options.h</code>; <code>CutAtPlane</code> (was boulder-internal) to <code>mesh/mesh.h</code>; crater <code>ages/freshness.h</code> to <code>ages/freshness_ages.h</code>, <code>degradation/freshness.h</code> to <code>degradation/freshness_degradation.h</code> and <code>shaping/explicit_state.h</code> to <code>shaping/resolved_state.h</code>.</li>
+<li>Crater profiles (Fassett and Thomson, Martin-Parkes-Dunstan, complex, diffused) evaluate the same float formulas on the CPU as on the GPU, so their heights match the kernel; <code>FassettThomsonProfile::Rim</code> and <code>DiffusedProfile::Cells</code> give way to <code>Kernel()</code>.</li>
+<li>Crater outlines (<code>CraterOutline::Scale</code>, <code>MarkShift</code>, <code>CraterProfileDistance</code>), diffused morphometry and the kilometer power laws (<code>KilometerPowerLaw::At</code>) evaluate the crater kernel's float formulas on the CPU too, so no double twin remains; <code>KernelOutline</code> holds an outline in the kernel's form for many points. Outline distances, fresh complex and Martian morphometry and diffusion depths change at float rounding.</li>
+<li>Crater datums without a ground sampler read the raster with <code>SampleRaster</code>; bedforms place their fields on the surface cells (<code>MakeCells</code>) on planes and bodies alike; spectral continuation impulses draw from lattice streams. These change generated heights slightly.</li>
+<li><code>ValidateNoiseLayers</code> (<code>validate_noise_layers</code>) checks a noise stack for synthetic sources, noise relief and synthetic albedo alike.</li>
+<li>A default <code>SyntheticTerrainParams</code> holds no layers and is flat, matching an empty <code>stack</code> in a configuration (it held one Perlin fBm layer); <code>ValidateSyntheticTerrain</code> accepts an empty stack, and only <code>NoiseRelief</code> still needs a layer.</li>
+<li>Raster albedo measures the map's roughness and Hurst exponent with the raster variogram fit, and crater zones and splotches share one overlay of changes; albedo detail, zone and splotch values change slightly, and swarm splotches, crater zones and the crater albedo grid split into shorter steps.</li>
+<li>Crater and boulder list outputs ending in <code>.json</code> in any case (<code>.JSON</code>) are written as JSON.</li>
+<li><code>EstimatePowerLawSpectrum</code> (<code>estimate_power_law_spectrum</code>) reports when it clamps the fitted slope to [2, 4] (<code>PowerLawSpectrum::clipped</code>, Python <code>PowerLawSpectrum.clipped</code>). The range stays [2, 4], Hurst exponents 0 to 1 by beta = 2 H + 2: the window is already detrended by its plane and Hann-tapered, and steeper fits come from windows a few large craters dominate or from smoothed gridded DEMs, not from relief a continuation should carry on.</li>
+</ul>
+<h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>examples/</code> (the JSON configurations, C++ programs and Python scripts), the <code>TERRAINGEN_BUILD_EXAMPLES</code> option, the example tests and the example configurations installed with the Python wheel; the documentation's gallery and tested snippets show the library instead.</li>
+<li>APIs the library itself never used, in C++ and Python alike: <code>GaussianBlur</code> (<code>gaussian_blur</code>), <code>Resample</code> and <code>ResampleTo</code> (<code>resample</code>, <code>resample_to</code>), <code>SampleTruncatedPowerLaw</code>, <code>SampleExponential</code>, <code>SampleNormal</code> and <code>TabulatedDistribution</code>, <code>RandomStream::NextFloat</code> and <code>NextDoubleOpenBelow</code>, the mesh <code>Volume</code>, <code>SurfaceArea</code> and <code>Transformed</code> (<code>volume</code>, <code>surface_area</code>, <code>transformed</code>), <code>Icosphere</code> (<code>icosphere</code>; subdivide the icosahedron base solid onto the unit sphere instead), and the <code>WriteGeoTiff</code> overload taking band pointers.</li>
+<li><code>TerrainGenerator</code>, <code>TerrainGround</code>, <code>SharedGround</code>, <code>ValidateGenerator</code>, <code>ApplyLayers</code> (use <code>Terrain::ApplyFrom</code> or a <code>TerrainView</code>) and the free <code>Evaluate</code>, <code>FillHeights</code>, <code>HeightAt</code>, <code>HeightsAt</code>, <code>PlacedCraters</code>, <code>PlacedBoulders</code>, <code>SourceGrid</code> and <code>TerrainGeoKeys</code>, with their Python functions (<code>evaluate</code>, <code>fill_heights</code>, <code>apply_layers</code>, <code>height_at</code>, <code>heights_at</code>, <code>placed_craters</code>, <code>placed_boulders</code>); use the <code>Terrain</code> members.</li>
+<li>C++ declarations only tests used: <code>ResampledGrid</code>, <code>ResampleWindow</code>, <code>SampleRasterWindow</code>, <code>SampleAtCenters</code>, <code>RequireIncreasing</code>, <code>ResolveThreads</code>, <code>StandardErrorLogSink</code>, <code>Variogram</code>, <code>LruCache::Capacity</code>, the <code>PixelWindowIn</code> overload taking a raster, <code>kSqrt2</code>, <code>kEulerGamma</code> and <code>TERRAINGEN_VERSION_STRING</code>; <code>KernelWeight</code>, <code>ParseGdalBandScaling</code>, <code>RotationQuaternion</code> and <code>GeoKeys::ShortKey</code> (now <code>ShortGeoKey</code>) moved to <code>detail</code>.</li>
+<li><code>DescribeSource</code> and Python <code>TerrainGenConfig.source_grid</code> (use <code>ValidateConfig(...).source</code>), <code>LayerAt</code> and <code>LayerTimer::Callback</code>.</li>
+<li><code>OpticalMaturityOrigin</code> (Python <code>OpticalMaturityOrigin</code>): its reflectance is now <code>kOpticalMaturityOriginReflectance</code> (<code>OPTICAL_MATURITY_ORIGIN_REFLECTANCE</code>, 0.08) and its ratio had no use left.</li>
+<li><code>FillSyntheticTerrain</code> and <code>GenerateSyntheticTerrain</code> (<code>fill_synthetic_terrain</code>, <code>generate_synthetic_terrain</code>; use <code>SyntheticSource(params).Fill</code>), <code>OpticalMaturity</code>, <code>SyntheticSource::Elevation</code>, <code>KernelUpsampler::Method</code>, <code>GolombekRappSfd::Coverage</code> and <code>Q</code>, <code>BlastZoneAlbedo::Zones</code>, <code>DiamondSquareUpsampler::Levels</code>, <code>RasterPosts::Window</code> and <code>Placement</code>, <code>GeoTiffSource::Scaling</code>.</li>
+<li><code>UnresolvedCraterLimit</code> (<code>unresolved_crater_limit</code>; use <code>SourceResolvedLimit</code>), <code>CraterBlend::Weight</code>, <code>RimSmoothing::Weight</code>, <code>EjectaThicknessShare</code>, <code>CraterLayer::Attributes</code> and <code>SecondaryCraterLayer::Attributes</code>, <code>ApplyCraterTo</code>, <code>CraterCellCache::Size</code> and <code>Evictions</code>, <code>SecondaryDensity::Diameter</code>.</li>
+<li><code>AddBoulder</code>, <code>BoulderLayer::DensityAt</code>, <code>BoulderMesh</code>, <code>BandFrequencies</code>, <code>EdgeDistanceAt</code>, <code>ReliefAt</code>, <code>BedPositionAt</code>; <code>DomeHeight</code>, <code>NormalizedBoulderShape</code>, <code>TargetPsd</code>, <code>TerracedAt</code>, <code>EstimateBaseRoughness</code>, <code>RadialPowerSpectrum</code> and the five boulder sub-validators are internal.</li>
+</ul>
+<h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Craters on a body shaped by the Metal backend match the CPU again. Metal compiled kernels with its default fast math, which reassociates <code>(a - b) + (aLow - bLow)</code> and drops the low halves of split-float positions, moving craters by up to 0.2 m. Kernels now compile with <code>MTLMathModeSafe</code> and precise math functions.</li>
+<li><code>Terrain::SetSource</code> and <code>Terrain::Reseed</code> rebuild the crater, secondary crater and boulder layers built on the old source on the new one (<code>Layer::Rebased</code>), so their completeness limits and inherited craters follow it, and rebind later layers to them; a reseeded boulder layer no longer drops its source. Building a <code>Terrain</code> rejects a layer built on another source than the terrain's.</li>
+<li>Boulder fillets no longer leave a level bench where they meet the boulder: the fillet stood at its full height all the way in to the boulder's radius, so between there and where the rock rose above it the heights were flat. It now meets the rock where the rock stands as high as the fillet (<code>FilletContact</code>; on an uncut dome <code>DomeFilletContact</code>, <code>sqrt(1 - height_share^2)</code> radii out), in every direction around shapes and models, and along each direction on domes cut by ventifact facets, and gives way to the rock inside. <code>FilletHeight</code> (Python <code>fillet_height</code>) is 0 within the contact and takes the contact as an optional fourth argument; Python adds <code>FilletContact</code> and <code>dome_fillet_contact</code>.</li>
+<li>Boulder layers measure unresolved cover, and rock albedo shades, at spacings where the fade reaches the largest boulder: <code>ForEachLogSimpsonNode</code> ends exactly at its bounds, so a size distribution is no longer evaluated just past its largest diameter (default boulders threw at 2 m spacing).</li>
+<li><code>DiamondSquareUpsampler</code> no longer roughens a DEM's plains with the relief of its craters and massifs. Its roughness was the RMS of each post minus the mean of its neighbors over one 512 x 512 sample from the middle of the posts, so a few large features set it, and for a global DEM the sample was far from the area refined: on LOLA LDEM_8 around Copernicus it fitted a 166 m scale from far-side highlands and added 10 to 15 degree slopes across the mare at 500 m. An unset scale is now fitted window by window (<code>DiamondSquareOptions::fitWindow</code>, config <code>"fit_window_px"</code>, Python <code>fit_window</code>; 32 posts, centered every 16, each node's scale bilinear between the windows around it), so each region's detail follows its own roughness (about 6 to 15 m on the mare there, 90 m on the crater), as Rosenburg et al. (2011) map lunar roughness in overlapping windows; <code>fitWindow</code> 0 fits one scale as before. Scales and fractal dimensions are estimated by medians rather than RMS (<code>EstimateMidpointRoughness</code>, new <code>EstimateMidpointScale</code>, Python <code>estimate_midpoint_scale</code>): 1.4826 times the median absolute residual, which is the RMS for Gaussian relief, and the slope of the median absolute height differences at lags of 1 to 8 posts. A fitted upsampler with a windowed scale leaves <code>Options().scale</code> unset, and one given a fractal dimension needs no <code>FitTo</code>; points, tiles and grids still agree to the bit.</li>
+</ul>
+<h2 id="020-2026-10-23"><a href="https://github.com/alexmaietta/terraingen/compare/v0.1.0...v0.2.0">0.2.0</a> - 2026-10-23<a class="headerlink" href="#020-2026-10-23" title="Permanent link">&para;</a></h2>
+<p>Sources replace the base: DEMs are upsampled rather than resampled, synthetic sources generate heights from noise, and layers leave out what the source already resolves. Outputs set their own pixel size and extent, <code>GenerateFromConfig</code> returns everything it computes, and the core types are renamed. Configurations and code written for 0.1.0 need the changes under <a href="#migrating-from-010">Migrating from 0.1.0</a>.</p>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Sources in configurations (<code>source</code>) of type <code>raster</code>, <code>chain</code> or <code>synthetic</code>; without one the terrain starts from a flat synthetic source at 0 m.</li>
+<li><code>SyntheticSource</code> (source <code>synthetic</code>): heights from a noise stack plus <code>elevation_m</code> over an unbounded plane or the whole body, evaluated at every point, or sampled at posts <code>pixel_size_m</code> apart and upsampled like a DEM; an empty stack is flat.</li>
+<li><code>RasterSource</code>, heights from a raster in memory, shared rather than copied and upsampled as a GeoTIFF source is; <code>GeoTiffSource</code> is a <code>RasterSource</code> of its band.</li>
+<li>Upsampling on sources (<code>Upsampler</code>, config <code>upsampling</code>): how a source's posts become heights between them and at any finer sample spacing, deterministically, so points and grids at one spacing agree; kernels <code>nearest</code>, <code>bilinear</code>, <code>cubic</code> (the default), <code>catmull_rom</code>, <code>lanczos3</code> and <code>cubic_bspline</code>.</li>
+<li>Diamond-square upsampling (<code>DiamondSquareUpsampler</code>, <code>"upsampling": {"type": "diamond_square"}</code>): random midpoint displacement of a source's posts to finer spacings, as PANGU expands DEMs (Martin et al. 2014), keeping every coarser node, with bilinear or Catmull-Rom (<code>interp</code>) refinement and the scale and fractal dimension estimated from the posts when not given.</li>
+<li><code>RegisterUpsampler</code> (Python <code>register_upsampler</code>) names upsampler types of your own, C++ or Python subclasses of <code>Upsampler</code>, for configurations to use with their settings.</li>
+<li>Windowed GeoTIFF reads that decode only the strips or tiles a window meets, and <code>crop</code> (<code>min_x</code>, <code>min_y</code>, <code>max_x</code>, <code>max_y</code> in CRS units) on raster sources to read only the window needed while giving the same heights there as the whole file.</li>
+<li><code>effective_pixel_size_m</code> on raster sources (<code>effectivePixelSize</code>), the cell size a DEM upsampled or smoothed before it was saved truly resolves.</li>
+<li><code>Source::ResolutionAt</code>, the cell size of the data behind each height, and <code>UnresolvedCraterLimit</code>, a completeness limit that leaves the craters a DEM already resolves to it; <code>MinimumField</code> combines it with a catalog's limit.</li>
+<li><code>source_resolves_px</code> on craters, secondaries, boulders, noise, dunes and bedforms: features at least that many source cells across, by diameter, wavelength or dune width, are already in the source, so only smaller ones are added at each point, each raster of a chain giving its own limit; ignored on synthetic sources, <code>null</code> adds them all. In C++ <code>sourceResolvesPixels</code> on the layer options, applied when the layer is given its <code>source</code>, with <code>SourceResolvedLimit</code> and <code>LayerResolvedLimit</code> (Python <code>source_resolved_limit</code>).</li>
+<li>Spectral continuation layer (<code>spectral_continuation</code>, <code>SpectralContinuationLayer</code>): detail finer than a DEM that continues its fitted power-law spectrum to shorter wavelengths as sparse Gabor noise, tapered in at the DEM's Nyquist wavelength so resolved scales gain nothing, with grids and points in agreement.</li>
+<li>Roughness and noise layers that estimate their settings from the source with <code>estimate_from_source</code>: the Hurst exponent and RMS height difference of its variogram, extrapolated to the roughness baseline or matched at each noise layer's wavelength; explicit values override the estimates. The estimators are public: <code>EstimateSourceRoughness</code>, <code>EstimateBaseRoughness</code>, <code>EstimatePowerLawSpectrum</code>, <code>RadialPowerSpectrum</code>, <code>EstimateMidpointRoughness</code> and <code>raster/variogram.h</code> (Python <code>estimate_source_roughness</code> and the rest).</li>
+<li>Lanczos (three lobes), Catmull-Rom and cubic B-spline kernels for <code>Resample</code>, <code>SampleRaster</code> and <code>ResampleMethod</code>.</li>
+<li>Output areas: <code>pixel_size_m</code> and <code>extent_m</code> (<code>extent_deg</code> on a body) as <code>{"center": [x, y], "size": [w, h]}</code> or <code>{"min": [x, y], "max": [x, y]}</code>, defaulting to a raster or chain source's extent and cell size; the grid starts at the extent's min corner, is snapped outward to whole cells and sampled at cell centers (<code>OutputAreaSpec</code>, <code>ExtentSpec</code>, <code>config::SnappedGrid</code>).</li>
+<li>Optional output paths: without a <code>path</code> the result is returned and nothing is written. <code>GenerateFromConfig</code> returns everything the outputs ask for, each computed once: <code>GeneratedGrid</code> holds the grid, heights, albedo, materials, photometry, placed craters and boulders and terrain mesh, <code>GeneratedOutputs</code> the body mesh or ICQ model, the report, <code>Grid()</code> and <code>Find()</code>; Python <code>GeneratedGrid</code> values are views without a copy.</li>
+<li><code>terrain_mesh</code> outputs take <code>cutouts</code> (<code>{"min": [x, y], "max": [x, y]}</code> boxes), a <code>skirt_m</code> and a frame <code>site_deg</code> as [lon, lat].</li>
+<li>Terrain reports: output type <code>report</code> (<code>ReportOutput</code>) with an optional <code>path</code>, returned as <code>GeneratedOutputs::report</code> and written as JSON by <code>WriteOutputs</code>; per grid (<code>GridReport</code>) height and slope statistics, craters per power-of-2 diameter bin against the first crater layer's density and boulder counts and cover, with per-layer timings, backend, threads, layer seeds and version (<code>ReportGrid</code>, <code>ReportToJson</code>, <code>TerrainReport</code>, <code>LayerTimer</code>; Python <code>report_grid</code>, <code>report_to_json</code>, <code>TerrainReport.to_dict</code>).</li>
+<li><code>GetMeshSize</code> and <code>FillMesh</code> (Python <code>get_mesh_size</code>, <code>fill_mesh</code>) size and write a height mesh into caller buffers laid out as Chrono's ChVector3d and ChVector3i arrays or NumPy (N, 3) float64 and (M, 3) int32 arrays, with no copy; <code>FillHeights</code> (Python <code>fill_heights</code>) evaluates into a caller buffer; <code>TriangleMesh.positions</code> and <code>TriangleMesh.triangles</code> are NumPy views without a copy.</li>
+<li>Piecewise uniform size-frequency distributions (<code>piecewise_uniform</code>): counts per diameter band, given absolutely or as shares of a total.</li>
+<li>Piecewise value distributions, uniform within bins drawn by weight, and <code>freshness</code> crater ages that draw each crater's freshness from a value distribution.</li>
+<li>Radial wall marks on craters, ridges and grooves down the wall that are strongest where it is steepest.</li>
+<li>Craters on slopes: floors offset downslope and rims and ejecta lowered upslope (Plescia et al. 2019), and faster wear toward a critical gradient (Roering et al. 1999).</li>
+<li>Manual craters with an explicit rim-to-floor depth and rim height in place of what the degradation model and age give; diffusion profiles solve for the age that reaches the depth.</li>
+<li>Thomas cluster process for boulder clusters, with Poisson-scattered centers whose clusters add where they overlap.</li>
+<li>Boulders limited to a maximum slope, optionally rolling down steeper ground to gather at its foot.</li>
+<li>Manual boulders that fix any of their height, burial, yaw, lean, tilt, rest, wear and shape seed; unset fields are drawn as for generated boulders, and fixed ones are neither re-settled nor broken.</li>
+<li>Manual-only layers: boulder layers with <code>generate_random</code> off place only their <code>manual</code> boulders, and <code>CraterLayer::Manual</code> and <code>BoulderLayer::Manual</code> (Python <code>CraterLayer.manual</code>, <code>BoulderLayer.manual</code>) make layers of only the given craters or boulders.</li>
+<li>Density maps from GeoTIFFs or constants: a scale, a count in a diameter range, or an areal fraction such as rock abundance, which set crater and boulder densities point by point.</li>
+<li>Size slope maps that bend boulder sizes into a local power law, from an exponent or a mean diameter map.</li>
+<li>Crater and boulder catalogs with a completeness limit, above which they stand in for generated features.</li>
+<li>Rock albedo (<code>rocks</code>): boulders brighter than the regolith (Holt 1981; Marshal et al. 2023), and a speckle of the share of each sample covered by boulders too small to resolve.</li>
+<li>Slope albedo (<code>slopes</code>): steep ground kept immature by mass wasting, its optical maturity rising with slope beyond 20 degrees (Ikeda et al. 2022; Lucey et al. 2014).</li>
+<li>Crater shaping and datum fitting on the GPU on spheres, ellipsoids and shape models, not only on planes.</li>
+<li><code>fade_px</code> and <code>fade_shape</code> on crater <code>apply</code> and boulder layers: the resolution fade as its start and end output samples and its curve.</li>
+<li>Configurations are checked against every field's documented range, and errors name the exact field, such as <code>layers[2].reach</code>.</li>
+<li>Configuration reference in the documentation, generated from the schema at build time, and machine-readable value ranges in the schema.</li>
+<li>Python options classes document every field with its description and unit, and gain <code>validate()</code> and a readable <code>repr</code>.</li>
+</ul>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Breaking: the configuration's <code>base</code> is now <code>source</code>, and the region layer is now <code>masked</code>; old keys and types are rejected.</li>
+<li>Breaking: raster sources upsample instead of resampling: a raster source's grid is always its file's, and evaluating it over a finer grid gives finer cells; <code>RasterSourceOptions</code> and <code>GeoTiffSourceOptions</code> take an <code>upsampler</code> and an <code>effectivePixelSize</code>.</li>
+<li>Breaking: outputs give their area as <code>pixel_size_m</code> and <code>extent_m</code> in place of <code>region</code> (<code>width</code>, <code>height</code>, <code>pixel_size</code>, <code>centre_x</code>, <code>centre_y</code>) and of <code>spacing</code> on crater lists, boulder lists and boulder models; both are required without a raster or chain source.</li>
+<li>Breaking: on a raster or chain source, craters, secondaries, dunes and bedforms leave out by default what is at least 4 source cells across (<code>source_resolves_px</code>); set it to <code>null</code> for the 0.1.0 output.</li>
+<li>Breaking: every angle key in configurations and the Python options classes is in degrees and ends in <code>_deg</code>, azimuths counter-clockwise from +x (local east), and the rest of the Python API follows with <code>_deg</code> names and arguments; the C++ library keeps radians.</li>
+<li>Breaking: crater and boulder size keys carry their units (<code>_m</code>, <code>_px</code>), in configurations and the Python options classes alike, and crater layers' <code>generate</code> is now <code>generate_random</code>; the old keys are rejected.</li>
+<li>Breaking: core types and functions are renamed with no aliases, <code>Terrain</code> to <code>TerrainGenerator</code>, <code>GenerateTerrain</code> to <code>GenerateFromConfig</code>, <code>TerrainConfig</code> to <code>TerrainGenConfig</code>, <code>HeightMesh</code> to <code>BuildMesh</code>, <code>RegionLayer</code> to <code>MaskedLayer</code> and the rest in the table below, and Python names follow C++ names one to one.</li>
+<li>Breaking: sources take the sample spacing: <code>Source::Fill(heights, spacing)</code> and <code>Source::HeightAt(x, y, spacing)</code>, and Python <code>Source</code> subclasses define <code>height_at(x, y, spacing)</code> and <code>fill(heights, spacing)</code>; a source without bounds gives a grid without cells (<code>BoundedGrid</code>), and <code>Evaluate(generator)</code> needs a grid for it.</li>
+<li>The library, Python bindings, tests and examples are C++17 (0.1.0 needed C++20); public headers take <code>Span</code> in place of <code>std::span</code>.</li>
+<li>Defaults give a plausible lunar terrain at 1 m per pixel in which every height layer shows: craters from a production surface capped below the Trask equilibrium with steady-state ages, diffusion and irregular outlines, Martin, Parkes and Dunstan profiles, nominal NASA SP-8023 intercrater boulders (0.4% cover by rocks of 1 m and more), noise relief scaled to its wavelength, and visible roughness, bedforms and dunes.</li>
+<li>A boulder <code>coverage</code>, <code>qa</code>, <code>qb</code> or <code>ejecta.coverage</code> that no Golombek-Rapp sizes use is an error that names <code>"sizes": {"type": "golombek_rapp"}</code>.</li>
+<li>Boulder lists and models hold every boulder of the layer's diameter range; only the heightmap leaves out boulders too small to resolve.</li>
+<li>Boulder ejecta come from every crater layer before the boulder layer, not only the last one.</li>
+<li>Boulder models settle onto a stable face by default instead of balancing on an edge or corner.</li>
+<li>Density maps that count every feature take out the secondaries and blocks thrown from a layer's craters, and boulder patches and bedrock keep a map's mean, so nothing is counted twice.</li>
+<li>The <code>matched</code> diffusivity wears each crater to Fassett et al.'s visibility cutoff at the end of its equilibrium lifetime, for the layer's own profile.</li>
+<li>Crater shaping has one implementation, the kernel, on every surface; craters on bodies and custom profiles may differ from 0.1.0 in the last digits.</li>
+<li>Random streams and hashes are unified, so boulder, albedo, dune, bedform and pavement outputs for a given seed differ from 0.1.0; their statistics are unchanged.</li>
+<li>Every evaluation defaults to all threads, including <code>HeightAt</code> and <code>HeightsAt</code>.</li>
+<li>The <code>materials</code> module is folded into <code>pipeline</code> (material maps, <code>terraingen/pipeline/materials.h</code>) and <code>albedo</code> (Hapke photometry, <code>terraingen/albedo/photometry.h</code>), and <code>NoiseLayersAt</code> moves to <code>terraingen/sources/synthetic_terrain.h</code>.</li>
+<li>Python: <code>ExposureField.exposure</code> takes <code>(x, y, spacing=0.0, generator=None, layers=0)</code> like the other ground queries, unbounded options read as <code>None</code> instead of infinity, <code>write_outputs</code> returns paths and a subclass missing a required method raises <code>TypeError</code>.</li>
+<li>Written configurations leave out lists that are empty by default.</li>
+<li>Faster craters and boulders: ground reads for crater slopes and datums and beneath boulders are batched and spatially ordered, outputs over one area share the boulders placed for the first, boulder models are placed in parallel and ejecta craters found through a spatial index; the hero demo went from 433 s to about 10 s.</li>
+<li>Logs: generation logs each grid as it is evaluated with the time of every layer, the albedo and the materials and ends with each step's total and share; crater and boulder summaries log at debug level, boulders under boulders rather than craters, and <code>terraingen</code> ends with one line counting the files written.</li>
+</ul>
+<h3 id="removed_1">Removed<a class="headerlink" href="#removed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tile schemes, tiles and the tile cache (<code>TileScheme</code>, <code>TileKey</code>, <code>EvaluateTile</code>, <code>EvaluateTiles</code>, <code>TileCache</code>, in C++ and Python): level of detail belongs to the renderer, and any grid evaluated alone already equals the same cells of a larger one; the point query examples move to a <code>queries</code> category.</li>
+<li>Resampling and low-passing raster sources: <code>pixelSize</code>, <code>resampling</code> and <code>lowPass</code> on <code>GeoTiffSourceOptions</code> and the config keys <code>pixel_size</code>, <code>resampling</code> and <code>low_pass</code> on raster sources; upsampling over a finer grid replaces them.</li>
+<li><code>DetailLayer</code> and the <code>dem_detail</code> layer, which only restored the detail a low-passed source removed.</li>
+<li><code>GridRegionSpec</code>, <code>config::RegionGrid</code> and <code>config::FeatureOutput</code>; an output's area is an <code>OutputAreaSpec</code>.</li>
+<li>Python <code>crater_blend_weight</code> (use <code>CraterBlend.weight</code>), <code>CraterAgeModel.lifetime_gyr</code> (use <code>lifetime_at</code>) and the flat selection aliases on crater irregularity, crater albedo and secondary options (use <code>selection</code>).</li>
+</ul>
+<h3 id="fixed_1">Fixed<a class="headerlink" href="#fixed_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Freshness degradation never makes a crater deeper than fresh: basins shallower than the cutoff keep their fresh shape.</li>
+<li>Small craters inside larger ones on sloping ground no longer stand as raised mounds: datums are fitted to the slope-shaped relief that is applied.</li>
+<li>Secondary craters run on the GPU backend the terrain asks for instead of always on the CPU.</li>
+<li>A crater layer after a boulder layer no longer refits crater datums for every batch of ground reads.</li>
+<li>Tilted boulders are no longer cut off at grid edges and in point queries.</li>
+<li>Zero-area output areas and crater sizes below the models' range are rejected with a clear error instead of failing during generation.</li>
+<li>The library builds without warnings under Clang and MSVC.</li>
+</ul>
+<h3 id="migrating-from-010">Migrating from 0.1.0<a class="headerlink" href="#migrating-from-010" title="Permanent link">&para;</a></h3>
+<p>Old keys and names are rejected rather than aliased. Angle keys are in degrees; sizes in meters unless they end in <code>_px</code>.</p>
+<p><strong>Configuration, top level and sources</strong></p>
+<table>
+<thead>
+<tr>
+<th>0.1.0</th>
+<th>0.2.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>base</code></td>
+<td><code>source</code> (types <code>raster</code>, <code>chain</code>, <code>synthetic</code>)</td>
+</tr>
+<tr>
+<td><code>base.pixel_size</code>, <code>base.resampling</code></td>
+<td><code>source.upsampling</code>; set the output's <code>pixel_size_m</code> for finer cells</td>
+</tr>
+<tr>
+<td><code>base.low_pass</code></td>
+<td>removed; <code>effective_pixel_size_m</code> for a DEM smoothed before it was saved</td>
+</tr>
+<tr>
+<td>layer <code>dem_detail</code></td>
+<td>removed; use <code>source.upsampling</code> or a <code>spectral_continuation</code> layer</td>
+</tr>
+<tr>
+<td><code>body.metres_per_unit</code> (<code>shape_model</code>)</td>
+<td><code>body.meters_per_unit</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration, outputs</strong></p>
+<table>
+<thead>
+<tr>
+<th>0.1.0</th>
+<th>0.2.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>region.pixel_size</code></td>
+<td><code>pixel_size_m</code></td>
+</tr>
+<tr>
+<td><code>region.width</code>, <code>height</code>, <code>centre_x</code>, <code>centre_y</code></td>
+<td><code>extent_m: {"center": [x, y], "size": [width * pixel_size, height * pixel_size]}</code> (<code>extent_deg</code> on a body)</td>
+</tr>
+<tr>
+<td><code>spacing</code> on <code>crater_list</code>, <code>boulder_list</code>, <code>boulder_models</code></td>
+<td><code>pixel_size_m</code></td>
+</tr>
+<tr>
+<td><code>path</code> required</td>
+<td><code>path</code> optional</td>
+</tr>
+<tr>
+<td><code>crease_angle</code> (<code>boulder_models</code>)</td>
+<td><code>crease_angle_deg</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Configuration, layers</strong></p>
+<table>
+<thead>
+<tr>
+<th>0.1.0</th>
+<th>0.2.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>layer <code>region</code></td>
+<td>layer <code>masked</code></td>
+</tr>
+<tr>
+<td>craters <code>generate</code></td>
+<td><code>generate_random</code></td>
+</tr>
+<tr>
+<td>craters <code>min_diameter</code>, <code>max_diameter</code></td>
+<td><code>min_diameter_m</code>, <code>max_diameter_m</code></td>
+</tr>
+<tr>
+<td>craters <code>apply.fade</code> {<code>start_samples</code>, <code>end_samples</code>, <code>shape</code>}</td>
+<td><code>apply.fade_px</code> [start, end], <code>apply.fade_shape</code></td>
+</tr>
+<tr>
+<td>crater <code>irregularity.heading</code>, <code>heading_spread</code></td>
+<td><code>heading_deg</code>, <code>heading_spread_deg</code></td>
+</tr>
+<tr>
+<td>craters <code>apply.datum</code> <code>"centre_height"</code></td>
+<td><code>"center_height"</code></td>
+</tr>
+<tr>
+<td>secondaries <code>min_diameter</code>, <code>max_diameter</code>, <code>min_primary_diameter</code>, <code>max_primary_diameter</code></td>
+<td>the same with <code>_m</code></td>
+</tr>
+<tr>
+<td>secondaries <code>width_degrees</code>, <code>min_half_angle_degrees</code></td>
+<td><code>width_deg</code>, <code>min_half_angle_deg</code></td>
+</tr>
+<tr>
+<td>boulders <code>min_diameter</code>, <code>max_diameter</code></td>
+<td><code>min_diameter_m</code>, <code>max_diameter_m</code></td>
+</tr>
+<tr>
+<td>boulders <code>fade</code> {<code>start_samples</code>, <code>end_samples</code>, <code>shape</code>}</td>
+<td><code>fade_px</code> [start, end], <code>fade_shape</code></td>
+</tr>
+<tr>
+<td>boulders <code>exposure_spacing</code></td>
+<td><code>ground_spacing_m</code></td>
+</tr>
+<tr>
+<td>boulders <code>max_lean</code>, <code>max_tilt</code></td>
+<td><code>max_lean_deg</code>, <code>max_tilt_deg</code></td>
+</tr>
+<tr>
+<td>boulders <code>patches.size</code>, <code>clusters.spacing</code>, <code>clusters.radius</code></td>
+<td><code>patches.size_m</code>, <code>clusters.spacing_m</code>, <code>clusters.radius_m</code></td>
+</tr>
+<tr>
+<td>boulders <code>ejecta.min_crater_diameter</code>, <code>ejecta.regolith_thickness</code></td>
+<td><code>ejecta.min_crater_diameter_m</code>, <code>ejecta.regolith_thickness_m</code></td>
+</tr>
+<tr>
+<td>boulders <code>fragmentation.min_diameter</code>, <code>relief_range.min_diameter</code>, <code>relief_range.max_diameter</code></td>
+<td>the same with <code>_m</code></td>
+</tr>
+<tr>
+<td>boulders <code>models.min_diameter</code>, <code>models.max_diameter</code>, <code>models.min_samples</code>, <code>models.max_samples</code></td>
+<td><code>models.min_diameter_m</code>, <code>models.max_diameter_m</code>, <code>models.min_px</code>, <code>models.max_px</code></td>
+</tr>
+<tr>
+<td>manual boulders <code>yaw</code>, <code>lean</code>, <code>tilt</code>, <code>tilt_azimuth</code></td>
+<td><code>yaw_deg</code>, <code>lean_deg</code>, <code>tilt_deg</code>, <code>tilt_azimuth_deg</code></td>
+</tr>
+<tr>
+<td>ventifacts <code>wind_azimuth</code>, <code>second_wind_azimuth</code>, <code>min_angle</code>, <code>max_angle</code></td>
+<td>the same with <code>_deg</code></td>
+</tr>
+<tr>
+<td>dunes <code>wind_azimuth</code>, <code>azimuth_spread</code>, <code>slip_face_angle</code>, <code>stoss_slope</code>, <code>flank_slope</code></td>
+<td>the same with <code>_deg</code></td>
+</tr>
+<tr>
+<td>bedforms <code>wind_azimuth</code>, <code>azimuth_spread</code></td>
+<td><code>wind_azimuth_deg</code>, <code>azimuth_spread_deg</code></td>
+</tr>
+<tr>
+<td>strata <code>dip</code>, <code>dip_azimuth</code></td>
+<td><code>dip_deg</code>, <code>dip_azimuth_deg</code></td>
+</tr>
+<tr>
+<td>pavement <code>max_tilt</code></td>
+<td><code>max_tilt_deg</code></td>
+</tr>
+<tr>
+<td>sand shadow <code>wind_azimuth</code>, <code>flank_angle</code></td>
+<td><code>wind_azimuth_deg</code>, <code>flank_angle_deg</code></td>
+</tr>
+<tr>
+<td>albedo <code>hue</code>, <code>hue_noise</code>, <code>heading</code></td>
+<td><code>hue_deg</code>, <code>hue_noise_deg</code>, <code>heading_deg</code></td>
+</tr>
+<tr>
+<td>albedo <code>*_degrees</code> (<code>width_degrees</code>, <code>streak_width_degrees</code>, <code>jet_angle_degrees</code>, <code>steep_slope_degrees</code> and the rest)</td>
+<td><code>*_deg</code></td>
+</tr>
+<tr>
+<td>materials <code>roughness</code></td>
+<td><code>roughness_deg</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>C++ API</strong></p>
+<table>
+<thead>
+<tr>
+<th>0.1.0</th>
+<th>0.2.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Terrain</code> (<code>pipeline/terrain.h</code>)</td>
+<td><code>TerrainGenerator</code> (<code>pipeline/generator.h</code>)</td>
+</tr>
+<tr>
+<td><code>EvaluateAt</code>, <code>EvaluatePoints</code></td>
+<td><code>HeightAt</code>, <code>HeightsAt</code></td>
+</tr>
+<tr>
+<td><code>ValidateTerrain</code>, <code>BuildTerrain</code></td>
+<td><code>ValidateGenerator</code>, <code>BuildGenerator</code></td>
+</tr>
+<tr>
+<td><code>GenerateTerrain</code>, <code>GeneratedTerrain</code> (<code>.terrain</code>)</td>
+<td><code>GenerateFromConfig</code>, <code>GeneratedOutputs</code> (<code>.generator</code>)</td>
+</tr>
+<tr>
+<td><code>TerrainConfig</code></td>
+<td><code>TerrainGenConfig</code></td>
+</tr>
+<tr>
+<td><code>ConfigSummary::base</code></td>
+<td><code>ConfigSummary::source</code></td>
+</tr>
+<tr>
+<td><code>HeightMesh</code>, <code>HeightMeshOptions</code> (<code>pipeline/height_mesh.h</code>)</td>
+<td><code>BuildMesh</code>, <code>BuildMeshOptions</code> (<code>pipeline/mesh_build.h</code>)</td>
+</tr>
+<tr>
+<td><code>RegionLayer</code> (<code>layers/region.h</code>), <code>RegionShape::centre</code></td>
+<td><code>MaskedLayer</code> (<code>layers/masked.h</code>), <code>RegionShape::center</code></td>
+</tr>
+<tr>
+<td><code>Source::Fill(heights)</code>, <code>Source::HeightAt(x, y)</code></td>
+<td><code>Source::Fill(heights, spacing)</code>, <code>Source::HeightAt(x, y, spacing)</code></td>
+</tr>
+<tr>
+<td><code>GeoTiffSourceOptions::pixelSize</code>, <code>resampling</code>, <code>lowPass</code></td>
+<td><code>upsampler</code>, <code>effectivePixelSize</code>; evaluate over a finer grid</td>
+</tr>
+<tr>
+<td><code>CraterLayerOptions::generate</code></td>
+<td><code>CraterLayerOptions::generateRandom</code></td>
+</tr>
+<tr>
+<td><code>BoulderLayerOptions::exposureSpacing</code></td>
+<td><code>BoulderLayerOptions::groundSpacing</code></td>
+</tr>
+<tr>
+<td><code>DetailLayer</code>, <code>TileScheme</code>, <code>TileKey</code>, <code>TileCache</code>, <code>EvaluateTile</code>, <code>EvaluateTiles</code></td>
+<td>removed</td>
+</tr>
+<tr>
+<td><code>GridRegionSpec</code>, <code>config::RegionGrid</code>, <code>config::FeatureOutput</code></td>
+<td><code>OutputAreaSpec</code>, <code>ExtentSpec</code>, <code>config::SnappedGrid</code></td>
+</tr>
+<tr>
+<td><code>terraingen/materials/</code></td>
+<td><code>terraingen/pipeline/materials.h</code>, <code>terraingen/albedo/photometry.h</code></td>
+</tr>
+<tr>
+<td><code>NoiseLayersAt</code> in <code>layers/noise_relief.h</code></td>
+<td><code>sources/synthetic_terrain.h</code></td>
+</tr>
+<tr>
+<td><code>KilometrePowerLaw</code>, <code>PowerLawCoefficientFromKilometres</code></td>
+<td><code>KilometerPowerLaw</code>, <code>PowerLawCoefficientFromKilometers</code></td>
+</tr>
+<tr>
+<td><code>CraterDatum::CentreHeight</code></td>
+<td><code>CraterDatum::CenterHeight</code></td>
+</tr>
+<tr>
+<td><code>CubeSphereCells::Neighbours</code>, <code>SampleAtCentres</code></td>
+<td><code>CubeSphereCells::Neighbors</code>, <code>SampleAtCenters</code></td>
+</tr>
+<tr>
+<td><code>MeshMaterial::colour</code>, <code>FeatureCell::centre</code>, <code>BoulderFragment::centre</code></td>
+<td><code>MeshMaterial::color</code>, <code>FeatureCell::center</code>, <code>BoulderFragment::center</code></td>
+</tr>
+<tr>
+<td><code>ShapeModelSurfaceSpec::metresPerUnit</code></td>
+<td><code>ShapeModelSurfaceSpec::metersPerUnit</code></td>
+</tr>
+<tr>
+<td><code>TERRAINGEN_API_VERSION</code> 1</td>
+<td>2</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Python API</strong></p>
+<table>
+<thead>
+<tr>
+<th>0.1.0</th>
+<th>0.2.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Terrain</code></td>
+<td><code>TerrainGenerator</code></td>
+</tr>
+<tr>
+<td><code>evaluate_at</code>, <code>evaluate_points</code></td>
+<td><code>height_at</code>, <code>heights_at</code></td>
+</tr>
+<tr>
+<td><code>build_terrain</code>, <code>generate_terrain</code>, <code>GeneratedTerrain</code></td>
+<td><code>build_generator</code>, <code>generate_from_config</code>, <code>GeneratedOutputs</code></td>
+</tr>
+<tr>
+<td><code>Config</code>, <code>Config.from_json</code>, <code>Config.load</code>, <code>Config.to_json</code></td>
+<td><code>TerrainGenConfig</code>, <code>parse_config</code>, <code>load_config</code>, <code>config_to_json</code></td>
+</tr>
+<tr>
+<td><code>Config.base_grid</code></td>
+<td><code>TerrainGenConfig.source_grid</code></td>
+</tr>
+<tr>
+<td><code>height_mesh</code></td>
+<td><code>build_mesh</code></td>
+</tr>
+<tr>
+<td><code>RegionLayer</code></td>
+<td><code>MaskedLayer</code></td>
+</tr>
+<tr>
+<td>keyword <code>terrain=</code></td>
+<td><code>generator=</code> (and <code>generated=</code> for <code>write_outputs</code>)</td>
+</tr>
+<tr>
+<td><code>Source.height_at(x, y)</code>, <code>Source.fill(heights)</code></td>
+<td><code>height_at(x, y, spacing)</code>, <code>fill(heights, spacing)</code></td>
+</tr>
+<tr>
+<td><code>GeoTiffSource(pixel_size=, resampling=, low_pass=)</code></td>
+<td><code>GeoTiffSource(upsampler=, effective_pixel_size=, crop=)</code></td>
+</tr>
+<tr>
+<td><code>version</code>, <code>api_version</code>, <code>build_info</code></td>
+<td><code>get_version</code>, <code>get_api_version</code>, <code>get_build_info</code></td>
+</tr>
+<tr>
+<td><code>boulder_fillet_height</code>, <code>perlin_noise3</code></td>
+<td><code>fillet_height</code>, <code>perlin_noise3_precise</code></td>
+</tr>
+<tr>
+<td><code>TriangleMesh.subdivided</code></td>
+<td><code>TriangleMesh.subdivide</code></td>
+</tr>
+<tr>
+<td><code>Raster.nodata</code>, <code>GeoTiffInfo.nodata</code></td>
+<td><code>Raster.no_data</code>, <code>GeoTiffInfo.no_data</code></td>
+</tr>
+<tr>
+<td><code>ValueDistributionKind</code></td>
+<td><code>ValueDistribution.Kind</code></td>
+</tr>
+<tr>
+<td><code>CraterGenerationOptions.min_diameter</code>, <code>max_diameter</code></td>
+<td><code>d_min</code>, <code>d_max</code></td>
+</tr>
+<tr>
+<td><code>CraterFeatures.write</code></td>
+<td><code>CraterFeatures.write_list</code></td>
+</tr>
+<tr>
+<td><code>cell_of</code>, <code>point_of</code>, <code>level_for</code>, <code>outline_of</code></td>
+<td><code>cell_at</code>, <code>coordinates</code>, <code>resolving_level</code>, <code>irregular_outline</code></td>
+</tr>
+<tr>
+<td><code>min_diameter_for_count</code>, <code>singer_range_for_size</code></td>
+<td><code>count_limit_diameter</code>, <code>singer_max_range</code></td>
+</tr>
+<tr>
+<td><code>SplotchOptions</code>, <code>SlopeMaturityOptions</code></td>
+<td><code>SplotchAlbedoOptions</code>, <code>SlopeAlbedoOptions</code></td>
+</tr>
+<tr>
+<td>angles in radians (<code>SyntheticAlbedo(hue=)</code>, <code>hsv_to_rgb(hue)</code>, <code>RigidTransform.rotation_x(angle)</code>, <code>Boulder.yaw</code>, ...)</td>
+<td>degrees with <code>_deg</code> names (<code>hue_deg=</code>, <code>angle_deg</code>, <code>Boulder.yaw_deg</code>, ...)</td>
+</tr>
+<tr>
+<td><code>crater_blend_weight</code>, <code>CraterAgeModel.lifetime_gyr</code></td>
+<td><code>CraterBlend.weight</code>, <code>lifetime_at</code></td>
+</tr>
+<tr>
+<td><code>KilometrePowerLaw</code>, <code>power_law_coefficient_from_kilometres</code></td>
+<td><code>KilometerPowerLaw</code>, <code>power_law_coefficient_from_kilometers</code></td>
+</tr>
+<tr>
+<td><code>CraterDatum.CENTRE_HEIGHT</code></td>
+<td><code>CraterDatum.CENTER_HEIGHT</code></td>
+</tr>
+<tr>
+<td><code>CubeSphereCells.neighbours</code></td>
+<td><code>CubeSphereCells.neighbors</code></td>
+</tr>
+<tr>
+<td><code>RasterGrid.centred(centre=)</code></td>
+<td><code>RasterGrid.centered(center=)</code></td>
+</tr>
+<tr>
+<td>keyword <code>centre=</code> (<code>FlatSource</code>, <code>Surface.offset</code>, <code>Surface.locate</code>), <code>metres=</code> (<code>Surface.expand</code>)</td>
+<td><code>center=</code>, <code>meters=</code></td>
+</tr>
+<tr>
+<td><code>MeshMaterial(colour=)</code>, <code>MeshMaterial.colour</code></td>
+<td><code>MeshMaterial(color=)</code>, <code>MeshMaterial.color</code></td>
+</tr>
+<tr>
+<td><code>read_icq(metres_per_unit=)</code>, <code>write_icq(metres_per_unit=)</code></td>
+<td><code>meters_per_unit=</code></td>
+</tr>
+<tr>
+<td><code>TileScheme</code>, <code>TileKey</code>, <code>TileCache</code>, <code>evaluate_tile</code>, <code>evaluate_tiles</code></td>
+<td>removed</td>
+</tr>
+</tbody>
+</table>
+<h2 id="010-2026-10-18"><a href="https://github.com/alexmaietta/terraingen/releases/tag/v0.1.0">0.1.0</a> - 2026-10-18<a class="headerlink" href="#010-2026-10-18" title="Permanent link">&para;</a></h2>
+<p>Initial release.</p>
+<h3 id="added_2">Added<a class="headerlink" href="#added_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>C++20 library with Python bindings (<code>terraingenpy</code> on PyPI) for generating terrain from scratch or adding detail to existing DEMs.</li>
+<li>Craters and boulders from published size-frequency distributions, with crater ages, profiles, degradation, irregularity, secondaries and ejecta.</li>
+<li>Procedural 3D boulder models, and small boulders baked into the heightmap.</li>
+<li>Synthetic albedo with crater ejecta and rays that fade with age.</li>
+<li>Geologic features: dunes and ripples, layered strata, fractured bedrock, ventifacts and sand pooled in lows or behind boulders.</li>
+<li>Planes, spheres and ellipsoids, whole-body meshes, tiles and point queries.</li>
+<li>Deterministic output for a seed on any grid, tile or thread count.</li>
+<li>GPU acceleration on Vulkan, CUDA and Metal, detected at run time.</li>
+<li><code>terraingen</code> command-line interface driven by JSON configurations.</li>
+<li>Examples in C++, Python and JSON.</li>
+<li>Release archives for Linux, macOS and Windows, Debian packages, and a Docker image.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../releases/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Releases">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Releases
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../citing/" class="md-footer__link md-footer__link--next" aria-label="Next: Citing">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Citing
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "search.highlight", "search.suggest", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "content.tooltips", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../js/katex.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+      
+    
+  <script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": true, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(() => { lightbox.reload() });
+</script></body>
+</html>
