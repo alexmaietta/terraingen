@@ -26,8 +26,8 @@ endforeach()
 execute_process(
     COMMAND
         "${CTEST}" --build-and-test "${CONSUMER_DIR}" "${WORK_DIR}/consumer" --build-generator
-        "${GENERATOR}" --build-options "-DCMAKE_PREFIX_PATH=${WORK_DIR}/root/usr" --test-command
-        package_test
+        "${GENERATOR}" --build-options "-DCMAKE_PREFIX_PATH=${WORK_DIR}/root/usr"
+        "-DTERRAINGEN_REQUIRED_VERSION=${REQUIRED_VERSION}" --test-command package_test
     RESULT_VARIABLE result)
 if(NOT result EQUAL 0)
     message(FATAL_ERROR "Consumer build against terraingen-dev failed with ${result}")
