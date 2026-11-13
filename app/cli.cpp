@@ -326,11 +326,9 @@ int Run(const std::vector<std::string>& given, std::ostream& out, std::ostream& 
             return kExitSuccess;
         }
         if (first == "--version" || first == "-V") {
-            const Version version = GetVersion();
             const BuildInfo build = GetBuildInfo();
-            out << "TerrainGen " << version.major << "." << version.minor << "." << version.patch
-                << " (" << build.gitSha << (build.gitDirty ? "-dirty" : "") << ", "
-                << build.buildDate << ")\n";
+            out << "TerrainGen " << TERRAINGEN_FULL_VERSION_STRING << " (" << build.gitSha
+                << (build.gitDirty ? "-dirty" : "") << ", " << build.buildDate << ")\n";
             return kExitSuccess;
         }
         if (first == "schema") {
