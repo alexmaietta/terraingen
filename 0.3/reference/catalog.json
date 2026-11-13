@@ -1,0 +1,1625 @@
+{
+  "schema_version": 1,
+  "body": [
+    {
+      "type": "plane"
+    },
+    {
+      "type": "sphere",
+      "radius_m": 0.0
+    },
+    {
+      "type": "ellipsoid",
+      "radii_m": []
+    },
+    {
+      "type": "shape_model",
+      "path": "",
+      "q": null,
+      "meters_per_unit": null
+    }
+  ],
+  "source": [
+    {
+      "type": "raster",
+      "path": "",
+      "band": 0,
+      "scale": null,
+      "offset_m": null,
+      "crop": null,
+      "effective_pixel_size_m": null,
+      "upsampling": "cubic"
+    },
+    {
+      "type": "chain",
+      "sources": [],
+      "seams": {
+        "mode": "none",
+        "width_m": 50.0,
+        "decay_length_m": 50.0
+      }
+    },
+    {
+      "type": "synthetic",
+      "elevation_m": 0.0,
+      "stack": [
+        {
+          "enabled": true,
+          "basis": "perlin",
+          "fractal": "fbm",
+          "blend": "add",
+          "seed": 2,
+          "wavelength_m": 400.0,
+          "amplitude_m": 12.0,
+          "octaves": 8,
+          "lacunarity": 2.0,
+          "gain": 0.5,
+          "hurst": null,
+          "offset": 1.0,
+          "warp_amplitude_m": 0.0,
+          "warp_wavelength_m": 500.0
+        }
+      ],
+      "pixel_size_m": null,
+      "upsampling": null
+    },
+    {
+      "type": "shape_model",
+      "upsampling": "cubic"
+    }
+  ],
+  "layers": [
+    {
+      "type": "noise",
+      "stack": [
+        {
+          "enabled": true,
+          "basis": "perlin",
+          "fractal": "fbm",
+          "blend": "add",
+          "seed": 0,
+          "wavelength_m": 1000.0,
+          "amplitude_m": null,
+          "octaves": 8,
+          "lacunarity": 2.0,
+          "gain": 0.5,
+          "hurst": null,
+          "offset": 1.0,
+          "warp_amplitude_m": 0.0,
+          "warp_wavelength_m": 500.0
+        }
+      ],
+      "estimate_from_source": false,
+      "source_resolves_px": null
+    },
+    {
+      "type": "craters",
+      "morphometry": "lunar",
+      "generate_random": true,
+      "seed": 1,
+      "density": {
+        "type": "minimum",
+        "distributions": [
+          {
+            "type": "production_surface",
+            "production": "extended_neukum",
+            "chronology": "neukum",
+            "age_gyr": 3.5
+          },
+          {
+            "type": "hartmann"
+          }
+        ]
+      },
+      "ages": null,
+      "min_diameter_m": 2.5,
+      "max_diameter_m": 250.0,
+      "spacing": {
+        "diameter_ratio": 1.5,
+        "separation": 0.0
+      },
+      "max_craters": null,
+      "manual": [],
+      "profile": {
+        "type": "martin_parkes_dunstan"
+      },
+      "degradation": {
+        "type": "diffusion",
+        "diffusivity": "matched",
+        "power_law": {
+          "coefficient": 1.0,
+          "exponent": 0.0,
+          "min_diameter_m": 0.0
+        },
+        "reach_radii": 3.0
+      },
+      "apply": {
+        "order": "oldest_first",
+        "fade_px": [
+          2.0,
+          4.0
+        ],
+        "fade_shape": "smoothstep",
+        "datum": "none",
+        "datum_fit_radii": 1.0,
+        "interior_replacement": 0.0,
+        "blend": {
+          "start_radii": 0.8,
+          "end_radii": 1.2,
+          "shape": "smootherstep"
+        },
+        "replacement": {
+          "start_radii": 1.0,
+          "end_radii": null,
+          "fit_width_radii": 1.0
+        },
+        "irregularity": {
+          "enabled": true,
+          "seed": null,
+          "min_diameter_m": 0.0,
+          "max_diameter_m": null,
+          "min_age_gyr": 0.0,
+          "max_age_gyr": null,
+          "manual": false,
+          "rough_share": 1.0,
+          "model": "power_law",
+          "scatter": true,
+          "max_deviation": 0.3,
+          "roughness": {
+            "kind": "uniform",
+            "a": 0.01,
+            "b": 0.03,
+            "min": null,
+            "max": null,
+            "edges": [],
+            "weights": []
+          },
+          "spectral_slope": {
+            "kind": "constant",
+            "a": 1.5,
+            "b": 0.0,
+            "min": null,
+            "max": null,
+            "edges": [],
+            "weights": []
+          },
+          "min_harmonic": 2,
+          "max_harmonic": 12,
+          "elongated_share": 0.054,
+          "ellipticity": {
+            "kind": "uniform",
+            "a": 1.1,
+            "b": 1.5,
+            "min": null,
+            "max": null,
+            "edges": [],
+            "weights": []
+          },
+          "heading_deg": null,
+          "heading_spread_deg": 0.0,
+          "marks_share": 0.0,
+          "marks_amplitude": {
+            "kind": "uniform",
+            "a": 0.0,
+            "b": 0.005,
+            "min": null,
+            "max": null,
+            "edges": [],
+            "weights": []
+          },
+          "marks_knots": 45,
+          "marks_inner_radii": 0.3,
+          "marks_outer_radii": 0.9,
+          "marks_fade_radii": 0.1
+        },
+        "rim_smoothing": {
+          "sigma_radii": 0.0,
+          "inner_radii": 0.8,
+          "outer_radii": 1.2,
+          "shape": "smootherstep",
+          "strength": 1.0
+        },
+        "noise": {
+          "amplitude": 0.0,
+          "wavelength_radii": 0.5,
+          "octaves": 4,
+          "gain": 0.5,
+          "rim_amplitude": 0.0,
+          "rim_wavelength_radii": 0.1,
+          "rim_inner_radii": 0.8,
+          "rim_outer_radii": 1.2,
+          "seed": null
+        },
+        "texture": {
+          "wall_streaks": 0.0,
+          "wall_streak_width_radii": 0.15,
+          "ejecta": 0.0,
+          "ejecta_lineation_radii": 0.15,
+          "mantling": 0.0,
+          "ejecta_reach_radii": 3.0,
+          "min_freshness": 0.5,
+          "seed": null
+        },
+        "slope": {
+          "asymmetric": false,
+          "seed": null,
+          "floor_offset": {
+            "kind": "uniform",
+            "a": 0.045,
+            "b": 0.194,
+            "min": null,
+            "max": null,
+            "edges": [],
+            "weights": []
+          },
+          "upslope_rim": 0.0,
+          "full_slope_deg": 5.0,
+          "critical_gradient": null,
+          "max_wear_rate": 10.0
+        },
+        "terraces": {
+          "enabled": true,
+          "seed": null,
+          "onset_diameter_m": 20000.0,
+          "full_diameter_m": 65000.0,
+          "min_benches": 1,
+          "max_benches": 4,
+          "bench_slope_deg": 3.0,
+          "scarp_share": 0.25,
+          "scarp_slope_deg": 35.0,
+          "arc_share": 0.6,
+          "rim_variation": 0.08,
+          "block_offset": 0.6,
+          "block_gaps": 0.25,
+          "min_freshness": 0.3
+        },
+        "peaks": {
+          "enabled": true,
+          "seed": null,
+          "min_massifs": 1,
+          "max_massifs": 4,
+          "spread_radii": 0.8,
+          "elongation": 2.0,
+          "chain_spread_deg": 70.0,
+          "sharpness": 0.6,
+          "lopsidedness": 0.5,
+          "height_variation": 0.5,
+          "roughness": 0.35,
+          "roughness_wavelength": 0.35,
+          "warp": 0.12,
+          "height_scale": 1.0,
+          "width_scale": 1.0
+        }
+      },
+      "density_map": null,
+      "completeness": null,
+      "source_resolves_px": 4.0,
+      "replace_inherited_craters": null
+    },
+    {
+      "type": "boulders",
+      "generate_random": true,
+      "coverage": null,
+      "qa": null,
+      "qb": null,
+      "min_diameter_m": 0.1,
+      "max_diameter_m": 5.861381645140288,
+      "sizes": {
+        "type": "sp8023_intercrater",
+        "curve": "nominal"
+      },
+      "seed": 1,
+      "patches": {
+        "spread": 1.0,
+        "size_m": 200.0
+      },
+      "clusters": {
+        "share": 0.0,
+        "center_spacing_m": 50.0,
+        "radius_m": 5.0,
+        "model": "nearest"
+      },
+      "ejecta": {
+        "min_crater_diameter_m": null,
+        "regolith_thickness_m": null,
+        "excavation_depth_ratio": 0.1,
+        "coverage": null,
+        "profile": "smoothstep",
+        "reach": 3.0,
+        "decay_radii": 0.7,
+        "floor_share": 0.05,
+        "aging": "freshness",
+        "min_freshness": 0.7,
+        "lifetime_gyr": 4.0,
+        "aging_exponent": 3.0,
+        "gravity": null
+      },
+      "ejecta_sizes": null,
+      "extrapolate": false,
+      "exposure": null,
+      "bedrock_abundance": 3.0,
+      "bedrock_mean_size_m": 1000.0,
+      "min_height_ratio": 0.4,
+      "max_height_ratio": 0.6,
+      "min_burial": 0.1,
+      "max_burial": 0.4,
+      "max_lean_deg": 14.896902673401405,
+      "side_share": 0.0,
+      "end_share": 0.0,
+      "max_tilt_deg": 0.0,
+      "follow_slope": false,
+      "settle": true,
+      "max_slope_deg": null,
+      "roll_distance_m": null,
+      "burial_by_wear": 0.0,
+      "fillet": {
+        "height_share": 0.0,
+        "width_ratio": 0.3
+      },
+      "ventifacts": {
+        "share": 0.0,
+        "wind_azimuth_deg": 0.0,
+        "min_angle_deg": 50.0,
+        "max_angle_deg": 60.0,
+        "second_wind_azimuth_deg": null,
+        "keel_share": 0.0
+      },
+      "fragmentation": null,
+      "relief": "dome",
+      "model_threshold": {
+        "min_diameter_m": null,
+        "min_px": null,
+        "max_diameter_m": null,
+        "max_px": null
+      },
+      "relief_range": {
+        "min_diameter_m": 0.0,
+        "max_diameter_m": null,
+        "include_models": false
+      },
+      "shapes": {
+        "styles": [
+          {
+            "name": "angular",
+            "weight": 0.2,
+            "solid": "icosahedron",
+            "intermediate": {
+              "min": 0.6,
+              "max": 0.9
+            },
+            "short_axis": {
+              "min": 0.45,
+              "max": 0.7
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.0
+            },
+            "min_fractures": 7,
+            "max_fractures": 12,
+            "fracture_depth": {
+              "min": 0.55,
+              "max": 0.85
+            },
+            "max_fracture_tilt": 1.0,
+            "noise_amplitude": 0.06,
+            "noise_wavelength": 0.9,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.02,
+              "max": 0.06
+            },
+            "face_roughness": 0.03
+          },
+          {
+            "name": "platy",
+            "weight": 0.12,
+            "solid": "icosahedron",
+            "intermediate": {
+              "min": 0.6,
+              "max": 0.9
+            },
+            "short_axis": {
+              "min": 0.22,
+              "max": 0.38
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.0
+            },
+            "min_fractures": 5,
+            "max_fractures": 9,
+            "fracture_depth": {
+              "min": 0.6,
+              "max": 0.88
+            },
+            "max_fracture_tilt": 0.7,
+            "noise_amplitude": 0.05,
+            "noise_wavelength": 0.9,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.02,
+              "max": 0.05
+            },
+            "face_roughness": 0.03
+          },
+          {
+            "name": "subrounded",
+            "weight": 0.15,
+            "solid": "icosahedron",
+            "intermediate": {
+              "min": 0.65,
+              "max": 0.9
+            },
+            "short_axis": {
+              "min": 0.45,
+              "max": 0.7
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.0
+            },
+            "min_fractures": 4,
+            "max_fractures": 7,
+            "fracture_depth": {
+              "min": 0.65,
+              "max": 0.9
+            },
+            "max_fracture_tilt": 1.0,
+            "noise_amplitude": 0.07,
+            "noise_wavelength": 0.8,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.06,
+              "max": 0.12
+            },
+            "face_roughness": 0.02
+          },
+          {
+            "name": "rounded",
+            "weight": 0.1,
+            "solid": "icosahedron",
+            "intermediate": {
+              "min": 0.7,
+              "max": 0.95
+            },
+            "short_axis": {
+              "min": 0.5,
+              "max": 0.75
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.0
+            },
+            "min_fractures": 0,
+            "max_fractures": 3,
+            "fracture_depth": {
+              "min": 0.75,
+              "max": 0.95
+            },
+            "max_fracture_tilt": 1.0,
+            "noise_amplitude": 0.1,
+            "noise_wavelength": 0.7,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.1,
+              "max": 0.18
+            },
+            "face_roughness": 0.02
+          },
+          {
+            "name": "block",
+            "weight": 0.13,
+            "solid": "cube",
+            "intermediate": {
+              "min": 0.6,
+              "max": 0.85
+            },
+            "short_axis": {
+              "min": 0.4,
+              "max": 0.6
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.15
+            },
+            "min_fractures": 3,
+            "max_fractures": 7,
+            "fracture_depth": {
+              "min": 0.6,
+              "max": 0.85
+            },
+            "max_fracture_tilt": 1.0,
+            "noise_amplitude": 0.07,
+            "noise_wavelength": 0.8,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.06,
+              "max": 0.12
+            },
+            "face_roughness": 0.06
+          },
+          {
+            "name": "wedge",
+            "weight": 0.1,
+            "solid": "prism",
+            "intermediate": {
+              "min": 0.55,
+              "max": 0.85
+            },
+            "short_axis": {
+              "min": 0.4,
+              "max": 0.6
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.2
+            },
+            "min_fractures": 2,
+            "max_fractures": 5,
+            "fracture_depth": {
+              "min": 0.65,
+              "max": 0.9
+            },
+            "max_fracture_tilt": 1.0,
+            "noise_amplitude": 0.07,
+            "noise_wavelength": 0.8,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.06,
+              "max": 0.12
+            },
+            "face_roughness": 0.06
+          },
+          {
+            "name": "pyramid",
+            "weight": 0.1,
+            "solid": "pyramid",
+            "intermediate": {
+              "min": 0.7,
+              "max": 0.95
+            },
+            "short_axis": {
+              "min": 0.45,
+              "max": 0.7
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.2
+            },
+            "min_fractures": 2,
+            "max_fractures": 4,
+            "fracture_depth": {
+              "min": 0.7,
+              "max": 0.92
+            },
+            "max_fracture_tilt": 1.0,
+            "noise_amplitude": 0.07,
+            "noise_wavelength": 0.8,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.06,
+              "max": 0.12
+            },
+            "face_roughness": 0.06
+          },
+          {
+            "name": "shard",
+            "weight": 0.05,
+            "solid": "tetrahedron",
+            "intermediate": {
+              "min": 0.6,
+              "max": 0.9
+            },
+            "short_axis": {
+              "min": 0.4,
+              "max": 0.6
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.2
+            },
+            "min_fractures": 2,
+            "max_fractures": 4,
+            "fracture_depth": {
+              "min": 0.7,
+              "max": 0.92
+            },
+            "max_fracture_tilt": 1.0,
+            "noise_amplitude": 0.04,
+            "noise_wavelength": 0.8,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.02,
+              "max": 0.05
+            },
+            "face_roughness": 0.03
+          },
+          {
+            "name": "sphere",
+            "weight": 0.05,
+            "solid": "icosahedron",
+            "intermediate": {
+              "min": 0.85,
+              "max": 1.0
+            },
+            "short_axis": {
+              "min": 0.7,
+              "max": 0.9
+            },
+            "rounding": {
+              "min": 0.0,
+              "max": 0.0
+            },
+            "min_fractures": 0,
+            "max_fractures": 1,
+            "fracture_depth": {
+              "min": 0.8,
+              "max": 0.95
+            },
+            "max_fracture_tilt": 1.0,
+            "noise_amplitude": 0.08,
+            "noise_wavelength": 0.7,
+            "noise_octaves": 4,
+            "edge_softness": {
+              "min": 0.12,
+              "max": 0.2
+            },
+            "face_roughness": 0.02
+          }
+        ],
+        "subdivisions": 3,
+        "weathering": 1.0,
+        "seed": 0
+      },
+      "shape_files": [],
+      "density_map": null,
+      "slope_map": null,
+      "manual": [],
+      "completeness": null,
+      "shape_prototypes": 64,
+      "ground_spacing_m": 1.0,
+      "fade_px": [
+        2.0,
+        4.0
+      ],
+      "fade_shape": "smoothstep",
+      "source_resolves_px": null
+    },
+    {
+      "type": "roughness",
+      "rms_slope": null,
+      "baseline_m": 0.25,
+      "hurst": null,
+      "estimate_from_source": false,
+      "max_wavelength_m": 16.0,
+      "min_wavelength_m": 0.01,
+      "seed": 1,
+      "fade_px": [
+        2.0,
+        4.0
+      ],
+      "fade_shape": "smoothstep"
+    },
+    {
+      "type": "bedforms",
+      "wavelength_m": 4.0,
+      "height_m": 0.4,
+      "wind_azimuth_deg": 0.0,
+      "azimuth_spread_deg": 0.0,
+      "lee_fraction": 0.5,
+      "sinuosity": 0.5,
+      "cover": 0.9,
+      "field_size_m": 100.0,
+      "seed": 1,
+      "exposure": null,
+      "exposure_spacing_m": 1.0,
+      "fade_px": [
+        2.0,
+        4.0
+      ],
+      "fade_shape": "smoothstep",
+      "source_resolves_px": 4.0
+    },
+    {
+      "type": "scale",
+      "scale": 1.0,
+      "offset_m": 0.0
+    },
+    {
+      "type": "clamp",
+      "min_m": null,
+      "max_m": null
+    },
+    {
+      "type": "masked",
+      "shape": {
+        "type": "rectangle",
+        "min_x": 0.0,
+        "min_y": 0.0,
+        "max_x": 0.0,
+        "max_y": 0.0
+      },
+      "feather_m": 0.0,
+      "blend": "smoothstep",
+      "layer": {
+        "type": "noise",
+        "stack": [
+          {
+            "enabled": true,
+            "basis": "perlin",
+            "fractal": "fbm",
+            "blend": "add",
+            "seed": 0,
+            "wavelength_m": 1000.0,
+            "amplitude_m": null,
+            "octaves": 8,
+            "lacunarity": 2.0,
+            "gain": 0.5,
+            "hurst": null,
+            "offset": 1.0,
+            "warp_amplitude_m": 0.0,
+            "warp_wavelength_m": 500.0
+          }
+        ],
+        "estimate_from_source": false,
+        "source_resolves_px": null
+      }
+    },
+    {
+      "type": "secondaries",
+      "seed": 0,
+      "onset_count": null,
+      "count_fraction": 0.01,
+      "size_slope": 4.0,
+      "min_diameter_m": 1.0,
+      "max_diameter_m": null,
+      "outer_range": null,
+      "min_primary_diameter_m": 0.0,
+      "max_primary_diameter_m": null,
+      "min_age_gyr": 0.0,
+      "max_age_gyr": null,
+      "manual": true,
+      "cell_size_factor": 16.0,
+      "rays": {
+        "enabled": false,
+        "layout": {
+          "seed": 0,
+          "count": {
+            "kind": "normal",
+            "a": 10.7,
+            "b": 3.1,
+            "min": 6.0,
+            "max": 20.0,
+            "edges": [],
+            "weights": []
+          },
+          "width_deg": {
+            "kind": "normal",
+            "a": 22.0,
+            "b": 8.3,
+            "min": 5.4,
+            "max": 38.6,
+            "edges": [],
+            "weights": []
+          }
+        },
+        "share": 0.7,
+        "min_half_angle_deg": 2.0,
+        "clustering": 0.8,
+        "cluster_spacing": 0.15
+      },
+      "shapes": {
+        "elongated_share": 0.0,
+        "ellipticity": {
+          "kind": "uniform",
+          "a": 1.2,
+          "b": 1.8,
+          "min": null,
+          "max": null,
+          "edges": [],
+          "weights": []
+        }
+      },
+      "source_resolves_px": 4.0,
+      "depth_ratio": 0.11,
+      "morphometry": "lunar"
+    },
+    {
+      "type": "dunes",
+      "shape": "barchan",
+      "wind_azimuth_deg": 0.0,
+      "azimuth_spread_deg": 0.0,
+      "slip_face_angle_deg": 32.0,
+      "stoss_slope_deg": 10.0,
+      "stoss_exponent": 3.0,
+      "dome_exponent": 1.8,
+      "lattice_spacing_m": 129.0,
+      "density": 0.5,
+      "width_m": 50.0,
+      "width_spread": 0.3,
+      "min_width_m": 15.0,
+      "height_ratio": 0.06666666666666667,
+      "horn_length": 9.1,
+      "dome_length": 2.0,
+      "wavelength_m": 550.0,
+      "height_m": 20.0,
+      "sinuosity": 0.3,
+      "defects": 0.3,
+      "defect_density": 0.0,
+      "flank_slope_deg": 20.0,
+      "seed": 1,
+      "anchor_x": 0.0,
+      "anchor_y": 0.0,
+      "fade_px": [
+        2.0,
+        4.0
+      ],
+      "fade_shape": "smoothstep",
+      "ripples": null,
+      "grainflows": null,
+      "source_resolves_px": 4.0
+    },
+    {
+      "type": "sand_fill",
+      "reach_m": 10.0,
+      "fill": 0.6,
+      "max_thickness_m": 0.5,
+      "cover_thickness_m": 0.02
+    },
+    {
+      "type": "pavement",
+      "plate_size_m": 1.0,
+      "jitter": 1.0,
+      "warp": 0.15,
+      "crack_width_m": 0.05,
+      "crack_depth_m": 0.05,
+      "raised": false,
+      "edge_rounding_m": 0.02,
+      "max_tilt_deg": 2.8647889756541165,
+      "max_step_m": 0.03,
+      "octaves": 1,
+      "lacunarity": 2.0,
+      "gain": 0.5,
+      "seed": 1,
+      "exposure": null,
+      "exposure_spacing_m": 1.0,
+      "anchor_x": 0.0,
+      "anchor_y": 0.0,
+      "fade_px": [
+        2.0,
+        4.0
+      ],
+      "fade_shape": "smoothstep"
+    },
+    {
+      "type": "strata",
+      "bed_thickness_m": 2.0,
+      "thickness_variation": 0.4,
+      "dip_deg": 0.0,
+      "dip_azimuth_deg": 0.0,
+      "sharpness": 4.0,
+      "strength": 1.0,
+      "cliff_share": 0.3,
+      "seed": 1,
+      "anchor_x": 0.0,
+      "anchor_y": 0.0,
+      "hard_share": 1.0,
+      "soft_sharpness": 1.0
+    },
+    {
+      "type": "sand_shadow",
+      "wind_azimuth_deg": 0.0,
+      "length_ratio": 1.1,
+      "flank_angle_deg": 32.0,
+      "min_diameter_m": 0.0,
+      "cover_thickness_m": 0.02,
+      "fade_px": [
+        2.0,
+        4.0
+      ],
+      "fade_shape": "smoothstep"
+    },
+    {
+      "type": "spectral_continuation",
+      "pixel_size_m": null,
+      "slope": null,
+      "octave_rms_m": null,
+      "fit_min_pixels": 4.0,
+      "fit_max_pixels": 0.0,
+      "min_wavelength_m": 0.05,
+      "taper_octaves": 1.0,
+      "seed": 1,
+      "fade_px": [
+        2.0,
+        4.0
+      ],
+      "fade_shape": "smoothstep"
+    }
+  ],
+  "outputs": [
+    {
+      "type": "heightmap",
+      "path": "",
+      "pixel_size_m": null,
+      "extent_m": null,
+      "extent_deg": null,
+      "compression": "lzw",
+      "tile_size_px": 256
+    },
+    {
+      "type": "crater_list",
+      "path": "",
+      "format": "csv",
+      "pixel_size_m": null,
+      "extent_m": null,
+      "extent_deg": null
+    },
+    {
+      "type": "boulder_list",
+      "path": "",
+      "format": "csv",
+      "pixel_size_m": null,
+      "extent_m": null,
+      "extent_deg": null
+    },
+    {
+      "type": "boulder_models",
+      "path": "",
+      "crease_angle_deg": 60.0,
+      "instanced": true,
+      "pixel_size_m": null,
+      "extent_m": null,
+      "extent_deg": null
+    },
+    {
+      "type": "albedo",
+      "path": "",
+      "pixel_size_m": null,
+      "extent_m": null,
+      "extent_deg": null,
+      "compression": "lzw",
+      "tile_size_px": 256
+    },
+    {
+      "type": "mesh",
+      "path": "",
+      "cells_per_face": 128,
+      "spacing_m": null
+    },
+    {
+      "type": "terrain_mesh",
+      "path": "",
+      "pixel_size_m": null,
+      "extent_m": null,
+      "extent_deg": null,
+      "cutouts": [],
+      "skirt_m": 0.0,
+      "site_deg": null
+    },
+    {
+      "type": "materials",
+      "path": "",
+      "pixel_size_m": null,
+      "extent_m": null,
+      "extent_deg": null,
+      "compression": "lzw",
+      "tile_size_px": 256
+    },
+    {
+      "type": "photometry",
+      "path": "",
+      "pixel_size_m": null,
+      "extent_m": null,
+      "extent_deg": null,
+      "compression": "lzw",
+      "tile_size_px": 256
+    },
+    {
+      "type": "report",
+      "path": ""
+    }
+  ],
+  "albedo": {
+    "source": {
+      "type": "synthetic",
+      "rgb": false,
+      "hue_deg": 0.0,
+      "saturation": 0.0,
+      "value": 0.11,
+      "hue_noise_deg": [],
+      "saturation_noise": [],
+      "value_noise": []
+    },
+    "layers": []
+  },
+  "materials": {
+    "exposure": {
+      "reach_m": 12.0,
+      "rise_soil": 0.01,
+      "rise_boulder": 0.035,
+      "slope_soil": 0.2,
+      "slope_boulder": 0.4,
+      "floor_cover": 0.0,
+      "floor_patch_m": 60.0,
+      "seed": 0
+    },
+    "dust_cover": 0.0,
+    "dust_patch_m": 50.0,
+    "seed": 0,
+    "photometry": {
+      "reference": "none",
+      "soil": null,
+      "sand": null,
+      "dust": null,
+      "bedrock": null,
+      "rock": null
+    }
+  },
+  "models": {
+    "noise_layer": {
+      "enabled": true,
+      "basis": "perlin",
+      "fractal": "fbm",
+      "blend": "add",
+      "seed": 0,
+      "wavelength_m": 1000.0,
+      "amplitude_m": null,
+      "octaves": 8,
+      "lacunarity": 2.0,
+      "gain": 0.5,
+      "hurst": null,
+      "offset": 1.0,
+      "warp_amplitude_m": 0.0,
+      "warp_wavelength_m": 500.0
+    },
+    "density": [
+      {
+        "type": "power_law",
+        "coefficient": 0.1,
+        "exponent": 2.0
+      },
+      {
+        "type": "piecewise_power_law",
+        "segments": [
+          {
+            "start_m": 0.0,
+            "coefficient": 1.0,
+            "exponent": 2.0
+          }
+        ]
+      },
+      {
+        "type": "tabulated",
+        "diameters": [],
+        "cumulative": [],
+        "diameter_unit": 1.0,
+        "area_unit": 1.0
+      },
+      {
+        "type": "production_surface",
+        "production": "extended_neukum",
+        "chronology": "neukum",
+        "age_gyr": 3.5
+      },
+      {
+        "type": "minimum",
+        "distributions": []
+      },
+      {
+        "type": "trask"
+      },
+      {
+        "type": "hartmann"
+      },
+      {
+        "type": "moore",
+        "terrain": "rough_mare"
+      },
+      {
+        "type": "viper"
+      },
+      {
+        "type": "piecewise_uniform",
+        "bands": [
+          {
+            "min_m": 1.0,
+            "max_m": 2.0,
+            "density": 0.01
+          }
+        ],
+        "total": 0.0
+      }
+    ],
+    "ages": [
+      {
+        "type": "uniform",
+        "lifetime_gyr": 1.0
+      },
+      {
+        "type": "fresh"
+      },
+      {
+        "type": "steady_state",
+        "age_gyr": 3.5,
+        "production": "extended_neukum",
+        "equilibrium": "hartmann",
+        "chronology": "neukum"
+      },
+      {
+        "type": "freshness",
+        "lifetime_gyr": 1.0,
+        "freshness": {
+          "kind": "uniform",
+          "a": 0.0,
+          "b": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "edges": [],
+          "weights": []
+        }
+      }
+    ],
+    "degradation": [
+      {
+        "type": "freshness",
+        "cutoff_depth_ratio": 0.04
+      },
+      {
+        "type": "none",
+        "depth_ratio": null
+      },
+      {
+        "type": "diffusion",
+        "diffusivity": "matched",
+        "power_law": {
+          "coefficient": 1.0,
+          "exponent": 0.0,
+          "min_diameter_m": 0.0
+        },
+        "reach_radii": 3.0
+      }
+    ],
+    "profile": [
+      {
+        "type": "fassett_thomson",
+        "rim": "original"
+      },
+      {
+        "type": "martin_parkes_dunstan"
+      },
+      {
+        "type": "complex",
+        "simple": {
+          "type": "martin_parkes_dunstan"
+        }
+      }
+    ],
+    "boulder_sizes": [
+      {
+        "type": "golombek_rapp"
+      },
+      {
+        "type": "sp8023_intercrater",
+        "curve": "nominal"
+      },
+      {
+        "type": "sp8023_crater",
+        "curve": "nominal"
+      },
+      {
+        "type": "synthterrain",
+        "model": "intercrater"
+      },
+      {
+        "type": "power_law",
+        "coefficient": 0.1,
+        "exponent": 2.0
+      },
+      {
+        "type": "piecewise_power_law",
+        "segments": [
+          {
+            "start_m": 0.0,
+            "coefficient": 1.0,
+            "exponent": 2.0
+          }
+        ]
+      },
+      {
+        "type": "tabulated",
+        "diameters": [],
+        "cumulative": [],
+        "diameter_unit": 1.0,
+        "area_unit": 1.0
+      },
+      {
+        "type": "piecewise_uniform",
+        "bands": [
+          {
+            "min_m": 1.0,
+            "max_m": 2.0,
+            "density": 0.01
+          }
+        ],
+        "total": 0.0
+      }
+    ],
+    "region_shape": [
+      {
+        "type": "rectangle",
+        "min_x": 0.0,
+        "min_y": 0.0,
+        "max_x": 0.0,
+        "max_y": 0.0
+      },
+      {
+        "type": "circle",
+        "x": 0.0,
+        "y": 0.0,
+        "radius_m": 0.0
+      },
+      {
+        "type": "polygon",
+        "points": [],
+        "holes": []
+      }
+    ],
+    "albedo_source": [
+      {
+        "type": "synthetic",
+        "rgb": false,
+        "hue_deg": 0.0,
+        "saturation": 0.0,
+        "value": 0.11,
+        "hue_noise_deg": [],
+        "saturation_noise": [],
+        "value_noise": []
+      },
+      {
+        "type": "raster",
+        "path": "",
+        "bands": [
+          0
+        ],
+        "scale": null,
+        "offset": null,
+        "resampling": "cubic",
+        "detail": {
+          "enabled": true,
+          "seed": 0,
+          "octaves": 4,
+          "scale": 1.0,
+          "hurst": null,
+          "fade_px": [
+            2.0,
+            4.0
+          ],
+          "fade_shape": "smoothstep"
+        }
+      }
+    ],
+    "albedo_layer": [
+      {
+        "type": "craters",
+        "crater_layer": null,
+        "seed": 0,
+        "min_diameter_m": 0.0,
+        "max_diameter_m": null,
+        "min_age_gyr": 0.0,
+        "max_age_gyr": null,
+        "manual": true,
+        "share": 1.0,
+        "background_maturity": 0.202,
+        "max_maturity": 0.42,
+        "interior_excess": 0.132,
+        "texture": {
+          "streaks": 0.0,
+          "streak_width_deg": 3.0,
+          "streak_length_radii": 1.5,
+          "continuous_radii": 0.0,
+          "lobes": 0.0,
+          "lobe_count": 8,
+          "floor_share": 1.0,
+          "seed": 0
+        },
+        "zones": {
+          "enabled": false,
+          "max_diameter_m": 50.0,
+          "mature_depth_m": 1.0,
+          "excavation_ratio": 0.1,
+          "proximal_high": {
+            "share": 1.0,
+            "change": {
+              "kind": "normal",
+              "a": 0.12,
+              "b": 0.09,
+              "min": 0.01,
+              "max": 0.5,
+              "edges": [],
+              "weights": []
+            },
+            "coefficient_m": 1.5,
+            "exponent": 1.0,
+            "scale": {
+              "kind": "log_normal",
+              "a": 1.0,
+              "b": 0.82,
+              "min": 0.4,
+              "max": 5.0,
+              "edges": [],
+              "weights": []
+            },
+            "raggedness": 0.3,
+            "finger_width_deg": 25.0,
+            "feather": 0.3,
+            "retention_myr": null
+          },
+          "proximal_low": {
+            "share": 1.0,
+            "change": {
+              "kind": "normal",
+              "a": -0.09,
+              "b": 0.04,
+              "min": -0.2,
+              "max": -0.01,
+              "edges": [],
+              "weights": []
+            },
+            "coefficient_m": 2.9,
+            "exponent": 1.0,
+            "scale": {
+              "kind": "log_normal",
+              "a": 1.0,
+              "b": 0.44,
+              "min": 0.5,
+              "max": 3.0,
+              "edges": [],
+              "weights": []
+            },
+            "raggedness": 0.3,
+            "finger_width_deg": 20.0,
+            "feather": 0.3,
+            "retention_myr": 0.081
+          },
+          "distal_high": {
+            "share": 0.24,
+            "change": {
+              "kind": "uniform",
+              "a": 0.01,
+              "b": 0.04,
+              "min": null,
+              "max": null,
+              "edges": [],
+              "weights": []
+            },
+            "coefficient_m": 0.52,
+            "exponent": 2.5,
+            "scale": {
+              "kind": "constant",
+              "a": 1.0,
+              "b": 0.0,
+              "min": null,
+              "max": null,
+              "edges": [],
+              "weights": []
+            },
+            "raggedness": 0.5,
+            "finger_width_deg": 8.0,
+            "feather": 0.4,
+            "retention_myr": 0.081
+          },
+          "distal_low": {
+            "share": 0.84,
+            "change": {
+              "kind": "uniform",
+              "a": -0.06,
+              "b": -0.02,
+              "min": null,
+              "max": null,
+              "edges": [],
+              "weights": []
+            },
+            "coefficient_m": 5.03,
+            "exponent": 2.0,
+            "scale": {
+              "kind": "constant",
+              "a": 1.0,
+              "b": 0.0,
+              "min": null,
+              "max": null,
+              "edges": [],
+              "weights": []
+            },
+            "raggedness": 0.6,
+            "finger_width_deg": 8.0,
+            "feather": 0.6,
+            "retention_myr": 0.081
+          },
+          "shadows": {
+            "enabled": false,
+            "jet_angle_deg": 3.0,
+            "depth_m": 0.5,
+            "azimuths": 720,
+            "radial_samples": 400
+          },
+          "seed": 0
+        },
+        "ejecta_excess": 0.076,
+        "ejecta_exponent": 3.0,
+        "ejecta_reach_radii": 3.0,
+        "rays": {
+          "enabled": true,
+          "count": {
+            "kind": "normal",
+            "a": 10.7,
+            "b": 3.1,
+            "min": 6.0,
+            "max": 20.0,
+            "edges": [],
+            "weights": []
+          },
+          "length_coefficient": 6.59,
+          "length_exponent": 1.27,
+          "length_spread": {
+            "kind": "uniform",
+            "a": -0.356,
+            "b": 0.468,
+            "min": null,
+            "max": null,
+            "edges": [],
+            "weights": []
+          },
+          "width_deg": {
+            "kind": "normal",
+            "a": 22.0,
+            "b": 8.3,
+            "min": 5.4,
+            "max": 38.6,
+            "edges": [],
+            "weights": []
+          },
+          "excess": 0.048,
+          "patchiness": 0.5,
+          "patch_radii": 0.5,
+          "oblique": {
+            "enabled": true,
+            "heading_deg": null,
+            "asymmetric_deg": 45.0,
+            "forbidden_deg": 25.0,
+            "butterfly_deg": 10.0,
+            "downrange_speed_ratio": {
+              "kind": "uniform",
+              "a": 1.2,
+              "b": 1.4,
+              "min": null,
+              "max": null,
+              "edges": [],
+              "weights": []
+            },
+            "zone_half_width_deg": 45.0
+          },
+          "layout": null
+        },
+        "retention": {
+          "small_diameter_m": 1000.0,
+          "small_myr": 5.0,
+          "mid_diameter_m": 5000.0,
+          "mid_myr": 750.0,
+          "large_diameter_m": 50000.0,
+          "large_myr": 750.0,
+          "scale": 1.0
+        },
+        "fade_exponent": 1.0,
+        "origin_reflectance": 0.08,
+        "fade_px": [
+          2.0,
+          4.0
+        ],
+        "fade_shape": "smoothstep"
+      },
+      {
+        "type": "splotches",
+        "seed": 0,
+        "rate_coefficient": 1.483e-11,
+        "rate_exponent": 4.144,
+        "lifetime_myr": 0.081,
+        "min_diameter_m": 1.0,
+        "max_diameter_m": 40.0,
+        "dark_share": 0.907,
+        "bright_share": 0.074,
+        "dark_change": {
+          "kind": "constant",
+          "a": -0.04,
+          "b": 0.0,
+          "min": null,
+          "max": null,
+          "edges": [],
+          "weights": []
+        },
+        "bright_change": {
+          "kind": "constant",
+          "a": 0.1,
+          "b": 0.0,
+          "min": null,
+          "max": null,
+          "edges": [],
+          "weights": []
+        },
+        "steep_bright_share": null,
+        "steep_slope_deg": 15.0,
+        "softness": 0.3,
+        "raggedness": 0.15,
+        "fade_px": [
+          2.0,
+          4.0
+        ],
+        "fade_shape": "smoothstep",
+        "swarms": {
+          "enabled": false,
+          "crater_rate": 4.84e-06,
+          "crater_slope": 3.06,
+          "min_crater_diameter_m": 10.0,
+          "max_crater_diameter_m": 50.0,
+          "reference_diameter_m": 18.8,
+          "reference_count": 248.0,
+          "mu": 0.41,
+          "min_range_m": 4300.0,
+          "max_range_m": 30000.0,
+          "splotch_diameter": {
+            "kind": "log_normal",
+            "a": 6.0,
+            "b": 0.6,
+            "min": 2.0,
+            "max": 22.0,
+            "edges": [],
+            "weights": []
+          },
+          "dark_share": 0.9637096774193549,
+          "bright_share": 0.012096774193548387,
+          "dark_change": {
+            "kind": "constant",
+            "a": -0.04,
+            "b": 0.0,
+            "min": null,
+            "max": null,
+            "edges": [],
+            "weights": []
+          },
+          "bright_change": {
+            "kind": "uniform",
+            "a": 0.04,
+            "b": 0.12,
+            "min": null,
+            "max": null,
+            "edges": [],
+            "weights": []
+          },
+          "wedge_share": 0.2,
+          "wedge_elongation": 2.0,
+          "craters": []
+        }
+      },
+      {
+        "type": "blast_zones",
+        "zones": []
+      },
+      {
+        "type": "rocks",
+        "boulder_layer": null,
+        "seed": 0,
+        "reflectance_ratio": 2.5,
+        "unresolved": true
+      },
+      {
+        "type": "slopes",
+        "onset_deg": 20.0,
+        "maturity_per_degree": 0.0065,
+        "background_maturity": 0.1,
+        "max_maturity": 0.42,
+        "baseline_m": 10.0,
+        "origin_reflectance": 0.08
+      }
+    ]
+  }
+}

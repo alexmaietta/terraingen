@@ -1,0 +1,5635 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="An open-source scientific terrain generation suite for planetary surfaces">
+      
+      
+        <meta name="author" content="Alex Maietta">
+      
+      
+        <link rel="canonical" href="https://alexmaietta.github.io/terraingen/0.3/cpp/annotated/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Class List - TerrainGen</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans:300,300i,400,400i,700,700i%7CIBM+Plex+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"IBM Plex Sans";--md-code-font:"IBM Plex Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+   <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"/><style>
+    html.glightbox-open { overflow: initial; height: 100%; }
+    .gslide-title { margin-top: 0px; user-select: text; }
+    .gslide-desc { color: #666; user-select: text; }
+    .gslide-image img { background: none; }
+    .glightbox-clean .gslide-media {
+        -webkit-box-shadow: none;
+        box-shadow: none;
+    }
+    .gscrollbar-fixer { padding-right: 15px; }
+    .gdesc-inner { font-size: 0.75rem; }
+    body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color);}
+    body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color);}
+    body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color);}</style> <script src="../../assets/javascripts/glightbox.min.js"></script></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#class-list" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <a href="../.." class="md-header__title tg-header__name" aria-label="TerrainGen">
+      TerrainGen
+    </a>
+    <ul class="md-tabs__list tg-header__sections" aria-label="Tabs" data-md-component="tabs">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../concepts/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../features/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../gallery/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Gallery
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+    </ul>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/alexmaietta/terraingen" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="TerrainGen" class="md-nav__button md-logo" aria-label="TerrainGen" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    TerrainGen
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/alexmaietta/terraingen" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../releases/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Releases
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../citing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/tools/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tools
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/tools/command-line/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/tools/gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../guides/workflows/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/workflows/customize-terraingen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customize TerrainGen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/craters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Craters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/boulders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boulders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/albedo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/bodies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Irregular bodies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/simulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/customization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../concepts/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/surfaces/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Surfaces and bodies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/gpu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GPU acceleration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/customization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Customization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../features/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../features/relief/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Relief
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Relief
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/relief/noise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fractal noise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/relief/roughness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roughness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/relief/spectral-continuation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spectral continuation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/relief/upsampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upsampling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../features/distributions/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributions
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Distributions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/distributions/size-frequency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Size-frequency distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/distributions/production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/distributions/equilibrium/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Equilibrium densities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/distributions/chronology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chronologies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/distributions/combining/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Combining distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/distributions/sampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sampling and placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/distributions/value-distributions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Value distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../features/craters/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Craters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Craters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/populations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Populations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/ages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/degradation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Degradation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/irregularity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Irregular outlines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/secondaries-and-rays/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secondaries and rays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/texture-and-slopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Texture and slopes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/placement-and-blending/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Placement and blending
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/craters/crater-lists/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater lists
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../features/boulders/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boulders
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Boulders
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/boulders/size-distributions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Size distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/boulders/placement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/boulders/shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Shapes and 3D models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/boulders/burial-and-exposure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Burial and exposure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/boulders/fragmentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fragmentation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/boulders/lists-and-meshes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lists and meshes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../features/albedo/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Albedo
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/albedo/base-maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Base maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/albedo/slopes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slopes and maturity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/albedo/crater-rays/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater ejecta and rays
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/albedo/reflectance-zones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reflectance zones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/albedo/splotches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Splotches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/albedo/blast-zones/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blast zones
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/albedo/rocks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rocks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/albedo/photometry/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Photometry
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../features/geology/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Aeolian and geologic features
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4_7" id="__nav_4_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Aeolian and geologic features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/geology/dunes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dunes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/geology/bedforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ripples and bedforms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/geology/sand/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sand fill and sand shadows
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/geology/strata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/geology/pavement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pavement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../gallery/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Gallery
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Gallery
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/albedo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/boulders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boulders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/craters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Craters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/dem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DEMs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/distributions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/geology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/planets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Planets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/queries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/relief/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Relief
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../reference/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6_1" id="__nav_6_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Configuration
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_2" id="__nav_6_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bodies
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Bodies
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/body/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bodies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_3" id="__nav_6_1_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Sources
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/source/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../reference/layers/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layers
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6_1_4" id="__nav_6_1_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Layers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/noise/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    noise
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/craters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    craters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/boulders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    boulders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/roughness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    roughness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/bedforms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bedforms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/scale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scale
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/clamp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clamp
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/masked/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    masked
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/secondaries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    secondaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/dunes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dunes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/sand_fill/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sand_fill
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/pavement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pavement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/strata/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    strata
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/sand_shadow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sand_shadow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/layers/spectral_continuation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spectral_continuation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_5" id="__nav_6_1_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater and boulder models
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Crater and boulder models
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/models/upsampling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Upsampling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/models/densities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater densities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/models/ages/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater ages
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/models/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/models/degradation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Crater degradation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/models/boulder-sizes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boulder sizes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/models/mask-shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mask shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_6" id="__nav_6_1_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Albedo
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/albedo-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/albedo-layers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Albedo layers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_1_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_7" id="__nav_6_1_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Outputs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/outputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/enums/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enumerations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Raw schema
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/cpp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C++ API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/bibliography/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bibliography
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+  
+  
+                  
+
+
+  
+  
+
+
+<h1 id="class-list">Class List<a class="headerlink" href="#class-list" title="Permanent link">&para;</a></h1>
+<p>Here are the classes, structs, unions and interfaces with brief descriptions:</p>
+<ul>
+<li><strong>namespace</strong> <a href="../namespacestd/"><strong>std</strong></a> </li>
+<li><strong>namespace</strong> <a href="../namespaceterraingen/"><strong>terraingen</strong></a>     <ul>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Albedo/"><strong>Albedo</strong></a> <em>An albedo as a composition: values from</em> <code>source</code> <em>, then each of</em><code>layers</code> <em>in order.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1AlbedoDetail/"><strong>AlbedoDetail</strong></a> <em>Detail below a map's resolution: fractal noise that continues the map's own measured roughness to finer scales, multiplying the albedo.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1AlbedoLayer/"><strong>AlbedoLayer</strong></a> <em>A change to an albedo: bright ejecta around fresh craters, or a layer of your own.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1AlbedoSource/"><strong>AlbedoSource</strong></a> <em>Where an albedo starts: a map from orbit, a synthetic color, or a source of your own.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1AnchoredPlane/"><strong>AnchoredPlane</strong></a> <em>The plane a layer lays its features out in: the surface itself on a plane, or on a body the tangent frame of</em> <code>anchor</code> <em>, true to scale near it and empty on the far hemisphere.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BackendStatus/"><strong>BackendStatus</strong></a> <em>Whether a backend can run here, on which device, or why not.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1BandBuckets/"><strong>BandBuckets</strong></a> <em>Indices bucketed per size band into cubes of a side set per band (</em> <code>Surface::Bucket</code> <em>), each bucket holding its indices in the order added.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BandScaling/"><strong>BandScaling</strong></a> <em>A band's scale and offset: a sample</em> <code>s</code> <em>stands for</em><code>s * scale + offset</code> <em>, as GDAL's band SCALE and OFFSET metadata say.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BaseRoughness/"><strong>BaseRoughness</strong></a> <em>Self-affine roughness: the RMS height difference at a lag L is nu(L) =</em> <code>deviation</code> <em>(L /</em><code>cellSize</code> <em>)^H, so the RMS slope over a baseline b is nu(b) / b = s(c) (b / c)^(H - 1) (Shepard et al.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1BedformLayer/"><strong>BedformLayer</strong></a> <em>Fields of wind-blown bedforms, ripples or dunes, added to the terrain.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BedformOptions/"><strong>BedformOptions</strong></a> <em>The bedform fields a</em> <code>BedformLayer</code> <em>scatters: their ripples, cover and wind.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BindsNativeTrait/"><strong>BindsNativeTrait</strong></a> <em>Whether</em> <code>IO</code> <em>declares</em><code>static constexpr bool kBindsNative = true</code> <em>.</em></li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BindsNativeTrait_3_01IO_00_01std_1_1enable__if__t_3_01IO_1_1kBindsNative_01_4_01_4/"><strong>BindsNativeTrait&lt; IO, std::enable_if_t&lt; IO::kBindsNative &gt; &gt;</strong></a> </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BlastZone/"><strong>BlastZone</strong></a> <em>The blast zone around one lander (Clegg et al.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1BlastZoneAlbedo/"><strong>BlastZoneAlbedo</strong></a> <em>Blast zones around landers, changing the albedo by the relative reflectance they give; the same in any grid, tile or point.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Boulder/"><strong>Boulder</strong></a> <em>One boulder: where it stands, how large it is and how it lies, in surface coordinates and meters.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderAbundance/"><strong>BoulderAbundance</strong></a> <em>How rich the boulders are at a point.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderBackground/"><strong>BoulderBackground</strong></a> <em>The models of a layer's abundance between craters, each built once from valid options.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderBedrock/"><strong>BoulderBedrock</strong></a> <em>Boulders breaking out of bedrock: abundance scales from 1 on soil to</em> <code>abundance</code> <em>on bedrock, in proportion to the exposure.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderClusters/"><strong>BoulderClusters</strong></a> <em>Boulders between craters gathered in clusters:</em> <code>share</code> <em>of them crowd within about</em><code>radius</code> <em>of cluster centers about</em><code>spacing</code> <em>apart and the rest stay scattered.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderEjecta/"><strong>BoulderEjecta</strong></a> <em>Blocks thrown out by craters that dug through the regolith, added to the boulders between craters: densest at the rim, thinning outward and with age; overlapping ejecta take the largest share.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderFacet/"><strong>BoulderFacet</strong></a> <em>A plane that sand-laden wind has cut across a boulder's windward side: a ventifact facet.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderFeatures/"><strong>BoulderFeatures</strong></a> <em>Boulders, and those of them placed as their own 3D models.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderFillet/"><strong>BoulderFillet</strong></a> <em>Regolith piled against each boulder's base, drawn into the heights around boulders drawn there and around boulder models alike: it meets the boulder's flank where the rock stands</em> <code>heightShare</code> <em>of the exposed height (</em><code>FilletContact</code> <em>), then falls as (1 - t)^2 to nothing</em><code>widthRatio</code> <em>diameters beyond the boulder's radius.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderFragment/"><strong>BoulderFragment</strong></a> <em>One piece of a split boulder shape.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderFragmentation/"><strong>BoulderFragmentation</strong></a> <em>Boulders broken by wear into pieces that replace them.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1BoulderLayer/"><strong>BoulderLayer</strong></a> <em>Boulders scattered over the ground, in patches and richer on bedrock, plus blocks around fresh craters; they depend only on position, so every grid, tile and point agrees.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderLayerOptions/"><strong>BoulderLayerOptions</strong></a> <em>How a</em> <code>BoulderLayer</code> <em>sizes, places, poses and draws its boulders.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1BoulderList/"><strong>BoulderList</strong></a> <em>Boulders stored as one array per field, as</em> <code>CraterList</code> <em>stores craters, so each column can be shared with NumPy or a GPU without copying.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1BoulderMapAbundance/"><strong>BoulderMapAbundance</strong></a> <em>How a density map sets a boulder layer's abundance between craters: the abundance at which the boulder sizes measure what the map does, once the crater blocks there are taken out of it for a</em> <code>total</code> <em>map.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderModel/"><strong>BoulderModel</strong></a> <em>A boulder placed as a 3D model of its own.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderModelThreshold/"><strong>BoulderModelThreshold</strong></a> <em>Which boulders become 3D models of their own: those at or above either lower threshold and below every upper one set; no lower threshold means no models.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderPatches/"><strong>BoulderPatches</strong></a> <em>Patches of richer and poorer boulder cover.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderPlacement/"><strong>BoulderPlacement</strong></a> <em>How a unit</em> <code>BoulderShape</code> <em>becomes a boulder in the world: scaled per axis by</em><code>scale</code> <em>, then moved by</em><code>pose</code> <em>.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1BoulderPlacer/"><strong>BoulderPlacer</strong></a> <em>A layer that places boulders.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderPose/"><strong>BoulderPose</strong></a> <em>How each boulder stands, drawn per boulder uniformly between these.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderReliefRange/"><strong>BoulderReliefRange</strong></a> <em>Which boulders are drawn into the heights: those from</em> <code>minDiameter</code> <em>up to</em><code>maxDiameter</code> <em>that are not models, and models too with</em><code>models</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderRendering/"><strong>BoulderRendering</strong></a> <em>How boulders are drawn: as relief in the heights or as 3D models, and with which shapes.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderShape/"><strong>BoulderShape</strong></a> <em>A boulder's shape in unit form, with the origin inside it.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderShapeOptions/"><strong>BoulderShapeOptions</strong></a> <em>Settings for</em> <code>GenerateBoulderShape</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderSizes/"><strong>BoulderSizes</strong></a> <em>The sizes of the boulders between craters:</em> <code>distribution</code> <em>, or Golombek and Rapp (1997) boulders of</em><code>coverage</code> <em>without one, from</em><code>minDiameter</code> <em>up to</em><code>maxDiameter</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderStyle/"><strong>BoulderStyle</strong></a> <em>One kind of boulder: the solid it starts from and the ranges its shape is drawn from.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderVentifacts/"><strong>BoulderVentifacts</strong></a> <em>Ventifacts: windward facets planed on boulders by sand-laden wind, set once the boulder has settled.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Bounds2d/"><strong>Bounds2d</strong></a> <em>An axis-aligned box [</em> <code>minX</code> <em>,</em><code>maxX</code> <em>) x [</em><code>minY</code> <em>,</em><code>maxY</code> <em>) in surface coordinates (meters on a plane, the world coordinates a raster's</em><code>GeoTransform</code> <em>maps pixels to).</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Box3d/"><strong>Box3d</strong></a> <em>An axis-aligned box.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BucketIndex/"><strong>BucketIndex</strong></a> <em>The integer coordinates of a cube of a 3D grid.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BuildInfo/"><strong>BuildInfo</strong></a> <em>Build metadata captured when the linked library was last rebuilt (see cmake/BuildInfo.cmake); it describes the linked libraries, not the headers compiled against.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BuildMeshOptions/"><strong>BuildMeshOptions</strong></a> <em>What a</em> <code>BuildMesh</code> <em>leaves out and hangs below its edges.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CellCraters/"><strong>CellCraters</strong></a> <em>The craters of one cell in the order drawn, with their indices ordered by y so the craters of a row range are found by binary search.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CellIndex/"><strong>CellIndex</strong></a> <em>Integer coordinates of one cell in a grid of square cells.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CellPosition/"><strong>CellPosition</strong></a> <em>A kernel's position: a cell center or point measured from the layer's origin, in meters, so single precision stays accurate far from the frame's origin.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ChainSeams/"><strong>ChainSeams</strong></a> <em>How a</em> <code>SourceChain</code> <em>joins each source to the gaps of those before it.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ClampLayer/"><strong>ClampLayer</strong></a> <em>Clamps the heights so far to [</em> <code>min</code> <em>,</em><code>max</code> <em>], either bound optional.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ComplexCraterProfile/"><strong>ComplexCraterProfile</strong></a> <em>Simple craters below a transition diameter, complex ones from it: a flat floor, a concave wall, a central peak lowered as the crater wears, and a power-law exterior.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ComplexCraterShape/"><strong>ComplexCraterShape</strong></a> <em>The flat floor and central peak of complex craters on a body, from the diameter they start at; depth and rim height come from the crater's state.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ConfigError/"><strong>ConfigError</strong></a> <em>A problem with a configuration, located by the JSON path of the offending value, such as "layers[1].density.age_gyr" or "layers[0].stack[1].octaves".</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ConfigSummary/"><strong>ConfigSummary</strong></a> <em>What a valid configuration generates, as</em> <code>ValidateConfig</code> <em>finds it.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ConstantField/"><strong>ConstantField</strong></a> <em>The same value everywhere.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Crater/"><strong>Crater</strong></a> <em>One crater: center in surface coordinates, rim-to-rim diameter, age and a stable ID, and for a manual crater optionally its depth and rim height.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1CraterAgeModel/"><strong>CraterAgeModel</strong></a> <em>Assigns ages to craters by diameter, within a visible lifetime per diameter.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1CraterAlbedo/"><strong>CraterAlbedo</strong></a> <em>The bright ejecta, interiors and rays of the craters of a</em> <code>CraterLayer</code> <em>, as</em><code>CraterAlbedoOptions</code> <em>describes, shaped by the craters' irregular outlines where the layer has them.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterAlbedoOptions/"><strong>CraterAlbedoOptions</strong></a> <em>The bright material of fresh craters, in optical maturity (OMAT) over the background's: an interior excess, ejecta falling as a power of distance, and rays.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterAlbedoTexture/"><strong>CraterAlbedoTexture</strong></a> <em>The texture of fresh craters' bright material, keyed to each crater and off by default: radial streaks breaking ejecta, rays, interiors and the bright proximal reflectance zone into filaments, a lobed ejecta edge, and walls brighter than floors.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterApplyOptions/"><strong>CraterApplyOptions</strong></a> <em>How</em> <code>ApplyCraters</code> <em>shapes craters into the terrain.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterAttributes/"><strong>CraterAttributes</strong></a> <em>What a crater looks like in its current state, for listing, labeling or placing.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterBand/"><strong>CraterBand</strong></a> <em>A size band of crater generation: diameters [</em> <code>low</code> <em>,</em><code>high</code> <em>) meters, from 2^</em><code>exponent</code> <em>to 2^(</em><code>exponent</code> <em>+ 1) clipped to the requested range.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterBin/"><strong>CraterBin</strong></a> <em>The craters listed in one diameter bin [</em> <code>minDiameter</code> <em>,</em><code>maxDiameter</code> <em>) and the count a target size-frequency distribution expects there.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterBlend/"><strong>CraterBlend</strong></a> <em>Where a crater's replaced interior blends into the surrounding terrain, in crater radii.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterBodyDatumKernel/"><strong>CraterBodyDatumKernel</strong></a> <em>What fitting crater datums on a body takes on the GPU: the craters' shapes.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterData/"><strong>CraterData</strong></a> <em>Where the variable-length values of craters are read from.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterDatumKernel/"><strong>CraterDatumKernel</strong></a> <em>What fitting crater datums takes: the craters' shapes, the fit footprint and the lattice the ground is sampled on (</em> <code>FitCraterDatum</code> <em>), and the size bands that index the craters.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterFeatures/"><strong>CraterFeatures</strong></a> <em>Craters and their attributes, in step.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterFrame/"><strong>CraterFrame</strong></a> <em>A crater's local frame on a body, from which the GPU works out each sample's offset (</em> <code>KernelFrameOffset</code> <em>) as</em><code>Surface::Offset</code> <em>does.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterGenerationOptions/"><strong>CraterGenerationOptions</strong></a> <em>Which craters</em> <code>GenerateCraters</code> <em>draws, and how.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterImpact/"><strong>CraterImpact</strong></a> <em>The impact that formed a crater, as</em> <code>ObliqueImpacts</code> <em>draws it.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterIrregularity/"><strong>CraterIrregularity</strong></a> <em>Which craters have irregular outlines and the distributions their shapes are drawn from, per crater from its ID.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1CraterLayer/"><strong>CraterLayer</strong></a> <em>Craters generated over the grid being evaluated (</em> <code>GenerateCraters</code> <em>) and applied to it (</em><code>ApplyCraters</code> <em>) at the evaluation's spacing.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterLayerOptions/"><strong>CraterLayerOptions</strong></a> <em>How a</em> <code>CraterLayer</code> <em>generates and applies its craters.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1CraterList/"><strong>CraterList</strong></a> <em>Craters stored as one array per field, so each column can be shared with NumPy or a GPU without copying.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterModels/"><strong>CraterModels</strong></a> <em>The models a crater layer generates and shapes craters with.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterMorphometry/"><strong>CraterMorphometry</strong></a> <em>A crater's shape measures relative to its diameter.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterNoise/"><strong>CraterNoise</strong></a> <a href="../structterraingen_1_1Fractal/"><em><strong>Fractal</strong></em></a> <em>noise added to each crater, keyed to its ID so tiles and point queries agree: over the whole footprint, fading out to nothing at the profile's reach, and in a band around the rim.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterOutline/"><strong>CraterOutline</strong></a> <em>One crater's outline: the factor its rim radius and profile are stretched by in each direction.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterPeaks/"><strong>CraterPeaks</strong></a> <em>Central peaks of complex craters built from massifs drawn per crater ID in place of the round dome, at the profile's peak height and base; only closed-form</em> <code>ComplexCraterProfile</code> <em>s use them.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1CraterPlacer/"><strong>CraterPlacer</strong></a> <em>A layer that places craters.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1CraterProfile/"><strong>CraterProfile</strong></a> <em>The topography of a crater: height relative to the pre-impact surface by distance from the center, for a degradation state.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterProfileKernel/"><strong>CraterProfileKernel</strong></a> <em>A crater profile as the kernel evaluates it: a simple profile, complex craters from a transition diameter (</em> <code>ComplexCraterProfile</code> <em>), and diffusion of the fresh shape by tables (</em><code>DiffusedProfile</code> <em>).</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterRays/"><strong>CraterRays</strong></a> <em>The rays of a crater: narrow streaks of immature material running out from the rim, after Elliott et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterRecord/"><strong>CraterRecord</strong></a> <em>One crater ready to shape.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterReflectanceZones/"><strong>CraterReflectanceZones</strong></a> <em>The four reflectance zones around new small craters in LROC temporal pairs (Robinson et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterReplacement/"><strong>CraterReplacement</strong></a> <em>How craters with</em> <code>Crater::replace</code> <em>replace the terrain beneath them: in full out to</em><code>startRadii</code> <em>, blending to none at</em><code>endRadii</code> <em>, cut into a plane fitted to the ground on a ring from</em><code>endRadii</code> <em>out to</em><code>endRadii</code> <em>+</em><code>fitWidthRadii</code> <em>, so neither the crater replaced nor its rim pulls the datum, whatever datum the other craters have.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterSampling/"><strong>CraterSampling</strong></a> <em>How</em> <code>ApplyCraters</code> <em>samples a raster or points.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterSelection/"><strong>CraterSelection</strong></a> <em>Which craters a model applies to, by diameter, age and whether manual.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterShapeKernel/"><strong>CraterShapeKernel</strong></a> <em>How craters are shaped, as</em> <code>CraterApplyOptions</code> <em>and the profile give it.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterShapeModels/"><strong>CraterShapeModels</strong></a> <em>The models craters are shaped with: their profile and the degradation state it is drawn in.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterSlopeResponse/"><strong>CraterSlopeResponse</strong></a> <em>How craters formed on a slope become asymmetric along it and wear faster, after Plescia et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterSlopeShape/"><strong>CraterSlopeShape</strong></a> <em>One crater's asymmetry on its slope.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterSpacing/"><strong>CraterSpacing</strong></a> <em>Keeps craters of similar size apart: two conflict when their diameters differ by at most</em> <code>diameterRatio</code> <em>and their centers are closer than</em><code>separation</code> <em>times the larger diameter.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterState/"><strong>CraterState</strong></a> <em>A crater's degradation state: its morphometry when fresh and now.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterTerraces/"><strong>CraterTerraces</strong></a> <em>Slump terraces on the walls of large craters, benches and scarps drawn per crater ID that soften as it wears; the floor edge is the profile's, else Pike's (1980, USGS PP 1046-C, eq.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterTexture/"><strong>CraterTexture</strong></a> <em>The texture of a crater's walls and ejecta, keyed to its ID: radial gullies down the inner wall, hummocky ejecta lineated away from the rim, and older relief buried under the ejecta.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1CubeSphereCells/"><strong>CubeSphereCells</strong></a> <em>Near-square cells on a body, in longitude and latitude degrees: each face of a cube split into n x n cells along equiangular coordinates of the direction from the center.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1DegradationModel/"><strong>DegradationModel</strong></a> <em>Maps each crater to its degradation state, from its diameter and age.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DensityMap/"><strong>DensityMap</strong></a> <em>A map of a crater or boulder population that sets a layer's density point by point: the size distribution keeps its shape and is scaled to measure what the map does, and applies as given where the map has no value.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1DensityScale/"><strong>DensityScale</strong></a> <em>The local scale a density map gives a size distribution: the map's value over its measure of the distribution, 1 where the map has no value.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DeviogramFit/"><strong>DeviogramFit</strong></a> <em>A least-squares line through log2 of a height difference statistic over log2 lag in cells.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DiameterRange/"><strong>DiameterRange</strong></a> <em>Diameters in meters where a distribution is defined: (</em> <code>min</code> <em>,</em><code>max</code> <em>], or with</em><code>min</code> <em>= 0 all positive diameters up to</em><code>max</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DiamondSquareOptions/"><strong>DiamondSquareOptions</strong></a> <em>The fractal a</em> <code>DiamondSquareUpsampler</code> <em>refines posts with.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1DiamondSquareUpsampler/"><strong>DiamondSquareUpsampler</strong></a> <em>Random midpoint displacement of a source's posts (Martin, Parkes and Dunstan 2014; Peitgen and Saupe 1988): each level halves the node spacing and displaces new nodes by a Gaussian that shrinks by 2^-((3 - F) / 2) per step, keyed by node and level so grids, tiles and points agree.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1DiffusedProfile/"><strong>DiffusedProfile</strong></a> <em>A fresh crater profile worn by topographic diffusion, tabulated in the diffusion age tau = kappa t / D^2 from 1e-5 to 0.5; older craters keep the last shape.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1DiffusionDegradation/"><strong>DiffusionDegradation</strong></a> <em>Craters worn by topographic diffusion, shaped with its</em> <code>DiffusedProfile</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DuneGrainflows/"><strong>DuneGrainflows</strong></a> <em>Grainflows on slip faces: avalanches that leave a theater-headed scarp below the brink and a tongue-shaped lobe of sand below it.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1DuneLayer/"><strong>DuneLayer</strong></a> <em>Wind-blown dunes added to the terrain, barchan crescents or crest-line dunes with slip faces at</em> <code>slipFaceAngle</code> <em>; overlapping dunes join as their upper envelope.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DuneOptions/"><strong>DuneOptions</strong></a> <em>The dunes a</em> <code>DuneLayer</code> <em>builds, their sizes and slopes.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DuneRipples/"><strong>DuneRipples</strong></a> <em>Ripples superposed on dunes, their crests bent by the dune's slope: each rises along a straight stoss to a sharp crest and falls along a straight lee.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1EjectaIndex/"><strong>EjectaIndex</strong></a> <em>Craters bucketed by the discs their ejecta reach (</em> <code>BandBuckets</code> <em>, one band per power of two of reach), so the craters able to reach a point are found without visiting all of them.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumEntry/"><strong>EnumEntry</strong></a> <em>One named value of an enum, and what it means, for editors.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames/"><strong>EnumNames</strong></a> <em>Every value of the enum</em> <code>E</code> <em>as an</em><code>EnumEntry</code> <em>(</em><code>kValues</code> <em>), specialized beside each enum's field lists.</em></li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01BaseSolid_01_4/"><strong>EnumNames&lt; BaseSolid &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01BlendShape_01_4/"><strong>EnumNames&lt; BlendShape &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01BoulderClusterModel_01_4/"><strong>EnumNames&lt; BoulderClusterModel &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01BoulderRelief_01_4/"><strong>EnumNames&lt; BoulderRelief &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01BoulderRest_01_4/"><strong>EnumNames&lt; BoulderRest &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01ChainSeamMode_01_4/"><strong>EnumNames&lt; ChainSeamMode &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01CraterDatum_01_4/"><strong>EnumNames&lt; CraterDatum &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01CraterOrder_01_4/"><strong>EnumNames&lt; CraterOrder &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01DensityMeasure_01_4/"><strong>EnumNames&lt; DensityMeasure &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01DiamondSquareInterp_01_4/"><strong>EnumNames&lt; DiamondSquareInterp &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01DuneShape_01_4/"><strong>EnumNames&lt; DuneShape &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01EjectaAging_01_4/"><strong>EnumNames&lt; EjectaAging &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01EjectaProfile_01_4/"><strong>EnumNames&lt; EjectaProfile &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01FassettThomsonRim_01_4/"><strong>EnumNames&lt; FassettThomsonRim &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01FractalBlend_01_4/"><strong>EnumNames&lt; FractalBlend &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01FractalType_01_4/"><strong>EnumNames&lt; FractalType &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01ListFormat_01_4/"><strong>EnumNames&lt; ListFormat &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01MooreTerrain_01_4/"><strong>EnumNames&lt; MooreTerrain &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01NoiseBasis_01_4/"><strong>EnumNames&lt; NoiseBasis &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01ResampleMethod_01_4/"><strong>EnumNames&lt; ResampleMethod &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01RimRoughnessModel_01_4/"><strong>EnumNames&lt; RimRoughnessModel &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01SizeSlopeMeasure_01_4/"><strong>EnumNames&lt; SizeSlopeMeasure &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01SpecificationCurve_01_4/"><strong>EnumNames&lt; SpecificationCurve &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01SynthterrainBoulders_01_4/"><strong>EnumNames&lt; SynthterrainBoulders &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01TiffCompression_01_4/"><strong>EnumNames&lt; TiffCompression &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EnumNames_3_01ValueDistribution_1_1Kind_01_4/"><strong>EnumNames&lt; ValueDistribution::Kind &gt;</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EquilibriumSurface/"><strong>EquilibriumSurface</strong></a> <em>A surface</em> <code>ageGyr</code> <em>old by</em><code>chronology</code> <em>, cratered by</em><code>production</code> <em>and capped by the</em><code>equilibrium</code> <em>density: its crater density and steady-state ages from the one set of models, so they cannot disagree.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1EvaluationCache/"><strong>EvaluationCache</strong></a> <em>Thread-safe values that depend only on the terrain beneath a layer, such as crater datums, shared by point queries; use one cache per generator and renew it after changing its layers.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EvaluationOptions/"><strong>EvaluationOptions</strong></a> <em>How to evaluate a terrain over a grid.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ExposureField/"><strong>ExposureField</strong></a> <em>How far the ground at a point is bedrock rather than soil, from its shape alone.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ExposureParams/"><strong>ExposureParams</strong></a> <em>The thresholds an</em> <code>ExposureField</code> <em>tells soil from bedrock by; a rule of thumb, not a measurement.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1FassettThomsonProfile/"><strong>FassettThomsonProfile</strong></a> <em>Fresh simple-crater profile of Fassett and Thomson (2014, eq.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1FeatureCell/"><strong>FeatureCell</strong></a> <em>One cell</em> <code>ForEachFeatureCell</code> <em>visits.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1FieldRange/"><strong>FieldRange</strong></a> <em>What a field accepts on its own: the values a number, or each number of a list, may take, how many items a list holds, and whether it must be given.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1FieldRangeError/"><strong>FieldRangeError</strong></a> <em>A value outside the range its field declares, at the field's path, such as "ripples.wavelength_m: must be positive, got 0".</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1FilletContact/"><strong>FilletContact</strong></a> <em>Where a fillet meets its boulder along one direction from the boulder's center: the rock's outermost point there as high as the fillet stands,</em> <code>heightShare</code> <em>of the boulder's exposed height, or the rock's highest point where it stands lower.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1FlatSource/"><strong>FlatSource</strong></a> <em>A level datum at</em> <code>elevation</code> <em>over a</em><code>width</code> <em>x</em><code>height</code> <em>north-up grid of square</em><code>pixelSize</code> <em>cells centered on</em><code>center</code> <em>: the start of a fully synthetic terrain.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1FormulaLayer/"><strong>FormulaLayer</strong></a> <em>A layer whose height at a point depends only on the height there and the point (noise, roughness, transforms); the base applies</em> <code>HeightAt</code> <em>to every sample in parallel.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Fractal/"><strong>Fractal</strong></a> <em>One fractal of a stack: the</em> <code>FractalParams</code> <em>fields, an optional domain warp and a blend mode.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1FractalParams/"><strong>FractalParams</strong></a> <em>Parameters of a fractal built from octaves of a basis noise.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1FractalStack/"><strong>FractalStack</strong></a> <em>Up to</em> <code>kMaxFractals</code> <em>fractals in a fixed-size block, the form GPU kernels receive.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1FreshAges/"><strong>FreshAges</strong></a> <em>Every crater is fresh: age and lifetime zero.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1FreshnessAges/"><strong>FreshnessAges</strong></a> <em>Ages from a freshness f in [0, 1] drawn per crater: age = (1 - f) * lifetime, with one lifetime for every diameter, so</em> <code>RemainingLifetime</code> <em>gives back f.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1FreshnessDegradation/"><strong>FreshnessDegradation</strong></a> <em>Scales fresh depth and rim height by e = c + (1 - c) *</em> <code>RemainingLifetime</code> <em>, with c making a crater at the end of its lifetime exactly</em><code>cutoffDepthRatio</code> <em>deep; a crater already shallower than that when fresh, such as a large basin, keeps its fresh shape.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1FunctionLayer/"><strong>FunctionLayer</strong></a> <em>A layer from a function of position, sample spacing and the height so far.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GeneratedGrid/"><strong>GeneratedGrid</strong></a> <em>What a configuration's outputs ask for over one grid, each computed once and shared by every output over the grid.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GeneratedOutputs/"><strong>GeneratedOutputs</strong></a> <em>What a configuration's outputs ask for: its terrain, what each grid they cover holds and the whole body's mesh.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GeoKeys/"><strong>GeoKeys</strong></a> <em>A GeoTIFF's projection as raw GeoKey tags, written back unchanged.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GeoTiff/"><strong>GeoTiff</strong></a> <em>A raster read from a GeoTIFF with the projection keys to write it back with.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1GeoTiffBlockReader/"><strong>GeoTiffBlockReader</strong></a> <em>One band of a GeoTIFF's first image read a block at a time from the file held open, a block being a tile or a strip spanning every column; blocks hold the samples</em> <code>ReadGeoTiff</code> <em>reads.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1GeoTiffError/"><strong>GeoTiffError</strong></a> <em>A GeoTIFF that cannot be read or written, with the reason.</em> </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GeoTiffInfo/"><strong>GeoTiffInfo</strong></a> <em>The layout and georeferencing of a GeoTIFF's first image.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1GeoTiffSource/"><strong>GeoTiffSource</strong></a> <em>Heights from one band of a GeoTIFF in a projected CRS, or in longitude and latitude (a geographic CRS) for a terrain on a body, served as a</em> <code>RasterSource</code> <em>serves its raster; samples take the band's scale and offset, or</em><code>scale</code> <em>and</em><code>offset</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GeoTiffSourceOptions/"><strong>GeoTiffSourceOptions</strong></a> <em>How a</em> <code>GeoTiffSource</code> <em>reads its band.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GeoTiffWriteOptions/"><strong>GeoTiffWriteOptions</strong></a> <em>Settings for</em> <code>WriteGeoTiff</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GeoTransform/"><strong>GeoTransform</strong></a> <em>Affine mapping from pixel to world coordinates, as GDAL's six-coefficient geotransform.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1GolombekRappSfd/"><strong>GolombekRappSfd</strong></a> <a href="../structterraingen_1_1Boulder/"><em><strong>Boulder</strong></em></a> <em>densities whose cumulative fractional area is F(D) = k exp(-q D), with q =</em><code>qa</code> <em>+</em><code>qb</code> <em>/ k per meter and k the fraction of ground the boulders cover (</em><code>coverage</code> <em>); N(&gt;=D) = (4 k q / pi) E2(q D) / D per m^2.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1GridReport/"><strong>GridReport</strong></a> <em>Statistics of one evaluated grid; heights and slopes are over cells with data, NaN without any.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Ground/"><strong>Ground</strong></a> <em>The terrain beneath a layer (its source and the layers before it), readable anywhere.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1HapkeParameters/"><strong>HapkeParameters</strong></a> <em>The Hapke (1993) parameters of a surface, as fitted to Pancam photometry.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1HasEnumNames/"><strong>HasEnumNames</strong></a> <em>Whether</em> <code>EnumNames &lt;E&gt;</code> <em>is defined with its</em><code>kValues</code> <em>.</em></li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1HasEnumNames_3_01E_00_01std_1_1void__t_3_01decltype_07EnumNames_3_01E_01_4_1_1kValues_08_4_01_4/"><strong>HasEnumNames&lt; E, std::void_t&lt; decltype(EnumNames&lt; E &gt;::kValues)&gt; &gt;</strong></a> </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1HasRangedFieldsTrait/"><strong>HasRangedFieldsTrait</strong></a> <em>Whether</em> <code>Fields(checker, value)</code> <em>is callable with a</em><code>RangeChecker</code> <em>.</em></li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1HasRangedFieldsTrait_3_01T_00_01std_1_1void__t_3_01decltype_07Fields_07std_13eb9f934e3c6219b89e428290946476e/"><strong>HasRangedFieldsTrait&lt; T, std::void_t&lt; decltype(Fields(std::declval&lt; RangeChecker &amp; &gt;(), std::declval&lt; T &amp; &gt;()))&gt; &gt;</strong></a> </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1IcqModel/"><strong>IcqModel</strong></a> <em>A shape model in Gaskell's implicitly connected quadrilateral (ICQ) format, in meters: one vertex per label (I, J, F) of the cube grid (</em> <code>RadialShape::LabelDirection</code> <em>), edge and corner vertices stored once per face as in the files.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1IdWords/"><strong>IdWords</strong></a> <em>A 64-bit ID as two 32-bit words, for keying</em> <code>RandomStream</code> <em>and</em><code>Philox4x32</code> <em>by it.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1InheritedCraters/"><strong>InheritedCraters</strong></a> <em>Craters a coarser level or a DEM catalog holds that the layer's source softens, stamped again sharp in place of what the source holds; generated craters they stand in for are dropped.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KernelAgeRow/"><strong>KernelAgeRow</strong></a> <em>The table row below a diffusion age and the weight of the row above it.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KernelCellSpan/"><strong>KernelCellSpan</strong></a> <em>The first and last cells of a band's row or column within one cell of position</em> <code>p</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KernelOffset/"><strong>KernelOffset</strong></a> <em>A point east and north of a crater's center, in meters, as the kernel reads it.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1KernelOutline/"><strong>KernelOutline</strong></a> <em>A crater's outline in the crater kernel's form, to read many points with.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KernelPeakSize/"><strong>KernelPeakSize</strong></a> <em>The height (m) and base radius (m) of a complex crater's fresh central peak.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KernelPeriodicCell/"><strong>KernelPeriodicCell</strong></a> <em>A periodic table's knot below an angle and the fraction of the way to the next.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KernelProfilePoint/"><strong>KernelProfilePoint</strong></a> <em>A profile's height (m) and its slope over the radius at a point.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KernelProgram/"><strong>KernelProgram</strong></a> <em>A kernel compiled at build time by</em> <code>terraingen_add_kernel</code> <em>, once per GPU backend.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KernelTableCell/"><strong>KernelTableCell</strong></a> <em>A table row's cell at a distance and the fraction of the way across it.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1KernelUpsampler/"><strong>KernelUpsampler</strong></a> <em>Interpolation of the posts with a kernel (</em> <code>ResampleMethod</code> <em>), at every spacing alike:</em><code>Cubic</code> <em>, the default, gives the same bits as</em><code>SampleRaster</code> <em>of the posts.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1KilometerPowerLaw/"><strong>KilometerPowerLaw</strong></a> <em>y =</em> <code>coefficient</code> <em>* D^</em><code>exponent</code> <em>with D and y in kilometers (km^3 for volumes), as morphometric relations are published.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1LatticePoint2/"><strong>LatticePoint2</strong></a> <em>A 2D point as its integer lattice cell and its fraction within the cell.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1LatticePoint3/"><strong>LatticePoint3</strong></a> <em>A 3D point as its integer lattice cell and its fraction within the cell.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Layer/"><strong>Layer</strong></a> <em>Relief added on top of a source: noise, craters, or a layer of your own.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1LayerContext/"><strong>LayerContext</strong></a> <em>How a layer or an albedo is evaluated: where, at what spacing, and on what terrain, as</em> <code>Ground::Context</code> <em>gives it.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1LayerExposure/"><strong>LayerExposure</strong></a> <em>The exposure field a layer may read, at a fixed ground spacing, on the surface it is read on; empty when the layer has none.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1LayerTiming/"><strong>LayerTiming</strong></a> <em>The time one layer took over every grid.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ListFieldTrait/"><strong>ListFieldTrait</strong></a> <em>Whether a field of type</em> <code>T</code> <em>is a list, or an optional list.</em></li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ListFieldTrait_3_01std_1_1array_3_01T_00_01N_01_4_01_4/"><strong>ListFieldTrait&lt; std::array&lt; T, N &gt; &gt;</strong></a> </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ListFieldTrait_3_01std_1_1optional_3_01T_01_4_01_4/"><strong>ListFieldTrait&lt; std::optional&lt; T &gt; &gt;</strong></a> </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ListFieldTrait_3_01std_1_1vector_3_01T_01_4_01_4/"><strong>ListFieldTrait&lt; std::vector&lt; T &gt; &gt;</strong></a> </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1LocalFrame/"><strong>LocalFrame</strong></a> <em>The east, north and up unit vectors at a surface point.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1LogPolynomialSfd/"><strong>LogPolynomialSfd</strong></a> <em>N(&gt;=D) = 10^P(x) /</em> <code>areaUnit</code> <em>with P(x) = sum_i a_i x^i and x = log10(D /</em><code>diameterUnit</code> <em>), the form of the Neukum et al.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1LogRecord/"><strong>LogRecord</strong></a> <em>One log message.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1LruCache/"><strong>LruCache</strong></a> <em>A thread-safe cache of recomputable values, holding about</em> <code>capacity</code> <em>units of cost and evicting the least recently used.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ManualBoulder/"><strong>ManualBoulder</strong></a> <em>A boulder placed by hand: its center and size, and any of its pose and shape fixed; unset fields are drawn as for generated boulders.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1MartinParkesDunstanProfile/"><strong>MartinParkesDunstanProfile</strong></a> <em>Simple-crater profile of Martin, Parkes and Dunstan (2014): bowl, inner rim, outer rim and ejecta polynomials joined continuously; degradation rounds the rim.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1MaskedLayer/"><strong>MaskedLayer</strong></a> <em>Another layer applied only inside a region, blended back to the unchanged height over</em> <code>feather</code> <em>meters outside it.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1MaterialOptions/"><strong>MaterialOptions</strong></a> <em>How a terrain's material map is made from its shape and layers.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1MaterialSource/"><strong>MaterialSource</strong></a> <em>A layer that lays a material over the surface beneath it, such as sand from dunes.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1MeshMaterial/"><strong>MeshMaterial</strong></a> <em>A mesh's material: a name and a diffuse color.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1MeshSize/"><strong>MeshSize</strong></a> <em>The number of vertices and triangles of a mesh.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1MidpointRoughness/"><strong>MidpointRoughness</strong></a> <em>The displacement scale and fractal dimension a raster's heights show.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1MinimumField/"><strong>MinimumField</strong></a> <em>The smaller of two fields at each point, the one that has a value where the other is NaN: a completeness limit that two limits give, such as a catalog's and a DEM's (</em> <code>SourceResolvedLimit</code> <em>).</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1MinimumSfd/"><strong>MinimumSfd</strong></a> <em>The pointwise minimum of distributions of one kind, such as the DSNE crater density: the lesser of the production surface and the equilibrium density at every diameter.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1NoDegradation/"><strong>NoDegradation</strong></a> <em>Every crater stays as</em> <code>fresh</code> <em>makes it, optionally with one depth/diameter ratio for all.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1NoiseLayer/"><strong>NoiseLayer</strong></a> <em>A stack of fractals added to the terrain, rolling relief on a flat source or detail on a DEM, measured from the context's</em> <code>ReferencePoint</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1NoiseLayerKernel/"><strong>NoiseLayerKernel</strong></a> <em>The enabled fractals of a noise layer, in order.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1NoiseLayerOptions/"><strong>NoiseLayerOptions</strong></a> <em>The noise a</em> <code>NoiseLayer</code> <em>adds: its stack of fractals and what of it a source already holds.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ObliqueImpacts/"><strong>ObliqueImpacts</strong></a> <em>How oblique impacts shape a crater's rays.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1PavementLayer/"><strong>PavementLayer</strong></a> <em>Fractured bedrock pavement added to the terrain: Voronoi plates, each flat with its own tilt and height step, parted by cracks (or ridges) with rounded shoulders, and split again by finer octaves of cracks that end at the cracks before them; each octave fades out where too fine for the spacing.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PavementOptions/"><strong>PavementOptions</strong></a> <em>The plates and cracks of a</em> <code>PavementLayer</code> <em>. Lengths are in meters, angles in degrees.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1PiecewisePowerLawSfd/"><strong>PiecewisePowerLawSfd</strong></a> <em>A cumulative distribution of power-law segments, each applying from its</em> <code>start</code> <em>to the next.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1PiecewiseUniformSfd/"><strong>PiecewiseUniformSfd</strong></a> <em>A distribution of diameter bands, each holding features per m^2 with diameters uniform across it; overlapping bands add.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PixelWindow/"><strong>PixelWindow</strong></a> <em>A block of a raster's cells: columns [</em> <code>colBegin</code> <em>,</em><code>colEnd</code> <em>) and rows [</em><code>rowBegin</code> <em>,</em><code>rowEnd</code> <em>).</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1PlanarCells/"><strong>PlanarCells</strong></a> <em>Square cells on a plane: cell (i, j) of side L covers [i L, (i + 1) L) x [j L, (j + 1) L).</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Plane/"><strong>Plane</strong></a> <em>The plane h =</em> <code>a</code> <em>+</em><code>b</code> <em>dx +</em><code>c</code> <em>dy, dx and dy in meters east and north of a reference point.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1PlaneFit/"><strong>PlaneFit</strong></a> <em>A least-squares plane h = a + b dx + c dy through points added one at a time.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1PostLattice/"><strong>PostLattice</strong></a> <em>The posts of a source: heights on a regular lattice, such as a DEM's cells or noise sampled at a fixed spacing.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PowerLawDiffusivity/"><strong>PowerLawDiffusivity</strong></a> <em>A diffusivity kappa =</em> <code>coefficient</code> <em>(D / 1 km)^</em><code>exponent</code> <em>m^2/Myr, held at its value at</em><code>minDiameter</code> <em>below it; usable as a</em><code>DiffusionAgeModel</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PowerLawSegment/"><strong>PowerLawSegment</strong></a> <em>A power law N(&gt;=D) =</em> <code>coefficient</code> <em>* D^(-</em><code>exponent</code> <em>) from</em><code>start</code> <em>meters, alone or as one segment of a</em><code>PiecewisePowerLawSfd</code> <em>.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1PowerLawSfd/"><strong>PowerLawSfd</strong></a> <em>N(&gt;=D) =</em> <code>coefficient</code> <em>* D^(-</em><code>exponent</code> <em>), with D in meters and N per m^2 (or per m^2 per Gyr).</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PowerLawSpectrum/"><strong>PowerLawSpectrum</strong></a> <em>A power-law spectrum P(f) = C f^-beta, by its slope and the RMS height it holds in the octave of wavelengths just finer than the base's Nyquist wavelength.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PreparedCrater/"><strong>PreparedCrater</strong></a> <em>A crater ready to shape at one sample spacing.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PreparedReuse/"><strong>PreparedReuse</strong></a> <em>Whose outlines and states</em> <code>PrepareCraters</code> <em>may reuse from those a thread prepared before: an</em><code>EvaluationCache::Id</code> <em>and the layer that owns the craters; a zero</em><code>cache</code> <em>reuses nothing.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ProductionSurface/"><strong>ProductionSurface</strong></a> <em>The cumulative crater density on a surface of a given age: a production function scaled so that N(&gt;=1 km) follows a chronology, N(D, T) = Phi(D) * N1(T) / Phi(1 km).</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RadialShape/"><strong>RadialShape</strong></a> <em>The radius of a star-shaped body along each direction: the radius at every label of Gaskell's ICQ grid (</em> <code>LabelDirection</code> <em>), interpolated bilinearly in equiangular coordinates within each quadrilateral, so it is continuous and stays within the range of the label radii.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RandomStream/"><strong>RandomStream</strong></a> <em>A counter-based stream of random numbers built on</em> <code>Philox4x32</code> <em>.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RangeChecker/"><strong>RangeChecker</strong></a> <em>Walks the fields of one struct at</em> <code>path</code> <em>, checking each against its range.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Raster/"><strong>Raster</strong></a> <em>A single-band, georeferenced grid of values stored row-major, in cells of its own or in a caller's buffer it borrows.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RasterAlbedo/"><strong>RasterAlbedo</strong></a> <em>An albedo map, such as a normal albedo mosaic from orbit, upscaled to the grid: interpolated with</em> <code>method</code> <em>(</em><code>SampleRaster</code> <em>), then given sub-cell detail (</em><code>AlbedoDetail</code> <em>).</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RasterAlbedoOptions/"><strong>RasterAlbedoOptions</strong></a> <em>How a</em> <code>RasterAlbedo</code> <em>interpolates its map and adds detail.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RasterField/"><strong>RasterField</strong></a> <em>A field interpolated from a raster in the surface's coordinates.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RasterFieldOptions/"><strong>RasterFieldOptions</strong></a> <em>How a</em> <code>RasterField</code> <em>reads its raster.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RasterGrid/"><strong>RasterGrid</strong></a> <em>A grid of cells without values: its size and pixel-to-world transform.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RasterPlacement/"><strong>RasterPlacement</strong></a> <em>Where a raster that is a window of a larger one, such as a window read from a file, lies in it.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RasterPosts/"><strong>RasterPosts</strong></a> <em>The posts of a raster that is a window of a larger lattice, such as a window read from a file: posts beyond the larger lattice repeat its edge, and those beyond the window its edge, so reads within the window give the same values as the whole.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RasterSource/"><strong>RasterSource</strong></a> <em>Heights from a raster held in memory, in a projected CRS or the surface's coordinates.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RasterSourceOptions/"><strong>RasterSourceOptions</strong></a> <em>How a</em> <code>RasterSource</code> <em>reads its raster.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RasterStats/"><strong>RasterStats</strong></a> <em>Summary statistics of a raster's valid cells.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RayDirection/"><strong>RayDirection</strong></a> <em>One ray of a crater.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RayLayout/"><strong>RayLayout</strong></a> <em>How many rays a crater has and how wide they are, after Elliott et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RayRetention/"><strong>RayRetention</strong></a> <em>How long a crater keeps its immature, bright material, by diameter, after Werner and Medvedev (2010):</em> <code>smallMyr</code> <em>up to</em><code>smallDiameter</code> <em>, a power law of diameter up to</em><code>midDiameter</code> <em>,</em><code>midMyr</code> <em>up to</em><code>largeDiameter</code> <em>and</em><code>largeMyr</code> <em>beyond, every time multiplied by</em><code>scale</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ReflectanceZone/"><strong>ReflectanceZone</strong></a> <em>One reflectance zone around new small craters: a share of craters has it, it changes the reflectance relative to the pre-impact surface by</em> <code>change</code> <em>, and it reaches</em><code>coefficient</code> <em>D^</em><code>exponent</code> <em>meters from the center times</em><code>scale</code> <em>, both drawn per crater, with a ragged edge of fingers pulled in by up to</em><code>raggedness</code> <em>of the reach, lasting</em><code>retentionMyr</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RegionShape/"><strong>RegionShape</strong></a> <em>An area of the surface: a rectangle, a circle or a polygon.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ResolutionFade/"><strong>ResolutionFade</strong></a> <em>How features too small to resolve at the sample spacing fade out, by the samples across their diameter.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RigidTransform/"><strong>RigidTransform</strong></a> <em>A rotation followed by a translation.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RimSmoothing/"><strong>RimSmoothing</strong></a> <em>How crater rims are rounded: near the rim, the profile is blended toward itself smoothed across distance by a Gaussian, with full weight at the rim fading to none at the band's edges.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RockAlbedo/"><strong>RockAlbedo</strong></a> <em>The albedo brightened by the rock of boulder layers: each band times 1 +</em> <code>share</code> <em>(</em><code>reflectanceRatio</code> <em>- 1), for the share of each sample rock covers over every layer.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RockAlbedoOptions/"><strong>RockAlbedoOptions</strong></a> <em>How rocks, brighter than mature regolith (Holt 1981; Clark et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RockSource/"><strong>RockSource</strong></a> <em>A boulder layer whose rock brightens the albedo, and the ground beneath it.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1RoughnessLayer/"><strong>RoughnessLayer</strong></a> <em>Fine roughness: octaves of Perlin noise from</em> <code>maxWavelength</code> <em>to</em><code>minWavelength</code> <em>, amplitudes growing as wavelength^H and scaled to</em><code>rmsSlope</code> <em>over</em><code>baseline</code> <em>; unresolved octaves fade.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RoughnessOptions/"><strong>RoughnessOptions</strong></a> <em>The roughness a</em> <code>RoughnessLayer</code> <em>adds: RMS slope over a baseline and Hurst exponent, as Shepard et al.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SampleBlock/"><strong>SampleBlock</strong></a> <em>Heights and where they are: every cell of a raster, sampled at its center, or a list of scattered points such as wheel contacts.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SandFillLayer/"><strong>SandFillLayer</strong></a> <em>Sand pooled in the lows of the ground beneath it, filling</em> <code>fill</code> <em>of the depth below the mean height on two rings, up to</em><code>maxThickness</code> <em>; it lays sand over the material map.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SandFillOptions/"><strong>SandFillOptions</strong></a> <em>How much sand a</em> <code>SandFillLayer</code> <em>pools, and where.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SandShadowLayer/"><strong>SandShadowLayer</strong></a> <em>Sand shadows: a pyramidal sand tail in the lee of each boulder of a boulder layer, as wide as the boulder and</em> <code>lengthRatio</code> <em>widths long (Hesp 1981); place it after the boulder layer.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SandShadowOptions/"><strong>SandShadowOptions</strong></a> <em>The sand shadows a</em> <code>SandShadowLayer</code> <em>lays behind boulders. Angles are in degrees.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ScaleLayer/"><strong>ScaleLayer</strong></a> <em>Scales and shifts the heights so far: height *</em> <code>scale</code> <em>+</em><code>offset</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SceneMesh/"><strong>SceneMesh</strong></a> <em>A mesh with optional normals and its material.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SceneNode/"><strong>SceneNode</strong></a> <em>An instance of a scene mesh: its vertices scaled per axis by</em> <code>scale</code> <em>, then moved by</em><code>pose</code> <em>, as glTF composes a node's scale, rotation and translation.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SecondaryCraterLayer/"><strong>SecondaryCraterLayer</strong></a> <em>Secondary craters around the craters of a</em> <code>CraterLayer</code> <em>, applied additively with</em><code>ApplyCraters</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SecondaryCraterOptions/"><strong>SecondaryCraterOptions</strong></a> <em>Which primaries throw secondaries, how many, and over what sizes.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SecondaryDensity/"><strong>SecondaryDensity</strong></a> <em>The density of the secondaries one primary throws, on average, as</em> <code>SecondaryCraterLayer</code> <em>draws them: rings of n(R) (d / (</em><code>countFraction</code> <em>D))^-</em><code>sizeSlope</code> <em>below the largest secondary at each range, gathered into rays when they are on.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SecondaryOutline/"><strong>SecondaryOutline</strong></a> <em>The ellipse an elongated secondary is stretched to.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SecondaryRayField/"><strong>SecondaryRayField</strong></a> <em>Where a primary's secondaries gather: its rays and the clumps along them, as a density over the even spread's.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SecondaryRays/"><strong>SecondaryRays</strong></a> <em>Secondaries gathered into their primary's rays and clumped along them (Singer et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SecondaryShapes/"><strong>SecondaryShapes</strong></a> <em>Secondaries stretched toward their primary, elliptical along the line back to it and rounder with range, as distant secondaries are (Singer et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SelectionKeys/"><strong>SelectionKeys</strong></a> <em>The keys of a crater selection's fields.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SfdJoins/"><strong>SfdJoins</strong></a> <em>How the pieces of a distribution must meet at their joins.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SfdPiece/"><strong>SfdPiece</strong></a> <em>One piece of a</em> <code>SplicedSfd</code> <em>:</em><code>distribution</code> <em>applies from</em><code>start</code> <em>meters up to the next piece's start.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ShadedMesh/"><strong>ShadedMesh</strong></a> <em>A mesh with per-vertex normals, its vertices split along creases so fracture faces keep hard edges while noisy surfaces stay smooth.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ShapeModelSource/"><strong>ShapeModelSource</strong></a> <em>The heights a shape model's labels give when an upsampler refines them, over the body made from it (</em> <code>Surface::ShapeModel</code> <em>), whose radius interpolates the same labels bilinearly.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SizeFrequencyDistribution/"><strong>SizeFrequencyDistribution</strong></a> <em>A cumulative size-frequency distribution N(&gt;=D) of craters or boulders.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SizeSlopeMap/"><strong>SizeSlopeMap</strong></a> <em>A map of how steeply feature counts fall with size, such as a mean boulder diameter map.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SlopeAlbedo/"><strong>SlopeAlbedo</strong></a> <em>The albedo of steep ground moved toward fresher material: slopes are read on the ground at the nodes of a lattice</em> <code>baseline</code> <em>meters apart, fixed to the surface, and interpolated between them, so grids, tiles and points agree.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SlopeAlbedoOptions/"><strong>SlopeAlbedoOptions</strong></a> <em>How steep ground stays immature as regolith moves downslope (Ikeda et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SlopeStats/"><strong>SlopeStats</strong></a> <em>Slope statistics of a raster of heights, in degrees.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Source/"><strong>Source</strong></a> <em>Where a terrain's heights come from: a DEM, synthetic noise, or your own.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SourceChain/"><strong>SourceChain</strong></a> <em>Sources tried in order, each filling where those before it have no data, such as a site DEM over a regional one or a DEM over a flat datum.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Span/"><strong>Span</strong></a> <em>A view of</em> <code>size()</code> <em>contiguous</em><code>T</code> <em>s owned elsewhere;</em><code>T</code> <em>may be const.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SpecName/"><strong>SpecName</strong></a> <em>The "type" of the variant alternative</em> <code>Spec</code> <em>(</em><code>kName</code> <em>) and what it is (</em><code>kDescription</code> <em>).</em></li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SpectralContinuationLayer/"><strong>SpectralContinuationLayer</strong></a> <em>Detail finer than a base DEM that continues its power-law spectrum with random phases (Saupe 1988), as sparse Gabor noise (Lagae et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SpectralContinuationOptions/"><strong>SpectralContinuationOptions</strong></a> <em>The spectrum a</em> <code>SpectralContinuationLayer</code> <em>continues and the wavelengths it adds.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SpectrumFitBand/"><strong>SpectrumFitBand</strong></a> <em>The wavelengths, in pixels of the base, over which its spectrum is fitted.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SplicedSfd/"><strong>SplicedSfd</strong></a> <em>A cumulative distribution made of other distributions over consecutive diameter intervals, such as a production function extended below its fitted range by a power law.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SplitPoint/"><strong>SplitPoint</strong></a> <em>A sample's coordinates (m), each a float and the float of its remainder (</em> <code>SplitDifference</code> <em>): east and north on a plane, or its position (</em><code>Surface::Position</code> <em>) on a body.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Splotch/"><strong>Splotch</strong></a> <em>One splotch.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SplotchAlbedo/"><strong>SplotchAlbedo</strong></a> <em>The splotches of</em> <code>SplotchAlbedoOptions</code> <em>on the context's surface, darkening and brightening the albedo; the same in any grid, tile or point.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SplotchAlbedoOptions/"><strong>SplotchAlbedoOptions</strong></a> <em>Splotches after Speyerer et al.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SplotchSwarms/"><strong>SplotchSwarms</strong></a> <em>Swarms of splotches thrown by new craters, the low-velocity secondaries of their ejecta (Robinson et al.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SteadyStateAges/"><strong>SteadyStateAges</strong></a> <em>Ages of craters on a surface</em> <code>ageGyr</code> <em>old where small craters are in equilibrium.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Stopwatch/"><strong>Stopwatch</strong></a> <em>Measures elapsed wall-clock time from construction, for timing log messages.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1StrataLayer/"><strong>StrataLayer</strong></a> <em>Layered rock: the ground beneath terraced into dipping beds, each a bench below a cliff, so hills become buttes and mesas; it lays bedrock over the material map on the cliffs.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1StrataOptions/"><strong>StrataOptions</strong></a> <em>The beds a</em> <code>StrataLayer</code> <em>cuts. Lengths are in meters, angles in degrees.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SummedSfd/"><strong>SummedSfd</strong></a> <em>The sum of weighted distributions of one kind, N(&gt;=D) = sum of weight * N_i(&gt;=D), such as boulders between craters plus the blocks thrown out by them.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Surface/"><strong>Surface</strong></a> <em>The plane or body a terrain lies on, measuring distances and directions between surface coordinates: meters on a plane, planetocentric longitude and latitude in degrees on a body.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SurfaceCells/"><strong>SurfaceCells</strong></a> <em>Partitions a surface into cells so features can be generated per cell, each from its own random substream, identically however a region is tiled.</em>     <ul>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SurfaceCells_1_1Sampling/"><strong>Sampling</strong></a> <em>How to place features in a cell uniformly by area: draw a Poisson count over</em> <code>area</code> <em>m^2, place each at</em><code>SamplePoint</code> <em>, and keep it with chance</em><code>Weight(point) / bound</code> <em>when</em><code>bound</code> <em>is positive.</em>    </li>
+</ul>
+</li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SurfaceField/"><strong>SurfaceField</strong></a> <em>A scalar quantity over a surface, read at surface coordinates: meters on a plane, longitude and latitude in degrees on a sphere.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SyntheticAlbedo/"><strong>SyntheticAlbedo</strong></a> <em>An albedo for terrain without data: a base color with noise in each channel, the saturation and value clamped to [0, 1] after it.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SyntheticAlbedoOptions/"><strong>SyntheticAlbedoOptions</strong></a> <em>The color of a</em> <code>SyntheticAlbedo</code> <em>: a base color in hue, saturation and value, each varied by a stack of fractals (</em><code>EvaluateFractals</code> <em>, with amplitudes in the channel's units).</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SyntheticSource/"><strong>SyntheticSource</strong></a> <em>Heights generated rather than loaded:</em> <code>elevation</code> <em>plus a stack of fractals (</em><code>FractalStackAt</code> <em>, measured from the origin on a plane, in 3D on a body), with no bounds.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1TabulatedSfd/"><strong>TabulatedSfd</strong></a> <em>A cumulative distribution given as a table of (D, N(&gt;=D)) points, interpolated linearly in log D and log N, so each interval is a power law.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Terrain/"><strong>Terrain</strong></a> <em>A surface, a source (0 m without one) and layers applied in order.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1TerrainBase/"><strong>TerrainBase</strong></a> <em>The surface and source, the same as their</em> <code>Terrain</code> <em>'s, that crater, secondary crater and boulder layers derive their cells, caches and completeness from when built.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1TerrainGenConfig/"><strong>TerrainGenConfig</strong></a> <em>A terrain configuration: the body, source, layers, outputs, albedo and materials its JSON describes (</em> <code>ParseConfig</code> <em>,</em><code>LoadConfig</code> <em>), held as an immutable value that is cheap to copy.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1TerrainReport/"><strong>TerrainReport</strong></a> <em>A generated terrain's report: its grids' statistics, layer timings and how it was run.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1TerrainView/"><strong>TerrainView</strong></a> <em>The heights of a terrain over one grid, for loops that edit the terrain and evaluate it again.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1TriangleMesh/"><strong>TriangleMesh</strong></a> <em>A triangle mesh of shared vertices; triangles are counter-clockwise seen from outside.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1U32x2/"><strong>U32x2</strong></a> <em>Two 32-bit words: a Philox key.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1U32x4/"><strong>U32x4</strong></a> <em>Four 32-bit words: a Philox counter or output block.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1UVec3/"><strong>UVec3</strong></a> <em>Three 32-bit words.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1UniformAges/"><strong>UniformAges</strong></a> <em>Ages uniform over one lifetime for every diameter, so freshness is uniform in [0, 1].</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1UniformBand/"><strong>UniformBand</strong></a> <em>One band of a piecewise uniform distribution:</em> <code>density</code> <em>features with diameters spread uniformly over [</em><code>min</code> <em>,</em><code>max</code> <em>) meters.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1UnresolvedCover/"><strong>UnresolvedCover</strong></a> <em>The share of a sample's area covered by boulders too small to resolve in it.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1Upsampler/"><strong>Upsampler</strong></a> <em>How a source's posts become heights at any point and at any sample spacing in the posts' units: interpolation, or refinement that adds detail as the spacing shrinks.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ValueDistribution/"><strong>ValueDistribution</strong></a> <em>A distribution a parameter is drawn from, clamped to [</em> <code>min</code> <em>,</em><code>max</code> <em>].</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ValueRange/"><strong>ValueRange</strong></a> <em>An interval to draw a value uniformly from.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Vec2d/"><strong>Vec2d</strong></a> <em>A 2D point or offset in double precision.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1Vec3d/"><strong>Vec3d</strong></a> <em>A 3D point or vector in double precision.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1WarpOffset2/"><strong>WarpOffset2</strong></a> <em>A 2D domain warp offset.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1WarpOffset3/"><strong>WarpOffset3</strong></a> <em>A 3D domain warp offset.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1WeightedSfd/"><strong>WeightedSfd</strong></a> <em>One term of a</em> <code>SummedSfd</code> <em>:</em><code>distribution</code> <em>scaled by</em><code>weight</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1WorleyDistances/"><strong>WorleyDistances</strong></a> <em>Distances from a point to its nearest and second-nearest feature points, and the random value of the nearest point's Voronoi cell.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1ZoneShadows/"><strong>ZoneShadows</strong></a> <em>Topographic shadows in the distal reflectance zones (Speyerer et al.</em>     </li>
+<li><strong>namespace</strong> <a href="../namespaceterraingen_1_1detail/"><strong>detail</strong></a>     <ul>
+<li><strong>struct</strong> <a href="../structterraingen_1_1detail_1_1FractalSums/"><strong>FractalSums</strong></a> <em>The running sums of a fractal over its octaves.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1detail_1_1IsSpanContainer/"><strong>IsSpanContainer</strong></a> <em>Whether</em> <code>C</code> <em>is a contiguous container whose</em><code>data()</code> <em>points to elements convertible to</em><code>T</code> <em>.</em></li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1detail_1_1IsSpanContainer_3_01T_00_01C_00_01std_1_1void__t_3_01decltype_07st8a8a134e58817aff15404a0cdd5fa2a5/"><strong>IsSpanContainer&lt; T, C, std::void_t&lt; decltype(std::data(std::declval&lt; C &amp; &gt;())), decltype(std::size(std::declval&lt; C &amp; &gt;()))&gt; &gt;</strong></a> </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1detail_1_1NoiseStack/"><strong>NoiseStack</strong></a> <em>The height of a stack of fractals so far.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1detail_1_1RasterHeightsSource/"><strong>RasterHeightsSource</strong></a> <em>A source serving the upsampled heights of a window of a lattice: what</em> <code>RasterSource</code> <em>and</em><code>GeoTiffSource</code> <em>share.</em>    </li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BandBuckets_1_1Band/"><strong>Band</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BandBuckets_1_1BucketHash/"><strong>BucketHash</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BedformLayer_1_1FieldSum/"><strong>FieldSum</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderLayer_1_1BedrockCell/"><strong>BedrockCell</strong></a> <em>A cell of the lattice bedrock means are taken over, on one ground.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderLayer_1_1BedrockCellHash/"><strong>BedrockCellHash</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderLayer_1_1BreakStage/"><strong>BreakStage</strong></a> <em>How far a breaking boulder has come apart: its cracks' opening, 0 to 1 from</em> <code>splitWear</code> <em>to</em><code>rubbleWear</code> <em>, and its pieces' scatter, 0 to 1 beyond.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderLayer_1_1PieceFrame/"><strong>PieceFrame</strong></a> <em>What every piece of a breaking boulder shares: its parent's shape placed at the origin on level ground, its stage and the shape's short axis.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderLayer_1_1Relief/"><strong>Relief</strong></a> <em>A boulder drawn into the heights: its weight at the spacing, whether its rock is drawn or only its fillet, its shape placed on level ground (for</em> <code>BoulderRelief::Shape</code> <em>) and the box its relief covers.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderLayer_1_1ThinnedCandidate/"><strong>ThinnedCandidate</strong></a> <em>A candidate thinning keeps, with what it was kept by.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1BoulderLayer_1_1UnresolvedNode/"><strong>UnresolvedNode</strong></a> <em>A diameter</em> <code>UnresolvedCoverAt</code> <em>integrates over, its plan area, and its quadrature weight times the share of it left unresolved.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1CraterLayer_1_1BandCount/"><strong>BandCount</strong></a> <em>A band's expected craters per square meter at the density of</em> <code>m_candidates</code> <em>.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DiffusedProfile_1_1Key/"><strong>Key</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DiffusedProfile_1_1KeyHash/"><strong>KeyHash</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1DiffusedProfile_1_1Table/"><strong>Table</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EvaluationCache_1_1Holder/"><strong>Holder</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EvaluationCache_1_1Key/"><strong>Key</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1EvaluationCache_1_1KeyHash/"><strong>KeyHash</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1LruCache_1_1Entry/"><strong>Entry</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1LruCache_1_1Shard/"><strong>Shard</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PavementLayer_1_1Level/"><strong>Level</strong></a> <em>One crack octave: its plate size, crack and plate relief, and seed.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1PavementLayer_1_1Plate/"><strong>Plate</strong></a> <em>The plate of one octave containing planar point</em> <code>q</code> <em>: its relief, how far it lies inside the plate rather than in its crack (0 on an edge, 1 past the shoulder), and an id that seeds the finer octave's plates within it.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1RoughnessLayer_1_1Octave/"><strong>Octave</strong></a>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SandShadowLayer_1_1Shadow/"><strong>Shadow</strong></a> <em>One boulder's shadow, ready to draw.</em>     </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1ShapeModelSource_1_1FacePosts/"><strong>FacePosts</strong></a> <em>One ICQ face's labels as posts, less the reference radius, numbered from</em> <code>face</code> <em>times</em><code>kFaceColumns</code> <em>columns.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1SpectralContinuationLayer_1_1Band/"><strong>Band</strong></a> <em>One octave band of impulses.</em>     </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1StrataLayer_1_1Bed/"><strong>Bed</strong></a> <em>The bed holding stratigraphic level</em> <code>level</code> <em>: its bottom and top levels.</em>    </li>
+<li><strong>class</strong> <a href="../classterraingen_1_1SyntheticSource_1_1NoisePosts/"><strong>NoisePosts</strong></a> <em>The posts: the noise sampled</em> <code>pixelSize</code> <em>apart.</em>    </li>
+<li><strong>struct</strong> <a href="../structterraingen_1_1detail_1_1ExponentialChronology/"><strong>ExponentialChronology</strong></a> <em>A chronology N1(T) =</em> <code>burst</code> <em>(e^(</em><code>decay</code> <em>T) - 1) +</em><code>linear</code> <em>T per km^2, the form of Neukum's (lunar) and Ivanov's (Martian): craters at least 1 km across on a surface T Gyr old.</em>    </li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "search.highlight", "search.suggest", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "content.tooltips", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../js/katex.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js"></script>
+      
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/contrib/auto-render.min.js"></script>
+      
+    
+  <script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": true, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(() => { lightbox.reload() });
+</script></body>
+</html>

@@ -1,0 +1,521 @@
+/* TerrainGen's documentation theme: minimal and grayscale, flat matte surfaces and hairline rules. */
+
+/* ---- Colors ------------------------------------------------------------------------------ */
+
+[data-md-color-scheme="default"] {
+    --md-default-bg-color: #fbfbfa;
+    --md-default-fg-color: #1d1d1d;
+    --md-default-fg-color--light: #5c5c5c;
+    --md-default-fg-color--lighter: #8a8a8a;
+    --md-default-fg-color--lightest: #e4e4e2;
+    --md-primary-fg-color: #f3f3f1;
+    --md-primary-fg-color--light: #f7f7f5;
+    --md-primary-fg-color--dark: #e9e9e7;
+    --md-primary-bg-color: #1d1d1d;
+    --md-primary-bg-color--light: #5c5c5c;
+    --md-accent-fg-color: #1d1d1d;
+    --md-accent-fg-color--transparent: rgba(29, 29, 29, 0.06);
+    --md-typeset-a-color: #1d1d1d;
+    --md-code-bg-color: #f1f1ef;
+    --md-code-fg-color: #2b2b2b;
+    --md-footer-bg-color: #f3f3f1;
+    --md-footer-bg-color--dark: #ececea;
+    --md-footer-fg-color: #1d1d1d;
+    --md-footer-fg-color--light: #5c5c5c;
+    --md-footer-fg-color--lighter: #8a8a8a;
+    --tg-rule: #dcdcda;
+    --tg-rule-strong: #b5b5b3;
+    --tg-surface: #f6f6f4;
+}
+
+[data-md-color-scheme="slate"] {
+    --md-hue: 0;
+    --md-default-bg-color: #151515;
+    --md-default-fg-color: #dadada;
+    --md-default-fg-color--light: #a3a3a3;
+    --md-default-fg-color--lighter: #737373;
+    --md-default-fg-color--lightest: #2a2a2a;
+    --md-primary-fg-color: #1b1b1b;
+    --md-primary-fg-color--light: #222222;
+    --md-primary-fg-color--dark: #121212;
+    --md-primary-bg-color: #dadada;
+    --md-primary-bg-color--light: #a3a3a3;
+    --md-accent-fg-color: #ffffff;
+    --md-accent-fg-color--transparent: rgba(255, 255, 255, 0.06);
+    --md-typeset-a-color: #e6e6e6;
+    --md-code-bg-color: #1e1e1e;
+    --md-code-fg-color: #d0d0d0;
+    --md-footer-bg-color: #1b1b1b;
+    --md-footer-bg-color--dark: #121212;
+    --md-footer-fg-color: #dadada;
+    --md-footer-fg-color--light: #a3a3a3;
+    --md-footer-fg-color--lighter: #737373;
+    --tg-rule: #2c2c2c;
+    --tg-rule-strong: #4a4a4a;
+    --tg-surface: #1a1a1a;
+}
+
+/* Grayscale code: weight and shade instead of color. */
+.md-typeset .highlight,
+.md-typeset .doc-signature {
+    --md-code-hl-keyword-color: var(--md-default-fg-color);
+    --md-code-hl-name-color: var(--md-code-fg-color);
+    --md-code-hl-function-color: var(--md-code-fg-color);
+    --md-code-hl-string-color: var(--md-default-fg-color--light);
+    --md-code-hl-number-color: var(--md-default-fg-color--light);
+    --md-code-hl-constant-color: var(--md-default-fg-color--light);
+    --md-code-hl-special-color: var(--md-default-fg-color--light);
+    --md-code-hl-operator-color: var(--md-default-fg-color--light);
+    --md-code-hl-punctuation-color: var(--md-default-fg-color--lighter);
+    --md-code-hl-comment-color: var(--md-default-fg-color--lighter);
+    --md-code-hl-generic-color: var(--md-default-fg-color--light);
+    --md-code-hl-variable-color: var(--md-code-fg-color);
+}
+
+.md-typeset .highlight .k,
+.md-typeset .highlight .kn,
+.md-typeset .highlight .kd,
+.md-typeset .highlight .kt {
+    font-weight: 600;
+}
+
+.md-typeset .highlight .c,
+.md-typeset .highlight .c1,
+.md-typeset .highlight .cm {
+    font-style: italic;
+}
+
+/* ---- Header and navigation ---------------------------------------------------------------- */
+
+.md-header {
+    box-shadow: none;
+    border-bottom: 1px solid var(--tg-rule);
+}
+
+/* One row: the name, the sections, then the palette toggle, search and repository. */
+.md-header__inner {
+    align-items: center;
+}
+
+[dir="ltr"] .md-header__title.tg-header__name,
+.md-header__title.tg-header__name {
+    flex-grow: 0;
+    flex-shrink: 0;
+    margin: 0 1rem 0 0.6rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--md-default-fg-color);
+    line-height: 2.4rem;
+}
+
+.tg-header__sections {
+    display: flex;
+    flex-grow: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.tg-header__sections .md-tabs__item {
+    height: auto;
+    padding: 0 0.45rem;
+}
+
+.tg-header__sections .md-tabs__link {
+    display: block;
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 2.4rem;
+    opacity: 1;
+    color: var(--md-default-fg-color--light);
+}
+
+.tg-header__sections .md-tabs__item--active .md-tabs__link,
+.tg-header__sections .md-tabs__link:hover {
+    color: var(--md-default-fg-color);
+}
+
+.tg-header__sections .md-tabs__item--active .md-tabs__link {
+    text-decoration: underline;
+    text-underline-offset: 0.45em;
+    text-decoration-thickness: 1px;
+}
+
+/* On narrow screens the drawer lists the sections. */
+@media screen and (max-width: 76.1875em) {
+    .tg-header__sections {
+        display: none;
+    }
+
+    [dir="ltr"] .md-header__title.tg-header__name,
+    .md-header__title.tg-header__name {
+        flex-grow: 1;
+    }
+}
+
+/* No logo or repository icon: the name alone. */
+.md-header__button.md-logo,
+.md-nav__button.md-logo,
+.md-source__icon {
+    display: none;
+}
+
+.md-source__repository {
+    margin-left: 0;
+}
+
+.md-search__form {
+    background-color: var(--md-default-bg-color);
+    border: 1px solid var(--tg-rule);
+    box-shadow: none;
+}
+
+.md-nav__link--active {
+    font-weight: 600;
+}
+
+/* ---- Typography --------------------------------------------------------------------------- */
+
+.md-typeset {
+    font-size: 0.78rem;
+    line-height: 1.65;
+}
+
+.md-typeset h1 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--md-default-fg-color);
+    margin-bottom: 0.8em;
+}
+
+.md-typeset h2 {
+    font-weight: 600;
+    margin-top: 2.2em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--tg-rule);
+}
+
+.md-typeset h3 {
+    font-weight: 600;
+}
+
+.md-typeset h1 + p {
+    color: var(--md-default-fg-color--light);
+    max-width: 46em;
+}
+
+.md-typeset a {
+    text-decoration: underline;
+    text-decoration-color: var(--tg-rule-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+}
+
+.md-typeset a:hover {
+    color: var(--md-default-fg-color);
+    text-decoration-color: currentColor;
+}
+
+.md-typeset .headerlink,
+.md-typeset .md-button,
+.md-typeset .doc-heading a {
+    text-decoration: none;
+}
+
+.md-typeset code {
+    border-radius: 2px;
+}
+
+.md-typeset pre > code {
+    border-radius: 2px;
+    border: 1px solid var(--tg-rule);
+}
+
+.md-typeset table:not([class]) {
+    border: 1px solid var(--tg-rule);
+    border-radius: 2px;
+    box-shadow: none;
+    font-size: 0.72rem;
+}
+
+.md-typeset table:not([class]) th {
+    background: var(--tg-surface);
+    font-weight: 600;
+}
+
+.md-typeset table:not([class]) td {
+    border-top-color: var(--tg-rule);
+}
+
+/* Code in a table wraps between words, never inside one, and a row's key stays on one line. */
+.md-typeset table:not([class]) code {
+    word-break: normal;
+}
+
+.md-typeset table:not([class]) td:first-child code {
+    white-space: nowrap;
+}
+
+/* Configuration fields: a key, a line of its type, default, range and unit, then its description. */
+.md-typeset dt:has(+ dd > .tg-field__facts) {
+    margin-top: 1.4em;
+    padding-top: 1em;
+    border-top: 1px solid var(--tg-rule);
+}
+
+.md-typeset dt:has(+ dd > .tg-field__facts) code {
+    font-weight: 600;
+}
+
+.md-typeset dd:has(> .tg-field__facts) {
+    margin-left: 0;
+}
+
+.md-typeset .tg-field__facts {
+    margin: 0.3em 0 0.4em;
+    font-size: 0.68rem;
+    color: var(--md-default-fg-color--light);
+}
+
+.md-typeset .tabbed-labels > label {
+    font-weight: 500;
+}
+
+.md-typeset .tabbed-set > input:checked + label,
+.md-typeset .tabbed-labels > label:hover {
+    color: var(--md-default-fg-color);
+}
+
+.md-typeset .tabbed-labels::before {
+    background: var(--md-default-fg-color);
+    height: 1px;
+}
+
+/* ---- Buttons ------------------------------------------------------------------------------ */
+
+.md-typeset .md-button {
+    border-radius: 2px;
+    border: 1px solid var(--tg-rule-strong);
+    color: var(--md-default-fg-color);
+    background: transparent;
+    padding: 0.45em 1.2em;
+    font-weight: 500;
+    transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.md-typeset .md-button:hover,
+.md-typeset .md-button:focus {
+    border-color: var(--md-default-fg-color);
+    background-color: var(--md-accent-fg-color--transparent);
+    color: var(--md-default-fg-color);
+}
+
+.md-typeset .md-button--primary {
+    background-color: var(--md-default-fg-color);
+    border-color: var(--md-default-fg-color);
+    color: var(--md-default-bg-color);
+}
+
+.md-typeset .md-button--primary:hover {
+    background-color: var(--md-default-fg-color--light);
+    border-color: var(--md-default-fg-color--light);
+    color: var(--md-default-bg-color);
+}
+
+/* ---- Home page ---------------------------------------------------------------------------- */
+
+/* The home page's sidebar lists every section, where other pages list only their own. */
+.md-main__inner:has(.tg-home) .md-nav--lifted > .md-nav__list > .md-nav__item {
+    display: block;
+}
+
+.md-main__inner:has(.tg-home) .md-nav--lifted > .md-nav__list::before {
+    content: "Table of contents";
+    display: block;
+    padding: 0;
+    margin-bottom: 0.4rem;
+    font-weight: 700;
+    color: var(--md-default-fg-color--light);
+}
+
+.md-main__inner:has(.tg-home) .md-nav--lifted .md-nav[data-md-level] > .md-nav__list {
+    margin-left: 0.8rem;
+}
+
+/* The home page's buttons, centered under its lead. */
+.md-typeset .tg-actions {
+    text-align: center;
+}
+
+/* The hero shot: the full width of the page, its caption small beneath it. */
+.md-typeset .tg-shot {
+    margin: 1rem 0 1.2rem;
+}
+
+.md-typeset .tg-shot img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--tg-rule);
+    border-radius: 2px;
+}
+
+.md-typeset .tg-shot figcaption {
+    max-width: none;
+    margin: 0.6rem 0 0;
+    font-size: 0.65rem;
+    font-style: normal;
+    color: var(--md-default-fg-color--light);
+}
+
+/* ---- Gallery ------------------------------------------------------------------------------ */
+
+/* Figures in a grid, a wide one spanning its row, each captioned small beneath it. */
+.md-typeset .tg-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: 1.2rem;
+    align-items: start;
+}
+
+.md-typeset .tg-gallery figure {
+    margin: 0;
+}
+
+.md-typeset .tg-gallery .tg-gallery__wide {
+    grid-column: 1 / -1;
+}
+
+.md-typeset .tg-gallery img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--tg-rule);
+    border-radius: 2px;
+}
+
+.md-typeset .tg-gallery figcaption {
+    max-width: none;
+    margin: 0.5rem 0 0;
+    font-size: 0.65rem;
+    font-style: normal;
+    text-align: left;
+    color: var(--md-default-fg-color--light);
+}
+
+/* The button under a gallery figure's caption that opens the page of its script, and the one on
+   that page back to the figure. */
+.md-typeset .tg-gallery__code,
+.md-typeset .tg-gallery__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.55rem 0.15rem 0.45rem;
+    border: 1px solid var(--tg-rule-strong);
+    border-radius: 0.25rem;
+    background: var(--tg-surface);
+    color: var(--md-default-fg-color--light);
+    font-size: 0.6rem;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+    transition: color 125ms, border-color 125ms, background-color 125ms;
+}
+
+.md-typeset .tg-gallery__code:hover,
+.md-typeset .tg-gallery__back:hover {
+    border-color: var(--md-accent-fg-color);
+    background: var(--md-accent-fg-color--transparent);
+    color: var(--md-accent-fg-color);
+}
+
+.md-typeset .tg-gallery__code .twemoji,
+.md-typeset .tg-gallery__back .twemoji {
+    height: 0.9rem;
+}
+
+.md-typeset .tg-gallery__code:is(:link, :visited, :hover),
+.md-typeset .tg-gallery__back:is(:link, :visited, :hover) {
+    text-decoration: none;
+}
+
+.md-typeset .tg-gallery figure > p:last-child {
+    margin: 0.4rem 0 0;
+    text-align: left;
+}
+
+.md-typeset .tg-gallery__back {
+    margin-bottom: 0.4rem;
+    font-size: 0.65rem;
+}
+
+/* A figure reached from its code page's back button scrolls clear of the header and is marked. */
+.md-typeset .tg-gallery figure {
+    scroll-margin-top: 4.5rem;
+}
+
+.md-typeset .tg-gallery figure:target img {
+    outline: 2px solid var(--md-accent-fg-color);
+    outline-offset: 2px;
+}
+
+/* ---- API reference ------------------------------------------------------------------------ */
+
+.doc-object {
+    margin-bottom: 2em;
+}
+
+.md-typeset .doc-heading {
+    border-top: 1px solid var(--tg-rule);
+    padding-top: 0.9em;
+}
+
+.md-typeset .doc-heading code {
+    font-weight: 600;
+    background: transparent;
+}
+
+.md-typeset .doc-signature {
+    border-left: 2px solid var(--tg-rule-strong);
+}
+
+/* Kind labels (class, func, attr) as plain gray text. */
+.md-typeset .doc-symbol,
+.md-nav .doc-symbol {
+    color: var(--md-default-fg-color--lighter) !important;
+    background-color: transparent !important;
+    font-weight: 500;
+}
+
+.md-typeset .doc-label code {
+    color: var(--md-default-fg-color--lighter);
+    background: transparent;
+}
+
+/* ---- Layout ------------------------------------------------------------------------------- */
+
+.md-grid {
+    max-width: 66rem;
+}
+
+/* A compact search box in the header row, wider while in use. */
+@media screen and (min-width: 76.25em) {
+    .md-search__inner {
+        width: 9rem;
+        transition: width 0.15s ease;
+    }
+
+    [data-md-toggle="search"]:checked ~ .md-header .md-search__inner {
+        width: 23.4rem;
+    }
+
+    .md-header__source {
+        width: 4.6rem;
+        margin-left: 0.8rem;
+    }
+
+    .md-header__source .md-source__repository {
+        max-width: none;
+    }
+}
