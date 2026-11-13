@@ -19,7 +19,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET
 # and the Python package and CI read both from here.
 project(
     TerrainGen
-    VERSION 0.4.0
+    VERSION 0.3.0
     LANGUAGES C CXX)
 set(TERRAINGEN_PRERELEASE "rc1")
 set(TERRAINGEN_FULL_VERSION "${PROJECT_VERSION}${TERRAINGEN_PRERELEASE}")
