@@ -9,7 +9,7 @@ namespace terraingen {
 #define TERRAINGEN_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
 #define TERRAINGEN_VERSION_MINOR @PROJECT_VERSION_MINOR@
 #define TERRAINGEN_VERSION_PATCH @PROJECT_VERSION_PATCH@
-/// The version with any pre-release part, such as 0.1.0.dev42, as the Python package carries it.
+/// The version with any pre-release part, such as 0.3.0rc1, as the Python package carries it.
 #define TERRAINGEN_FULL_VERSION_STRING "@TERRAINGEN_FULL_VERSION@"
 
 #define TERRAINGEN_API_VERSION 2

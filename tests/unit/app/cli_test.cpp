@@ -3,6 +3,7 @@
 #include "app/cli.h"
 #include "support/temp_path.h"
 #include "terraingen/raster/geotiff/geotiff.h"
+#include "terraingen/util/version.h"
 
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
@@ -72,7 +73,9 @@ TEST(Cli, PrintsHelpAndVersion) {
     EXPECT_EQ(Cli({"-h"}).out, help.out);
     const Result version = Cli({"--version"});
     EXPECT_EQ(version.code, kExitSuccess);
-    EXPECT_EQ(version.out.rfind("TerrainGen ", 0), 0u);
+    EXPECT_EQ(
+        version.out.rfind(std::string("TerrainGen ") + TERRAINGEN_FULL_VERSION_STRING + " (", 0),
+        0u);
     EXPECT_EQ(Cli({"-V"}).out, version.out);
     EXPECT_NE(help.out.find("-V, --version"), std::string::npos);
     EXPECT_NE(help.out.find("-h, --help"), std::string::npos);
