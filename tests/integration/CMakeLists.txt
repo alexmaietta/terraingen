@@ -21,6 +21,7 @@ if(TERRAINGEN_INSTALL AND NOT TERRAINGEN_COVERAGE)
             ${CMAKE_CTEST_COMMAND} --build-and-test "${CMAKE_CURRENT_SOURCE_DIR}/package"
             "${CMAKE_CURRENT_BINARY_DIR}/package/build" --build-generator ${CMAKE_GENERATOR}
             --build-config $<CONFIG> --build-options "-DCMAKE_PREFIX_PATH=${package_prefix}"
+            "-DTERRAINGEN_REQUIRED_VERSION=${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
             --test-command package_test)
     set_tests_properties(package.install PROPERTIES FIXTURES_SETUP terraingen_package LABELS
                                                     integration)
@@ -37,7 +38,8 @@ if(TERRAINGEN_INSTALL
         COMMAND
             ${CMAKE_COMMAND} -DCPACK=${CMAKE_CPACK_COMMAND} -DCTEST=${CMAKE_CTEST_COMMAND}
             -DBUILD_DIR=${PROJECT_BINARY_DIR} -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/package/deb
-            -DCONSUMER_DIR=${CMAKE_CURRENT_SOURCE_DIR}/package -DGENERATOR=${CMAKE_GENERATOR} -P
+            -DCONSUMER_DIR=${CMAKE_CURRENT_SOURCE_DIR}/package -DGENERATOR=${CMAKE_GENERATOR}
+            -DREQUIRED_VERSION=${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR} -P
             "${CMAKE_CURRENT_SOURCE_DIR}/package/test_debian_packages.cmake")
     # CPack builds the project before packaging; running alone keeps that build from relinking
     # binaries other tests are running.
