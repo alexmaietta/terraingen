@@ -147,7 +147,7 @@ If you use TerrainGen for published research, please cite:
   author  = {Maietta, Alex},
   title   = {{TerrainGen}: An open-source scientific terrain generation suite for planetary surfaces},
   url     = {https://github.com/alexmaietta/terraingen},
-  version = {0.2.0},
+  version = {0.3.0},
   license = {BSD-3-Clause},
   year    = {2026}
 }
