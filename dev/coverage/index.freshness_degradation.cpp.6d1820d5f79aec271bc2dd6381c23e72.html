@@ -80,7 +80,7 @@
   </div>
   <div class="Box-row Box-row--focus-gray py-2 d-flex">
     <div role="gridcell" class="color-fg-muted flex-auto min-width-0 col-md-2"><a href="#L25">terraingen::FreshnessDegradation::State(terraingen::Crater const&amp;) const (src/layers/craters/degradation/freshness_degradation.cpp:25)</a>    </div>
-    <div role="gridcell" class="color-fg-muted flex-auto min-width-0 d-flex flex-justify-end flex-wrap flex-items-baseline" data-sort="18746">called 18746 times</div>
+    <div role="gridcell" class="color-fg-muted flex-auto min-width-0 d-flex flex-justify-end flex-wrap flex-items-baseline" data-sort="18730">called 18730 times</div>
     <div role="gridcell" class="color-fg-muted d-flex flex-justify-end flex-wrap col-2">100.0%</div>
     <div role="gridcell" class="color-fg-muted d-flex flex-justify-end flex-wrap col-2">-%</div>
     <div role="gridcell" class="color-fg-muted d-flex flex-justify-end flex-wrap col-2">100.0%</div>
@@ -337,42 +337,42 @@
         <td class="text-right src linenos"><a class="normal" id="L25" href="#L25">25</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18746</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18730</td>
         <td class="src coveredLine show_coveredLine"><span class="n">CraterState</span><span class="w"> </span><span class="n">FreshnessDegradation</span><span class="o">::</span><span class="n">State</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Crater</span><span class="o">&amp;</span><span class="w"> </span><span class="n">crater</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span></td>
       </tr>
       <tr>
         <td class="text-right src linenos"><a class="normal" id="L26" href="#L26">26</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18746</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18730</td>
         <td class="src coveredLine show_coveredLine"><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">CraterMorphometry</span><span class="w"> </span><span class="n">fresh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m_fresh</span><span class="p">(</span><span class="n">crater</span><span class="p">.</span><span class="n">diameter</span><span class="p">);</span></td>
       </tr>
       <tr>
         <td class="text-right src linenos"><a class="normal" id="L27" href="#L27">27</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18746</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18730</td>
         <td class="src coveredLine show_coveredLine"><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">floor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">fmin</span><span class="p">(</span><span class="n">m_cutoffDepthRatio</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">fresh</span><span class="p">.</span><span class="n">depthRatio</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">);</span></td>
       </tr>
       <tr>
         <td class="text-right src linenos"><a class="normal" id="L28" href="#L28">28</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18746</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18730</td>
         <td class="src coveredLine show_coveredLine"><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">erosion</span><span class="w"> </span><span class="o">=</span></td>
       </tr>
       <tr>
         <td class="text-right src linenos"><a class="normal" id="L29" href="#L29">29</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18746</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18730</td>
         <td class="src coveredLine show_coveredLine"><span class="w">        </span><span class="n">floor</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="mf">1.0</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">floor</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">m_ages</span><span class="o">-&gt;</span><span class="n">RemainingLifetime</span><span class="p">(</span><span class="n">crater</span><span class="p">.</span><span class="n">diameter</span><span class="p">,</span><span class="w"> </span><span class="n">crater</span><span class="p">.</span><span class="n">ageGyr</span><span class="p">);</span></td>
       </tr>
       <tr>
         <td class="text-right src linenos"><a class="normal" id="L30" href="#L30">30</a></td>
         <td class="text-right src linenos ws-unset">
         </td>
-        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18746</td>
+        <td class="linecount coveredLine show_coveredLine pr-2 pl-2 color-fg-muted text-right">18730</td>
         <td class="src coveredLine show_coveredLine"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="n">fresh</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">erosion</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">fresh</span><span class="p">.</span><span class="n">depthRatio</span><span class="p">,</span><span class="w"> </span><span class="n">erosion</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">fresh</span><span class="p">.</span><span class="n">rimHeightRatio</span><span class="p">}};</span></td>
       </tr>
       <tr>
@@ -410,7 +410,7 @@
         <hr class="block-separator"/>
         <footer class="text-center">
           Created using <a href="http://gcovr.com/en/8.8">GCOVR (Version 8.8)</a>
-          at 2026-11-13 20:42:34+00:00
+          at 2026-11-13 20:53:58+00:00
         </footer>
       </div>
     </div>
