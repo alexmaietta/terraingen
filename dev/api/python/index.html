@@ -48686,7 +48686,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>An albedo: <code>source</code>, changed by each of <code>layers</code> in order, on <code>surface</code>, which turns a grid's cell size into meters.</p>
 
-        <p><strong>init</strong>(self, source: terraingen._terraingen.AlbedoSource, layers: collections.abc.Sequence[terraingen._terraingen.AlbedoLayer] = [], surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c54d0>) -&gt; None</p>
+        <p><strong>init</strong>(self, source: terraingen._terraingen.AlbedoSource, layers: collections.abc.Sequence[terraingen._terraingen.AlbedoLayer] = [], surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d93614d0>) -&gt; None</p>
 
 
 
@@ -52164,7 +52164,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
               <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;change&lt;/span&gt; (&lt;code&gt;terraingen.BlastZoneAlbedo.change&lt;/code&gt;)" href="#terraingen.BlastZoneAlbedo.change">change</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>change(zone: terraingen._terraingen.BlastZone, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c5410>) -&gt; float</p>
+                  <p>change(zone: terraingen._terraingen.BlastZone, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9361410>) -&gt; float</p>
                 </div>
               </td>
             </tr>
@@ -52208,7 +52208,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
     <div class="doc doc-contents ">
 
-        <p>change(zone: terraingen._terraingen.BlastZone, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c5410>) -&gt; float</p>
+        <p>change(zone: terraingen._terraingen.BlastZone, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9361410>) -&gt; float</p>
 <p>The relative reflectance change <code>zone</code> gives (x, y) on <code>surface</code>.</p>
 
 
@@ -56048,7 +56048,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>Boulders drawn into the heights, the largest optionally placed as 3D boulder models; <code>craters</code> supplies the craters that throw ejecta boulders.</p>
 
-        <p><strong>init</strong>(self, options: terraingen._terraingen.BoulderLayerOptions = BoulderLayerOptions(generate_random=True, sizes=BoulderSizes(coverage=None, q_constant=None, q_coverage_coefficient=None, distribution=<terraingen._terraingen.TabulatedSfd object at 0x7fba8e6d7810>, min_diameter=0.1, max_diameter=5.861381645140288), seed=1, patches=BoulderPatches(spread=1.0, size=200.0), clusters=BoulderClusters(share=0.0, center_spacing=50.0, radius=5.0, model=BoulderClusterModel.NEAREST), ejecta=BoulderEjecta(min_crater_diameter=None, regolith_thickness=None, excavation_depth_ratio=0.1, coverage=None, profile=EjectaProfile.SMOOTHSTEP, reach=3.0, decay_radii=0.7, floor_share=0.05, aging=EjectaAging.FRESHNESS, min_freshness=0.7, lifetime_gyr=4.0, aging_exponent=3.0, gravity=None), bedrock=BoulderBedrock(exposure=None, abundance=3.0, mean_size=1000.0), pose=BoulderPose(min_height_ratio=0.4, max_height_ratio=0.6, min_burial=0.1, max_burial=0.4, max_lean_deg=14.896902673401405, burial_by_wear=0.0, side_share=0.0, end_share=0.0, max_tilt_deg=0.0, follow_slope=False, settle=True, max_slope_deg=None, roll_distance=None), fillet=BoulderFillet(height_share=0.0, width_ratio=0.3), ventifacts=BoulderVentifacts(share=0.0, wind_azimuth_deg=0.0, min_angle_deg=50.0, max_angle_deg=60.0, second_wind_azimuth_deg=None, keel_share=0.0), fragmentation=None, rendering=BoulderRendering(relief=BoulderRelief.DOME, model_threshold=BoulderModelThreshold(min_diameter=None, min_px=None, max_diameter=None, max_px=None), relief_range=BoulderReliefRange(min_diameter=0.0, max_diameter=None, include_models=False), shapes=BoulderShapeOptions(styles=[BoulderStyle(name='angular', weight=0.2, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=7, max_fractures=12, fracture_depth=ValueRange(min=0.55, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.06, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.06), face_roughness=0.03), BoulderStyle(name='platy', weight=0.12, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.22, max=0.38), rounding=ValueRange(min=0.0, max=0.0), min_fractures=5, max_fractures=9, fracture_depth=ValueRange(min=0.6, max=0.88), max_fracture_tilt=0.7, noise_amplitude=0.05, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='subrounded', weight=0.15, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.65, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=4, max_fractures=7, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.02), BoulderStyle(name='rounded', weight=0.1, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.5, max=0.75), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=3, fracture_depth=ValueRange(min=0.75, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.1, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.1, max=0.18), face_roughness=0.02), BoulderStyle(name='block', weight=0.13, solid=BaseSolid.CUBE, intermediate=ValueRange(min=0.6, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.15), min_fractures=3, max_fractures=7, fracture_depth=ValueRange(min=0.6, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='wedge', weight=0.1, solid=BaseSolid.PRISM, intermediate=ValueRange(min=0.55, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=5, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='pyramid', weight=0.1, solid=BaseSolid.PYRAMID, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='shard', weight=0.05, solid=BaseSolid.TETRAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.04, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='sphere', weight=0.05, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.85, max=1.0), short_axis=ValueRange(min=0.7, max=0.9), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=1, fracture_depth=ValueRange(min=0.8, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.08, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.12, max=0.2), face_roughness=0.02)], subdivisions=3, weathering=1.0, seed=0), shape_prototypes=64), ground_spacing=1.0, fade=ResolutionFade(start_samples=2.0, end_samples=4.0, shape=BlendShape.SMOOTHSTEP), source_resolves_px=None), craters: terraingen._terraingen.CraterLayer | None = None, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7fba8f71f210>) -&gt; None</p>
+        <p><strong>init</strong>(self, options: terraingen._terraingen.BoulderLayerOptions = BoulderLayerOptions(generate_random=True, sizes=BoulderSizes(coverage=None, q_constant=None, q_coverage_coefficient=None, distribution=<terraingen._terraingen.TabulatedSfd object at 0x7f57d8d37750>, min_diameter=0.1, max_diameter=5.861381645140288), seed=1, patches=BoulderPatches(spread=1.0, size=200.0), clusters=BoulderClusters(share=0.0, center_spacing=50.0, radius=5.0, model=BoulderClusterModel.NEAREST), ejecta=BoulderEjecta(min_crater_diameter=None, regolith_thickness=None, excavation_depth_ratio=0.1, coverage=None, profile=EjectaProfile.SMOOTHSTEP, reach=3.0, decay_radii=0.7, floor_share=0.05, aging=EjectaAging.FRESHNESS, min_freshness=0.7, lifetime_gyr=4.0, aging_exponent=3.0, gravity=None), bedrock=BoulderBedrock(exposure=None, abundance=3.0, mean_size=1000.0), pose=BoulderPose(min_height_ratio=0.4, max_height_ratio=0.6, min_burial=0.1, max_burial=0.4, max_lean_deg=14.896902673401405, burial_by_wear=0.0, side_share=0.0, end_share=0.0, max_tilt_deg=0.0, follow_slope=False, settle=True, max_slope_deg=None, roll_distance=None), fillet=BoulderFillet(height_share=0.0, width_ratio=0.3), ventifacts=BoulderVentifacts(share=0.0, wind_azimuth_deg=0.0, min_angle_deg=50.0, max_angle_deg=60.0, second_wind_azimuth_deg=None, keel_share=0.0), fragmentation=None, rendering=BoulderRendering(relief=BoulderRelief.DOME, model_threshold=BoulderModelThreshold(min_diameter=None, min_px=None, max_diameter=None, max_px=None), relief_range=BoulderReliefRange(min_diameter=0.0, max_diameter=None, include_models=False), shapes=BoulderShapeOptions(styles=[BoulderStyle(name='angular', weight=0.2, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=7, max_fractures=12, fracture_depth=ValueRange(min=0.55, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.06, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.06), face_roughness=0.03), BoulderStyle(name='platy', weight=0.12, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.22, max=0.38), rounding=ValueRange(min=0.0, max=0.0), min_fractures=5, max_fractures=9, fracture_depth=ValueRange(min=0.6, max=0.88), max_fracture_tilt=0.7, noise_amplitude=0.05, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='subrounded', weight=0.15, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.65, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=4, max_fractures=7, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.02), BoulderStyle(name='rounded', weight=0.1, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.5, max=0.75), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=3, fracture_depth=ValueRange(min=0.75, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.1, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.1, max=0.18), face_roughness=0.02), BoulderStyle(name='block', weight=0.13, solid=BaseSolid.CUBE, intermediate=ValueRange(min=0.6, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.15), min_fractures=3, max_fractures=7, fracture_depth=ValueRange(min=0.6, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='wedge', weight=0.1, solid=BaseSolid.PRISM, intermediate=ValueRange(min=0.55, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=5, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='pyramid', weight=0.1, solid=BaseSolid.PYRAMID, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='shard', weight=0.05, solid=BaseSolid.TETRAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.04, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='sphere', weight=0.05, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.85, max=1.0), short_axis=ValueRange(min=0.7, max=0.9), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=1, fracture_depth=ValueRange(min=0.8, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.08, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.12, max=0.2), face_roughness=0.02)], subdivisions=3, weathering=1.0, seed=0), shape_prototypes=64), ground_spacing=1.0, fade=ResolutionFade(start_samples=2.0, end_samples=4.0, shape=BlendShape.SMOOTHSTEP), source_resolves_px=None), craters: terraingen._terraingen.CraterLayer | None = None, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7f57d9eaf210>) -&gt; None</p>
 <p>With a source in <code>base</code>, generated boulders at least <code>options.source_resolves_px</code> of its cells across are dropped.</p>
 
 
@@ -56101,7 +56101,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
               <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;manual&lt;/span&gt; (&lt;code&gt;terraingen.BoulderLayer.manual&lt;/code&gt;)" href="#terraingen.BoulderLayer.manual">manual</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>manual(boulders: collections.abc.Sequence[terraingen._terraingen.ManualBoulder], options: terraingen._terraingen.BoulderLayerOptions = BoulderLayerOptions(generate_random=True, sizes=BoulderSizes(coverage=None, q_constant=None, q_coverage_coefficient=None, distribution=<terraingen._terraingen.TabulatedSfd object at 0x7fba8e6d78d0>, min_diameter=0.1, max_diameter=5.861381645140288), seed=1, patches=BoulderPatches(spread=1.0, size=200.0), clusters=BoulderClusters(share=0.0, center_spacing=50.0, radius=5.0, model=BoulderClusterModel.NEAREST), ejecta=BoulderEjecta(min_crater_diameter=None, regolith_thickness=None, excavation_depth_ratio=0.1, coverage=None, profile=EjectaProfile.SMOOTHSTEP, reach=3.0, decay_radii=0.7, floor_share=0.05, aging=EjectaAging.FRESHNESS, min_freshness=0.7, lifetime_gyr=4.0, aging_exponent=3.0, gravity=None), bedrock=BoulderBedrock(exposure=None, abundance=3.0, mean_size=1000.0), pose=BoulderPose(min_height_ratio=0.4, max_height_ratio=0.6, min_burial=0.1, max_burial=0.4, max_lean_deg=14.896902673401405, burial_by_wear=0.0, side_share=0.0, end_share=0.0, max_tilt_deg=0.0, follow_slope=False, settle=True, max_slope_deg=None, roll_distance=None), fillet=BoulderFillet(height_share=0.0, width_ratio=0.3), ventifacts=BoulderVentifacts(share=0.0, wind_azimuth_deg=0.0, min_angle_deg=50.0, max_angle_deg=60.0, second_wind_azimuth_deg=None, keel_share=0.0), fragmentation=None, rendering=BoulderRendering(relief=BoulderRelief.DOME, model_threshold=BoulderModelThreshold(min_diameter=None, min_px=None, max_diameter=None, max_px=None), relief_range=BoulderReliefRange(min_diameter=0.0, max_diameter=None, include_models=False), shapes=BoulderShapeOptions(styles=[BoulderStyle(name='angular', weight=0.2, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=7, max_fractures=12, fracture_depth=ValueRange(min=0.55, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.06, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.06), face_roughness=0.03), BoulderStyle(name='platy', weight=0.12, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.22, max=0.38), rounding=ValueRange(min=0.0, max=0.0), min_fractures=5, max_fractures=9, fracture_depth=ValueRange(min=0.6, max=0.88), max_fracture_tilt=0.7, noise_amplitude=0.05, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='subrounded', weight=0.15, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.65, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=4, max_fractures=7, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.02), BoulderStyle(name='rounded', weight=0.1, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.5, max=0.75), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=3, fracture_depth=ValueRange(min=0.75, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.1, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.1, max=0.18), face_roughness=0.02), BoulderStyle(name='block', weight=0.13, solid=BaseSolid.CUBE, intermediate=ValueRange(min=0.6, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.15), min_fractures=3, max_fractures=7, fracture_depth=ValueRange(min=0.6, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='wedge', weight=0.1, solid=BaseSolid.PRISM, intermediate=ValueRange(min=0.55, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=5, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='pyramid', weight=0.1, solid=BaseSolid.PYRAMID, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='shard', weight=0.05, solid=BaseSolid.TETRAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.04, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='sphere', weight=0.05, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.85, max=1.0), short_axis=ValueRange(min=0.7, max=0.9), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=1, fracture_depth=ValueRange(min=0.8, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.08, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.12, max=0.2), face_roughness=0.02)], subdivisions=3, weathering=1.0, seed=0), shape_prototypes=64), ground_spacing=1.0, fade=ResolutionFade(start_samples=2.0, end_samples=4.0, shape=BlendShape.SMOOTHSTEP), source_resolves_px=None), base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7fba8f71f280>) -&gt; terraingen._terraingen.BoulderLayer</p>
+                  <p>manual(boulders: collections.abc.Sequence[terraingen._terraingen.ManualBoulder], options: terraingen._terraingen.BoulderLayerOptions = BoulderLayerOptions(generate_random=True, sizes=BoulderSizes(coverage=None, q_constant=None, q_coverage_coefficient=None, distribution=<terraingen._terraingen.TabulatedSfd object at 0x7f57d8d37ad0>, min_diameter=0.1, max_diameter=5.861381645140288), seed=1, patches=BoulderPatches(spread=1.0, size=200.0), clusters=BoulderClusters(share=0.0, center_spacing=50.0, radius=5.0, model=BoulderClusterModel.NEAREST), ejecta=BoulderEjecta(min_crater_diameter=None, regolith_thickness=None, excavation_depth_ratio=0.1, coverage=None, profile=EjectaProfile.SMOOTHSTEP, reach=3.0, decay_radii=0.7, floor_share=0.05, aging=EjectaAging.FRESHNESS, min_freshness=0.7, lifetime_gyr=4.0, aging_exponent=3.0, gravity=None), bedrock=BoulderBedrock(exposure=None, abundance=3.0, mean_size=1000.0), pose=BoulderPose(min_height_ratio=0.4, max_height_ratio=0.6, min_burial=0.1, max_burial=0.4, max_lean_deg=14.896902673401405, burial_by_wear=0.0, side_share=0.0, end_share=0.0, max_tilt_deg=0.0, follow_slope=False, settle=True, max_slope_deg=None, roll_distance=None), fillet=BoulderFillet(height_share=0.0, width_ratio=0.3), ventifacts=BoulderVentifacts(share=0.0, wind_azimuth_deg=0.0, min_angle_deg=50.0, max_angle_deg=60.0, second_wind_azimuth_deg=None, keel_share=0.0), fragmentation=None, rendering=BoulderRendering(relief=BoulderRelief.DOME, model_threshold=BoulderModelThreshold(min_diameter=None, min_px=None, max_diameter=None, max_px=None), relief_range=BoulderReliefRange(min_diameter=0.0, max_diameter=None, include_models=False), shapes=BoulderShapeOptions(styles=[BoulderStyle(name='angular', weight=0.2, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=7, max_fractures=12, fracture_depth=ValueRange(min=0.55, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.06, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.06), face_roughness=0.03), BoulderStyle(name='platy', weight=0.12, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.22, max=0.38), rounding=ValueRange(min=0.0, max=0.0), min_fractures=5, max_fractures=9, fracture_depth=ValueRange(min=0.6, max=0.88), max_fracture_tilt=0.7, noise_amplitude=0.05, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='subrounded', weight=0.15, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.65, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=4, max_fractures=7, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.02), BoulderStyle(name='rounded', weight=0.1, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.5, max=0.75), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=3, fracture_depth=ValueRange(min=0.75, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.1, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.1, max=0.18), face_roughness=0.02), BoulderStyle(name='block', weight=0.13, solid=BaseSolid.CUBE, intermediate=ValueRange(min=0.6, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.15), min_fractures=3, max_fractures=7, fracture_depth=ValueRange(min=0.6, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='wedge', weight=0.1, solid=BaseSolid.PRISM, intermediate=ValueRange(min=0.55, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=5, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='pyramid', weight=0.1, solid=BaseSolid.PYRAMID, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='shard', weight=0.05, solid=BaseSolid.TETRAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.04, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='sphere', weight=0.05, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.85, max=1.0), short_axis=ValueRange(min=0.7, max=0.9), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=1, fracture_depth=ValueRange(min=0.8, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.08, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.12, max=0.2), face_roughness=0.02)], subdivisions=3, weathering=1.0, seed=0), shape_prototypes=64), ground_spacing=1.0, fade=ResolutionFade(start_samples=2.0, end_samples=4.0, shape=BlendShape.SMOOTHSTEP), source_resolves_px=None), base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7f57d9eaf280>) -&gt; terraingen._terraingen.BoulderLayer</p>
                 </div>
               </td>
             </tr>
@@ -56307,7 +56307,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
     <div class="doc doc-contents ">
 
-        <p>manual(boulders: collections.abc.Sequence[terraingen._terraingen.ManualBoulder], options: terraingen._terraingen.BoulderLayerOptions = BoulderLayerOptions(generate_random=True, sizes=BoulderSizes(coverage=None, q_constant=None, q_coverage_coefficient=None, distribution=<terraingen._terraingen.TabulatedSfd object at 0x7fba8e6d78d0>, min_diameter=0.1, max_diameter=5.861381645140288), seed=1, patches=BoulderPatches(spread=1.0, size=200.0), clusters=BoulderClusters(share=0.0, center_spacing=50.0, radius=5.0, model=BoulderClusterModel.NEAREST), ejecta=BoulderEjecta(min_crater_diameter=None, regolith_thickness=None, excavation_depth_ratio=0.1, coverage=None, profile=EjectaProfile.SMOOTHSTEP, reach=3.0, decay_radii=0.7, floor_share=0.05, aging=EjectaAging.FRESHNESS, min_freshness=0.7, lifetime_gyr=4.0, aging_exponent=3.0, gravity=None), bedrock=BoulderBedrock(exposure=None, abundance=3.0, mean_size=1000.0), pose=BoulderPose(min_height_ratio=0.4, max_height_ratio=0.6, min_burial=0.1, max_burial=0.4, max_lean_deg=14.896902673401405, burial_by_wear=0.0, side_share=0.0, end_share=0.0, max_tilt_deg=0.0, follow_slope=False, settle=True, max_slope_deg=None, roll_distance=None), fillet=BoulderFillet(height_share=0.0, width_ratio=0.3), ventifacts=BoulderVentifacts(share=0.0, wind_azimuth_deg=0.0, min_angle_deg=50.0, max_angle_deg=60.0, second_wind_azimuth_deg=None, keel_share=0.0), fragmentation=None, rendering=BoulderRendering(relief=BoulderRelief.DOME, model_threshold=BoulderModelThreshold(min_diameter=None, min_px=None, max_diameter=None, max_px=None), relief_range=BoulderReliefRange(min_diameter=0.0, max_diameter=None, include_models=False), shapes=BoulderShapeOptions(styles=[BoulderStyle(name='angular', weight=0.2, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=7, max_fractures=12, fracture_depth=ValueRange(min=0.55, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.06, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.06), face_roughness=0.03), BoulderStyle(name='platy', weight=0.12, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.22, max=0.38), rounding=ValueRange(min=0.0, max=0.0), min_fractures=5, max_fractures=9, fracture_depth=ValueRange(min=0.6, max=0.88), max_fracture_tilt=0.7, noise_amplitude=0.05, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='subrounded', weight=0.15, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.65, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=4, max_fractures=7, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.02), BoulderStyle(name='rounded', weight=0.1, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.5, max=0.75), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=3, fracture_depth=ValueRange(min=0.75, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.1, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.1, max=0.18), face_roughness=0.02), BoulderStyle(name='block', weight=0.13, solid=BaseSolid.CUBE, intermediate=ValueRange(min=0.6, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.15), min_fractures=3, max_fractures=7, fracture_depth=ValueRange(min=0.6, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='wedge', weight=0.1, solid=BaseSolid.PRISM, intermediate=ValueRange(min=0.55, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=5, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='pyramid', weight=0.1, solid=BaseSolid.PYRAMID, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='shard', weight=0.05, solid=BaseSolid.TETRAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.04, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='sphere', weight=0.05, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.85, max=1.0), short_axis=ValueRange(min=0.7, max=0.9), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=1, fracture_depth=ValueRange(min=0.8, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.08, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.12, max=0.2), face_roughness=0.02)], subdivisions=3, weathering=1.0, seed=0), shape_prototypes=64), ground_spacing=1.0, fade=ResolutionFade(start_samples=2.0, end_samples=4.0, shape=BlendShape.SMOOTHSTEP), source_resolves_px=None), base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7fba8f71f280>) -&gt; terraingen._terraingen.BoulderLayer</p>
+        <p>manual(boulders: collections.abc.Sequence[terraingen._terraingen.ManualBoulder], options: terraingen._terraingen.BoulderLayerOptions = BoulderLayerOptions(generate_random=True, sizes=BoulderSizes(coverage=None, q_constant=None, q_coverage_coefficient=None, distribution=<terraingen._terraingen.TabulatedSfd object at 0x7f57d8d37ad0>, min_diameter=0.1, max_diameter=5.861381645140288), seed=1, patches=BoulderPatches(spread=1.0, size=200.0), clusters=BoulderClusters(share=0.0, center_spacing=50.0, radius=5.0, model=BoulderClusterModel.NEAREST), ejecta=BoulderEjecta(min_crater_diameter=None, regolith_thickness=None, excavation_depth_ratio=0.1, coverage=None, profile=EjectaProfile.SMOOTHSTEP, reach=3.0, decay_radii=0.7, floor_share=0.05, aging=EjectaAging.FRESHNESS, min_freshness=0.7, lifetime_gyr=4.0, aging_exponent=3.0, gravity=None), bedrock=BoulderBedrock(exposure=None, abundance=3.0, mean_size=1000.0), pose=BoulderPose(min_height_ratio=0.4, max_height_ratio=0.6, min_burial=0.1, max_burial=0.4, max_lean_deg=14.896902673401405, burial_by_wear=0.0, side_share=0.0, end_share=0.0, max_tilt_deg=0.0, follow_slope=False, settle=True, max_slope_deg=None, roll_distance=None), fillet=BoulderFillet(height_share=0.0, width_ratio=0.3), ventifacts=BoulderVentifacts(share=0.0, wind_azimuth_deg=0.0, min_angle_deg=50.0, max_angle_deg=60.0, second_wind_azimuth_deg=None, keel_share=0.0), fragmentation=None, rendering=BoulderRendering(relief=BoulderRelief.DOME, model_threshold=BoulderModelThreshold(min_diameter=None, min_px=None, max_diameter=None, max_px=None), relief_range=BoulderReliefRange(min_diameter=0.0, max_diameter=None, include_models=False), shapes=BoulderShapeOptions(styles=[BoulderStyle(name='angular', weight=0.2, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=7, max_fractures=12, fracture_depth=ValueRange(min=0.55, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.06, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.06), face_roughness=0.03), BoulderStyle(name='platy', weight=0.12, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.22, max=0.38), rounding=ValueRange(min=0.0, max=0.0), min_fractures=5, max_fractures=9, fracture_depth=ValueRange(min=0.6, max=0.88), max_fracture_tilt=0.7, noise_amplitude=0.05, noise_wavelength=0.9, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='subrounded', weight=0.15, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.65, max=0.9), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.0), min_fractures=4, max_fractures=7, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.02), BoulderStyle(name='rounded', weight=0.1, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.5, max=0.75), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=3, fracture_depth=ValueRange(min=0.75, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.1, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.1, max=0.18), face_roughness=0.02), BoulderStyle(name='block', weight=0.13, solid=BaseSolid.CUBE, intermediate=ValueRange(min=0.6, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.15), min_fractures=3, max_fractures=7, fracture_depth=ValueRange(min=0.6, max=0.85), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='wedge', weight=0.1, solid=BaseSolid.PRISM, intermediate=ValueRange(min=0.55, max=0.85), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=5, fracture_depth=ValueRange(min=0.65, max=0.9), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='pyramid', weight=0.1, solid=BaseSolid.PYRAMID, intermediate=ValueRange(min=0.7, max=0.95), short_axis=ValueRange(min=0.45, max=0.7), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.07, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.06, max=0.12), face_roughness=0.06), BoulderStyle(name='shard', weight=0.05, solid=BaseSolid.TETRAHEDRON, intermediate=ValueRange(min=0.6, max=0.9), short_axis=ValueRange(min=0.4, max=0.6), rounding=ValueRange(min=0.0, max=0.2), min_fractures=2, max_fractures=4, fracture_depth=ValueRange(min=0.7, max=0.92), max_fracture_tilt=1.0, noise_amplitude=0.04, noise_wavelength=0.8, noise_octaves=4, edge_softness=ValueRange(min=0.02, max=0.05), face_roughness=0.03), BoulderStyle(name='sphere', weight=0.05, solid=BaseSolid.ICOSAHEDRON, intermediate=ValueRange(min=0.85, max=1.0), short_axis=ValueRange(min=0.7, max=0.9), rounding=ValueRange(min=0.0, max=0.0), min_fractures=0, max_fractures=1, fracture_depth=ValueRange(min=0.8, max=0.95), max_fracture_tilt=1.0, noise_amplitude=0.08, noise_wavelength=0.7, noise_octaves=4, edge_softness=ValueRange(min=0.12, max=0.2), face_roughness=0.02)], subdivisions=3, weathering=1.0, seed=0), shape_prototypes=64), ground_spacing=1.0, fade=ResolutionFade(start_samples=2.0, end_samples=4.0, shape=BlendShape.SMOOTHSTEP), source_resolves_px=None), base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7f57d9eaf280>) -&gt; terraingen._terraingen.BoulderLayer</p>
 <p>A layer of only <code>boulders</code> (ManualBoulder), posed and drawn as <code>options</code> says, with <code>generate_random</code> off and its <code>manual</code> replaced.</p>
 
 
@@ -69256,7 +69256,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>Craters drawn from <code>models.density</code> and shaped by its profile and degradation, plus any manual craters, applied to the terrain.</p>
 
-        <p><strong>init</strong>(self, models: terraingen._terraingen.CraterModels | None = None, options: terraingen._terraingen.CraterLayerOptions = <terraingen._terraingen.CraterLayerOptions object at 0x556153336ec0>, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7fba8f71e330>) -&gt; None</p>
+        <p><strong>init</strong>(self, models: terraingen._terraingen.CraterModels | None = None, options: terraingen._terraingen.CraterLayerOptions = <terraingen._terraingen.CraterLayerOptions object at 0x5583dff2ae50>, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7f57d9eae330>) -&gt; None</p>
 <p>None models are <code>default_crater_models()</code>. On a sphere in <code>base</code> craters are placed by longitude and latitude; with a source in it, generated craters at least <code>options.source_resolves_px</code> of its cells across are dropped.</p>
 
 
@@ -69296,7 +69296,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
               <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;doc-symbol doc-symbol-heading doc-symbol-method&quot;&gt;&lt;/code&gt;            &lt;span class=&quot;doc doc-object-name doc-function-name&quot;&gt;manual&lt;/span&gt; (&lt;code&gt;terraingen.CraterLayer.manual&lt;/code&gt;)" href="#terraingen.CraterLayer.manual">manual</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>manual(craters: collections.abc.Sequence[terraingen._terraingen.Crater], models: terraingen._terraingen.CraterModels | None = None, apply: terraingen._terraingen.CraterApplyOptions | None = None, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7fba8f71e3a0>) -&gt; terraingen._terraingen.CraterLayer</p>
+                  <p>manual(craters: collections.abc.Sequence[terraingen._terraingen.Crater], models: terraingen._terraingen.CraterModels | None = None, apply: terraingen._terraingen.CraterApplyOptions | None = None, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7f57d9eae3a0>) -&gt; terraingen._terraingen.CraterLayer</p>
                 </div>
               </td>
             </tr>
@@ -69451,7 +69451,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
     <div class="doc doc-contents ">
 
-        <p>manual(craters: collections.abc.Sequence[terraingen._terraingen.Crater], models: terraingen._terraingen.CraterModels | None = None, apply: terraingen._terraingen.CraterApplyOptions | None = None, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7fba8f71e3a0>) -&gt; terraingen._terraingen.CraterLayer</p>
+        <p>manual(craters: collections.abc.Sequence[terraingen._terraingen.Crater], models: terraingen._terraingen.CraterModels | None = None, apply: terraingen._terraingen.CraterApplyOptions | None = None, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7f57d9eae3a0>) -&gt; terraingen._terraingen.CraterLayer</p>
 <p>A layer of only <code>craters</code> (Crater), shaped by <code>models</code> and <code>apply</code>, with <code>generate_random</code> off; None takes <code>default_crater_models()</code> and <code>default_crater_apply()</code>.</p>
 
 
@@ -75122,7 +75122,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>A crater's shape when fresh and now, and how far diffusion has smoothed it.</p>
 
-        <p><strong>init</strong>(self, fresh: terraingen._terraingen.CraterMorphometry = <terraingen._terraingen.CraterMorphometry object at 0x7fba8f721ec0>, current: terraingen._terraingen.CraterMorphometry = <terraingen._terraingen.CraterMorphometry object at 0x7fba8f721e60>, diffusion: float = 0.0) -&gt; None</p>
+        <p><strong>init</strong>(self, fresh: terraingen._terraingen.CraterMorphometry = <terraingen._terraingen.CraterMorphometry object at 0x7f57d9e95bc0>, current: terraingen._terraingen.CraterMorphometry = <terraingen._terraingen.CraterMorphometry object at 0x7f57d9e95b60>, diffusion: float = 0.0) -&gt; None</p>
 
 
 
@@ -79425,7 +79425,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
   &lt;/span&gt; (&lt;code&gt;terraingen.DuneLayer.dune_height_at&lt;/code&gt;)" href="#terraingen.DuneLayer.dune_height_at">dune_height_at</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>dune_height_at(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ef270>) -&gt; float</p>
+                  <p>dune_height_at(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7b270>) -&gt; float</p>
                 </div>
               </td>
             </tr>
@@ -79572,7 +79572,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
     <div class="doc doc-contents ">
 
-        <p>dune_height_at(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ef270>) -&gt; float</p>
+        <p>dune_height_at(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7b270>) -&gt; float</p>
 <p>The dunes' height at (x, y) on <code>surface</code> in meters, without ripples.</p>
 
 
@@ -82087,7 +82087,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>How exposed the ground is, from 0 (buried under regolith) to 1 (bare boulder): crests and steep slopes shed regolith, read over <code>params.reach</code> meters.</p>
 
-        <p><strong>init</strong>(self, params: terraingen._terraingen.ExposureParams = ExposureParams(reach=12.0, rise_soil=0.01, rise_boulder=0.035, slope_soil=0.2, slope_boulder=0.4, floor_cover=0.0, floor_patch=60.0, seed=0), surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eef10>) -&gt; None</p>
+        <p><strong>init</strong>(self, params: terraingen._terraingen.ExposureParams = ExposureParams(reach=12.0, rise_soil=0.01, rise_boulder=0.035, slope_soil=0.2, slope_boulder=0.4, floor_cover=0.0, floor_patch=60.0, seed=0), surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7af10>) -&gt; None</p>
 
 
 
@@ -83065,7 +83065,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>A level datum at <code>elevation</code> over a <code>width</code> x <code>height</code> grid of <code>pixel_size</code> meters centered on <code>center</code>.</p>
 
-        <p><strong>init</strong>(self, width: int, height: int, pixel_size: float, elevation: float = 0.0, center: tuple[float, float] = (0.0, 0.0), surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ee4f0>) -&gt; None</p>
+        <p><strong>init</strong>(self, width: int, height: int, pixel_size: float, elevation: float = 0.0, center: tuple[float, float] = (0.0, 0.0), surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7a4f0>) -&gt; None</p>
 <p>On a body <code>center</code> is (longitude, latitude) in degrees and <code>pixel_size</code> stays in meters, converted to degrees along a meridian.</p>
 
 
@@ -91097,7 +91097,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
   &lt;/span&gt; (&lt;code&gt;terraingen.MaskedLayer.holds&lt;/code&gt;)" href="#terraingen.MaskedLayer.holds">holds</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>holds(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eecd0>) -&gt; bool</p>
+                  <p>holds(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7acd0>) -&gt; bool</p>
                 </div>
               </td>
             </tr>
@@ -91110,7 +91110,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
   &lt;/span&gt; (&lt;code&gt;terraingen.MaskedLayer.weight&lt;/code&gt;)" href="#terraingen.MaskedLayer.weight">weight</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>weight(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eec70>) -&gt; float</p>
+                  <p>weight(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7ac70>) -&gt; float</p>
                 </div>
               </td>
             </tr>
@@ -91204,7 +91204,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
     <div class="doc doc-contents ">
 
-        <p>holds(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eecd0>) -&gt; bool</p>
+        <p>holds(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7acd0>) -&gt; bool</p>
 <p>Whether a feature centered at (x, y) on <code>surface</code> belongs to the region: within it or its feather.</p>
 
 
@@ -91229,7 +91229,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
     <div class="doc doc-contents ">
 
-        <p>weight(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eec70>) -&gt; float</p>
+        <p>weight(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7ac70>) -&gt; float</p>
 <p>The inner layer's weight at (x, y) on <code>surface</code>: 1 inside the shape, 0 from <code>feather</code> outside it, the blend between.</p>
 
 
@@ -94728,7 +94728,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>Power laws over consecutive diameter ranges: <code>segments</code> are (start diameter, coefficient, exponent), each holding from its start to the next, valid from the first start to <code>max_diameter</code>.</p>
 
-        <p><strong>init</strong>(self, segments: collections.abc.Sequence[tuple[float, float, float]], kind: terraingen._terraingen.SfdKind = SfdKind.DENSITY, max_diameter: float = inf, joins: terraingen._terraingen.SfdJoins = <terraingen._terraingen.SfdJoins object at 0x7fba8f721260>) -&gt; None</p>
+        <p><strong>init</strong>(self, segments: collections.abc.Sequence[tuple[float, float, float]], kind: terraingen._terraingen.SfdKind = SfdKind.DENSITY, max_diameter: float = inf, joins: terraingen._terraingen.SfdJoins = <terraingen._terraingen.SfdJoins object at 0x7f57d9e94f30>) -&gt; None</p>
 
 
 
@@ -97213,7 +97213,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>An albedo map (1 or 3 bands, such as a normal albedo mosaic from orbit) interpolated to the grid and given sub-cell detail; NaN outside it.</p>
 
-        <p><strong>init</strong>(self, bands: collections.abc.Sequence[terraingen._terraingen.Raster], options: terraingen._terraingen.RasterAlbedoOptions = <terraingen._terraingen.RasterAlbedoOptions object at 0x7fba8f5c4f90>) -&gt; None</p>
+        <p><strong>init</strong>(self, bands: collections.abc.Sequence[terraingen._terraingen.Raster], options: terraingen._terraingen.RasterAlbedoOptions = <terraingen._terraingen.RasterAlbedoOptions object at 0x7f57d9360f90>) -&gt; None</p>
 
 
 
@@ -98471,15 +98471,15 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>Heights from a raster held in memory, used as given with its no-data value, its cells refined by <code>upsampler</code> (cubic when None); <code>effective_pixel_size</code> (CRS units) is the cell size the heights truly resolve. <code>keys</code> is the projection outputs are written with; geographic keys on columns spanning 360 degrees wrap the raster in longitude.</p>
 
-        <p><strong>init</strong>(self, heights: terraingen._terraingen.Raster, effective_pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, keys: terraingen._terraingen.GeoKeys = <terraingen._terraingen.GeoKeys object at 0x7fba8f71d140>) -&gt; None
-<strong>init</strong>(self, heights: ndarray[dtype=float32, shape=(*, *), order='C', device='cpu', writable=False], transform: terraingen._terraingen.GeoTransform = GeoTransform(0, 1, 0, 0, 0, 1), no_data: float | None = None, effective_pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, keys: terraingen._terraingen.GeoKeys = <terraingen._terraingen.GeoKeys object at 0x7fba8f71d1b0>) -&gt; None</p>
+        <p><strong>init</strong>(self, heights: terraingen._terraingen.Raster, effective_pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, keys: terraingen._terraingen.GeoKeys = <terraingen._terraingen.GeoKeys object at 0x7f57d9ead140>) -&gt; None
+<strong>init</strong>(self, heights: ndarray[dtype=float32, shape=(*, *), order='C', device='cpu', writable=False], transform: terraingen._terraingen.GeoTransform = GeoTransform(0, 1, 0, 0, 0, 1), no_data: float | None = None, effective_pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, keys: terraingen._terraingen.GeoKeys = <terraingen._terraingen.GeoKeys object at 0x7f57d9ead1b0>) -&gt; None</p>
 <p>Overloaded function.</p>
 <ol>
 <li>
-<p><code>__init__(self, heights: terraingen._terraingen.Raster, effective_pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, keys: terraingen._terraingen.GeoKeys = &lt;terraingen._terraingen.GeoKeys object at 0x7fba8f71d140&gt;) -&gt; None</code></p>
+<p><code>__init__(self, heights: terraingen._terraingen.Raster, effective_pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, keys: terraingen._terraingen.GeoKeys = &lt;terraingen._terraingen.GeoKeys object at 0x7f57d9ead140&gt;) -&gt; None</code></p>
 </li>
 <li>
-<p><code>__init__(self, heights: ndarray[dtype=float32, shape=(*, *), order='C', device='cpu', writable=False], transform: terraingen._terraingen.GeoTransform = GeoTransform(0, 1, 0, 0, 0, 1), no_data: float | None = None, effective_pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, keys: terraingen._terraingen.GeoKeys = &lt;terraingen._terraingen.GeoKeys object at 0x7fba8f71d1b0&gt;) -&gt; None</code></p>
+<p><code>__init__(self, heights: ndarray[dtype=float32, shape=(*, *), order='C', device='cpu', writable=False], transform: terraingen._terraingen.GeoTransform = GeoTransform(0, 1, 0, 0, 0, 1), no_data: float | None = None, effective_pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, keys: terraingen._terraingen.GeoKeys = &lt;terraingen._terraingen.GeoKeys object at 0x7f57d9ead1b0&gt;) -&gt; None</code></p>
 </li>
 </ol>
 <p>From a float32 array of shape (height, width), copied, placed by <code>transform</code>, with <code>no_data</code> marking cells without data.</p>
@@ -100242,7 +100242,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
   &lt;/span&gt; (&lt;code&gt;terraingen.RegionShape.distance_outside&lt;/code&gt;)" href="#terraingen.RegionShape.distance_outside">distance_outside</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>distance_outside(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eebb0>) -&gt; float</p>
+                  <p>distance_outside(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7abb0>) -&gt; float</p>
                 </div>
               </td>
             </tr>
@@ -100412,7 +100412,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
     <div class="doc doc-contents ">
 
-        <p>distance_outside(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eebb0>) -&gt; float</p>
+        <p>distance_outside(self, x: float, y: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7abb0>) -&gt; float</p>
 <p>Signed distance in meters to the shape's edge: positive outside, negative inside.</p>
 
 
@@ -102187,7 +102187,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
   &lt;/span&gt; (&lt;code&gt;terraingen.RoughnessLayer.rms_slope&lt;/code&gt;)" href="#terraingen.RoughnessLayer.rms_slope">rms_slope</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>rms_slope(self, baseline: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eed90>) -&gt; float</p>
+                  <p>rms_slope(self, baseline: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7ad90>) -&gt; float</p>
                 </div>
               </td>
             </tr>
@@ -102294,7 +102294,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
     <div class="doc doc-contents ">
 
-        <p>rms_slope(self, baseline: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6eed90>) -&gt; float</p>
+        <p>rms_slope(self, baseline: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7ad90>) -&gt; float</p>
 
 
     </div>
@@ -104297,7 +104297,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>A mesh and its material.</p>
 
-        <p><strong>init</strong>(self, mesh: terraingen._terraingen.TriangleMesh, material: terraingen._terraingen.MeshMaterial = <terraingen._terraingen.MeshMaterial object at 0x7fba8f734030>) -&gt; None</p>
+        <p><strong>init</strong>(self, mesh: terraingen._terraingen.TriangleMesh, material: terraingen._terraingen.MeshMaterial = <terraingen._terraingen.MeshMaterial object at 0x7f57d9ebc030>) -&gt; None</p>
 
 
 
@@ -104445,7 +104445,7 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>An instance of a scene mesh: scaled per axis, then moved by <code>pose</code>.</p>
 
-        <p><strong>init</strong>(self, mesh: int, scale: tuple[float, float, float] = (1.0, 1.0, 1.0), pose: terraingen._terraingen.RigidTransform = <terraingen._terraingen.RigidTransform object at 0x7fba8f6f21b0>) -&gt; None</p>
+        <p><strong>init</strong>(self, mesh: int, scale: tuple[float, float, float] = (1.0, 1.0, 1.0), pose: terraingen._terraingen.RigidTransform = <terraingen._terraingen.RigidTransform object at 0x7f57d9e70fb0>) -&gt; None</p>
 
 
 
@@ -104647,15 +104647,15 @@ Base 0 means to interpret the base from the string as an integer literal.</p>
 
         <p>Secondary craters around the craters of <code>primaries</code> (Singer et al. 2020 sizes, Chapman 1968 fall-off), shaped by <code>profile</code> and <code>degradation</code>.</p>
 
-        <p><strong>init</strong>(self, primaries: terraingen._terraingen.CraterLayer, profile: terraingen._terraingen.CraterProfile, degradation: terraingen._terraingen.DegradationModel, options: terraingen._terraingen.SecondaryCraterOptions, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7fba8f71e5d0>) -&gt; None
-<strong>init</strong>(self, primaries: terraingen._terraingen.CraterLayer, options: terraingen._terraingen.SecondaryCraterOptions, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7fba8f71e640>) -&gt; None</p>
+        <p><strong>init</strong>(self, primaries: terraingen._terraingen.CraterLayer, profile: terraingen._terraingen.CraterProfile, degradation: terraingen._terraingen.DegradationModel, options: terraingen._terraingen.SecondaryCraterOptions, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7f57d9eae5d0>) -&gt; None
+<strong>init</strong>(self, primaries: terraingen._terraingen.CraterLayer, options: terraingen._terraingen.SecondaryCraterOptions, base: terraingen._terraingen.TerrainBase = <terraingen._terraingen.TerrainBase object at 0x7f57d9eae640>) -&gt; None</p>
 <p>Overloaded function.</p>
 <ol>
-<li><code>__init__(self, primaries: terraingen._terraingen.CraterLayer, profile: terraingen._terraingen.CraterProfile, degradation: terraingen._terraingen.DegradationModel, options: terraingen._terraingen.SecondaryCraterOptions, base: terraingen._terraingen.TerrainBase = &lt;terraingen._terraingen.TerrainBase object at 0x7fba8f71e5d0&gt;) -&gt; None</code></li>
+<li><code>__init__(self, primaries: terraingen._terraingen.CraterLayer, profile: terraingen._terraingen.CraterProfile, degradation: terraingen._terraingen.DegradationModel, options: terraingen._terraingen.SecondaryCraterOptions, base: terraingen._terraingen.TerrainBase = &lt;terraingen._terraingen.TerrainBase object at 0x7f57d9eae5d0&gt;) -&gt; None</code></li>
 </ol>
 <p><code>base</code> is on the primaries' surface. With a source in it, secondaries at least <code>options.source_resolves_px</code> of its cells across are left out.</p>
 <ol>
-<li><code>__init__(self, primaries: terraingen._terraingen.CraterLayer, options: terraingen._terraingen.SecondaryCraterOptions, base: terraingen._terraingen.TerrainBase = &lt;terraingen._terraingen.TerrainBase object at 0x7fba8f71e640&gt;) -&gt; None</code></li>
+<li><code>__init__(self, primaries: terraingen._terraingen.CraterLayer, options: terraingen._terraingen.SecondaryCraterOptions, base: terraingen._terraingen.TerrainBase = &lt;terraingen._terraingen.TerrainBase object at 0x7f57d9eae640&gt;) -&gt; None</code></li>
 </ol>
 <p>Secondaries shaped as the primaries are.</p>
 
@@ -110518,7 +110518,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
   &lt;/span&gt; (&lt;code&gt;terraingen.SplotchAlbedo.count&lt;/code&gt;)" href="#terraingen.SplotchAlbedo.count">count</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>count(self, region: tuple[float, float, float, float], spacing: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c52f0>) -&gt; int</p>
+                  <p>count(self, region: tuple[float, float, float, float], spacing: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d93612f0>) -&gt; int</p>
                 </div>
               </td>
             </tr>
@@ -110531,7 +110531,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
   &lt;/span&gt; (&lt;code&gt;terraingen.SplotchAlbedo.swarm_size&lt;/code&gt;)" href="#terraingen.SplotchAlbedo.swarm_size">swarm_size</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>swarm_size(self, crater: terraingen._terraingen.Crater, spacing: float = 0.0, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c5350>) -&gt; int</p>
+                  <p>swarm_size(self, crater: terraingen._terraingen.Crater, spacing: float = 0.0, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9361350>) -&gt; int</p>
                 </div>
               </td>
             </tr>
@@ -110625,7 +110625,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
 
     <div class="doc doc-contents ">
 
-        <p>count(self, region: tuple[float, float, float, float], spacing: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c52f0>) -&gt; int</p>
+        <p>count(self, region: tuple[float, float, float, float], spacing: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d93612f0>) -&gt; int</p>
 <p>How many splotches on <code>surface</code> resolved at <code>spacing</code> m reach <code>region</code>.</p>
 
 
@@ -110650,7 +110650,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
 
     <div class="doc doc-contents ">
 
-        <p>swarm_size(self, crater: terraingen._terraingen.Crater, spacing: float = 0.0, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c5350>) -&gt; int</p>
+        <p>swarm_size(self, crater: terraingen._terraingen.Crater, spacing: float = 0.0, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9361350>) -&gt; int</p>
 <p>How many splotches <code>crater</code>'s swarm on <code>surface</code> holds.</p>
 
 
@@ -114633,7 +114633,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
 
         <p>Heights generated from noise without bounds: <code>elevation</code> meters plus the <code>fractals</code> (none is flat), evaluated at every point, or with <code>pixel_size</code> (meters) sampled at posts that <code>upsampler</code> refines (cubic when None).</p>
 
-        <p><strong>init</strong>(self, fractals: collections.abc.Sequence[terraingen._terraingen.Fractal] = [], elevation: float = 0.0, pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ee550>) -&gt; None</p>
+        <p><strong>init</strong>(self, fractals: collections.abc.Sequence[terraingen._terraingen.Fractal] = [], elevation: float = 0.0, pixel_size: float | None = None, upsampler: terraingen._terraingen.Upsampler | None = None, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7a550>) -&gt; None</p>
 
 
 
@@ -115151,7 +115151,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
 
         <p>A terrain: heights from <code>source</code> (the datum, 0 m, when None), plus each of <code>layers</code> in order, on <code>surface</code>. Its parts are immutable and shared by copies; <code>set_layer</code> and <code>set_source</code> replace one. A terrain is a Ground, and so is each of its prefixes (<code>beneath</code>).</p>
 
-        <p><strong>init</strong>(self, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c58f0>, source: terraingen._terraingen.Source | None = None, layers: collections.abc.Sequence[terraingen._terraingen.Layer] = []) -&gt; None</p>
+        <p><strong>init</strong>(self, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d93618f0>, source: terraingen._terraingen.Source | None = None, layers: collections.abc.Sequence[terraingen._terraingen.Layer] = []) -&gt; None</p>
 <p>Raises ValueError for a source of the wrong kind for the surface, a None layer, a layer built on another surface or source, or a layer reading one that does not come before it.</p>
 
 
@@ -115794,7 +115794,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
 
         <p>The <code>surface</code> and <code>source</code> crater, secondary crater and boulder layers are built on, as <code>base</code>; a Surface or a Source alone converts to one.</p>
 
-        <p><strong>init</strong>(self, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ee970>, source: terraingen._terraingen.Source | None = None) -&gt; None
+        <p><strong>init</strong>(self, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7a970>, source: terraingen._terraingen.Source | None = None) -&gt; None
 <strong>init</strong>(self, arg: terraingen._terraingen.Surface, /) -&gt; None
 <strong>init</strong>(self, arg: terraingen._terraingen.Source, /) -&gt; None</p>
 
@@ -117258,7 +117258,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
   &lt;/span&gt; (&lt;code&gt;terraingen.TriangleMesh.write&lt;/code&gt;)" href="#terraingen.TriangleMesh.write">write</a></code></td>
               <td>
                 <div class="doc-md-description">
-                  <p>write(self, path: str | os.PathLike, normals: ndarray[dtype=float64, shape=(*, *), order='C', device='cpu', writable=False] | None = None, material: terraingen._terraingen.MeshMaterial = <terraingen._terraingen.MeshMaterial object at 0x7fba8f7347b0>) -&gt; None</p>
+                  <p>write(self, path: str | os.PathLike, normals: ndarray[dtype=float64, shape=(*, *), order='C', device='cpu', writable=False] | None = None, material: terraingen._terraingen.MeshMaterial = <terraingen._terraingen.MeshMaterial object at 0x7f57d9ebc7b0>) -&gt; None</p>
                 </div>
               </td>
             </tr>
@@ -117652,7 +117652,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
 
     <div class="doc doc-contents ">
 
-        <p>write(self, path: str | os.PathLike, normals: ndarray[dtype=float64, shape=(*, *), order='C', device='cpu', writable=False] | None = None, material: terraingen._terraingen.MeshMaterial = <terraingen._terraingen.MeshMaterial object at 0x7fba8f7347b0>) -&gt; None</p>
+        <p>write(self, path: str | os.PathLike, normals: ndarray[dtype=float64, shape=(*, *), order='C', device='cpu', writable=False] | None = None, material: terraingen._terraingen.MeshMaterial = <terraingen._terraingen.MeshMaterial object at 0x7f57d9ebc7b0>) -&gt; None</p>
 <p>Writes the mesh as .obj (with an .mtl), .gltf (with a .bin), .glb or .stl, by extension.</p>
 
 
@@ -119928,7 +119928,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
 
     <div class="doc doc-contents ">
 
-        <p>build_mesh(heights: terraingen._terraingen.Raster, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c5950>, site: tuple[float, float] = (0.0, 0.0), cutouts: collections.abc.Sequence[tuple[float, float, float, float]] = [], skirt: float = 0.0) -&gt; terraingen._terraingen.TriangleMesh</p>
+        <p>build_mesh(heights: terraingen._terraingen.Raster, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9361950>, site: tuple[float, float] = (0.0, 0.0), cutouts: collections.abc.Sequence[tuple[float, float, float, float]] = [], skirt: float = 0.0) -&gt; terraingen._terraingen.TriangleMesh</p>
 <p>The heights as a mesh, a vertex per cell with data, in the frame boulder models are written in: world coordinates on a plane, east-north-up meters of <code>site</code> on a sphere. Squares whose four cell centers lie in one of the <code>cutouts</code> boxes (min x, min y, max x, max y) are left out, and a skirt <code>skirt</code> meters deep hangs below every boundary edge. The mesh's <code>positions</code> and <code>triangles</code> are NumPy views of it, without a copy.</p>
 
 
@@ -120159,7 +120159,7 @@ fill(self, grid: terraingen._terraingen.RasterGrid, heights: ndarray[dtype=float
 
     <div class="doc doc-contents ">
 
-        <p>craters_conflict(a: terraingen._terraingen.Crater, b: terraingen._terraingen.Crater, spacing: terraingen._terraingen.CraterSpacing, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ef870>) -&gt; bool</p>
+        <p>craters_conflict(a: terraingen._terraingen.Crater, b: terraingen._terraingen.Crater, spacing: terraingen._terraingen.CraterSpacing, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7b870>) -&gt; bool</p>
 <p>Whether two craters are too close under <code>spacing</code>.</p>
 
 
@@ -120455,7 +120455,7 @@ equilibrium_diffusion_ages(profile: terraingen._terraingen.DiffusedProfile, fres
 
     <div class="doc doc-contents ">
 
-        <p>estimate_power_law_spectrum(heights: terraingen._terraingen.Raster, band: terraingen._terraingen.SpectrumFitBand = <terraingen._terraingen.SpectrumFitBand object at 0x7fba8f56ca80>) -&gt; terraingen._terraingen.PowerLawSpectrum</p>
+        <p>estimate_power_law_spectrum(heights: terraingen._terraingen.Raster, band: terraingen._terraingen.SpectrumFitBand = <terraingen._terraingen.SpectrumFitBand object at 0x7f57d93106f0>) -&gt; terraingen._terraingen.PowerLawSpectrum</p>
 <p>The power law fitted to a raster's radial spectrum.</p>
 
 
@@ -120476,7 +120476,7 @@ equilibrium_diffusion_ages(profile: terraingen._terraingen.DiffusedProfile, fres
 
     <div class="doc doc-contents ">
 
-        <p>estimate_source_roughness(source: terraingen._terraingen.Source, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ef450>) -&gt; terraingen._terraingen.BaseRoughness</p>
+        <p>estimate_source_roughness(source: terraingen._terraingen.Source, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7b450>) -&gt; terraingen._terraingen.BaseRoughness</p>
 <p>The roughness of a source on a lattice of its native cells about its grid's center.</p>
 
 
@@ -120791,7 +120791,7 @@ equilibrium_diffusion_ages(profile: terraingen._terraingen.DiffusedProfile, fres
 
     <div class="doc doc-contents ">
 
-        <p>fill_mesh(heights: terraingen._terraingen.Raster, positions: ndarray[dtype=float64, shape=(*, <em>), order='C', device='cpu'], triangles: ndarray[dtype=int32, shape=(</em>, *), order='C', device='cpu'], surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c5a10>, site: tuple[float, float] = (0.0, 0.0), cutouts: collections.abc.Sequence[tuple[float, float, float, float]] = [], skirt: float = 0.0) -&gt; None</p>
+        <p>fill_mesh(heights: terraingen._terraingen.Raster, positions: ndarray[dtype=float64, shape=(*, <em>), order='C', device='cpu'], triangles: ndarray[dtype=int32, shape=(</em>, *), order='C', device='cpu'], surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9361a10>, site: tuple[float, float] = (0.0, 0.0), cutouts: collections.abc.Sequence[tuple[float, float, float, float]] = [], skirt: float = 0.0) -&gt; None</p>
 <p>Writes the mesh <code>build_mesh</code> makes, bit for bit, into writable C-contiguous arrays: <code>positions</code> float64 of shape (vertices, 3) and <code>triangles</code> int32 of shape (triangles, 3), sized by <code>get_mesh_size</code>.</p>
 
 
@@ -122573,7 +122573,7 @@ perlin_noise3_precise(x: float, y: float, z: float, seed: int) -&gt; float</p>
 
     <div class="doc doc-contents ">
 
-        <p>report_grid(heights: terraingen._terraingen.Raster, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c5dd0>, craters: terraingen._terraingen.CraterFeatures | None = None, boulders: terraingen._terraingen.BoulderFeatures | None = None, crater_target: terraingen._terraingen.SizeFrequencyDistribution | None = None, threads: int = 0) -&gt; terraingen._terraingen.GridReport</p>
+        <p>report_grid(heights: terraingen._terraingen.Raster, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9361dd0>, craters: terraingen._terraingen.CraterFeatures | None = None, boulders: terraingen._terraingen.BoulderFeatures | None = None, crater_target: terraingen._terraingen.SizeFrequencyDistribution | None = None, threads: int = 0) -&gt; terraingen._terraingen.GridReport</p>
 <p>Statistics of <code>heights</code> on <code>surface</code> and of the craters and boulders listed over it: heights, slopes from central differences in meters on the surface (cells without data skipped), craters per power-of-2 diameter bin with the counts <code>crater_target</code> expects, and boulder counts and cover.</p>
 
 
@@ -123047,7 +123047,7 @@ simplex_noise3(x: float, y: float, z: float, seed: int) -&gt; float</p>
 
     <div class="doc doc-contents ">
 
-        <p>source_resolved_limit(source: terraingen._terraingen.Source, pixels_across: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ef990>) -&gt; terraingen._terraingen.SurfaceField</p>
+        <p>source_resolved_limit(source: terraingen._terraingen.Source, pixels_across: float, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7b990>) -&gt; terraingen._terraingen.SurfaceField</p>
 <p>A field of the feature size (m) from which <code>source</code> holds a layer's features: <code>pixels_across</code> times <code>source.resolution_at(x, y)</code>, converted to meters on <code>surface</code>; infinity where it resolves nothing.</p>
 
 
@@ -123152,7 +123152,7 @@ simplex_noise3(x: float, y: float, z: float, seed: int) -&gt; float</p>
 
     <div class="doc doc-contents ">
 
-        <p>thin_by_spacing(craters: terraingen._terraingen.CraterList, spacing: terraingen._terraingen.CraterSpacing, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f6ef8d0>) -&gt; terraingen._terraingen.CraterList</p>
+        <p>thin_by_spacing(craters: terraingen._terraingen.CraterList, spacing: terraingen._terraingen.CraterSpacing, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d9e7b8d0>) -&gt; terraingen._terraingen.CraterList</p>
 <p>The craters without those that conflict with one that takes precedence (Matern II).</p>
 
 
@@ -124691,7 +124691,7 @@ worley3(x: float, y: float, z: float, seed: int) -&gt; tuple</p>
 
     <div class="doc doc-contents ">
 
-        <p>write_boulder_models(boulders: collections.abc.Sequence[terraingen._terraingen.BoulderModel], path: str | os.PathLike, crease_angle: float = 60.0, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7fba8f5c57d0>, site: tuple[float, float] = (0.0, 0.0), instanced: bool = True) -&gt; None</p>
+        <p>write_boulder_models(boulders: collections.abc.Sequence[terraingen._terraingen.BoulderModel], path: str | os.PathLike, crease_angle: float = 60.0, surface: terraingen._terraingen.Surface = <terraingen._terraingen.Surface object at 0x7f57d93617d0>, site: tuple[float, float] = (0.0, 0.0), instanced: bool = True) -&gt; None</p>
 <p>Writes boulder models as a glTF (.glb, .gltf), OBJ or STL scene: each shape once, drawn per boulder, or with <code>instanced</code> false every boulder as its own mesh. On a sphere the world is the east-north-up frame of <code>site</code>. <code>crease_angle</code> in degrees.</p>
 
 
@@ -124747,15 +124747,15 @@ worley3(x: float, y: float, z: float, seed: int) -&gt; tuple</p>
 
     <div class="doc doc-contents ">
 
-        <p>write_geotiff(path: str | os.PathLike, bands: collections.abc.Sequence[terraingen._terraingen.Raster], geo_keys: terraingen._terraingen.GeoKeys = <terraingen._terraingen.GeoKeys object at 0x7fba8f71c030>, options: terraingen._terraingen.GeoTiffWriteOptions = <terraingen._terraingen.GeoTiffWriteOptions object at 0x7fba8f6cbd80>) -&gt; None
-write_geotiff(path: str | os.PathLike, raster: terraingen._terraingen.Raster, geo_keys: terraingen._terraingen.GeoKeys = <terraingen._terraingen.GeoKeys object at 0x7fba8f71c0a0>, options: terraingen._terraingen.GeoTiffWriteOptions = <terraingen._terraingen.GeoTiffWriteOptions object at 0x7fba8f6cbde0>) -&gt; None</p>
+        <p>write_geotiff(path: str | os.PathLike, bands: collections.abc.Sequence[terraingen._terraingen.Raster], geo_keys: terraingen._terraingen.GeoKeys = <terraingen._terraingen.GeoKeys object at 0x7f57d9eac030>, options: terraingen._terraingen.GeoTiffWriteOptions = <terraingen._terraingen.GeoTiffWriteOptions object at 0x7f57d9e57390>) -&gt; None
+write_geotiff(path: str | os.PathLike, raster: terraingen._terraingen.Raster, geo_keys: terraingen._terraingen.GeoKeys = <terraingen._terraingen.GeoKeys object at 0x7f57d9eac0a0>, options: terraingen._terraingen.GeoTiffWriteOptions = <terraingen._terraingen.GeoTiffWriteOptions object at 0x7f57d9e578a0>) -&gt; None</p>
 <p>Overloaded function.</p>
 <ol>
-<li><code>write_geotiff(path: str | os.PathLike, bands: collections.abc.Sequence[terraingen._terraingen.Raster], geo_keys: terraingen._terraingen.GeoKeys = &lt;terraingen._terraingen.GeoKeys object at 0x7fba8f71c030&gt;, options: terraingen._terraingen.GeoTiffWriteOptions = &lt;terraingen._terraingen.GeoTiffWriteOptions object at 0x7fba8f6cbd80&gt;) -&gt; None</code></li>
+<li><code>write_geotiff(path: str | os.PathLike, bands: collections.abc.Sequence[terraingen._terraingen.Raster], geo_keys: terraingen._terraingen.GeoKeys = &lt;terraingen._terraingen.GeoKeys object at 0x7f57d9eac030&gt;, options: terraingen._terraingen.GeoTiffWriteOptions = &lt;terraingen._terraingen.GeoTiffWriteOptions object at 0x7f57d9e57390&gt;) -&gt; None</code></li>
 </ol>
 <p>Writes one or more rasters as the bands of a float32 GeoTIFF, with <code>geo_keys</code> as its CRS.</p>
 <ol>
-<li><code>write_geotiff(path: str | os.PathLike, raster: terraingen._terraingen.Raster, geo_keys: terraingen._terraingen.GeoKeys = &lt;terraingen._terraingen.GeoKeys object at 0x7fba8f71c0a0&gt;, options: terraingen._terraingen.GeoTiffWriteOptions = &lt;terraingen._terraingen.GeoTiffWriteOptions object at 0x7fba8f6cbde0&gt;) -&gt; None</code></li>
+<li><code>write_geotiff(path: str | os.PathLike, raster: terraingen._terraingen.Raster, geo_keys: terraingen._terraingen.GeoKeys = &lt;terraingen._terraingen.GeoKeys object at 0x7f57d9eac0a0&gt;, options: terraingen._terraingen.GeoTiffWriteOptions = &lt;terraingen._terraingen.GeoTiffWriteOptions object at 0x7f57d9e578a0&gt;) -&gt; None</code></li>
 </ol>
 
 
