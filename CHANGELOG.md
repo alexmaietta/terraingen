@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-13
+
 ### Added
 
 - Batched source queries: `Source::HeightsAt(points, heights, spacing)` (Python `Source.heights_at`) gives every point's height in one call, to the bits of `HeightAt`, and point queries of a generator use it; `Source::Fill(grid, heights, spacing, threads)` (Python `Source.fill(grid, array)`) fills a caller's buffer in place.
@@ -401,6 +403,7 @@ Initial release.
 - Examples in C++, Python and JSON.
 - Release archives for Linux, macOS and Windows, Debian packages, and a Docker image.
 
-[Unreleased]: https://github.com/alexmaietta/terraingen/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/alexmaietta/terraingen/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/alexmaietta/terraingen/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/alexmaietta/terraingen/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/alexmaietta/terraingen/releases/tag/v0.1.0

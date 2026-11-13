@@ -12,7 +12,8 @@ authors:
 repository-code: "https://github.com/alexmaietta/terraingen"
 url: "https://alexmaietta.github.io/terraingen/"
 license: BSD-3-Clause
-version: 0.2.0
+version: 0.3.0
+date-released: "2026-11-13"
 keywords:
   - terrain
   - moon
